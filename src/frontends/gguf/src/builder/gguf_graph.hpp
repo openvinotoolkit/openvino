@@ -29,6 +29,7 @@ struct GgufOp {
     std::vector<std::string> input_names;         // producer tensor names (weights / inputs / other nodes)
     std::string output_name;                      // this node's output tensor name
     std::vector<std::string> extra_output_names;  // further outputs of multi-output ops
+    int op_case = 0;
 
     // Typed scalar/struct op attributes consumed by translators via get_attribute<T>
     // (e.g. "eps", "scale", "bias", "max_bias", "swapped", "rope_config").
@@ -40,12 +41,14 @@ struct GgufOp {
 // a parsed GGUF file; consumed by GgufBuilderDecoder.
 struct GgufGraph {
     std::string architecture;
+    ModelContract model_contract;
+    ModelAdapters model_adapters;
     std::vector<GgufOp> nodes;
     std::shared_ptr<TensorMap> values = std::make_shared<TensorMap>();
 
     // Model inputs (Parameters) and extra inputs (e.g. attention_size; Parameter or Constant).
     // Same semantics as the corresponding GgufDecoder getters. Weights are not here: they are
-    // emitted into `nodes` as GGML_OP_NONE leaves (see emit_weight_op).
+    // emitted into `nodes` as GGML_OP_NONE leaves (see add_weight).
     std::map<std::string, std::shared_ptr<ov::Node>> model_inputs;
     std::map<std::string, std::shared_ptr<ov::Node>> model_extra_inputs;
     std::vector<std::string> model_output_names;
@@ -57,9 +60,9 @@ struct GgufGraph {
     bool has_rope = false;
     RopeConfig rope_config;
 
-    // When true, each ROPE op carries its own rope_config (different layers need different n_dims,
-    // e.g. gemma4 SWA vs global). ROPE translators share a sin/cos table only between ops whose
-    // configuration and position input match.
+    // When true, each ROPE op builds its own sin/cos table from its per-op rope_config
+    // (useful when different layers need different n_dims, e.g. gemma4 SWA vs global).
+    // TranslateSession::add_rope_sin_cos skips the shared table when this is set.
     bool use_per_op_rope = false;
 
     // Sliding-window length in tokens, from the GGUF metadata (0 -> not configured: either the

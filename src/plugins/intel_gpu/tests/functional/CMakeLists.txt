@@ -13,21 +13,15 @@ endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
-# Exclude MLIR tests if MLIR support is disabled
-set(EXCLUDED_TEST_PATHS)
-if(NOT ENABLE_MLIR_FOR_GPU)
-    list(APPEND EXCLUDED_TEST_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/mlir_op")
-endif()
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+
+set(GPU_FUNC_TEST_SOURCES ${GPU_FUNCTIONAL_TEST_SOURCES} ${TEST_COMMON_SOURCE_FILES})
 
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
-        ROOT
-            ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS
-            ${TEST_COMMON_SOURCE_DIR}
-        EXCLUDED_SOURCE_PATHS
-            ${EXCLUDED_TEST_PATHS}
+        SOURCES
+            ${GPU_FUNC_TEST_SOURCES}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
@@ -43,6 +37,9 @@ ov_add_test_target(
             OpenCL::OpenCL
         LABELS
             OV GPU
+        CHECK_SOURCES_LISTED
+        CHECK_SOURCES_EXCLUDE_FILES
+            ${GPU_FUNC_TEST_CHECK_SOURCES_EXCLUDE_FILES}
 )
 
 # Functional tests load the plugin dynamically; OV_GPU_WITH_*_RT only selects which remote-tensor
@@ -56,6 +53,13 @@ endif()
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
+endif()
+
+# Same view of intel_gpu/runtime headers as the plugin, which compiles them with ENABLE_ONEDNN_FOR_GPU.
+if(ENABLE_ONEDNN_FOR_GPU)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ONEDNN_FOR_GPU)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
+    add_dependencies(${TARGET_NAME} onednn_gpu_tgt)
 endif()
 
 # try to find VA libraries

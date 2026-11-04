@@ -9,7 +9,9 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
@@ -39,9 +41,10 @@ ov::Output<ov::Node> in_f32(const ov::Output<ov::Node>& input, Body body) {
 OutputVector translate_unary_hardsigmoid(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto res = in_f32(context.get_input(0), [](const ov::Output<ov::Node>& x) -> ov::Output<ov::Node> {
-        return std::make_shared<ov::op::v0::HardSigmoid>(x,
-                                                         ov::op::v0::Constant::create(ov::element::f32, {}, {1.0f / 6.0f}),
-                                                         ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f}));
+        return std::make_shared<ov::op::v0::HardSigmoid>(
+            x,
+            ov::op::v0::Constant::create(ov::element::f32, {}, {1.0f / 6.0f}),
+            ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f}));
     });
     return rename_outputs_with_suffix({res}, context.get_name());
 }
@@ -50,8 +53,16 @@ OutputVector translate_unary_hardsigmoid(const NodeContext& context) {
 OutputVector translate_unary_expm1(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto res = in_f32(context.get_input(0), [](const ov::Output<ov::Node>& x) -> ov::Output<ov::Node> {
-        return std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v0::Exp>(x),
-                                                      ov::op::v0::Constant::create(ov::element::f32, {}, {1.0f}));
+        const auto one = ov::op::v0::Constant::create(ov::element::f32, {}, {1.0f});
+        auto half =
+            std::make_shared<ov::op::v1::Multiply>(x, ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f}));
+        auto exp_half = std::make_shared<ov::op::v0::Exp>(half);
+        // Splitting positive exponents avoids premature overflow in exp kernels.
+        auto exponential =
+            std::make_shared<ov::op::v1::Select>(std::make_shared<ov::op::v1::Greater>(x, one),
+                                                 std::make_shared<ov::op::v1::Multiply>(exp_half, exp_half),
+                                                 std::make_shared<ov::op::v0::Exp>(x));
+        return std::make_shared<ov::op::v1::Subtract>(exponential, one);
     });
     return rename_outputs_with_suffix({res}, context.get_name());
 }
@@ -69,7 +80,8 @@ OutputVector translate_unary_step(const NodeContext& context) {
 // GGML_UNARY_OP_ROUND: round half away from zero, like roundf.
 OutputVector translate_unary_round(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
-    auto res = std::make_shared<ov::op::v5::Round>(context.get_input(0), ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+    auto res =
+        std::make_shared<ov::op::v5::Round>(context.get_input(0), ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 

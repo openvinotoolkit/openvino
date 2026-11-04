@@ -13,10 +13,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "utils.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
 
@@ -53,7 +53,8 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
                 false);
             // A rank-1 axis: the form the plugin's StatelessKVFusion matches.
             auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-            std::shared_ptr<ov::Node> scattered = std::make_shared<ov::op::v3::ScatterUpdate>(dst, indices, tokens, axis);
+            std::shared_ptr<ov::Node> scattered =
+                std::make_shared<ov::op::v3::ScatterUpdate>(dst, indices, tokens, axis);
             scattered->set_friendly_name(set_rows->get_friendly_name());
             ov::copy_runtime_info(set_rows, scattered);
             ov::replace_node(set_rows, scattered);

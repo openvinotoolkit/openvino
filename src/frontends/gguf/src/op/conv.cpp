@@ -57,12 +57,13 @@ OutputVector translate_conv_2d_dw(const NodeContext& context) {
     // [C, 1, KH, KW] -> GroupConvolution filter [C, 1, 1, KH, KW].
     auto kernel = std::make_shared<ov::op::v0::Unsqueeze>(as_f32(context.get_input(0)),
                                                           ov::op::v0::Constant::create(ov::element::i64, {1}, {1}));
-    auto res = std::make_shared<ov::op::v1::GroupConvolution>(as_f32(context.get_input(1)),
-                                                              kernel,
-                                                              ov::Strides{size_t(p[1]), size_t(p[0])},
-                                                              ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
-                                                              ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
-                                                              ov::Strides{size_t(p[5]), size_t(p[4])});
+    auto res =
+        std::make_shared<ov::op::v1::GroupConvolution>(as_f32(context.get_input(1)),
+                                                       kernel,
+                                                       ov::Strides{size_t(p[1]), size_t(p[0])},
+                                                       ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
+                                                       ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
+                                                       ov::Strides{size_t(p[5]), size_t(p[4])});
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 
@@ -77,12 +78,14 @@ OutputVector translate_conv_transpose_1d(const NodeContext& context) {
     const int64_t Cout = inner_dim(kernel_shape, 2, "CONV_TRANSPOSE_1D");
     const int64_t Cin = inner_dim(kernel_shape, 3, "CONV_TRANSPOSE_1D");
     const int64_t L = inner_dim(context.get_input(1).get_partial_shape(), 1, "CONV_TRANSPOSE_1D");
-    auto kernel = std::make_shared<ov::op::v1::Reshape>(as_f32(context.get_input(0)),
-                                                        ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{Cin, Cout, K}),
-                                                        false);
-    auto input = std::make_shared<ov::op::v1::Reshape>(as_f32(context.get_input(1)),
-                                                       ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{-1, Cin, L}),
-                                                       false);
+    auto kernel = std::make_shared<ov::op::v1::Reshape>(
+        as_f32(context.get_input(0)),
+        ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{Cin, Cout, K}),
+        false);
+    auto input = std::make_shared<ov::op::v1::Reshape>(
+        as_f32(context.get_input(1)),
+        ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{-1, Cin, L}),
+        false);
     auto conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(input,
                                                                       kernel,
                                                                       ov::Strides{size_t(p[0])},
@@ -125,6 +128,16 @@ OutputVector translate_conv_3d(const NodeContext& context) {
     const int64_t IW = inner_dim(input_shape, 1, "CONV_3D");
     const int64_t IH = inner_dim(input_shape, 2, "CONV_3D");
     const int64_t ID = inner_dim(input_shape, 3, "CONV_3D");
+    if (KW == 0 || KH == 0 || KD == 0) {
+        const int64_t OW = (IW + 2 * p[3] - p[6] * (KW - 1) - 1) / p[0] + 1;
+        const int64_t OH = (IH + 2 * p[4] - p[7] * (KH - 1) - 1) / p[1] + 1;
+        const int64_t OD = (ID + 2 * p[5] - p[8] * (KD - 1) - 1) / p[2] + 1;
+        FRONT_END_OP_CONVERSION_CHECK(OW >= 0 && OH >= 0 && OD >= 0, "Invalid CONV_3D output dimensions");
+        auto zero = ov::op::v0::Constant::create(ov::element::f32,
+                                                 ov::Shape{size_t(n * oc), size_t(OD), size_t(OH), size_t(OW)},
+                                                 {0.0f});
+        return rename_outputs_with_suffix({zero}, context.get_name());
+    }
     auto kernel = std::make_shared<ov::op::v1::Reshape>(
         as_f32(context.get_input(0)),
         ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{oc, c, KD, KH, KW}),
@@ -133,12 +146,13 @@ OutputVector translate_conv_3d(const NodeContext& context) {
         as_f32(context.get_input(1)),
         ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{n, c, ID, IH, IW}),
         false);
-    auto conv = std::make_shared<ov::op::v1::Convolution>(input,
-                                                          kernel,
-                                                          ov::Strides{size_t(p[2]), size_t(p[1]), size_t(p[0])},
-                                                          ov::CoordinateDiff{std::ptrdiff_t(p[5]), std::ptrdiff_t(p[4]), std::ptrdiff_t(p[3])},
-                                                          ov::CoordinateDiff{std::ptrdiff_t(p[5]), std::ptrdiff_t(p[4]), std::ptrdiff_t(p[3])},
-                                                          ov::Strides{size_t(p[8]), size_t(p[7]), size_t(p[6])});
+    auto conv = std::make_shared<ov::op::v1::Convolution>(
+        input,
+        kernel,
+        ov::Strides{size_t(p[2]), size_t(p[1]), size_t(p[0])},
+        ov::CoordinateDiff{std::ptrdiff_t(p[5]), std::ptrdiff_t(p[4]), std::ptrdiff_t(p[3])},
+        ov::CoordinateDiff{std::ptrdiff_t(p[5]), std::ptrdiff_t(p[4]), std::ptrdiff_t(p[3])},
+        ov::Strides{size_t(p[8]), size_t(p[7]), size_t(p[6])});
     // [n, oc, OD, OH, OW] -> ggml's [OW, OH, OD, oc * n], i.e. OV [n * oc, OD, OH, OW].
     auto spatial = gather_dims(std::make_shared<ov::op::v3::ShapeOf>(conv, ov::element::i64), {2, 3, 4});
     auto target = std::make_shared<ov::op::v0::Concat>(

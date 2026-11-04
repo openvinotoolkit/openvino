@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "op_table.hpp"
 #include "openvino/op/add.hpp"
+
+#include "op_table.hpp"
 #include "openvino/op/convert.hpp"
 #include "utils.hpp"
 
@@ -23,7 +24,12 @@ OutputVector translate_add(const NodeContext& context) {
         return type == ov::element::f32 || type == ov::element::f16 || type == ov::element::bf16;
     };
     FRONT_END_OP_CONVERSION_CHECK(is_float(lhs_type) && is_float(rhs_type) && is_float(output_type),
-                                  "Unsupported ADD input/output types: ", lhs_type, ", ", rhs_type, ", ", output_type);
+                                  "Unsupported ADD input/output types: ",
+                                  lhs_type,
+                                  ", ",
+                                  rhs_type,
+                                  ", ",
+                                  output_type);
     // GGML accumulates mixed floating-point operands in f32, then rounds to the destination type.
     if (lhs_type != ov::element::f32) {
         lhs = std::make_shared<ov::op::v0::Convert>(lhs, ov::element::f32);

@@ -9,6 +9,18 @@
 namespace ov::frontend::gguf {
 
 namespace op {
+OutputVector translate_conv_2d_dw(const NodeContext& context);
+OutputVector translate_conv_3d(const NodeContext& context);
+OutputVector translate_conv_transpose_1d(const NodeContext& context);
+OutputVector translate_conv_transpose_2d(const NodeContext& context);
+OutputVector translate_dup(const NodeContext& context);
+OutputVector translate_im2col_3d(const NodeContext& context);
+OutputVector translate_mean(const NodeContext& context);
+OutputVector translate_sum(const NodeContext& context);
+OutputVector translate_unary_expm1(const NodeContext& context);
+OutputVector translate_unary_hardsigmoid(const NodeContext& context);
+OutputVector translate_unary_round(const NodeContext& context);
+OutputVector translate_unary_step(const NodeContext& context);
 
 #define GGUF_OP_CONVERTER(op) OutputVector op(const NodeContext& context)
 
@@ -17,7 +29,6 @@ GGUF_OP_CONVERTER(translate_add);
 // Structural / memory ops.
 GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
-GGUF_OP_CONVERTER(translate_dup);
 GGUF_OP_CONVERTER(translate_cpy);
 GGUF_OP_CONVERTER(translate_get_rows);
 GGUF_OP_CONVERTER(translate_get_rel_pos);
@@ -87,17 +98,6 @@ GGUF_OP_CONVERTER(translate_fill);
 GGUF_OP_CONVERTER(translate_im2col);
 GGUF_OP_CONVERTER(translate_pool_2d);
 GGUF_OP_CONVERTER(translate_conv_2d);
-GGUF_OP_CONVERTER(translate_conv_2d_dw);
-GGUF_OP_CONVERTER(translate_conv_3d);
-GGUF_OP_CONVERTER(translate_conv_transpose_1d);
-GGUF_OP_CONVERTER(translate_conv_transpose_2d);
-GGUF_OP_CONVERTER(translate_im2col_3d);
-GGUF_OP_CONVERTER(translate_mean);
-GGUF_OP_CONVERTER(translate_sum);
-GGUF_OP_CONVERTER(translate_unary_hardsigmoid);
-GGUF_OP_CONVERTER(translate_unary_expm1);
-GGUF_OP_CONVERTER(translate_unary_step);
-GGUF_OP_CONVERTER(translate_unary_round);
 GGUF_OP_CONVERTER(translate_upscale);
 GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_roll);

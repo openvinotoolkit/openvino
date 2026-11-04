@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
 #include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
-#include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
@@ -22,21 +23,16 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
 
     auto sx = context.get_input(0);  // conv state + input: OV [1, n_s, d_inner, ncs]
-    auto c = context.get_input(1);   // conv1d weight:      OV [.., d_inner, d_conv] (rank 2 or 4)
+    auto c = context.get_input(1);   // conv1d weight:      OV [1, 1, d_inner, d_conv]
 
-    // Index from the innermost axis: a decoder may describe the weight with its own rank (a raw
-    // [d_inner, d_conv] tensor) rather than ggml's rank 4.
     auto sx_shape = context.get_input_shape(0);
     auto c_shape = context.get_input_shape(1);
+
     FRONT_END_OP_CONVERSION_CHECK(sx_shape.rank().is_static() && sx_shape.rank().get_length() >= 3 &&
                                       c_shape.rank().is_static() && c_shape.rank().get_length() >= 2,
                                   "SSM_CONV requires static input ranks");
     const auto sx_rank = sx_shape.rank().get_length();
     const auto c_rank = c_shape.rank().get_length();
-    FRONT_END_OP_CONVERSION_CHECK(sx_shape[sx_rank - 3].is_static() && sx_shape[sx_rank - 2].is_static() &&
-                                      c_shape[c_rank - 1].is_static(),
-                                  "SSM_CONV requires static sequence, channel and kernel extents");
-
     int64_t n_s = sx_shape[sx_rank - 3].get_length();
     int64_t d_inner = sx_shape[sx_rank - 2].get_length();
     int64_t d_conv = c_shape[c_rank - 1].get_length();
@@ -62,6 +58,8 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     // [n_s, d_inner, n_t] -> [n_s, n_t, d_inner]
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 2, 1});
     auto transposed = std::make_shared<ov::op::v1::Transpose>(conv, perm);
+    if (context.get_attribute<bool>("fuse_silu", false))
+        transposed->set_argument(0, std::make_shared<ov::op::v4::Swish>(conv));
 
     if (context.get_attribute<bool>("batch_major", false)) {
         return rename_outputs_with_suffix(

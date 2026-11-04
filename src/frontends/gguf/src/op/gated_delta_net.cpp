@@ -8,10 +8,12 @@
 #include <cstdint>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -25,29 +27,87 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
+namespace {
+
+struct FeatureSlice {
+    std::shared_ptr<ov::op::v1::Reshape> reshape;
+    std::shared_ptr<ov::op::v8::Slice> slice;
+    int64_t begin, end;
+};
+
+std::optional<FeatureSlice> match_feature_slice(const Output<Node>& value, const std::vector<int64_t>& target) {
+    using ov::op::util::has_constant_value;
+    const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(value.get_node_shared_ptr());
+    if (!reshape || !reshape->get_special_zero() ||
+        !has_constant_value<int64_t>(reshape->get_input_node_shared_ptr(1), target))
+        return std::nullopt;
+    const auto slice = ov::as_type_ptr<ov::op::v8::Slice>(reshape->get_input_node_shared_ptr(0));
+    if (!slice || slice->get_input_size() != 5 ||
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(3), 1) ||
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(4), 3))
+        return std::nullopt;
+    const auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(1));
+    const auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(2));
+    if (!begin || !end || ov::shape_size(begin->get_shape()) != 1 || ov::shape_size(end->get_shape()) != 1)
+        return std::nullopt;
+    return FeatureSlice{reshape, slice, begin->cast_vector<int64_t>()[0], end->cast_vector<int64_t>()[0]};
+}
+
+}  // namespace
+
+static Output<Node> join_adjacent_qk(const Output<Node>& q, const Output<Node>& k) {
+    const auto shape = q.get_partial_shape();
+    if (shape.rank() != 4 || !shape[2].is_static() || !shape[3].is_static() ||
+        q.get_element_type() != k.get_element_type())
+        return {};
+    const auto heads = shape[2].get_length(), width = shape[3].get_length();
+    const std::vector<int64_t> target{0, -1, heads, width};
+    const auto qs = match_feature_slice(q, target);
+    const auto ks = match_feature_slice(k, target);
+    if (!qs || !ks || qs->slice->input_value(0) != ks->slice->input_value(0))
+        return {};
+    const auto source_shape = qs->slice->get_input_partial_shape(0);
+    if (qs->begin < 0 || qs->end - qs->begin != heads * width || ks->begin != qs->end ||
+        ks->end - ks->begin != heads * width || source_shape.rank() != 4 || source_shape[1] != 1 ||
+        !source_shape[3].is_static() || ks->end > source_shape[3].get_length())
+        return {};
+    const auto slice = std::make_shared<ov::op::v8::Slice>(qs->slice->input_value(0),
+                                                           qs->slice->input_value(1),
+                                                           ks->slice->input_value(2),
+                                                           qs->slice->input_value(3),
+                                                           qs->slice->input_value(4));
+    const auto joined = std::make_shared<ov::op::v1::Reshape>(
+        slice,
+        ov::op::v0::Constant::create<int64_t>(ov::element::i64, {4}, {0, -1, 2 * heads, width}),
+        true);
+    ov::copy_runtime_info({qs->slice, ks->slice, qs->reshape, ks->reshape}, {slice, joined});
+    return joined;
+}
+
 // GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the internal (non-opset) op
 // ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
 // IR-serializable (see docs/runtime.md). The fused op only supports scalar gating, so the
 // per-key-dimension gating case (kda) uses the serializable Loop reference path below.
-// Optional operand 6 is the number of valid tokens in a padded static chunk; padded tokens must not
-// update the recurrent state.
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 7);
 
-    auto v_shape = context.get_input(2).get_partial_shape();  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input(0).get_partial_shape();  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input(3).get_partial_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
     const int64_t H_v = v_shape[2].get_length();
     const int64_t S_v = v_shape[3].get_length();
@@ -84,8 +144,15 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // square root instead, which differs for small vectors, so normalize here.
     if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
         const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
-        q = make_l2_norm(q, eps);
-        k = make_l2_norm(k, eps);
+        if (const auto joined = join_adjacent_qk(q, k); joined.get_node()) {
+            const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+            const auto normalized = std::make_shared<ov::op::v1::Split>(make_l2_norm(joined, eps), axis, 2);
+            q = normalized->output(0);
+            k = normalized->output(1);
+        } else {
+            q = make_l2_norm(q, eps);
+            k = make_l2_norm(k, eps);
+        }
     }
 
     // ggml maps GQA heads in tiled order, while the OV op maps repeated heads in grouped order:
@@ -109,7 +176,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
-    if (context.get_input_size() == 7) {
+    if (context.get_input_size() == 7 || context.has_input("chunk_valid_len")) {
         const auto& g_shape = g.get_partial_shape();
         FRONT_END_OP_CONVERSION_CHECK(
             g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
@@ -119,7 +186,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         std::iota(positions.begin(), positions.end(), 0);
         auto valid = std::make_shared<ov::op::v1::Less>(
             ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(n_tokens)}, positions),
-            context.get_input(6));
+            context.get_input_size() == 7 ? context.get_input(6) : context.get_input("chunk_valid_len"));
         auto mask = std::make_shared<ov::op::v0::Unsqueeze>(
             std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
             ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{0, 2}));
@@ -161,9 +228,9 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
-    auto v_shape = v.get_partial_shape();  // [B, T, H_v, S_v]
-    auto q_shape = q.get_partial_shape();  // [B, T, H_k, S_k]
-    auto g_shape = g.get_partial_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
     const int64_t B = v_shape[0].get_length();
     const int64_t H_v = v_shape[2].get_length();
@@ -182,7 +249,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
         k = make_l2_norm(k, eps);
     }
 
-    if (context.get_input_size() == 7) {
+    if (context.get_input_size() == 7 || context.has_input("chunk_valid_len")) {
         FRONT_END_OP_CONVERSION_CHECK(v_shape[1].is_static(),
                                       "GATED_DELTA_NET pad masking requires a static token dimension");
         const int64_t T = v_shape[1].get_length();
@@ -190,7 +257,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
         std::iota(positions.begin(), positions.end(), 0);
         auto valid = std::make_shared<ov::op::v1::Less>(
             ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(T)}, positions),
-            context.get_input(6));
+            context.get_input_size() == 7 ? context.get_input(6) : context.get_input("chunk_valid_len"));
         auto mask = std::make_shared<ov::op::v1::Reshape>(
             std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, T, 1, 1}),

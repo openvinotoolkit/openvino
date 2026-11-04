@@ -10,12 +10,19 @@ a `ModelBuilder` factory and an optional metadata predicate. The built-in catalo
 promoted unchanged. Registration and packaging are covered in [extensions.md](extensions.md).
 A vision/audio branch inside an mmproj file is a [projector component](extensions.md#extend-mmproj-with-a-projector-component), not an architecture.
 
+All architecture-specific decisions belong in `src/builder/`: metadata schemas and defaults,
+topology, operation selection, model contracts and specialized adapters. Built-in and extension
+factories use the same interfaces, so an extension can override every architecture-specific
+behavior. File parsing, quantization, translators and generic adaptation code consume explicit
+parameters and contracts and remain reusable by GenAI and the llama.cpp OpenVINO backend.
+
 ## Choose the smallest implementation
 
 | Requirement | Implementation |
 |---|---|
 | Existing decoder topology, new name | Catalog row or `make_decoder_architecture(name, rope)` |
-| Decoder facts that tensors/metadata cannot determine | Add a callback returning `DecoderOptions` |
+| Complete decoder semantics or metadata defaults | Add a callback returning `DecoderParameters` |
+| Small overrides of the convenience decoder defaults | Add a callback returning `DecoderOptions` |
 | Custom layer order using existing sublayers | `ModelBuilder` with `configure_decoder`, `decoder_attention`, `decoder_ffn` |
 | Different model family | `ModelBuilder` with generic operations; follow [porting from llama.cpp](#port-from-llamacpp) |
 
@@ -60,10 +67,48 @@ describe ordering and routing facts, not execution plans. Unset fields keep nati
 callback runs before dependent SWA, RoPE and KV configuration is resolved. For example, EXAONE4's
 `post_attention_norm` is a post-norm, while GPT-OSS uses the same name for a pre-FFN norm.
 
+### Supply complete decoder parameters
+
+The typed overload bypasses built-in name policy, including for a replacement of a built-in:
+
+```cpp
+using namespace ov::frontend::gguf;
+auto definition = make_decoder_architecture("my-layernorm", [](const BuildContext& context) {
+    DecoderParameters defaults;
+    defaults.normalization.kind = NormalizationKind::Layer;
+    auto parameters = read_decoder_parameters(context.metadata, defaults);
+    parameters.scales.embedding = 2.0f;
+    parameters.activation = FfnActivation::ReluSquared;
+    return parameters;
+});
+```
+
+`DecoderParameters` groups dimensions, normalization, scaling, attention/RoPE/SWA, experts,
+recurrent layers and the model contract. `layers` is empty or describes every trunk layer
+(optionally including trailing NextN layers); each entry overrides selected layer parameters.
+A custom topology calls `configure_decoder(parameters)` before reusing decoder blocks.
+Complete parameters and overrides are validated before dependent plans are derived.
+
+`ModelContract` declares recurrent batching and image-attention semantics consumed by generic
+GenAI adaptation. Decoder configuration exports it automatically; other builders may call
+`configure_model_contract(contract)`; `model_contract()` returns the declarations made so far. The common `GgufDecoder::get_model_contract()` accessor
+also lets the llama.cpp adapter supply resolved facts. Architecture names are diagnostic data.
+An explicit `batchable_recurrent` value overrides structural inference; leave it unset to infer
+batching from generic operation capabilities. All three states survive IR serialization.
+`sequence_outputs` names auxiliary decoder outputs that `AdaptToGenAI` reshapes to
+`[B,T,D]`. `component_groups` declares named groups of independently selectable models,
+the primary model of each group, its output names and its recurrent-state prefix.
+The contracts survive IR serialization; adaptation consumes them without family-name checks.
+`supports_genai_adaptation` lets a builder reject the standard decoder interface
+when its graph requires a different inference protocol. An unset value defers to
+legacy input compatibility, which is resolved before serializing the contract.
+
 ### Auto-detected features
 
-`decoder_config_from_meta()` reads hyperparameters once and `DecoderConfig` resolves them; the
-topology builder never rereads metadata.
+`read_decoder_parameters()` reads generic metadata through the schema/defaults chosen by the
+architecture factory; `DecoderConfig` validates those typed inputs and derives layer and cache
+plans. Built-in family policy lives in `builder/arch/decoder_family.cpp`. The old normalized-map
+helpers remain internal migration adapters under builder. The topology never rereads metadata.
 
 | Feature | Detected from |
 |---|---|
@@ -81,6 +126,20 @@ topology builder never rereads metadata.
 | Sliding-window attention | `attention.sliding_window(_pattern)`, or sinks |
 | Per-layer KV heads | `attention.head_count_kv` as an array |
 
+Attention output gates may provide one sigmoid value per channel or per head.
+The shared attention block reshapes per-head gates to `[B,T,H,1]` and broadcasts
+across head dimensions, preserving the existing full-width and interleaved gate
+paths. When GGUF frequency factors encode partial RoPE, retain those factors
+instead of reducing the rotary dimension; sliding layers can select a different
+RoPE configuration through the per-layer decoder parameters.
+
+MiniCPM's `logit_scale` is a divisor. When the key is absent, the builder uses
+`embedding_length / 256`, giving the model's `256 / embedding_length` output multiplier.
+This deliberately corrects the inverted fallback in unpatched llama.cpp, which defaults the
+divisor to `256 / embedding_length`. The llama.cpp branch used by frontend validation carries
+the same correction; `minicpm-default.npz` captures its CPU logits without the metadata key.
+Files with an explicit `logit_scale` retain its value.
+
 Per-layer variation goes through `DecoderConfig` accessors, not inline ternaries in `build_layer()`:
 `layer_is_swa`, `layer_is_moe`, `layer_head_size`, `layer_n_head_kv`, `layer_kq_scale`,
 `layer_rope_config` and `is_recurrent_layer`. Extend them for a new per-layer dimension.
@@ -92,8 +151,8 @@ extensions include MoE routing (`blocks::moe_ffn()`), gpt-oss sinks and OAI SwiG
 LayerNorm and ReLU² FFN, gemma2/3 post-norms and soft-caps, gemma4 per-layer embeddings and shared KV,
 and qwen35 Gated DeltaNet layers that return the same sublayer output as attention. To add one:
 
-1. Add detection in `DecoderConfig`. Prefer weight presence; use `arch == "..."` only when the tensor
-   table is ambiguous (for example GeGLU versus SwiGLU).
+1. Describe the feature in `DecoderParameters`. Select architecture-specific values in the owning
+   family helper or extension factory; retain only unambiguous structural detection in `DecoderConfig`.
 2. Emit it behind that flag in the relevant `blocks/` function, or in `DecoderBuilder::build_layer()`
    when it changes sublayer order.
 3. Add a converter only if a GGML operation is missing; see [how_to_add_op.md](how_to_add_op.md).
@@ -128,6 +187,17 @@ are a snapshot. `decoder_layer_parameters(layer)` supplies resolved heads, scale
 for a custom attention fragment. The Qwen3 builder in
 [`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp) owns its layer order
 this way; `VisionEncoderBuilder` in the same file is a larger non-decoder family.
+
+The [LFM builder](../src/builder/arch/lfm_builder.cpp) handles `lfm2`, `lfm2moe` and
+`lfm3` in one decoder loop. Family-specific metadata and tensor validation select
+normalization and output behavior; residual connections, short convolution,
+attention and FFN construction are shared.
+For `lfm3`, zero per-layer KV
+heads select short convolution; other layers use sliding or full attention. Its
+dense SwiGLU layers require both post-attention and post-FFN norms or neither.
+Sliding layers rotate the full head, while full-attention layers retain the
+partial rotation encoded by `rope_freqs.weight`. Final normalization requires
+`output_norm.weight`; an absent output projection uses tied token embeddings.
 
 ### Declare model contracts
 
@@ -196,9 +266,9 @@ Port one fragment at a time, keeping operand order. Use shared blocks only where
 | `ggml_new_tensor_*` for runtime data | `add_input(name, type, shape)` |
 | `ggml_add` / `ggml_sub` / `ggml_mul` | `node("GGML_OP_ADD" / "GGML_OP_SUB" / "GGML_OP_MUL", {a, b})` |
 | `ggml_mul_mat(ctx, weight, x)` | `node("GGML_OP_MUL_MAT", {weight, x})` |
-| `ggml_rms_norm(ctx, x, eps)` | `node("GGML_OP_RMS_NORM", {x}, {{"eps", eps}})`; learned scale is a separate multiply |
-| `ggml_reshape_*` | `GGML_OP_RESHAPE` with OpenVINO-order `reshape_target`, optional `special_zero` |
-| `ggml_permute` | `GGML_OP_PERMUTE` with OpenVINO-order `perm` |
+| `ggml_rms_norm(ctx, x, eps)` | `node("GGML_OP_RMS_NORM", {x}, 0, {{"eps", eps}})`; learned scale is a separate multiply |
+| `ggml_reshape_*` | `GGML_OP_RESHAPE` case 6 with OpenVINO-order `reshape_target`, optional `special_zero` |
+| `ggml_permute` | `GGML_OP_PERMUTE` case 1 with OpenVINO-order `perm` |
 | `ggml_view_*` | Converter attributes describing the logical slice; never a ggml pointer |
 | `ggml_top_k(ctx, scores, k)` | `GGML_OP_TOP_K` with `int64_t` attribute `k` |
 | `ggml_cpy` / `ggml_set*` for state | The updated tensor and its state relationship, not an in-place side effect |
@@ -208,14 +278,9 @@ Layout rules:
 
 - `ggml_permute` gives each source axis's destination; OpenVINO `perm` lists source axes in output
   order. For GGML axes `axes[i]`, `perm[3 - axes[i]] = 3 - i`. Derive it from axis meanings.
-- VIEW accepts `view_slice = {ov_axis, start, length}` and optional `view_reshape` for a contiguous
-  subrange, or the ggml byte strides and offset (`view_input_strides`, `view_output_strides`,
-  `view_offset_bytes`, `output_dynamic_axis`) for any strided layout. To follow another tensor's runtime
-  layout, reshape with a reference operand (`RESHAPE` with `shape_axes`).
-- CONT is a passthrough unless it carries `cont_reshape`; `ggml_cont_2d/3d/4d` still has a reshape to
-  preserve. Keep real transposes.
-- `FLASH_ATTN_EXT` takes ggml's operand layout `[B, n_head, n_tokens, head_size]`: PERMUTE q/k/v first,
-  as llama.cpp does.
+- VIEW case 3 accepts `view_slice = {ov_axis, start, length}` and optional `view_reshape` for a
+  contiguous subrange. Strided views need a suitable converter or explicit layout operations.
+- CONT case 1 is a passthrough, but `ggml_cont_2d/3d/4d` still carries a reshape. Keep real transposes.
 - Preserve dynamic token/item axes. A one-token graph does not validate broadcasting.
 
 ### 4. Implement a whole-model builder
@@ -309,16 +374,16 @@ resulting `GgufValue` exposes OpenVINO's inferred `shape()`, `type()` and revers
 ```cpp
 auto sum = graph.node("GGML_OP_ADD", {a, b});
 auto projected = graph.node("GGML_OP_MUL_MAT", {weight, sum});
-auto experts = graph.node("GGML_OP_TOP_K", {scores}, {{"k", int64_t{2}}});
-auto heads = graph.node("GGML_OP_RESHAPE", {projected},
+auto experts = graph.node("GGML_OP_TOP_K", {scores}, 0, {{"k", int64_t{2}}});
+auto heads = graph.node("GGML_OP_RESHAPE", {projected}, 6,
                         {{"reshape_target", std::vector<int64_t>{0, -1, n_heads, head_size}},
                          {"special_zero", true}});
-auto merged = graph.node("GGML_OP_RESHAPE", {heads}, {{"merge_heads", true}});
-auto half = graph.node("GGML_OP_CPY", {input}, {{"dst_type", ov::element::f16}});
+auto merged = graph.node("GGML_OP_RESHAPE", {heads}, 2, {{"merge_heads", true}});
+auto half = graph.node("GGML_OP_CPY", {input}, 0, {{"dst_type", ov::element::f16}});
 ```
 
-Operands follow GGML order (weight before activation). Named attributes carry every operation
-parameter (`reshape_target`, `perm`, `view_slice`, `repeats`, `rope_mode`,
+Operands follow GGML order (weight before activation). `op_case` selects a converter's semantic
+variant; attributes carry operation parameters (`reshape_target`, `perm`, `view_slice`, `repeats`,
 GGML-order `concat_axis`, TopK `k`), never inferred output metadata. Architecture code does not supply
 output types; converters apply the [result-type rules](how_to_add_op.md#translator-shape), and only
 casts and `IM2COL` take `dst_type`. The builder API is not a drop-in `llm_graph_context`; local

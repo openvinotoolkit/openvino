@@ -23,6 +23,13 @@ device backend. Extensions attached to an `ov::BaseOpExtension` and shared-libra
 unwrapped; a bare custom operation supplies no GGML converter. `TelemetryExtension` is stored but
 never invoked; other types are ignored.
 
+GenAI integration in [PR #4683](https://github.com/openvinotoolkit/openvino.genai/pull/4683)
+accepts extension objects or library paths through `ov::genai::extensions(...)` in C++, or
+library paths through `extensions=[...]` in Python. For `LLMPipeline` and
+`ContinuousBatchingPipeline`, also select `GGUF_READER="FRONTEND"`. Extensions are registered
+before loading on every GGUF frontend, including both language and projector frontends in
+`VLMPipeline`.
+
 ## Lifecycle
 
 Use one frontend instance for registration, loading and conversion:
@@ -68,6 +75,12 @@ frontend->add_extension(std::make_shared<ArchitectureExtension>(definition));
 `ArchitectureExtension(ArchitectureDefinition)` also accepts a custom `ModelBuilder` factory with no
 RoPE mode. See [architectures.md](architectures.md) for options, builders, porting and validation.
 
+A callback returning `DecoderParameters` gives full control over decoder dimensions,
+normalization, scales, layer/RoPE/SWA settings, routing and model contracts. It bypasses the
+convenience helper's built-in architecture defaults; see [complete parameters](architectures.md#supply-complete-decoder-parameters).
+A custom whole-model factory can replace topology using generic graph operations or the shared
+blocks through `configure_decoder(parameters)`.
+
 ### Matching and replacement
 
 A handler matches on `general.architecture`, then its optional predicate. Handlers with different
@@ -92,7 +105,7 @@ selects branches as described in [mmproj.md](mmproj.md#files-with-vision-and-aud
 outputs `vision.embeddings` / `audio.embeddings` and finishes the model.
 
 A `ProjectorDefinition` has `id`, `architecture`, `modality` (`vision` or `audio`),
-`projector_type`, `build` and optional `match`. `build` appends to the shared `GgufGraphContext` and
+`projector_type`, `build` and optional `match`, `genai_layout` and `genai_adapter`. `build` appends to the shared `GgufGraphContext` and
 returns `ProjectorResult`: the output and optional string configuration under the modality prefix.
 It must not call `finish()` or register the primary output; extra inputs need unique names. A
 predicate may distinguish variants of one resolved type; two matching handlers are an error.
@@ -119,7 +132,7 @@ ProjectorDefinition audio{
     "clip.audio.example", "clip", "audio", "example-audio",
     [](GgufGraphContext& graph) {
         auto input = graph.add_input("audio.example_input", ov::element::f32, {1, 1, -1, 8});
-        auto output = graph.node("GGML_OP_SCALE", {input}, {{"scale", 2.0f}, {"bias", 0.0f}});
+        auto output = graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}});
         return ProjectorResult{output, {{"audio.merge", "1"}}};
     },
     {}};
@@ -129,6 +142,32 @@ To replace one built-in branch, reuse its id (for example `clip.vision.gemma3`) 
 `RegistrationMode::Replace`; other branches and the `clip.mmproj` coordinator stay active. The
 component list comes from `ArchRegistry::projectors().supported_projectors()`. An architecture other
 than `clip` would also need its own whole-model coordinator.
+
+The builder selects GenAI layout explicitly with `genai_layout`. Recipes describe input
+semantics (`Image`, `PaddedPatches`, `WindowedPatches`, `SplitMerger`) and are serialized with the
+model; generic adaptation never selects them by projector name. `build_builtin_projector()`
+returns the recipe matching its graph. A result's explicit recipe overrides the definition.
+
+A projector may declare its components with `configure_model_contract()`. For `lfm3vl`, `lfm3a`
+and `lfm3a_gen` models the coordinator reads that declaration through `model_contract()` and
+adds built-in component groups only where the projector declared none; declared recurrent
+batching, outputs and state prefixes are preserved. `build_builtin_projector()` also builds
+`lfm3vl` (vision) and `lfm3a` (audio).
+
+A custom `genai_adapter` runs for both `EMBEDDINGS` and `VISION_ENCODERS` after generic extraction
+of the selected modality. It receives an independent model clone and returns `ModelAdapterResult`:
+the primary graph in `model` and optional named graphs in `models`. It can replace the entire
+input graph. `EMBEDDINGS` supports vision and audio and permits an empty map; when a map is
+returned, it must contain the primary graph. `VISION_ENCODERS` requires vision modality and a
+nonempty map containing the primary graph. Every map entry needs a nonempty name and a nonnull
+graph. All returned graphs are validated before the pass commits the result, so callback failures
+leave the supplied graph unchanged. A result callback overrides the definition callback; an
+explicitly empty result callback selects generic adaptation and, for `VISION_ENCODERS`, the recipe.
+
+Its implementation belongs to the owning builder or external extension. Callback lifetime is
+retained with the extension library, and callback attributes are removed from committed graphs.
+Callbacks are excluded from IR serialization; use a
+serializable recipe when adaptation must work after reloading an unadapted IR.
 
 ## Add or override an operation converter
 
@@ -150,7 +189,7 @@ frontend->add_extension(std::make_shared<ov::frontend::ConversionExtension>(
 ```
 
 A builder can then call `graph.node("EXAMPLE_NEGATE", {value})`. Use the base `NodeContext`
-interface (`get_attribute<T>(name)` for named attributes); GGUF's concrete one is internal. A
+interface (`get_attribute<int>("op_case", 0)` for the case); GGUF's concrete one is internal. A
 same-named extension overrides the built-in converter and the last registration wins. Preserve the
 operation's semantics, types and layout. For a built-in converter see [how_to_add_op.md](how_to_add_op.md).
 
@@ -163,28 +202,6 @@ Do not also register `GGUFMakeStateful` or `AdaptToGenAI` on that frontend. Regi
 `GenAIExtension` per frontend instance; it applies to every conversion on that instance.
 Its embedding lookup getters describe the latest successful conversion.
 See [runtime.md](runtime.md#stateful-and-genai-conversion).
-
-### Keep f16 plugins in range: `PushScaleBeforeMatMul`
-
-Models that scale a block's output by a constant below one (Granite's residual multiplier)
-can produce an unscaled result beyond the f16 range, which a plugin executing in f16 turns
-into `inf` before the scale is applied. `ov::frontend::gguf::pass::PushScaleBeforeMatMul`
-rewrites `MatMul(A, W) * c` into `MatMul(A * c, W)` for `c` in [1/64, 1), which is exact in
-exact arithmetic. The frontend does not register it, because on f32 it only removes a
-MatMul post-op fusion. Register it when the target runs in f16:
-
-```cpp
-frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
-    [](std::shared_ptr<ov::Model> model) {
-        ov::pass::Manager manager;
-        manager.register_pass<ov::frontend::gguf::pass::PushScaleBeforeMatMul>();
-        return manager.run_passes(model);
-    }));
-```
-
-The same rewrite for the attention scale is requested per `GGML_OP_FLASH_ATTN_EXT` with the
-boolean attribute `prescale_q`: a scale below `0.5 / sqrt(head_size)` is folded into Q and the
-SDPA runs with scale 1. It is ignored for f32 attention and for soft-capped attention.
 
 ## Build and load a shared library
 
@@ -219,3 +236,8 @@ Load the actual library, convert a matching file and compare with the reference 
 | Missing operation converter | Register the exact string on the same frontend before `convert()` |
 | Cache remains stateless | Register `GenAIExtension` for GenAI IO, or `GGUFMakeStateful` for GGUF IO, before `convert()` |
 | Outputs differ from the reference | Follow [debugging_accuracy.md](debugging_accuracy.md) |
+
+GenAI C++ callers can forward extension objects or shared-library paths using
+`ov::genai::extensions(...)`; Python uses `extensions=[...]` for library paths. Select
+`GGUF_READER="FRONTEND"` when using the language-model pipelines. These extensions are
+registered on each GGUF frontend before loading.

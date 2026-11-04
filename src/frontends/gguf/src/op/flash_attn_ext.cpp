@@ -18,7 +18,6 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/tile.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -29,29 +28,86 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
+namespace {
+
+ov::Output<ov::Node> reshape_flat_kv(const NodeContext& context,
+                                     size_t input_index,
+                                     const ov::Output<ov::Node>& flat,
+                                     const ov::Output<ov::Node>& attention_size) {
+    const char* shape_name = input_index == 1 ? "flat_kv_shape_k" : "flat_kv_shape_v";
+    const char* offset_name = input_index == 1 ? "flat_kv_offset_k" : "flat_kv_offset_v";
+    const auto shape = context.get_attribute<std::vector<int64_t>>(shape_name, {});
+    FRONT_END_OP_CONVERSION_CHECK(shape.size() == 4, "Flat FLASH_ATTN_EXT KV view must expose a rank-4 logical shape");
+    const int64_t n_head = shape[1];
+    const int64_t head_size = shape[3];
+    const int64_t row_size = n_head * head_size;
+    FRONT_END_OP_CONVERSION_CHECK(row_size > 0, "Flat FLASH_ATTN_EXT KV view has invalid head geometry");
+
+    const int64_t offset = context.get_attribute<int64_t>(offset_name);
+    auto begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {offset});
+    auto row_size_node = ov::op::v0::Constant::create(ov::element::i64, {1}, {row_size});
+    auto extent = std::make_shared<ov::op::v1::Multiply>(attention_size, row_size_node);
+    auto end = std::make_shared<ov::op::v1::Add>(begin, extent);
+    auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+    auto sliced = std::make_shared<ov::op::v8::Slice>(flat, begin, end, one, axis);
+
+    auto target = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, n_head, head_size});
+    auto reshaped = std::make_shared<ov::op::v1::Reshape>(sliced, target, false);
+    return std::make_shared<ov::op::v1::Transpose>(reshaped,
+                                                   ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
+}
+
+}  // namespace
+
 OutputVector translate_flash_attn_ext(const NodeContext& context) {
     num_inputs_check(context, 3, 5);
     auto q_f32 = context.get_input(0);
     auto k = context.get_input(1);
     auto v = context.get_input(2);
+    const auto op_case = context.get_op_case();
+    if (op_case == 1 || op_case == 2) {
+        const char* length_name = op_case == 1 ? "attention_size" : "attention_size_static";
+        FRONT_END_OP_CONVERSION_CHECK(context.has_input(length_name), "Flat FLASH_ATTN_EXT KV requires ", length_name);
+        k = reshape_flat_kv(context, 1, k, context.get_input(length_name));
+        v = reshape_flat_kv(context, 2, v, context.get_input(length_name));
+    }
+    if (op_case == 100) {
+        const auto transpose = [](const ov::Output<Node>& value) -> ov::Output<Node> {
+            return std::make_shared<ov::op::v1::Transpose>(
+                value,
+                ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
+        };
+        q_f32 = transpose(q_f32);
+        k = transpose(k);
+        v = transpose(v);
+    }
     // Decoders that compact null source slots expose mask presence explicitly.
-    const bool has_mask = context.get_attribute<bool>("has_mask", context.get_input_size() >= 4);
+    const auto fourth_name = context.get_input_size() >= 4 ? context.get_input_names()[3] : std::string{};
+    const std::string sink_suffix = "attn_sinks.weight";
+    const bool named_sink =
+        fourth_name.size() >= sink_suffix.size() &&
+        fourth_name.compare(fourth_name.size() - sink_suffix.size(), sink_suffix.size(), sink_suffix) == 0;
+    const bool sink_without_mask =
+        context.get_input_size() == 4 && context.get_attribute<bool>("sink_without_mask", named_sink);
+    const bool has_mask = context.get_attribute<bool>("has_mask", context.get_input_size() >= 4 && !sink_without_mask);
     const size_t sinks_index = has_mask ? 4 : 3;
-    FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() >= sinks_index &&
-                                     context.get_input_size() <= sinks_index + 1,
-                                 "FLASH_ATTN_EXT inputs do not match has_mask");
+    FRONT_END_OP_CONVERSION_CHECK(
+        context.get_input_size() >= sinks_index && context.get_input_size() <= sinks_index + 1,
+        "FLASH_ATTN_EXT inputs do not match has_mask");
     const bool has_sinks = context.get_input_size() > sinks_index;
 
     float scale = context.get_attribute<float>("scale");
     float kq_soft_cap = context.get_attribute<float>("kq_soft_cap", 0.0f);
     const float max_bias = context.get_attribute<float>("max_bias", 0.0f);
-    FRONT_END_CHECK_IMPLEMENTED(max_bias == 0.0f || context.get_input_size() >= 4,
+    FRONT_END_CHECK_IMPLEMENTED(max_bias == 0.0f || has_mask,
                                 "FLASH_ATTN_EXT with nonzero max_bias requires an attention mask");
 
     // ggml's FLASH_ATTN_EXT operands are [B, n_head, n_tokens, head_size] (the graph PERMUTEs q/k/v first).
@@ -63,8 +119,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     const auto sdpa_type = context.get_attribute<bool>("f32_attention", false) ? ov::element::f32 : ov::element::f16;
     const auto token_major_source = [](const ov::Output<Node>& value) -> ov::Output<Node> {
         const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(value.get_node_shared_ptr());
-        const auto order = transpose ? ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1))
-                                     : nullptr;
+        const auto order =
+            transpose ? ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1)) : nullptr;
         if (!order || order->cast_vector<int64_t>() != std::vector<int64_t>{0, 2, 1, 3}) {
             return {};
         }
@@ -104,11 +160,18 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     ov::Output<ov::Node> mask_sliced, res;
     if (has_mask) {
-        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
-        auto token_len = get_dimensions(q, {token_axis});
-        mask_sliced = std::make_shared<ov::op::v8::Slice>(context.get_input(3), zero, token_len, one, two);
+        const bool is_swa = context.get_attribute<bool>("is_swa", false) ||
+                            context.get_input_names()[3].find("swa") != std::string::npos;
+        const std::string mask_name = is_swa ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
+        if (context.has_input(mask_name)) {
+            mask_sliced = context.get_input(mask_name);
+        } else {
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+            auto token_len = get_dimensions(q, {token_axis});
+            mask_sliced = std::make_shared<ov::op::v8::Slice>(context.get_input(3), zero, token_len, one, two);
+        }
 
         if (mask_sliced.get_element_type() != sdpa_type) {
             mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, sdpa_type);
@@ -119,38 +182,40 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     // Expand K/V from n_head_kv to n_head (GQA): insert a repeat axis after the head axis, broadcast it to
     // `factor`, then fold it back in. `kv_head_axis` is 1 for [B, H, L, S] and 2 for token-major [B, L, H, S].
-    auto tile_kv = [&](int64_t num_heads, int64_t num_heads_kv, int64_t head_size, ov::Output<Node> kv, size_t kv_head_axis) {
-        int64_t factor = num_heads / num_heads_kv;
-        if (factor > 1 && num_heads_kv > 1) {
-            auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {(int64_t)kv_head_axis + 1});
-            auto kv_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(kv, unsqueeze_axes);
-            std::vector<int64_t> bcast(5, 1);
-            bcast[kv_head_axis + 1] = factor;
-            auto kv_broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, {5}, bcast);
-            // special_zero keeps the leading dims (incl. the dynamic token axis) as-is.
-            std::vector<int64_t> new_shape = kv_head_axis == 2 ? std::vector<int64_t>{0, 0, num_heads, head_size}
-                                                               : std::vector<int64_t>{0, num_heads, -1, head_size};
-            auto new_kv_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, new_shape);
-            kv = std::make_shared<ov::op::v3::Broadcast>(kv_unsqueezed,
-                                                         kv_broadcast_shape,
-                                                         ov::op::BroadcastType::BIDIRECTIONAL);
-            kv = std::make_shared<ov::op::v1::Reshape>(kv, new_kv_shape, true);
-        }
-        return kv;
-    };
+    auto tile_kv =
+        [&](int64_t num_heads, int64_t num_heads_kv, int64_t head_size, ov::Output<Node> kv, size_t kv_head_axis) {
+            int64_t factor = num_heads / num_heads_kv;
+            if (factor > 1 && num_heads_kv > 1) {
+                auto unsqueeze_axes =
+                    ov::op::v0::Constant::create(ov::element::i64, Shape{}, {(int64_t)kv_head_axis + 1});
+                auto kv_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(kv, unsqueeze_axes);
+                std::vector<int64_t> bcast(5, 1);
+                bcast[kv_head_axis + 1] = factor;
+                auto kv_broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, {5}, bcast);
+                // special_zero keeps the leading dims (incl. the dynamic token axis) as-is.
+                std::vector<int64_t> new_shape = kv_head_axis == 2 ? std::vector<int64_t>{0, 0, num_heads, head_size}
+                                                                   : std::vector<int64_t>{0, num_heads, -1, head_size};
+                auto new_kv_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, new_shape);
+                kv = std::make_shared<ov::op::v3::Broadcast>(kv_unsqueezed,
+                                                             kv_broadcast_shape,
+                                                             ov::op::BroadcastType::BIDIRECTIONAL);
+                kv = std::make_shared<ov::op::v1::Reshape>(kv, new_kv_shape, true);
+            }
+            return kv;
+        };
 
     auto q_shape = q.get_partial_shape();
     auto k_shape = k.get_partial_shape();
     auto v_shape = v.get_partial_shape();
     for (const auto& shape : {q_shape, k_shape, v_shape}) {
         FRONT_END_OP_CONVERSION_CHECK(shape.rank().is_static() && shape.rank().get_length() == 4 &&
-                                         shape[head_axis].is_static() && shape[head_axis].get_length() > 0 &&
-                                         shape[3].is_static(),
-                                     "FLASH_ATTN_EXT requires rank-4 inputs with static head dimensions");
+                                          shape[head_axis].is_static() && shape[head_axis].get_length() > 0 &&
+                                          shape[3].is_static(),
+                                      "FLASH_ATTN_EXT requires rank-4 inputs with static head dimensions");
     }
     FRONT_END_OP_CONVERSION_CHECK(q_shape[head_axis].get_length() % k_shape[head_axis].get_length() == 0 &&
-                                     k_shape[head_axis] == v_shape[head_axis],
-                                 "FLASH_ATTN_EXT requires matching K/V heads dividing the query heads");
+                                      k_shape[head_axis] == v_shape[head_axis],
+                                  "FLASH_ATTN_EXT requires matching K/V heads dividing the query heads");
     if (max_bias > 0.0f && has_mask) {
         // ALiBi: ggml scales the additive mask by a per-head slope (ggml_compute_forward_flash_attn_ext).
         const uint32_t n_head = static_cast<uint32_t>(q_shape[head_axis].get_length());
@@ -190,18 +255,19 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         ov::Output<Node> x = token_major ? source : kv;
         x = tile_kv(q_shape[head_axis].get_length(), kv_heads, kv_head_size, x, token_major ? 2 : 1);
         if (key_len.get_node_shared_ptr()) {
-            x = std::make_shared<ov::op::v8::Slice>(x,
-                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
-                                                    key_len,
-                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
-                                                    ov::op::v0::Constant::create(ov::element::i64,
-                                                                                 {1},
-                                                                                 {token_major ? 1 : token_axis}));
+            x = std::make_shared<ov::op::v8::Slice>(
+                x,
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                key_len,
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                ov::op::v0::Constant::create(ov::element::i64, {1}, {token_major ? 1 : token_axis}));
         }
         // SDPA requires q/k/v to share an element type; match k/v to q (ConvertConvertLike lowers these).
         x = std::make_shared<ov::op::v1::ConvertLike>(x, q);
         if (token_major) {
-            x = std::make_shared<ov::op::v1::Transpose>(x, ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
+            x = std::make_shared<ov::op::v1::Transpose>(
+                x,
+                ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
         }
         return x;
     };
@@ -223,11 +289,12 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         const int64_t head_size = q_shape[3].get_length();
         const auto prepare_gqa_kv = [&](ov::Output<Node> kv) {
             if (key_len.get_node_shared_ptr()) {
-                kv = std::make_shared<ov::op::v8::Slice>(kv,
-                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
-                                                         key_len,
-                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
-                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {token_axis}));
+                kv = std::make_shared<ov::op::v8::Slice>(
+                    kv,
+                    ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                    key_len,
+                    ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                    ov::op::v0::Constant::create(ov::element::i64, {1}, {token_axis}));
             }
             if (kv.get_element_type() != sdpa_type) {
                 kv = std::make_shared<ov::op::v0::Convert>(kv, sdpa_type);
@@ -235,14 +302,17 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
             return kv;
         };
         auto q_r = std::make_shared<ov::op::v1::Reshape>(
-            q, ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, n_head_kv, -1, head_size}), true);
+            q,
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, n_head_kv, -1, head_size}),
+            true);
         ov::Output<Node> scores = std::make_shared<ov::op::v0::MatMul>(q_r, prepare_gqa_kv(k), false, true);
         scores = std::make_shared<ov::op::v1::Multiply>(scores, scale_node);
         if (has_mask) {
             // A finite mask value: the fused SDPA kernel works on blocks of keys and a block fully masked with -inf
             // gives NaN.
             auto mask_finite = std::make_shared<ov::op::v1::Maximum>(
-                mask_sliced, ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
+                mask_sliced,
+                ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
             auto mask_tiled = std::make_shared<ov::op::v0::Tile>(
                 mask_finite,
                 ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, gqa_factor, 1}));
@@ -251,7 +321,9 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         auto weights = std::make_shared<ov::op::v8::Softmax>(scores, -1);
         auto attn = std::make_shared<ov::op::v0::MatMul>(weights, prepare_gqa_kv(v));
         sdpa = std::make_shared<ov::op::v1::Reshape>(
-            attn, ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, n_head, -1, head_size}), true);
+            attn,
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, n_head, -1, head_size}),
+            true);
     } else {
         k = prepare_kv(k, k_shape[head_axis].get_length(), q_shape[3].get_length());
         v = prepare_kv(v, v_shape[head_axis].get_length(), v_shape[3].get_length());
@@ -262,9 +334,10 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     // The GPU plugin's fused SDPA kernel works on blocks of keys: a block fully masked with -inf for a row gives
     // exp(-inf - -inf) = NaN, which spreads through the row (garbage output after a few decode steps). A large
     // finite value masks identically (exp underflows to 0) without the NaN.
-    if (has_mask && kq_soft_cap == 0.0f) {
+    if (op_case != 100 && has_mask && kq_soft_cap == 0.0f) {
         mask_sliced = std::make_shared<ov::op::v1::Maximum>(
-            mask_sliced, ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
+            mask_sliced,
+            ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
     }
 
     if (manual_gqa) {
@@ -311,18 +384,24 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         Output<Node> attn_weights = std::make_shared<v8::Softmax>(qk_masked, -1);
         if (has_sinks) {
             attn_weights = std::make_shared<v8::Slice>(attn_weights,
-                                                      v0::Constant::create(element::i64, {1}, {0}),
-                                                      key_len,
-                                                      v0::Constant::create(element::i64, {1}, {1}),
-                                                      v0::Constant::create(element::i64, {1}, {3}));
+                                                       v0::Constant::create(element::i64, {1}, {0}),
+                                                       key_len,
+                                                       v0::Constant::create(element::i64, {1}, {1}),
+                                                       v0::Constant::create(element::i64, {1}, {3}));
         }
 
         // Weighted sum over values: [B, H, L, Lk] x [B, H, Lk, S] -> [B, H, L, S]
         auto attn_out_caps = std::make_shared<v0::MatMul>(attn_weights, v_f32_t, false, false);
 
         sdpa = attn_out_caps;
-    } else if (!has_sinks) {
+    } else if (!has_sinks && (has_mask || !context.get_attribute_as_any("has_mask").empty())) {
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t, k_t, v_t, mask_sliced, scale_node, false);
+    } else if (!has_sinks) {
+        const float compensation = (prescale_q ? 1.0f : scale) * std::sqrt(static_cast<float>(q_shape[3].get_length()));
+        auto q_scaled = std::make_shared<ov::op::v1::Multiply>(
+            q_t,
+            ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, {compensation}));
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_scaled, k_t, v_t, false);
     } else {
         // gpt-oss attention sinks: a learned per-head logit participates in the softmax
         // denominator (so the attention weights do not sum to 1) but contributes no value. OV
@@ -331,9 +410,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         // over [B, n_head, q, 1] (rank must equal the query rank, last dim 1).
         using namespace ov::op;
         auto sink = context.get_input(static_cast<int>(sinks_index));
-        auto sink_converted = sink.get_element_type() != sdpa_type
-                                 ? std::make_shared<v0::Convert>(sink, sdpa_type)->output(0)
-                                 : sink;
+        auto sink_converted =
+            sink.get_element_type() != sdpa_type ? std::make_shared<v0::Convert>(sink, sdpa_type)->output(0) : sink;
         auto sink_shape = v0::Constant::create(element::i64,
                                                {4},
                                                std::vector<int64_t>{1, (int64_t)q_shape[head_axis].get_length(), 1, 1});

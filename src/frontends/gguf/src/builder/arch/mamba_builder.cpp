@@ -7,6 +7,8 @@
 #include <cmath>
 #include <limits>
 
+#include "builder/decoder_metadata.hpp"
+#include "builder/metadata_checks.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -21,13 +23,7 @@ public:
 
     std::shared_ptr<GgufGraph> build() override {
         const auto positive = [&](const std::string& suffix) {
-            const auto key = g.arch() + "." + suffix;
-            const auto value = g.metadata().get_int(key);
-            OPENVINO_ASSERT(value && *value > 0 && *value <= std::numeric_limits<int>::max(),
-                            "[GGUF] Mamba2 requires positive metadata '",
-                            key,
-                            "'");
-            return *value;
+            return require_positive_int(g.metadata(), g.arch() + "." + suffix, "Mamba2");
         };
         const auto layers = positive("block_count");
         const auto inner = positive("ssm.inner_size");
@@ -40,10 +36,7 @@ public:
                         "and conv_kernel > 1");
         const auto head_dim = inner / heads;
         const auto conv_dim = inner + 2 * groups * state_size;
-        const auto eps_value = g.metadata().get_float(g.arch() + ".attention.layer_norm_rms_epsilon");
-        OPENVINO_ASSERT(eps_value && std::isfinite(*eps_value) && *eps_value > 0,
-                        "[GGUF] Mamba2 requires a positive RMS normalization epsilon");
-        const auto eps = static_cast<float>(*eps_value);
+        const auto eps = require_positive_float(g.metadata(), g.arch() + ".attention.layer_norm_rms_epsilon", "Mamba2");
         auto weights = g.tensors();
         const bool hybrid = g.arch() == "nemotron_h";
         if (hybrid) {
@@ -51,7 +44,7 @@ public:
                             "[GGUF] Nemotron-H MoE is not supported by the dense builder");
             DecoderOptions options;
             options.rope_skip_period = 1;  // Nemotron-H attention has no positional embedding.
-            g.configure_decoder(RopeMode::Normal, options);
+            g.configure_decoder(resolve_decoder_parameters(g.metadata(), RopeMode::Normal, options));
             g.build_attn_inp_kv();
         }
         auto cur = g.build_inp_embd(weights.require("token_embd.weight"));
@@ -90,13 +83,13 @@ public:
                 const auto conv_state =
                     g.add_input("conv_state_l" + std::to_string(layer), ov::element::f32, {1, 1, conv_dim, kernel - 1});
                 const auto window =
-                    g.node("GGML_OP_CONCAT", {conv_state, g.node("GGML_OP_TRANSPOSE", {xbc})}, {{"concat_axis", 0}});
+                    g.node("GGML_OP_CONCAT", {conv_state, g.node("GGML_OP_TRANSPOSE", {xbc})}, 0, {{"concat_axis", 0}});
                 g.add_recurrent_state(conv_state, slice(window, -(kernel - 1), kernel - 1));
                 xbc = g.node("GGML_OP_SSM_CONV", {window, w("ssm_conv1d.weight")});
                 if (weights.has(prefix + "ssm_conv1d.bias"))
                     xbc = g.node("GGML_OP_ADD", {xbc, w("ssm_conv1d.bias")});
                 xbc = g.node("GGML_UNARY_OP_SILU", {xbc});
-                xbc = reshape_like(xbc, xbc_layout);
+                xbc = g.node("GGML_OP_VIEW", {xbc, xbc_layout}, 3);
                 const auto x = reshape(slice(xbc, 0, inner), {0, -1, heads, head_dim});
                 const auto b = reshape(slice(xbc, inner, groups * state_size), {0, -1, groups, state_size});
                 const auto c =
@@ -109,7 +102,8 @@ public:
                 g.add_recurrent_state(
                     state,
                     reshape(slice(scan, -state_elements, state_elements), {1, heads, head_dim, state_size}));
-                auto y = reshape_like(slice(scan, 0, -state_elements), x);
+                auto y =
+                    g.node("GGML_OP_VIEW", {scan, x}, 3, {{"view_slice", std::vector<int64_t>{3, 0, -state_elements}}});
                 y = g.node("GGML_OP_ADD", {y, g.node("GGML_OP_MUL", {x, w("ssm_d")})});
                 y = g.node("GGML_OP_MUL", {y, g.node("GGML_UNARY_OP_SILU", {z})});
                 y = reshape(y, {0, -1, groups, inner / groups});
@@ -132,20 +126,11 @@ public:
 
 private:
     GgufValue reshape(const GgufValue& value, const std::vector<int64_t>& shape) {
-        return g.node("GGML_OP_RESHAPE", {value}, {{"reshape_target", shape}, {"special_zero", true}});
-    }
-
-    // Reshape to the runtime layout of `reference`, which keeps token placement when paged execution
-    // flattens the batch.
-    GgufValue reshape_like(const GgufValue& value, const GgufValue& reference) {
-        return g.node("GGML_OP_RESHAPE",
-                      {value, reference},
-                      {{"reshape_target", std::vector<int64_t>{0, 0, 0, 0}},
-                       {"shape_axes", std::vector<int64_t>{0, 1, 2, 3}}});
+        return g.node("GGML_OP_RESHAPE", {value}, 6, {{"reshape_target", shape}, {"special_zero", true}});
     }
 
     GgufValue slice(const GgufValue& value, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {value}, {{"view_slice", std::vector<int64_t>{3, start, length}}});
+        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{3, start, length}}});
     }
 
     GgufGraphContext g;

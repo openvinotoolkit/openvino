@@ -9,15 +9,37 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/gguf/model_adapter.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
 namespace ov::frontend::gguf {
+
+struct ModelComponentContract {
+    std::vector<std::string> outputs;
+    std::string state_prefix;
+};
+
+struct ModelComponentGroup {
+    std::string primary;
+    std::map<std::string, ModelComponentContract> models;
+};
+
+struct ModelContract {
+    enum class ImageAttentionMode { CAUSAL, GLOBAL_AND_SLIDING, SLIDING_ONLY };
+
+    std::optional<bool> batchable_recurrent;
+    ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
+    std::vector<std::string> sequence_outputs;
+    std::map<std::string, ModelComponentGroup> component_groups;
+    std::optional<bool> supports_genai_adaptation;
+};
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array
 // the translators used to dereference by byte offset. A decoder is responsible for
@@ -33,9 +55,9 @@ struct RopeConfig {
     float attn_factor = 0.0f;
     float beta_fast = 0.0f;
     float beta_slow = 0.0f;
-    // When true, each ROPE op carries its own config (e.g. gemma4, where SWA and global layers use
-    // different n_dims). Translators share a sin/cos table only between ops with matching configuration
-    // and positions, so this is descriptive.
+    // When true, each ROPE op builds its own sin/cos from its per-op config (e.g. gemma4, where
+    // SWA and global layers use different n_dims), so the shared rope_cos/rope_sin table that
+    // TranslateSession::preprocess would otherwise pre-build is skipped.
     bool per_op = false;
     // When true the model uses interleaved M-RoPE (qwen3.5 / qwen3vl): pos carries 4 mrope sections
     // (4*n_tokens ids) and the sin/cos gather differs. The shared-table builder must know this so it
@@ -65,7 +87,7 @@ public:
     // ── Node scope (the bound node; used by the op translators) ──────────────────────────────
 
     // Typed attribute access. The op translators use this to read scalar operation parameters
-    // (e.g. "eps", "scale", "bias", "swapped", "output_type", "rope_mode", "rope_config") without
+    // (e.g. "eps", "scale", "bias", "swapped", "op_case", "output_type", "rope_config") without
     // dereferencing ggml's raw op_params layout.
     ov::Any get_attribute(const std::string& name) const override = 0;
 
@@ -156,6 +178,22 @@ public:
     // that knows which Result feeds which Parameter back.
     virtual const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const {
         static const std::vector<std::pair<std::string, std::string>> empty;
+        return empty;
+    }
+
+    /// \brief Resolved model semantics for shared conversion and runtime adaptation.
+    virtual ModelContract get_model_contract() const {
+        return {};
+    }
+
+    /// \brief Architecture identifier for diagnostics and converted-model metadata.
+    virtual std::string get_architecture() const {
+        return {};
+    }
+
+    /// \brief Builder-provided graph adapters applied during model conversion.
+    virtual const ModelAdapters& get_model_adapters() const {
+        static const ModelAdapters empty;
         return empty;
     }
 

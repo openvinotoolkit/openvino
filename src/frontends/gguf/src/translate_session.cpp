@@ -13,7 +13,10 @@
 #include <unordered_set>
 
 #include "builder/gguf_builder_decoder.hpp"
+#include "hadamard_sign_folding.hpp"
 #include "input_model.hpp"
+#include "model_adapter_attribute.hpp"
+#include "model_contract.hpp"
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
@@ -43,8 +46,11 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pass/isolate_precision_sensitive_outputs.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
+#include "pass/materialize_weights.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
+#include "quant/weights.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/optimize_strided_slice.hpp"
@@ -56,18 +62,71 @@ namespace ov::frontend::gguf {
 
 using namespace ov::op;
 
+namespace {
+
+void add_sliced_mask(TensorMap& tensor_map) {
+    // Publish the decoder's runtime-sized attention mask under the shared name
+    // consumed by the attention translators.
+    auto create_sliced_mask = [&](const std::string& mask_name, const std::string& sliced_name) {
+        if (tensor_map.count(mask_name) && !tensor_map.count(sliced_name)) {
+            auto mask = tensor_map.at(mask_name).get_node_shared_ptr();
+            // The decoder binds the mask with its current runtime shape, so its
+            // token axis already is the active token window.
+            std::shared_ptr<ov::Node> mask_sliced = std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
+            mask_sliced->set_friendly_name(sliced_name);
+            tensor_map.insert({sliced_name, mask_sliced->output(0)});
+        }
+    };
+
+    create_sliced_mask("self_kq_mask", "KQ_mask_sliced");
+    create_sliced_mask("self_kq_mask_swa", "KQ_mask_swa_sliced");
+}
+
+void add_rope_sin_cos(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
+    // A decoder bound to a full LLM graph exposes "rope_config"; a decoder wrapping a bare op /
+    // small cgraph (a single-op test) has no such attribute -> default RopeConfig (n_dims == 0,
+    // "no RoPE") so the shared table is skipped and the op falls back to its own sin/cos.
+    const auto rope_config_any = gguf_model_decoder.get_attribute("rope_config");
+    if (rope_config_any.empty()) {
+        return;
+    }
+    const auto& rope_config = rope_config_any.as<RopeConfig>();
+    // n_dims == 0 means the model uses no RoPE; per_op means each ROPE op builds its own sin/cos
+    // (e.g. gemma4 where SWA and global layers differ), so skip the shared table entirely.
+    if (tensor_map.count("rope_cos") || !tensor_map.count("inp_pos") || rope_config.n_dims == 0 || rope_config.per_op) {
+        return;
+    }
+    auto inp_pos = tensor_map.at("inp_pos").get_node_shared_ptr();
+    std::shared_ptr<ov::Node> rope_freqs_weight;
+    if (tensor_map.find("rope_freqs.weight") != tensor_map.end()) {
+        rope_freqs_weight = tensor_map.at("rope_freqs.weight").get_node_shared_ptr();
+    }
+
+    auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight, rope_config.is_imrope);
+    auto sin_theta = sin_cos.first;
+    auto cos_theta = sin_cos.second;
+
+    cos_theta.get_node_shared_ptr()->set_friendly_name("rope_cos");
+    sin_theta.get_node_shared_ptr()->set_friendly_name("rope_sin");
+    tensor_map.insert({"rope_cos", cos_theta});
+    tensor_map.insert({"rope_sin", sin_theta});
+}
+
+}  // namespace
+
+void prepare_graph_inputs(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
+    add_sliced_mask(tensor_map);
+    add_rope_sin_cos(tensor_map, gguf_model_decoder);
+}
+
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& tensor_map,
                     const std::unordered_map<std::string, CreatorFunction>& translators,
-                    std::map<std::string, std::string>& storage_aliases) {
+                    const std::shared_ptr<ConstantCache>& constant_cache,
+                    std::map<std::string, std::string>* storage_aliases) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
-        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
-        // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
-        // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
-        // above) and there is nothing to translate.
-        const bool is_builder_weight =
-            decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
+        const bool is_builder_weight = decoder->get_attribute("gguf_source").is<GgufWeight>();
         const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
         if (!is_builder_weight && !is_cgraph_weight) {
             return;
@@ -80,30 +139,8 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   "Translation for operation type ",
                                   operation_type,
                                   " is not implemented.");
-    NodeContext node_context(decoder, tensor_map);
-    try {
-        converted_outputs = it->second(node_context);
-    } catch (const std::exception& e) {
-        // Name the failing node and its operands: translator checks only describe the local condition.
-        std::string inputs;
-        const auto input_names = decoder->get_input_names();
-        for (size_t i = 0; i < input_names.size(); ++i) {
-            inputs += i ? ", " : "";
-            const auto& name = input_names[i];
-            const auto it = tensor_map->find(name);
-            inputs += it == tensor_map->end() ? "'" + name + "' (not translated)" : it->second.get_partial_shape().to_string();
-        }
-        FRONT_END_OP_CONVERSION_CHECK(false,
-                                      operation_type,
-                                      " '",
-                                      decoder->get_op_name(),
-                                      "' (inputs: ",
-                                      inputs,
-                                      "; ggml output shape: ",
-                                      decoder->get_output_shape().to_string(),
-                                      "): ",
-                                      e.what());
-    }
+    NodeContext node_context(decoder, tensor_map, constant_cache);
+    converted_outputs = it->second(node_context);
 
     const auto& node_output_names = decoder->get_output_names();
     FRONT_END_OP_CONVERSION_CHECK(node_output_names.size() == converted_outputs.size(),
@@ -115,9 +152,16 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   converted_outputs.size(),
                                   " respectively.");
 
+    if (!storage_aliases) {
+        for (size_t i = 0; i < node_output_names.size(); ++i) {
+            if (converted_outputs[i].get_node_shared_ptr())
+                (*tensor_map)[node_output_names[i]] = converted_outputs[i];
+        }
+        return;
+    }
     const auto storage_name = [&](const std::string& name) {
-        const auto it = storage_aliases.find(name);
-        return it == storage_aliases.end() ? name : it->second;
+        const auto it = storage_aliases->find(name);
+        return it == storage_aliases->end() ? name : it->second;
     };
     // Operations that return their whole destination with a region rewritten update that storage in
     // place: every later read of the storage, and the model output written back to it, must see the
@@ -140,8 +184,9 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
             previous_root == destination
                 ? converted_outputs.at(0)
                 : std::make_shared<v1::Reshape>(converted_outputs.at(0),
-                                               std::make_shared<v3::ShapeOf>(previous_root, ov::element::i64),
-                                               false)->output(0);
+                                                std::make_shared<v3::ShapeOf>(previous_root, ov::element::i64),
+                                                false)
+                      ->output(0);
         std::unordered_map<Node*, std::shared_ptr<Node>> rebound_nodes;
         const auto rebind = [&](auto&& self, const ov::Output<Node>& value) -> ov::Output<Node> {
             if (value == previous_root) {
@@ -171,9 +216,8 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
         // Replay their shape expressions on the new value, including ShapeOf, so growing state stays dynamic.
         for (const auto& entry : *tensor_map) {
             if (storage_name(entry.first) == output_storage) {
-                updates[entry.first] = entry.second == destination
-                                           ? converted_outputs.at(0)
-                                           : rebind(rebind, entry.second);
+                updates[entry.first] =
+                    entry.second == destination ? converted_outputs.at(0) : rebind(rebind, entry.second);
             }
         }
         for (const auto& update : updates) {
@@ -187,9 +231,9 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
         if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
             (*tensor_map)[output_name] = converted_outputs[i];
         }
-        storage_aliases.erase(output_name);
+        storage_aliases->erase(output_name);
         if (!output_storage.empty() && output_storage != output_name) {
-            storage_aliases[output_name] = output_storage;
+            (*storage_aliases)[output_name] = output_storage;
         }
     }
 }
@@ -255,16 +299,23 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // translate_weight turns into a compressed subgraph during the walk below, which keeps them
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
+    const auto constant_cache = std::make_shared<ConstantCache>();
     std::map<std::string, std::string> storage_aliases;
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        translate_node(decoder, tensor_map, m_translator_map, storage_aliases);
+        translate_node(decoder, tensor_map, m_translator_map, constant_cache, &storage_aliases);
     };
 
-    // Native builders eagerly translate their nodes; other decoders are walked here.
+    // Build the shared LLM scaffolding (sliced attention mask + rope sin/cos table) once, so all
+    // layers reuse it. Both builders are self-gating: add_sliced_mask only fires when the mask +
+    // token_len_per_seq inputs are present, and add_rope_sin_cos only when inp_pos is present and
+    // the model uses a shared rope table (n_dims != 0, not per-op). For a bare op / small cgraph
+    // (no rope_config -> default n_dims == 0, no mask/pos inputs) both no-op, and the ROPE/attention
+    // translators fall back to building their own -- so there is no separate "naive" mode.
     const auto builder = std::dynamic_pointer_cast<GgufBuilderDecoder>(gguf_model_decoder);
     if (builder) {
         tensor_map = builder->values();
     } else {
+        prepare_graph_inputs(*tensor_map, *gguf_model_decoder);
         gguf_model_decoder->visit_subgraph(node_visitor);
     }
 
@@ -324,12 +375,23 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
     }
 
-    // The architecture and projector metadata select what the GenAI adapters change, including
-    // adapters registered as transformation extensions.
-    if (builder)
-        resulting_model->get_rt_info()["gguf_architecture"] = builder->get_attribute("architecture");
+    write_model_contract(resulting_model, gguf_model_decoder->get_model_contract());
+    if (const auto architecture = gguf_model_decoder->get_architecture(); !architecture.empty())
+        resulting_model->get_rt_info()["gguf_architecture"] = architecture;
     if (!gguf_model_decoder->get_mmproj_config().empty()) {
         resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
+    }
+
+    for (const auto& [output, adapter] : gguf_model_decoder->get_model_adapters()) {
+        OPENVINO_ASSERT(adapter && adapter->transform, "[GGUF] invalid model adapter for ", output);
+        bool found = false;
+        for (const auto& result : resulting_model->get_results()) {
+            if (!result->input_value(0).get_tensor().get_names().count(output))
+                continue;
+            result->get_rt_info()[ModelAdapterAttribute::get_type_info_static()] = ModelAdapterAttribute(adapter);
+            found = true;
+        }
+        OPENVINO_ASSERT(found, "[GGUF] model adapter has no output ", output);
     }
 
     if (builder) {
@@ -389,6 +451,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 }
 
 std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<Model> model) {
+    ov::pass::Manager weight_normalization;
+    weight_normalization.register_pass<pass::MaterializeGGUFWeights>();
+    weight_normalization.run_passes(model);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();
@@ -430,7 +495,11 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
     }
 
+    manager.register_pass<pass::IsolatePrecisionSensitiveOutputs>();
+
+    fold_hadamard_input_signs(model);
     manager.run_passes(model);
+    normalize_u2_zero_points(model);
     return model;
 }
 

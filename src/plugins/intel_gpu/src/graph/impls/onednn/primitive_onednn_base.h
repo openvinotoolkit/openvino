@@ -443,6 +443,7 @@ protected:
                 case onednn_post_op_type::binary_add:
                 case onednn_post_op_type::binary_sub:
                 case onednn_post_op_type::binary_mul:
+                case onednn_post_op_type::binary_mul_inplace:
                 case onednn_post_op_type::binary_max:
                 case onednn_post_op_type::binary_min:
                 case onednn_post_op_type::binary_div:
@@ -630,6 +631,8 @@ protected:
                     event = stream.enqueue_marker({});
                 }
             }
+        } else if (instance.needs_completion_event()) {
+            event = stream.enqueue_marker({});
         }
 
         return event;

@@ -47,8 +47,7 @@ bool is_silu_div_pattern(const ov::Output<ov::Node>& numerator, const ov::Output
 
 // ggml broadcasts by integer repetition (a [.,n] tensor over a [.,k*n] tensor). OV's NUMPY divide
 // broadcast can't express that, so Tile the smaller input up to the target shape first.
-ov::Output<ov::Node> repeat_input_to_match(const ov::Output<ov::Node>& input,
-                                           const ov::Output<ov::Node>& target) {
+ov::Output<ov::Node> repeat_input_to_match(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& target) {
     const auto input_shape = input.get_partial_shape();
     const auto target_shape = target.get_partial_shape();
 

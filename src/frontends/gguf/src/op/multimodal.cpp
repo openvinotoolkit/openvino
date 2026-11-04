@@ -12,6 +12,7 @@
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -93,8 +94,6 @@ ov::Output<ov::Node> antialiased_bilinear(const ov::Output<ov::Node>& input,
 }
 }  // namespace
 
-// GGML_OP_UPSCALE. The target spatial size is a second operand (its values, or with "resize_like" its shape),
-// or the "upscale_sizes" attribute {H, W} when the operation has a fixed size.
 OutputVector translate_upscale(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     const int flags = context.get_attribute<int>("interpolation_mode", 1);
@@ -114,8 +113,9 @@ OutputVector translate_upscale(const NodeContext& context) {
     const std::vector<int> axes{2, 3};
     ov::Output<ov::Node> sizes;
     if (context.get_input_size() == 2) {
-        sizes = context.get_attribute<bool>("resize_like", false) ? get_dimensions(context.get_input(1), axes)->output(0)
-                                                                   : context.get_input(1);
+        sizes = context.get_attribute<bool>("resize_like", false)
+                    ? get_dimensions(context.get_input(1), axes)->output(0)
+                    : context.get_input(1);
     } else {
         const auto target = context.get_attribute<std::vector<int64_t>>("upscale_sizes");
         FRONT_END_OP_CONVERSION_CHECK(target.size() == axes.size(), "UPSCALE requires upscale_sizes {H, W}");
@@ -145,6 +145,17 @@ OutputVector translate_conv_2d(const NodeContext& context) {
         w = std::make_shared<ov::op::v0::Convert>(w, ov::element::f32);
     if (x.get_element_type() != ov::element::f32)
         x = std::make_shared<ov::op::v0::Convert>(x, ov::element::f32);
+    if (context.get_attribute<bool>("depthwise", false)) {
+        w = std::make_shared<ov::op::v0::Unsqueeze>(w, i64_const({1}));
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::GroupConvolution>(
+                                              x,
+                                              w,
+                                              ov::Strides{size_t(p[1]), size_t(p[0])},
+                                              ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
+                                              ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
+                                              ov::Strides{size_t(p[5]), size_t(p[4])})},
+                                          context.get_name());
+    }
     return rename_outputs_with_suffix(
         {std::make_shared<ov::op::v1::Convolution>(x,
                                                    w,
@@ -216,8 +227,8 @@ OutputVector translate_win_unpart(const NodeContext& context) {
 }
 
 OutputVector translate_get_rel_pos(const NodeContext& context) {
-    // The two-input form gathers a decomposed relative-position table by explicit query/key indices.
     num_inputs_check(context, 2, 2);
+    FRONT_END_OP_CONVERSION_CHECK(context.get_op_case() == 1, "Indexed relative positions require case 1");
     using namespace ov::op;
     auto table = context.get_input(0), indices = context.get_input(1);
     const auto& c = i64_const;

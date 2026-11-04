@@ -95,8 +95,8 @@ OutputVector translate_soft_max(const NodeContext& context) {
 
     // Disambiguate a 2nd input: it is either the additive mask or (gpt-oss) the attention sinks.
     const bool second_input_is_sinks =
-        context.get_input_size() == 2 && is_attention_sinks_input_shape(context.get_input(1).get_partial_shape(),
-                                                                        input0.get_partial_shape());
+        context.get_input_size() == 2 &&
+        is_attention_sinks_input_shape(context.get_input_shape(1), context.get_input_shape(0));
     const bool has_mask = context.get_input_size() > 1 && !second_input_is_sinks;
     const bool has_sinks = second_input_is_sinks || context.get_input_size() > 2;
     const int sinks_input_idx = second_input_is_sinks ? 1 : 2;
@@ -110,18 +110,27 @@ OutputVector translate_soft_max(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
-    ov::Output<ov::Node> mask_node_sliced = context.get_input(1);
-    // The mask may be allocated with more query rows than the active token window. Trim it to the
-    // query's token axis (a no-op when it already matches or broadcasts over a single row).
-    if (in_ps.rank().is_static() && in_ps.rank().get_length() >= 2 &&
-        mask_node_sliced.get_partial_shape().rank() == in_ps.rank()) {
-        const int token_axis = static_cast<int>(in_ps.rank().get_length()) - 2;
-        mask_node_sliced = std::make_shared<ov::op::v8::Slice>(
-            mask_node_sliced,
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
-            get_dimensions(input0, {token_axis}),
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {token_axis}));
+    ov::Output<ov::Node> mask_node_sliced;
+    if (context.has_input("KQ_mask_sliced")) {
+        mask_node_sliced = context.get_input("KQ_mask_sliced");
+    } else {
+        auto mask_node = context.get_input(1);
+        const auto rank = mask_node.get_partial_shape().rank();
+        FRONT_END_OP_CONVERSION_CHECK(rank.is_static() && rank.get_length() >= 2,
+                                      "SOFT_MAX mask requires rank at least two");
+        const int axis = static_cast<int>(rank.get_length()) - 2;
+        mask_node_sliced = mask_node;
+        if (mask_node.get_partial_shape()[axis] != 1) {
+            auto token_len = get_dimensions(input0, {-2});
+            auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            mask_node_sliced =
+                std::make_shared<ov::op::v8::Slice>(mask_node,
+                                                    zero,
+                                                    token_len,
+                                                    one,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {axis}));
+        }
     }
 
     auto output_type = input0.get_element_type();

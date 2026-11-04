@@ -4,23 +4,55 @@
 
 #pragma once
 
-#include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstdint>
+#include <map>
+#include <memory>
+#include <optional>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov::frontend::gguf {
 
 typedef std::map<std::string, Output<Node>> TensorMap;
+struct ConstantCache {
+    std::map<std::tuple<ov::element::Type_t, ov::Shape, std::vector<int64_t>>, std::shared_ptr<ov::op::v0::Constant>>
+        constants;
+    std::map<std::pair<ov::element::Type_t, size_t>, std::shared_ptr<ov::op::v0::Constant>> hadamard_matrices;
+    std::map<std::tuple<Output<Node>,
+                        int64_t,
+                        bool,
+                        bool,
+                        std::vector<int64_t>,
+                        ov::element::Type_t,
+                        ov::Shape,
+                        std::vector<uint8_t>>,
+             Output<Node>>
+        hadamard_outputs;
+    std::map<Output<Node>, Output<Node>> f32_activations;
+    std::map<Output<Node>, Output<Node>> rank3_activations;
+    std::map<
+        std::
+            tuple<Output<Node>, std::optional<Output<Node>>, int, int, std::vector<float>, std::array<int32_t, 4>, int>,
+        std::pair<Output<Node>, Output<Node>>>
+        rope_tables;
+};
 
 class NodeContext : public frontend::NodeContext {
 public:
-    NodeContext(const std::shared_ptr<GgufDecoder>& decoder, std::shared_ptr<TensorMap>& tensor_map)
+    NodeContext(const std::shared_ptr<GgufDecoder>& decoder,
+                std::shared_ptr<TensorMap>& tensor_map,
+                const std::shared_ptr<ConstantCache>& constant_cache = {})
         : ov::frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
-          m_tensor_map(tensor_map) {
+          m_tensor_map(tensor_map),
+          m_constant_cache(constant_cache ? constant_cache : std::make_shared<ConstantCache>()) {
         m_input_names = decoder->get_input_names();
         m_output_names = decoder->get_output_names();
     }
@@ -37,6 +69,11 @@ public:
         auto shape = m_decoder->get_input_shape(m_input_names[input_index]);
         if (shape.rank().is_dynamic()) {
             shape = get_input(static_cast<int>(input_index)).get_partial_shape();
+            if (shape.rank().is_static() && shape.size() < 4) {
+                std::vector<ov::Dimension> dims(4 - shape.size(), 1);
+                dims.insert(dims.end(), shape.begin(), shape.end());
+                shape = ov::PartialShape(dims);
+            }
         }
         return shape;
     }
@@ -51,13 +88,15 @@ public:
         return m_decoder->get_output_shape();
     }
 
+    int get_op_case() const {
+        return get_attribute<int>("op_case", 0);
+    }
+
     Output<Node> get_input(int idx) const override {
-        return m_tensor_map->at(m_input_names.at(idx));
+        return m_tensor_map->at(m_input_names[idx]);
     }
 
     Output<Node> get_input(const std::string& name) const override {
-        FRONT_END_GENERAL_CHECK(std::find(m_input_names.begin(), m_input_names.end(), name) != m_input_names.end(),
-                                "Input is not an operand of this operation: ", name);
         auto it = m_tensor_map->find(name);
         if (it == m_tensor_map->end()) {
             throw std::runtime_error("'" + name + "' not found in tensor map.");
@@ -66,23 +105,7 @@ public:
     }
 
     bool has_input(const std::string& name) const {
-        return std::find(m_input_names.begin(), m_input_names.end(), name) != m_input_names.end() &&
-               m_tensor_map->find(name) != m_tensor_map->end();
-    }
-
-    // Per-translation memo for values that several nodes would otherwise rebuild identically (e.g. the
-    // RoPE sin/cos table shared by every layer). Entries live in the tensor map under a reserved prefix
-    // so they never collide with a GGML tensor name.
-    bool has_cached(const std::string& key) const {
-        return m_tensor_map->find(kCachePrefix + key) != m_tensor_map->end();
-    }
-
-    Output<Node> get_cached(const std::string& key) const {
-        return m_tensor_map->at(kCachePrefix + key);
-    }
-
-    void set_cached(const std::string& key, const Output<Node>& value) const {
-        (*m_tensor_map)[kCachePrefix + key] = value;
+        return m_tensor_map->find(name) != m_tensor_map->end();
     }
 
     const std::string& get_name() const override {
@@ -93,10 +116,69 @@ public:
         return m_decoder->get_attribute(name);
     }
 
+    std::shared_ptr<ov::op::v0::Constant> get_constant(const ov::element::Type& type,
+                                                       const ov::Shape& shape,
+                                                       const std::vector<int64_t>& values) const {
+        auto& constant = m_constant_cache->constants[{static_cast<ov::element::Type_t>(type), shape, values}];
+        if (!constant)
+            constant = ov::op::v0::Constant::create(type, shape, values);
+        return constant;
+    }
+
+    std::shared_ptr<ov::op::v0::Constant> get_hadamard_matrix(const ov::element::Type& type,
+                                                              size_t block = 1024) const {
+        const auto make_matrix = [&] {
+            const float scale = 1.f / std::sqrt(static_cast<float>(block));
+            std::vector<float> values(block * block);
+            for (size_t row = 0; row < block; ++row) {
+                for (size_t column = 0; column < block; ++column) {
+                    bool negative = false;
+                    for (auto bits = row & column; bits; bits &= bits - 1)
+                        negative = !negative;
+                    values[row * block + column] = negative ? -scale : scale;
+                }
+            }
+            return ov::op::v0::Constant::create(type, {block, block}, values);
+        };
+        auto& matrix = m_constant_cache->hadamard_matrices[{static_cast<ov::element::Type_t>(type), block}];
+        if (!matrix)
+            matrix = make_matrix();
+        return matrix;
+    }
+
+    Output<Node>* get_hadamard_cache_entry(const Output<Node>& input,
+                                           int64_t block,
+                                           bool inverse,
+                                           bool matrix_form,
+                                           const std::vector<int64_t>& heads,
+                                           const ov::Tensor& signs) const;
+
+    Output<Node> get_f32_activation(const Output<Node>& input) const;
+    Output<Node> get_rank3_activation(const Output<Node>& input) const;
+
+    std::pair<Output<Node>, Output<Node>>& get_rope_tables(const RopeConfig& config,
+                                                           const Output<Node>& positions,
+                                                           const Output<Node>& frequencies,
+                                                           int mode) const {
+        return m_constant_cache
+            ->rope_tables[{positions,
+                           frequencies.get_node_shared_ptr() ? std::optional<Output<Node>>{frequencies} : std::nullopt,
+                           config.n_dims,
+                           config.n_ctx_orig,
+                           {config.freq_base,
+                            config.freq_scale,
+                            config.ext_factor,
+                            config.attn_factor,
+                            config.beta_fast,
+                            config.beta_slow},
+                           config.sections,
+                           mode}];
+    }
+
 private:
-    static constexpr const char* kCachePrefix = "__gguf_cache__/";
     std::shared_ptr<GgufDecoder> m_decoder;
     std::shared_ptr<TensorMap>& m_tensor_map;
+    std::shared_ptr<ConstantCache> m_constant_cache;
     std::vector<std::string> m_input_names;
     std::vector<std::string> m_output_names;
 };

@@ -31,9 +31,10 @@ OutputVector translate_sum(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(rank.is_static(), "SUM requires a static operand rank");
     std::vector<int64_t> axes(static_cast<size_t>(rank.get_length()));
     std::iota(axes.begin(), axes.end(), 0);
-    auto res = std::make_shared<ov::op::v1::ReduceSum>(input,
-                                                       ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes),
-                                                       true);
+    auto res =
+        std::make_shared<ov::op::v1::ReduceSum>(input,
+                                                ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes),
+                                                true);
     return rename_outputs_with_suffix({res}, context.get_name());
 }
 

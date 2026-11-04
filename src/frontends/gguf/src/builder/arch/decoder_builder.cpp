@@ -6,8 +6,8 @@
 // Ground truth for the shape of the graph: llama.cpp src/models/{llama,qwen2,qwen3,phi3,minicpm,
 // hunyuan-*,gemma*,gpt-oss,olmoe,qwen35}.cpp and the build_norm / build_qkv / build_attn /
 // build_attn_mha / build_ffn expansions in src/llama-graph.cpp, plus the KV-cache cpy_k/get_k
-// (SET_ROWS + VIEW) in src/llama-kv-cache.cpp. Nodes carry the same named attributes the llama.cpp
-// cgraph decoder (ggml-decoder.cpp) supplies, so both ingest paths share every translator.
+// (SET_ROWS + VIEW) in src/llama-kv-cache.cpp. Op-case values follow
+// ggml-decoder.cpp::compute_op_case.
 //
 // Everything architecture-specific has already been resolved into DecoderConfig, and every
 // repeated fragment lives in blocks/, so this file is only the ORDER in which a decoder is
@@ -17,6 +17,7 @@
 
 #include <cmath>
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
@@ -39,21 +40,11 @@ namespace {
 constexpr int64_t D = -1;
 }  // namespace
 
-DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
-                               std::unordered_map<std::string, ov::Tensor>& weights,
-                               std::unordered_map<std::string, GgufTensorType>& qtypes,
-                               std::optional<RopeMode> rope,
-                               const DecoderOptions& options,
-                               const std::unordered_map<std::string, CreatorFunction>* translators)
-    : m_cfg(config, weights, rope, options),
-      m_emit(weights, qtypes, m_cfg.arch, translators),
+DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
+    : m_cfg(parameters, context.weights->weights),
+      m_emit(context.weights->weights, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
-    m_emit.configure_hadamard(config);
-    auto& graph = *m_emit.graph();
-    graph.has_rope = true;
-    graph.rope_config = m_cfg.rope_config;
-    graph.use_per_op_rope = m_cfg.use_per_op_rope;
-    graph.swa_window_size = m_cfg.swa_window_size;
+    m_cfg.configure_graph(m_emit, context.metadata);
 }
 
 void DecoderBuilder::build_inputs() {
@@ -79,8 +70,8 @@ void DecoderBuilder::build_inputs() {
     if (!m_cfg.embedding_model)
         m_emit.add_input("inp_kv_idx", i32, ps({1, 1, 1, D}));
 
-    // token_len_per_seq: number of new tokens per sequence. An extra (Parameter) input of the GenAI
-    // input contract (see AdaptToGenAI); the attention translators read the mask directly.
+    // token_len_per_seq: number of new tokens per sequence; used by TranslateSession's mask
+    // slicing (add_sliced_mask) to build KQ_mask_sliced. An extra (Parameter) input.
     auto p = std::make_shared<ov::op::v0::Parameter>(i64, ps({1}));
     p->set_friendly_name("token_len_per_seq");
     p->output(0).set_names({"token_len_per_seq"});
@@ -106,7 +97,7 @@ std::string DecoderBuilder::build_embeddings() {
     // muse-glimmer normalizes the token embeddings with a WEIGHTLESS RMSNorm before layer 0
     // (build_norm with a null weight -> plain ggml_rms_norm, no multiplicative term).
     if (m_cfg.scaleless_embd_norm) {
-        cur = m_emit.add_op("GGML_OP_RMS_NORM", "embd_normed", {cur}, {{"eps", m_cfg.rms_eps}});
+        cur = m_emit.add_op("GGML_OP_RMS_NORM", "embd_normed", {cur}, 0, {{"eps", m_cfg.rms_eps}});
     }
     return cur;
 }
@@ -132,16 +123,19 @@ void DecoderBuilder::build_per_layer_embeddings(const std::string& embd) {
     // The data is contiguous as [T, n_layer, pe] (one row per token), so this is a reshape that
     // splits the last axis followed by a transpose of the two middle axes -- a single reshape
     // straight to the target would be wrong for T > 1. Emitted as the same two steps ggml uses
-    // (ggml_reshape_3d, then ggml_cont(ggml_permute)): the RESHAPE splits the last dim into
-    // [.., n_layer, pe] and the PERMUTE is the {0,2,1,3} transpose. No CONT node: translate_permute
-    // already emits a real Transpose, so ggml's ggml_cont would convert to nothing here.
+    // (ggml_reshape_3d, then ggml_cont(ggml_permute)), so both reach the shared op cases: RESHAPE
+    // case 1 splits the last dim into [.., n_layer, pe] and PERMUTE case 1 is the {0,2,1,3}
+    // transpose. Fusing them into one node would need a builder-only case for the transpose. No
+    // CONT node: translate_cont's PERMUTE case is a pass-through, since translate_permute already
+    // emitted a real Transpose, so ggml's ggml_cont would convert to nothing here.
     auto reshape_to_layer_major = [&](const std::string& flat, const std::string& name) {
         auto split =
             m_emit.add_op("GGML_OP_RESHAPE",
                           name + "_split",
                           {flat},
+                          6,
                           {{"reshape_target", std::vector<int64_t>{0, -1, n_layer, pe}}, {"special_zero", true}});
-        return m_emit.add_op("GGML_OP_PERMUTE", name, {split}, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+        return m_emit.add_op("GGML_OP_PERMUTE", name, {split}, 1);
     };
 
     m_emit.add_weight("per_layer_token_embd.weight");
@@ -167,13 +161,13 @@ void DecoderBuilder::build_per_layer_embeddings(const std::string& embd) {
     auto proj_4d = reshape_to_layer_major(proj_flat, "pe_proj_4d");
 
     // RMS_NORM + per_layer_proj_norm weight (applied over last dim = pe)
-    auto proj_norm = m_emit.add_op("GGML_OP_RMS_NORM", "pe_proj_rms", {proj_4d}, {{"eps", m_cfg.rms_eps}});
+    auto proj_norm = m_emit.add_op("GGML_OP_RMS_NORM", "pe_proj_rms", {proj_4d}, 0, {{"eps", m_cfg.rms_eps}});
     auto proj_normed = m_emit.add_op("GGML_OP_MUL", "pe_proj_normed", {proj_norm, "per_layer_proj_norm.weight"});
 
     // Sum token embd + projection, scale by 1/sqrt(2)
     auto pe_sum = m_emit.add_op("GGML_OP_ADD", "pe_sum", {proj_normed, pe_tok});
     const float inv_sqrt2 = 1.0f / std::sqrt(2.0f);
-    m_emit.add_op("GGML_OP_SCALE", "per_layer_embd", {pe_sum}, {{"scale", inv_sqrt2}, {"bias", 0.0f}});
+    m_emit.add_op("GGML_OP_SCALE", "per_layer_embd", {pe_sum}, 0, {{"scale", inv_sqrt2}, {"bias", 0.0f}});
 }
 
 std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string& cur, const std::string& inpSA) {
@@ -183,27 +177,23 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     // per_layer_token_embd (global) is pre-projected before the loop.
     const std::string p = "blk." + std::to_string(il) + ".";
 
-    // Slice out this layer's [1,1,T,pe] chunk (dim 1 at index il), then lay it out like the layer
-    // activation: per_layer_embd is stored layer-major, so the slice's token axis does not necessarily
-    // sit where the activation keeps its own ([1, T, ..] under plain SDPA, [T, 1, ..] once
-    // SDPAToPagedAttention moves the token count into dim 0), and the ops below combine the two
-    // elementwise. The RESHAPE copies the reference's leading dims and keeps the slice's width.
+    // Slice out this layer's [1,1,T,pe] chunk (dim 1 at index il). The second input is passed
+    // purely as a shape reference: per_layer_embd is stored layer-major, so the slice's token axis
+    // does not necessarily sit where the layer activation keeps its own, and the ops below combine
+    // the two elementwise. See the op_case 104 note in op/view.cpp.
     //
-    // The reference has to be a tensor that still carries every token. At the last layer `cur` has
-    // already been filtered down to the output rows by the GET_ROWS in the attention tail, while
-    // per_layer_embd always holds all T of them, so using `cur` there would reinterpret T*D values into
-    // 1*D. Use the layer's unfiltered input instead and let the GET_ROWS below do the filtering.
+    // It has to be a tensor that still carries every token. At the last layer `cur` has already
+    // been filtered down to the output rows by the GET_ROWS in the attention tail, while
+    // per_layer_embd always holds all T of them, so using `cur` there would ask op_case 104 to
+    // reinterpret T*D values into 1*D. Use the layer's unfiltered input instead and let the
+    // GET_ROWS below do the filtering.
     const std::string& pl_shape_ref = (il == m_cfg.n_layer - 1) ? inpSA : cur;
     const std::string pl_slice = p + "per_layer_slice";
     m_emit.add_op("GGML_OP_VIEW",
-                  p + "per_layer_view",
-                  {"per_layer_embd"},
-                  {{"view_slice", std::vector<int64_t>{1, int64_t(il), 1}}});
-    m_emit.add_op("GGML_OP_RESHAPE",
                   pl_slice,
-                  {p + "per_layer_view", pl_shape_ref},
-                  {{"reshape_target", std::vector<int64_t>{0, 0, 0, int64_t(m_cfg.n_embd_per_layer)}},
-                   {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
+                  {"per_layer_embd", pl_shape_ref},
+                  104,  // layer-index slice using the "layer_idx" attribute
+                  {{"layer_idx", int64_t(il)}});
 
     // At the last layer, cur is already filtered to 1 token via inp_out_ids. Mirror llama.cpp
     // gemma4.cpp:347-349: also filter pl_slice so the MUL doesn't broadcast it back to the full
@@ -244,11 +234,14 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     const std::string attn_norm =
         m_cfg.post_norm_only ? cur : norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
 
-    if (m_cfg.is_qwen35 && m_cfg.is_recurrent_layer(il)) {
+    if (m_cfg.is_recurrent_layer(il)) {
         // Hybrid stack: 3 of every 4 layers replace attention with a Gated DeltaNet block.
         // It produces the same thing the attention path does -- the sublayer output before
         // the residual -- so the shared FFN tail below is reused verbatim.
-        const std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
+        std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
+        if (m_cfg.residual_scale != 1.0f) {
+            gdn_out = blocks::scale(m_emit, gdn_out, m_cfg.residual_scale, p + "attn_out_scaled");
+        }
         std::string sa = inpSA;
         std::string ao = gdn_out;
         if (selects_output_rows(il)) {
@@ -256,15 +249,18 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
             sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
         }
         auto ffn_inp_r = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa});
-        auto ffn_norm_r = blocks::rms_norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
+        auto ffn_norm_r = norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
         // Mirror the non-recurrent FFN dispatch below: Qwen3-Next is MoE for every trunk layer
         // (llama.cpp routes both the GDN and full-attention layers through build_moe_ffn), so a
-        // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
+        // real model has no per-layer dense FFN tensors here and dense_ffn's weight lookup
         // would assert.
         const bool is_moe_layer_r = m_cfg.layer_is_moe(il);
         auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r)
                       : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r)
                                        : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r);
+        if (m_cfg.residual_scale != 1.0f) {
+            down_r = blocks::scale(m_emit, down_r, m_cfg.residual_scale, p + "ffn_out_scaled");
+        }
         return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r});
     }
 
@@ -316,7 +312,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
     // Gemma4: per-layer output scale (layer_output_scale.weight is a scalar [1]).
     if (m_emit.has_weight(p + "layer_output_scale.weight")) {
-        m_emit.add_named_weight(p + "layer_output_scale.weight");
+        m_emit.add_weight(p + "layer_output_scale.weight");
         cur = m_emit.add_op("GGML_OP_MUL", p + "scaled_out", {cur, p + "layer_output_scale.weight"});
     }
     return cur;

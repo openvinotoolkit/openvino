@@ -32,8 +32,8 @@ OutputVector translate_cont(const NodeContext& context) {
         if (!same_layout && input_shape.rank().is_static() && input_shape.rank() == output_shape.rank()) {
             same_layout = true;
             for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
-                same_layout = same_layout &&
-                              (input_shape[i].is_dynamic() || (output_shape[i].is_static() && output_shape[i] == input_shape[i]));
+                same_layout = same_layout && (input_shape[i].is_dynamic() ||
+                                              (output_shape[i].is_static() && output_shape[i] == input_shape[i]));
             }
         }
         FRONT_END_OP_CONVERSION_CHECK(same_layout,

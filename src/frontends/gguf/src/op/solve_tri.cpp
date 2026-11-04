@@ -44,11 +44,13 @@ OutputVector translate_solve_tri(const NodeContext& context) {
     if (a.get_element_type() != type) {
         a = std::make_shared<ov::op::v0::Convert>(a, type);
     }
-    FRONT_END_OP_CONVERSION_CHECK(a.get_partial_shape().rank().is_static() && a.get_partial_shape().rank().get_length() == 4,
-                                  "SOLVE_TRI requires a rank-4 coefficient matrix");
+    FRONT_END_OP_CONVERSION_CHECK(
+        a.get_partial_shape().rank().is_static() && a.get_partial_shape().rank().get_length() == 4,
+        "SOLVE_TRI requires a rank-4 coefficient matrix");
 
     auto zero = ov::op::v0::Constant::create(type, {}, {0.0f});
-    auto x_init = std::make_shared<ov::op::v3::Broadcast>(zero, std::make_shared<ov::op::v3::ShapeOf>(b, ov::element::i64));
+    auto x_init =
+        std::make_shared<ov::op::v3::Broadcast>(zero, std::make_shared<ov::op::v3::ShapeOf>(b, ov::element::i64));
     // One iteration per row; read at run time so a dynamic chunk length also works.
     auto rows = get_dimensions(a, {2});
 
@@ -59,17 +61,19 @@ OutputVector translate_solve_tri(const NodeContext& context) {
     auto row_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
     auto col_axis = ov::op::v0::Constant::create(ov::element::i64, {}, {3});
 
-    auto b_i = std::make_shared<ov::op::v8::Gather>(body_b, body_iter, row_axis);       // [B2, B1, 1, k]
-    auto a_row = std::make_shared<ov::op::v8::Gather>(body_a, body_iter, row_axis);     // [B2, B1, 1, n]
+    auto b_i = std::make_shared<ov::op::v8::Gather>(body_b, body_iter, row_axis);      // [B2, B1, 1, k]
+    auto a_row = std::make_shared<ov::op::v8::Gather>(body_a, body_iter, row_axis);    // [B2, B1, 1, n]
     auto partial = std::make_shared<ov::op::v0::MatMul>(a_row, body_x, false, false);  // [B2, B1, 1, k]
-    auto diag = std::make_shared<ov::op::v8::Gather>(a_row, body_iter, col_axis);       // [B2, B1, 1, 1]
+    auto diag = std::make_shared<ov::op::v8::Gather>(a_row, body_iter, col_axis);      // [B2, B1, 1, 1]
     auto x_i = std::make_shared<ov::op::v1::Divide>(std::make_shared<ov::op::v1::Subtract>(b_i, partial), diag);
     auto x_next = std::make_shared<ov::op::v3::ScatterUpdate>(body_x, body_iter, x_i, row_axis);
     auto keep_going = ov::op::v0::Constant::create(ov::element::boolean, ov::Shape{1}, {true});
     auto body = std::make_shared<ov::Model>(ov::OutputVector{keep_going, x_next},
                                             ov::ParameterVector{body_iter, body_x, body_a, body_b});
 
-    auto loop = std::make_shared<ov::op::v5::Loop>(rows, ov::op::v0::Constant::create(ov::element::boolean, ov::Shape{1}, {true}));
+    auto loop =
+        std::make_shared<ov::op::v5::Loop>(rows,
+                                           ov::op::v0::Constant::create(ov::element::boolean, ov::Shape{1}, {true}));
     loop->set_function(body);
     loop->set_special_body_ports(ov::op::v5::Loop::SpecialBodyPorts{0, 0});
     loop->set_merged_input(body_x, x_init, x_next);

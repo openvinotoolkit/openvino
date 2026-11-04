@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/roll.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -10,7 +12,6 @@
 #include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/roll.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -19,7 +20,15 @@ namespace ov::frontend::gguf::op {
 // order (dim 0 innermost). OV axis i is ggml dimension rank - 1 - i.
 OutputVector translate_roll(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
-    const auto shifts = context.get_attribute<std::vector<int32_t>>("roll_shifts");
+    const auto attribute = context.get_attribute_as_any("roll_shifts");
+    const bool ggml_order = attribute.is<std::vector<int32_t>>();
+    std::vector<int64_t> shifts;
+    if (ggml_order) {
+        const auto values = attribute.as<std::vector<int32_t>>();
+        shifts.assign(values.begin(), values.end());
+    } else {
+        shifts = attribute.as<std::vector<int64_t>>();
+    }
     auto input = context.get_input(0);
     const auto rank = input.get_partial_shape().rank();
     FRONT_END_OP_CONVERSION_CHECK(rank.is_static() && shifts.size() >= static_cast<size_t>(rank.get_length()),
@@ -28,7 +37,7 @@ OutputVector translate_roll(const NodeContext& context) {
     std::vector<int64_t> shift(n);
     std::vector<int64_t> axes(n);
     for (size_t axis = 0; axis < n; ++axis) {
-        shift[axis] = shifts[n - 1 - axis];
+        shift[axis] = shifts[ggml_order ? n - 1 - axis : axis];
         axes[axis] = static_cast<int64_t>(axis);
     }
     auto res = std::make_shared<ov::op::v7::Roll>(input,
