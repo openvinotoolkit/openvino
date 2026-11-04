@@ -31,7 +31,8 @@ public:
         OPENVINO_ASSERT(patch == 16 && merge == 2 && head % 4 == 0, "[GGUF] unsupported LFM3-VL patch/merge geometry");
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
         auto spatial = conv(pixels, "v.patch_embd", patch, patch, 0, 0);
-        if (g.tensors().has("v.patch_embd.weight.1")) {
+        const auto temporal = g.tensors().has("v.patch_embd.weight.1") ? 2 : 1;
+        if (temporal == 2) {
             auto second = g.add_input("vision.pixel_values_1", ov::element::f32, {1, 3, -1, -1});
             spatial = add(spatial,
                           g.node("GGML_OP_CONV_2D",
@@ -74,8 +75,11 @@ public:
         x = linear(g.node("GGML_UNARY_OP_GELU_ERF", {linear(x, "mm.0")}), "mm.2");
         ProjectorResult result;
         result.output = x;
-        result.genai_layout = ProjectorLayout::Image;
-        result.config = {{"vision.merge", "2"}, {"vision.temporal_patch_size", "2"}, {"vision.streaming", "false"}};
+        result.genai_layout = ProjectorLayout::TemporalPackedPatches;
+        result.config = {{"vision.merge", "2"},
+                         {"vision.patch_size", std::to_string(patch)},
+                         {"vision.temporal_patch_size", std::to_string(temporal)},
+                         {"vision.streaming", "false"}};
         return result;
     }
 
