@@ -214,8 +214,9 @@ void ov::npuw::WhisperInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::f32 == encoder_hidden_states->get_element_type());
 
     const auto prompt_length = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    // Sync num_stored_tokens before infer with external updates
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    kvcache_desc.num_stored_tokens = static_cast<uint32_t>(m_stored_tokens_state->get_num_stored_tokens());
+    kvcache_desc.num_stored_tokens = static_cast<uint32_t>(get_external_stored_tokens());
 
     // NB: Check the sequence length provided for input_ids
     // in order to distinguish prefill / generate stages.
@@ -228,7 +229,7 @@ void ov::npuw::WhisperInferRequest::infer() {
         infer_generate(input_ids);
     }
 
-    m_stored_tokens_state->set_num_stored_tokens(kvcache_desc.num_stored_tokens);
+    publish_stored_tokens(static_cast<int64_t>(kvcache_desc.num_stored_tokens));
 }
 
 // FIXME: Whisper Decompose SDPA
