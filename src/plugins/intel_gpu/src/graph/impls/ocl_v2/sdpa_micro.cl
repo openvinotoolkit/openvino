@@ -182,6 +182,12 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
 #define binary_add(x, y) ((x) + (y))
 
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
+#if IS_PREFILL
+#define TT_MASK_PRESENT 1
+#else
+#define TT_MASK_PRESENT (TOKEN_TYPE_IDS_BATCH_NUM > 0)
+#endif
+
 KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         const global KEY_DATA_T *K,
         const global QRY_DATA_T *Q,
@@ -217,6 +223,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
+    #if USE_TT_BOUNDS
+        , const __global int* tt_bounds
+    #endif
 #else
         int d, int k, int q
 #endif
@@ -305,23 +314,43 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         causal_k = min(k, (int)wg_j0 + ugemm_kq_wg_tile_n);
     #endif
-    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
+    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION
+    /* token_type_ids has the new tokens only. t is the index among them: K position = past_len + t. */
+    #define TT_NEW(t) token_type_ids[subsequence_begin + (t)]
+    /* token types by K position: valid for K positions in [past_len, k) */
+    const __global int *tt_kpos = token_type_ids + subsequence_begin - past_len;
+    /* An empty token_type_ids input (runtime size 0) disables the bidirectional masking. */
+    #if IS_PREFILL
+    const bool tt_present = true; /* PREFILL: unchanged */
+    #else
+    const bool tt_present = TOKEN_TYPE_IDS_BATCH_NUM > 0;
+    #endif
     /* Extend causal_k to cover the full bidirectional group that overlaps
        the current WG's query range. Without this, future K positions in
        the same image-token group would be skipped entirely.
-       Only lane 0 performs the scan; result is broadcast to all WIs. */
+       With USE_TT_BOUNDS the group bounds come from pa_tt_bounds; otherwise lane 0 scans and broadcasts the result. */
     {
-        int wg_q_end = min((int)wg_j0 + ugemm_kq_wg_tile_n, k) - 1;
+        /* last query of this tile (queries are only the q new tokens) */
+        const int wg_q_end = min((int)wg_j0 + ugemm_kq_wg_tile_n, (int)q) - 1;
         int bidir_causal_k = causal_k;
-        if (wg_q_end >= 0 && wg_q_end < k && token_type_ids[wg_q_end] == 1) {
+    #if USE_TT_BOUNDS
+        /* group bounds precomputed by pa_tt_bounds: (1, 0) = not in a group */
+        if (wg_q_end >= 0) {
+            const int grp_end = tt_bounds[2 * (subsequence_begin + wg_q_end) + 1];
+            if (grp_end >= tt_bounds[2 * (subsequence_begin + wg_q_end)])
+                bidir_causal_k = max(causal_k, past_len + grp_end + 1);
+        }
+    #else
+        if (tt_present && wg_q_end >= 0 && TT_NEW(wg_q_end) == 1) {
             int bidir_end = wg_q_end + 1;
             if (get_sub_group_local_id() == 0) {
-                while (bidir_end < k && token_type_ids[bidir_end] == 1)
+                while (bidir_end < (int)q && TT_NEW(bidir_end) == 1)
                     bidir_end++;
             }
             bidir_end = sub_group_broadcast(bidir_end, 0);
-            bidir_causal_k = max(causal_k, bidir_end);
+            bidir_causal_k = max(causal_k, past_len + bidir_end);
         }
+    #endif
         causal_k = bidir_causal_k;
     }
     #endif
@@ -343,19 +372,28 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         window_k_begin = MAX(0, (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #endif
-    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
+    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION
     /* Extend sliding window start to include the full bidirectional group
        that overlaps the window boundary. Without this, K positions in the
        same image-token group but before window_k_begin would be skipped.
-       Only lane 0 performs the scan; result is broadcast to all WIs. */
-    if (window_k_begin > 0 && token_type_ids[window_k_begin] == 1) {
-        int wb = window_k_begin;
+       Groups exist only in the new tokens (K >= past_len).
+       With USE_TT_BOUNDS the group bounds come from pa_tt_bounds; otherwise lane 0 scans and broadcasts the result. */
+    #if USE_TT_BOUNDS
+    if (window_k_begin > past_len && window_k_begin - past_len < (int)q) {
+        const int loc = window_k_begin - past_len;
+        if (tt_bounds[2 * (subsequence_begin + loc) + 1] >= tt_bounds[2 * (subsequence_begin + loc)])
+            window_k_begin = past_len + tt_bounds[2 * (subsequence_begin + loc)];
+    }
+    #else
+    if (tt_present && window_k_begin > past_len && TT_NEW(window_k_begin - past_len) == 1) {
+        int wb = window_k_begin - past_len;
         if (get_sub_group_local_id() == 0) {
-            while (wb > 0 && token_type_ids[wb - 1] == 1)
+            while (wb > 0 && TT_NEW(wb - 1) == 1)
                 wb--;
         }
-        window_k_begin = sub_group_broadcast(wb, 0);
+        window_k_begin = past_len + sub_group_broadcast(wb, 0);
     }
+    #endif
     #endif
     window_k0_begin = (window_k_begin / ugemm_kq_wg_tile_m) * ugemm_kq_wg_tile_m;
 #endif
@@ -741,7 +779,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-        if (MSK_D2 == 1 && MSK_D3 > 1) {
+        if (MSK_D3 == 1) {
+            /* Mask is broadcast over keys ([.., .., Q, 1] or [.., .., 1, 1]): one value per query row. */
+            const uint ldmsk_q = (MSK_D2 == 1) ? 0 : ldmsk;
+#pragma unroll
+            for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                const int q_idx = (int)(wg_j0 + sg_j0_kq) + i0 + get_sub_group_local_id();
+                const half msk_q = (MSK_D2 == 1 || q_idx < q) ? msk[q_idx * ldmsk_q] : 0;
+#pragma unroll
+                for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+                    tile_access(mask_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                            ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = msk_q;
+                }
+            }
+        } else if (MSK_D2 == 1) {
             // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
             // In the case of single query dimension, set ld and offset_r to zero
             // to avoid exceeding bounds for single dimension.
@@ -1141,40 +1192,71 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         causal_q_begin += k - q;
     #endif
 
-    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION && IS_PREFILL
-        /* Apply causal mask with bidirectional for image tokens */
+    #if HAS_TOKEN_TYPE_IDS && IS_PAGED_ATTENTION
+        /* Apply causal mask with bidirectional for image tokens.
+           offset_k / offset_q are K positions; token_type_ids is indexed by position - past_len. */
         {
-            const int k_base = k0 + sg_i0_kq;
-            for (int j = 0; j < (ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1); j++) {
-                const int offset_k = k_base + j;
+            const int tt_k_begin = k0 + sg_i0_kq;
+            const int tt_k_end = tt_k_begin + ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1;
+    #if SLIDING_WINDOW_SIZE
+            const int tt_q_end = causal_q_begin + ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0 - 1;
+            /* Tile is fully causal and inside the window: nothing to mask (same check as the text-only path). */
+            const bool tt_block_fully_valid = (tt_k_begin > tt_q_end - SLIDING_WINDOW_SIZE) && (tt_k_end <= causal_q_begin);
+    #else
+            const bool tt_block_fully_valid = !(tt_k_end > causal_q_begin);
+    #endif
+            if (!tt_block_fully_valid) {
+    #if USE_TT_BOUNDS
                 for (int i0 = 0; i0 < (ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0); i0 += SUBGROUP_SIZE) {
-                    int i = i0 + get_sub_group_local_id();
-                    const int offset_q = col_offset + i;
-                    if (greater_than(offset_k, offset_q)) {
-                        bool is_bidirectional = false;
-                        if (offset_k < q && offset_q < q &&
-                            token_type_ids[offset_k] == 1 &&
-                            token_type_ids[offset_q] == 1) {
-                            /* Verify no 0 exists between q and k (same 1-group).
-                               Scan from the smaller to the larger index so this
-                               works both for future tokens (k>q) and for past
-                               tokens outside the sliding window (k<q). */
-                            is_bidirectional = true;
-                            const int scan_begin = min(offset_q, offset_k) + 1;
-                            const int scan_end = max(offset_q, offset_k);
-                            for (int p = scan_begin; p < scan_end; p++) {
-                                if (token_type_ids[p] != 1) {
-                                    is_bidirectional = false;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!is_bidirectional) {
+                    const int offset_q = col_offset + i0 + get_sub_group_local_id();
+                    /* group of this query row, precomputed by pa_tt_bounds (empty = (1, 0) for text tokens) */
+                    int g_lo = 1, g_hi = 0;
+                    if (offset_q >= past_len && offset_q < k) {
+                        const int bidx = 2 * (subsequence_begin + (offset_q - past_len));
+                        g_lo = past_len + tt_bounds[bidx];
+                        g_hi = past_len + tt_bounds[bidx + 1];
+                    }
+                    for (int j = 0; j < (ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1); j++) {
+                        const int offset_k = tt_k_begin + j;
+                        if (greater_than(offset_k, offset_q) && !(offset_k >= g_lo && offset_k <= g_hi)) {
                             tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
                                         ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
                         }
                     }
                 }
+    #else
+                for (int j = 0; j < (ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1); j++) {
+                    const int offset_k = tt_k_begin + j;
+                    for (int i0 = 0; i0 < (ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0); i0 += SUBGROUP_SIZE) {
+                        int i = i0 + get_sub_group_local_id();
+                        const int offset_q = col_offset + i;
+                        if (greater_than(offset_k, offset_q)) {
+                            bool is_bidirectional = false;
+                            if (TT_MASK_PRESENT && offset_k >= past_len && offset_k < k && offset_q >= past_len && offset_q < k &&
+                                tt_kpos[offset_k] == 1 &&
+                                tt_kpos[offset_q] == 1) {
+                                /* Verify no 0 exists between q and k (same 1-group).
+                                   Scan from the smaller to the larger index so this
+                                   works both for future tokens (k>q) and for past
+                                   tokens outside the sliding window (k<q). */
+                                is_bidirectional = true;
+                                const int scan_begin = min(offset_q, offset_k) + 1;
+                                const int scan_end = max(offset_q, offset_k);
+                                for (int p = scan_begin; p < scan_end; p++) {
+                                    if (tt_kpos[p] != 1) {
+                                        is_bidirectional = false;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!is_bidirectional) {
+                                tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                            ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
+                            }
+                        }
+                    }
+                }
+    #endif
             }
         }
     #else
@@ -1496,19 +1578,35 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
 #if WITH_ATTN_MASK && defined(PREFETCH_MASK)
-        /* Prefetch next mask tile. */
-        if (!last) {
-            cooperative_prefetch_2d_maybe_rem(
-                    /* ptr */ msk + k0 + ugemm_kq_sg_tile_m + (wg_j0)*ldmsk,
-                    /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
-                    /* c */ q - wg_j0,
-                    /* rmax */ ugemm_kq_wg_tile_m,
-                    /* cmax */ (ugemm_kq_wg_tile_n * PREFETCH_D_MAX) / D_MAX,
-                    /* ld */ ldmsk,
-                    /* sg_id */ sg_ij,
-                    /* n_sg */ sg_per_wg,
-                    /* sg_size */ SUBGROUP_SIZE,
-                    /* cache */ LSC_LDCC_L1UC_L3C);
+        /* Prefetch next mask tile. A key-broadcast mask (MSK_D3 == 1) has no further tiles. */
+        if (!last && MSK_D3 > 1) {
+            if (MSK_D2 == 1) {
+                /* Mask is broadcast over queries ([.., .., 1, K]): only one row exists.
+                   Striding by ldmsk per query would prefetch far past the end of the mask buffer. */
+                cooperative_prefetch_2d_maybe_rem(
+                        /* ptr */ msk + k0 + ugemm_kq_wg_tile_m,
+                        /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                        /* c */ 1,
+                        /* rmax */ ugemm_kq_wg_tile_m,
+                        /* cmax */ 1,
+                        /* ld */ 0,
+                        /* sg_id */ sg_ij,
+                        /* n_sg */ sg_per_wg,
+                        /* sg_size */ SUBGROUP_SIZE,
+                        /* cache */ LSC_LDCC_L1C_L3C);
+            } else {
+                cooperative_prefetch_2d_maybe_rem(
+                        /* ptr */ msk + k0 + ugemm_kq_sg_tile_m + (wg_j0)*ldmsk,
+                        /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                        /* c */ q - wg_j0,
+                        /* rmax */ ugemm_kq_wg_tile_m,
+                        /* cmax */ (ugemm_kq_wg_tile_n * PREFETCH_D_MAX) / D_MAX,
+                        /* ld */ ldmsk,
+                        /* sg_id */ sg_ij,
+                        /* n_sg */ sg_per_wg,
+                        /* sg_size */ SUBGROUP_SIZE,
+                        /* cache */ LSC_LDCC_L1UC_L3C);
+            }
         }
 #endif
 

@@ -277,6 +277,29 @@ kernels_cache::kernels_cache(engine& engine,
     , _prog_id(prog_id)
     , batch_headers(std::move(batch_headers)) { }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// GRF size in bytes of the device. It is needed to locate the end of the host kernel thread payload when checking that
+// the microkernel registers do not overlap it. Listed explicitly (no default) so that a new architecture is flagged by -Wswitch.
+static int get_grf_bytes(gpu_arch arch) {
+    switch (arch) {
+    case gpu_arch::gen9:
+    case gpu_arch::gen11:
+    case gpu_arch::xe_lp:
+    case gpu_arch::xe_hp:
+    case gpu_arch::xe_hpg:
+        return 32;
+    case gpu_arch::xe_hpc:
+    case gpu_arch::xe2:
+    case gpu_arch::xe3:
+    case gpu_arch::xe3p:
+        return 64;
+    case gpu_arch::unknown:
+        break;
+    }
+    OPENVINO_THROW("[GPU] Unknown GRF size for GPU architecture ", static_cast<int>(arch));
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
+
 void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
     bool dump_sources = batch.dump_custom_program;
@@ -336,8 +359,13 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
             OPENVINO_ASSERT(batch.kernels_counter == 1 && kernels.size() == 1);
             std::vector<uint8_t> binary = kernels[0]->get_binary();
             kernels.clear();
-            // Update binary and rebuild kernel
-            gemmstone::microkernel::fuse(binary, combined_source.c_str());
+            // Update binary and rebuild kernel.
+            // Passing grfBytes enables validation of the microkernel registers against the host kernel thread payload;
+            // fuse() throws if they overlap. Returns false if the payload could not be checked.
+            const int grf_bytes = get_grf_bytes(_device->get_info().arch);
+            if (!gemmstone::microkernel::fuse(binary, combined_source.c_str(), grf_bytes)) {
+                GPU_DEBUG_LOG << "[GPU] Microkernels were fused, but their registers could not be checked against the host kernel payload" << std::endl;
+            }
             _builder->build_kernels(binary.data(), binary.size(), KernelFormat::NATIVE_BIN, "", kernels);
 #else  // ENABLE_ONEDNN_FOR_GPU
             OPENVINO_THROW("[GPU] Can't compile kernel w/ microkernels as onednn is not available");

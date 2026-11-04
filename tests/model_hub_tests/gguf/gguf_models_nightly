@@ -34,6 +34,9 @@ minimax-m2,mradermacher/MiniMax-M2.1-REAP-50-i1-GGUF,MiniMax-M2.1-REAP-50.i1-Q2_
 jais2,mradermacher/JAIS2-IT-0.3-GGUF,JAIS2-IT-0.3.Q4_K_M.gguf
 nemotron_h,bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF,nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf
 mamba2-2.7b,Nicholas55555/mamba2-2.7b-Q8_0-GGUF,mamba2-2.7b-q8_0.gguf
+
+lfm2,LiquidAI/LFM2.5-1.2B-Instruct-GGUF,LFM2.5-1.2B-Instruct-Q4_0.gguf
+lfm2moe,LiquidAI/LFM2.5-8B-A1B-GGUF,LFM2.5-8B-A1B-Q4_0.gguf
 qwen35-bonsai-pq2_0,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-PQ2_0.gguf
 qwen35-bonsai2-pq2_0,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-PQ2_0.gguf
 qwen35-bonsai2-ptq1_0,prism-ml/Ternary-Bonsai-2-27B-gguf,Ternary-Bonsai-2-27B-PTQ1_0.gguf

@@ -879,6 +879,10 @@ public:
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                             ov::element::Type exec_prc = ov::element::f32);
 
+    jit_bitwise_and_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const std::shared_ptr<ov::Node>& node);
+
     size_t get_inputs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -896,6 +900,10 @@ public:
     jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                             ov::element::Type exec_prc = ov::element::f32);
+
+    jit_bitwise_not_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 
@@ -915,6 +923,10 @@ public:
                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                            ov::element::Type exec_prc = ov::element::f32);
 
+    jit_bitwise_or_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                           dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                           const std::shared_ptr<ov::Node>& node);
+
     size_t get_inputs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -932,6 +944,10 @@ public:
     jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
                             dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
                             ov::element::Type exec_prc = ov::element::f32);
+
+    jit_bitwise_xor_emitter(dnnl::impl::cpu::aarch64::jit_generator_t* host,
+                            dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
+                            const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_count() const override;
 

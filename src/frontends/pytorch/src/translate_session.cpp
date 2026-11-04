@@ -262,14 +262,74 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           converted_outputs.size(),
                                           " respectively.");
 
+            const auto get_sequence_elements = [&](size_t id) {
+                std::set<size_t> visited;
+                for (auto alias = m_may_be_alias.find(id);
+                     alias != m_may_be_alias.end() && visited.insert(alias->first).second;
+                     alias = m_may_be_alias.find(alias->second.base_id)) {
+                    const auto& info = alias->second;
+                    if (!info.element_ids.empty()) {
+                        return info.element_ids;
+                    }
+                    if (!info.same_tensor &&
+                        (info.output != info.base_value || info.decoder->get_schema().find('!') == std::string::npos)) {
+                        break;
+                    }
+                }
+                return std::vector<size_t>{};
+            };
+            std::map<size_t, size_t> sequence_aliases;
+            const auto input_sequences =
+                raw_inputs.empty() ? TorchDecoder::InputSequences{} : node->get_input_sequences();
+            for (const auto& sequence_input : input_sequences) {
+                const auto i = sequence_input.first;
+                const auto& elements = sequence_input.second;
+                FRONT_END_OP_CONVERSION_CHECK(i < raw_inputs.size(), "Sequence input index is out of range.");
+                if (elements.empty()) {
+                    continue;
+                }
+                const auto alias = m_may_be_alias.find(raw_inputs[i]);
+                const auto element_ids = get_sequence_elements(raw_inputs[i]);
+                FRONT_END_OP_CONVERSION_CHECK(element_ids.empty() || element_ids.size() == elements.size(),
+                                              "Sequence extraction must preserve the number of elements.");
+                OutputVector values;
+                for (size_t j = 0; j < elements.size(); ++j) {
+                    const auto output_index = elements[j];
+                    FRONT_END_OP_CONVERSION_CHECK(output_index < fw_outputs.size(),
+                                                  "Sequence element output index is out of range.");
+                    const auto base_id = element_ids.empty() ? raw_inputs[i] : element_ids[j];
+                    FRONT_END_OP_CONVERSION_CHECK(sequence_aliases.emplace(output_index, base_id).second,
+                                                  "A sequence extraction output must identify exactly one element.");
+                    values.push_back(converted_outputs.at(output_index));
+                }
+                if (!ov::is_type<SequenceMark>(tensor_map->at(raw_inputs[i]).get_node_shared_ptr())) {
+                    const auto sequence = make_list_construct(values);
+                    encode_tensor_name(sequence, raw_inputs[i]);
+                    (*tensor_map)[raw_inputs[i]] = sequence;
+                    for (auto current = alias; current != m_may_be_alias.end();
+                         current = m_may_be_alias.find(current->second.base_id)) {
+                        auto& info = current->second;
+                        if (ov::is_type<SequenceMark>(info.base_value.get_node())) {
+                            break;
+                        }
+                        const bool same_value = info.output == info.base_value;
+                        info.output = sequence;
+                        if (!same_value) {
+                            break;
+                        }
+                        info.base_value = sequence;
+                        (*tensor_map)[info.base_id] = sequence;
+                    }
+                }
+            }
+
             const bool has_inputs = !raw_inputs.empty();
             const size_t first_input_id = has_out ? node->get_named_input("out") : (has_inputs ? raw_inputs.at(0) : 0);
             const auto& op_type = context.get_op_type();
             const bool constructs_sequence = op_type == "prim::TupleConstruct" || op_type == "prim::ListConstruct";
             std::vector<size_t> unpacked_ids;
-            const auto sequence = m_may_be_alias.find(first_input_id);
-            if (sequence != m_may_be_alias.end() && !sequence->second.element_ids.empty()) {
-                const auto& elements = sequence->second.element_ids;
+            const auto elements = get_sequence_elements(first_input_id);
+            if (!elements.empty()) {
                 if (op_type == "prim::TupleUnpack" || op_type == "prim::ListUnpack") {
                     unpacked_ids = elements;
                 } else if (op_type == "aten::__getitem__") {
@@ -286,8 +346,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = fw_outputs.at(i);
-                const auto in_tensor_id = unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i);
-                if (has_out || (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
+                const auto extracted = sequence_aliases.find(i);
+                const bool sequence_element = extracted != sequence_aliases.end();
+                const auto in_tensor_id =
+                    sequence_element ? extracted->second : (unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i));
+                if (has_out || sequence_element ||
+                    (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
                     auto alias_iter = m_may_be_alias.find(fw_tensor_id);
                     // TODO: do we need to check other inputs, not only 0?
                     if (alias_iter != m_may_be_alias.end()) {
@@ -302,11 +366,14 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                                 " vs ",
                                                 recorded.base_id);
                     }
-                    m_may_be_alias[fw_tensor_id] = {in_tensor_id,
-                                                    node,
-                                                    converted_outputs[i],
-                                                    tensor_map->at(in_tensor_id),
-                                                    constructs_sequence ? raw_inputs : std::vector<size_t>{}};
+                    m_may_be_alias[fw_tensor_id] = {
+                        in_tensor_id,
+                        node,
+                        converted_outputs[i],
+                        tensor_map->at(in_tensor_id),
+                        constructs_sequence ? raw_inputs : std::vector<size_t>{},
+                        !unpacked_ids.empty() ||
+                            (sequence_element && !ov::is_type<SequenceMark>(tensor_map->at(in_tensor_id).get_node()))};
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,
                                    " of tensor: ",
