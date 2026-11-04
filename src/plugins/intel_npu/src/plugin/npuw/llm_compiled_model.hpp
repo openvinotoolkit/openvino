@@ -192,6 +192,8 @@ protected:
     bool m_is_qwen3_asr = false;
 
     bool m_is_embedding = false;
+    // True when the model expects additive attention_mask in [B, 1, Q, K] float layout.
+    bool m_attention_mask_is_4d_float = false;
     // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
