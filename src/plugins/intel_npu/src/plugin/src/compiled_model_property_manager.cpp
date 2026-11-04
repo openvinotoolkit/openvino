@@ -110,8 +110,7 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
     if (propertyIt != _properties.end()) {
         OPENVINO_ASSERT(propertyIt->second.isSupported(ov::AnyMap{}), "Unsupported configuration key: ", name);
         if (propertyIt->second.mutability == ov::PropertyMutability::WO) {
-            _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object", name.c_str());
-            return ov::Any();
+            _logger.warning("Trying to get WRITE-ONLY property: %s. Returning its empty value", name.c_str());
         }
         return propertyIt->second.get(ov::AnyMap{});
     }
@@ -305,8 +304,8 @@ void CompiledModelPropertyManager::registerProperties() {
         [](const ov::AnyMap&) {
             return true;
         },
-        [](const ov::AnyMap&) {
-            return ov::Any(std::vector<std::string>{"NPU"});
+        [this](const ov::AnyMap&) {
+            return _device != nullptr ? decltype(ov::execution_devices)::value_type{"NPU.0"} : decltype(ov::execution_devices)::value_type{};
         },
         readOnlySetter
     );

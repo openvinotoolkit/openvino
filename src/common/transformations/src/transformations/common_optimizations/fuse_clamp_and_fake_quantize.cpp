@@ -28,7 +28,7 @@ FuseClampAndFakeQuantize::FuseClampAndFakeQuantize() {
     auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
         {clamp_pattern, input_low_pattern, input_high_pattern, pattern::any_input(), pattern::any_input()});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto pattern_map = m.get_pattern_value_map();
         const auto clamp = ov::as_type_ptr<v0::Clamp>(pattern_map.at(clamp_pattern).get_node_shared_ptr());
         const auto input_low = ov::as_type_ptr<v0::Constant>(pattern_map.at(input_low_pattern).get_node_shared_ptr());

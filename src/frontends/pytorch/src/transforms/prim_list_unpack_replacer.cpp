@@ -264,34 +264,7 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                 return false;
             }
 
-            if (indexing == "xy" && meshgrid_inputs.size() >= 2) {
-                std::swap(meshgrid_inputs[0], meshgrid_inputs[1]);
-            }
-            NodeVector cat_shapes{};
-            NodeVector reshapes{};
-            auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
-            auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
-            int input_idx = 0;
-            for (auto& input : meshgrid_inputs) {
-                auto reshaped_input = rg.make<v1::Reshape>(input, const_neg_1, false);
-                auto shape = rg.make<v3::ShapeOf>(reshaped_input, element::i32);
-                cat_shapes.push_back(shape);
-                NodeVector cat_inputs(meshgrid_inputs.size(), const_1);
-                cat_inputs[input_idx] = shape;
-                input_idx++;
-                auto input_cat = rg.make<v0::Concat>(cat_inputs, 0);
-                auto reshape_cat = rg.make<v1::Reshape>(reshaped_input, input_cat, false);
-                reshapes.push_back(reshape_cat);
-            }
-            auto cat = rg.make<v0::Concat>(cat_shapes, 0);
-            OutputVector outputs{};
-            for (auto& reshape : reshapes) {
-                auto out = rg.make<v3::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL);
-                outputs.push_back(out);
-            }
-            if (indexing == "xy" && outputs.size() >= 2) {
-                std::swap(outputs[0], outputs[1]);
-            }
+            auto outputs = build_meshgrid(rg, meshgrid_inputs, indexing);
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node, seq_mark_input});
             replace_node(list_unpack, outputs);
             return true;

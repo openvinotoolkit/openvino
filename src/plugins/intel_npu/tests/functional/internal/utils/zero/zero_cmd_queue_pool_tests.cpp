@@ -73,7 +73,7 @@ public:
     }
 };
 
-TEST_P(ZeroCmdQueuePoolTests, SetWorkloadType) {
+TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeForNewQueue) {
     ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                                      ZE_WORKLOAD_TYPE_BACKGROUND,
                                                      0,
@@ -93,7 +93,7 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadType) {
 
 TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeOnExistingQueue) {
     if (init_struct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
-        GTEST_SKIP() << "The WorkloadType property is not supported by the current driver.\n";
+        GTEST_SKIP() << "The WorkloadType feature is not supported by the current driver.\n";
     }
 
     int owner = 1;
@@ -108,6 +108,25 @@ TEST_P(ZeroCmdQueuePoolTests, SetWorkloadTypeOnExistingQueue) {
 
     OV_ASSERT_NO_THROW(cmd_queue->setWorkloadType(ZE_WORKLOAD_TYPE_BACKGROUND));
     OV_ASSERT_NO_THROW(cmd_queue->setWorkloadType(ZE_WORKLOAD_TYPE_DEFAULT));
+}
+
+TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnExistingQueue) {
+    if (!init_struct->isCommandQueueSetPrioritySupported()) {
+        GTEST_SKIP() << "The SetPriority feature is not supported by the current driver.\n";
+    }
+
+    int owner = 1;
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     ZE_WORKLOAD_TYPE_DEFAULT,
+                                                     0,
+                                                     &owner,
+                                                     false};
+
+    auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc);
+    ASSERT_NE(cmd_queue, nullptr);
+
+    OV_ASSERT_NO_THROW(cmd_queue->setPriority(ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_LOW));
+    OV_ASSERT_NO_THROW(cmd_queue->setPriority(ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH));
 }
 
 TEST_P(ZeroCmdQueuePoolTests, SharedCommonQueueDisabledRequiresOwnerTag) {

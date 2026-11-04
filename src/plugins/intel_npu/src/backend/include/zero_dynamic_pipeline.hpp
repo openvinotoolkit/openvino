@@ -157,6 +157,8 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
     // Predicts VM runtime output shapes for the given input/output tensors. A nullptr tensor entry falls
     // back to the graph metadata max shape. Uses the pipeline's own graph handle and VM execution context,
     // which is the same context reused by execute_vm_runtime.
@@ -177,6 +179,9 @@ private:
     const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& previousCommandQueueDesc,
                                                               const CommandQueueDesc& currentCommandQueueDesc);
 
+    // Shared queues the VM runtime may still hold a fence on: a successful Execute2 rebinds to the passed queue, a
+    // failed one may fail before or after rebinding. Declared before _executionContext so these outlive it.
+    std::vector<std::shared_ptr<CommandQueue>> _vm_referenced_command_queues;
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;

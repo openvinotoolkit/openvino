@@ -47,6 +47,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/validation_util.cpp
     ${CMAKE_CURRENT_LIST_DIR}/version.cpp
     ${CMAKE_CURRENT_LIST_DIR}/weight_sharing_util.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/weights_prefetch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/shared_tensor.cpp
@@ -136,6 +137,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hsigmoid.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hswish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/i420_to_bgr.cpp
@@ -186,6 +188,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
@@ -196,6 +199,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/rdft.cpp
@@ -248,6 +252,8 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/softsign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/space_to_depth.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/sparse_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/sparse_attention_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/sparse_fill_empty_rows.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/sqrt.cpp
@@ -369,7 +375,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/runtime/allocator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/compute_hash.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/itensor.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/runtime/lazy_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/shared_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/string_aligned_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/tensor.cpp

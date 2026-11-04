@@ -131,11 +131,10 @@ struct COMPILE_LOG_LEVEL final : OptionBase<COMPILE_LOG_LEVEL, ov::log::Level> {
         return "OV_NPU_COMPILE_LOG_LEVEL";
     }
 
-    // RunTime despite its name: this is a plugin-side knob, never serialized to the compiler under its own key.
-    // serializeConfig() resolves it and forwards the result to the compiler under the compiler-understood
-    // LOG_LEVEL key instead.
+    // CompileTime: only affects compilation. serializeConfig() forwards its resolved value to the compiler under
+    // the compiler-understood LOG_LEVEL key instead, and removes this key from the compiler parameters.
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        return OptionMode::CompileTime;
     }
 
     /**
@@ -178,7 +177,7 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     }
 
     static std::string defaultValue() {
-        return {};
+        return "0";
     }
 
     static OptionMode mode() {
@@ -627,24 +626,6 @@ struct TILES final : OptionBase<TILES, int64_t> {
 struct STEPPING final : OptionBase<STEPPING, int64_t> {
     static std::string_view key() {
         return ov::intel_npu::stepping.name();
-    }
-
-    static std::vector<std::string_view> deprecatedKeys() {
-        return {};
-    }
-
-    static int64_t defaultValue() {
-        return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
-struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
-    static std::string_view key() {
-        return ov::intel_npu::max_tiles.name();
     }
 
     static std::vector<std::string_view> deprecatedKeys() {

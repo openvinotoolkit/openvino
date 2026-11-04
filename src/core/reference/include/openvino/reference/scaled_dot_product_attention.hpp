@@ -152,7 +152,7 @@ void scaled_dot_product_attention(const T* query,
             {qk_shape, target_sink_shape},
             gk_softmax_shape,
             qk_shape.size() - 1,
-            sizeof(T));
+            sizeof(T) * 8);
         qk_data = std::move(qk_data_with_sink);
     }
     std::vector<T> qk_data_softmax(qk_data.size(), 0);

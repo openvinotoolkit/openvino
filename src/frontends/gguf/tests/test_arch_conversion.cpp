@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -180,19 +181,37 @@ struct Fingerprint {
 
 const std::map<std::string, Fingerprint>& fingerprints() {
     static const std::map<std::string, Fingerprint> fp{
-        {"mamba2-dense.gguf.hdr", {293, 6}},     {"nemotron_h-dense.gguf.hdr", {280, 8}},
-        {"bailingmoe2-moe.gguf.hdr", {473, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {455, 10}},
-        {"exaone4-dense.gguf.hdr", {417, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
-        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {485, 10}},
-        {"gpt-oss-moe.gguf.hdr", {574, 11}},     {"hunyuan-dense-dense.gguf.hdr", {416, 10}},
-        {"hunyuan-moe-moe.gguf.hdr", {554, 10}}, {"llama-dense.gguf.hdr", {400, 10}},
-        {"llama-moe.gguf.hdr", {506, 10}},       {"maincoder-dense.gguf.hdr", {432, 10}},
-        {"minicpm-dense.gguf.hdr", {398, 10}},   {"minicpm-moe.gguf.hdr", {504, 10}},
-        {"minimax-m2-moe.gguf.hdr", {534, 10}},  {"mistral3-dense.gguf.hdr", {400, 10}},
-        {"mistral3-moe.gguf.hdr", {506, 10}},    {"olmoe-moe.gguf.hdr", {534, 10}},
-        {"phi3-dense.gguf.hdr", {380, 10}},      {"qwen2-dense.gguf.hdr", {368, 10}},
-        {"qwen3-dense.gguf.hdr", {416, 10}},     {"qwen3moe-moe.gguf.hdr", {546, 10}},
-        {"qwen35-dense.gguf.hdr", {395, 10}},    {"smollm3-dense.gguf.hdr", {384, 10}},
+        {"mamba2-dense.gguf.hdr", {241, 6}},
+        {"nemotron_h-dense.gguf.hdr", {254, 8}},
+        {"bailingmoe2-moe.gguf.hdr", {496, 10}},
+        {"ernie4_5-moe-moe.gguf.hdr", {471, 10}},
+        {"exaone4-dense.gguf.hdr", {422, 11}},
+        {"gemma-dense.gguf.hdr", {372, 10}},
+        {"gemma2-dense.gguf.hdr", {422, 11}},
+        {"glm4moe-moe.gguf.hdr", {508, 10}},
+        {"gpt-oss-moe.gguf.hdr", {598, 11}},
+        {"hunyuan-dense-dense.gguf.hdr", {421, 10}},
+        {"hunyuan-moe-moe.gguf.hdr", {607, 10}},
+        {"llama-dense.gguf.hdr", {405, 10}},
+        {"lfm2-dense.gguf.hdr", {307, 9}},
+        {"lfm2moe-moe.gguf.hdr", {382, 8}},
+        {"llama-moe.gguf.hdr", {532, 10}},
+        {"maincoder-dense.gguf.hdr", {437, 10}},
+        {"minicpm-dense.gguf.hdr", {413, 10}},
+        {"minicpm-moe.gguf.hdr", {540, 10}},
+        {"minimax-m2-moe.gguf.hdr", {572, 10}},
+        {"mistral3-dense.gguf.hdr", {405, 10}},
+        {"mistral3-moe.gguf.hdr", {532, 10}},
+        {"olmoe-moe.gguf.hdr", {560, 10}},
+        {"phi3-dense.gguf.hdr", {358, 10}},
+        {"qwen2-dense.gguf.hdr", {373, 10}},
+        {"qwen3-dense.gguf.hdr", {421, 10}},
+        {"qwen3moe-moe.gguf.hdr", {572, 10}},
+        {"qwen35-dense.gguf.hdr", {399, 10}},
+        {"qwen35moe-moe.gguf.hdr", {571, 10}},
+        {"smollm3-dense.gguf.hdr", {389, 10}},
+        {"jais2-dense.gguf.hdr", {334, 10}},
+        {"lfm3.gguf.hdr", {702, 12}},
     };
     return fp;
 }
@@ -309,7 +328,7 @@ TEST_P(GGUFArchConversion, MatchesManifestExpectation) {
         // The accept list must be what rejects it: a different failure means the file broke the
         // reader or the builder somewhere it should never have reached.
         ASSERT_FALSE(model) << fixture.header_file << " is marked `reject` but converted successfully. If the "
-                            << "builder now supports this architecture, add it to verified/experimental_archs() "
+                            << "builder now supports this architecture, add it to the architecture catalog "
                             << "and change the manifest line to `convert` with a fingerprint.";
         EXPECT_NE(error.find("native GGUF builder does not support architecture"), std::string::npos)
             << fixture.header_file << " failed for a reason other than the architecture accept list, which means "
@@ -363,6 +382,10 @@ TEST(GGUFArchConversionManifest, IsPresentAndComplete) {
     // means the suite above skips.  "Some present" is not: it means the generator ran and produced
     // an incomplete set, which would silently shrink coverage to whatever happened to be written.
     const size_t present = present_fixture_count();
+    const char* require_fixtures = std::getenv("OV_GGUF_REQUIRE_ARCH_FIXTURES");
+    if (require_fixtures && std::string(require_fixtures) == "1") {
+        ASSERT_EQ(present, fixtures.size()) << "CI requires every architecture fixture to be installed";
+    }
     if (present != 0) {
         for (const auto& f : fixtures) {
             const std::string path = ov::util::path_join({fixture_dir(), f.header_file}).string();

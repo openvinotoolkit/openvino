@@ -29,6 +29,9 @@ static size_t get_subgroup_size(gpu_arch arch) {
     }
 }
 
+// Host payload (cross-thread argument bytes) of the moe_3gemm micro kernels; needs ~112 bytes at least.
+constexpr int host_argument_bytes = 256;
+
 JitConstants MoE3GemmMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& moe_gemm, const moe_3gemm_config& cfg) const {
     const auto& device_info = params.get_device_info();
     const size_t subgroup_size = get_subgroup_size(device_info.arch);
@@ -238,6 +241,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     hw_info.euCount = device_info.execution_units_count;
     hw_info.gmdid = device_info.ip_version;
     hw_info.systolicAvailable = device_info.supports_immad;
+    const micro::HostPayload host{static_cast<int>(get_subgroup_size(device_info.arch)), host_argument_bytes};
 
     // weight layout example: u4:bfyx:4x3072x8x128:nopad
     const auto& weight_shape = params.get_input_layout(wei_idx).get_shape();
@@ -308,7 +312,7 @@ void MoE3GemmMicroGenerator::init_microkernels(const kernel_impl_params& params,
     GPU_DEBUG_TRACE_DETAIL << "sizes to select gemm : m : " << m << " n : " << n << " k : " << k << std::endl;
     try {
         /* Ask microkernel provider for microkernel */
-        micro::Package pkg = micro::select_gemm_microkernel(opts_moe, hw_info, sizes, problem_moe);
+        micro::Package pkg = micro::select_gemm_microkernel(opts_moe, host, hw_info, sizes, problem_moe);
         s_gemm_cache.emplace(key, pkg);
         gemm_moe = std::move(pkg);
         GPU_DEBUG_TRACE_DETAIL << "MoE3GemmMicroGenerator::init_microkernels: create and cache new micro kernel" << std::endl;
@@ -487,7 +491,7 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     shim_options.useTileOps = true;
     shim_options.decorator = "moe";
 
-    kd.code->jit += generateShim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (moe_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }

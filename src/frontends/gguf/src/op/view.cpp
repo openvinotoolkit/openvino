@@ -24,6 +24,12 @@ namespace {
 // element-count conservation: product(tgt) / product(res_ps's static dims). No-op for a static
 // res_ps, where the target is already exact and a -1 could land on the wrong axis.
 void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape& res_ps) {
+    if (std::find(tgt.begin(), tgt.end(), -1) != tgt.end()) {
+        // The decoder can identify the runtime axis exactly from ggml strides/permutations. Keep
+        // that stronger contract, especially for zero-length captures where element-count
+        // inference below is intentionally impossible.
+        return;
+    }
     if (res_ps.rank().is_dynamic()) {
         return;
     }
@@ -63,6 +69,17 @@ void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape&
 // See its comment below and docs/frontend_design.md for the builder-only cases.
 OutputVector translate_view(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
+
+    // op_case 105 (builder): constant row or column permutation of a weight.
+    if (context.get_op_case() == 105) {
+        const auto gather_indices = context.get_attribute<std::vector<int64_t>>("gather_indices");
+        const auto axis = context.get_attribute<int64_t>("gather_axis");
+        auto indices = ov::op::v0::Constant::create(ov::element::i64, {gather_indices.size()}, gather_indices);
+        auto axis_node = ov::op::v0::Constant::create(ov::element::i64, {}, {axis});
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v8::Gather>(context.get_input(0), indices, axis_node)},
+            context.get_name());
+    }
 
     const auto& output_shape = context.get_output_shape();
     const auto& input_shape = context.get_input_shape(0);
@@ -318,9 +335,54 @@ OutputVector translate_view(const NodeContext& context) {
         const auto src_strides = context.get_attribute<std::vector<int64_t>>("view_input_strides", {});
         const auto dst_strides = context.get_attribute<std::vector<int64_t>>("view_output_strides", {});
         const int64_t byte_offset = context.get_attribute<int64_t>("view_offset_bytes", 0);
+        const int64_t block_size = context.get_attribute<int64_t>("view_block_size", 1);
 
-        if (src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
-            src_strides == dst_strides && byte_offset >= 0) {
+        const auto element_size = context.get_input(0).get_element_type().size();
+        const auto is_contiguous = [element_size](const ov::Shape& shape, const std::vector<int64_t>& strides) {
+            if (shape.size() != strides.size() || strides.empty() || strides[0] != static_cast<int64_t>(element_size)) {
+                return false;
+            }
+            int64_t expected_stride = static_cast<int64_t>(element_size);
+            for (size_t d = 0; d < shape.size(); ++d) {
+                const auto dim = static_cast<int64_t>(shape[shape.size() - 1 - d]);
+                if (dim > 1 && strides[d] != expected_stride) {
+                    return false;
+                }
+                expected_stride *= dim;
+            }
+            return true;
+        };
+        if (byte_offset >= 0 && element_size > 0 && byte_offset % element_size == 0 &&
+            is_contiguous(src_shape, src_strides) && is_contiguous(dst_shape, dst_strides)) {
+            const int64_t start = byte_offset / element_size;
+            const int64_t count = static_cast<int64_t>(ov::shape_size(dst_shape));
+            const int64_t source_count = static_cast<int64_t>(ov::shape_size(src_shape));
+            if (start <= source_count && count <= source_count - start && (start != 0 || count != source_count)) {
+                auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+                auto flat = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), flat_shape, false);
+                auto starts = ov::op::v0::Constant::create(ov::element::i64, {1}, {start});
+                auto stops = ov::op::v0::Constant::create(ov::element::i64, {1}, {start + count});
+                auto steps = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+                auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+                auto selected = std::make_shared<ov::op::v8::Slice>(flat, starts, stops, steps, axes);
+                auto target = ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape);
+                auto result = std::make_shared<ov::op::v1::Reshape>(selected, target, false);
+                return rename_outputs_with_suffix({std::move(result)}, context.get_name());
+            }
+        }
+
+        bool same_strides = src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
+                            src_strides.size() == dst_strides.size();
+        if (same_strides) {
+            for (size_t d = 0; d < src_shape.size(); ++d) {
+                const auto axis = src_shape.size() - 1 - d;
+                if (dst_shape[axis] > 1 && src_strides[d] != dst_strides[d]) {
+                    same_strides = false;
+                    break;
+                }
+            }
+        }
+        if (same_strides && byte_offset >= 0 && block_size > 0) {
             std::vector<int64_t> starts(src_shape.size(), 0);
             std::vector<size_t> dims(src_shape.size());
             std::iota(dims.begin(), dims.end(), 0);
@@ -337,6 +399,9 @@ OutputVector translate_view(const NodeContext& context) {
                 }
                 starts[d] = remaining / src_strides[d];
                 remaining %= src_strides[d];
+                if (d == 0) {
+                    starts[d] *= block_size;
+                }
                 if (starts[d] < 0 || starts[d] + static_cast<int64_t>(dst_shape[src_shape.size() - 1 - d]) >
                                          static_cast<int64_t>(src_shape[src_shape.size() - 1 - d])) {
                     valid = false;
@@ -356,12 +421,17 @@ OutputVector translate_view(const NodeContext& context) {
                     end[ov_axis] = begin[ov_axis] + static_cast<int64_t>(dst_shape[ov_axis]);
                     axes[ov_axis] = static_cast<int64_t>(ov_axis);
                 }
-                auto result = std::make_shared<ov::op::v8::Slice>(
-                    context.get_input(0),
-                    ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin),
-                    ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
-                    ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
-                    ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
+                auto begin_node = ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin);
+                auto end_node = ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end);
+                auto step_node = ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step);
+                auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
+                auto data = context.get_input(0);
+                if (data.get_partial_shape().rank().is_static() &&
+                    data.get_partial_shape().rank().get_length() != static_cast<int64_t>(src_shape.size())) {
+                    auto source_shape = ov::op::v0::Constant::create(ov::element::i64, {src_shape.size()}, src_shape);
+                    data = std::make_shared<ov::op::v1::Reshape>(data, source_shape, false);
+                }
+                auto result = std::make_shared<ov::op::v8::Slice>(data, begin_node, end_node, step_node, axes_node);
                 return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
 
@@ -369,7 +439,7 @@ OutputVector translate_view(const NodeContext& context) {
             // the outer planes. Flatten the two innermost ggml dimensions for that case.
             if (src_shape.size() == 4 && src_shape[0] == dst_shape[0] && src_shape[1] == dst_shape[1] &&
                 src_strides[0] > 0 && byte_offset % src_strides[0] == 0) {
-                const int64_t begin_elem = byte_offset / src_strides[0];
+                const int64_t begin_elem = (byte_offset / src_strides[0]) * block_size;
                 const int64_t src_plane = static_cast<int64_t>(src_shape[2] * src_shape[3]);
                 const int64_t dst_plane = static_cast<int64_t>(dst_shape[2] * dst_shape[3]);
                 if (begin_elem >= 0 && begin_elem + dst_plane <= src_plane) {
@@ -394,7 +464,7 @@ OutputVector translate_view(const NodeContext& context) {
         }
 
         if (src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
-            src_strides.size() == dst_strides.size() && byte_offset >= 0) {
+            src_strides.size() == dst_strides.size() && byte_offset >= 0 && block_size > 0) {
             std::vector<int64_t> starts(src_shape.size(), 0);
             std::vector<int64_t> steps(src_shape.size(), 1);
             std::vector<size_t> dims(src_shape.size());
@@ -413,6 +483,13 @@ OutputVector translate_view(const NodeContext& context) {
                 steps[d] = dst_strides[d] / src_strides[d];
                 starts[d] = remaining / src_strides[d];
                 remaining %= src_strides[d];
+                if (d == 0) {
+                    if (starts[d] > std::numeric_limits<int64_t>::max() / block_size) {
+                        valid = false;
+                        break;
+                    }
+                    starts[d] *= block_size;
+                }
                 const size_t ov_axis = src_shape.size() - 1 - d;
                 const int64_t last = starts[d] + steps[d] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1);
                 if (starts[d] < 0 || last >= static_cast<int64_t>(src_shape[ov_axis])) {
@@ -433,18 +510,28 @@ OutputVector translate_view(const NodeContext& context) {
                     end[ov_axis] = begin[ov_axis] + step[ov_axis] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1) + 1;
                     axes[ov_axis] = static_cast<int64_t>(ov_axis);
                 }
-                auto result = std::make_shared<ov::op::v8::Slice>(
-                    context.get_input(0),
-                    ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin),
-                    ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
-                    ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
-                    ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
+                auto begin_node = ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin);
+                auto end_node = ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end);
+                auto step_node = ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step);
+                auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
+                auto data = context.get_input(0);
+                if (data.get_partial_shape().rank().is_static() &&
+                    data.get_partial_shape().rank().get_length() != static_cast<int64_t>(src_shape.size())) {
+                    auto source_shape = ov::op::v0::Constant::create(ov::element::i64, {src_shape.size()}, src_shape);
+                    auto restored = std::make_shared<ov::op::v1::Reshape>(data, source_shape, false);
+                    data = restored;
+                }
+                auto result = std::make_shared<ov::op::v8::Slice>(data, begin_node, end_node, step_node, axes_node);
                 return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
         }
 
         if (byte_offset == 0 && ov::shape_size(src_shape) == ov::shape_size(dst_shape)) {
-            auto target = ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape);
+            auto target_shape = context.get_attribute<std::vector<int64_t>>("view_reshape", {});
+            if (target_shape.empty()) {
+                target_shape.assign(dst_shape.begin(), dst_shape.end());
+            }
+            auto target = ov::op::v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
             auto result = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), target, false);
             return rename_outputs_with_suffix({std::move(result)}, context.get_name());
         }
