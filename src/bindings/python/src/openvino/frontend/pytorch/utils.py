@@ -224,6 +224,15 @@ class ModelWrapper(torch.nn.Module):
 """
 
 
+def wrapper_param_str(param: inspect.Parameter) -> str:
+    """Return a parameter as it goes into the wrapper signature.
+
+    The wrapper always passes all its inputs on, so it needs neither the default nor the annotation.
+    Their text is not always valid code, e.g. the default torch.zeros(2) prints as tensor([0., 0.]).
+    """
+    return str(param.replace(annotation=inspect.Parameter.empty, default=inspect.Parameter.empty))
+
+
 def build_wrapper(template, model):
     """Builds a wrapper around the given model using the provided template."""
     result = {}
@@ -262,20 +271,7 @@ def process_dict_inputs(inputs, input_params, model):
     input_params_str = []
 
     for input_name in ordered_inputs:
-        if str(input_params[input_name].annotation).startswith("typing.Union"):
-            filter_custom_args = []
-            for arg in input_params[input_name].annotation.__args__:
-                str_arg = str(arg)
-                is_typing = str_arg.startswith("typing.")
-                is_torch = "torch." in str_arg
-                is_builten = str_arg in (str(int), str(float), str(type(None)))
-                if not (is_typing or is_torch or is_builten):
-                    continue
-                filter_custom_args.append(arg)
-            input_params[input_name].annotation.__args__ = tuple(
-                filter_custom_args)
-        input_sign_str.append(
-            str(input_params[input_name]).replace("NoneType", "None"))
+        input_sign_str.append(wrapper_param_str(input_params[input_name]))
         input_params_str.append(f"{input_name}={input_name}")
 
     wrapper_class = wrapper_template.format(input_sign=", ".join(
@@ -392,7 +388,7 @@ def patch_none_example(model: torch.nn.Module, example):
             sign, param, example_entry, _to_wrap = process_individual_input(arg, arg_name)
             to_wrap = to_wrap or _to_wrap
             if sign is not None:
-                input_sign_str.append(str(input_params[sign]))
+                input_sign_str.append(wrapper_param_str(input_params[sign]))
             input_params_str.append(param)
             if example_entry is not None:
                 new_example.append(example_entry)
@@ -411,7 +407,7 @@ def patch_none_example(model: torch.nn.Module, example):
             sign, param, example_entry, _to_wrap = process_individual_input(arg, arg_name)
             to_wrap = to_wrap or _to_wrap
             if sign is not None:
-                input_sign_str.append(str(input_params[sign]))
+                input_sign_str.append(wrapper_param_str(input_params[sign]))
             input_params_str.append(f"{arg_name}={param}")
             if example_entry is not None:
                 new_example[arg_name] = example_entry
