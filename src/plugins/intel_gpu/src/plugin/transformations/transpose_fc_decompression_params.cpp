@@ -45,7 +45,7 @@ TransposeFCDecompressionParams::TransposeFCDecompressionParams() {
             OPENVINO_ASSERT(new_param, "TransposeFCDecompressionParams: failed to fold the transpose of ", param->get_friendly_name());
             new_param->set_friendly_name(fc->get_friendly_name() + name_suffix);
             ov::copy_runtime_info(param, new_param);
-            if (param->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static())) {
+            if (param->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0u) {
                 ov::copy_weightless_cache_attr(param, new_param);
                 new_param->get_rt_info()["gpu_weightless_transpose_order"] = std::vector<size_t>{1, 0};
             }
