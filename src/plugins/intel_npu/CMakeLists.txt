@@ -89,8 +89,10 @@ endif()
 
 add_subdirectory(src)
 
-if(ENABLE_TESTS)
+if(ENABLE_TESTS AND ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(tests)
+elseif(ENABLE_TESTS)
+    message(WARNING "NPU plugin tests are skipped because ENABLE_NPU_PLUGIN_ENGINE is OFF.")
 endif()
 
 if(ENABLE_INTEL_NPU_INTERNAL)
