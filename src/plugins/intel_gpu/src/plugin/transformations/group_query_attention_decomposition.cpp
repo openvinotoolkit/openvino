@@ -10,6 +10,7 @@
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -142,6 +143,16 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
 
+    // StatelessKV rolls a windowed cache by its present length, which a right-padded chunk (query_seqlens) would
+    // overstate; the generic staging path writes back only the valid rows.
+    const bool query_seqlens = node->has_query_seqlens();
+    if (query_seqlens && node->get_sliding_window_cache()) {
+        // GPU SDPA broadcasts the KV heads natively; the explicit chain groups them itself.
+        metadata.should_broadcast_kv = false;
+        return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
+                                                                             past_seqlen, current_seqlen_scalar, metadata_);
+    }
+
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
     bool can_fuse_transpose_v = m_sdpa_support_immad && !use_explicit_attention;
@@ -160,8 +171,12 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     KVCacheOutputs outputs;
     const bool sliding_window = node->get_sliding_window_cache();
     const int64_t window_size = sliding_window ? node->get_local_window_size() : 0;
+    // StatelessKV takes the present length and writes the S new rows at present - S. A right-padded chunk writes them
+    // at its past P = total - Q, so it passes P + S; SDPA's lower-right causal mask then lets row s see keys <= P + s.
+    const ov::Output<ov::Node> present_len =
+        query_seqlens ? register_new_node<v1::Add>(past_seqlen, current_seqlen_scalar)->output(0) : seqlens_1d;
     const auto make_stateless_kv = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current, int64_t concat_axis) {
-        return register_new_node<op::StatelessKV>(past, current, seqlens_1d, concat_axis, true, window_size);
+        return register_new_node<op::StatelessKV>(past, current, present_len, concat_axis, true, window_size);
     };
 
     const auto key_cache = make_stateless_kv(past_key, key, 2);
