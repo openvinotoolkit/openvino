@@ -156,6 +156,8 @@ them — see below):
   `GITHUB_TOKEN`, whose PRs would not trigger CI).
   Candidate and sample evidence must be single-line: normalization otherwise joins CR/LF boundaries
   into matches the line-by-line rerunner cannot reproduce. Bare test names also match passing logs.
+  Require both job and step conclusions to be `failure`, and map the evidence line to that step:
+  downloaded logs include successful steps, and the downloaded job list includes cancelled jobs.
 - **Compiler version drift** — before compiling, compare `gh aw version` with the setup-cli `version`
   in [agentic_workflows_check.yml](../../../.github/workflows/agentic_workflows_check.yml).
   If they differ, resolve the latest stable release with

@@ -23,7 +23,7 @@ safe-outputs:
           required: true
           type: string
         rerun_search_string:
-          description: "The verified rerun_search_string candidate: a short, stable substring copied from a single raw failure log line, specific to this transient failure (not a step name or generic phrase)."
+          description: "The verified rerun_search_string candidate: a short, stable substring copied from a single raw log line in a failed step within a failed job (both conclusions must be failure), specific to this transient failure (not a step name or generic phrase)."
           required: true
           type: string
         category:
@@ -35,7 +35,7 @@ safe-outputs:
           required: true
           type: string
         sample_log_line:
-          description: "The verbatim raw log line (from the pre-downloaded logs) that contains rerun_search_string. Used as review evidence and re-verified by the job."
+          description: "The verbatim raw log line (from the pre-downloaded logs) that contains rerun_search_string, verified by the agent to come from a failed step within a failed job. Used as review evidence; the job re-verifies the substring match."
           required: true
           type: string
         pipeline_url:
