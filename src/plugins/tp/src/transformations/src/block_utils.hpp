@@ -1,0 +1,88 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "tp_transformations/annotations.hpp"
+
+namespace ov {
+namespace tp {
+namespace blocks {
+
+/// Ops a projection's result may pass through on its way to attention or to the next projection.
+bool is_transparent(const ov::Node* node);
+
+/// A MatMul whose second input is entirely constant-derived: a linear layer.
+bool is_linear_layer(const ov::Node* node);
+
+/// The linear layers reached walking back from `output` through transparent ops.
+std::vector<std::shared_ptr<ov::Node>> nearest_producer_matmuls(const ov::Output<ov::Node>& output);
+
+/// The closest linear layer reached walking forward from `start` through transparent ops.
+std::shared_ptr<ov::Node> nearest_consumer_matmul(const std::shared_ptr<ov::Node>& start);
+
+struct BiasAdd {
+    std::shared_ptr<ov::Node> node;  ///< nullptr when the projection has no bias
+    size_t port = 0;                 ///< input index of the bias on `node`
+};
+
+/// `Add(matmul, constant subgraph)` on a projection, if there is one.
+BiasAdd find_bias_add(const std::shared_ptr<ov::Node>& matmul);
+
+/// The bias Add when there is one, the MatMul otherwise.
+ov::Output<ov::Node> projection_output(const std::shared_ptr<ov::Node>& matmul);
+
+struct WeightAxes {
+    int64_t out_features;
+    int64_t in_features;
+};
+
+/// Throws for a transposed activation or a weight that is not 2D.
+WeightAxes weight_axes(const std::shared_ptr<ov::Node>& matmul);
+
+/// Static size of a weight axis, 0 when dynamic.
+int64_t weight_dim(const std::shared_ptr<ov::Node>& matmul, int64_t axis);
+
+/// Head count and head size from the Reshape [.., heads, head_dim] after a projection.
+bool read_head_layout(const std::shared_ptr<ov::Node>& projection, int64_t& heads, int64_t& head_dim);
+
+/// Coarsest step a split along `axis` of the decompression chain at `output` has to respect
+/// (quantization groups, packed sub-byte elements), or 0 when the chain cannot be cut at all.
+int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int64_t full_size);
+
+/// Annotates the constants of the chain feeding `input` for a split of its `axis` (`full_size`
+/// elements) into `segments`. When the chain cannot be cut at every rank's boundaries, annotates
+/// a runtime Slice of that input instead and returns false.
+bool annotate_chain(ov::Input<ov::Node> input,
+                    int64_t axis,
+                    const std::vector<Segment>& segments,
+                    ShardStrategy strategy,
+                    size_t world_size,
+                    const std::string& block);
+
+/// Annotates the role of a projection, its weight chain and, column-parallel, its bias.
+/// Returns false when the weight falls back to a runtime Slice.
+bool annotate_projection(const std::shared_ptr<ov::Node>& matmul,
+                         ShardStrategy strategy,
+                         const std::vector<Segment>& segments,
+                         Collective collective,
+                         size_t world_size,
+                         const std::string& block);
+
+/// Annotates the listed elements of the shape constant feeding `node`'s `port`, if it is one.
+bool annotate_shape_input(const std::shared_ptr<ov::Node>& node,
+                          size_t port,
+                          std::vector<size_t> elements,
+                          const std::vector<Segment>& segments,
+                          const std::string& block);
+
+}  // namespace blocks
+}  // namespace tp
+}  // namespace ov

@@ -38,6 +38,28 @@ ShardStrategy from_string(const std::string& name) {
     OPENVINO_THROW("[TP] unknown shard strategy ", name);
 }
 
+const char* to_cstr(Collective collective) {
+    switch (collective) {
+    case Collective::NONE:
+        return "NONE";
+    case Collective::ALL_REDUCE:
+        return "ALL_REDUCE";
+    case Collective::GATHER:
+        return "GATHER";
+    }
+    return "?";
+}
+
+Collective collective_from_string(const std::string& name) {
+    if (name == "NONE")
+        return Collective::NONE;
+    if (name == "ALL_REDUCE")
+        return Collective::ALL_REDUCE;
+    if (name == "GATHER")
+        return Collective::GATHER;
+    OPENVINO_THROW("[TP] unknown collective ", name);
+}
+
 template <class T>
 void set_annotation(const std::shared_ptr<ov::Node>& node, const T& value) {
     auto& rt_info = node->get_rt_info();
@@ -83,6 +105,7 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("units", units);
     visitor.on_attribute("elements", element_list);
     visitor.on_attribute("rt_keys", rt_keys);
+    visitor.on_attribute("input", input);
     visitor.on_attribute("block", block);
 
     strategy = from_string(strategy_name);
@@ -112,32 +135,38 @@ std::string ShardAnnotation::to_string() const {
     for (const auto& key : rt_keys) {
         out << " rt_info '" << key << "'";
     }
+    if (input >= 0) {
+        out << " runtime slice of input " << input;
+    }
     out << " by " << block;
     return out.str();
 }
 
 bool ShardAnnotation::operator==(const ShardAnnotation& other) const {
     return strategy == other.strategy && axis == other.axis && segments == other.segments &&
-           elements == other.elements && rt_keys == other.rt_keys;
+           elements == other.elements && rt_keys == other.rt_keys && input == other.input;
 }
 
 bool ProjectionRole::visit_attributes(ov::AttributeVisitor& visitor) {
     auto strategy_name = std::string(to_cstr(strategy));
+    auto collective_name = std::string(to_cstr(collective));
     visitor.on_attribute("strategy", strategy_name);
-    visitor.on_attribute("allreduce_group_id", allreduce_group_id);
+    visitor.on_attribute("collective", collective_name);
+    visitor.on_attribute("group_id", group_id);
     visitor.on_attribute("block", block);
     strategy = from_string(strategy_name);
+    collective = collective_from_string(collective_name);
     return true;
 }
 
 std::string ProjectionRole::to_string() const {
     std::ostringstream out;
-    out << to_cstr(strategy) << " group " << allreduce_group_id << " by " << block;
+    out << to_cstr(strategy) << " " << to_cstr(collective) << " group " << group_id << " by " << block;
     return out.str();
 }
 
 bool ProjectionRole::operator==(const ProjectionRole& other) const {
-    return strategy == other.strategy && allreduce_group_id == other.allreduce_group_id;
+    return strategy == other.strategy && collective == other.collective && group_id == other.group_id;
 }
 
 void set_shard(const std::shared_ptr<ov::Node>& node, const ShardAnnotation& annotation) {

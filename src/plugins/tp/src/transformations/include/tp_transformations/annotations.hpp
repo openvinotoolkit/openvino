@@ -29,11 +29,17 @@ struct Segment {
 
 enum class ShardStrategy { COLUMN_PARALLEL, ROW_PARALLEL, REPLICATED };
 
+/// The collective a projection's output goes through.
+enum class Collective { NONE, ALL_REDUCE, GATHER };
+
 /// rt_info["tp_shard"]: how a rank-dependent node is cut per rank.
 ///
 /// On a Constant without `elements`: the tensor is sliced along `axis`.
 /// On a Constant with `elements`: a shape constant; those elements hold the
 /// split dimension's global size and get the rank's size.
+/// On a ReadValue: its variable's shape is cut along `axis`.
+/// On any node with `input` >= 0: that input is sliced along `axis` at run time
+/// (a weight chain that cannot be cut at compile time).
 /// On any node with `rt_keys`: those rt_info entries hold the global size and
 /// get the rank's size.
 class ShardAnnotation : public ov::RuntimeAttribute {
@@ -53,6 +59,7 @@ public:
     std::string block;  ///< block pass that set it
     std::vector<size_t> elements;
     std::vector<std::string> rt_keys;
+    int64_t input = -1;
 
     bool is_copyable() const override {
         return true;
@@ -71,13 +78,15 @@ public:
     OPENVINO_RTTI("tp_role", "0", ov::RuntimeAttribute);
 
     ProjectionRole() = default;
-    ProjectionRole(ShardStrategy strategy, int allreduce_group_id, std::string block)
+    ProjectionRole(ShardStrategy strategy, Collective collective, int group_id, std::string block)
         : strategy(strategy),
-          allreduce_group_id(allreduce_group_id),
+          collective(collective),
+          group_id(group_id),
           block(std::move(block)) {}
 
     ShardStrategy strategy = ShardStrategy::REPLICATED;
-    int allreduce_group_id = -1;  ///< group of the AllReduce on its output; -1: none
+    Collective collective = Collective::NONE;  ///< inserted on the MatMul's output
+    int group_id = -1;                         ///< collective group; -1 with no collective
     std::string block;
 
     bool is_copyable() const override {

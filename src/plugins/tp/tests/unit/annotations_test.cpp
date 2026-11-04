@@ -44,7 +44,7 @@ TEST(TPAnnotationsTest, AnnotationsSurviveCloneAndConflictsAreRejected) {
     const ShardAnnotation shard(ShardStrategy::COLUMN_PARALLEL, 0, {{4, 2}}, "test");
     set_shard(c, shard);
     set_shard(c, shard);  // the same claim again is fine
-    set_role(add, ProjectionRole(ShardStrategy::ROW_PARALLEL, 0, "test"));
+    set_role(add, ProjectionRole(ShardStrategy::ROW_PARALLEL, Collective::ALL_REDUCE, 0, "test"));
     OV_EXPECT_THROW(set_shard(c, ShardAnnotation(ShardStrategy::ROW_PARALLEL, 0, {{4, 1}}, "other")),
                     ov::Exception,
                     HasSubstr("claimed twice"));
@@ -57,7 +57,7 @@ TEST(TPAnnotationsTest, AnnotationsSurviveCloneAndConflictsAreRejected) {
         }
         if (ov::is_type<ov::op::v1::Add>(node)) {
             ASSERT_NE(get_role(*node), nullptr);
-            EXPECT_EQ(get_role(*node)->allreduce_group_id, 0);
+            EXPECT_EQ(get_role(*node)->collective, Collective::ALL_REDUCE);
         }
     }
 
