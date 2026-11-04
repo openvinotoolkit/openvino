@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
@@ -77,7 +78,8 @@ public:
     }
 
     int64_t get_history_size() const {
-        return m_history_state->get();
+        // An unset history behaves as an empty one.
+        return std::max<int64_t>(m_history_state->get(), 0);
     }
 
     std::size_t get_run_iteration() const {

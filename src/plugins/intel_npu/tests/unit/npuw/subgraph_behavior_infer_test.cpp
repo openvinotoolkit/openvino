@@ -884,13 +884,6 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
 
     auto request = compiled->create_infer_request();
     ASSERT_NE(request, nullptr);
-    for (const auto& state : request->query_state()) {
-        if (state->get_name() == ov::npuw::HistorySizeState::name) {
-            ov::Tensor history(ov::element::i64, ov::Shape{1});
-            history.data<int64_t>()[0] = 0;
-            state->set_state(ov::get_tensor_impl(history));
-        }
-    }
     for (const auto& input : compiled->inputs()) {
         ov::Tensor tensor(input.get_element_type(), input.get_shape());
         std::memset(tensor.data(), 0, tensor.get_byte_size());
@@ -976,7 +969,9 @@ TEST_F(SubgraphBehaviorInferTest, PyramidSelectionFollowsHistorySizeStateSetThro
     };
 
     EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], -1) << "No history until a caller provides it";
-    EXPECT_ANY_THROW(request->infer()) << "A prefill with unset history must fail instead of guessing";
+    run();
+    EXPECT_TRUE(executed(smallest)) << "An unset history behaves as an empty one";
+    EXPECT_FALSE(executed(largest));
 
     set_history(0);
     run();
@@ -991,12 +986,11 @@ TEST_F(SubgraphBehaviorInferTest, PyramidSelectionFollowsHistorySizeStateSetThro
     EXPECT_TRUE(executed(largest)) << "History set through the request state must reach attention selection";
     EXPECT_FALSE(executed(smallest));
 
-    // Resetting the request's states marks history unset; an empty cache must be stated explicitly.
+    // Resetting the request's states marks history unset, which behaves as an empty history.
     for (const auto& state : request->query_state()) {
         state->reset();
     }
     EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], -1);
-    set_history(0);
     run();
     EXPECT_TRUE(executed(smallest));
     EXPECT_FALSE(executed(largest));

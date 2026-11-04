@@ -60,8 +60,8 @@ private:
 //       }
 //   }
 // The value persists across infer() calls and must be set before every prefill chunk.
-// It starts as kUnset (-1), and so does it after reset(); a prefill with dynamic attention
-// fails if it still reads kUnset. Decode does not use it.
+// It starts as kUnset (-1), and so does it after reset(); an unset value is used as 0.
+// Only selectors that derive the past length from it use it; decode does not.
 class HistorySizeState final : public ov::IVariableState {
 public:
     static constexpr const char* name = "npuw_history_size";
