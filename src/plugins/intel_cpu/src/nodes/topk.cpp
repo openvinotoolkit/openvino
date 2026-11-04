@@ -855,7 +855,7 @@ private:
     }
 
     void uni_vpcmpgtd(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
-        if (is_valid_isa(cpu::x64::avx)) {
+        if (is_valid_isa(cpu::x64::avx2)) {
             vpcmpgtd(x1, x2, op);
         } else {
             if (x1.getIdx() != x2.getIdx()) {
@@ -2032,6 +2032,8 @@ void TopK::preset_params() {
 
     if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
+    } else if (ov::with_cpu_x86_avx2()) {
+        blk_size = 8;
     }
 
     bool can_use_heap_sort =
