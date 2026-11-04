@@ -32,7 +32,10 @@ class TestDeviceProperties(unittest.TestCase):
 
     def test_dump_load_empty_device_properties(self):
         for device_properties in ({}, {'CPU': {}}):
-            with self.subTest(device_properties=device_properties), TemporaryDirectory() as directory:
+            with (
+                self.subTest(device_properties=device_properties),
+                TemporaryDirectory() as directory,
+            ):
                 filename = Path(directory) / 'config.json'
                 key = properties.device.properties()
                 dump_config(filename, {'AUTO': {key: OVAny(device_properties)}})
