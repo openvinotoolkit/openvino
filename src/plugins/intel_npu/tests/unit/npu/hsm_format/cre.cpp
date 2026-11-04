@@ -43,12 +43,16 @@ const auto COMPILER_VERSION_TOKEN = std::make_shared<SectionType>(SectionTypeCod
 const auto ID_0_TOKEN = std::make_shared<SectionID>(0);
 const auto ID_1_TOKEN = std::make_shared<SectionID>(1);
 const auto ID_2_TOKEN = std::make_shared<SectionID>(2);
+const auto ID_3_TOKEN = std::make_shared<SectionID>(3);
+const auto ID_4_TOKEN = std::make_shared<SectionID>(4);
 const auto LAST_ID_TOKEN = std::make_shared<SectionID>(std::numeric_limits<uint16_t>::max());
 
 constexpr SectionTypeCode RUNTIME_REQUIREMENTS_CODE = SectionTypeCode::RUNTIME_REQUIREMENTS;
+constexpr SectionTypeCode COMPILER_VERSION_CODE = SectionTypeCode::COMPILER_VERSION;
 constexpr SectionTypeCode ELF_MAIN_SCHEDULE_CODE = SectionTypeCode::ELF_MAIN_SCHEDULE;
 constexpr SectionTypeCode ELF_INIT_SCHEDULES_CODE = SectionTypeCode::ELF_INIT_SCHEDULES;
 constexpr SectionTypeCode BATCH_SIZE_CODE = SectionTypeCode::BATCH_SIZE;
+constexpr SectionTypeCode UNKNOWN_CODE = SectionTypeCode::UNKNOWN;
 
 const auto MOCK_TYPE_EVALUATOR_FALSE = std::make_shared<MockTypeEvaluator>(false);
 const auto MOCK_INSTANCE_EVALUATOR = std::make_shared<MockInstanceEvaluator>();
@@ -619,6 +623,62 @@ TEST_F(CRETests, SectionIdEvaluation) {
     ASSERT_EQ(section_instance_evaluators.at(SectionID(0)).get_result(), ov::CompatibilityCheck::UNSUPPORTED);
 }
 
+TEST_F(CRETests, TypeAndInstanceEvaluationResults) {
+    CRE cre({BATCH_SIZE_TOKEN,
+             ID_0_TOKEN,
+             CRE::AND_PTR,
+             COMPILER_VERSION_TOKEN,
+             ID_2_TOKEN,
+             CRE::AND_PTR,
+             CRE::NOT_PTR,
+             ELF_MAIN_SCHEDULE_TOKEN,
+             ID_1_TOKEN,
+             CRE::AND_PTR,
+             CRE::NOT_PTR,
+             ELF_INIT_SCHEDULES_TOKEN,
+             ID_4_TOKEN,
+             CRE::OR_PTR,
+             BATCH_SIZE_TOKEN,
+             CRE::OR_PTR,
+             UNKNOWN_TOKEN,
+             ID_3_TOKEN});
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators{
+        {COMPILER_VERSION_CODE, std::make_shared<MockTypeEvaluator>(true)},
+        {ELF_INIT_SCHEDULES_CODE, std::make_shared<MockTypeEvaluator>(true)},
+        {ELF_MAIN_SCHEDULE_CODE, std::make_shared<MockTypeEvaluator>(false)}};
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> section_instance_evaluators{
+        {SectionID(2), SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN)},
+        {SectionID(1), SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_SUPPORTED)},
+        {SectionID(4), SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNSUPPORTED)},
+        {SectionID(3), SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNSUPPORTED)}};
+
+    const RuntimeRequirementsEvaluationResult result =
+        cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_EQ(result.final_result, ov::CompatibilityCheck::SUPPORTED);
+    // Types and instances evaluate to true by default
+    ASSERT_TRUE(result.type_evaluations.count(BATCH_SIZE_CODE));
+    ASSERT_TRUE(result.type_evaluations.at(BATCH_SIZE_CODE));
+    ASSERT_TRUE(result.instance_evaluations.count(0));
+    ASSERT_EQ(result.instance_evaluations.at(0), ov::CompatibilityCheck::SUPPORTED);
+
+    ASSERT_TRUE(result.type_evaluations.count(COMPILER_VERSION_CODE));
+    ASSERT_TRUE(result.type_evaluations.at(COMPILER_VERSION_CODE));
+    ASSERT_TRUE(result.instance_evaluations.count(2));
+    ASSERT_EQ(result.instance_evaluations.at(2), ov::CompatibilityCheck::NOT_APPLICABLE);
+
+    ASSERT_TRUE(result.type_evaluations.count(ELF_MAIN_SCHEDULE_CODE));
+    ASSERT_FALSE(result.type_evaluations.at(ELF_MAIN_SCHEDULE_CODE));
+    ASSERT_FALSE(result.instance_evaluations.count(1));
+
+    ASSERT_TRUE(result.type_evaluations.count(ELF_INIT_SCHEDULES_CODE));
+    ASSERT_TRUE(result.type_evaluations.at(ELF_INIT_SCHEDULES_CODE));
+    ASSERT_TRUE(result.instance_evaluations.count(4));
+    ASSERT_EQ(result.instance_evaluations.at(4), ov::CompatibilityCheck::UNSUPPORTED);
+
+    ASSERT_FALSE(result.type_evaluations.count(UNKNOWN_CODE));
+    ASSERT_FALSE(result.instance_evaluations.count(3));
+}
+
 TEST_F(CRETests, AndShallowEvaluation) {
     CRE cre({RUNTIME_REQUIREMENTS_TOKEN, ID_1_TOKEN, CRE::AND_PTR, BATCH_SIZE_TOKEN, ID_0_TOKEN});
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> section_type_evaluators;
@@ -726,13 +786,26 @@ TEST_F(CRETests, AndDeepEvaluation) {
         SectionID(1),
         SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN));
 
-    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    const RuntimeRequirementsEvaluationResult evaluation_result =
+        cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::SUPPORTED);
+
     ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_FALSE(section_type_evaluators.at(ELF_MAIN_SCHEDULE_CODE)->evaluated());
     ASSERT_TRUE(section_type_evaluators.at(ELF_INIT_SCHEDULES_CODE)->evaluated());
     ASSERT_FALSE(section_instance_evaluators.at(SectionID(0)).evaluated());
     ASSERT_FALSE(section_instance_evaluators.at(SectionID(1)).evaluated());
+
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(RUNTIME_REQUIREMENTS_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(RUNTIME_REQUIREMENTS_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(BATCH_SIZE_CODE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(BATCH_SIZE_CODE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.count(ELF_MAIN_SCHEDULE_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(ELF_INIT_SCHEDULES_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(ELF_INIT_SCHEDULES_CODE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(1));
 }
 
 TEST_F(CRETests, OrDeepEvaluation) {
@@ -765,13 +838,27 @@ TEST_F(CRETests, OrDeepEvaluation) {
         SectionID(1),
         SingleSectionInstanceEvaluator(MOCK_INSTANCE_EVALUATOR, STRING_THAT_EVALUATES_TO_UNKNOWN));
 
-    cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    const RuntimeRequirementsEvaluationResult evaluation_result =
+        cre.check_compatibility(section_type_evaluators, section_instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::SUPPORTED);
+
     ASSERT_TRUE(section_type_evaluators.at(RUNTIME_REQUIREMENTS_CODE)->evaluated());
     ASSERT_TRUE(section_type_evaluators.at(BATCH_SIZE_CODE)->evaluated());
     ASSERT_FALSE(section_type_evaluators.at(ELF_MAIN_SCHEDULE_CODE)->evaluated());
     ASSERT_TRUE(section_type_evaluators.at(ELF_INIT_SCHEDULES_CODE)->evaluated());
     ASSERT_TRUE(section_instance_evaluators.at(SectionID(0)).evaluated());
     ASSERT_FALSE(section_instance_evaluators.at(SectionID(1)).evaluated());
+
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(RUNTIME_REQUIREMENTS_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(RUNTIME_REQUIREMENTS_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(BATCH_SIZE_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(BATCH_SIZE_CODE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.count(ELF_MAIN_SCHEDULE_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(ELF_INIT_SCHEDULES_CODE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(ELF_INIT_SCHEDULES_CODE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::SUPPORTED);
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(1));
 }
 
 class CREEvaluationTests : public ::testing::TestWithParam<CREParams> {
