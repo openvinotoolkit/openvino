@@ -637,6 +637,7 @@ TEST_F(AutoCacheWarmupTest, failedActualDeviceIsNotWarmedUp) {
 TEST_F(AutoCacheWarmupTest, emptyConfigCpuIsRetriedWhenActualDeviceFails) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, actual_device});
+    config.insert(ov::intel_auto::enable_startup_fallback(false));
     std::atomic<int> select_count{0};
     ON_CALL(*plugin, select_device(_, _, _, _, _)).WillByDefault(InvokeWithoutArgs([&]() {
         return select_count++ == 0 ? metaDevices[1] : metaDevices[0];
