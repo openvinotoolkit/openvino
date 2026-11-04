@@ -136,7 +136,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile end");
 
     OV_ITT_TASK_NEXT(COMPILE_BLOB, "getNetworkMeta");
-    auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
+    auto networkMeta = _zeGraphExt->getNetworkMeta(graphDesc, model);
     networkMeta.name = model->get_friendly_name();
 
     return std::make_shared<Graph>(_zeGraphExt,

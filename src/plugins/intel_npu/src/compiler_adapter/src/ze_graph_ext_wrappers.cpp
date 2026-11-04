@@ -739,6 +739,83 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
     return meta;
 }
 
+namespace {
+
+bool exceedsArgumentRankLimit(const ov::PartialShape& shape) {
+    return shape.rank().is_static() &&
+           static_cast<size_t>(shape.rank().get_length()) > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE;
+}
+
+bool hasIOAboveArgumentRankLimit(const std::shared_ptr<const ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (exceedsArgumentRankLimit(parameter->get_partial_shape())) {
+            return true;
+        }
+    }
+    for (const auto& result : model->get_results()) {
+        if (exceedsArgumentRankLimit(result->get_input_partial_shape(0))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Builds the metadata using the I/O of the model.
+ * @details The driver indices are assigned like the compiler does: the inputs come first, followed by the outputs,
+ * each group following the order of the model.
+ */
+NetworkMetadata createNetworkMetadataFromModel(const std::shared_ptr<const ov::Model>& model) {
+    NetworkMetadata meta;
+    uint32_t indexUsedByDriver = 0;
+
+    for (const auto& parameter : model->get_parameters()) {
+        IODescriptor descriptor{};
+        descriptor.nameFromCompiler = parameter->get_friendly_name();
+        descriptor.nodeFriendlyName = parameter->get_friendly_name();
+        descriptor.precision = parameter->get_element_type();
+        descriptor.shapeFromCompiler = parameter->get_partial_shape();
+        descriptor.shapeFromIRModel = parameter->get_partial_shape();
+        descriptor.outputTensorNames = parameter->output(0).get_names();
+        descriptor.indexUsedByDriver = indexUsedByDriver++;
+        meta.inputs.push_back(std::move(descriptor));
+    }
+
+    for (const auto& result : model->get_results()) {
+        IODescriptor descriptor{};
+        descriptor.nameFromCompiler = result->get_input_node_ptr(0)->get_friendly_name();
+        descriptor.nodeFriendlyName = result->get_friendly_name();
+        descriptor.precision = result->get_input_element_type(0);
+        descriptor.shapeFromCompiler = result->get_input_partial_shape(0);
+        descriptor.shapeFromIRModel = result->get_input_partial_shape(0);
+        descriptor.outputTensorNames = result->output(0).get_names();
+        descriptor.indexUsedByDriver = indexUsedByDriver++;
+        meta.outputs.push_back(std::move(descriptor));
+    }
+
+    meta.numStreams = 1;
+    return meta;
+}
+
+}  // namespace
+
+NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor,
+                                                   const std::shared_ptr<const ov::Model>& model) const {
+    try {
+        return getNetworkMeta(graphDescriptor);
+    } catch (const std::exception& ex) {
+        if (model == nullptr || !hasIOAboveArgumentRankLimit(model)) {
+            throw;
+        }
+
+        _logger.warning("The driver could not describe the graph arguments (%s). The model has inputs/outputs of a "
+                        "rank greater than %d, so their descriptors are built from the model instead.",
+                        ex.what(),
+                        ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
+        return createNetworkMetadataFromModel(model);
+    }
+}
+
 std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     // Early exit if api is not supported
     if (!_isCompilerOptionQuerySupported) {

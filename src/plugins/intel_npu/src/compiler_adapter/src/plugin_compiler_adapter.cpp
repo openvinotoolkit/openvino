@@ -76,7 +76,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         // network
         try {
             graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
-            networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
+            networkMeta = _zeGraphExt->getNetworkMeta(graphDesc, model);
             networkMeta.name = model->get_friendly_name();
         } catch (const std::exception& ex) {
             _logger.info("Failed to use the level zero graph handle: %s. Inference requests for this model are not "
