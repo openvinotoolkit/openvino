@@ -314,13 +314,11 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t offset, size_t size) noexcept override;
-
     util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) noexcept override;
 
 private:
     /**
-     * @brief Adopts the handle returned by util::vm_prefetch_async(), reaping already-finished ones
+     * @brief Adopts the handle returned by util::submit_page_toucher_tasks(), reaping already-finished ones
      * so the pending list doesn't grow unbounded across repeated hint_prefetch_async() calls.
      */
     void adopt_pending_prefetch(util::PrefetchToken task) noexcept;
@@ -784,23 +782,6 @@ bool MapHolder::try_remap_slot(uintptr_t fault_addr) {
     return remap_placeholder(proc, placeholder_base, placeholder_size);
 }
 
-namespace {
-
-// Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result.
-// Returns an empty region (m_length == 0) for a null/empty mapping, an offset at or past the end,
-// or a sub-page request.
-util::AlignedRegion clamp_align_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
-    const auto page_size = static_cast<size_t>(util::get_system_page_size());
-    if (data == nullptr || mapping_size == 0 || offset >= mapping_size || size < page_size) {
-        return {};
-    }
-    const auto available = mapping_size - offset;
-    const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-    return util::align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
-}
-
-}  // namespace
-
 void MapHolder::adopt_pending_prefetch(util::PrefetchToken task) noexcept {
     if (task.valid()) {
         try {
@@ -835,22 +816,12 @@ void MapHolder::wait_for_pending_prefetch() noexcept {
     m_pending_prefetch.clear();
 }
 
-void MapHolder::hint_prefetch(size_t offset, size_t size) noexcept {
-    // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
-    if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
-        const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
-        const auto aligned_size =
-            util::align_size_up(region.m_length, static_cast<size_t>(util::get_system_page_size()));
-        util::vm_prefetch(reinterpret_cast<void*>(region.m_address), aligned_size, num_threads);
-    }
-}
-
 util::PrefetchToken MapHolder::hint_prefetch_async(size_t offset, size_t size) noexcept {
     if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
         region.m_length > util::default_parallel_io_threshold) {
-        auto future = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
-                                              region.m_length,
-                                              util::prefetch_thread_count(region.m_length));
+        auto future = util::submit_page_toucher_tasks(reinterpret_cast<void*>(region.m_address),
+                                                      region.m_length,
+                                                      util::prefetch_thread_count(region.m_length));
         adopt_pending_prefetch(future);
         return future;
     }
