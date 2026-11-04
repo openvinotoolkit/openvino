@@ -4,6 +4,7 @@
 
 #include "pyopenvino/core/properties/properties.hpp"
 
+#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -54,6 +55,11 @@ void regmodule_properties(py::module m) {
         std::stringstream qosinfo_stream;
         qosinfo_stream << info;
         return py::cast(qosinfo_stream.str());
+    });
+    cls_qosinfo.def(py::self == py::self);
+    cls_qosinfo.def(py::self != py::self);
+    cls_qosinfo.def("__hash__", [](const ov::QoSInfo& info) {
+        return py::hash(py::make_tuple(static_cast<int>(info.level), info.is_overridden));
     });
 
     // Submodule properties - properties
