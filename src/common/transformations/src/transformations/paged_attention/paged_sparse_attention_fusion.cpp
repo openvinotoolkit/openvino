@@ -19,6 +19,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sparse_attention.hpp"
@@ -31,51 +32,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
-
-namespace ov::op::internal {
-// Temporary graph-only implementation of the specified 13-input operation.
-// Replace this class with the core PagedSparseAttention op when it is available.
-class PagedSparseAttention : public ov::op::Op {
-public:
-    OPENVINO_OP("PagedSparseAttention", "extension");
-
-    PagedSparseAttention(const ov::OutputVector& inputs, int64_t key_block_size)
-        : Op(inputs),
-          m_key_block_size(key_block_size) {
-        constructor_validate_and_infer_types();
-    }
-
-    void validate_and_infer_types() override {
-        OPENVINO_ASSERT(get_input_size() == 13 && m_key_block_size > 0);
-        const auto& query_shape = get_input_partial_shape(0);
-        const auto& key_cache_shape = get_input_partial_shape(3);
-        const auto& value_cache_shape = get_input_partial_shape(4);
-        ov::PartialShape output_shape = ov::PartialShape::dynamic(2);
-        if (query_shape.rank() == 2) {
-            output_shape[0] = query_shape[0];
-            if (query_shape[1].is_static() && key_cache_shape.rank() == 4 && key_cache_shape[3].is_static() &&
-                key_cache_shape[3].get_length() > 0 && value_cache_shape.rank() == 4) {
-                output_shape[1] =
-                    value_cache_shape[3] * (query_shape[1].get_length() / key_cache_shape[3].get_length());
-            }
-        }
-        set_output_type(0, get_input_element_type(0), output_shape);
-    }
-
-    bool visit_attributes(ov::AttributeVisitor& visitor) override {
-        visitor.on_attribute("key_block_size", m_key_block_size);
-        return true;
-    }
-
-    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
-        ov::check_new_args_count(this, inputs);
-        return std::make_shared<PagedSparseAttention>(inputs, m_key_block_size);
-    }
-
-private:
-    int64_t m_key_block_size;
-};
-}  // namespace ov::op::internal
 
 namespace {
 namespace v0 = ov::op::v0;
@@ -133,30 +89,41 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
     MATCHER_SCOPE(PagedSparseAttentionFusion);
 
     const auto p_query = pattern::any_input(pattern::rank_equals(4) && pattern::has_static_dims({1, 3}));
-    const auto key = cache_pattern();
-    const auto value = cache_pattern();
-    const auto index_type = pattern::type_matches_any({ov::element::i32, ov::element::i64});
-    const auto block_indices = pattern::any_input(pattern::rank_equals(4) && index_type);
-    const auto block_count = pattern::any_input(pattern::rank_equals(3) && index_type);
-    const auto key_length = pattern::any_input(pattern::rank_equals(1) && index_type);
+    const auto p_key = cache_pattern();
+    const auto p_value = cache_pattern();
+    const auto index_type_pred = pattern::type_matches_any({ov::element::i32, ov::element::i64});
+    const auto p_block_indices = pattern::any_input(pattern::rank_equals(4) && index_type_pred);
+    const auto p_block_count = pattern::any_input(pattern::rank_equals(3) && index_type_pred);
+    const auto p_key_length = pattern::any_input(pattern::rank_equals(1) && index_type_pred);
     const auto p_scale = pattern::any_input(pattern::has_static_rank());
     const auto p_sinks = pattern::any_input(pattern::rank_equals(1));
 
-    const auto attrs = pattern::attrs_match({{"causal", true}, {"query_block_size", int64_t{1}}});
+    const auto attrs = pattern::attrs_match({{"causal", true}});
     auto sparse_attention =
-        pattern::wrap_type<ov::op::v17::SparseAttention>({p_query, key.concat, value.concat, block_indices, block_count}, attrs) |
-        pattern::wrap_type<ov::op::v17::SparseAttention>({p_query, key.concat, value.concat, block_indices, block_count, key_length}, attrs) |
-        pattern::wrap_type<ov::op::v17::SparseAttention>({p_query, key.concat, value.concat, block_indices, block_count, key_length, p_scale}, attrs) |
-        pattern::wrap_type<ov::op::v17::SparseAttention>({p_query, key.concat, value.concat, block_indices, block_count, key_length, p_scale, p_sinks}, attrs);
+        pattern::wrap_type<ov::op::v17::SparseAttention>(
+            {p_query, p_key.concat, p_value.concat, p_block_indices, p_block_count},
+            attrs) |
+        pattern::wrap_type<ov::op::v17::SparseAttention>(
+            {p_query, p_key.concat, p_value.concat, p_block_indices, p_block_count, p_key_length},
+            attrs) |
+        pattern::wrap_type<ov::op::v17::SparseAttention>(
+            {p_query, p_key.concat, p_value.concat, p_block_indices, p_block_count, p_key_length, p_scale},
+            attrs) |
+        pattern::wrap_type<ov::op::v17::SparseAttention>(
+            {p_query, p_key.concat, p_value.concat, p_block_indices, p_block_count, p_key_length, p_scale, p_sinks},
+            attrs);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
                                              pattern::Matcher& m) {
+        std::cout << matcher_name << " STARTED" << std::endl;
         const auto& pm = m.get_pattern_value_map();
 
-        const auto current_key = pm.at(key.current);
-        const auto current_value = pm.at(value.current);
-        const auto key_read = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(key.read_value).get_node_shared_ptr());
-        const auto value_read = ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(value.read_value).get_node_shared_ptr());
+        const auto current_key = pm.at(p_key.current);
+        const auto current_value = pm.at(p_value.current);
+        const auto key_read =
+            ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(p_key.read_value).get_node_shared_ptr());
+        const auto value_read =
+            ov::as_type_ptr<ov::op::util::ReadValueBase>(pm.at(p_value.read_value).get_node_shared_ptr());
         const auto sparse_node = ov::as_type_ptr<ov::op::v17::SparseAttention>(m.get_match_root());
         OPENVINO_ASSERT(key_read && value_read && sparse_node);
 
@@ -191,8 +158,8 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
         const auto packed_key = pack_heads(current_key);
         const auto packed_value = pack_heads(current_value);
 
-        const auto packed_indices = pack_selection(pm.at(block_indices));
-        const auto packed_count = pack_selection(pm.at(block_count));
+        const auto packed_indices = pack_selection(pm.at(p_block_indices));
+        const auto packed_count = pack_selection(pm.at(p_block_count));
 
         ov::Output<ov::Node> scale;
         if (pm.count(p_scale)) {
@@ -202,10 +169,14 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
                 scale = squeezed_scale;
             }
         } else {
-            scale = v0::Constant::create(packed_query.get_element_type(), ov::Shape{}, {1/std::sqrt(pm.at(p_query).get_partial_shape()[3].get_length())});
+            scale = v0::Constant::create(packed_query.get_element_type(),
+                                         ov::Shape{},
+                                         {1 / std::sqrt(pm.at(p_query).get_partial_shape()[3].get_length())});
         }
 
-        auto attention_sinks = pm.count(p_sinks) ? pm.at(p_sinks) : v0::Constant::create(packed_query.get_element_type(), ov::Shape{0}, {});
+        auto attention_sinks = pm.count(p_sinks)
+                                   ? pm.at(p_sinks)
+                                   : v0::Constant::create(packed_query.get_element_type(), ov::Shape{0}, {});
 
         const auto paged_sparse =
             std::make_shared<ov::op::internal::PagedSparseAttention>(ov::OutputVector{packed_query,
@@ -229,14 +200,18 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
         paged_sparse->get_rt_info()[V_HEAD_SIZE] = value_shape[3].get_length();
 
         // [B_token, H * Sv] -> [B_token, 1, H, Sv] -> [B_token, H, 1, Sv].
-        auto output_shape = v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{4}, {0, 1, -1, value_shape[3].get_length()});
+        auto output_shape =
+            v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{4}, {0, 1, -1, value_shape[3].get_length()});
         const auto reshaped = std::make_shared<v1::Reshape>(paged_sparse, output_shape, true);
-        const auto output = std::make_shared<v1::Transpose>(reshaped, v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
+        const auto output =
+            std::make_shared<v1::Transpose>(reshaped,
+                                            v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3}));
 
         output->set_friendly_name(sparse_node->get_friendly_name());
         ov::copy_runtime_info(sparse_node, paged_sparse);
         ov::replace_node(sparse_node, output);
         ++m_layer_index;
+        std::cout << matcher_name << " FINISHED" << std::endl;
         return true;
     };
 

@@ -4,9 +4,6 @@
 
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 
-#include <algorithm>
-#include <unordered_set>
-
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/assign.hpp"
@@ -87,11 +84,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
                     "of --task text-generation");
 
-    const bool has_sparse_attention = ov::op::util::has_op_with_type<ov::op::v17::SparseAttention>(model);
-    OPENVINO_ASSERT(
-        ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model) || has_sparse_attention,
-        "No ScaledDotProductAttention or SparseAttention operation observed in the graph, cannot perform "
-        "the SDPAToPagedAttention transformation.");
+    const bool has_attention =
+        ov::op::util::has_op_with_types<ov::op::v13::ScaledDotProductAttention, ov::op::v17::SparseAttention>(model);
+    OPENVINO_ASSERT(has_attention,
+                    "No ScaledDotProductAttention or SparseAttention operation observed in the graph, cannot perform "
+                    "the SDPAToPagedAttention transformation.");
 
     m_params = PaParams{model->get_parameters()};
     m_results = PaResults{model->get_results()};
@@ -125,19 +122,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         target.replace_source_output(processed_input_ids);
     }
 
-    // Pack the ngram embeddings alongside inputs_embeds. Restore the singleton sequence axis
-    // for existing consumers: [B_token, num_ngrams, embedding_size] -> [B_token, 1, num_ngrams, embedding_size].
     if (const auto ngram_embeddings = get_parameter(model, "ngram_embeddings")) {
         const auto ngram_shape = ngram_embeddings->get_partial_shape();
-        OPENVINO_ASSERT(ngram_shape.rank() == 4,
-                        "Expected ngram_embeddings in [B_seq, L, num_ngrams, embedding_size] layout.");
-        const auto targets = ngram_embeddings->get_output_target_inputs(0);
-        ngram_embeddings->set_partial_shape(PartialShape{-1, ngram_shape[2], ngram_shape[3]});
-        const auto unsqueezed =
-            std::make_shared<v0::Unsqueeze>(ngram_embeddings, v0::Constant::create(element::i32, Shape{}, {1}));
-        for (const auto& target : targets) {
-            target.replace_source_output(unsqueezed);
-        }
+        ngram_embeddings->set_partial_shape(PartialShape{-1, 1, ngram_shape[2], ngram_shape[3]});
     }
 
     std::unordered_set<std::string> var_ids_to_remove;
@@ -221,21 +208,23 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
-    // Sparse indexing may still need beam_idx and attention_mask. For sparse models,
-    // retain parameters referenced by the remaining graph, ignoring discarded subgraphs.
-    std::unordered_set<const ov::Node*> live_nodes;
-    for (const auto& node : model->get_ordered_ops()) {
-        live_nodes.insert(node.get());
-    }
-
     for (const auto& param_name : params_to_remove) {
         if (auto param = get_parameter(model, param_name)) {
-            const auto consumers = param->get_output_target_inputs(0);
-            const bool has_live_consumers = std::any_of(consumers.begin(), consumers.end(), [&](const auto& input) {
-                return live_nodes.count(input.get_node()) != 0;
-            });
-            if (!has_sparse_attention || !has_live_consumers) {
-                model->remove_parameter(param);
+            model->remove_parameter(param);
+
+            if (param->output(0).get_target_inputs().size() == 0) {
+                std::stringstream consumers;
+                consumers << std::endl;
+                for (auto& input : param->output(0).get_target_inputs()) {
+                    consumers << *input.get_node() << std::endl;
+                }
+                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
+                                "PagedAttention transformation failed: couldn't remove ",
+                                param->output(0).get_target_inputs().size(),
+                                " inputs of ",
+                                param_name,
+                                " input: ",
+                                consumers.str());
             }
         }
     }

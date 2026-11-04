@@ -59,6 +59,16 @@ bool has_op_with_type(const std::shared_ptr<const ov::Model>& function) {
     return false;
 }
 
+template <class... T>
+bool has_op_with_types(const std::shared_ptr<const ov::Model>& function) {
+    for (const auto& op : function->get_ops()) {
+        if (ov::is_type_any_of<T...>(op)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& function) {
     for (const auto& op : function->get_ops()) {
         if (ov::as_type_ptr<ov::op::v0::Convert>(op)) {
