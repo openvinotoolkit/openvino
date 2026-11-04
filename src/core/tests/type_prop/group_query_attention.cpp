@@ -953,6 +953,15 @@ TEST(type_prop, group_query_attention_query_seqlens_invalid) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(batched, 6, 2, 1.0f, false, false),
                     ov::NodeValidationFailure,
                     HasSubstr("query_seqlens with sequence_length > 1 requires batch_size == 1"));
+
+    // A statically mismatched key/value sequence_length would apply the query's S rotary/mask positions to a
+    // differently-sized key chunk in the decomposition; reject it here instead.
+    auto mismatched_kv = make_gqa_query_seqlens_args();
+    mismatched_kv[1] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    mismatched_kv[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(mismatched_kv, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("query_seqlens requires key/value sequence_length to equal query's"));
 }
 
 }  // namespace testing

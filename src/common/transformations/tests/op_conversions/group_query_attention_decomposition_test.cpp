@@ -550,6 +550,33 @@ TEST(GroupQueryAttentionValues, shared_kv_attends_to_past_and_returns_it_as_pres
     EXPECT_TRUE(params[1]->output(0).get_target_inputs().empty());
 }
 
+// An empty (0-row) past still has ORT's max(past_rows, total_sequence_length) capacity contract: total_sequence_length
+// can pre-allocate present-cache headroom beyond the first chunk, so present must not stay sized to just the
+// current chunk's S rows. A windowed cache is excluded (it keeps its own past_rows-only capacity rule).
+TEST(GroupQueryAttentionValues, padded_query_empty_past_keeps_total_sequence_length_capacity) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 2, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 2, 8});
+    const auto empty_past = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = op::v0::Constant::create(element::i32, Shape{}, {10});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{query, key, value, empty_past, empty_past, seqlens_k, total_length};
+    args.resize(16, empty);
+    const auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    args.push_back(query_seqlens);
+    const auto gqa = std::make_shared<GroupQueryAttention>(args, 4, 2, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_padded_query());
+    const auto expected_shape = PartialShape{1, 2, 10, 8};
+    EXPECT_EQ(gqa->get_output_partial_shape(1), expected_shape);
+    EXPECT_EQ(gqa->get_output_partial_shape(2), expected_shape);
+
+    auto model = std::make_shared<Model>(gqa->outputs(), ParameterVector{query, key, value, seqlens_k, query_seqlens});
+    decompose(model);
+    EXPECT_EQ(model->get_results()[1]->get_output_partial_shape(0), expected_shape);
+    EXPECT_EQ(model->get_results()[2]->get_output_partial_shape(0), expected_shape);
+}
+
 TEST(GroupQueryAttentionValues, absent_past_returns_current_kv_as_present) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 8});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});

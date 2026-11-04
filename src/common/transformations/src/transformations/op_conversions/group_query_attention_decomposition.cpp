@@ -322,9 +322,28 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         present_k = past_key;
         present_v = past_value;
     } else if (empty_past) {
-        // With no past tokens, the current K/V already are the complete present cache.
+        // With no past tokens, the current K/V are the complete present cache -- except total_sequence_length can
+        // still pre-allocate present-cache headroom beyond this chunk for a padded query (ORT's
+        // max(past_rows, total_sequence_length) contract applies to an empty past too). A windowed cache instead
+        // keeps the plain K/V, matching its own past_rows-only capacity rule.
         present_k = K;
         present_v = V;
+        if (!node->get_sliding_window_cache() && node->has_padded_query()) {
+            const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
+            const bool has_total_sequence_length =
+                total_seqlen_pos < node->get_input_size() &&
+                !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
+            if (has_total_sequence_length) {
+                const auto total_sequence_length = register_new_node<v1::Reshape>(
+                    register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
+                    one,
+                    false);
+                // past_rows is 0 by construction (empty_past); past_key/past_value may be null when the input is
+                // fully absent (not just a typed-empty cache), so read capacity from total_sequence_length alone.
+                present_k = resize_kv_to_capacity(zero, present_k, total_sequence_length);
+                present_v = resize_kv_to_capacity(zero, present_v, total_sequence_length);
+            }
+        }
     } else {
         const auto cache = batched ? construct_batched_kvcache(node,
                                                                past_key,
@@ -542,13 +561,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 }
 
 ov::Output<ov::Node> ov::pass::GroupQueryAttentionDecomposition::resize_kv_to_capacity(
-    const ov::Output<ov::Node>& past,
+    const ov::Output<ov::Node>& past_rows,
     const ov::Output<ov::Node>& buffer,
     const ov::Output<ov::Node>& total_sequence_length) {
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-    const auto past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past), {2});
     const auto buffer_shape = register_new_node<v3::ShapeOf>(buffer);
     const auto buffer_rows = get_dimensions(buffer_shape, {2});
     const auto capacity = register_new_node<v1::Maximum>(past_rows, total_sequence_length);
@@ -724,8 +742,13 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
                 register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
                 one,
                 false);
-            outputs.present_key = resize_kv_to_capacity(past_key, outputs.sdpa_key, total_sequence_length);
-            outputs.present_value = resize_kv_to_capacity(past_value, outputs.sdpa_value, total_sequence_length);
+            outputs.present_key = resize_kv_to_capacity(get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2}),
+                                                        outputs.sdpa_key,
+                                                        total_sequence_length);
+            outputs.present_value =
+                resize_kv_to_capacity(get_dimensions(register_new_node<v3::ShapeOf>(past_value), {2}),
+                                      outputs.sdpa_value,
+                                      total_sequence_length);
         } else {
             outputs.present_key = outputs.sdpa_key;
             outputs.present_value = outputs.sdpa_value;
@@ -822,8 +845,12 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
     outputs.sdpa_value = write(past_value, value);
     // Attention stays on the tight scatter-corrected buffer above; present is separately resized to capacity.
     if (!is_static_input && has_total_sequence_length) {
-        outputs.present_key = resize_kv_to_capacity(past_key, outputs.sdpa_key, total_sequence_length);
-        outputs.present_value = resize_kv_to_capacity(past_value, outputs.sdpa_value, total_sequence_length);
+        outputs.present_key = resize_kv_to_capacity(get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2}),
+                                                    outputs.sdpa_key,
+                                                    total_sequence_length);
+        outputs.present_value = resize_kv_to_capacity(get_dimensions(register_new_node<v3::ShapeOf>(past_value), {2}),
+                                                      outputs.sdpa_value,
+                                                      total_sequence_length);
     } else {
         outputs.present_key = outputs.sdpa_key;
         outputs.present_value = outputs.sdpa_value;
