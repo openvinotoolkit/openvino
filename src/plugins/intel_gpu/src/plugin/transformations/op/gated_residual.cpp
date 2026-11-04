@@ -88,8 +88,12 @@ void GatedResidual::validate_and_infer_types() {
                                   ov::element::Type::merge(merged_et, merged_et, get_input_element_type(i)),
                                   "GatedResidual (WRITE) inputs must share the residual element type.");
         }
-        // R' has exactly the residual layout.
-        set_output_type(0, merged_et, residual_ps);
+        // R' has exactly the residual layout, its width is known even when the residual's is not.
+        auto output_ps = residual_ps;
+        if (output_ps.rank().is_static()) {
+            output_ps[output_ps.size() - 1] = static_cast<int64_t>(m_hc_count * m_hidden_size);
+        }
+        set_output_type(0, merged_et, output_ps);
         return;
     }
 

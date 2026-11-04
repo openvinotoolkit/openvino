@@ -270,7 +270,7 @@ TEST(qsa_gr_fusion, gated_residual_read_is_fused) {
         if (!gr) {
             continue;
         }
-        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::READ);
+        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::FINAL_MIX);
         EXPECT_EQ(gr->get_hc_count(), static_cast<size_t>(C));
         EXPECT_EQ(gr->get_hidden_size(), static_cast<size_t>(D));
         EXPECT_EQ(gr->get_lowrank(), static_cast<size_t>(L));
@@ -323,7 +323,7 @@ TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
         if (!gr) {
             continue;
         }
-        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::READ);
+        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::FINAL_MIX);
         EXPECT_EQ(gr->get_hc_count(), static_cast<size_t>(C));
         EXPECT_EQ(gr->get_hidden_size(), static_cast<size_t>(D));
         EXPECT_EQ(gr->get_lowrank(), static_cast<size_t>(L));
@@ -673,6 +673,34 @@ TEST(qsa_gr_fusion, compressed_scale_is_transposed_to_group_major) {
             ASSERT_EQ(v[i * LQ + n], scale_ng[n * g + i]);
         }
     }
+}
+
+TEST(qsa_gr_fusion, unsupported_lowrank_is_padded_with_zero_projections) {
+    const size_t cd = C * D;
+    const size_t small_l = 8;
+    auto ones = [](size_t n, size_t k) {
+        return ov::op::v0::Constant::create(ov::element::f16, ov::Shape{n, k}, std::vector<float>(n * k, 1.0f))->output(0);
+    };
+    for (const auto& [systolic, padded_l] : {std::pair<bool, size_t>{true, 32}, std::pair<bool, size_t>{false, 16}}) {
+        auto gr = run_read_fusion(ones(small_l, cd), ones(cd, small_l), systolic);
+        ASSERT_NE(gr, nullptr);
+        EXPECT_EQ(gr->get_lowrank(), padded_l);
+        EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::W_DOWN), (ov::Shape{padded_l, cd}));
+        EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::W_UP), (ov::Shape{cd, padded_l}));
+    }
+}
+
+TEST(gated_residual_geometry, systolic_kernels_lift_the_scalar_limits) {
+    using GR = op::GatedResidual;
+    // Qwen4-27B: D = 5120 (C*D = 20480), L = 640
+    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, true));
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, false));
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 2560, 640, false)) << "L is kept in registers by the scalar kernel";
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 512, false)) << "C*D is kept in SLM by the scalar kernel";
+    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::READ, 4, 64, 16, true)) << "the scalar kernel is still there";
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 64, 8, true));
+    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::WRITE, 4, 5120, 0)) << "no SLM in WRITE";
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::WRITE, 3, 64, 0));
 }
 
 TEST(qsa_gr_fusion, compressed_weights_need_the_flag) {

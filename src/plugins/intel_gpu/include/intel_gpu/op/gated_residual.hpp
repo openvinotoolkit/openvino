@@ -158,13 +158,21 @@ public:
     /// Geometry the kernels can execute; shared by the fusion pass and the impl's validate_impl.
     static constexpr size_t supported_hc_count = 4;
     static constexpr size_t max_lowrank = 512;        // kept in registers by gr_read.cl
-    static constexpr size_t max_total_width = 16384;  // C*D must fit into SLM as f16
+    static constexpr size_t max_total_width = 16384;  // C*D must fit into SLM as f16 in gr_read.cl
 
-    static constexpr bool is_geometry_supported(Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank) {
-        if (hc_count != supported_hc_count || hidden_size == 0 || hidden_size % 16 != 0 || hc_count * hidden_size > max_total_width) {
+    /// @param systolic the device runs the dpas READ kernels (is_compression_arch_supported), which keep Rbar and T in scratch
+    ///        buffers and are bound only by L being a multiple of 32; the two limits above belong to the scalar gr_read.cl.
+    static constexpr bool is_geometry_supported(Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank, bool systolic = false) {
+        if (hc_count != supported_hc_count || hidden_size == 0 || hidden_size % 16 != 0) {
             return false;
         }
-        return mode == Mode::WRITE || (lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank);
+        if (mode == Mode::WRITE) {
+            return true;
+        }
+        if (systolic && lowrank != 0 && lowrank % 32 == 0) {
+            return true;
+        }
+        return hc_count * hidden_size <= max_total_width && lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank;
     }
 
     /// Compressed weights run on the systolic path only.
