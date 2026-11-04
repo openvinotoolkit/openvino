@@ -402,6 +402,41 @@ TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
     std::filesystem::remove_all(cache_dir);
 }
 
+TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuWhenCandidateHasCachedBlob) {
+    const auto cache_dir = std::filesystem::temp_directory_path() /
+                           ("ov_auto_cache_keep_cpu_blob_" +
+                            std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(cache_dir);
+    std::ofstream(cache_dir / (ov::ModelCache::compute_hash(model, ov::AnyMap{}) + ".blob")) << "blob";
+    ov::AnyMap properties = {ov::device::priorities("CPU,GPU"),
+                             ov::cache_path(cache_dir),
+                             ov::intel_auto::compile_for_all(true)};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_NE(devices.find(cpu_device), std::string::npos);
+    EXPECT_NE(devices.find("GPU"), std::string::npos);
+    EXPECT_EQ(properties.count(ov::intel_auto::enable_startup_fallback.name()), 0u);
+    EXPECT_EQ(properties.count(ov::intel_auto::enable_runtime_fallback.name()), 0u);
+    std::filesystem::remove_all(cache_dir);
+}
+
+TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuWhenBothFallbacksAreDisabled) {
+    set_global_cache("test_cache_dir");
+    ov::AnyMap properties = {ov::device::priorities("CPU,GPU"),
+                             ov::intel_auto::compile_for_all(true),
+                             ov::intel_auto::enable_startup_fallback(false),
+                             ov::intel_auto::enable_runtime_fallback(false)};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_NE(devices.find(cpu_device), std::string::npos);
+
+    ov::AnyMap legacy_properties = {ov::device::priorities("CPU,GPU"),
+                                    ov::intel_auto::enable_startup_fallback(false),
+                                    ov::intel_auto::enable_runtime_fallback(false)};
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(legacy_properties, model, {}));
+    EXPECT_EQ(devices.find(cpu_device), std::string::npos);
+}
+
 class AutoCacheWarmupSharedManagerTest : public AutoCacheWarmupTestBase, public ::testing::Test {
 protected:
     std::promise<void> gate;

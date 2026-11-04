@@ -1068,14 +1068,18 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         get_device_name() != "AUTO" ||
         (properties.count(ov::hint::performance_mode.name()) &&
          properties.at(ov::hint::performance_mode.name()).as<std::string>() == "CUMULATIVE_THROUGHPUT");
+    // The CPU is a warm-up candidate then, so the fallback-driven pruning below must not remove it.
+    const bool keep_cpu_for_warmup = !is_cumulative_tput && properties.count(ov::cache_blob_id.name()) == 0 &&
+                                     properties.count(ov::intel_auto::compile_for_all.name()) &&
+                                     properties.at(ov::intel_auto::compile_for_all.name()).as<bool>();
     if (device_list_config != properties.end() && !(device_list_config->second.as<std::string>().empty())) {
         auto priorities = device_list_config->second;
         // parsing the string and splitting the comma-separated tokens
         std::vector<std::string> devices_to_be_merged =
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
         std::size_t num_blob_files = 0;
-        bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) &&
-                                   properties.count(ov::cache_blob_id.name()) == 0;
+        bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && !keep_cpu_for_warmup &&
+                                   (model || !model_path.empty()) && properties.count(ov::cache_blob_id.name()) == 0;
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
                 // Skip the excluded device
@@ -1172,7 +1176,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                             continue;
                         }
                         // Disable CPU if enable_startup_cpu and enable_runtime_cpu are both disabled
-                        if (!enable_startup_cpu && !enable_runtime_cpu) {
+                        if (!enable_startup_cpu && !enable_runtime_cpu && !keep_cpu_for_warmup) {
                             continue;
                         }
                     }
