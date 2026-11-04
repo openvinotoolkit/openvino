@@ -161,6 +161,14 @@ The installation is done via the community-provided `mozilla-actions/sccache-act
 
 This step must be placed in the workflow **before** the build step.
 
+On Windows self-hosted runners, the pinned `sccache` release (`SCCACHE_VERSION`) is downloaded
+directly from the [sccache GitHub releases](https://github.com/mozilla/sccache/releases) and
+verified against its published SHA-256 checksum. Refer to the `Install sccache` step in
+[`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml).
+
+>**NOTE**: `sccache` cannot cache MSVC compilations that use `/Zi` (a PDB shared between
+objects). Debug builds therefore pass `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`).
+
 ### Passing Credential Environment Variables
 
 The `SCCACHE_AZURE_BLOB_CONTAINER` and `SCCACHE_AZURE_CONNECTION_STRING` variables must be
@@ -193,6 +201,11 @@ Build:
         echo "✓ Connection string loaded and masked"
   ...
 ```
+
+On Windows self-hosted runners (no container), `SCCACHE_AZURE_BLOB_CONTAINER` is provided by the
+runner environment and the connection string is read from
+`C:\mount\secrets\sccache\connection-string`. Refer to
+[`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml).
 
 ### Providing `sccache` Prefix
 
