@@ -24,6 +24,10 @@ enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
 /// Determines the role of a Constant feeding into MOECompressed.
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op);
 
+/// Number of device-resident expert slots of an offloaded (OTD) MoE layer, 0 if the layer stays fully resident.
+/// Only the routed weights are offloaded, and only if they are unmodified views of the weights file.
+size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, const ExecutionConfig& config);
+
 struct PartialUploadDesc {
     bool enabled = false;
     cldnn::memory::ptr memory = nullptr;
