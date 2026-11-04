@@ -211,7 +211,7 @@ one model per graph topology, registers one `WeightSharingExtension` on every fr
 with. The first conversion of a weight keeps it in page-aligned host buffers; later conversions
 reuse them instead of extracting again, and produce the same model. Pass
 `get_compile_properties()` to `compile_model()` so a plugin imports those buffers instead of
-copying them:
+copying them. The properties cover the weights converted so far, so take them after `convert()`:
 
 ```cpp
 auto sharing = std::make_shared<ov::frontend::gguf::WeightSharingExtension>();

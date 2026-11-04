@@ -28,6 +28,8 @@ public:
     // the constants' buffers, so every conversion gets its own nodes over the same weights.
     Output<Node> get(const GgufWeight& source, const std::function<Output<Node>()>& build);
 
+    // Carries a copy of the context: a plugin reads it without this lock while later conversions
+    // register more weights, so it covers the weights converted so far.
     ov::AnyMap get_compile_properties() const;
 
 private:
@@ -36,7 +38,7 @@ private:
 
     std::shared_ptr<Node> make_shared_constant(const ov::op::v0::Constant& constant);
 
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     const std::shared_ptr<ov::weight_sharing::Context> m_context = std::make_shared<ov::weight_sharing::Context>();
     std::map<Key, Output<Node>> m_weights;
     // The context only observes its sources; the buffers live as long as this object.

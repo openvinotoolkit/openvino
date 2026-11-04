@@ -34,7 +34,8 @@ public:
     ~WeightSharingExtension() override;
 
     /// Compile properties that let a plugin import the shared weights; pass them to compile_model()
-    /// for every model converted with this extension.
+    /// for every model converted with this extension. They cover the weights converted so far, so
+    /// take them after converting the model they are compiled with.
     ov::AnyMap get_compile_properties() const;
 
 private:

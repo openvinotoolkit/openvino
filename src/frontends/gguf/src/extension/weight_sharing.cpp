@@ -70,12 +70,16 @@ Output<Node> SharedWeights::get(const GgufWeight& source, const std::function<Ou
 }
 
 ov::AnyMap SharedWeights::get_compile_properties() const {
-    return {ov::internal::model_sharing_context(m_context)};
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return {ov::internal::model_sharing_context(std::make_shared<const ov::weight_sharing::Context>(*m_context))};
 }
 
 std::shared_ptr<Node> SharedWeights::make_shared_constant(const ov::op::v0::Constant& constant) {
-    const auto page = static_cast<size_t>(ov::util::get_system_page_size());
     const auto size = constant.get_byte_size();
+    // An empty weight has nothing to share; keep it on the plugin's ordinary constant path.
+    if (size == 0)
+        return constant.clone_with_new_inputs({});
+    const auto page = static_cast<size_t>(ov::util::get_system_page_size());
     auto storage = std::make_shared<ov::AlignedBuffer>(ov::util::align_size_up(size, page), page);
     std::memcpy(storage->get_ptr(), constant.get_data_ptr(), size);
 

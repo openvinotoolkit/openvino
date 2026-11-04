@@ -120,13 +120,52 @@ TEST(GGUFWeightSharing, DistinctWeightsGetDistinctBuffers) {
         EXPECT_NE(first[i]->get_data_ptr(), second[i]->get_data_ptr()) << first[i]->get_friendly_name();
 }
 
+namespace {
+
+ov::internal::WeightSharingCtxPtr sharing_context(const ov::frontend::gguf::WeightSharingExtension& extension) {
+    const auto properties = extension.get_compile_properties();
+    const auto found = properties.find(ov::internal::model_sharing_context.name());
+    return found == properties.end() ? nullptr : found->second.as<ov::internal::WeightSharingCtxPtr>();
+}
+
+}  // namespace
+
 TEST(GGUFWeightSharing, CompilePropertiesCarryTheContext) {
     const ov::frontend::gguf::WeightSharingExtension extension;
-    const auto properties = extension.get_compile_properties();
+    EXPECT_TRUE(sharing_context(extension));
+}
 
-    const auto found = properties.find(ov::internal::model_sharing_context.name());
-    ASSERT_NE(found, properties.end());
-    EXPECT_TRUE(found->second.as<ov::internal::WeightSharingCtxPtr>());
+// The properties carry a copy of the context taken when they are requested: a later conversion
+// does not change a context a plugin may still be reading.
+TEST(GGUFWeightSharing, CompilePropertiesAreASnapshot) {
+    const auto data = q4_0_bytes(6);
+    const auto extension = std::make_shared<ov::frontend::gguf::WeightSharingExtension>();
+    const auto before = sharing_context(*extension);
+    convert_weight(data, {extension});
+    const auto after = sharing_context(*extension);
+
+    ASSERT_TRUE(before);
+    ASSERT_TRUE(after);
+    EXPECT_TRUE(before->m_cache_sources.empty());
+    EXPECT_FALSE(after->m_cache_sources.empty());
+}
+
+// An empty weight converts without a shared buffer.
+TEST(GGUFWeightSharing, EmptyWeightIsNotShared) {
+    const ov::Tensor data(ov::element::u8, ov::Shape{0});
+    const auto extension = std::make_shared<ov::frontend::gguf::WeightSharingExtension>();
+    const auto model = SingleOpBuilder()
+                           .op("GGML_OP_NONE")
+                           .output("w", ov::element::f32, {0, 3})
+                           .attr<ov::Tensor>("data", data)
+                           .attr<std::string>("quant_type", "F32")
+                           .build_with_extensions({extension});
+
+    for (const auto& constant : constants(model))
+        EXPECT_EQ(ov::weight_sharing::Extension::get_constant_source_id(*constant),
+                  ov::weight_sharing::invalid_source_id)
+            << constant->get_friendly_name();
+    EXPECT_TRUE(sharing_context(*extension)->m_cache_sources.empty());
 }
 
 TEST(GGUFWeightSharing, RegisteringTwiceThrows) {
