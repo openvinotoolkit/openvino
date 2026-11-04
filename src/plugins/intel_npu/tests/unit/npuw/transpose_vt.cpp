@@ -685,3 +685,151 @@ TEST(TransposeVTShapeComputeTest, smoke_GQA_ShapeOfVFeedsAttentionMask) {
     ASSERT_EQ(add->get_output_partial_shape(0), ov::PartialShape({B, q_heads, 1, L}));
     ASSERT_EQ(matmul->get_output_partial_shape(0), ov::PartialShape({B, q_heads, 1, D}));
 }
+
+namespace {
+
+void expect_shape_results(const std::shared_ptr<ov::Model>& model,
+                          const ov::ParameterVector& parameters,
+                          const std::vector<ov::Shape>& expected_shapes) {
+    auto results = model->get_results();
+    ASSERT_EQ(results.size(), expected_shapes.size() + 1);
+
+    ov::OutputVector shape_outputs;
+    ov::TensorVector output_tensors;
+    for (size_t i = 0; i < expected_shapes.size(); ++i) {
+        auto output = results[i + 1]->input_value(0);
+        shape_outputs.push_back(output);
+        output_tensors.emplace_back(output.get_element_type(), ov::Shape{expected_shapes[i].size()});
+    }
+
+    ov::TensorVector input_tensors;
+    for (const auto& parameter : parameters) {
+        input_tensors.emplace_back(parameter->get_element_type(), parameter->get_shape());
+    }
+
+    auto shape_model = std::make_shared<ov::Model>(shape_outputs, parameters);
+    ASSERT_TRUE(shape_model->evaluate(output_tensors, input_tensors));
+    for (size_t i = 0; i < expected_shapes.size(); ++i) {
+        std::vector<int64_t> expected(expected_shapes[i].begin(), expected_shapes[i].end());
+        if (output_tensors[i].get_element_type() == ov::element::i32) {
+            const auto* values = output_tensors[i].data<int32_t>();
+            std::vector<int32_t> expected_i32;
+            expected_i32.reserve(expected.size());
+            for (const auto dimension : expected) {
+                expected_i32.push_back(static_cast<int32_t>(dimension));
+            }
+            EXPECT_EQ(std::vector<int32_t>(values, values + expected.size()), expected_i32);
+        } else {
+            const auto* values = output_tensors[i].data<int64_t>();
+            EXPECT_EQ(std::vector<int64_t>(values, values + expected.size()), expected);
+        }
+    }
+}
+
+}  // namespace
+
+TEST(TransposeVTShapeComputeTest, smoke_MHA_ShapeOfTrackedValues) {
+    const size_t B = 1, H = 2, S = 4, D = 3;
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{B, H, S, D});
+    auto convert = std::make_shared<ov::op::v0::Convert>(past_value, ov::element::f32);
+    auto new_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, H * D});
+    auto reshape_shape =
+        ov::op::v0::Constant::create(ov::element::i64,
+                                     ov::Shape{4},
+                                     std::vector<int64_t>{0, 0, static_cast<int64_t>(H), static_cast<int64_t>(D)});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(new_value, reshape_shape, true);
+    auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(reshape, transpose_order);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{convert, transpose}, 2);
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, S + 1});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(std::make_shared<ov::op::v8::Softmax>(scores, -1), concat);
+
+    auto past_shape = std::make_shared<ov::op::v3::ShapeOf>(past_value);
+    auto convert_shape = std::make_shared<ov::op::v3::ShapeOf>(convert, ov::element::i32);
+    auto transpose_shape = std::make_shared<ov::op::v3::ShapeOf>(transpose);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul, past_shape, convert_shape, transpose_shape},
+                                             ov::ParameterVector{past_value, new_value, scores});
+
+    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
+    expect_shape_results(model,
+                         ov::ParameterVector{past_value, new_value, scores},
+                         {{B, H, S, D}, {B, H, S, D}, {B, H, 1, D}});
+}
+
+TEST(TransposeVTShapeComputeTest, smoke_GQA_ShapeOfTrackedValues) {
+    const size_t B = 1, kv_heads = 2, q_heads = 8, S = 4, D = 3;
+    const size_t L = S + 1;
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{B, kv_heads, S, D});
+    auto convert = std::make_shared<ov::op::v0::Convert>(past_value, ov::element::f32);
+    auto new_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, kv_heads, D});
+    auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(new_value, transpose_order);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{convert, transpose}, 2);
+    auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_axes);
+    auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                        ov::Shape{5},
+                                                        std::vector<int64_t>{B, kv_heads, q_heads / kv_heads, L, D});
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze, broadcast_shape);
+    auto reshape_shape =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{B, q_heads, L, D});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, reshape_shape, false);
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, q_heads, 1, L});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(std::make_shared<ov::op::v8::Softmax>(scores, -1), reshape);
+
+    auto past_shape = std::make_shared<ov::op::v3::ShapeOf>(past_value);
+    auto convert_shape = std::make_shared<ov::op::v3::ShapeOf>(convert);
+    auto transpose_shape = std::make_shared<ov::op::v3::ShapeOf>(transpose);
+    auto concat_shape = std::make_shared<ov::op::v3::ShapeOf>(concat);
+    auto unsqueeze_shape = std::make_shared<ov::op::v3::ShapeOf>(unsqueeze);
+    auto broadcast_shape_of = std::make_shared<ov::op::v3::ShapeOf>(broadcast, ov::element::i32);
+    auto reshape_shape_of = std::make_shared<ov::op::v3::ShapeOf>(reshape);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul,
+                                                              past_shape,
+                                                              convert_shape,
+                                                              transpose_shape,
+                                                              concat_shape,
+                                                              unsqueeze_shape,
+                                                              broadcast_shape_of,
+                                                              reshape_shape_of},
+                                             ov::ParameterVector{past_value, new_value, scores});
+
+    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
+    expect_shape_results(model,
+                         ov::ParameterVector{past_value, new_value, scores},
+                         {{B, kv_heads, S, D},
+                          {B, kv_heads, S, D},
+                          {B, kv_heads, 1, D},
+                          {B, kv_heads, L, D},
+                          {B, kv_heads, 1, L, D},
+                          {B, kv_heads, q_heads / kv_heads, L, D},
+                          {B, q_heads, L, D}});
+}
+
+TEST(TransposeVTShapeComputeTest, smoke_WhisperGenerate_ShapeOfParameter) {
+    const size_t B = 1, H = 2, S = 4, D = 3;
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S, D});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, S});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(std::make_shared<ov::op::v8::Softmax>(scores, -1), past_value);
+    auto past_shape = std::make_shared<ov::op::v3::ShapeOf>(past_value);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{matmul, past_shape}, ov::ParameterVector{past_value, scores});
+
+    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(false, true).run_on_model(model));
+    expect_shape_results(model, ov::ParameterVector{past_value, scores}, {{B, H, S, D}});
+}
+
+TEST(TransposeVTShapeComputeTest, smoke_WhisperPrefill_ShapeOfTranspose) {
+    const size_t B = 1, H = 2, S = 4, D = 3;
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, S, H, D});
+    auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(value, transpose_order);
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, S});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(std::make_shared<ov::op::v8::Softmax>(scores, -1), transpose);
+    auto transpose_shape = std::make_shared<ov::op::v3::ShapeOf>(transpose, ov::element::i32);
+    auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{matmul, transpose_shape}, ov::ParameterVector{value, scores});
+
+    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(true, true).run_on_model(model));
+    expect_shape_results(model, ov::ParameterVector{value, scores}, {{B, H, S, D}});
+}

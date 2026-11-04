@@ -111,8 +111,8 @@ protected:
                 }
             }
             ctx.get().track(matched_transpose->output(0));
-            ctx.get().track(matched_concat->output(0));
         }
+        ctx.get().track(matched_concat->output(0));
         matched_matmul->set_transpose_b(true);
         ctx.get().bTransposed = true;
     }
@@ -360,7 +360,6 @@ private:
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
             transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
-            ctx.get().track(matched_concat->output(0));
             ctx.get().track(matched_unsqueeze->output(0));
             ctx.get().track(matched_broadcast->output(0));
             ctx.get().track(matched_reshape->output(0));
