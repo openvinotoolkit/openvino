@@ -116,6 +116,8 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
 
         if (!fc_prim->compressed_weights)
             TERNOCL_REJECT("not compressed_weights");
+        if (fc_prim->weights_layout != ov::intel_gpu::op::FcWeightsLayout::NK)
+            TERNOCL_REJECT("weights_layout is not NK");
         if (fc_node.weights().get_output_layout(false).data_type != data_types::u2)
             TERNOCL_REJECT("weights are not u2");
         if (!fc_node.weights().is_type<data>())
