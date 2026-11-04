@@ -208,6 +208,21 @@ TEST(NPUWContinuation, SpeculativeTrimClampsWatermarkDown) {
     EXPECT_EQ(c.propose(1500), 1024u);
 }
 
+TEST(NPUWContinuation, DroppedWatermarkGrantsZeroUntilNextPrefill) {
+    auto c = make_after_prefill(2048u, 100u);
+    // A rewrite of the cached KV drops the watermark, and later generate steps
+    // must not raise it again.
+    c.drop_watermark();
+    c.publish_generate(2149u);
+    EXPECT_EQ(c.watermark(), 0u);
+    EXPECT_EQ(c.propose(2149), 0u);
+
+    // The full prefill that the zero grant demands restores it.
+    c.commit_prefill(2300u);
+    c.publish_generate(2301u);
+    EXPECT_EQ(c.propose(2301), 2048u);
+}
+
 TEST(NPUWContinuation, DisabledCoordinatorReportsNoCommand) {
     ContinuationCoordinator c;
     EXPECT_FALSE(c.enabled());
