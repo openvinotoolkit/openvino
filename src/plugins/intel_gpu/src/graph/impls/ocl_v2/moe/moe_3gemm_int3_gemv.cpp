@@ -65,18 +65,19 @@ Int3MatrixDesc get_int3_matrix_desc(const RuntimeParams& params, size_t matrix, 
 
 }  // namespace
 
-bool int3_gemv_has_shared_expert(const RuntimeParams& params) {
+bool MoE3GemmInt3Gemv::has_shared_expert(const RuntimeParams& params) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
     return config.num_shared_expert > 0 && params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_GATE_WEIGHT);
 }
 
-bool int3_gemv_supported(const RuntimeParams& params) {
+bool MoE3GemmInt3Gemv::is_supported(const RuntimeParams& params) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-    if (params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)).data_type != ov::element::f16) {
+    if (params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type != ov::element::u3 ||
+        params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)).data_type != ov::element::f16) {
         return false;
     }
     // A shared expert of another precision runs the other weight types' kernels
-    const bool shared = int3_gemv_has_shared_expert(params);
+    const bool shared = has_shared_expert(params);
     if (config.num_shared_expert > 1 || (config.num_shared_expert == 1 && !shared)) {
         return false;
     }
@@ -87,9 +88,8 @@ bool int3_gemv_supported(const RuntimeParams& params) {
     // matrices, must match the routed gate (or down) matrix
     for (size_t matrix = 0; matrix < 3; ++matrix) {
         const auto ref = get_int3_matrix_desc(params, matrix == 2 ? 2 : 0, false);
-        const auto proj = matrix == 2 ? Int3Projection::DOWN : Int3Projection::GATE_UP;
-        if (ref.k % (INT3_GEMV_SIMD * 32) != 0 || ref.weight_group_size == 0 || ref.weight_group_size % 32 != 0 ||
-            ref.n % (INT3_GEMV_SGN * int3_gemv_nb(params, proj)) != 0) {
+        const auto proj = matrix == 2 ? Projection::DOWN : Projection::GATE_UP;
+        if (ref.k % (SIMD * 32) != 0 || ref.weight_group_size == 0 || ref.weight_group_size % 32 != 0 || ref.n % (SGN * get_nb(params, proj)) != 0) {
             return false;
         }
         for (bool is_shared : {false, true}) {
@@ -107,12 +107,12 @@ bool int3_gemv_supported(const RuntimeParams& params) {
 
 // One token runs top_k * n / nb subgroups. The column counts (more for down, whose K is short) suit a GPU with 512
 // hardware threads; on larger GPUs they shrink until a single token keeps at least half of the threads busy.
-size_t int3_gemv_nb(const RuntimeParams& params, Int3Projection proj) {
+size_t MoE3GemmInt3Gemv::get_nb(const RuntimeParams& params, Projection proj) {
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
     const auto& info = params.get_device_info();
     const size_t threads = static_cast<size_t>(info.execution_units_count) * std::max<uint32_t>(info.num_threads_per_eu, 1);
-    const size_t n = proj == Int3Projection::DOWN ? config.hidden_size : config.inter_size;
-    size_t nb = proj == Int3Projection::DOWN ? 32 : 8;
+    const size_t n = proj == Projection::DOWN ? config.hidden_size : config.inter_size;
+    size_t nb = proj == Projection::DOWN ? 32 : 8;
     while (nb > 1 && config.top_k * n / nb < threads / 2) {
         nb /= 2;
     }
@@ -121,15 +121,15 @@ size_t int3_gemv_nb(const RuntimeParams& params, Int3Projection proj) {
 
 // Most tokens per step for which the u3 batched GEMV beats the OneDNN grouped GEMM on a Qwen3.6-35B-A3B MoE layer:
 // 6 on LNL (9% faster at 2 tokens, 5% at 3, even at 6, 5% slower at 8). BMG stays on the GEMV much longer (24).
-size_t int3_gemv_default_threshold(const RuntimeParams& params) {
+size_t MoE3GemmInt3Gemv::get_default_threshold(const RuntimeParams& params) {
     return params.get_device_info().dev_type == cldnn::device_type::discrete_gpu ? 24 : 6;
 }
 
 JitConstants MoE3GemmInt3Gemv::get_jit_constants(const RuntimeParams& params) const {
     auto jit = KernelGenerator::get_jit_constants(params);
     const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
-    const auto desc = get_int3_matrix_desc(params, m_proj == Int3Projection::DOWN ? 2 : 0, false);
-    jit.make("GEMV_DOWN", m_proj == Int3Projection::DOWN ? 1 : 0);
+    const auto desc = get_int3_matrix_desc(params, m_proj == Projection::DOWN ? 2 : 0, false);
+    jit.make("GEMV_DOWN", m_proj == Projection::DOWN ? 1 : 0);
     jit.make("K_SIZE", desc.k);
     jit.make("N_SIZE", desc.n);
     jit.make("WEI_GROUP_SIZE", desc.weight_group_size);
@@ -139,9 +139,9 @@ JitConstants MoE3GemmInt3Gemv::get_jit_constants(const RuntimeParams& params) co
         jit.make("ZP_TYPE", desc.zp_type == ov::element::i8 ? "char" : "uchar");
     }
     jit.make("MAX_TOPK", config.top_k);
-    jit.make("SHARED_EXPERT", int3_gemv_has_shared_expert(params) ? 1 : 0);
-    jit.make("SGN", INT3_GEMV_SGN);
-    jit.make("NB", int3_gemv_nb(params, m_proj));
+    jit.make("SHARED_EXPERT", has_shared_expert(params) ? 1 : 0);
+    jit.make("SGN", SGN);
+    jit.make("NB", get_nb(params, m_proj));
     switch (config.activation_type) {
     case ov::op::internal::MOE::Activation_type::SWIGLU:
         break;

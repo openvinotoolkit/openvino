@@ -667,13 +667,13 @@ public:
     Stage::Ptr grouped_gemm_prefill_gather = make_stage<MoE3GemmSwigluPrefillGather>(/*use_grouped_gemm=*/true);
     Stage::Ptr grouped_gemm_prefill_swiglu = make_stage<MoE3GemmSwigluPrefillSwiglu>(/*use_grouped_gemm=*/true);
     Stage::Ptr prefill_scatter_reduce_row_lut = make_stage<MoE3GemmSwigluPrefillScatterReduceRowLut>();
-    // Single-token decode of weights without a batched GEMV kernel (u3 outside int3_gemv_supported) goes through grouped GEMM.
+    // Single-token decode of weights without a batched GEMV kernel (u3 outside MoE3GemmInt3Gemv::is_supported) goes through grouped GEMM.
     // The CPU mask gen would cost a host sync on topk in every MoE layer (~1 ms/token on Qwen3.6-35B-A3B int3). For one token
     // the max rows per expert (the grouped GEMM dispatch hint) is known to be 1, so the masks can be built on the GPU instead.
     Stage::Ptr grouped_gemm_mask_gen = make_stage<MoE3GemmSwigluPrefillMaskGen>(/*use_grouped_gemm=*/true);
     // u3 decode on the moe_3gemm_int3 batched GEMV
-    Stage::Ptr int3_gemv_gate_up = make_stage<MoE3GemmInt3Gemv>(Int3Projection::GATE_UP);
-    Stage::Ptr int3_gemv_down = make_stage<MoE3GemmInt3Gemv>(Int3Projection::DOWN);
+    Stage::Ptr int3_gemv_gate_up = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::GATE_UP);
+    Stage::Ptr int3_gemv_down = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::DOWN);
 
     struct dnnl_weights {
         dnnl::memory weight;
@@ -1046,7 +1046,7 @@ public:
     MoeGemmImpl decode_impl = MoeGemmImpl::batched_gemv;  // token_num <= batched_gemv_threshold
     MoeGemmImpl prefill_impl = MoeGemmImpl::per_expert_onednn;
     size_t batched_gemv_threshold = 32;
-    // Output columns per subgroup of the u3 batched GEMV, per Int3Projection
+    // Output columns per subgroup of the u3 batched GEMV, per MoE3GemmInt3Gemv::Projection
     std::array<size_t, 2> int3_gemv_nbs{};
 
     MoeGemmImpl select_impl(size_t token_num) const {
@@ -1088,7 +1088,7 @@ public:
 
     // Weights without a batched GEMV OCL kernel decode through OneDNN grouped GEMM instead
     static MoeGemmImpl select_decode_impl(const RuntimeParams& params, data_types weight_dt) {
-        if (weight_dt == data_types::u3 && int3_gemv_supported(params)) {
+        if (MoE3GemmInt3Gemv::is_supported(params)) {
             return MoeGemmImpl::int3_batched_gemv;
         }
         return is_batched_gemv_supported(weight_dt) ? MoeGemmImpl::batched_gemv : MoeGemmImpl::grouped_gemm;
@@ -1126,14 +1126,14 @@ public:
                                << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;
 
         if (decode_impl == MoeGemmImpl::int3_batched_gemv) {
-            for (auto proj : {Int3Projection::GATE_UP, Int3Projection::DOWN}) {
-                int3_gemv_nbs[static_cast<size_t>(proj)] = int3_gemv_nb(params, proj);
+            for (auto proj : {MoE3GemmInt3Gemv::Projection::GATE_UP, MoE3GemmInt3Gemv::Projection::DOWN}) {
+                int3_gemv_nbs[static_cast<size_t>(proj)] = MoE3GemmInt3Gemv::get_nb(params, proj);
             }
         }
         batched_gemv_threshold = config.get_moe_batched_gemv_threshold();
         if (batched_gemv_threshold == 0) {
             // The u3 GEMV loses to the grouped GEMM much earlier than the other GEMVs
-            batched_gemv_threshold = decode_impl == MoeGemmImpl::int3_batched_gemv ? int3_gemv_default_threshold(params) : 32;
+            batched_gemv_threshold = decode_impl == MoeGemmImpl::int3_batched_gemv ? MoE3GemmInt3Gemv::get_default_threshold(params) : 32;
         }
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): batched_gemv_threshold=" << batched_gemv_threshold << std::endl;
 
@@ -1534,7 +1534,6 @@ public:
 
     void prepare_internal_buffers(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t token_num) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
-        auto& engine = instance.get_network().get_engine();
 
         // topk_id / topk_weights are read from inputs (computed by MoERouterFused).
         scratch.topk_weights = instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::TOPK_WEIGHTS));
@@ -1548,22 +1547,29 @@ public:
             scratch.gate = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
         }
         // Per-expert masks feed only the per-expert onednn loop, which the other paths fall back to only with offloaded
-        // experts. Creating them costs two sub-buffers per expert in every layer (~0.4 ms per layer for 256 experts).
+        // experts. Creating them costs two sub-buffers per expert in every layer (~0.4 ms per layer for 256 experts), so a
+        // single-token step creates them only when it falls back (exec_per_expert_onednn_linear).
         const bool needs_expert_masks = select_impl(token_num) == MoeGemmImpl::per_expert_onednn || _weight_provider->is_offloaded();
         if (token_num > 1 && needs_expert_masks) {
-            const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
-            int expert_num = static_cast<int>(config.num_expert);
-            scratch.expert_masks.resize(expert_num);
-            for (int i = 0; i < expert_num; i++) {
-                auto mask_layout = cldnn::layout({static_cast<int>(token_num)}, cldnn::data_types::i32, cldnn::format::get_default_format(1));
-                scratch.expert_masks[i].batch =
-                    engine.create_subbuffer(*intermediates_memories[MOE_INTERNAL_BUFFER_EXPERT_MASK_BATCH], mask_layout, i * token_num * sizeof(int32_t));
-                scratch.expert_masks[i].topk =
-                    engine.create_subbuffer(*intermediates_memories[MOE_INTERNAL_BUFFER_EXPERT_MASK_TOPK], mask_layout, i * token_num * sizeof(int32_t));
-            }
+            prepare_expert_masks(instance, scratch, token_num);
         }
 
         prepare_weight_pointers(instance, scratch);
+    }
+
+    void prepare_expert_masks(typed_primitive_inst<moe_3gemm_fused_compressed>& instance, scratch_buffers& scratch, size_t token_num) {
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+        auto& engine = instance.get_network().get_engine();
+        const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
+        int expert_num = static_cast<int>(config.num_expert);
+        scratch.expert_masks.resize(expert_num);
+        for (int i = 0; i < expert_num; i++) {
+            auto mask_layout = cldnn::layout({static_cast<int>(token_num)}, cldnn::data_types::i32, cldnn::format::get_default_format(1));
+            scratch.expert_masks[i].batch =
+                engine.create_subbuffer(*intermediates_memories[MOE_INTERNAL_BUFFER_EXPERT_MASK_BATCH], mask_layout, i * token_num * sizeof(int32_t));
+            scratch.expert_masks[i].topk =
+                engine.create_subbuffer(*intermediates_memories[MOE_INTERNAL_BUFFER_EXPERT_MASK_TOPK], mask_layout, i * token_num * sizeof(int32_t));
+        }
     }
 
     void get_expert_mask_from_gpu(const MOECompressed::Config& config, memory::ptr mem, stream& stream, expert_mask_cpu& expert_mask, size_t actual_token_num) {
@@ -1710,7 +1716,7 @@ public:
 
         auto batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
         if (!batch_mem_ptr) {
-            return exec_batched_gemv_fallback(events, stream, instance, scratch);
+            return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
         }
 
         // gate
@@ -1811,13 +1817,26 @@ public:
         return scratch._expert_index_buffer ? scratch._expert_index_buffer : scratch.topk_id;
     }
 
-    // Per-expert onednn loop for a batched GEMV step whose experts cannot all be leased at once
+    // Per-expert onednn loop for a batched GEMV step whose experts cannot all be leased at once, then the shared expert,
+    // which the batched GEMV would have computed
     cldnn::event::ptr exec_batched_gemv_fallback(const std::vector<cldnn::event::ptr>& events,
                                                  cldnn::stream& stream,
                                                  typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                 scratch_buffers& scratch) {
-        instance.output_memory_ptr(0)->fill(stream, 0u);
-        return exec_per_expert_onednn_linear(events, stream, instance, scratch);
+                                                 scratch_buffers& scratch,
+                                                 size_t token_num) {
+        auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
+        final_hidden_states_mem_ptr->fill(stream, 0u);
+        auto ret_event = exec_per_expert_onednn_linear(events, stream, instance, scratch);
+        if (_has_shared_expert) {
+            // The shared expert's down projection adds to the output: the in-order queue runs it after the experts
+            init_shared_primitives(instance.get_network().get_engine(), scratch.moe_fusion_wei_addr, static_cast<int>(token_num));
+            execute_shared_expert(stream.get_onednn_stream(),
+                                  static_cast<int>(token_num),
+                                  instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)),
+                                  final_hidden_states_mem_ptr,
+                                  scratch);
+        }
+        return ret_event;
     }
 
     // Per-token reduction of the batched GEMV paths: final[t] = sum(scratch.y[t * REDUCE_COUNT .. (t+1) * REDUCE_COUNT - 1])
@@ -1857,24 +1876,27 @@ public:
 
         auto expert_ids = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
         if (!expert_ids) {
-            return exec_batched_gemv_fallback(events, stream, instance, scratch);
+            return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
         }
         GPU_DEBUG_TRACE_DETAIL << "\nexec_int3_batched_gemv(): token_num=" << token_num << ", max_topk=" << config.top_k
                                << ", has_shared=" << _has_shared_expert << std::endl;
 
         const auto& wei = scratch.moe_fusion_wei_addr;
         const size_t pairs = token_num * (config.top_k + (_has_shared_expert ? 1 : 0));
-        const auto gemv = [&](Int3Projection proj, std::vector<memory::ptr> inputs, memory::ptr output, const std::vector<event::ptr>& deps) {
-            const bool down = proj == Int3Projection::DOWN;
+        using Projection = MoE3GemmInt3Gemv::Projection;
+        constexpr size_t simd = MoE3GemmInt3Gemv::SIMD;
+        constexpr size_t sgn = MoE3GemmInt3Gemv::SGN;
+        const auto gemv = [&](Projection proj, std::vector<memory::ptr> inputs, memory::ptr output, const std::vector<event::ptr>& deps) {
+            const bool down = proj == Projection::DOWN;
             const size_t n = down ? config.hidden_size : config.inter_size;
-            const size_t blocks = n / (INT3_GEMV_SGN * int3_gemv_nbs[static_cast<size_t>(proj)]);
+            const size_t blocks = n / (sgn * int3_gemv_nbs[static_cast<size_t>(proj)]);
             return execute_stage(deps,
                                  instance,
                                  down ? *int3_gemv_down : *int3_gemv_gate_up,
                                  std::move(inputs),
                                  {output},
-                                 {INT3_GEMV_SIMD, INT3_GEMV_SGN, pairs * blocks},
-                                 {INT3_GEMV_SIMD, INT3_GEMV_SGN, 1});
+                                 {simd, sgn, pairs * blocks},
+                                 {simd, sgn, 1});
         };
 
         const auto add_weights = [&](std::vector<memory::ptr>& inputs, int w, bool shared) {
@@ -1894,7 +1916,7 @@ public:
             gate_up_inputs.insert(gate_up_inputs.end(), {wei.shared_weight[3], scratch.routing_weights});  // shared_gate_out [token_num]
         }
         gate_up_inputs.push_back(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)));
-        auto ret_event = gemv(Int3Projection::GATE_UP, gate_up_inputs, scratch.up, events);
+        auto ret_event = gemv(Projection::GATE_UP, gate_up_inputs, scratch.up, events);
 
         // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
         std::vector<memory::ptr> down_inputs{expert_ids};
@@ -1906,7 +1928,7 @@ public:
         if (_has_shared_expert) {
             down_inputs.push_back(scratch.routing_weights);  // shared_gate_in [token_num]
         }
-        ret_event = gemv(Int3Projection::DOWN, down_inputs, scratch.y, {ret_event});
+        ret_event = gemv(Projection::DOWN, down_inputs, scratch.y, {ret_event});
 
         return exec_batched_gemv_reduce(ret_event, instance, scratch, token_num);
     }
@@ -2501,6 +2523,15 @@ public:
         auto& engine = instance.get_network().get_engine();
         init_dnnl_weights(cur_moe, engine, scratch.moe_fusion_wei_addr);
 
+        // The OTD fallbacks of single-token steps get here without the gather scratch or the expert masks
+        auto token_num = get_seq_len(hidden_states_layout);
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+        scratch.x = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
+        scratch.gate = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
+        if (scratch.expert_masks.empty()) {
+            prepare_expert_masks(instance, scratch, token_num);
+        }
+
         auto routing_mem_ptr = scratch.topk_weights;
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         auto get_best_lws = [](size_t hidden_size) {
@@ -2517,7 +2548,6 @@ public:
 
         // [batch, max_topk]
         auto topk_id_mem = scratch.topk_id;
-        auto token_num = get_seq_len(hidden_states_layout);
         expert_mask_cpu expert_mask;
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask, token_num);
 

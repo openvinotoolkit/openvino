@@ -258,7 +258,9 @@ protected:
         abs_threshold = 1e-3;
         rel_threshold = 0.025;
         const ov::test::MoePatternParams moe_params{{-1, -1, 256}, 4, 8, 512};
-        init_input_shapes({{moe_params.data_shape, {{1, 40, 256}}}});
+        // Prefill, then decode steps on the batched GEMV, which falls back to the per-expert loop when the LRU holds
+        // fewer experts than top_k
+        init_input_shapes({{moe_params.data_shape, {{1, 40, 256}, {1, 1, 256}, {1, 4, 256}}}});
         function = ov::test::initMoE3GeMMSubgraph(moe_params,
                                                   ov::element::f16,
                                                   wp,
@@ -314,10 +316,11 @@ TEST_P(MoECompressedOffloadTest, Inference) {
     run();
 }
 
+// OFFLOAD_RATIO 50 keeps 4 of the 8 experts resident (= top_k), 75 keeps 2, so every step falls back.
 // A scalar zero point is supported for u3 weights only. Per-group u3 zero points are not supported (see skip_tests_config.cpp).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
                          MoECompressedOffloadTest,
-                         ::testing::Combine(::testing::Values(size_t{50}),
+                         ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u3),
                                             ::testing::Values(ov::test::utils::DecompressionType::full,
                                                               ov::test::utils::DecompressionType::scalar,
@@ -326,7 +329,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
                          MoECompressedOffloadTest,
-                         ::testing::Combine(::testing::Values(size_t{50}),
+                         ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
                                             ::testing::Values(ov::element::u8, ov::element::u4),
                                             ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
                          MoECompressedOffloadTest::getTestCaseName);
