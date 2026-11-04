@@ -90,6 +90,11 @@ bool is_fusion_candidate(const std::shared_ptr<op::FullyConnectedCompressed>& fc
             continue;
         }
 
+        // Skip horizontal fusion when the weight is not a constant. The fused-weight Concat
+        // created during fusion relies on constant-folding at compile time; with a non-constant
+        // weight (e.g. weights provided as runtime inputs) it cannot fold, survives to program
+        // build, and may hit formats/types without a Concat implementation. Even when a Concat
+        // impl exists, concatenating weights on every inference is pure overhead with no benefit.
         if (!is_constant(fc_user->get_input_node_shared_ptr(1))) {
             return false;
         }
@@ -109,7 +114,7 @@ bool is_fusion_candidate(const std::shared_ptr<op::FullyConnectedCompressed>& fc
         }
         user_fc_count++;
     }
-    return (user_fc_count >= min_num_fcs_to_fuse) && (user_fc_count <= static_cast<size_t>(max_num_fcs_to_fuse)) &&
+    return (user_fc_count >= min_num_fcs_to_fuse) && (user_fc_count <= max_num_fcs_to_fuse) &&
            (nodes_with_bias == static_cast<int32_t>(user_fc_count) || nodes_with_bias == 0) &&
            (nodes_with_zp == static_cast<int32_t>(user_fc_count) || nodes_with_zp == 0);
 }
@@ -136,6 +141,11 @@ FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
 
     // Three FCs connected to the same input
     size_t min_num_fcs_to_fuse = 3;
+
+    // Note:
+    // For cldnn, two fcs in mlp will be fused at horizontal fc fusion, and then swiglu will be fused at prepare_primitive_fusion
+    // i.e., eltwise((fc + swish), fc) => fused_fc + swiglu => fused_fc_swilgu
+    // Onednn gemms are to be handled in a different way (TBD)
     if (fuse_mlp_swiglu) {
         min_num_fcs_to_fuse = 2;
     }
@@ -232,10 +242,7 @@ FullyConnectedHorizontalFusionMatcher::FullyConnectedHorizontalFusionMatcher(
                     }
                 }
             }
-            // Folding the concat below is what actually reads the weights from the mapped file, so
-            // the scheduler is told about this group right before and right after that read. Both
-            // loops run on every path out of the fold: a constant left acquired would stay counted
-            // as in flight and stall the prefetch of the groups that follow.
+            // Folding the concat below is what actually reads the weights from the mapped file.
             auto* const scheduler = prefetch ? prefetch->scheduler.get() : nullptr;
             const auto for_each_source = [&outputs](const auto& action) {
                 for (const auto& output : outputs) {
@@ -525,7 +532,6 @@ bool FullyConnectedHorizontalFusion::run_on_model(const std::shared_ptr<ov::Mode
             collect_prefetch_candidates(*model, m_min_num_fcs_to_fuse));
     }
     const bool model_changed = ov::pass::GraphRewrite::run_on_model(model);
-    // Drops the scheduler before the next model: its entries only track this model's constants.
     m_prefetch->scheduler.reset();
     return model_changed;
 }

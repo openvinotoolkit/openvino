@@ -23,7 +23,7 @@ public:
                                                    std::shared_ptr<WeightsPrefetchSlot> prefetch = nullptr);
 };
 
-/// @brief Fuses the QKV (and optionally MLP) FullyConnectedCompressed ops sharing one input.
+/// @brief Fuses the FullyConnectedCompressed ops sharing one input.
 class FullyConnectedHorizontalFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("FullyConnectedHorizontalFusion");
