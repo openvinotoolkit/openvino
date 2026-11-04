@@ -3,7 +3,6 @@
 //
 
 #include <cstdint>
-#include <cstring>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -82,26 +81,6 @@ CommandList create_command_list(ze_context_handle_t context, ze_device_handle_t 
         }
     }
     OPENVINO_THROW("The GPU has no command queue group supporting memory copies");
-}
-
-struct HostMemoryDeleter {
-    ze_context_handle_t context;
-    void operator()(void* pointer) const {
-        const auto result = ze::zeMemFree(context, pointer);
-        if (result != ZE_RESULT_SUCCESS) {
-            std::cerr << "zeMemFree failed with Level Zero error " << result << std::endl;
-        }
-    }
-};
-
-using HostMemory = std::unique_ptr<void, HostMemoryDeleter>;
-
-HostMemory allocate_host_memory(ze_context_handle_t context, size_t bytes) {
-    ze_host_mem_alloc_desc_t desc = {};
-    desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
-    void* pointer = nullptr;
-    ZE_CHECK(ze::zeMemAllocHost(context, &desc, bytes, 0, &pointer));
-    return HostMemory(pointer, HostMemoryDeleter{context});
 }
 
 void copy_memory(ze_command_list_handle_t command_list, void* destination, const void* source, size_t bytes) {
@@ -252,12 +231,9 @@ int tmain(int argc, tchar* argv[]) {
         OPENVINO_ASSERT(allocation.type == ZE_MEMORY_TYPE_DEVICE && ze_device != nullptr,
                         "Expected a Level Zero device allocation");
 
-        // Upload the image to device memory through a Level Zero command list
-        auto input_staging = allocate_host_memory(ze_context, remote_input.get_byte_size());
-        auto output_staging = allocate_host_memory(ze_context, remote_output.get_byte_size());
+        // Upload the image from host memory to device memory through a Level Zero command list
         auto command_list = create_command_list(ze_context, ze_device);
-        std::memcpy(input_staging.get(), input_data.get(), remote_input.get_byte_size());
-        copy_memory(command_list.get(), input_pointer, input_staging.get(), remote_input.get_byte_size());
+        copy_memory(command_list.get(), input_pointer, input_data.get(), remote_input.get_byte_size());
 
         infer_request.set_input_tensor(remote_input);
         infer_request.set_output_tensor(remote_output);
@@ -266,8 +242,8 @@ int tmain(int argc, tchar* argv[]) {
         infer_request.infer();
 
         // -------- Step 10. Download and process output --------
-        copy_memory(command_list.get(), output_staging.get(), output_pointer, remote_output.get_byte_size());
-        const ov::Tensor output_tensor(ov::element::f32, remote_output.get_shape(), output_staging.get());
+        ov::Tensor output_tensor(ov::element::f32, remote_output.get_shape());
+        copy_memory(command_list.get(), output_tensor.data(), output_pointer, remote_output.get_byte_size());
 
         // Print classification results
         ClassificationResult classification_result(output_tensor, {image_path});

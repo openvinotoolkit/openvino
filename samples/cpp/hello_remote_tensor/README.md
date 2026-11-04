@@ -57,9 +57,9 @@ The following C++ API is used in the application:
 | Synchronous Infer         | ``ov::InferRequest::infer``                                    | Do synchronous inference                                            |
 | Preprocessing             | ``ov::preprocess::PrePostProcessor``                           | Resize and layout conversion of the original image on the device    |
 | Level Zero                | ``zeInitDrivers``, ``zeMemGetAllocProperties``,                | Initialize Level Zero, find the allocation's device, and copy data  |
-|                           | ``zeCommandListCreateImmediate``,                              | between host staging memory and device memory                       |
+|                           | ``zeCommandListCreateImmediate``,                              | between host memory and device memory                               |
 |                           | ``zeCommandListAppendMemoryCopy``,                             |                                                                     |
-|                           | ``zeCommandListHostSynchronize``, ``zeMemAllocHost``           |                                                                     |
+|                           | ``zeCommandListHostSynchronize``                               |                                                                     |
 | OpenCL (LEO)              | ``clGetContextInfo`` with ``CL_L0_CONTEXT_HANDLE``             | Convert the plugin's OpenCL context to its Level Zero context       |
 
 ## Build and run
@@ -97,10 +97,10 @@ top 10 classification results and returns a nonzero exit code on failure.
    their USM pointers through `ov::intel_gpu::mem_handle`.
 6. Query the input allocation's device with `zeMemGetAllocProperties` so the
    application's command list uses the same device as OpenVINO.
-7. Copy the image through a Level Zero immediate command list, run synchronous
-   inference, and copy the output through Level Zero. Transfers use host
-   staging buffers allocated with `zeMemAllocHost` in the same context. Each copy waits
-   with `zeCommandListHostSynchronize` before the data are used.
+7. Copy the image from host memory to the input tensor through a Level Zero immediate
+   command list, run synchronous inference, and copy the output tensor back to a host
+   `ov::Tensor` through Level Zero. Each copy waits with `zeCommandListHostSynchronize`
+   before the data are used.
 
 ## Smoke tests
 

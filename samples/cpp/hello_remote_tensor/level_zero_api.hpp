@@ -19,7 +19,7 @@
 
 // The Level Zero loader ships with the GPU driver, not with OpenVINO. Like the GPU plugin, the sample loads it
 // at runtime instead of linking it, so it starts on machines without the driver and reports a clear error.
-// Usage: ze::zeMemFree(context, ptr) instead of zeMemFree(context, ptr).
+// Usage: ze::zeInitDrivers(&count, nullptr, &desc) instead of zeInitDrivers(&count, nullptr, &desc).
 namespace ze {
 
 // clang-format off
@@ -30,8 +30,6 @@ namespace ze {
     symbol(zeCommandListDestroy)                        \
     symbol(zeCommandListAppendMemoryCopy)               \
     symbol(zeCommandListHostSynchronize)                \
-    symbol(zeMemAllocHost)                              \
-    symbol(zeMemFree)                                   \
     symbol(zeMemGetAllocProperties)
 // clang-format on
 
