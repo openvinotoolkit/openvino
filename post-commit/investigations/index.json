@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 67,
+  "total": 68,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -679,6 +679,17 @@
       "run_id": "41921789891",
       "timestamp": "2026-11-04T22:24:44Z",
       "title": "Android build x64/arm64 fail to store artifacts: No space left on device on shared build-artifacts mount",
+      "category": "Infrastructure",
+      "signature_hash": "20bacf1a347a0b94",
+      "commit_sha": "98a58dac99b6dda19f91cf7f06158c1644a5c820"
+    },
+    {
+      "investigation_id": "2026-11-04-22-36-17-481-41921791947",
+      "run_id": "41921791947",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41921791947",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-04T22:36:17Z",
+      "title": "Linux Ubuntu 24.04 build fails to store artifacts: No space left on device on shared build-artifacts mount",
       "category": "Infrastructure",
       "signature_hash": "20bacf1a347a0b94",
       "commit_sha": "98a58dac99b6dda19f91cf7f06158c1644a5c820"

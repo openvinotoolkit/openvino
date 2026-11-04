@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-04-22-36-17-481-41921791947",
+  "timestamp": "2026-11-04T22:36:17Z",
+  "run_id": "41921791947",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41921791947",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "commit_sha": "98a58dac99b6dda19f91cf7f06158c1644a5c820",
+  "pr_number": "39076",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39076",
+  "author": "dependabot[bot]",
+  "category": "Infrastructure",
+  "title": "Linux Ubuntu 24.04 build fails to store artifacts: No space left on device on shared build-artifacts mount",
+  "signature": "Failed to copy build artifacts: [Errno 28] No space left on device on shared build-artifacts mount|Infrastructure",
+  "signature_hash": "20bacf1a347a0b94",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Store artifacts step fails copying openvino_package.tar.gz, developer_package.tar.gz, openvino_tests.tar.gz, deb, manifest.yml, wheels with [Errno 28] No space left on device"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "11-04-2026 22:29:44 __main__ ERROR Failed to copy /home/runner/_work/openvino/openvino/openvino/openvino_build/openvino_package.tar.gz: [Errno 28] No space left on device: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_linux_ubuntu_24_04_x86_64_release'",
+    "11-04-2026 22:29:44 __main__ ERROR Failed to copy /home/runner/_work/openvino/openvino/openvino/openvino_build/developer_package.tar.gz: [Errno 28] No space left on device: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_linux_ubuntu_24_04_x86_64_release'",
+    "11-04-2026 22:29:45 __main__ ERROR Failed to copy /home/runner/_work/openvino/openvino/openvino/install/wheels/wheels: [Errno 28] No space left on device: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_linux_ubuntu_24_04_x86_64_release'",
+    "FileNotFoundError: [Errno 2] No such file or directory: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_linux_ubuntu_24_04_x86_64_release/workflow_link.txt'"
+  ],
+  "root_cause": "The Linux Ubuntu 24.04 build compiled successfully (compilation, cmake --install, and tarball packaging all passed), but the subsequent 'Store artifacts' custom action (.github/actions/store_artifacts/store_artifacts.py) failed when copying openvino_package.tar.gz and every other output artifact to the shared network-mounted artifact storage at /mount/build-artifacts. The OS raised errno 28 (ENOSPC) on that mount for every file copied, indicating the shared drive used to archive build artifacts for the dldt/master branch was out of free space at the time of the run. This is unrelated to the PR content (a gitpython dependency bump in the store_artifacts action itself) or to the Linux build logic; it is a capacity exhaustion issue on the shared storage backend shared across all post-commit build jobs. The trailing FileNotFoundError for workflow_link.txt is a secondary symptom: the destination directory was never fully populated because every preceding file copy failed with ENOSPC.",
+  "reproduction_steps": "N/A - this failure depends on the free space available on the external, shared /mount/build-artifacts network drive at the time of the run and cannot be reproduced by re-running identical code locally. To confirm, check disk usage on the storage backend mounted at /mount/build-artifacts (e.g., `df -h /mount/build-artifacts` on the host, or the storage backend's own monitoring) around 2026-11-04T22:29 UTC.",
+  "recommended_actions": [
+    "Free up space on the shared build-artifacts storage backend (prune old/expired commit artifact directories under /mount/build-artifacts/dldt/master/commit/) or increase the mount's capacity.",
+    "Add automated retention/cleanup (e.g., a scheduled job) that deletes artifact directories for commits older than N days under /mount/build-artifacts/dldt/<branch>/commit/ to prevent recurrence across all platforms, not just this one.",
+    "Add a disk-space pre-check/alert in .github/actions/store_artifacts (or a separate monitoring workflow) that warns before the mount nears capacity, rather than failing deep inside every build job across platforms simultaneously.",
+    "Make store_artifacts.py fail fast with a single clear error (and/or retry after triggering cleanup) instead of attempting every file copy and leaving a partially-written destination directory, which caused the secondary FileNotFoundError on workflow_link.txt.",
+    "Re-run the Linux Ubuntu 24.04 workflow once the storage backend has free space; no code changes to the PR are required."
+  ],
+  "prevention_strategies": "Implement scheduled or threshold-triggered cleanup/retention on the shared /mount/build-artifacts network drive, and add monitoring/alerting on free space for that mount so operators are notified before it fills up, well ahead of CI jobs failing across every build platform. Consider capping how many historical commit artifact sets are retained per branch, and centralize the ENOSPC check in one place so one failure doesn't repeat per-platform.",
+  "historical_context": "This is the second occurrence of this exact same /mount/build-artifacts ENOSPC signature recorded for the same commit (98a58dac99b6dda19f91cf7f06158c1644a5c820, PR #39076 / dependabot gitpython bump): the Android x64/arm64 build jobs hit the identical error about 12 minutes earlier (investigation 2026-11-04-22-24-44-391-41921789891, pattern 20bacf1a347a0b94). This confirms the shared storage backend was globally out of space at this time, affecting multiple build platforms in the same post-commit wave, not a per-platform issue."
+}

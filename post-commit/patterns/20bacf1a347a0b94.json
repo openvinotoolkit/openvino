@@ -2,18 +2,20 @@
   "schema_version": "1.0",
   "signature": "Failed to copy build artifacts: [Errno 28] No space left on device on shared build-artifacts mount|Infrastructure",
   "signature_hash": "20bacf1a347a0b94",
-  "title": "Android build x64/arm64 fail to store artifacts: No space left on device on shared build-artifacts mount",
+  "title": "Linux Ubuntu 24.04 build fails to store artifacts: No space left on device on shared build-artifacts mount",
   "category": "Infrastructure",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-04T22:24:44Z",
-  "last_seen": "2026-11-04T22:24:44Z",
+  "last_seen": "2026-11-04T22:36:17Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41921791947",
     "https://github.com/openvinotoolkit/openvino/actions/runs/41921789891"
   ],
   "affected_commits": [
     "98a58dac99b6dda19f91cf7f06158c1644a5c820"
   ],
   "recent_timestamps": [
+    "2026-11-04T22:36:17Z",
     "2026-11-04T22:24:44Z"
   ]
 }
