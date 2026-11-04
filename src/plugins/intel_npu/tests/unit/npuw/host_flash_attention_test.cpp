@@ -348,6 +348,15 @@ TEST(HostFlashAttentionFromTest, EmbedsConstantPostQKScale) {
     }));
 }
 
+TEST(HostFlashAttentionFromTest, RejectsGenerateAttention) {
+    for (const bool with_sink : {false, true}) {
+        auto model = build_sdpa_model(1, PAST_LEN, NUM_HEADS, HEAD_DIM, with_sink);
+        ASSERT_TRUE(ov::npuw::util::find_sdpa_pattern_nodes(model).is_valid());
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
+    }
+}
+
 TEST(HostFlashAttentionFromTest, RejectsConstantAttentionSink) {
     auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
     auto sink = model->get_parameters().back();

@@ -4,6 +4,7 @@
 
 #include "sdpa.hpp"
 
+#include <algorithm>
 #include <regex>
 
 #include "../../logging.hpp"
@@ -11,6 +12,7 @@
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
 #include "openvino/core/bound_evaluation_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -206,7 +208,11 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
     // predicate fails and the optional is treated as absent, causing the overall pattern
     // to fall through rather than matching an incorrect multi-branch subgraph.
     auto single_user = [](const ov::Output<ov::Node>& output) {
-        return output.get_target_inputs().size() == 1;
+        const auto consumers = output.get_target_inputs();
+        return std::count_if(consumers.begin(), consumers.end(), [](const auto& input) {
+                   return !ov::is_type<ov::op::v0::ShapeOf>(input.get_node()) &&
+                          !ov::is_type<ov::op::v3::ShapeOf>(input.get_node());
+               }) == 1;
     };
     auto unsqueeze1 = opp::optional<ov::op::v0::Unsqueeze>({concat1, opp::any_input()}, single_user);
     auto broadcast1 = opp::optional<ov::op::v3::Broadcast>({unsqueeze1, opp::any_input()}, single_user);
@@ -235,7 +241,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
             return false;
         }
 
-        const auto order = ov::as_type_ptr<ov::op::v0::Constant>(key_transpose->input_value(1).get_node_shared_ptr());
+        const auto order = ov::util::get_constant_from_source(key_transpose->input_value(1));
         if (!order) {
             return false;
         }

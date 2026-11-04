@@ -870,6 +870,7 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
 
     auto props = base_props();
     props["NPUW_ATTN"] = std::string("PYRAMID");
+    props["NPUW_UNFOLD_IREQS"] = std::string("YES");
     // No Failsafe wrappers - they are not created for imported blobs either.
     props["NPUW_FALLBACK_EXEC"] = std::string("NO");
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);

@@ -911,10 +911,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         }
 
                         const auto past_len = state.pyramid_selector->past_length();
-                        if (state.cached_attention_mask) {
-                            ctx.target_request->set_tensor(mask_iport, state.cached_attention_mask);
-                            return;
-                        }
 
                         const auto full_mask_shape = graph_mask->get_shape();
                         using namespace ov::npuw::runtime;
@@ -922,7 +918,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             const auto dst_shape = dst->get_shape();
                             if (dst_shape == full_mask_shape) {
                                 ctx.target_request->set_tensor(mask_iport, graph_mask);
-                                state.cached_attention_mask = graph_mask;
                                 return;
                             }
 
@@ -931,7 +926,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                               full_mask_shape[ATTN_KV_DIM] - present_len,
                                               present_len);
                             copy_mask_segment(0, 0, dst_present_offset);
-                            state.cached_attention_mask = dst;
                             return;
                         }
                         if (this_case == pyramid_attention::Selector::Case::PREFILL) {
@@ -948,7 +942,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                   present_len);
                                 copy_mask_segment(0, 0, effective_past_len);
                             }
-                            state.cached_attention_mask = dst;
                             return;
                         }
                         OPENVINO_ASSERT(false, "Unsupported pyramid attention case");
@@ -976,6 +969,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                    hfa_desc->_compiled_final_tile_model->outputs().size());
 
                         OPENVINO_ASSERT(hfa_desc->is_valid(), "HFA configuration must be valid");
+                        if (state.hfa_runtime_ctx) {
+                            state.hfa_runtime_ctx->clear_mask_cache();
+                        }
                         // GENERATE (decoding) is not supported yet: the past-tile math below
                         // assumes past_total_length always divides evenly by past_tile_size --
                         // true for PREFILL chunking, but not for GENERATE, where the actual past

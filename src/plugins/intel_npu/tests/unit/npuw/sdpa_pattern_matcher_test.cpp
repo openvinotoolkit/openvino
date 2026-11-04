@@ -13,9 +13,11 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/patterns/sdpa.hpp"
+#include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
 namespace {
 
@@ -394,6 +396,66 @@ TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesAttentionSinkModel) {
     auto ens = ov::npuw::online::buildPartitioning(model, cfg);
 
     EXPECT_GE(count_groups_with_tag(ens, "attn"), 1u) << "SDPADecomposed should match the attention-sink subgraph";
+}
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesCoreAttentionSinkDecomposition) {
+    auto model = build_decomposed_sdpa_model(1, true, 4, 2, 16, 8, 8, true);
+    std::shared_ptr<ov::op::v0::MatMul> query_key;
+    std::shared_ptr<ov::op::v0::MatMul> probabilities_value;
+    std::shared_ptr<ov::op::v1::Add> masked_scores;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_friendly_name() == "matmul_qk.0") {
+            query_key = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+        } else if (node->get_friendly_name() == "matmul_sv.0") {
+            probabilities_value = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+        } else if (node->get_friendly_name() == "add_mask.0") {
+            masked_scores = ov::as_type_ptr<ov::op::v1::Add>(node);
+        }
+    }
+    ASSERT_NE(query_key, nullptr);
+    ASSERT_NE(probabilities_value, nullptr);
+    ASSERT_NE(masked_scores, nullptr);
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.25f});
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(query_key->input_value(0),
+                                                                         query_key->input_value(1),
+                                                                         probabilities_value->input_value(1),
+                                                                         masked_scores->input_value(1),
+                                                                         scale,
+                                                                         model->get_parameters().back(),
+                                                                         false);
+    {
+        ov::pass::ScaledDotProductAttentionDecomposition decomposition;
+        ov::replace_node(probabilities_value, decomposition.decompose(sdpa));
+    }
+    query_key.reset();
+    probabilities_value.reset();
+    masked_scores.reset();
+    sdpa.reset();
+    model->validate_nodes_and_infer_types();
+    const auto nodes = model->get_ops();
+    ASSERT_TRUE(std::any_of(nodes.begin(), nodes.end(), [](const auto& node) {
+        return ov::is_type<ov::op::v1::Transpose>(node) &&
+               !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+    }));
+
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ensemble = ov::npuw::online::buildPartitioning(model, cfg);
+    EXPECT_GE(count_groups_with_tag(ensemble, "attn"), 1u);
+}
+
+TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsSharedKeyExpansion) {
+    auto model = build_decomposed_sdpa_model(1, true, 4, 2);
+    for (const auto& node : model->get_ops()) {
+        if (node->get_friendly_name() == "reshape_key.0") {
+            auto shared_key = std::make_shared<ov::op::v0::Relu>(node);
+            model->add_results({std::make_shared<ov::op::v0::Result>(shared_key)});
+            break;
+        }
+    }
+    model->validate_nodes_and_infer_types();
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ensemble = ov::npuw::online::buildPartitioning(model, cfg);
+    EXPECT_EQ(count_groups_with_tag(ensemble, "attn"), 0u);
 }
 
 TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsAttentionSinkWithoutSlice) {

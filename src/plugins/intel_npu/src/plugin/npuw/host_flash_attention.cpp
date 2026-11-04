@@ -1144,6 +1144,10 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // down to 1, in which case actual_query_size below no longer reflects the original chunk size.
     std::size_t actual_query_size = q_shape_static[2];  // Actual Q seq_len (may be sliced to 1)
     std::size_t query_size = ov::npuw::resolve_original_query_length(actual_query_size, pattern_nodes.matmul2_node);
+    if (query_size == 1) {
+        LOG_WARN("HFA does not support GENERATE attention; keeping the original attention graph");
+        return std::nullopt;
+    }
 
     auto mask_param = ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {

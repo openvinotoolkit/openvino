@@ -1121,6 +1121,9 @@ void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t 
     auto& r = m_subrequests[real_idx];
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
+    } else if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
+        r->start_async();
+        r->wait();
     } else {
         r->infer();  // Run normally
     }
