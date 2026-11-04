@@ -11,6 +11,11 @@ set(TARGET_NAME openvino_tp_plugin)
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
                           ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+# L1 is a library of its own.
+list(FILTER SOURCES EXCLUDE REGEX "/src/transformations/")
+list(FILTER HEADERS EXCLUDE REGEX "/src/transformations/")
+
+add_subdirectory(src/transformations)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "TP"
@@ -34,6 +39,7 @@ ov_build_target_faster(${TARGET_NAME}
 find_package(Threads REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE
     Threads::Threads
+    openvino_tp_transformations
     openvino::runtime::dev)  # transformations/utils/utils.hpp, the collective contract
 
 ov_set_threading_interface_for(${TARGET_NAME})

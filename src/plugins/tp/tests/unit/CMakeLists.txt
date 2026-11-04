@@ -23,6 +23,7 @@ if(ENABLE_TP_DEBUG_CAPS)
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE
+    openvino_tp_transformations
     openvino::runtime::dev
     common_test_utils
     gtest_main)
