@@ -84,6 +84,7 @@ set(OPS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/ops/multinomial.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/mvn.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ops/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/nms_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/normalize_l2.cpp

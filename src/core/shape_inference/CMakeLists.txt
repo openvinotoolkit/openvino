@@ -92,6 +92,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/max_pool_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/multiclass_nms_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/multinomial_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/ngram_hash_function_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/nms_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/nv12_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/one_hot_shape_inference.hpp
