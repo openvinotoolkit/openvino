@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <string>
 
+#include "intel_gpu/op/sparse_kv_quant.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
@@ -24,8 +25,8 @@ class SparseSDPA : public ov::op::Op {
 public:
     OPENVINO_OP("SparseSDPA", "gpu_opset");
 
-    /// @brief Fixed input order. SCALE/SINKS are optional trailing inputs: a node may have
-    /// 6 (neither), 7 (SCALE only), or 8 (both) inputs.
+    /// @brief Fixed input order: the six core inputs, then the parameters of a quantized cache, then the optional SCALE and
+    /// SINKS (see Config::scale_input_idx() / sinks_input_idx() for their positions).
     struct InputIdx {
         static constexpr size_t QUERY = 0;                   ///< [B, Hq, L, Dh]
         static constexpr size_t KEY = 1;                     ///< [B, Hkv, S, Dh], dense history
@@ -33,18 +34,13 @@ public:
         static constexpr size_t SELECTED_BLOCK_INDICES = 3;  ///< [B, num_selection_heads, ceil(L/query_block_size), K_max]
         static constexpr size_t SELECTED_BLOCK_COUNT = 4;    ///< [B, num_selection_heads, ceil(L/query_block_size)]
         static constexpr size_t KEY_LENGTH = 5;              ///< [B] i32, valid keys per batch row
-        static constexpr size_t SCALE = 6;                   ///< optional scalar or 1-element tensor
-        static constexpr size_t SINKS = 7;                   ///< optional [num_heads], requires SCALE
-        /// With `Config::kv_compressed` the node has exactly COUNT_COMPRESSED inputs: SCALE is mandatory, there are
-        /// no sinks, KEY/VALUE are i8 and the per-token parameters follow (KVCacheCompressed planar layout).
-        static constexpr size_t KEY_SCALE = 7;    ///< [B, Hkv, S, 1] f16
-        static constexpr size_t VALUE_SCALE = 8;  ///< [B, Hkv, S, 1] f16
-        static constexpr size_t KEY_ZP = 9;       ///< [B, Hkv, S, 1] i8
-        static constexpr size_t VALUE_ZP = 10;    ///< [B, Hkv, S, 1] i8
-
-        static constexpr size_t COUNT_MIN = 6;
-        static constexpr size_t COUNT_MAX = 8;
-        static constexpr size_t COUNT_COMPRESSED = 11;
+        static constexpr size_t COUNT_CORE = 6;
+        /// Only with a quantized cache (`Config::kv_compressed()`): KEY/VALUE are i8 and the parameters follow in the
+        /// KVCacheCompressed planar layout (see sparse_kv_quant.hpp). The zero points are absent when symmetric.
+        static constexpr size_t KEY_SCALE = 6;    ///< [B, Hkv, S, 1] f16
+        static constexpr size_t VALUE_SCALE = 7;  ///< [B, Hkv, S, 1] f16
+        static constexpr size_t KEY_ZP = 8;       ///< same shape as KEY_SCALE, i8 (8-bit BY_TOKEN) or f16
+        static constexpr size_t VALUE_ZP = 9;     ///< same shape as VALUE_SCALE
     };
 
     struct Config {
@@ -56,7 +52,24 @@ public:
         size_t key_block_size = 0;    ///< matches producer's key_block_size
         size_t query_block_size = 1;  ///< v1 fixed at 1
         bool causal = true;
-        bool kv_compressed = false;  ///< KEY/VALUE are i8 with per-token scale/zero-point inputs (asymmetric: x = (q - zp) * scale)
+        KVQuant key_quant{};    ///< quantization of the key history (the K and V histories share bits and symmetry)
+        KVQuant value_quant{};  ///< quantization of the value history
+
+        bool kv_compressed() const {
+            return key_quant.enabled() || value_quant.enabled();
+        }
+        /// Inputs between the core ones and the optional SCALE: scales, plus zero points unless symmetric.
+        size_t param_input_count() const {
+            return !kv_compressed() ? 0 : key_quant.symmetric ? 2 : 4;
+        }
+        /// Optional scalar or 1-element tensor.
+        size_t scale_input_idx() const {
+            return InputIdx::COUNT_CORE + param_input_count();
+        }
+        /// Optional [num_heads] input after SCALE; not supported with a quantized cache.
+        size_t sinks_input_idx() const {
+            return scale_input_idx() + 1;
+        }
     };
 
     SparseSDPA() = default;
@@ -74,10 +87,10 @@ public:
     }
 
     bool has_scale_input() const {
-        return get_input_size() >= InputIdx::SCALE + 1;
+        return get_input_size() > m_config.scale_input_idx();
     }
     bool has_sinks() const {
-        return !m_config.kv_compressed && get_input_size() >= InputIdx::SINKS + 1;
+        return !m_config.kv_compressed() && get_input_size() > m_config.sinks_input_idx();
     }
 
     static bool validate_config(const Config& config, std::string& reason);

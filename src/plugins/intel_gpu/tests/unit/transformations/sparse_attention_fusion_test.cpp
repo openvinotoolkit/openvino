@@ -476,7 +476,7 @@ TEST(sparse_attention_fusion, sparse_attention_converts_to_sparse_sdpa) {
     EXPECT_EQ(sdpa->get_input_element_type(In::SELECTED_BLOCK_COUNT), ov::element::i32);
     EXPECT_EQ(sdpa->get_input_element_type(In::KEY_LENGTH), ov::element::i32);
     ASSERT_TRUE(sdpa->has_scale_input());
-    auto scale = ov::as_type_ptr<ov::op::v0::Constant>(sdpa->get_input_node_shared_ptr(In::SCALE));
+    auto scale = ov::as_type_ptr<ov::op::v0::Constant>(sdpa->get_input_node_shared_ptr(sdpa->get_config().scale_input_idx()));
     ASSERT_NE(scale, nullptr);
     EXPECT_FLOAT_EQ(scale->cast_vector<float>().at(0), 0.25f);
 }

@@ -20,12 +20,13 @@
 // read one by one.
 // p stays below 2^8 in half thanks to a lazy rescale of the running max (scores are in log2 units).
 //
-// Quantized K/V (paged u8 pages or dense i8 + per-token scale / zero point, see qsa_common.cl) are read row by row and
+// Quantized K/V (paged u8 pages or dense i8 tensors with separate scales / zero points, see qsa_common.cl) are read row by row and
 // dequantized to half in registers, so the dpas operands are identical to the f16 ones; the 2D block path is f16 only.
 //
 // JIT: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE, QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE,
 //      QSA_IS_CAUSAL, QSA_ADDRESS_MODE, SUBGROUP_SIZE, (split) QSA_GQA_SPLIT, QSA_SPLIT_PARTITIONS, (paged) QSA_PAGE_SIZE,
-//      QSA_{K,V}_{MODE,BITS,SYM,GROUP,ROW_BYTES,PAGE_BYTES,PARAM_OFFSET}, (dense) QSA_DENSE_QUANT
+//      QSA_{K,V}_{MODE,BITS,SYM,GROUP,ROW_BYTES,PAGE_BYTES,PARAM_OFFSET}, (dense) QSA_DENSE_QUANT,
+//      QSA_{K,V}_{SIGNED,ZP_F16}
 // Dispatch: gws = [tokens * 4 * SG, QSA_KV_HEADS, P (split) | 1], lws = [4 * SG, 1, 1]
 
 #define QSA_XMX_WORKERS 4
@@ -502,11 +503,17 @@ KERNEL(sparse_attention_gqa_dpas)(QSA_ATT_INPUT_ARGS,
             voff = FUNC_CALL(qsa_kv_cache_offset)(cur_page, kv_head, pos % QSA_PAGE_SIZE, HKV, QSA_PAGE_SIZE, DV);
 #    endif
 #else
-            koff = QSA_KROW(pos);
-            voff = QSA_VROW(pos);
-#    if QSA_DENSE_QUANT
+#    if QSA_K_QUANT
+            koff = QSA_KROWB(pos);
             kpar = QSA_KPAR(pos);
+#    else
+            koff = QSA_KROW(pos);
+#    endif
+#    if QSA_V_QUANT
+            voff = QSA_VROWB(pos);
             vpar = QSA_VPAR(pos);
+#    else
+            voff = QSA_VROW(pos);
 #    endif
 #endif
         }

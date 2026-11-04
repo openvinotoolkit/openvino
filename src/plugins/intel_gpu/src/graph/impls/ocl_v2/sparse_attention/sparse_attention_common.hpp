@@ -156,7 +156,9 @@ protected:
             add_cache_jit(jit, "K", desc->key_quant, *page, desc->k_head_size);
             add_cache_jit(jit, "V", desc->value_quant, *page, desc->v_head_size);
         } else {
-            jit.make("QSA_DENSE_QUANT", desc->kv_compressed ? 1 : 0);
+            jit.make("QSA_DENSE_QUANT", desc->kv_compressed() ? 1 : 0);
+            add_dense_cache_jit(jit, "K", desc->key_quant, desc->k_head_size);
+            add_dense_cache_jit(jit, "V", desc->value_quant, desc->v_head_size);
         }
         switch (m_kind) {
         case AttKind::Dpas:
@@ -211,9 +213,11 @@ protected:
                 input(m_slots.selected_blocks);
                 input(m_slots.selected_count);
                 input(m_slots.key_length);
-                if (dense_compressed(params)) {
-                    for (size_t idx : m_slots.kv_params) {
-                        input(idx);
+                if constexpr (!has_page_size<Desc>::value) {
+                    // Scales, then (asymmetric only) zero points.
+                    const size_t count = params.typed_desc<Desc>()->get_config().param_input_count();
+                    for (size_t i = 0; i < count; i++) {
+                        input(m_slots.kv_params[i]);
                     }
                 }
             }
@@ -299,7 +303,7 @@ protected:
                 push_u32(kd, rtp->k_seq_pitch);
                 push_u32(kd, rtp->v_seq_pitch);
                 if constexpr (!has_page_size<Desc>::value) {
-                    if (desc->kv_compressed) {
+                    if (desc->kv_compressed()) {
                         push_u32(kd, rtp->k_param_pitch);
                         push_u32(kd, rtp->v_param_pitch);
                     }
@@ -313,7 +317,7 @@ private:
         if constexpr (has_page_size<Desc>::value) {
             return false;
         } else {
-            return params.typed_desc<Desc>()->kv_compressed;
+            return params.typed_desc<Desc>()->kv_compressed();
         }
     }
     AttKind m_kind;

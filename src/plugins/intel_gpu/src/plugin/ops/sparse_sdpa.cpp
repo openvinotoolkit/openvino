@@ -32,7 +32,7 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::inte
                     layer_name,
                     "': only num_selection_heads == 1 is supported, got ",
                     op->get_config().num_selection_heads);
-    const bool compressed = op->get_config().kv_compressed;
+    const bool compressed = op->get_config().kv_compressed();
     for (size_t idx : {In::QUERY, In::KEY, In::VALUE}) {
         const auto expected = compressed && idx != In::QUERY ? ov::element::i8 : ov::element::f16;
         OPENVINO_ASSERT(op->get_input_element_type(idx) == expected,
@@ -48,17 +48,14 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::inte
 
     float resolved_scale = 1.0f / std::sqrt(static_cast<float>(op->get_config().k_head_size));
     if (op->has_scale_input()) {
-        auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(In::SCALE));
+        auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(op->get_config().scale_input_idx()));
         OPENVINO_ASSERT(scale_const != nullptr, "[GPU] SparseSDPA '", layer_name, "': scale input must be a Constant in this lowering pass");
         resolved_scale = scale_const->cast_vector<float>().at(0);
     }
 
     auto full_inputs = p.GetInputInfo(op);
-    std::vector<cldnn::input_info> inputs(full_inputs.begin(), full_inputs.begin() + In::KEY_LENGTH + 1);
-    if (compressed) {
-        // key_scale, value_scale, key_zp, value_zp follow key_length (the scale input is folded).
-        inputs.insert(inputs.end(), full_inputs.begin() + In::KEY_SCALE, full_inputs.begin() + In::COUNT_COMPRESSED);
-    }
+    // The primitive takes the core and parameter inputs; the scale is folded into its scale field.
+    std::vector<cldnn::input_info> inputs(full_inputs.begin(), full_inputs.begin() + op->get_config().scale_input_idx());
 
     cldnn::sparse_sdpa prim(layer_name, inputs, op->get_config(), resolved_scale);
     prim.output_data_types = get_output_data_types(op);

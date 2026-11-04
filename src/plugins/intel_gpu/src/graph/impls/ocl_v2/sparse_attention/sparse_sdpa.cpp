@@ -9,6 +9,7 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "../primitive_ocl_base.hpp"
@@ -40,10 +41,7 @@ qsa::SparseAttentionSlots sdpa_slots() {
     s.selected_blocks = SparseSDPAIn::SELECTED_BLOCK_INDICES;
     s.selected_count = SparseSDPAIn::SELECTED_BLOCK_COUNT;
     s.key_length = SparseSDPAIn::KEY_LENGTH;
-    s.kv_params = {sparse_sdpa::CompressedIdx::KEY_SCALE,
-                   sparse_sdpa::CompressedIdx::VALUE_SCALE,
-                   sparse_sdpa::CompressedIdx::KEY_ZP,
-                   sparse_sdpa::CompressedIdx::VALUE_ZP};
+    s.kv_params = {sparse_sdpa::InputIdx::KEY_SCALE, sparse_sdpa::InputIdx::VALUE_SCALE, sparse_sdpa::InputIdx::KEY_ZP, sparse_sdpa::InputIdx::VALUE_ZP};
     return s;
 }
 
@@ -108,7 +106,7 @@ public:
                 add_stage(attention_gqa_split, params);
                 add_stage(split_reduce, params);
             }
-        } else if (!params.typed_desc<sparse_sdpa>()->kv_compressed) {
+        } else if (!params.typed_desc<sparse_sdpa>()->kv_compressed()) {
             // The plain systolic and split kernels only read f16 K/V; compressed K/V use the scalar kernel here.
             if (use_dpas_attention(params)) {
                 add_stage(attention_dpas, params);
@@ -207,18 +205,16 @@ public:
         rtp->num_tokens = rtp->batch * rtp->seq_len;
         rtp->k_seq_pitch = seq_pitch(params.get_input_layout(SparseSDPAIn::KEY), "key");
         rtp->v_seq_pitch = seq_pitch(params.get_input_layout(SparseSDPAIn::VALUE), "value");
-        if (params.typed_desc<sparse_sdpa>()->kv_compressed) {
-            using CI = sparse_sdpa::CompressedIdx;
-            // The compressed KVCache is indirect: with beam search it hands over data that is not gathered by its beam table.
-            if (instance.get_node().get_dependency(SparseSDPAIn::KEY).is_type<kv_cache>()) {
-                OPENVINO_ASSERT(rtp->batch == 1, "[GPU][OCL] sparse_sdpa: a compressed KVCache supports only batch 1, got ", rtp->batch);
-            }
+        if (params.typed_desc<sparse_sdpa>()->kv_compressed()) {
+            using CI = sparse_sdpa::InputIdx;
             // Data and parameter tensors of a KVCache are padded independently, so each keeps its own pitch.
             rtp->k_param_pitch = seq_pitch(params.get_input_layout(CI::KEY_SCALE), "key_scale");
             rtp->v_param_pitch = seq_pitch(params.get_input_layout(CI::VALUE_SCALE), "value_scale");
-            OPENVINO_ASSERT(seq_pitch(params.get_input_layout(CI::KEY_ZP), "key_zp") == rtp->k_param_pitch &&
-                                seq_pitch(params.get_input_layout(CI::VALUE_ZP), "value_zp") == rtp->v_param_pitch,
-                            "[GPU][OCL] sparse_sdpa: a zero-point tensor must share the sequence padding of its scale tensor");
+            if (!params.typed_desc<sparse_sdpa>()->key_quant.symmetric) {
+                OPENVINO_ASSERT(seq_pitch(params.get_input_layout(CI::KEY_ZP), "key_zp") == rtp->k_param_pitch &&
+                                    seq_pitch(params.get_input_layout(CI::VALUE_ZP), "value_zp") == rtp->v_param_pitch,
+                                "[GPU][OCL] sparse_sdpa: a zero-point tensor must share the sequence padding of its scale tensor");
+            }
         }
         rtp->is_decode = rtp->seq_len == 1;
         rtp->tile_count = rtp->batch * ((rtp->seq_len + qsa::dpas_query_tile - 1) / qsa::dpas_query_tile);
@@ -256,15 +252,33 @@ bool SparseSDPAImplementationManager::validate_impl(const cldnn::program_node& n
     if (node.get_input_layout(SparseSDPAIn::QUERY).data_type != ov::element::f16) {
         return false;
     }
-    const auto kv_type = desc->kv_compressed ? ov::element::i8 : ov::element::f16;
+    const auto kv_type = desc->kv_compressed() ? ov::element::i8 : ov::element::f16;
     if (node.get_input_layout(SparseSDPAIn::KEY).data_type != kv_type || node.get_input_layout(SparseSDPAIn::VALUE).data_type != kv_type) {
         return false;
     }
-    if (desc->kv_compressed) {
-        using CI = sparse_sdpa::CompressedIdx;
-        if (node.get_input_layout(CI::KEY_SCALE).data_type != ov::element::f16 || node.get_input_layout(CI::VALUE_SCALE).data_type != ov::element::f16 ||
-            node.get_input_layout(CI::KEY_ZP).data_type != ov::element::i8 || node.get_input_layout(CI::VALUE_ZP).data_type != ov::element::i8) {
+    if (desc->kv_compressed()) {
+        using CI = sparse_sdpa::InputIdx;
+        // 4-bit data rows are packed two codes per byte: the last dimension holds the row bytes.
+        const std::array<std::tuple<size_t, const ov::intel_gpu::op::KVQuant*, size_t>, 2> caches = {
+            std::tuple{SparseSDPAIn::KEY, &desc->key_quant, desc->k_head_size},
+            std::tuple{SparseSDPAIn::VALUE, &desc->value_quant, desc->v_head_size}};
+        for (const auto& [idx, quant, head_size] : caches) {
+            const auto& ps = node.get_input_layout(idx).get_partial_shape();
+            if (ps.size() != 4 || (ps[3].is_static() && static_cast<size_t>(ps[3].get_length()) != ov::intel_gpu::op::dense_row_bytes(*quant, head_size))) {
+                return false;
+            }
+        }
+        if (node.get_input_layout(CI::KEY_SCALE).data_type != ov::element::f16 || node.get_input_layout(CI::VALUE_SCALE).data_type != ov::element::f16) {
             return false;
+        }
+        if (!desc->key_quant.symmetric) {
+            const auto zp_type = [](const ov::intel_gpu::op::KVQuant& q) {
+                return ov::intel_gpu::op::dense_zp_is_f16(q) ? ov::element::f16 : ov::element::i8;
+            };
+            if (node.get_input_layout(CI::KEY_ZP).data_type != zp_type(desc->key_quant) ||
+                node.get_input_layout(CI::VALUE_ZP).data_type != zp_type(desc->value_quant)) {
+                return false;
+            }
         }
     }
     static constexpr std::array i32_inputs = {SparseSDPAIn::SELECTED_BLOCK_INDICES, SparseSDPAIn::SELECTED_BLOCK_COUNT, SparseSDPAIn::KEY_LENGTH};

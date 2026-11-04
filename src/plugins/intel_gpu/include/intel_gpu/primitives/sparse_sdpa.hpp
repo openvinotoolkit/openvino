@@ -12,22 +12,13 @@
 namespace cldnn {
 
 /// @brief Non-paged (dense) sparse attention consumer primitive: Q3 only, read-only on
-/// main K/V. See ov::intel_gpu::op::SparseSDPA. Inputs: query, key, value, selected_block_indices,
-/// selected_block_count, key_length. A constant scale input is folded into `scale`; sinks are not
+/// main K/V. See ov::intel_gpu::op::SparseSDPA. Inputs: the core inputs and, with a quantized cache, the
+/// parameter inputs (same positions as in the op). A constant scale input is folded into `scale`; sinks are not
 /// supported, lowering must reject them explicitly rather than construct this primitive.
 struct sparse_sdpa : public primitive_base<sparse_sdpa> {
     CLDNN_DECLARE_PRIMITIVE(sparse_sdpa)
 
     using InputIdx = ov::intel_gpu::op::SparseSDPA::InputIdx;
-
-    /// Primitive input positions of the compressed-KV parameters (the scale input is folded, so they
-    /// directly follow key_length): key_scale, value_scale, key_zp, value_zp.
-    struct CompressedIdx {
-        static constexpr size_t KEY_SCALE = 6;
-        static constexpr size_t VALUE_SCALE = 7;
-        static constexpr size_t KEY_ZP = 8;
-        static constexpr size_t VALUE_ZP = 9;
-    };
 
     sparse_sdpa() : primitive_base("", {}) {}
 
@@ -42,7 +33,8 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
           query_block_size(config.query_block_size),
           causal(config.causal),
           scale(resolved_scale),
-          kv_compressed(config.kv_compressed) {}
+          key_quant(config.key_quant),
+          value_quant(config.value_quant) {}
 
     size_t num_heads = 0;
     size_t num_kv_heads = 0;
@@ -55,7 +47,12 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
     /// Resolved at lowering time: either the op's default (1/sqrt(k_head_size)) or a
     /// constant-folded value of the optional SCALE input.
     float scale = 0.0f;
-    bool kv_compressed = false;
+    ov::intel_gpu::op::KVQuant key_quant{};
+    ov::intel_gpu::op::KVQuant value_quant{};
+
+    bool kv_compressed() const {
+        return key_quant.enabled() || value_quant.enabled();
+    }
 
     ov::intel_gpu::op::SparseSDPA::Config get_config() const {
         ov::intel_gpu::op::SparseSDPA::Config config;
@@ -67,7 +64,8 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
         config.key_block_size = key_block_size;
         config.query_block_size = query_block_size;
         config.causal = causal;
-        config.kv_compressed = kv_compressed;
+        config.key_quant = key_quant;
+        config.value_quant = value_quant;
         return config;
     }
 
@@ -82,7 +80,12 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
         seed = hash_combine(seed, query_block_size);
         seed = hash_combine(seed, causal);
         seed = hash_combine(seed, scale);
-        seed = hash_combine(seed, kv_compressed);
+        for (const auto* q : {&key_quant, &value_quant}) {
+            seed = hash_combine(seed, static_cast<size_t>(q->mode));
+            seed = hash_combine(seed, static_cast<size_t>(q->bits));
+            seed = hash_combine(seed, q->symmetric);
+            seed = hash_combine(seed, static_cast<size_t>(q->group_size));
+        }
         return seed;
     }
 
@@ -92,19 +95,25 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
         auto r = downcast<const sparse_sdpa>(rhs);
         return num_heads == r.num_heads && num_kv_heads == r.num_kv_heads && num_selection_heads == r.num_selection_heads && k_head_size == r.k_head_size &&
                v_head_size == r.v_head_size && key_block_size == r.key_block_size && query_block_size == r.query_block_size && causal == r.causal &&
-               scale == r.scale && kv_compressed == r.kv_compressed;
+               scale == r.scale && key_quant == r.key_quant && value_quant == r.value_quant;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<sparse_sdpa>::save(ob);
-        ob << num_heads << num_kv_heads << num_selection_heads << k_head_size << v_head_size << key_block_size << query_block_size << causal << scale
-           << kv_compressed;
+        ob << num_heads << num_kv_heads << num_selection_heads << k_head_size << v_head_size << key_block_size << query_block_size << causal << scale;
+        for (const auto* q : {&key_quant, &value_quant}) {
+            ob << static_cast<uint8_t>(q->mode) << q->bits << q->symmetric << q->group_size;
+        }
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<sparse_sdpa>::load(ib);
-        ib >> num_heads >> num_kv_heads >> num_selection_heads >> k_head_size >> v_head_size >> key_block_size >> query_block_size >> causal >> scale >>
-            kv_compressed;
+        ib >> num_heads >> num_kv_heads >> num_selection_heads >> k_head_size >> v_head_size >> key_block_size >> query_block_size >> causal >> scale;
+        for (auto* q : {&key_quant, &value_quant}) {
+            uint8_t mode = 0;
+            ib >> mode >> q->bits >> q->symmetric >> q->group_size;
+            q->mode = static_cast<ov::intel_gpu::op::KVQuant::Mode>(mode);
+        }
     }
 };
 

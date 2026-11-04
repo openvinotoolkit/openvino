@@ -107,4 +107,51 @@ inline bool validate_kv_quant(const KVQuant& q, bool is_key, size_t page_size, s
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Dense (stateful KVCacheCompressed) K / V histories [B, Hkv, S, D] of SparseSDPA, quantized per token like the
+// stateful SDPA's:
+//
+//   data   : i8 tensor, D * bits / 8 bytes per token (4-bit: two codes per byte, low nibble = even channel)
+//   scale (f16), zero point : [B, Hkv, S, 1]
+//   An 8-bit cache holds signed codes and an i8 zero point (none when symmetric): x = (q - zp) * scale.
+//   A 4-bit cache holds unsigned codes and an f16 zero point; a symmetric one has biased codes (zp = 8) and no zero point
+//   tensor.
+// ---------------------------------------------------------------------------
+inline bool dense_signed_codes(const KVQuant& q) {
+    return q.bits == 8;
+}
+
+/// The zero point type of the generic stateful SDPA's compressed cache (immad devices): i8, f16 for 4-bit.
+inline bool dense_zp_is_f16(const KVQuant& q) {
+    return !dense_signed_codes(q);
+}
+
+inline size_t dense_row_bytes(const KVQuant& q, size_t head_size) {
+    return q.enabled() ? head_size * q.bits / 8 : head_size * 2;
+}
+
+/// Checks the quantization of one dense K / V history.
+inline bool validate_dense_kv_quant(const KVQuant& q, size_t head_size, std::string& reason) {
+    if (!q.enabled()) {
+        return true;
+    }
+    if (q.mode != KVQuant::Mode::BY_TOKEN) {
+        reason = "a dense cache is quantized per token";
+        return false;
+    }
+    if (q.bits != 8 && q.bits != 4) {
+        reason = "quantized cache must use 8 or 4 bits";
+        return false;
+    }
+    if (head_size < 16 || head_size % 16 != 0) {
+        reason = "a quantized cache needs a head size that is a multiple of 16";
+        return false;
+    }
+    if (q.group_size != 0) {
+        reason = "a dense cache has no token groups";
+        return false;
+    }
+    return true;
+}
+
 }  // namespace ov::intel_gpu::op

@@ -11,7 +11,8 @@
 //
 // JIT: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE, QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE,
 //      QSA_ADDRESS_MODE, SUBGROUP_SIZE and (paged) QSA_PAGE_SIZE, QSA_{K,V}_{MODE,BITS,SYM,GROUP,ROW_BYTES,PAGE_BYTES,
-//      PARAM_OFFSET}; (dense) QSA_DENSE_QUANT for i8 K/V with per-token scale / zero point
+//      PARAM_OFFSET}; (dense) QSA_DENSE_QUANT and QSA_{K,V}_{BITS,SYM,ROW_BYTES,SIGNED,ZP_F16} for quantized K/V
+//      history tensors with separate scale / zero point inputs (see op/sparse_kv_quant.hpp)
 // Quantized rows are dequantized to f32 on load; f16 rows go through the subgroup block reads.
 // Dispatch: gws = [QSA_HEADS * SG, num_tokens (paged) | B*L (dense), 1], lws = [SG, 1, 1]
 

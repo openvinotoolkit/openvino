@@ -355,6 +355,11 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     apply_weightless_options();
 
+    // The user properties are cleared after finalization, so remember an explicit KV cache precision for the pipeline.
+    if (is_set_by_user(ov::hint::kv_cache_precision)) {
+        m_enable_qsa_kv_cache_quantization = true;
+    }
+
     GPU_DEBUG_IF(get_help()) {
         print_help();
         exit(-1);

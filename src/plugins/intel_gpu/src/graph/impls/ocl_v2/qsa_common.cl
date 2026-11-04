@@ -306,11 +306,31 @@ inline void FUNC(qsa_q_load_cols)(const __global uchar* cache,
     }
 }
 
-// Dequantized channels x0 + SG * j + lane (j < ne) of a dense (KVCacheCompressed) i8 row.
-inline void FUNC(qsa_q_load_cols_dense)(const __global uchar* data, const uint row_off, const uint x0, __private float* out, const uint ne, const half scale, const char zp) {
-    FUNC_CALL(qsa_q_load_codes)(data + row_off, x0, out, ne, 8, true);
+// Dequantized channels x0 + SG * j + lane (j < ne) of a dense (KVCacheCompressed) row, see sparse_kv_quant.hpp. `row_off` is
+// the byte offset of the row, `po` the token index into the scale / zero point tensors.
+// `is_signed` rows hold signed 8-bit codes (symmetric ones have no zero point), the others unsigned codes with an f16 zero
+// point (symmetric ones are biased).
+inline void FUNC(qsa_q_load_cols_dense)(const __global uchar* data,
+                                        const uint row_off,
+                                        const uint x0,
+                                        __private float* out,
+                                        const uint ne,
+                                        const uint bits,
+                                        const uint sym,
+                                        const uint is_signed,
+                                        const uint zp_f16,
+                                        const __global half* scale,
+                                        const __global uchar* zp,
+                                        const uint po) {
+    FUNC_CALL(qsa_q_load_codes)(data + row_off, x0, out, ne, bits, is_signed != 0);
+    const float zero_sym = is_signed ? 0.0f : FUNC_CALL(qsa_q_zero_sym)(bits);
+    const float sc = convert_float(scale[po]);
+    float z = zero_sym;
+    if (!sym) {
+        z = zp_f16 ? convert_float(((const __global half*)zp)[po]) : convert_float(((const __global char*)zp)[po]);
+    }
     unroll_for (uint j = 0; j < ne; j++) {
-        out[j] = FUNC_CALL(qsa_q_dq)(out[j], convert_float(zp), convert_float(scale));
+        out[j] = FUNC_CALL(qsa_q_dq)(out[j], z, sc);
     }
 }
 
@@ -454,13 +474,23 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
 #        define QSA_VC_T half
 #    endif
 
-// Dense compressed K/V: per-token f16 scale and i8 zero point tensors follow key_length, their sequence pitches
-// (independent of the data's) follow v_pitch (declared by the kernels). Helper functions take the tensors FIRST, with the
-// trailing comma inside the macro. Note the kernel minifier drops the line after an unused empty #define, hence the
-// sentinels.
+// Dense compressed K/V: the f16 scale tensors (and, unless QSA_K_SYM, the zero point tensors: i8 or f16 per
+// QSA_{K,V}_ZP_F16) follow key_length, their sequence pitches (independent of the data's) follow v_pitch (declared by the
+// kernels). Helper functions take the tensors FIRST, with the trailing comma inside the macro. Note the kernel minifier
+// drops the line after an unused empty #define, hence the sentinels.
 #    if QSA_DENSE_QUANT
-#        define QSA_QP_DECL const __global half* key_scale, const __global half* value_scale, const __global char* key_zp, const __global char* value_zp,
-#        define QSA_QP_ARGS key_scale, value_scale, key_zp, value_zp,
+#        if QSA_K_SYM
+// Symmetric caches have no zero points: the scale pointer stands in for the (unused) zero point argument.
+#            define QSA_QP_DECL const __global half* key_scale, const __global half* value_scale,
+#            define QSA_QP_ARGS key_scale, value_scale,
+#            define QSA_KZP_PTR ((const __global uchar*)key_scale)
+#            define QSA_VZP_PTR ((const __global uchar*)value_scale)
+#        else
+#            define QSA_QP_DECL const __global half* key_scale, const __global half* value_scale, const __global uchar* key_zp, const __global uchar* value_zp,
+#            define QSA_QP_ARGS key_scale, value_scale, key_zp, value_zp,
+#            define QSA_KZP_PTR key_zp
+#            define QSA_VZP_PTR value_zp
+#        endif
 #    else
 #        define QSA_QP_DECL
 #        define QSA_QP_SENTINEL_1 0
@@ -474,12 +504,19 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
 #        define QSA_VROW(pos) FUNC_CALL(qsa_kv_cache_offset)((uint)block_indices[page_begin + (pos) / QSA_PAGE_SIZE], kv_head, (pos) % QSA_PAGE_SIZE, QSA_KV_HEADS, QSA_PAGE_SIZE, QSA_V_HEAD_SIZE)
 #    else
 #        if QSA_DENSE_QUANT
-#            define QSA_ATT_INPUT_ARGS const __global half* query, const __global QSA_KC_T* key_cache, const __global QSA_VC_T* value_cache, const __global int* selected_blocks, const __global int* selected_counts, const __global int* key_length, const __global half* key_scale, const __global half* value_scale, const __global char* key_zp, const __global char* value_zp
+#            if QSA_K_SYM
+#                define QSA_ATT_INPUT_ARGS const __global half* query, const __global QSA_KC_T* key_cache, const __global QSA_VC_T* value_cache, const __global int* selected_blocks, const __global int* selected_counts, const __global int* key_length, const __global half* key_scale, const __global half* value_scale
+#            else
+#                define QSA_ATT_INPUT_ARGS const __global half* query, const __global QSA_KC_T* key_cache, const __global QSA_VC_T* value_cache, const __global int* selected_blocks, const __global int* selected_counts, const __global int* key_length, const __global half* key_scale, const __global half* value_scale, const __global uchar* key_zp, const __global uchar* value_zp
+#            endif
 #        else
 #            define QSA_ATT_INPUT_ARGS const __global half* query, const __global QSA_KC_T* key_cache, const __global QSA_VC_T* value_cache, const __global int* selected_blocks, const __global int* selected_counts, const __global int* key_length
 #        endif
 #        define QSA_KROW(pos) (((((batch) * QSA_KV_HEADS) + kv_head) * k_pitch + shift + (pos)) * QSA_K_HEAD_SIZE)
 #        define QSA_VROW(pos) (((((batch) * QSA_KV_HEADS) + kv_head) * v_pitch + shift + (pos)) * QSA_V_HEAD_SIZE)
+// Byte offset of a quantized row (4-bit rows are packed).
+#        define QSA_KROWB(pos) (((((batch) * QSA_KV_HEADS) + kv_head) * k_pitch + shift + (pos)) * QSA_K_ROW_BYTES)
+#        define QSA_VROWB(pos) (((((batch) * QSA_KV_HEADS) + kv_head) * v_pitch + shift + (pos)) * QSA_V_ROW_BYTES)
 // Flat index of a token in the dense scale / zero-point tensors.
 #        define QSA_KPAR(pos) (((((batch) * QSA_KV_HEADS) + kv_head) * k_ppitch + shift + (pos)))
 #        define QSA_VPAR(pos) (((((batch) * QSA_KV_HEADS) + kv_head) * v_ppitch + shift + (pos)))
@@ -488,11 +525,11 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
 #    define QSA_NEK (QSA_K_HEAD_SIZE / QSA_SG)
 #    define QSA_NEV (QSA_V_HEAD_SIZE / QSA_SG)
 
-// Dequantized channels of the K / V row at byte offset `ro` with parameter locator `po` (paged: byte offset, dense:
-// token index in the parameter tensors): out[j] is channel x0 + SG * j + lane.
+// Dequantized channels of the K / V row at byte offset `ro` with parameter locator `po` (paged: byte offset, dense: token
+// index in the parameter tensors): out[j] is channel x0 + SG * j + lane.
 #    if QSA_DENSE_QUANT
-#        define QSA_LOAD_K_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols_dense)((const __global uchar*)key_cache, ro, x0, out, ne, key_scale[po], key_zp[po])
-#        define QSA_LOAD_V_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols_dense)((const __global uchar*)value_cache, ro, x0, out, ne, value_scale[po], value_zp[po])
+#        define QSA_LOAD_K_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols_dense)((const __global uchar*)key_cache, ro, x0, out, ne, QSA_K_BITS, QSA_K_SYM, QSA_K_SIGNED, QSA_K_ZP_F16, key_scale, QSA_KZP_PTR, po)
+#        define QSA_LOAD_V_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols_dense)((const __global uchar*)value_cache, ro, x0, out, ne, QSA_V_BITS, QSA_V_SYM, QSA_V_SIGNED, QSA_V_ZP_F16, value_scale, QSA_VZP_PTR, po)
 #    else
 #        define QSA_LOAD_K_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols)((const __global uchar*)key_cache, ro, po, x0, out, ne, QSA_K_MODE, QSA_K_BITS, QSA_K_SYM, QSA_K_HEAD_SIZE)
 #        define QSA_LOAD_V_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols)((const __global uchar*)value_cache, ro, po, x0, out, ne, QSA_V_MODE, QSA_V_BITS, QSA_V_SYM, QSA_V_HEAD_SIZE)
@@ -513,12 +550,12 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
 #    else
 #        define QSA_K_ROWLOC(pos, ro, po) \
             {                             \
-                ro = QSA_KROW(pos);       \
+                ro = QSA_KROWB(pos);      \
                 po = QSA_KPAR(pos);       \
             }
 #        define QSA_V_ROWLOC(pos, ro, po) \
             {                             \
-                ro = QSA_VROW(pos);       \
+                ro = QSA_VROWB(pos);      \
                 po = QSA_VPAR(pos);       \
             }
 #    endif

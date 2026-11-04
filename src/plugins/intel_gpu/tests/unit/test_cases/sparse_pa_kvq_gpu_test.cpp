@@ -851,46 +851,100 @@ TEST(sparse_pa_kvq_mixed, f16_key_quantized_value) {
 }
 
 // ---------------------------------------------------------------------------
-// Dense SparseSDPA with compressed K/V (KVCacheCompressed format: i8 data + planar per-token f16 scale / i8 zero point)
+// Dense SparseSDPA with compressed K/V (KVCacheCompressed format, see intel_gpu/op/sparse_kv_quant.hpp): i8 data
+// tensors with planar scale / zero point tensors. The history is quantized on the CPU in the format of the cache.
 // ---------------------------------------------------------------------------
 
 struct dense_case {
     dims d;
     std::vector<size_t> key_len;  // valid keys per batch row (left padded inside S = max)
     size_t q_len;
+    KVQuant k = token_quant(8, false);
+    KVQuant v = token_quant(8, false);
 };
 
-struct dense_i8 {
-    std::vector<int8_t> data;  // [B, Hkv, S, D]
-    std::vector<float> scale;  // [B, Hkv, S]
-    std::vector<int8_t> zp;    // [B, Hkv, S]
-    std::vector<float> deq;    // dequantized [B, Hkv, S, D] (kernel arithmetic)
+/// A quantized dense history [B, Hkv, S, D].
+struct dense_quantized {
+    std::vector<int8_t> data;      // [B, Hkv, S, row_bytes]
+    std::vector<float> scale, zp;  // elements of the parameter tensors (zp unused when symmetric)
+    ov::PartialShape param_shape;  // [B, Hkv, S, 1]
+    std::vector<float> deq;        // dequantized [B, Hkv, S, D] in the kernels' f16 arithmetic
 };
 
-dense_i8 quantize_dense(const std::vector<float>& x, size_t B, size_t H, size_t S, size_t D) {
-    dense_i8 out;
-    out.data.assign(B * H * S * D, 0);
-    out.scale.assign(B * H * S, 1.0f);
-    out.zp.assign(B * H * S, 0);
+dense_quantized quantize_dense(const KVQuant& q, const std::vector<float>& x, size_t B, size_t H, size_t S, size_t D) {
+    using ov::intel_gpu::op::dense_row_bytes;
+    using ov::intel_gpu::op::dense_signed_codes;
+    dense_quantized out;
+    const size_t row_bytes = dense_row_bytes(q, D);
+    const float qmax = q.bits == 8 ? 255.0f : 15.0f;
+    const float zero_code = q.bits == 8 ? 128.0f : 8.0f;
+    out.data.assign(B * H * S * row_bytes, 0);
     out.deq.assign(B * H * S * D, 0.0f);
-    for (size_t row = 0; row < B * H * S; row++) {
-        const float* r = &x[row * D];
-        float mn = 0.0f, mx = 0.0f;
-        for (size_t c = 0; c < D; c++) {
-            mn = std::min(mn, r[c]);
-            mx = std::max(mx, r[c]);
+
+    // Stores a code: signed 8-bit codes as is, unsigned ones as bytes / packed nibbles (low nibble = even channel).
+    auto put = [&](size_t row, size_t c, int code) {
+        if (q.bits == 8) {
+            out.data[row * row_bytes + c] = static_cast<int8_t>(code);
+        } else {
+            auto& b = reinterpret_cast<uint8_t&>(out.data[row * row_bytes + c / 2]);
+            b = (c % 2 == 0) ? static_cast<uint8_t>((b & 0xF0) | code) : static_cast<uint8_t>((b & 0x0F) | (code << 4));
         }
-        const float scale = f16r(std::max((mx - mn) / 255.0f, kMinScale));
-        const int zp = std::min(127, std::max(-128, static_cast<int>(std::lround(-128.0f - mn / scale))));
-        out.scale[row] = scale;
-        out.zp[row] = static_cast<int8_t>(zp);
-        for (size_t c = 0; c < D; c++) {
-            const int q = std::min(127, std::max(-128, static_cast<int>(std::lround(r[c] / scale)) + zp));
-            out.data[row * D + c] = static_cast<int8_t>(q);
-            out.deq[row * D + c] = f16r(f16r(static_cast<float>(q - zp)) * scale);
+    };
+
+    {
+        out.param_shape = ov::PartialShape{I(B), I(H), I(S), 1};
+        out.scale.assign(B * H * S, 1.0f);
+        out.zp.assign(B * H * S, 0.0f);
+        for (size_t row = 0; row < B * H * S; row++) {
+            const float* r = &x[row * D];
+            float mn = 0.0f, mx = 0.0f;
+            for (size_t c = 0; c < D; c++) {
+                mn = std::min(mn, r[c]);
+                mx = std::max(mx, r[c]);
+            }
+            if (dense_signed_codes(q) && !q.symmetric) {
+                // 8-bit asymmetric: signed codes with an integer zero point.
+                const float scale = f16r(std::max((mx - mn) / 255.0f, kMinScale));
+                const int zp = std::min(127, std::max(-128, static_cast<int>(std::lround(-128.0f - mn / scale))));
+                out.scale[row] = scale;
+                out.zp[row] = static_cast<float>(zp);
+                for (size_t c = 0; c < D; c++) {
+                    const int code = std::min(127, std::max(-128, static_cast<int>(std::lround(r[c] / scale)) + zp));
+                    put(row, c, code);
+                    out.deq[row * D + c] = f16r(f16r(static_cast<float>(code - zp)) * scale);
+                }
+            } else if (dense_signed_codes(q)) {
+                // 8-bit symmetric: signed codes, no zero point.
+                const float scale = f16r(std::max(std::max(mx, -mn) / 127.0f, kMinScale));
+                out.scale[row] = scale;
+                for (size_t c = 0; c < D; c++) {
+                    const int code = std::min(127, std::max(-127, static_cast<int>(std::lround(r[c] / scale))));
+                    put(row, c, code);
+                    out.deq[row * D + c] = f16r(f16r(static_cast<float>(code)) * scale);
+                }
+            } else {
+                // 4-bit: unsigned codes, f16 zero point (symmetric: biased by 8).
+                float scale, zp;
+                if (q.symmetric) {
+                    scale = std::max(std::max(mx, -mn) / 7.0f, kMinScale);
+                    zp = zero_code;
+                } else {
+                    scale = std::max((mx - mn) / qmax, kMinScale);
+                    zp = -mn / scale;
+                }
+                scale = f16r(scale);
+                zp = f16r(zp);
+                out.scale[row] = scale;
+                out.zp[row] = zp;
+                for (size_t c = 0; c < D; c++) {
+                    const int code = static_cast<int>(std::min(std::max(r[c] / scale + zp, 0.0f), qmax) + 0.5f);
+                    put(row, c, code);
+                    out.deq[row * D + c] = f16r(f16r(static_cast<float>(code) - zp) * scale);
+                }
+            }
         }
+        return out;
     }
-    return out;
 }
 
 void run_dense_case(const dense_case& tc, const char* name) {
@@ -914,8 +968,8 @@ void run_dense_case(const dense_case& tc, const char* name) {
             }
         }
     }
-    const auto kq = quantize_dense(key, B, d.Hkv, S, d.Dh);
-    const auto vq = quantize_dense(value, B, d.Hkv, S, d.Dv);
+    const auto kq = quantize_dense(tc.k, key, B, d.Hkv, S, d.Dh);
+    const auto vq = quantize_dense(tc.v, value, B, d.Hkv, S, d.Dv);
     const auto query = make_values(B * d.Hq * L * d.Dh, 7, 1.0f, d.Dh);
 
     std::vector<int32_t> sel(B * L * d.topk, 0), count(B * L, 0), key_length;
@@ -942,11 +996,22 @@ void run_dense_case(const dense_case& tc, const char* name) {
     cfg.key_block_size = d.r;
     cfg.query_block_size = 1;
     cfg.causal = true;
-    cfg.kv_compressed = true;
+    cfg.key_quant = tc.k;
+    cfg.value_quant = tc.v;
     const float scale = 1.0f / std::sqrt(static_cast<float>(d.Dh));
 
-    const ov::PartialShape kv_shape_k{I(B), I(d.Hkv), I(S), I(d.Dh)}, kv_shape_v{I(B), I(d.Hkv), I(S), I(d.Dv)};
-    const ov::PartialShape param_shape{I(B), I(d.Hkv), I(S), 1};
+    const ov::PartialShape kv_shape_k{I(B), I(d.Hkv), I(S), I(ov::intel_gpu::op::dense_row_bytes(tc.k, d.Dh))};
+    const ov::PartialShape kv_shape_v{I(B), I(d.Hkv), I(S), I(ov::intel_gpu::op::dense_row_bytes(tc.v, d.Dv))};
+    auto zp_mem = [&](const KVQuant& q, const dense_quantized& dq) {
+        if (ov::intel_gpu::op::dense_zp_is_f16(q)) {
+            return make_f16_mem(engine, dq.param_shape, dq.zp);
+        }
+        std::vector<int8_t> zp(dq.zp.size());
+        for (size_t i = 0; i < zp.size(); i++) {
+            zp[i] = static_cast<int8_t>(dq.zp[i]);
+        }
+        return make_device_mem(engine, dq.param_shape, data_types::i8, zp);
+    };
     topology topo;
     topo.add(input_layout("query", layout{{I(B), I(d.Hq), I(L), I(d.Dh)}, data_types::f16, format::bfyx}));
     topo.add(data("key", make_device_mem(engine, kv_shape_k, data_types::i8, kq.data)));
@@ -954,23 +1019,23 @@ void run_dense_case(const dense_case& tc, const char* name) {
     topo.add(data("sel", make_device_mem(engine, {I(B), 1, I(L), I(d.topk)}, data_types::i32, sel)));
     topo.add(data("count", make_device_mem(engine, {I(B), 1, I(L)}, data_types::i32, count)));
     topo.add(data("key_length", make_device_mem(engine, {I(B)}, data_types::i32, key_length)));
-    topo.add(data("key_scale", make_f16_mem(engine, param_shape, kq.scale)));
-    topo.add(data("value_scale", make_f16_mem(engine, param_shape, vq.scale)));
-    topo.add(data("key_zp", make_device_mem(engine, param_shape, data_types::i8, kq.zp)));
-    topo.add(data("value_zp", make_device_mem(engine, param_shape, data_types::i8, vq.zp)));
-    topo.add(sparse_sdpa("attn",
-                         {input_info("query"),
-                          input_info("key"),
-                          input_info("value"),
-                          input_info("sel"),
-                          input_info("count"),
-                          input_info("key_length"),
-                          input_info("key_scale"),
-                          input_info("value_scale"),
-                          input_info("key_zp"),
-                          input_info("value_zp")},
-                         cfg,
-                         scale));
+    topo.add(data("key_scale", make_f16_mem(engine, kq.param_shape, kq.scale)));
+    topo.add(data("value_scale", make_f16_mem(engine, vq.param_shape, vq.scale)));
+    std::vector<input_info> attn_inputs = {input_info("query"),
+                                           input_info("key"),
+                                           input_info("value"),
+                                           input_info("sel"),
+                                           input_info("count"),
+                                           input_info("key_length"),
+                                           input_info("key_scale"),
+                                           input_info("value_scale")};
+    if (!tc.k.symmetric) {
+        topo.add(data("key_zp", zp_mem(tc.k, kq)));
+        topo.add(data("value_zp", zp_mem(tc.v, vq)));
+        attn_inputs.push_back(input_info("key_zp"));
+        attn_inputs.push_back(input_info("value_zp"));
+    }
+    topo.add(sparse_sdpa("attn", attn_inputs, cfg, scale));
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1040,7 +1105,7 @@ void run_dense_case(const dense_case& tc, const char* name) {
     std::cout << "QSA_KVQ_DENSE " << name << " vs_dequant max_abs=" << e.max_abs << " bad=" << e.bad << " | vs_f16 mean_abs=" << e_q.mean_abs
               << " rel_mean=" << e_q.mean_abs / ref_mean << std::endl;
     EXPECT_EQ(e.bad, 0u) << name;
-    EXPECT_LT(e_q.mean_abs / ref_mean, 0.03) << name;
+    EXPECT_LT(e_q.mean_abs / ref_mean, tc.k.bits == 4 ? 0.5 : 0.03) << name;
 }
 
 TEST(sparse_sdpa_kvq, qwen_decode_left_padded) {
@@ -1064,6 +1129,58 @@ TEST(sparse_sdpa_kvq, toy_scalar_kernel) {
     run_dense_case({toy(), {90, 61}, 7}, "toy_prefill_2x");
     run_dense_case({toy(), {120}, 1}, "toy_decode");
 }
+
+// 4-bit and symmetric dense caches, read by the scalar and GQA-DPAS kernels.
+struct dense_format_case {
+    std::string name;
+    dense_case tc;
+};
+
+class sparse_sdpa_kvq_formats : public ::testing::TestWithParam<dense_format_case> {};
+
+TEST_P(sparse_sdpa_kvq_formats, matches_dequantized_reference) {
+    if (!ocl_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    run_dense_case(GetParam().tc, GetParam().name.c_str());
+}
+
+std::vector<dense_format_case> dense_format_cases() {
+    struct scenario {
+        const char* name;
+        dims d;
+        std::vector<size_t> key_len;
+        size_t q_len;
+    };
+    dims d128 = qwen38();
+    d128.Dh = d128.Dv = 128;
+    const std::vector<scenario> scenarios = {{"qwen_decode", qwen38(), {2051, 1500}, 1},
+                                             {"qwen_prefill", qwen38(), {300, 211}, 150},
+                                             {"d128_decode", d128, {500}, 1},
+                                             {"toy_prefill", toy(), {90, 61}, 7},
+                                             {"toy_decode", toy(), {120}, 1}};
+    struct format {
+        const char* name;
+        KVQuant k, v;
+    };
+    const std::vector<format> formats = {{"Ktok_i8sym_Vtok_i8sym", token_quant(8, true), token_quant(8, true)},
+                                         {"Ktok_u4_Vtok_u4", token_quant(4, false), token_quant(4, false)},
+                                         {"Ktok_u4sym_Vtok_u4sym", token_quant(4, true), token_quant(4, true)}};
+    std::vector<dense_format_case> cases;
+    for (const auto& f : formats) {
+        for (const auto& s : scenarios) {
+            cases.push_back({std::string(s.name) + "_" + f.name, {s.d, s.key_len, s.q_len, f.k, f.v}});
+        }
+    }
+    return cases;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         sparse_sdpa_kvq_formats,
+                         ::testing::ValuesIn(dense_format_cases()),
+                         [](const ::testing::TestParamInfo<dense_format_case>& info) {
+                             return info.param.name;
+                         });
 
 // ---------------------------------------------------------------------------
 // Performance (DISABLED_): GPU time of the whole SparsePA call (write + attention stages) per KV cache format.

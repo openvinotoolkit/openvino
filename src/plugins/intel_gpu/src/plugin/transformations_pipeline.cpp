@@ -488,12 +488,12 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
 }
 
 // QSA main KV caches are quantized when kv_cache_precision asks for an 8/4-bit type. The key cache
-// follows key_cache_quant_mode (BY_CHANNEL in groups of GPU_QSA_KEY_CACHE_GROUP_SIZE tokens or
-// BY_TOKEN), the value cache is always BY_TOKEN. Only an explicit request counts: the default precision of
-// non-systolic devices is i8, which the dense SparseSDPA cannot follow (its compression needs immad).
+// follows key_cache_quant_mode (BY_CHANNEL in groups of GPU_QSA_KEY_CACHE_GROUP_SIZE tokens or BY_TOKEN; the dense
+// SparseSDPA always keeps its keys per token), the value cache is always BY_TOKEN. Only an explicit request counts: the
+// default precision of non-systolic devices is i8, which the dense SparseSDPA cannot follow (its compression needs immad).
 KVCacheQuantConfig make_qsa_kv_cache_quant(const ExecutionConfig& config) {
     KVCacheQuantConfig quant;
-    if (config.get_user_properties().count(ov::hint::kv_cache_precision.name()) == 0) {
+    if (!config.get_enable_qsa_kv_cache_quantization()) {
         return quant;
     }
     const auto precision = config.get_kv_cache_precision();
@@ -1874,7 +1874,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         if (!has_shared_kv_cache_vars(func)) {
             auto kv_cache_compression_dt = config.get_kv_cache_precision();
-            manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
+            const auto qsa_kv_quant = make_qsa_kv_cache_quant(config);
+            manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad, qsa_kv_quant.key, qsa_kv_quant.value);
         }
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();

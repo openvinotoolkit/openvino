@@ -462,7 +462,7 @@ bool convert_sparse_attention(const std::shared_ptr<ov::op::v17::SparseAttention
         key_length_b = b.add<ov::op::v3::Broadcast>(positions_i32, b.dim(query, 0));
     }
 
-    ov::OutputVector args(In::COUNT_MIN);
+    ov::OutputVector args(In::COUNT_CORE);
     args[In::QUERY] = query;
     args[In::KEY] = key;
     args[In::VALUE] = value;

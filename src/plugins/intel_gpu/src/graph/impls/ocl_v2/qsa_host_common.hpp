@@ -82,6 +82,17 @@ inline void add_cache_jit(JitConstants& jit, const std::string& cache, const ov:
     jit.make(prefix + "PARAM_OFFSET", layout.param_offset);
 }
 
+/// JIT description of one dense (KVCacheCompressed) K / V history: QSA_<cache>_{BITS,SYM,ROW_BYTES} plus SIGNED (8-bit:
+/// signed codes) and ZP_F16 (the zero point tensor is f16, else i8), see sparse_kv_quant.hpp.
+inline void add_dense_cache_jit(JitConstants& jit, const std::string& cache, const ov::intel_gpu::op::KVQuant& quant, size_t head_size) {
+    const std::string prefix = "QSA_" + cache + "_";
+    jit.make(prefix + "BITS", quant.enabled() ? static_cast<int>(quant.bits) : 16);
+    jit.make(prefix + "SYM", quant.symmetric ? 1 : 0);
+    jit.make(prefix + "ROW_BYTES", ov::intel_gpu::op::dense_row_bytes(quant, head_size));
+    jit.make(prefix + "SIGNED", quant.enabled() && ov::intel_gpu::op::dense_signed_codes(quant) ? 1 : 0);
+    jit.make(prefix + "ZP_F16", quant.enabled() && ov::intel_gpu::op::dense_zp_is_f16(quant) ? 1 : 0);
+}
+
 /// Upper bound on the decode BLOCK_SCORES scratch. Debug builds can shrink it through OV_GPU_QSA_SCORE_BUDGET_BYTES
 /// to force the multi-chunk path with small shapes.
 inline size_t score_budget_bytes() {
