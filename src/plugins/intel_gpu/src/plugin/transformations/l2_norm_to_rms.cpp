@@ -8,6 +8,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -19,11 +20,27 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 
-L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
+namespace {
+// An Add of two non-constant inputs: a residual connection rather than a bias.
+bool is_residual_add(const std::shared_ptr<ov::Node>& node) {
+    if (!ov::is_type<ov::op::v1::Add>(node) || !node->get_output_element_type(0).is_real()) {
+        return false;
+    }
+    for (const auto& input : node->input_values()) {
+        if (ov::util::get_constant_from_source(input)) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
+L2NormToRMS::L2NormToRMS(size_t max_work_group_size, bool skip_residual_input) {
     using namespace ov::pass::pattern;
 
     auto x = any_input();
@@ -85,6 +102,10 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
         }
 
         const auto x_out = pm.at(x);
+        // Leave a residual-fed norm decomposed: MarkDivWithEps keeps the residual stream FP32, the late run fuses it.
+        if (skip_residual_input && is_residual_add(x_out.get_node_shared_ptr())) {
+            return false;
+        }
         // Nodes are visited in topological order, so the match lands on the Multiply before its Convert is
         // seen; take a lone trailing Convert in as well so RMS writes the converted type directly.
         std::shared_ptr<ov::Node> root = pm.at(mul).get_node_shared_ptr();
@@ -104,6 +125,9 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
         rms->set_friendly_name(root->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), {scaled_gamma, rms});
         ov::replace_node(root, rms);
+
+        // The gamma may be dequantized from u16 values above the f16 range (e.g. 65535): keep it in FP32.
+        ov::disable_conversion(scaled_gamma, ov::element::f16);
         return true;
     };
 

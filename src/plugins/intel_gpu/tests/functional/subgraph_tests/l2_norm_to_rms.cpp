@@ -7,6 +7,7 @@
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/sqrt.hpp"
@@ -14,6 +15,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #include <memory>
 #include <ostream>
@@ -216,4 +219,116 @@ INSTANTIATE_TEST_SUITE_P(smoke_L2NormToRMS_rank_six,
                                             ::testing::Values(input_shapes_rank_six),
                                             ::testing::Values(ov::element::f32)),
                          L2NormToRMS::getTestCaseName);
+
+// Residual stream x0 + x1 + x2 + x3 feeding an L2 norm, f16 inference. With Overflow inputs the sum (~100000)
+// exceeds f16, so the residual stream must stay FP32 (the early L2NormToRMS run must not fuse this norm).
+enum class ResidualRange {
+    InRange,   // inputs in [0, 1)
+    Overflow,  // inputs in [20000, 30000)
+};
+
+class L2NormToRMSResidualOverflow : public testing::WithParamInterface<ResidualRange>,
+                                    virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ResidualRange>& obj) {
+        return obj.param == ResidualRange::Overflow ? "Overflow" : "InRange";
+    }
+
+protected:
+    static constexpr size_t num_inputs = 4;
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+        inType = outType = ov::element::f32;
+        abs_threshold = 5e-3;
+        rel_threshold = 1e-2;
+
+        const ov::Shape shape{1, 16, 64};
+        init_input_shapes(std::vector<InputShape>(num_inputs, {shape, {shape}}));
+
+        ov::ParameterVector params;
+        for (size_t i = 0; i < num_inputs; ++i) {
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
+        }
+        ov::Output<ov::Node> residual = params[0];
+        for (size_t i = 1; i < num_inputs; ++i) {
+            residual = std::make_shared<ov::op::v1::Add>(residual, params[i]);
+        }
+
+        // ONNX LpNormalization(p=2) lowering with FLT_EPSILON, as the ONNX frontend produces it
+        auto power = std::make_shared<ov::op::v1::Power>(residual, ov::op::v0::Constant::create(ov::element::f32, {}, {2.f}));
+        auto sum = std::make_shared<ov::op::v1::ReduceSum>(power, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), true);
+        auto add_eps = std::make_shared<ov::op::v1::Add>(sum, ov::op::v0::Constant::create(ov::element::f32, {}, {1.1920928955078125e-07f}));
+        auto div = std::make_shared<ov::op::v1::Divide>(residual, std::make_shared<ov::op::v0::Sqrt>(add_eps));
+        std::vector<float> gamma_values(shape.back());
+        for (size_t i = 0; i < gamma_values.size(); ++i) {
+            gamma_values[i] = 0.5f + 2.0f * static_cast<float>(i) / static_cast<float>(gamma_values.size());
+        }
+        auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{shape.back()}, gamma_values);
+        auto mul = std::make_shared<ov::op::v1::Multiply>(div, gamma);
+        function = std::make_shared<ov::Model>(ov::OutputVector{mul}, params, "L2NormToRMSResidualOverflow");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& func_inputs = function->inputs();
+        for (size_t i = 0; i < func_inputs.size(); ++i) {
+            const auto seed = static_cast<int32_t>(i + 1);
+            const auto gen = GetParam() == ResidualRange::Overflow ? ov::test::utils::InputGenerateData(20000, 10000, 1, seed)
+                                                                   : ov::test::utils::InputGenerateData(0, 1, 1000, seed);
+            inputs.insert({func_inputs[i].get_node_shared_ptr(),
+                           ov::test::utils::create_and_fill_tensor(func_inputs[i].get_element_type(), target_input_static_shapes[i], gen)});
+        }
+    }
+};
+
+TEST_P(L2NormToRMSResidualOverflow, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_L2NormToRMS_residual_overflow,
+                         L2NormToRMSResidualOverflow,
+                         ::testing::Values(ResidualRange::InRange, ResidualRange::Overflow),
+                         L2NormToRMSResidualOverflow::getTestCaseName);
+
+// L2 norm with gamma = (Convert(u16 weight) - zp) * scale, weight up to 65535, f16 inference. The norm is fused
+// before ConvertPrecision; a u16 -> f16 Convert of 65535 gives inf, so the dequantization must stay FP32.
+class L2NormToRMSU16Gamma : public ov::test::SubgraphBaseStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        configuration.insert({ov::hint::inference_precision.name(), ov::element::f16});
+        inType = outType = ov::element::f32;
+        abs_threshold = 5e-3;
+        rel_threshold = 1e-2;
+
+        const ov::Shape shape{1, 16, 64};
+        auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+
+        // Per-tensor u16 quantization of the gamma uses the full range: its largest element is 65535.
+        std::vector<uint16_t> weight_values(shape.back());
+        for (size_t i = 0; i < weight_values.size(); ++i) {
+            weight_values[i] = static_cast<uint16_t>(20000 + 700 * i);
+        }
+        weight_values.back() = 65535;
+        auto weight = ov::op::v0::Constant::create(ov::element::u16, ov::Shape{shape.back()}, weight_values);
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u16, ov::Shape{}, {127});
+        auto shifted = std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32),
+                                                              std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32));
+        auto gamma = std::make_shared<ov::op::v1::Multiply>(shifted, ov::op::v0::Constant::create(ov::element::f32, {}, {0.000855f}));
+
+        // ONNX LpNormalization(p=2) lowering with FLT_EPSILON, as the ONNX frontend produces it
+        auto power = std::make_shared<ov::op::v1::Power>(x, ov::op::v0::Constant::create(ov::element::f32, {}, {2.f}));
+        auto sum = std::make_shared<ov::op::v1::ReduceSum>(power, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), true);
+        auto add_eps = std::make_shared<ov::op::v1::Add>(sum, ov::op::v0::Constant::create(ov::element::f32, {}, {1.1920928955078125e-07f}));
+        auto div = std::make_shared<ov::op::v1::Divide>(x, std::make_shared<ov::op::v0::Sqrt>(add_eps));
+        auto mul = std::make_shared<ov::op::v1::Multiply>(div, gamma);
+        function = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{x}, "L2NormToRMSU16Gamma");
+    }
+};
+
+TEST_F(L2NormToRMSU16Gamma, smoke_Inference) {
+    run();
+}
 }  // namespace
