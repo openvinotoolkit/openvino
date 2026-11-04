@@ -528,13 +528,18 @@ TEST_P(sdpa_gpu_sink_test, matches_independent_reference) {
     auto q_mem = engine.allocate_memory(q_layout);
     auto k_mem = engine.allocate_memory(kv_layout);
     auto v_mem = engine.allocate_memory(kv_layout);
-    auto mask_mem = engine.allocate_memory(scalar_layout);
+    // The scalar mask is the first element of a buffer whose other elements are large: a kernel reading the
+    // broadcast mask past its single element adds them to the logits.
+    auto mask_storage = engine.allocate_memory(layout({64}, data_types::f16, format::bfyx));
+    std::vector<ov::float16> mask_storage_data(64, ov::float16(100.0f));
+    mask_storage_data[0] = ov::float16(0.0f);
+    set_values(mask_storage, mask_storage_data);
+    auto mask_mem = engine.reinterpret_buffer(*mask_storage, scalar_layout);
     auto scale_mem = engine.allocate_memory(scalar_layout);
     auto sink_mem = engine.allocate_memory(sink_layout);
     set_values(q_mem, q_data);
     set_values(k_mem, k_data);
     set_values(v_mem, v_data);
-    set_values(mask_mem, {ov::float16(0.0f)});
     set_values(scale_mem, {scale});
     set_values(sink_mem, sink_data);
 
