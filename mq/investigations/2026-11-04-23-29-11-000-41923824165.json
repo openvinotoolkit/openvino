@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-04-23-29-11-000-41923824165",
+  "timestamp": "2026-11-04T23:29:11Z",
+  "run_id": "41923824165",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41923824165",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39101",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39101",
+  "author": "mryzhov",
+  "category": "Infrastructure",
+  "title": "Windows Build fails storing artifacts to shared drive - disk full (WinError 112)",
+  "signature": "there is not enough space on the disk winerror 112|Infrastructure",
+  "signature_hash": "32d3435950a13f58",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Store artifacts to a shared drive step fails copying build artifacts with WinError 112 (disk full) on the C:\\mount\\build-artifacts network share"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check job fails because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "11-04-2026 23:11:40 __main__        ERROR    Failed to copy C:\\actions-runner\\_work\\openvino\\openvino\\openvino_build/openvino_package.zip: [WinError 112] There is not enough space on the disk: 'C:\\\\mount\\\\build-artifacts\\\\dldt\\\\master\\\\commit\\\\85a74bf5b7d3c964fbe5d1b158f3c3e6d2342ef7'",
+    "Traceback (most recent call last):\n  File \"...store_artifacts.py\", line 160, in <module>\n    main()\n  File \"...store_artifacts.py\", line 138, in main\n    with open(workflow_link_file, 'w') as file:\nFileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\mount\\\\build-artifacts\\\\dldt\\\\master\\\\commit\\\\85a74bf5b7d3c964fbe5d1b158f3c3e6d2342ef7\\\\public_windows_vs2022_release\\\\workflow_link.txt'",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Release build completed fully (configure, compile, install, packaging, JS/node package build, uploads all succeeded) but the final 'Store artifacts to a shared drive' step, which copies openvino_package.zip, developer_package.zip, openvino_tests.zip, manifest.yml, openvino_js_package.zip, openvino_node_npm_package.zip, and wheels to the network-mounted share at C:\\mount\\build-artifacts, failed every copy with WinError 112 ('There is not enough space on the disk'). This is the second occurrence of this exact signature within ~13 minutes (the first was on the Debug variant of the same PR's merge-queue run, 41923823854), confirming the shared artifact storage volume is at/over capacity rather than this being a one-off blip. PR #39101 only touches GitHub Actions workflow YAML/JS for GenAI/LLM wheel installation and does not affect the Windows build or store_artifacts action, so the PR's own changes are not implicated.",
+  "reproduction_steps": "N/A - not reproducible locally; requires the shared CI storage volume (C:\\mount\\build-artifacts) to be at capacity. Check disk usage/quota of the `build-artifacts` share around 2026-11-04T23:08-23:11 UTC and look for cleanup/retention jobs for old commit artifacts.",
+  "recommended_actions": [
+    "Check and free up space on the C:\\mount\\build-artifacts shared drive (Windows CI artifact storage volume) or increase its quota/capacity as a priority - this is now a recurring failure within the same hour",
+    "Verify/trigger the artifact retention/cleanup job for old commit directories under dldt/master/commit/* on that share",
+    "Re-run the failed Build job (handled automatically via remediate_transient_failure) once storage space is confirmed available - this PR's own changes are not implicated",
+    "Add disk-space pre-check or alerting on the shared artifact storage to catch near-full conditions before jobs fail, since this is the second hit in 13 minutes"
+  ],
+  "prevention_strategies": "Add proactive monitoring/alerting on the shared artifact storage volume's free space with a threshold alert well before 100% full, and an automated retention policy that prunes old per-commit artifact directories so the share does not silently fill up and fail unrelated builds repeatedly.",
+  "historical_context": "Same signature (disk-full WinError 112 on the shared artifact drive, pattern 32d3435950a13f58) was recorded 13 minutes earlier for the Debug variant build of the same merge-queue run batch (run 41923823854, PR #39101). This is the 2nd occurrence; escalation threshold is 3+ in 12 hours, so notify_teams_recurring is not yet triggered but the recurrence is noted for awareness."
+}

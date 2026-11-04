@@ -4,16 +4,18 @@
   "signature_hash": "32d3435950a13f58",
   "title": "Windows Build fails storing artifacts to shared drive - disk full (WinError 112)",
   "category": "Infrastructure",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-04T23:16:27Z",
-  "last_seen": "2026-11-04T23:16:27Z",
+  "last_seen": "2026-11-04T23:29:11Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41923824165",
     "https://github.com/openvinotoolkit/openvino/actions/runs/41923823854"
   ],
   "affected_prs": [
     "https://github.com/openvinotoolkit/openvino/pull/39101"
   ],
   "recent_timestamps": [
+    "2026-11-04T23:29:11Z",
     "2026-11-04T23:16:27Z"
   ],
   "rerun_search_string": "There is not enough space on the disk"
