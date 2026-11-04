@@ -29,9 +29,14 @@ using dim_mapping = std::array<uint8_t, 3>;
 // the natural mapping keeps using it.
 const std::array<dim_mapping, 6>& dim_mappings();
 
-// A CUmodule loaded from PTX, unloaded when the last reference goes.
+// A CUmodule loaded from PTX, unloaded when the last reference goes.  That can be on any thread - an
+// application thread releasing the last kernel, with no context or another one current - so the module
+// remembers the context it was loaded into and unloads from it.  When that is the device's primary
+// context, the module also holds a reference to it, so the context outlives the module.
 struct cuda_module {
-    void* cu_module{nullptr};  // CUmodule (typed as void* to avoid cuda.h in header)
+    void* cu_module{nullptr};   // CUmodule (typed as void* to avoid cuda.h in header)
+    void* cu_context{nullptr};  // CUcontext the module was loaded into
+    int primary_ctx_device{-1};  // CUdevice whose primary context the module retains, or -1
 
     ~cuda_module();  // defined in sycl_ptx_kernel.cpp to unload the CUmodule
 };

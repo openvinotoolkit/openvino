@@ -6,6 +6,7 @@
 #include "../sycl_common.hpp"
 #include "../sycl_memory.hpp"
 #include "openvino/core/except.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <cuda.h>
 
@@ -160,10 +161,49 @@ const std::array<dim_mapping, 6>& dim_mappings() {
     return table;
 }
 
+namespace {
+
+// Makes `ctx` current on this thread for its lifetime and restores the thread's previous context afterwards.
+// Nothing is pushed when `ctx` is null or already current.
+class scoped_cuda_context {
+public:
+    explicit scoped_cuda_context(CUcontext ctx) {
+        CUcontext current = nullptr;
+        (void)cuCtxGetCurrent(&current);
+        _pushed = ctx != nullptr && ctx != current && cuCtxPushCurrent(ctx) == CUDA_SUCCESS;
+    }
+    ~scoped_cuda_context() {
+        if (_pushed) {
+            CUcontext popped = nullptr;
+            (void)cuCtxPopCurrent(&popped);
+        }
+    }
+    scoped_cuda_context(const scoped_cuda_context&) = delete;
+    scoped_cuda_context& operator=(const scoped_cuda_context&) = delete;
+
+private:
+    bool _pushed = false;
+};
+
+}  // anonymous namespace
+
 cuda_module::~cuda_module() {
     if (cu_module) {
-        (void)cuModuleUnload(static_cast<CUmodule>(cu_module));
+        CUresult r;
+        {
+            scoped_cuda_context guard(static_cast<CUcontext>(cu_context));
+            r = cuModuleUnload(static_cast<CUmodule>(cu_module));
+        }
+        if (r != CUDA_SUCCESS) {
+            const char* err = nullptr;
+            cuGetErrorString(r, &err);
+            GPU_DEBUG_LOG << "[GPU][NVIDIA] cuModuleUnload failed: " << (err ? err : "unknown") << std::endl;
+        }
         cu_module = nullptr;
+    }
+    if (primary_ctx_device >= 0) {
+        (void)cuDevicePrimaryCtxRelease(static_cast<CUdevice>(primary_ctx_device));
+        primary_ctx_device = -1;
     }
 }
 
@@ -214,6 +254,24 @@ std::shared_ptr<cuda_module> load_cuda_module(const std::string& ptx,
     }
     auto module = std::make_shared<cuda_module>();
     module->cu_module = static_cast<void*>(mod);
+
+    // The module belongs to the context current here (the SYCL device's, inside a host_task); it is unloaded from
+    // that context. A primary context is retained so it outlives the module even if the SYCL runtime lets go
+    // first: unloading from a released primary context fails with CUDA_ERROR_CONTEXT_IS_DESTROYED. Other
+    // contexts cannot be retained, so for them the module only switches to them for the unload.
+    CUcontext ctx = nullptr;
+    if (cuCtxGetCurrent(&ctx) == CUDA_SUCCESS && ctx != nullptr) {
+        module->cu_context = static_cast<void*>(ctx);
+        CUdevice dev = 0;
+        CUcontext primary = nullptr;
+        if (cuCtxGetDevice(&dev) == CUDA_SUCCESS && cuDevicePrimaryCtxRetain(&primary, dev) == CUDA_SUCCESS) {
+            if (primary == ctx) {
+                module->primary_ctx_device = static_cast<int>(dev);
+            } else {
+                (void)cuDevicePrimaryCtxRelease(dev);
+            }
+        }
+    }
     return module;
 }
 
