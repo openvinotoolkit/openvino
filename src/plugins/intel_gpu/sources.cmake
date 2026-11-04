@@ -205,7 +205,6 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/remove_fq_before_dw_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sdpa_transpose_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sink_reshape.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sparse_attention_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/stateless_kv_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/swoosh_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/swiglu_fusion_with_clamp.cpp
