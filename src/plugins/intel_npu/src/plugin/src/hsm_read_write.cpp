@@ -37,7 +37,7 @@ ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISe
     return ov::runtime::hsm::SectionTagReserved(tag, reserved_bytes);
 }
 
-std::optional<RuntimeRequirements> parse_and_evaluate_runtime_requirements(
+std::optional<RuntimeRequirementsEvaluationResult> parse_and_evaluate_runtime_requirements(
     ov::runtime::hsm::Reader& base_reader,
     const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& section_readers,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
@@ -62,12 +62,13 @@ std::optional<RuntimeRequirements> parse_and_evaluate_runtime_requirements(
     OPENVINO_ASSERT(runtime_requirements_section);
 
     RuntimeRequirements runtime_requirements = runtime_requirements_section->get_runtime_requirements();
-    const ov::CompatibilityCheck evaluation_result =
+    const RuntimeRequirementsEvaluationResult evaluation_result =
         runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
-    OPENVINO_ASSERT(evaluation_result != ov::CompatibilityCheck::UNSUPPORTED, "The imported model is not compatible");
+    OPENVINO_ASSERT(evaluation_result.final_result != ov::CompatibilityCheck::UNSUPPORTED,
+                    "The imported model is not compatible");
     logger.debug("Runtime requirements evaluation result: %s",
-                 evaluation_result == ov::CompatibilityCheck::SUPPORTED ? "SUPPORTED" : "NOT_APPLICABLE");
-    return runtime_requirements;
+                 evaluation_result.final_result == ov::CompatibilityCheck::SUPPORTED ? "SUPPORTED" : "NOT_APPLICABLE");
+    return evaluation_result;
 }
 
 void parse_section(
@@ -122,18 +123,18 @@ BlobSectionsRegistry read_from(
     logger.debug("Parsing the HSM container");
 
     // TODO dedicated tags instead of sectin types?
-    std::optional<RuntimeRequirements> runtime_requirements;
+    std::optional<RuntimeRequirementsEvaluationResult> runtime_requirements_evaluation_result;
     const size_t n_runtime_requirements =
         base_reader.count(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
                           RUNTIME_REQUIREMENTS_TAG.id());
     OPENVINO_ASSERT(n_runtime_requirements < 2, "Found more than one runtime requirements section");
 
     if (n_runtime_requirements) {
-        runtime_requirements = parse_and_evaluate_runtime_requirements(base_reader,
-                                                                       section_readers,
-                                                                       type_evaluators,
-                                                                       instance_evaluators,
-                                                                       logger);
+        runtime_requirements_evaluation_result = parse_and_evaluate_runtime_requirements(base_reader,
+                                                                                         section_readers,
+                                                                                         type_evaluators,
+                                                                                         instance_evaluators,
+                                                                                         logger);
     } else {
         logger.warning(
             "The runtime requirements section was not found within the manifest. Proceeding without performing any "
@@ -155,7 +156,7 @@ BlobSectionsRegistry read_from(
         logger.debug("Parsing the section %s", debug_name.data());
 
         // TODO test the negative branch as well
-        if (!runtime_requirements.has_value()) {
+        if (!runtime_requirements_evaluation_result.has_value()) {
             // No runtime requirements found. All sections are considered optional
             parse_section(base_reader,
                           section_readers,
@@ -174,16 +175,36 @@ BlobSectionsRegistry read_from(
         //  halts if parsing the section fails.
         //  * Case 2: evaluated & supported type, evaluated & unsupported instance - the section is unsupported. It's
         //  parsing is skipped.
-        //  * Case 3: evaluated & supported type, unevaluated instance - the section is optional. Execution will not
-        //  halt upon failure of parsing.
+        //  * Case 3: evaluated & supported type, unevaluated (or "not applicable") instance - the section is optional.
+        //  Execution will not halt upon failure of parsing.
         //  * Case 4: evaluated & unsupported type - the section is unsupported. It's parsing is skipped.
         //  * Case 5: unevaluated type, unevaluated instance - the section is optional. Execution will not halt upon
         //  failure of parsing.
 
         const std::optional<bool> type_evaluation_result =
-            runtime_requirements->get_type_evaluation_result(section_type);
-        const std::optional<bool> instance_evaluation_result =
-            runtime_requirements->get_instance_evaluation_result(section_id);
+            runtime_requirements_evaluation_result->type_evaluations.count(section_type)
+                ? std::make_optional(runtime_requirements_evaluation_result->type_evaluations.at(section_type))
+                : std::nullopt;
+
+        std::optional<bool> instance_evaluation_result;
+        if (runtime_requirements_evaluation_result->instance_evaluations.count(section_id)) {
+            switch (runtime_requirements_evaluation_result->instance_evaluations.at(section_id)) {
+            case ov::CompatibilityCheck::SUPPORTED: {
+                instance_evaluation_result = true;
+                break;
+            }
+            case ov::CompatibilityCheck::UNSUPPORTED: {
+                instance_evaluation_result = false;
+                break;
+            }
+            case ov::CompatibilityCheck::NOT_APPLICABLE: {
+                // Keep it nullopt since we don't know whether or not it is supported
+                break;
+            }
+            default:
+                OPENVINO_THROW("Unknown ov::CompatibilityCheck value");
+            }
+        }
 
         if (type_evaluation_result.has_value() && type_evaluation_result.value()) {
             if (instance_evaluation_result.has_value() && instance_evaluation_result.value()) {

@@ -33,6 +33,12 @@ protected:
     explicit InvalidCRE(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
 };
 
+struct RuntimeRequirementsEvaluationResult {
+    ov::CompatibilityCheck final_result;
+    std::unordered_map<SectionType, bool> type_evaluations;
+    std::unordered_map<SectionID, ov::CompatibilityCheck> instance_evaluations;
+};
+
 enum class CRESpecialTokenCode { AND, OR, NOT, OPEN, CLOSE };
 
 /**
@@ -100,7 +106,7 @@ public:
      * @param section_type_evaluators A mapping between section types and their (lazy) evaluators.
      * @param section_instance_evaluators A mapping between section IDs and their (lazy) evaluators.
      */
-    ov::CompatibilityCheck check_compatibility(
+    RuntimeRequirementsEvaluationResult check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators) const;
 
@@ -183,6 +189,8 @@ private:
         const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators,
+        std::unordered_map<SectionType, bool>& type_evaluation_results,
+        std::unordered_map<SectionID, ov::CompatibilityCheck>& instance_evaluation_results,
         const Delimiter end_delimiter,
         const bool skip_all_evaluations = false,
         const bool force_all_evaluations = false) const;

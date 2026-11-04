@@ -869,7 +869,7 @@ public:
 using ValidExpression = CREEvaluationTests;
 
 TEST_P(ValidExpression, check_compatibility) {
-    EXPECT_EQ(CRE(expression).check_compatibility(section_type_evaluators, section_instance_evaluators),
+    EXPECT_EQ(CRE(expression).check_compatibility(section_type_evaluators, section_instance_evaluators).final_result,
               expected_result);
 }
 

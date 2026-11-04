@@ -90,7 +90,7 @@ RuntimeRequirements::build_single_section_instance_evaluators(
 }
 
 // TODO rename since there's no more caching
-ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
+RuntimeRequirementsEvaluationResult RuntimeRequirements::get_compatibility_check_result(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     m_logger.debug("Evaluating the runtime requirements");

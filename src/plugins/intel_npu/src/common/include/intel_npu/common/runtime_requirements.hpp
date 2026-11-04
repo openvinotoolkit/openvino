@@ -40,9 +40,9 @@ public:
      * "unsupported".
      * @param instance_evaluators Instruct the CRE how to evaluate section instances. Missing section instances will be
      * treated as "supported".
-     * @return "NOT_APPLICABLE" in uncertain scenarios. "SUPPORTED" or "UNSUPPORTED" when the result is known.
+     * @return TODO "NOT_APPLICABLE" in uncertain scenarios. "SUPPORTED" or "UNSUPPORTED" when the result is known.
      */
-    ov::CompatibilityCheck get_compatibility_check_result(
+    RuntimeRequirementsEvaluationResult get_compatibility_check_result(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
 

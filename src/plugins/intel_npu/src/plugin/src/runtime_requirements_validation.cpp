@@ -60,9 +60,9 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     instance_evaluators[SectionTypeCode::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
 
     try {
-        return runtimeRequirementsSection->get_runtime_requirements().get_compatibility_check_result(
-            type_evaluators,
-            instance_evaluators);
+        return runtimeRequirementsSection->get_runtime_requirements()
+            .get_compatibility_check_result(type_evaluators, instance_evaluators)
+            .final_result;
     } catch (...) {
         // Since the same checks would be performed at import time, a throw now means a throw while importing
         return ov::CompatibilityCheck::UNSUPPORTED;

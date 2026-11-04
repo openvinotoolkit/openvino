@@ -435,8 +435,19 @@ bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expr
         std::vector<std::shared_ptr<CREToken>>::const_iterator expression_iterator = expression.begin();
         const std::vector<std::shared_ptr<CREToken>>::const_iterator expression_end = expression.end();
 
+        std::unordered_map<SectionType, bool> type_evaluation_results;
+        std::unordered_map<SectionID, ov::CompatibilityCheck> instance_evaluation_results;
+
         // Force all evaluations to thorougly check the expression
-        evaluate(expression_iterator, expression_end, {}, {}, Delimiter::SIZE, false, true);
+        evaluate(expression_iterator,
+                 expression_end,
+                 {},
+                 {},
+                 type_evaluation_results,
+                 instance_evaluation_results,
+                 Delimiter::SIZE,
+                 false,
+                 true);
         CRE_ASSERT(expression_iterator == expression.end());
         return true;
     } catch (const InvalidCRE&) {
@@ -471,6 +482,8 @@ ov::CompatibilityCheck CRE::evaluate(
     const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators,
+    std::unordered_map<SectionType, bool>& type_evaluation_results,
+    std::unordered_map<SectionID, ov::CompatibilityCheck>& instance_evaluation_results,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations,
     const bool force_all_evaluations) const {
@@ -497,10 +510,11 @@ ov::CompatibilityCheck CRE::evaluate(
             if (force_all_evaluations || (!skip_all_evaluations && !skip_next_evaluation)) {
                 const auto section_type = std::dynamic_pointer_cast<SectionType>(*expression_iterator);
 
-                ov::CompatibilityCheck operand =
-                    bool_to_compatibility_check(section_type_evaluators.count(*section_type)
-                                                    ? section_type_evaluators.at(*section_type)->get_result()
-                                                    : false);
+                // TODO any point in caching inside evaluators anymore?
+                type_evaluation_results[*section_type] = section_type_evaluators.count(*section_type)
+                                                             ? section_type_evaluators.at(*section_type)->get_result()
+                                                             : false;
+                ov::CompatibilityCheck operand = bool_to_compatibility_check(type_evaluation_results.at(*section_type));
                 m_logger.trace("Section type %lu evaluated to %d", section_type, operand);
 
                 // Look for a section ID after the section type token
@@ -512,9 +526,11 @@ ov::CompatibilityCheck CRE::evaluate(
                         const auto section_id = std::dynamic_pointer_cast<SectionID>(*expression_iterator);
                         CRE_ASSERT(section_id, "Expected a section ID token to follow the section type", *section_type);
 
-                        operand = section_instance_evaluators.count(*section_id)
-                                      ? section_instance_evaluators.at(*section_id).get_result()
-                                      : ov::CompatibilityCheck::SUPPORTED;
+                        instance_evaluation_results[*section_id] =
+                            section_instance_evaluators.count(*section_id)
+                                ? section_instance_evaluators.at(*section_id).get_result()
+                                : ov::CompatibilityCheck::SUPPORTED;
+                        operand = instance_evaluation_results.at(*section_id);
 
                         m_logger.trace("Section ID %s evaluated to %d", section_id, operand);
                     }
@@ -560,6 +576,8 @@ ov::CompatibilityCheck CRE::evaluate(
                                             expression_end,
                                             section_type_evaluators,
                                             section_instance_evaluators,
+                                            type_evaluation_results,
+                                            instance_evaluation_results,
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation,
                                             force_all_evaluations);
@@ -603,26 +621,31 @@ ov::CompatibilityCheck CRE::evaluate(
     return result;
 }
 
-ov::CompatibilityCheck CRE::check_compatibility(
+RuntimeRequirementsEvaluationResult CRE::check_compatibility(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators) const {
     m_logger.debug("Evaluating the CRE");
     if (m_subexpressions.empty()) {
-        return ov::CompatibilityCheck::SUPPORTED;
+        return {ov::CompatibilityCheck::SUPPORTED, {}, {}};
     }
 
     const std::vector<std::shared_ptr<CREToken>> expression = get_expression();
     std::vector<std::shared_ptr<CREToken>>::const_iterator expression_iterator = expression.begin();
     const std::vector<std::shared_ptr<CREToken>>::const_iterator expression_end = expression.end();
+    std::unordered_map<SectionType, bool> type_evaluation_results;
+    std::unordered_map<SectionID, ov::CompatibilityCheck> instance_evaluation_results;
+
     const ov::CompatibilityCheck result = evaluate(expression_iterator,
                                                    expression_end,
                                                    section_type_evaluators,
                                                    section_instance_evaluators,
+                                                   type_evaluation_results,
+                                                   instance_evaluation_results,
                                                    Delimiter::SIZE);
     CRE_ASSERT(expression_iterator == expression.end(), "CRE evaluation ended before parsing the whole expression");
 
     m_logger.debug("Expression evaluated to %d", result);
-    return result;
+    return {result, type_evaluation_results, instance_evaluation_results};
 }
 
 std::string CRE::to_string() const {
