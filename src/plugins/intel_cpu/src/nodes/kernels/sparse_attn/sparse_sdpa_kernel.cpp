@@ -497,17 +497,23 @@ struct DenseRowSource {
     }
 
     template <typename T>
-    void gather(int64_t kpos0, size_t rows, T* k_dst, T* v_dst) const {
+    void rows(int64_t kpos0, size_t n, const T** k_ptr, const T** v_ptr, T* k_stage, T* v_stage) const {
         const auto pos = static_cast<size_t>(kpos0);
+        const T* k_src = k_stage;
         if (key_quant.enabled()) {
-            dequant_rows<T>(key, key_quant, b, kv, pos, rows, k_head_size, k_dst);
+            dequant_rows<T>(key, key_quant, b, kv, pos, n, k_head_size, k_stage);
         } else {
-            std::memcpy(k_dst, key.ptr<T>(b, kv, pos), rows * k_head_size * sizeof(T));
+            k_src = key.ptr<T>(b, kv, pos);
         }
+        const T* v_src = v_stage;
         if (value_quant.enabled()) {
-            dequant_rows<T>(value, value_quant, b, kv, pos, rows, v_head_size, v_dst);
+            dequant_rows<T>(value, value_quant, b, kv, pos, n, v_head_size, v_stage);
         } else {
-            std::memcpy(v_dst, value.ptr<T>(b, kv, pos), rows * v_head_size * sizeof(T));
+            v_src = value.ptr<T>(b, kv, pos);
+        }
+        for (size_t i = 0; i < n; i++) {
+            k_ptr[i] = k_src + i * k_head_size;
+            v_ptr[i] = v_src + i * v_head_size;
         }
     }
 };
@@ -569,6 +575,8 @@ void attention_item_brgemm(const SdpaBrgemmArgs& a, size_t b, size_t l, size_t p
                                    static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv_accumulate),
                                    reinterpret_cast<T*>(ws + lay.k_rows),
                                    reinterpret_cast<T*>(ws + lay.v_rows),
+                                   reinterpret_cast<const T**>(ws + lay.k_ptrs),
+                                   reinterpret_cast<const T**>(ws + lay.v_ptrs),
                                    {reinterpret_cast<float*>(ws + lay.weights), a.brgemm.tile_rows},
                                    ws + lay.brg_wsp,
                                    ws + lay.brg_a,
@@ -586,8 +594,6 @@ void attention_item_brgemm(const SdpaBrgemmArgs& a, size_t b, size_t l, size_t p
                                     nblocks,
                                     pad,
                                     key_block_size,
-                                    std::numeric_limits<int64_t>::max(),  // dense cache: no pages
-                                    std::numeric_limits<int64_t>::max(),
                                     tail_start,
                                     std::max<int64_t>(token_pos - tail_start + 1, 0)};
     const DenseRowSource

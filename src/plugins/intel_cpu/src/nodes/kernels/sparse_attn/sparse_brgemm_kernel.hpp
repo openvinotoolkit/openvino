@@ -23,6 +23,7 @@
 #include "utils/general_utils.h"
 
 #ifdef OPENVINO_ARCH_X86_64
+#    include "nodes/kernels/scaled_attn/transpose_kernel.hpp"
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #endif
 
@@ -87,8 +88,10 @@ struct BrgemmBuffers {
     ov::intel_cpu::BrgemmKernel* qk;
     ov::intel_cpu::BrgemmKernel* pv_overwrite;
     ov::intel_cpu::BrgemmKernel* pv_accumulate;
-    T* k_rows;  // [tile_rows, k_head_size] gathered key rows
-    T* v_rows;  // [tile_rows, v_head_size] gathered value rows
+    T* k_rows;  // [tile_rows, k_head_size] stage of dequantized key rows (and the zero row that pads the last block)
+    T* v_rows;  // [tile_rows, v_head_size] the same for the value rows
+    const T** k_ptrs;  // [tile_rows] where the key row of each tile row is: the cache, or k_rows
+    const T** v_ptrs;  // [tile_rows] the same for the value rows
     WeightLayout<T> weights;
     void* wsp;
     void* scratch_a;
@@ -99,13 +102,111 @@ struct BrgemmBuffers {
     }
 };
 
+// B operand packing straight from the cache rows: each row is read through its own pointer (copy_buffer_b needs one
+// contiguous matrix) and written in the layout of copy_buffer_b and of PagedAttention's pack_32NxK / transpose_16NxK:
+// 16-bit row-major VNNI B[k / 2][ldb][2], ldb = N rounded up to 32.
+
+/// @brief Whether the packing below can be used: AVX512, 16-bit rows of a multiple of 32 elements (the widths of the
+/// vector loads). Other head sizes gather the rows and use copy_buffer_b.
+[[nodiscard]] inline bool fused_pack_supported([[maybe_unused]] size_t k_head_size,
+                                               [[maybe_unused]] size_t v_head_size) {
+#    if defined(HAVE_AVX512F)
+    return k_head_size % 32 == 0 && v_head_size % 32 == 0;
+#    else
+    return false;
+#    endif
+}
+
+#    if defined(HAVE_AVX512F)
+/// @brief B operand of the QK product (keys, b_transposed, N = 32): dst[d][n] = the 32-bit pair d of the key row n, so
+/// a 32 x (k_head_size / 2) transpose of 32-bit values, 16 x 16 at a time.
+template <typename T>
+void pack_k_block(const T* const* rows, size_t k_head_size, T* dst) {
+    auto* out = reinterpret_cast<uint32_t*>(dst);
+    const size_t pairs = k_head_size / 2;
+    for (size_t half = 0; half < 2; half++) {
+        const auto* const* r = reinterpret_cast<const uint32_t* const*>(rows + half * 16);
+        for (size_t d = 0; d < pairs; d += 16) {
+            __m512i r0 = _mm512_loadu_si512(r[0] + d);
+            __m512i r1 = _mm512_loadu_si512(r[1] + d);
+            __m512i r2 = _mm512_loadu_si512(r[2] + d);
+            __m512i r3 = _mm512_loadu_si512(r[3] + d);
+            __m512i r4 = _mm512_loadu_si512(r[4] + d);
+            __m512i r5 = _mm512_loadu_si512(r[5] + d);
+            __m512i r6 = _mm512_loadu_si512(r[6] + d);
+            __m512i r7 = _mm512_loadu_si512(r[7] + d);
+            __m512i r8 = _mm512_loadu_si512(r[8] + d);
+            __m512i r9 = _mm512_loadu_si512(r[9] + d);
+            __m512i ra = _mm512_loadu_si512(r[10] + d);
+            __m512i rb = _mm512_loadu_si512(r[11] + d);
+            __m512i rc = _mm512_loadu_si512(r[12] + d);
+            __m512i rd = _mm512_loadu_si512(r[13] + d);
+            __m512i re = _mm512_loadu_si512(r[14] + d);
+            __m512i rf = _mm512_loadu_si512(r[15] + d);
+            transpose_m512i_16x16(r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, ra, rb, rc, rd, re, rf);
+            uint32_t* o = out + d * 32 + half * 16;
+            _mm512_storeu_si512(o, r0);
+            _mm512_storeu_si512(o + 32, r1);
+            _mm512_storeu_si512(o + 2 * 32, r2);
+            _mm512_storeu_si512(o + 3 * 32, r3);
+            _mm512_storeu_si512(o + 4 * 32, r4);
+            _mm512_storeu_si512(o + 5 * 32, r5);
+            _mm512_storeu_si512(o + 6 * 32, r6);
+            _mm512_storeu_si512(o + 7 * 32, r7);
+            _mm512_storeu_si512(o + 8 * 32, r8);
+            _mm512_storeu_si512(o + 9 * 32, r9);
+            _mm512_storeu_si512(o + 10 * 32, ra);
+            _mm512_storeu_si512(o + 11 * 32, rb);
+            _mm512_storeu_si512(o + 12 * 32, rc);
+            _mm512_storeu_si512(o + 13 * 32, rd);
+            _mm512_storeu_si512(o + 14 * 32, re);
+            _mm512_storeu_si512(o + 15 * 32, rf);
+        }
+    }
+}
+
+/// @brief B operand of the P.V product (values, K = 32 rows): the row pair (2i, 2i + 1) interleaved element by element
+/// into the row i of dst, whose stride is 2 * v_head_size elements.
+template <typename T>
+void pack_v_block(const T* const* rows, size_t v_head_size, T* dst) {
+    static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
+    const auto midx = _mm512_loadu_si512(idx);
+    auto* out_row = reinterpret_cast<uint16_t*>(dst);
+    for (size_t i = 0; i < 16; i++) {
+        const auto* row_a = reinterpret_cast<const uint16_t*>(rows[2 * i]);
+        const auto* row_b = reinterpret_cast<const uint16_t*>(rows[2 * i + 1]);
+        for (size_t k = 0; k < v_head_size; k += 32) {
+            const auto a = _mm512_permutexvar_epi64(midx, _mm512_loadu_si512(row_a + k));
+            const auto b = _mm512_permutexvar_epi64(midx, _mm512_loadu_si512(row_b + k));
+            _mm512_storeu_si512(out_row + 2 * k, _mm512_unpacklo_epi16(a, b));
+            _mm512_storeu_si512(out_row + 2 * k + 32, _mm512_unpackhi_epi16(a, b));
+        }
+        out_row += 2 * v_head_size;
+    }
+}
+#    else
+template <typename T>
+void pack_k_block([[maybe_unused]] const T* const* rows, [[maybe_unused]] size_t k_head_size, [[maybe_unused]] T* dst) {
+    OPENVINO_THROW("[CPU] sparse attention: the fused key packing needs AVX512");
+}
+template <typename T>
+void pack_v_block([[maybe_unused]] const T* const* rows, [[maybe_unused]] size_t v_head_size, [[maybe_unused]] T* dst) {
+    OPENVINO_THROW("[CPU] sparse attention: the fused value packing needs AVX512");
+}
+#    endif
+
 /// Phase 1: scores[head, row] = query[head] . keys[row] for the pack's heads and every row block of the tile. The keys
 /// of a row block are packed into the AMX layout once for all the heads of the pack.
 template <typename T>
 void qk_scores_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows_pad) {
     ov::intel_cpu::AmxTileState tiles;  // the row blocks share one tile configuration
+    const bool fused = fused_pack_supported(p.k_head_size, p.v_head_size);
     for (size_t row = 0; row < rows_pad; row += kBrgemmRowBlock) {
-        b.qk->copy_buffer_b(b.k_rows + row * p.k_head_size, b.scratch_b);
+        if (fused) {
+            pack_k_block<T>(b.k_ptrs + row, p.k_head_size, static_cast<T*>(b.scratch_b));
+        } else {
+            b.qk->copy_buffer_b(b.k_rows + row * p.k_head_size, b.scratch_b);
+        }
         b.qk->executeGemm(true,
                           const_cast<void*>(p.query),
                           b.scratch_b,
@@ -149,8 +250,13 @@ void softmax_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows,
 template <typename T>
 void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows_pad, bool first_tile) {
     ov::intel_cpu::AmxTileState tiles;  // the row blocks share one tile configuration
+    const bool fused = fused_pack_supported(p.k_head_size, p.v_head_size);
     for (size_t row = 0; row < rows_pad; row += kBrgemmRowBlock) {
-        b.pv_overwrite->copy_buffer_b(b.v_rows + row * p.v_head_size, b.scratch_b);
+        if (fused) {
+            pack_v_block<T>(b.v_ptrs + row, p.v_head_size, static_cast<T*>(b.scratch_b));
+        } else {
+            b.pv_overwrite->copy_buffer_b(b.v_rows + row * p.v_head_size, b.scratch_b);
+        }
         (first_tile && row == 0 ? b.pv_overwrite : b.pv_accumulate)
             ->executeGemm(true,
                           b.weights.weights(0) + row,
@@ -169,8 +275,20 @@ void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t
 template <typename T>
 void attention_over_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows, bool first_tile) {
     const size_t rows_pad = ov::intel_cpu::rnd_up(rows, kBrgemmRowBlock);
-    std::memset(b.k_rows + rows * p.k_head_size, 0, (rows_pad - rows) * p.k_head_size * sizeof(T));
-    std::memset(b.v_rows + rows * p.v_head_size, 0, (rows_pad - rows) * p.v_head_size * sizeof(T));
+    if (fused_pack_supported(p.k_head_size, p.v_head_size)) {
+        // the padding rows of the last block all read one row of zeros
+        if (rows_pad > rows) {
+            T* const zero_k = b.k_rows + rows * p.k_head_size;
+            T* const zero_v = b.v_rows + rows * p.v_head_size;
+            std::memset(zero_k, 0, p.k_head_size * sizeof(T));
+            std::memset(zero_v, 0, p.v_head_size * sizeof(T));
+            std::fill(b.k_ptrs + rows, b.k_ptrs + rows_pad, zero_k);
+            std::fill(b.v_ptrs + rows, b.v_ptrs + rows_pad, zero_v);
+        }
+    } else {
+        std::memset(b.k_rows + rows * p.k_head_size, 0, (rows_pad - rows) * p.k_head_size * sizeof(T));
+        std::memset(b.v_rows + rows * p.v_head_size, 0, (rows_pad - rows) * p.v_head_size * sizeof(T));
+    }
     qk_scores_brgemm<T>(p, b, rows_pad);
     softmax_brgemm<T>(p, b, rows, rows_pad, first_tile);
     pv_accumulate_brgemm<T>(p, b, rows_pad, first_tile);
@@ -193,12 +311,10 @@ void flush_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, TileState& tile)
     tile.first_tile = false;
 }
 
-// The layout specific part of an item, a "row source" (PagedRowSource in sparse_pa_kernel.cpp, DenseRowSource in
-// sparse_sdpa_kernel.cpp) with
-//   int64_t visible(int64_t kpos0, int64_t n) const:   how many of the rows [kpos0, kpos0 + n) the query attends (a
-//   prefix) void gather(int64_t kpos0, size_t rows, T* k_dst, T* v_dst) const: copies (plain caches) or dequantizes
-//   (quantized
-//       caches) the key and value rows [kpos0, kpos0 + rows), all visible and in one contiguous run of the cache, as T.
+// A "row source" (PagedRowSource, DenseRowSource) is the layout specific part of an item:
+//   visible(kpos0, n): how many of rows [kpos0, kpos0 + n) the query attends (a prefix)
+//   rows(kpos0, n, k_ptr, v_ptr, k_stage, v_stage): points k_ptr[i] / v_ptr[i] at row kpos0 + i of the cache, or of
+//       k_stage / v_stage when it was dequantized there
 
 /// @brief Gathers the visible part of the run [kpos0, kpos0 + n) into the current tile, processing the tile whenever it
 /// is full: a run that does not fit in the rest of the tile continues in the next one.
@@ -212,10 +328,27 @@ void gather_run(const RowSource& src,
     n = src.visible(kpos0, n);
     while (n > 0) {
         const auto take = std::min<int64_t>(n, static_cast<int64_t>(b.tile_rows() - tile.rows));
-        src.gather(kpos0,
-                   static_cast<size_t>(take),
-                   b.k_rows + tile.rows * pack.k_head_size,
-                   b.v_rows + tile.rows * pack.v_head_size);
+        T* const k_stage = b.k_rows + tile.rows * pack.k_head_size;
+        T* const v_stage = b.v_rows + tile.rows * pack.v_head_size;
+        src.template rows<T>(kpos0,
+                             static_cast<size_t>(take),
+                             b.k_ptrs + tile.rows,
+                             b.v_ptrs + tile.rows,
+                             k_stage,
+                             v_stage);
+        if (!fused_pack_supported(pack.k_head_size, pack.v_head_size)) {
+            // copy_buffer_b reads one contiguous matrix: bring the rows of the run into the tile buffers
+            for (int64_t i = 0; i < take; i++) {
+                T* const k_dst = k_stage + i * pack.k_head_size;
+                T* const v_dst = v_stage + i * pack.v_head_size;
+                if (b.k_ptrs[tile.rows + i] != k_dst) {
+                    std::memcpy(k_dst, b.k_ptrs[tile.rows + i], pack.k_head_size * sizeof(T));
+                }
+                if (b.v_ptrs[tile.rows + i] != v_dst) {
+                    std::memcpy(v_dst, b.v_ptrs[tile.rows + i], pack.v_head_size * sizeof(T));
+                }
+            }
+        }
         tile.rows += static_cast<size_t>(take);
         kpos0 += take;
         n -= take;
@@ -225,16 +358,13 @@ void gather_run(const RowSource& src,
     }
 }
 
-/// @brief The selection of an item: the selected blocks (ids of blocks of key_block_size rows, in any order; runs of
-/// consecutive adjacent blocks in the same page are merged into one gather of at most max_run_blocks blocks) and the
+/// @brief The selection of an item: the selected blocks (ids of blocks of key_block_size rows, in any order) and the
 /// causal tail (the incomplete last block of the query, `tail_rows` rows from `tail_start`).
 struct BrgemmSelection {
     const int32_t* block_ids;
     size_t nblocks;
     int64_t first_pos;  ///< position of block 0
     int64_t key_block_size;
-    int64_t page_blocks;  ///< blocks per physical page: adjacent blocks of different pages are not merged
-    int64_t max_run_blocks;
     int64_t tail_start;
     int64_t tail_rows;
 };
@@ -250,17 +380,10 @@ void attention_over_selection_tiles(const RowSource& src,
                                     const BrgemmBuffers<T>& b,
                                     const BrgemmSelection& sel) {
     TileState tile;
-    size_t i = 0;
-    while (i < sel.nblocks) {
-        const int64_t first = sel.block_ids[i];
-        int64_t run_blocks = 1;
-        while (i + run_blocks < sel.nblocks && run_blocks < sel.max_run_blocks &&
-               sel.block_ids[i + run_blocks] == first + run_blocks &&
-               (first + run_blocks) / sel.page_blocks == first / sel.page_blocks) {
-            run_blocks++;
-        }
-        gather_run<T>(src, pack, b, tile, sel.first_pos + first * sel.key_block_size, run_blocks * sel.key_block_size);
-        i += static_cast<size_t>(run_blocks);
+    // One block at a time: the packing reads every row through its own pointer, so adjacent blocks gain nothing from
+    // being merged into a run (a block never crosses a page: key_block_size divides the page size)
+    for (size_t i = 0; i < sel.nblocks; i++) {
+        gather_run<T>(src, pack, b, tile, sel.first_pos + sel.block_ids[i] * sel.key_block_size, sel.key_block_size);
     }
     gather_run<T>(src, pack, b, tile, sel.tail_start, sel.tail_rows);
     flush_tile<T>(pack, b, tile);

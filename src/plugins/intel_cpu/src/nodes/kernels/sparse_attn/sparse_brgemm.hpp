@@ -128,6 +128,8 @@ struct PackStateLayout {
 struct SparseBrgemmLayout {
     size_t k_rows = 0;   ///< data-type[tile_rows, k_head_size] gathered key rows of the tile
     size_t v_rows = 0;   ///< data-type[tile_rows, v_head_size] gathered value rows of the tile
+    size_t k_ptrs = 0;   ///< const void*[tile_rows] where the key row of each tile row is (the cache, or k_rows)
+    size_t v_ptrs = 0;   ///< const void*[tile_rows] the same for the value rows
     size_t weights = 0;  ///< float[pack, tile_rows] scores, then (data type, in place) weights, see weights_row_stride
     size_t brg_a = 0;    ///< A scratch
     size_t brg_b = 0;    ///< packed B scratch
@@ -143,7 +145,9 @@ struct SparseBrgemmLayout {
                        const SparseBrgemmSizes& sizes)
         : k_rows(offset),
           v_rows(k_rows + aligned(sizes.tile_rows * k_head_size * data_size)),
-          weights(v_rows + aligned(sizes.tile_rows * v_head_size * data_size)),
+          k_ptrs(v_rows + aligned(sizes.tile_rows * v_head_size * data_size)),
+          v_ptrs(k_ptrs + aligned(sizes.tile_rows * sizeof(void*))),
+          weights(v_ptrs + aligned(sizes.tile_rows * sizeof(void*))),
           brg_a(weights + aligned(max_pack_size * sizes.tile_rows * sizeof(float))),
           brg_b(brg_a + aligned(sizes.scratch_a)),
           brg_wsp(brg_b + aligned(sizes.scratch_b)),

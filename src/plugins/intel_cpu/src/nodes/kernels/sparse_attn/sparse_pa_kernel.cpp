@@ -804,14 +804,20 @@ struct PagedRowSource {
     }
 
     template <typename T>
-    void gather(int64_t kpos0, size_t rows, T* k_dst, T* v_dst) const {
+    void rows(int64_t kpos0, size_t n, const T** k_ptr, const T** v_ptr, T* k_stage, T* v_stage) const {
         const auto [phys_block, slot] = physical_address(w, kpos0);
+        const T* k_src = k_stage;
+        const T* v_src = v_stage;
         if (w.quant.enabled()) {
-            dequant_k_rows<T>(w.quant, w.key_cache, phys_block, w.k_head, slot, rows, w.k_head_size, k_dst);
-            dequant_v_rows<T>(w.quant, w.value_cache, phys_block, w.k_head, slot, rows, w.v_head_size, v_dst);
+            dequant_k_rows<T>(w.quant, w.key_cache, phys_block, w.k_head, slot, n, w.k_head_size, k_stage);
+            dequant_v_rows<T>(w.quant, w.value_cache, phys_block, w.k_head, slot, n, w.v_head_size, v_stage);
         } else {
-            std::memcpy(k_dst, w.key_cache.ptr<T>(phys_block, w.k_head, slot), rows * w.k_head_size * sizeof(T));
-            std::memcpy(v_dst, w.value_cache.ptr<T>(phys_block, w.k_head, slot), rows * w.v_head_size * sizeof(T));
+            k_src = w.key_cache.ptr<T>(phys_block, w.k_head, slot);
+            v_src = w.value_cache.ptr<T>(phys_block, w.k_head, slot);
+        }
+        for (size_t i = 0; i < n; i++) {
+            k_ptr[i] = k_src + i * w.k_head_size;
+            v_ptr[i] = v_src + i * w.v_head_size;
         }
     }
 };
@@ -833,6 +839,8 @@ void attention_full_selection_brgemm(
                              static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv_accumulate),
                              reinterpret_cast<T*>(ws + lay.k_rows),
                              reinterpret_cast<T*>(ws + lay.v_rows),
+                             reinterpret_cast<const T**>(ws + lay.k_ptrs),
+                             reinterpret_cast<const T**>(ws + lay.v_ptrs),
                              {reinterpret_cast<float*>(ws + lay.weights), a.brgemm.tile_rows},
                              ws + lay.brg_wsp,
                              ws + lay.brg_a,
@@ -840,14 +848,7 @@ void attention_full_selection_brgemm(
     const BrgemmPack
         pack{w.query, w.pack_size, w.k_head_size, w.v_head_size, w.scale, w.acc, w.running_max, w.running_sum};
     const int64_t tail_start = ((w.token_pos + 1) / w.key_block_size) * w.key_block_size;
-    const BrgemmSelection selection{block_ids,
-                                    nblocks,
-                                    0,
-                                    w.key_block_size,
-                                    w.page_size / w.key_block_size,
-                                    std::max<int64_t>(w.max_run_rows / w.key_block_size, 1),
-                                    tail_start,
-                                    w.token_pos - tail_start + 1};
+    const BrgemmSelection selection{block_ids, nblocks, 0, w.key_block_size, tail_start, w.token_pos - tail_start + 1};
     attention_over_selection_tiles<T>(PagedRowSource{w}, pack, b, selection);
 }
 #endif  // OPENVINO_ARCH_X86_64
