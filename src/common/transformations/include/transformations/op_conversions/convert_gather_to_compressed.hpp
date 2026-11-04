@@ -38,7 +38,9 @@ class TRANSFORMATIONS_API MoveDecompressionAfterGather;
 class ov::pass::ConvertGatherToGatherCompressed : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertGatherToGatherCompressed");
-    ConvertGatherToGatherCompressed();
+    // support_u2: also match u2 dictionaries. Off by default because a plugin running this pass must
+    // be able to execute a u2 GatherCompressed.
+    explicit ConvertGatherToGatherCompressed(bool support_u2 = false);
 };
 
 /*
