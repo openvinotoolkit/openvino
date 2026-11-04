@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
@@ -30,6 +31,7 @@
 #include "intel_gpu/runtime/profiling.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -537,8 +539,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
                                                          const ov::AnyMap& config) const{
     // Store tensor base in thread-local storage
     g_current_tensor_base = static_cast<const size_t*>(model.data());
-    ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
-    std::istream stream(&par_buf);
+    std::unique_ptr<std::streambuf> buf;
+#ifdef _WIN32
+    // TODO: CVS-198510 enable on Windows once prefetch shows a compile-time gain there.
+    const bool use_prefetch = false;
+#else
+    const bool use_prefetch = static_cast<bool>(ov::get_memory_hints(model));
+#endif
+    if (!use_prefetch) {
+        // Memory without hints (e.g. user provided), keep the pread path for user file mappings.
+        buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
+    } else {
+        buf = std::make_unique<ov::intel_gpu::PrefetchStreamBuf>(model);
+    }
+    std::istream stream(buf.get());
     auto compiled_model = import_model(stream, context, config);
 
     // Clear thread-local storage
@@ -908,6 +922,9 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
     capabilities.emplace_back(ov::device::capability::BIN);
     if (info.supports_fp16) {
         capabilities.emplace_back(ov::device::capability::FP16);
+    }
+    if (info.supports_bf16) {
+        capabilities.emplace_back(ov::device::capability::BF16);
     }
     if (info.supports_imad || info.supports_immad) {
         capabilities.emplace_back(ov::device::capability::INT8);
