@@ -26,9 +26,12 @@ public:
     // the bug is e.g. manifesting on the old CentOS (and it's 4.8.x gcc) used in our testing
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=81880
     static thread_local const char*         m_this_preferred_device_name;
+    // set when the scheduler cannot dispatch a request, rethrown by the scheduling stage of the pipeline
+    static thread_local std::exception_ptr  m_this_scheduling_exception;
 
 protected:
     virtual void init() = 0;
+    virtual void release_execution_slot() {}
     static bool run_pipeline_task(ov::threading::Task& pipeline_task, NotBusyPriorityWorkerRequests& idle_worker_request,
                                   const DeviceName& preferred_device);
     virtual void generate_workers(const std::string& device, const SoCompiledModel& compiled_model);

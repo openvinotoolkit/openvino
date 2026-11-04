@@ -29,6 +29,7 @@ using namespace cldnn;
 
 // Resolves OTD (offload-to-disk) parameters for a GEMM3_SWIGLU MOECompressed op.
 // OFFLOAD_RATIO specifies the percentage of experts offloaded to disk (0-100).
+// For ratios 1-100, GPU-resident LRU slots = max(1, num_expert * (100 - ratio) / 100); ratio=0 means all resident (no OTD).
 // Only the routed weights are streamed, and only if the graph consumes them exactly as stored in the weights file;
 // otherwise the layer stays fully resident. Scales and zero points are always resident.
 // Returns true when OTD is enabled (lru_expert_num > 0).
@@ -42,7 +43,7 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     if (lru_expert_num == 0) {
         GPU_DEBUG_IF(p.get_config().get_offload_ratio() > 0) {
             GPU_DEBUG_INFO << "MOE OTD disabled for " << op->get_friendly_name()
-                           << ": the routed weights are not unmodified views of the weights file" << std::endl;
+                           << ": the routed weights are not exclusive unmodified views of the weights file" << std::endl;
         }
         return false;
     }
