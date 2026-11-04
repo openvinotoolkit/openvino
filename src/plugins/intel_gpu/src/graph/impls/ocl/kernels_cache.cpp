@@ -163,18 +163,21 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     // cl_intel_required_subgroup_size is not advertised so the macro expands to nothing, and the raw attribute is
     // unknown to the NVIDIA compiler. The emulation keys off _NV_SUB_GROUP_SIZE instead, which every sub-group helper
     // in nvidia/compat_sg.cl reads at its call site.
-    static const std::regex attr_re(
-        R"(__attribute__\s*\(\s*\(\s*intel_reqd_sub_group_size\s*\(([^()]*)\)\s*\)\s*\))");
-    static const std::regex macro_re(R"(REQD_SUB_GROUP_SIZE\s*\(([^()]*)\))");
+    // One pattern for both spellings, so the occurrences are visited in source order and the first request - the one
+    // repeated at the top of the entry - is the first in the source whichever spelling states it. Group 1 is the raw
+    // attribute's argument, group 2 the macro's.
+    static const std::regex request_re(
+        R"(__attribute__\s*\(\s*\(\s*intel_reqd_sub_group_size\s*\(([^()]*)\)\s*\)\s*\))"
+        R"(|REQD_SUB_GROUP_SIZE\s*\(([^()]*)\))");
 
     std::string first_arg;
 
-    // Rewrite both spellings into a redefinition at the point they appear, so a batch entry holding several kernels
-    // with different sub-group sizes still gets the right value for each of them.
+    // Rewrite each occurrence into a redefinition at the point it appears, so a batch entry holding several kernels
+    // with different sub-group sizes still gets the right value for each of them. to_size gives the size an
+    // occurrence asks for and whether the occurrence itself stays in the source.
     auto rewrite = [&](const std::string& text,
                        const std::regex& re,
-                       bool keep_match,
-                       const std::function<std::string(const std::string&)>& to_size) {
+                       const std::function<std::pair<std::string, bool>(const std::smatch&)>& to_size) {
         std::string out;
         size_t last = 0;
         for (std::sregex_iterator it(text.begin(), text.end(), re), end; it != end; ++it) {
@@ -182,7 +185,7 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
             if (on_define_line(text, pos)) {
                 continue;
             }
-            const std::string arg = to_size((*it)[1].str());
+            const auto [arg, keep_match] = to_size(*it);
             if (arg.empty()) {
                 continue;
             }
@@ -191,8 +194,6 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
             }
             out.append(text, last, pos - last);
             out += redefine_directive(arg);
-            // The macro form expands to nothing on this target, so leaving it in place keeps the source closer to the
-            // original. The raw attribute has to go - the NVIDIA compiler does not know it.
             if (keep_match) {
                 out += it->str();
             }
@@ -202,11 +203,12 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
         return out;
     };
 
-    const auto as_is = [](const std::string& arg) {
-        return arg;
+    const auto stated_size = [](const std::smatch& m) {
+        // The macro form expands to nothing on this target, so leaving it in place keeps the source closer to the
+        // original. The raw attribute has to go - the NVIDIA compiler does not know it.
+        return m[1].matched ? std::make_pair(m[1].str(), false) : std::make_pair(m[2].str(), true);
     };
-    std::string modified = rewrite(src, attr_re, false, as_is);
-    modified = rewrite(modified, macro_re, true, as_is);
+    std::string modified = rewrite(src, request_re, stated_size);
 
     // No stated sub-group size: fall back to the one the work-group size implies, if any. An explicit declaration
     // always wins - softmax_gpu_bf asks for 16 and launches a work-group of 4. The whole attribute is matched so the
@@ -215,7 +217,9 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     if (first_arg.empty()) {
         static const std::regex wg_re(
             R"(__attribute__\s*\(\s*\(\s*reqd_work_group_size\s*\(([^()]*)\)\s*\)\s*\))");
-        modified = rewrite(src, wg_re, true, sub_group_size_from_work_group_size);
+        modified = rewrite(src, wg_re, [](const std::smatch& m) {
+            return std::make_pair(sub_group_size_from_work_group_size(m[1].str()), true);
+        });
     }
 
     if (first_arg.empty()) {

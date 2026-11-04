@@ -270,6 +270,7 @@ std::string nv_sub_group_size_at(const std::string& src, const std::string& mark
 
 TEST(nvidia_replace_reqd_sub_group_size, both_attribute_spellings) {
     const std::string src = R"__krnl(
+int lane_helper(void) { return 0; }
 REQD_SUB_GROUP_SIZE(16)
 __kernel void macro_kernel(__global int* out) {}
 __attribute__((intel_reqd_sub_group_size(8)))
@@ -277,6 +278,8 @@ __kernel void attribute_kernel(__global int* out) {}
 )__krnl";
     const std::string out = nvidia_replace_reqd_sub_group_size(src);
 
+    // A helper ahead of the first kernel gets the first request in source order, whichever spelling states it.
+    EXPECT_EQ(nv_sub_group_size_at(out, "lane_helper"), "(16)");
     EXPECT_EQ(nv_sub_group_size_at(out, "macro_kernel"), "(16)");
     EXPECT_EQ(nv_sub_group_size_at(out, "attribute_kernel"), "(8)");
     // The macro expands to nothing on NVIDIA and is kept; the raw attribute is unknown to the NVIDIA compiler and goes.
