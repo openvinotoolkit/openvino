@@ -35,7 +35,7 @@ std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-static std::string GetInputBlockND(kernel_selector::DataTensor& input, size_t shape_info_offset, size_t rank) {
+std::string GetInputBlockND(kernel_selector::DataTensor& input, size_t shape_info_offset, size_t rank) {
     auto input_dims = input.LogicalDims();
     std::reverse(input_dims.begin(), input_dims.end());
     auto dims = input.GetDims();
@@ -120,7 +120,7 @@ protected:
     }
 };
 
-static kernel_selector::MultiDataTensor get_multi_data_tensor(const RuntimeParams& params) {
+kernel_selector::MultiDataTensor get_multi_data_tensor(const RuntimeParams& params) {
     kernel_selector::MultiDataTensor inputs;
     inputs.push_back(convert_data_tensor(params.get_input_layout(0)));
     inputs.push_back(convert_data_tensor(params.get_input_layout(1)));

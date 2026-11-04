@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_1x1::get_required_device_features_key(c
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const convolution_params& params, int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_1x1::SetDefault(const convolution_params& params, int /*autoTuneIndex*/) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.outputs[0];
@@ -85,7 +85,7 @@ bool ConvolutionKernel_bfyx_1x1::Validate(const Params& p) const {
 JitConstants ConvolutionKernel_bfyx_1x1::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    if ((params.outputs[0].Feature().v % 16) != 0u) {
+    if ((params.outputs[0].Feature().v % 16) != 0U) {
         jit.AddConstant(MakeJitConstant("LEFTOVERS", 1));
     }
 

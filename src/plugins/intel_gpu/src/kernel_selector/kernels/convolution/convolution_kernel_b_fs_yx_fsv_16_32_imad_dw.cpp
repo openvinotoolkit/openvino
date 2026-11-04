@@ -231,7 +231,7 @@ ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::AutoTuneParams ConvolutionKernel_b_
     return tune_params;
 }
 
-bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tparams) const {
+bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tparams) {
     bool valid_tune_params = true;
 
     if (!IsSIMDSizeSupported(params.engineInfo, tparams.simd)) {
@@ -298,7 +298,7 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::GetKernelsPriority(
     return p.stride.x == 1 ? FORCE_PRIORITY_1 : FORCE_PRIORITY_2;
 }
 
-bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convolution_params& params) const {
+bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convolution_params& params) {
     if (params.outputs[0].X().is_dynamic || params.outputs[0].Y().is_dynamic || params.outputs[0].Z().is_dynamic) {
         return false;
     }
@@ -318,7 +318,7 @@ bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::HasPaddedInput(const convoluti
     return has_pad;
 }
 
-bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ParamsHavePadding(const convolution_params& params) const {
+bool ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw::ParamsHavePadding(const convolution_params& params) {
     if (params.outputs[0].X().is_dynamic || params.outputs[0].Y().is_dynamic || params.outputs[0].Z().is_dynamic) {
         return true;
     }
