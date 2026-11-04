@@ -53,6 +53,7 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/fold_const.hpp"
@@ -60,6 +61,7 @@
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "serialization.hpp"
+#include "shared_weights_producer.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
 #include "whisper/prepare_whisper_model.hpp"
@@ -968,6 +970,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         OPENVINO_ASSERT(m_prefill_chunk_size != 1 || other_dynamic_outputs.empty(),
                         "NPUW_LLM_PREFILL_CHUNK_SIZE=1 is not supported together with non-logits outputs. "
                         "Please use a larger chunk size.");
+    }
+
+    auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
+    if (shared_weight_property_it != properties.end()) {
+        LOG_DEBUG("Try to assign shared weights to the model if possible.");
+        std::tie(m_shared_weight_sources, m_shared_ctx_ptr) =
+            ::ov::intel_npu::transformations::assign_shared_weight_to_model_if_possible(
+                model,
+                shared_weight_property_it->second);
     }
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
