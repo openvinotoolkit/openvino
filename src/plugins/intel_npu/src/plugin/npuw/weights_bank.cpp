@@ -4,6 +4,11 @@
 
 #include "weights_bank.hpp"
 
+#include <algorithm>
+#include <cstring>
+#include <string>
+#include <vector>
+
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "serialization.hpp"
@@ -11,6 +16,34 @@
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+
+namespace {
+// Consumes one serialized tensor (layout of orc::transfer_tensor) and checks it is byte-identical to `existing`.
+// A bounded staging buffer is used so a duplicate uid never materializes a second full-size copy (e.g. ~600 MB vocab).
+bool consume_and_compare(ov::npuw::orc::Stream& stream, const ov::Tensor& existing) {
+    bool is_initialized = false;
+    stream & is_initialized;
+    if (!is_initialized) {
+        return !existing;
+    }
+    std::string type_str;
+    ov::Shape shape;
+    std::size_t byte_size = 0;
+    stream & type_str & shape & byte_size;
+
+    bool equal = existing && existing.get_element_type() == ov::element::Type(type_str) &&
+                 existing.get_shape() == shape && existing.get_byte_size() == byte_size;
+    constexpr std::size_t kChunk = 4u << 20;
+    std::vector<uint8_t> staging(std::min(byte_size, kChunk));
+    const auto* ref = equal ? static_cast<const uint8_t*>(existing.data()) : nullptr;
+    for (std::size_t offset = 0; offset < byte_size; offset += kChunk) {
+        const std::size_t n = std::min(kChunk, byte_size - offset);
+        stream.bytes(staging.data(), n);
+        equal = equal && std::memcmp(staging.data(), ref + offset, n) == 0;
+    }
+    return equal;
+}
+}  // namespace
 
 class BankManager {
 public:
@@ -235,8 +268,13 @@ void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const
     auto iter_device = device_bank.storage.find(uid);
 
     if (iter_device != device_bank.storage.end()) {
-        // Shouldn't be possible
-        NPUW_ASSERT(false);
+        // Duplicate uid: expected when two self-contained blobs (e.g. prefill and decode)
+        // share one NPUW_WEIGHTS_BANK name. Both blobs embed the same in-process bank, so the
+        // second import re-sends identical (uid, tensor) pairs. Consume the incoming tensor
+        // (to keep the stream aligned), verify it is byte-identical to what we already hold,
+        // then reuse the existing entry instead of asserting.
+        const bool same = consume_and_compare(stream, iter_device->second.tensor);
+        NPUW_ASSERT(same && "NPUW shared weights bank: uid collision with mismatched tensor content");
         return;
     }
 
