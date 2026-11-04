@@ -18,16 +18,10 @@
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#    include "micro_utils.hpp"
 
 class MoE3GemmMicroGenerator : public MoEGemmOptGeneratorBase {
 public:
-    explicit MoE3GemmMicroGenerator(MoE3GemmMicroKernelType type)
-        : MoEGemmOptGeneratorBase("moe_gemm",
-                                  type == MoE3GemmMicroKernelType::MLP_GATE ? "_prefill_mlp_gate"
-                                  : type == MoE3GemmMicroKernelType::MLP_UP ? "_prefill_mlp_up"
-                                                                            : "_prefill_mlp_down"),
-          m_type(type) {
+    explicit MoE3GemmMicroGenerator(MoE3GemmMicroKernelType type) : MoEGemmOptGeneratorBase("moe_gemm", get_kernel_suffix(type)), m_type(type) {
         switch (m_type) {
         case MoE3GemmMicroKernelType::MLP_GATE:
             m_wei_idx = static_cast<int>(MOE3GemmInputIndex::WEIGHT_0);
@@ -63,7 +57,7 @@ public:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
-    static const moe_3gemm_config get_moe_3gemm_cfg(const kernel_impl_params& params) {
+    static moe_3gemm_config get_moe_3gemm_cfg(const kernel_impl_params& params) {
         moe_3gemm_config cfg;
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         cfg.weight_group_size = static_cast<int32_t>(desc->_config.group_size);
@@ -122,6 +116,17 @@ public:
     };
 
     static std::unordered_map<GemmCacheKey, micro::Package, GemmCacheKeyHash> s_gemm_cache;
+
+private:
+    static const char* get_kernel_suffix(MoE3GemmMicroKernelType type) {
+        if (type == MoE3GemmMicroKernelType::MLP_GATE) {
+            return "_prefill_mlp_gate";
+        }
+        if (type == MoE3GemmMicroKernelType::MLP_UP) {
+            return "_prefill_mlp_up";
+        }
+        return "_prefill_mlp_down";
+    }
 };
 #endif
 }  // namespace ov::intel_gpu::ocl

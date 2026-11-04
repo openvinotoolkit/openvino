@@ -30,8 +30,8 @@ std::shared_ptr<ze_base_event> ze_event_factory::create_event(uint64_t queue_sta
             m_capacity
         };
         const auto &engine = get_engine();
-        auto ctx_handle = engine.get_context().handle();
-        auto device_handle = engine.get_device().handle();
+        auto* ctx_handle = engine.get_context().handle();
+        auto* device_handle = engine.get_device().handle();
         ze_event_pool_handle_t event_pool;
         OV_ZE_EXPECT(ze::zeEventPoolCreate(ctx_handle, &event_pool_desc, 1, &device_handle, &event_pool));
         m_current_pool = ze_event_pool_resource{event_pool};

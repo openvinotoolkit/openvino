@@ -54,14 +54,14 @@ struct quantize : public primitive_base<quantize> {
     bool per_tensor_output_scale = false;
     bool per_tensor_output_shift = false;
 
-    float in_lo = 0.0f;
-    float in_hi = 0.0f;
-    float in_scale = 0.0f;
-    float in_shift = 0.0f;
-    float out_lo = 0.0f;
-    float out_hi = 0.0f;
-    float out_scale = 0.0f;
-    float out_shift = 0.0f;
+    float in_lo = 0.0F;
+    float in_hi = 0.0F;
+    float in_scale = 0.0F;
+    float in_shift = 0.0F;
+    float out_lo = 0.0F;
+    float out_hi = 0.0F;
+    float out_scale = 0.0F;
+    float out_shift = 0.0F;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

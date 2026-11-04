@@ -27,6 +27,9 @@ FILE_TYPES = {
 THIRD_PARTY_LICENSE_EXCEPTIONS = {
     # MIT, Copyright (c) 2020-2023, Intel Corporation
     'src/plugins/intel_gpu/src/graph/impls/cm/include/sort.hpp',
+    # MIT, Intel compute-runtime notices retained in imported Level Zero extensions.
+    'src/plugins/intel_gpu/src/runtime/ze/compute_runtime/ze_intel_gpu.h',
+    'src/plugins/intel_gpu/src/runtime/ze/compute_runtime/zex_common.h',
 }
 
 

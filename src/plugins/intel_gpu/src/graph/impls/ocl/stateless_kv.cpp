@@ -118,8 +118,9 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
     std::unique_ptr<primitive_impl> clone() const override {
         auto cloned = std::make_unique<stateless_kv_impl>(*this);
         for (size_t i = 0; i < _stages.size(); ++i) {
-            if (!_kernels_data[i].params)
+            if (!_kernels_data[i].params) {
                 continue;
+            }
 
             if (_stages[i] == stateless_kv_stage::new_scatter_present) {
                 const auto* params = dynamic_cast<const scatter_kernel_params_t*>(_kernels_data[i].params.get());
@@ -137,8 +138,9 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
         ob << _stages.size();
-        for (const auto stage : _stages)
+        for (const auto stage : _stages) {
             ob << static_cast<uint8_t>(stage);
+        }
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -152,8 +154,9 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
             stage = static_cast<stateless_kv_stage>(serialized_stage);
         }
         verify_stages();
-        if ((!is_dynamic() && !is_swa()) || _kernels_data.front().kernelName.empty())
+        if ((!is_dynamic() && !is_swa()) || _kernels_data.front().kernelName.empty()) {
             return;
+        }
 
         for (size_t i = 0; i < _stages.size(); ++i) {
             auto& kernel_data = _kernels_data[i];
@@ -218,8 +221,9 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
         const auto& present_shape = impl_param.get_output_layout(1).get_partial_shape();
         const auto& new_dim = new_shape[desc.concat_axis];
         const auto& present_dim = present_shape[desc.concat_axis];
-        if (!present_dim.is_static())
+        if (!present_dim.is_static()) {
             return {};
+        }
         OPENVINO_ASSERT(new_dim.is_static() && impl_param.get_input_layout(0).get_partial_shape()[desc.concat_axis].is_static());
         const auto begin = present_dim.get_length() - new_dim.get_length();
         OPENVINO_ASSERT(begin <= std::numeric_limits<uint32_t>::max(), "[GPU] stateless_kv update offset exceeds concat kernel scalar range");
@@ -229,8 +233,9 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
 
     static layout get_concat_input0_layout(const kernel_impl_params& impl_param, std::optional<int64_t> input0_len) {
         auto input0_layout = impl_param.get_input_layout(0);
-        if (!input0_len)
+        if (!input0_len) {
             return input0_layout;
+        }
 
         const auto& primitive = impl_param.typed_desc<stateless_kv>();
         auto input0_shape = input0_layout.get_partial_shape();
@@ -413,8 +418,9 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
             const auto stage = _stages[stage_idx];
             auto& kernel_data = _kernels_data[stage_idx];
             const auto skip_stage = [&kernel_data]() {
-                for (auto& kernel : kernel_data.kernels)
+                for (auto& kernel : kernel_data.kernels) {
                     kernel.skip_execution = true;
+                }
             };
 
             switch (stage) {
@@ -434,8 +440,9 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
                 }
                 kernel_data.update_dispatch_data_func(*kernel_data.params, kernel_data);
                 OPENVINO_ASSERT(kernel_data.kernels.size() == 2);
-                for (auto& kernel : kernel_data.kernels)
+                for (auto& kernel : kernel_data.kernels) {
                     kernel.skip_execution = false;
+                }
                 break;
             }
             case stateless_kv_stage::sdpa_to_present: {
@@ -501,7 +508,7 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
         }
     }
 
-    void set_arguments_impl(stateless_kv_inst&) override {}
+    void set_arguments_impl(stateless_kv_inst& /*instance*/) override {}
 
 private:
     const stateless_kv_runtime_state& get_swa_runtime_state() const {
@@ -521,8 +528,9 @@ private:
 
         auto& kernel_data = _kernels_data[stage];
         for (size_t kernel_idx = 0; kernel_idx < kernel_data.kernels.size(); ++kernel_idx) {
-            if (kernel_data.kernels[kernel_idx].skip_execution)
+            if (kernel_data.kernels[kernel_idx].skip_execution) {
                 continue;
+            }
 
             const auto compiled_kernel_idx = kernel_offset + kernel_idx;
             auto& params = kernel_data.kernels[kernel_idx].params;
@@ -535,14 +543,16 @@ private:
 
             stream.set_arguments(*_kernels[compiled_kernel_idx], params, args);
             auto event = stream.enqueue_kernel(*_kernels[compiled_kernel_idx], params, args, tmp_events, instance.needs_completion_event() || is_swa());
-            if (kernel_data.needs_sub_kernels_sync)
+            if (kernel_data.needs_sub_kernels_sync) {
                 tmp_events = {event};
+            }
             all_events.push_back(event);
             kernel_dump_info.add_entry_point(_kernels[compiled_kernel_idx]->get_id());
         }
 
-        if (all_events.empty())
+        if (all_events.empty()) {
             return stream.aggregate_events(tmp_events, tmp_events.size() > 1, instance.is_output());
+        }
         return stream.aggregate_events(all_events, all_events.size() > 1);
     }
 

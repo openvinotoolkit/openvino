@@ -23,8 +23,8 @@ public:
     VariableStateIndirectKVCache(const VariableStateInfo& info,
                                  std::shared_ptr<RemoteContextImpl> context,
                                  std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
-                                 size_t beam_idx,
-                                 size_t concat_idx);
+                                 size_t beam_axis,
+                                 size_t concat_axis);
     using Ptr = std::shared_ptr<VariableStateIndirectKVCache>;
 
     void reset() override;
@@ -38,7 +38,7 @@ public:
     size_t get_actual_mem_size() const override;
 
     VariableState::Ptr get_beam_table_state() const;
-    ov::PartialShape get_beam_table_shape(const ov::PartialShape& kv_cache_shape);
+    ov::PartialShape get_beam_table_shape(const ov::PartialShape& kv_cache_shape) const;
 
 private:
     size_t m_beam_axis = 0;

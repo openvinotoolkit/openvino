@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,6 @@ protected:
             FusedOpType::REORDER
         };
     }
-    std::string GetKernelName(const mvn_params&) const override;
+    std::string GetKernelName(const mvn_params& /*params*/) const override;
 };
 }  // namespace kernel_selector

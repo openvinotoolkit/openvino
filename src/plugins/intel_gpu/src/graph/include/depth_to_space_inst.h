@@ -37,7 +37,7 @@ public:
     static layout calc_output_layout(depth_to_space_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(depth_to_space_node const& node);
 
-    typed_primitive_inst(network& network, depth_to_space_node const& desc);
+    typed_primitive_inst(network& network, const depth_to_space_node& node);
 };
 
 using depth_to_space_inst = typed_primitive_inst<depth_to_space>;

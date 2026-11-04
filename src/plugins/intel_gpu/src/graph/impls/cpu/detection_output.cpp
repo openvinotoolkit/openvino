@@ -71,9 +71,7 @@ public:
         ib >> make_data(&nms_type, sizeof(NMSType));
     }
 
-    static inline void intersect_bbox(const bounding_box& bbox1,
-                                      const bounding_box& bbox2,
-                                      bounding_box& intersect_bbox) {
+    static void intersect_bbox(const bounding_box& bbox1, const bounding_box& bbox2, bounding_box& intersect_bbox) {
         if (bbox2.xmin > bbox1.xmax || bbox2.xmax < bbox1.xmin ||
             bbox2.ymin > bbox1.ymax || bbox2.ymax < bbox1.ymin) {
             intersect_bbox.xmin = 0;
@@ -101,7 +99,7 @@ public:
             float bbox2_size = bbox2.area();
             return intersect_size / (bbox1_size + bbox2_size - intersect_size);
         }
-        return 0.0f;
+        return 0.0F;
     }
 
     static void decode_bounding_box(const bounding_box& prior_bbox,
@@ -151,8 +149,8 @@ public:
             case prior_box_code_type::center_size: {
                 const float prior_width = prior_bbox_xmax - prior_bbox_xmin;
                 const float prior_height = prior_bbox_ymax - prior_bbox_ymin;
-                const float prior_center_x = (prior_bbox_xmin + prior_bbox_xmax) / 2.f;
-                const float prior_center_y = (prior_bbox_ymin + prior_bbox_ymax) / 2.f;
+                const float prior_center_x = (prior_bbox_xmin + prior_bbox_xmax) / 2.F;
+                const float prior_center_y = (prior_bbox_ymin + prior_bbox_ymax) / 2.F;
                 float decode_bbox_center_x, decode_bbox_center_y;
                 float decode_bbox_width, decode_bbox_height;
                 if (variance_encoded_in_target) {
@@ -168,10 +166,10 @@ public:
                     decode_bbox_width = (exp(prior_variance[2] * bbox_xmax) * prior_width);
                     decode_bbox_height = (exp(prior_variance[3] * bbox_ymax) * prior_height);
                 }
-                decoded_bbox->xmin = decode_bbox_center_x - decode_bbox_width / 2.0f;
-                decoded_bbox->ymin = decode_bbox_center_y - decode_bbox_height / 2.0f;
-                decoded_bbox->xmax = decode_bbox_center_x + decode_bbox_width / 2.0f;
-                decoded_bbox->ymax = decode_bbox_center_y + decode_bbox_height / 2.0f;
+                decoded_bbox->xmin = decode_bbox_center_x - decode_bbox_width / 2.0F;
+                decoded_bbox->ymin = decode_bbox_center_y - decode_bbox_height / 2.0F;
+                decoded_bbox->xmax = decode_bbox_center_x + decode_bbox_width / 2.0F;
+                decoded_bbox->ymax = decode_bbox_center_y + decode_bbox_height / 2.0F;
                 break;
             }
             case prior_box_code_type::corner_size: {
@@ -200,19 +198,19 @@ public:
         }
 
         if (clip_before_nms) {
-            decoded_bbox->xmin = std::max(0.0f, std::min(1.0f, decoded_bbox->xmin));
-            decoded_bbox->ymin = std::max(0.0f, std::min(1.0f, decoded_bbox->ymin));
-            decoded_bbox->xmax = std::max(0.0f, std::min(1.0f, decoded_bbox->xmax));
-            decoded_bbox->ymax = std::max(0.0f, std::min(1.0f, decoded_bbox->ymax));
+            decoded_bbox->xmin = std::max(0.0F, std::min(1.0F, decoded_bbox->xmin));
+            decoded_bbox->ymin = std::max(0.0F, std::min(1.0F, decoded_bbox->ymin));
+            decoded_bbox->xmax = std::max(0.0F, std::min(1.0F, decoded_bbox->xmax));
+            decoded_bbox->ymax = std::max(0.0F, std::min(1.0F, decoded_bbox->ymax));
         }
     }
 
-    void mxnet_nms(const std::vector<std::vector<bounding_box>>& bboxes,
-                   const float nms_threshold,
-                   const int top_k,
-                   const bool share_location,
-                   std::map<int, std::vector<int>>& indices,
-                   std::vector<std::pair<float, std::pair<int, int>>>& scoreIndexPairs) {
+    static void mxnet_nms(const std::vector<std::vector<bounding_box>>& bboxes,
+                          const float nms_threshold,
+                          const int top_k,
+                          const bool share_location,
+                          std::map<int, std::vector<int>>& indices,
+                          std::vector<std::pair<float, std::pair<int, int>>>& scoreIndexPairs) {
         std::sort(scoreIndexPairs.begin(),
                   scoreIndexPairs.end(),
                   comp_score_descend<std::pair<int, int>>);
@@ -300,7 +298,7 @@ public:
             int num_det = 0;
             if (nms_type == NMSType::CAFFE) {
                 for (int cls = 0; cls < num_classes; ++cls) {
-                    if (static_cast<int>(cls) == args->background_label_id) {
+                    if (cls == args->background_label_id) {
                         conf_per_image[cls].clear();
                         continue;  // Skip background class.
                     }
@@ -375,7 +373,7 @@ public:
                 for (std::pair<float, int> score_prior : label_detections) {
                     out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (dtype)static_cast<float>(image);
                     out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] =
-                        args->decrease_label_id ? ((dtype)(static_cast<float>(label - 1.0f))) : (dtype)static_cast<float>(label);
+                        args->decrease_label_id ? ((dtype)(static_cast<float>(label - 1.0F))) : (dtype) static_cast<float>(label);
                     out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 2] = (dtype)score_prior.first;
                     const bounding_box& bbox = bboxes[score_prior.second];
                     float xmin = bbox.xmin;
@@ -384,10 +382,10 @@ public:
                     float ymax = bbox.ymax;
 
                     if (args->clip_after_nms) {
-                        xmin = std::max(0.0f, std::min(1.0f, xmin));
-                        ymin = std::max(0.0f, std::min(1.0f, ymin));
-                        xmax = std::max(0.0f, std::min(1.0f, xmax));
-                        ymax = std::max(0.0f, std::min(1.0f, ymax));
+                        xmin = std::max(0.0F, std::min(1.0F, xmin));
+                        ymin = std::max(0.0F, std::min(1.0F, ymin));
+                        xmax = std::max(0.0F, std::min(1.0F, xmax));
+                        ymax = std::max(0.0F, std::min(1.0F, ymax));
                     }
 
                     out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 3] = (dtype)xmin;
@@ -400,25 +398,25 @@ public:
         }
         const int final_cnt = count;
         for (int i = count; i < num_of_images * args->keep_top_k; i++) {
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (i == final_cnt ? (dtype)-1.f : (dtype)0.f);
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] = (dtype)0.f;
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 2] = (dtype)0.f;
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 3] = (dtype)0.f;
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 4] = (dtype)0.f;
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 5] = (dtype)0.f;
-            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 6] = (dtype)0.f;
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE] = (i == final_cnt ? (dtype)-1.F : (dtype)0.F);
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 1] = (dtype)0.F;
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 2] = (dtype)0.F;
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 3] = (dtype)0.F;
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 4] = (dtype)0.F;
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 5] = (dtype)0.F;
+            out_ptr[count * DETECTION_OUTPUT_ROW_SIZE + 6] = (dtype)0.F;
             ++count;
         }
     }
 
     // Compute the linear index taking the padding into account.
-    static inline int64_t get_linear_feature_index(const int64_t batch_id,
-                                                  const int64_t feature_id,
-                                                  const int64_t input_buffer_size_f,
-                                                  const int64_t input_buffer_size_y,
-                                                  const int64_t input_buffer_size_x,
-                                                  const int64_t input_padding_lower_y,
-                                                  const int64_t input_padding_lower_x) {
+    static int64_t get_linear_feature_index(const int64_t batch_id,
+                                            const int64_t feature_id,
+                                            const int64_t input_buffer_size_f,
+                                            const int64_t input_buffer_size_y,
+                                            const int64_t input_buffer_size_x,
+                                            const int64_t input_padding_lower_y,
+                                            const int64_t input_padding_lower_x) {
         // This helper function assumes input layout with x_size = 1 and y_size = 1;
         // Location and confidence inputs should be tensors with size {b,f,1,1}.
         // This is validated in detection output primitive instance creation.
@@ -518,7 +516,7 @@ public:
             if (!variance_encoded_in_target) {
                 for (int64_t prior = 0; prior < num_of_priors; ++prior) {
                     int64_t start_idx = prior * 4;
-                    std::array<float, PRIOR_BOX_SIZE> var = {0.f, 0.f, 0.f, 0.f};
+                    std::array<float, PRIOR_BOX_SIZE> var = {0.F, 0.F, 0.F, 0.F};
                     for (int j = 0; j < PRIOR_BOX_SIZE; ++j) {
                         var[j] = (prior_box_data[start_idx + j + num_of_priors * prior_info_size]);
                     }
@@ -856,9 +854,9 @@ public:
         return make_output_event(stream, instance.is_output());
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 
-    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params&) {
+    static std::unique_ptr<primitive_impl> create(const detection_output_node& arg, const kernel_impl_params& /*unused*/) {
         return std::make_unique<detection_output_impl>(arg);
     }
 };

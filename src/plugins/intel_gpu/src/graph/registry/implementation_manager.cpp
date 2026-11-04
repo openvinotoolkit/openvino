@@ -46,9 +46,13 @@ bool ImplementationManager::is_supported(const program_node& node, const std::se
 
     // calc_output_layouts() if layout is not valid looks redundant, but some tests fail w/o it due to
     // layout invalidation on get_input_layout() call
-    auto key_out = implementation_key()(node.get_outputs_count() > 0
-                                        ? node.is_valid_output_layout(0) ? node.get_output_layout(0) : node.calc_output_layouts()[0]
-                                        : layout{ov::PartialShape{}, data_types::f32, format::any});
+    const auto get_output_layout = [&node]() -> layout {
+        if (node.get_outputs_count() == 0) {
+            return layout{ov::PartialShape{}, data_types::f32, format::any};
+        }
+        return node.is_valid_output_layout(0) ? node.get_output_layout(0) : node.calc_output_layouts()[0];
+    };
+    auto key_out = implementation_key()(get_output_layout());
     return supported_keys.empty() || supported_keys.find(key_out) != supported_keys.end();
 }
 

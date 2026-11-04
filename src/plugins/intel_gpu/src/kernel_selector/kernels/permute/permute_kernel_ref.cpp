@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ bool Process_F_First(const permute_params& params) {
     return (f_to_x(params.order) && is_fsv(in_layout) && SimpleLayout(out_layout));
 }
 
-static void GetOrderVector(std::string s, std::vector<std::string>* res) {
+void GetOrderVector(std::string s, std::vector<std::string>* res) {
     size_t pos_start = 0, pos_end;
     std::string token;
     while ((pos_end = s.find(",", pos_start)) != std::string::npos) {
@@ -45,8 +45,9 @@ static void GetOrderVector(std::string s, std::vector<std::string>* res) {
     res->push_back(s.substr(pos_start));
 }
 
-static std::string GetReorderedOutputOrder(const permute_params& params, const std::vector<std::string>& permute_out_idx,
-                                            const std::pair<size_t, size_t>& dim_change) {
+std::string GetReorderedOutputOrder(const permute_params& params,
+                                    const std::vector<std::string>& permute_out_idx,
+                                    const std::pair<size_t, size_t>& dim_change) {
     std::map<std::string, std::string> size_str_map = {
         {"b", "INPUT0_BATCH_NUM"},
         {"f", "INPUT0_FEATURE_NUM"},

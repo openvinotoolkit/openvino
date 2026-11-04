@@ -255,7 +255,7 @@ static void CreateSwishOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4::S
             OPENVINO_THROW("Unsupported parameter type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
         }
     } else {
-        CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {1.0f});
+        CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {1.0F});
     }
 }
 

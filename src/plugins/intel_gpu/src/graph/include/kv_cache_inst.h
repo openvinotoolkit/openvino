@@ -104,7 +104,7 @@ public:
     // Compute if any length need to be trimmed
     static int64_t compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc);
 
-    typed_primitive_inst(network& network, const kv_cache_node& desc);
+    typed_primitive_inst(network& network, const kv_cache_node& node);
     typed_primitive_inst(network& network) : parent(network), memory_state::releasable_variable("") {}
 
 private:

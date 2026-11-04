@@ -512,13 +512,13 @@ gpu_usm::gpu_usm(ocl_engine* engine, const layout& layout, allocation_type type)
 
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
-        _buffer.allocateHost(actual_bytes_count, &properties[0]);
+        _buffer.allocateHost(actual_bytes_count, properties.data());
         break;
     case allocation_type::usm_shared:
-        _buffer.allocateShared(actual_bytes_count, &properties[0]);
+        _buffer.allocateShared(actual_bytes_count, properties.data());
         break;
     case allocation_type::usm_device:
-        _buffer.allocateDevice(actual_bytes_count, &properties[0]);
+        _buffer.allocateDevice(actual_bytes_count, properties.data());
         break;
     default:
         OPENVINO_THROW("[GPU] gpu_usm allocation type: unknown unified shared memory type!");
@@ -746,7 +746,7 @@ allocation_type gpu_usm::detect_allocation_type(const ocl_engine* engine, const 
     return alloc_type;
 }
 
-std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem) const {
+std::vector<cl_mem> ocl_surfaces_lock::get_handles(std::vector<memory::ptr> mem) {
     std::vector<cl_mem> res;
     for (auto& m : mem) {
         auto mem_type = m->get_internal_params().mem_type;

@@ -152,8 +152,9 @@ protected:
                 OPENVINO_ASSERT(offset <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "PagedCausalConv1D layout offset exceeds int32 range");
                 scalars.push_back(static_cast<int32_t>(offset));
             };
-            for (const auto& input_layout : params.input_layouts)
+            for (const auto& input_layout : params.input_layouts) {
                 append_offset(input_layout);
+            }
             append_offset(out_layout);
             OPENVINO_ASSERT(scalars.size() == scalar_arg_count, "PagedCausalConv1D scalar arguments do not match the kernel signature");
 

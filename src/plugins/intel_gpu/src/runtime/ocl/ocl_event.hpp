@@ -32,10 +32,10 @@ private:
     void wait_impl() override;
     void set_impl() override;
     bool is_set_impl() override;
-    bool add_event_handler_impl(event_handler, void*) override;
+    bool add_event_handler_impl(event_handler /*unused*/, void* /*unused*/) override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
-    static void CL_CALLBACK ocl_event_completion_callback(cl_event, cl_int, void* me);
+    static void CL_CALLBACK ocl_event_completion_callback(cl_event /*unused*/, cl_int /*unused*/, void* me);
 
     friend struct ocl_events;
 

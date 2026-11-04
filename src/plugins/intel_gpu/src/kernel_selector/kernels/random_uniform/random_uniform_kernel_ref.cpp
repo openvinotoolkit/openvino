@@ -24,7 +24,7 @@ size_t GetGwsSize(const random_uniform_params &params) {
 
 }  // namespace
 
-CommonDispatchData RandomUniformKernelRef::SetDefault(const random_uniform_params &params) const {
+CommonDispatchData RandomUniformKernelRef::SetDefault(const random_uniform_params& params) {
     CommonDispatchData dispatchData;
     dispatchData.gws = {GetGwsSize(params), 1, 1};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
@@ -58,7 +58,7 @@ KernelsData RandomUniformKernelRef::GetKernelsData(const Params &params) const {
     }
 
     KernelData kernel_data = KernelData::Default<random_uniform_params>(params);
-    const random_uniform_params &new_params = dynamic_cast<const random_uniform_params &>(*kernel_data.params.get());
+    const random_uniform_params& new_params = dynamic_cast<const random_uniform_params&>(*kernel_data.params);
 
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
     auto random_uniform_specific_jit = GetJitConstants(new_params);
@@ -106,7 +106,7 @@ ParamsKey RandomUniformKernelRef::GetSupportedKey() const {
 }
 
 void RandomUniformKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const random_uniform_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");

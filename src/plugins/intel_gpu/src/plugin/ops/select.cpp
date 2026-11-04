@@ -23,11 +23,11 @@ ov::Shape get_pdpd_aligned_shape(const ov::Shape& input_shape, size_t output_ran
     }
 
     for (int64_t i = 0; i < axis && padded_shape.size() < output_rank; ++i) {
-        padded_shape.insert(padded_shape.begin(), 1ul);
+        padded_shape.insert(padded_shape.begin(), 1UL);
     }
 
     while (padded_shape.size() < output_rank) {
-        padded_shape.push_back(1ul);
+        padded_shape.push_back(1UL);
     }
 
     return padded_shape;
@@ -86,7 +86,7 @@ static void CreateSelectOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
 
                 if (broadcast_type.m_type == ov::op::AutoBroadcastType::NUMPY) {
                     // Extend input dimensions to the same size as output dimensions by prepending ones
-                    target_shape.insert(target_shape.begin(), output_rank - input_rank, 1ul);
+                    target_shape.insert(target_shape.begin(), output_rank - input_rank, 1UL);
                 } else if (broadcast_type.m_type == ov::op::AutoBroadcastType::PDPD && i != 1) {
                     if (input_rank > output_rank || static_cast<size_t>(pdpd_axis) + input_rank > output_rank) {
                         OPENVINO_THROW("[GPU] Invalid PDPD broadcast axis (", pdpd_axis, ") for input ", i,

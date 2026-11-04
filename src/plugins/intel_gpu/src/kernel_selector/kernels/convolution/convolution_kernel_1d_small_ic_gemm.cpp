@@ -75,7 +75,7 @@ DeviceFeaturesKey ConvolutionKernel_1d_small_ic_gemm::get_required_device_featur
     return get_common_subgroups_device_features_key(params);
 }
 
-WeightsLayout ConvolutionKernel_1d_small_ic_gemm::GetPreferredWeightsLayout(const convolution_params&) const {
+WeightsLayout ConvolutionKernel_1d_small_ic_gemm::GetPreferredWeightsLayout(const convolution_params& /*unused*/) const {
     // Already contiguous as [OC][IC * filter length], i.e. the A matrix, so no
     // weights reorder is needed.
     return WeightsLayout::oiyx;

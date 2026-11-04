@@ -9,7 +9,7 @@ using namespace cldnn;
 
 void mark_nodes::run(program& p) {
     for (const auto& node : p.get_processing_order()) {
-        p.mark_if_constant(*node);
-        p.mark_if_data_flow(*node);
+        program::mark_if_constant(*node);
+        program::mark_if_data_flow(*node);
     }
 }

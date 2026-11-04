@@ -80,11 +80,13 @@ struct PerfCounter {
 
 class ProgramBuilder final {
 public:
-    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
-            std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
-            bool innerProgram = false,
-            ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
+    ProgramBuilder(std::shared_ptr<ov::Model> model,
+                   cldnn::engine& engine,
+                   const ExecutionConfig& config,
+                   std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
+                   std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
+                   bool is_inner_program = false,
+                   ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
     ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
@@ -180,21 +182,20 @@ private:
     void prepare_build();
     void cleanup_build();
 
-    std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool innerProgram = false);
+    std::shared_ptr<cldnn::program> build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program = false);
 
     void CreateSingleLayerPrimitive(const std::shared_ptr<ov::Node>& op);
 };
 
-void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node, CustomLayerPtr customLayer);
-void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node,
-                          cldnn::activation_func func, cldnn::activation_additional_params params);
+void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, CustomLayerPtr customLayer);
+void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::activation_func func, cldnn::activation_additional_params params);
 void CreateElementwiseOp(ProgramBuilder& p,
-                         const std::shared_ptr<ov::Node>& node,
+                         const std::shared_ptr<ov::Node>& op,
                          cldnn::eltwise_mode mode,
                          std::vector<float> coefficients = {},
                          bool pythondiv = true);
 
-void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> possible_inputs_count);
+void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> valid_inputs_count);
 
 inline bool ends_with(const std::string& value, const std::string& suffix) {
     if (suffix.size() > value.size()) {

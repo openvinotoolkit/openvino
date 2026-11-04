@@ -29,8 +29,9 @@ bool is_supported_compressed_kv_type(const ov::element::Type& type) {
 }
 
 std::vector<uint64_t> compute_kv_group_sizes(const ov::PartialShape& data_shape, const ov::PartialShape& scale_shape) {
-    if (data_shape.rank().is_dynamic())
+    if (data_shape.rank().is_dynamic()) {
         return {};
+    }
 
     const size_t rank = data_shape.rank().get_length();
     std::vector<uint64_t> group_sizes(rank, 1);
@@ -38,8 +39,9 @@ std::vector<uint64_t> compute_kv_group_sizes(const ov::PartialShape& data_shape,
         for (size_t i = 0; i < rank; ++i) {
             const bool scale_is_one = scale_shape[i].is_static() && scale_shape[i].get_length() == 1;
             const bool data_is_one = data_shape[i].is_static() && data_shape[i].get_length() == 1;
-            if (scale_is_one && !data_is_one)
+            if (scale_is_one && !data_is_one) {
                 group_sizes[i] = std::numeric_limits<uint64_t>::max();
+            }
         }
     } else if (rank > 0) {
         group_sizes[rank - 1] = std::numeric_limits<uint64_t>::max();
@@ -79,8 +81,9 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     const auto value_quant_type = node->get_v_quant_type();
     // Without immad, per-channel KV quntize is not working so skip for now
     if ((kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key_type != value_type || !is_supported_compressed_kv_type(key_type) ||
-        key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR || !m_sdpa_support_immad)
+        key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR || !m_sdpa_support_immad) {
         return false;
+    }
 
     auto& compressed_kv = metadata.compressed_kv.emplace();
 
@@ -89,10 +92,12 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     ov::Output<ov::Node> prepared_value_scale =
         make_kv_scale(node->input_value(static_cast<size_t>(GQAInputs::V_SCALE)), node->get_kv_num_heads(), value_quant_type);
 
-    if (prepared_key_scale.get_element_type() != ov::element::f16)
+    if (prepared_key_scale.get_element_type() != ov::element::f16) {
         prepared_key_scale = register_new_node<ov::op::v0::Convert>(prepared_key_scale, ov::element::f16);
-    if (prepared_value_scale.get_element_type() != ov::element::f16)
+    }
+    if (prepared_value_scale.get_element_type() != ov::element::f16) {
         prepared_value_scale = register_new_node<ov::op::v0::Convert>(prepared_value_scale, ov::element::f16);
+    }
 
     const bool is_int4 = kv_cache_bit_width == 4;
     compressed_kv.quantization_attrs.quantization_type =
@@ -105,7 +110,7 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     compressed_kv.quantization_inputs = {prepared_key_scale, prepared_value_scale};
     if (is_int4) {
         compressed_kv.quantization_attrs.zp_dt = ov::element::f16;
-        const auto storage_zp = register_new_node<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, 8.0f);
+        const auto storage_zp = register_new_node<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, 8.0F);
         const auto key_scale_shape = register_new_node<ov::op::v3::ShapeOf>(prepared_key_scale, ov::element::i64);
         const auto value_scale_shape = register_new_node<ov::op::v3::ShapeOf>(prepared_value_scale, ov::element::i64);
         compressed_kv.quantization_inputs.push_back(register_new_node<ov::op::v3::Broadcast>(storage_zp, key_scale_shape));
@@ -143,7 +148,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
 
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
-    const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
+    const bool use_explicit_attention = node->get_softcap() > 0.0F || need_qk_output;
     bool can_fuse_transpose_v = m_sdpa_support_immad && !use_explicit_attention;
     // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
     if (!use_explicit_attention) {
@@ -294,7 +299,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                                 [[maybe_unused]] const KVCacheMetadata& metadata_) {
     // The kernel applies the window natively via is_causal + sliding_window_size (see make_sdpa),
     // so the explicit mask subgraph is unneeded whenever that path is reachable.
-    if (causal && (local_window_size == -1 || sliding_window_cache) && !external_bias.get_node() && scale == 0.0f && !has_sink) {
+    if (causal && (local_window_size == -1 || sliding_window_cache) && !external_bias.get_node() && scale == 0.0F && !has_sink) {
         return nullptr;
     }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,7 @@ size_t GetOfmPerWorkitem(Datatype dataType) {
 }
 }  // namespace
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(const convolution_params& arg,
-                                                                                int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(const convolution_params& arg, int /*autoTuneIndex*/) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     const auto filter_ofm_num = arg.weights.OFM().v * arg.weights.G().v;

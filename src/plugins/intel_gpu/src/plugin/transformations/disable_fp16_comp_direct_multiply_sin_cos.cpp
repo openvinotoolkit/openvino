@@ -28,23 +28,27 @@ DisableFP16CompForDirectMultiplySinCos::DisableFP16CompForDirectMultiplySinCos()
         const auto& pattern_map = m.get_pattern_value_map();
         const auto multiply_node = pattern_map.at(multiply).get_node_shared_ptr();
         const auto sin_node = pattern_map.at(sin).get_node_shared_ptr();
-        if (transformation_callback(sin_node))
+        if (transformation_callback(sin_node)) {
             return false;
+        }
 
         std::vector<std::shared_ptr<ov::op::v0::Cos>> cos_nodes;
         for (const auto& user : multiply_node->get_users()) {
-            if (const auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(user))
+            if (const auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(user)) {
                 cos_nodes.push_back(cos_node);
+            }
         }
-        if (cos_nodes.empty())
+        if (cos_nodes.empty()) {
             return false;
+        }
 
         ov::disable_conversion(pattern_map.at(multiply_lhs).get_node_shared_ptr(), element::f16);
         ov::disable_conversion(pattern_map.at(multiply_rhs).get_node_shared_ptr(), element::f16);
         ov::disable_conversion(multiply_node, element::f16);
         ov::disable_conversion(sin_node, element::f16);
-        for (const auto& cos_node : cos_nodes)
+        for (const auto& cos_node : cos_nodes) {
             ov::disable_conversion(cos_node, element::f16);
+        }
         return false;
     };
 

@@ -3,6 +3,8 @@
 //
 
 // clang-format off
+#include <algorithm>
+
 #include "gather_matmul_gen_micro.hpp"
 #include "gathermatmul_sort_gen.hpp"
 #include "gathermatmul_gather_gen.hpp"
@@ -20,7 +22,6 @@
 #include "ocl_v2/utils/fused_ops_jitter.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#    include <algorithm>
 #    include <cstdlib>
 #    include <memory>
 #    include <oneapi/dnnl/dnnl.hpp>
@@ -42,19 +43,16 @@ inline bool is_prefill_stage(const RuntimeParams& params) {
     return n_tokens.get_length() > 1;
 }
 
-static constexpr int32_t BATCHED_PREFILL_THRESHOLD = 16;
+constexpr int32_t BATCHED_PREFILL_THRESHOLD = 16;
 
 inline bool use_batched_prefill(const GatherMatmulRuntimeParams* rtp) {
     return rtp->n_tokens > BATCHED_PREFILL_THRESHOLD;
 }
 
 inline bool has_fused_swiglu(const kernel_impl_params& params) {
-    for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>()) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(params.fused_desc.begin(), params.fused_desc.end(), [](const auto& fd) {
+        return fd.template is_type<swiglu>();
+    });
 }
 
 // Local to avoid an ocl_v2 → onednn link dependency.

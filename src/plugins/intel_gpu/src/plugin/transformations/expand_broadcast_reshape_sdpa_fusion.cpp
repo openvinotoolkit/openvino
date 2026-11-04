@@ -127,12 +127,14 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         auto valid_broadcast_target_shape = [](const std::vector<int32_t>& input_shape, const std::vector<int32_t>& target_shape, bool is_static_output) {
             if (is_static_output) {
                 // For static output shapes, check that input_shape and target_shape differ in exactly one dimension
-                if (input_shape.empty() || (input_shape.size() != target_shape.size()))
+                if (input_shape.empty() || (input_shape.size() != target_shape.size())) {
                     return false;
+                }
                 int diff_cnt = 0;
                 for (size_t i = 0; i < input_shape.size(); ++i) {
-                    if (input_shape[i] != target_shape[i])
+                    if (input_shape[i] != target_shape[i]) {
                         ++diff_cnt;
+                    }
                 }
                 return diff_cnt == 1;
             }
@@ -142,8 +144,9 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                    }) == 1;
         };
         auto get_input_shape = [](const std::shared_ptr<ov::op::v3::Broadcast>& broadcast) -> std::vector<int32_t> {
-            if (!broadcast)
+            if (!broadcast) {
                 return {};
+            }
             auto input_node = broadcast->get_input_node_shared_ptr(0);
             if (input_node && input_node->get_output_partial_shape(0).is_static()) {
                 auto pshape = input_node->get_output_shape(0);
@@ -200,8 +203,9 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                 auto key_source = reshape_k->input_value(0);
                 auto value_source = reshape_v->input_value(0);
                 if (!rank_matches_order(key_source, sdpa->get_input1_transpose_order().size()) ||
-                    !rank_matches_order(value_source, sdpa->get_input2_transpose_order().size()))
+                    !rank_matches_order(value_source, sdpa->get_input2_transpose_order().size())) {
                     return false;
+                }
                 sdpa->input(1).replace_source_output(key_source);
                 sdpa->input(2).replace_source_output(value_source);
                 return true;
@@ -277,8 +281,9 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
                 }
             }
 
-            if (broadcast_axis == -1)
+            if (broadcast_axis == -1) {
                 return std::nullopt;
+            }
 
             // handle if the 5D expansion was a reshape
             if (auto reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(orig_5d_expansion)) {
@@ -348,8 +353,9 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         if (pattern_map.count(unsqueeze_b_m) || pattern_map.count(pre_reshape_b_m)) {
             ov::Output<ov::Node> key_input = k_5d->input_value(0);
             auto opt_key_input = ensure_4d(key_input, k_5d, k_bc);
-            if (!opt_key_input)
+            if (!opt_key_input) {
                 return false;
+            }
             data_inputs.push_back(opt_key_input.value());
         } else {
             return false;
@@ -358,8 +364,9 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         if (pattern_map.count(unsqueeze_c_m) || pattern_map.count(pre_reshape_c_m)) {
             ov::Output<ov::Node> value_input = v_5d->input_value(0);
             auto opt_value_input = ensure_4d(value_input, v_5d, v_bc);
-            if (!opt_value_input)
+            if (!opt_value_input) {
                 return false;
+            }
             data_inputs.push_back(opt_value_input.value());
         } else {
             return false;

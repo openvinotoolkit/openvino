@@ -11,7 +11,7 @@
 namespace cldnn {
 namespace ocl {
 namespace {
-static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
+std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank) {
     std::vector<uint16_t> converted_axes;
     for (auto axis : axes) {
         if (axis == 0 || axis == 1) {

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ struct eltwise_params : public base_params {
         EltwiseInputMode mode = EltwiseInputMode::INPUT_BUFFER;
         uint32_t index = 0;     // for inputs results;
         uint32_t tmpIndex = 0;  // for temp results;
-        float scalar = 0.f;
+        float scalar = 0.F;
 
         static InputType Buffer(uint32_t index) {
             eltwise_params::InputType input;
@@ -112,7 +112,7 @@ protected:
     virtual JitConstants MakeInputDeclsJitConstants(const eltwise_params& params, bool useVload8) const;
     virtual DispatchData SetDefault(const eltwise_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
-    Datatype GetAccumulatorType(const eltwise_params &params) const;
+    static Datatype GetAccumulatorType(const eltwise_params& params);
 
     // Only the generic reference kernel supports padding-reset work-items.
     virtual bool SupportsFeaturePadReset() const { return false; }
@@ -121,7 +121,7 @@ protected:
     // Returns the number of padding-reset work-items for a static shape.
     size_t GetFeaturePadResetSize(const eltwise_params& params) const;
 
-    bool IsUnsupportedModeForVecCode(const eltwise_params& params) const;
+    static bool IsUnsupportedModeForVecCode(const eltwise_params& params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,7 +51,7 @@ struct border : public primitive_base<border> {
            const ov::CoordinateDiff& pads_begin = {},
            const ov::CoordinateDiff& pads_end = {},
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
-           const float pad_value = 0.0f,
+           const float pad_value = 0.0F,
            const bool allow_negative_pad = false)
         : primitive_base(id, inputs),
           pads_begin(pads_begin),

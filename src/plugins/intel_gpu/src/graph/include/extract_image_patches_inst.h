@@ -21,7 +21,7 @@ public:
     static layout calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(extract_image_patches_node const& node);
 
-    typed_primitive_inst(network& network, extract_image_patches_node const& desc);
+    typed_primitive_inst(network& network, const extract_image_patches_node& node);
 };
 
 using extract_image_patches_inst = typed_primitive_inst<extract_image_patches>;

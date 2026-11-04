@@ -15,7 +15,7 @@ namespace ov::intel_gpu {
 
 namespace {
 
-static void CreateSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::Slice>& op) {
+void CreateSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::Slice>& op) {
     validate_inputs_count(op, { 4, 5 });
     auto inputs = p.GetInputInfo(op);
 

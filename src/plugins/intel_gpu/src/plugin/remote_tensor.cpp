@@ -35,10 +35,11 @@ struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
 namespace ov::intel_gpu {
 
 namespace {
-static ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
+ov::Strides calculate_strides(const ov::Shape& shape, const ov::element::Type& element_type) {
     ov::Strides strides{};
-    if (element_type.bitwidth() < 8)
+    if (element_type.bitwidth() < 8) {
         return strides;
+    }
 
     if (!shape.empty()) {
         strides.resize(shape.size());
@@ -82,15 +83,15 @@ private:
     void* m_data_ptr = nullptr;
 };
 
-static void copy_roi_recursively(const MemWrapper& src_mem,
-                                 MemWrapper& dst_mem,
-                                 const size_t axis,
-                                 const size_t src_offset,
-                                 const size_t dst_offset,
-                                 const ov::Shape& roi_shape,
-                                 const ov::Strides& src_strides,
-                                 const ov::Strides& dst_strides,
-                                 const ov::Strides& roi_strides) {
+void copy_roi_recursively(const MemWrapper& src_mem,
+                          MemWrapper& dst_mem,
+                          const size_t axis,
+                          const size_t src_offset,
+                          const size_t dst_offset,
+                          const ov::Shape& roi_shape,
+                          const ov::Strides& src_strides,
+                          const ov::Strides& dst_strides,
+                          const ov::Strides& roi_strides) {
     if (axis == roi_shape.size() - 1) {
         // Copy the innermost dimension
         const auto size = roi_strides[axis] * roi_shape[axis];
@@ -118,23 +119,21 @@ static void copy_roi_recursively(const MemWrapper& src_mem,
     }
 }
 
-static void copy_roi(const MemWrapper& src_mem,
-                     MemWrapper& dst_mem,
-                     const size_t src_offset,
-                     const size_t dst_offset,
-                     const ov::Strides& src_strides,
-                     const ov::Strides& dst_strides,
-                     const ov::Strides& roi_strides,
-                     const ov::Shape& src_shape,
-                     const ov::Shape& dst_shape,
-                     const ov::Shape& roi_shape) {
+void copy_roi(const MemWrapper& src_mem,
+              MemWrapper& dst_mem,
+              const size_t src_offset,
+              const size_t dst_offset,
+              const ov::Strides& src_strides,
+              const ov::Strides& dst_strides,
+              const ov::Strides& roi_strides,
+              const ov::Shape& src_shape,
+              const ov::Shape& dst_shape,
+              const ov::Shape& roi_shape) {
     const size_t start_axis = 0;
     copy_roi_recursively(src_mem, dst_mem, start_axis, src_offset, dst_offset, roi_shape, src_strides, dst_strides, roi_strides);
 }
 
-static void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src,
-                                      const std::shared_ptr<ov::ITensor>& dst,
-                                      const ov::Shape& roi_shape) {
+void validate_and_check_shapes(const std::shared_ptr<const ov::ITensor>& src, const std::shared_ptr<ov::ITensor>& dst, const ov::Shape& roi_shape) {
     OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
                     "[GPU] Tensor element types are not equal. (src: ",
                     src->get_element_type(),
@@ -372,8 +371,9 @@ void RemoteTensorImpl::allocate() {
     // Allocate with non-empty shape and then reinterprete with original shape
     auto shape_copy = m_shape;
     for (auto &i : shape_copy) {
-        if (i == 0)
+        if (i == 0) {
             i = 1;
+        }
     }
 
     m_layout.set_partial_shape(shape_copy);
@@ -458,8 +458,9 @@ void RemoteTensorImpl::allocate() {
     update_strides();
 
     // update_properties() already asserts that m_memory_object is allocated
-    if (enable_caching)
+    if (enable_caching) {
         context->add_to_cache(m_hash, m_memory_object);
+    }
 }
 
 const std::string& RemoteTensorImpl::get_device_name() const {

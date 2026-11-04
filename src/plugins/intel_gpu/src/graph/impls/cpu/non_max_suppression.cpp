@@ -43,16 +43,16 @@ std::vector<result_indices> run_nms(
     auto less = [](const boxInfo& l, const boxInfo& r) {
         return l.score < r.score || ((l.score == r.score) && (l.idx > r.idx));
     };
-    float scale = 0.0f;
+    float scale = 0.0F;
     bool soft_nms = false;
-    if (soft_nms_sigma > 0.0f) {
-        scale = -0.5f / soft_nms_sigma;
+    if (soft_nms_sigma > 0.0F) {
+        scale = -0.5F / soft_nms_sigma;
         soft_nms = true;
     }
 
     auto coeff = [&](float iou) {
         const float weight = std::exp(scale * iou * iou);
-        return (iou <= iou_threshold || soft_nms) ? weight : 0.0f;
+        return (iou <= iou_threshold || soft_nms) ? weight : 0.0F;
     };
     std::vector<result_indices> result;
 
@@ -346,9 +346,9 @@ void run(non_max_suppression_inst& instance) {
     auto scores = load_scores(stream, instance.input_scores_mem(), logical_scores_layout);
 
     int num_select_per_class = 0;
-    float iou_threshold = 1.f;
-    float score_threshold = 0.f;
-    float soft_nms_sigma = 0.f;
+    float iou_threshold = 1.F;
+    float score_threshold = 0.F;
+    float soft_nms_sigma = 0.F;
 
     if (instance.has_num_select_per_class()) {
         num_select_per_class = load_scalar<int>(stream, instance.num_select_per_class_mem());
@@ -433,10 +433,10 @@ struct non_max_suppression_impl : typed_primitive_impl<non_max_suppression> {
         return make_output_event(stream, instance.is_output());
     }
 
-    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node&, const kernel_impl_params&) {
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_node& /*unused*/, const kernel_impl_params& /*unused*/) {
         return std::make_unique<non_max_suppression_impl>();
     }
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 };
 namespace detail {
 
@@ -480,10 +480,10 @@ struct non_max_suppression_gather_impl : typed_primitive_impl<non_max_suppressio
         return make_output_event(stream, instance.is_output());
     }
 
-    static std::unique_ptr<primitive_impl> create(const non_max_suppression_gather_node&, const kernel_impl_params&) {
+    static std::unique_ptr<primitive_impl> create(const non_max_suppression_gather_node& /*unused*/, const kernel_impl_params& /*unused*/) {
         return std::make_unique<non_max_suppression_gather_impl>();
     }
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 };
 
 namespace detail {

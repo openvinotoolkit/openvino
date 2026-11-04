@@ -47,7 +47,7 @@ static void CreatePriorBoxClusteredOp(ProgramBuilder& p, const std::shared_ptr<o
             step_h = attrs.step_widths;
         }
 
-        if (step_w == 0.0f && step_h == 0.0f) {
+        if (step_w == 0.0F && step_h == 0.0F) {
             step_w = static_cast<float>(img_w) / input_shape.back();
             step_h = static_cast<float>(img_h) / input_shape.at(img_shape.size() - 2);
         }

@@ -30,6 +30,6 @@ public:
 
 protected:
     JitConstants GetJitConstantsForKernel(KernelId id, const resample_params& params) const;
-    DispatchData SetDefaultForKernel(KernelId id, const resample_params &arg) const;
+    static DispatchData SetDefaultForKernel(KernelId id, const resample_params& arg);
 };
 }  // namespace kernel_selector

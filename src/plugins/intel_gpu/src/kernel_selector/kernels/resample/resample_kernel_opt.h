@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,6 @@ protected:
                  FusedOpType::ACTIVATION };
     }
 private:
-    size_t GetOptimalBlockSize(const resample_params& params) const;
+    static size_t GetOptimalBlockSize(const resample_params& params);
 };
 }  // namespace kernel_selector

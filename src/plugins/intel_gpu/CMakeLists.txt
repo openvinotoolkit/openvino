@@ -198,6 +198,9 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
                   ADD_CLANG_TIDY
                   ${ARGN})
 
+    # VERSION_DEFINES_FOR moves plugin.cpp into a separate target.
+    ov_apply_clang_tidy(TARGET ${MODULE_NAME}_version)
+
     target_compile_options(${MODULE_NAME} PRIVATE
         $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 

@@ -37,8 +37,7 @@ public:
     static layout calc_output_layout(ctc_greedy_decoder_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(ctc_greedy_decoder_node const& node);
 
-public:
-    typed_primitive_inst(network& network, ctc_greedy_decoder_node const& node);
+    typed_primitive_inst(network& network, const ctc_greedy_decoder_node& node);
 };
 
 using ctc_greedy_decoder_inst = typed_primitive_inst<ctc_greedy_decoder>;

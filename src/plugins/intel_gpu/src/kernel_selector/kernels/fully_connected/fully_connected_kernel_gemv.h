@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ public:
     FullyConnected_GEMV() : Parent("fully_connected_gpu_gemv") {}
 
     using FullyConnectedKernelBase::GetTunedKernelsDataByIndex;
-    KernelsData GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex = -1) const override;
+    KernelsData GetTunedKernelsDataByIndex(const Params& params, int autoTuneIndex = -1) const override;
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;

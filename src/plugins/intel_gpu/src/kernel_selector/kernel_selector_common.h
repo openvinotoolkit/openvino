@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include "kernel_selector_params.h"
-#include "intel_gpu/runtime/kernel_args.hpp"
-
+#include <algorithm>
 #include <cfloat>
 #include <cstdint>
 #include <limits>
@@ -14,6 +12,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "intel_gpu/runtime/kernel_args.hpp"
+#include "kernel_selector_params.h"
 
 #define EXE_MODE_DEFAULT ""
 #define EXE_MODE_AGE_BASED "-cl-no-subgroup-ifp"
@@ -121,17 +122,10 @@ struct KernelData {
     bool needs_sub_kernels_sync = true;
 
     static bool SkipKernelExecution(const base_params& params, size_t kernel_id = 0) {
-        for (const auto& input : params.inputs) {
-            if (input.LogicalSize() == 0) {
-                return true;
-            }
-        }
-        for (const auto& output : params.outputs) {
-            if (output.LogicalSize() == 0) {
-                return true;
-            }
-        }
-        return false;
+        const auto is_empty = [](const auto& tensor) {
+            return tensor.LogicalSize() == 0;
+        };
+        return std::any_of(params.inputs.begin(), params.inputs.end(), is_empty) || std::any_of(params.outputs.begin(), params.outputs.end(), is_empty);
     }
 
     static bool SkipKernelExecution(const Params& params, size_t kernel_id = 0) {
@@ -139,7 +133,7 @@ struct KernelData {
     }
 
     template <typename T>
-    inline static KernelData Default(const Params& _params, size_t kernel_nums = 1) {
+    static KernelData Default(const Params& _params, size_t kernel_nums = 1) {
         KernelData kd;
         const T& orgParams = static_cast<const T&>(_params);
         kd.params = std::make_shared<T>(orgParams);
@@ -185,7 +179,7 @@ std::string toString(ScatterUpdateAxis a);
 std::string toString(ResampleType type);
 std::string toString(CoordinateTransformationMode mode);
 std::string toString(NearestMode mode);
-std::string toString(const BorderType type);
+std::string toString(BorderType type);
 std::string toString(const Tensor::Dim& dim);
 std::string toString(const DataTensor& tensor);
 std::string toString(const WeightsTensor& tensor);

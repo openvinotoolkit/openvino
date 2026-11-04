@@ -35,8 +35,7 @@ public:
     static layout calc_output_layout(arg_max_min_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(arg_max_min_node const& node);
 
-public:
-    typed_primitive_inst(network& network, arg_max_min_node const& node);
+    typed_primitive_inst(network& network, const arg_max_min_node& node);
 };
 
 using arg_max_min_inst = typed_primitive_inst<arg_max_min>;

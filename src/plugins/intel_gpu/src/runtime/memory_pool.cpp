@@ -38,12 +38,9 @@ memory_pool::~memory_pool() = default;
 
 bool memory_pool::has_conflict(const memory_set& mem_cand,
                                const memory_restricter<uint32_t>& restrictions) {
-    for (const auto& mem_usr : mem_cand) {
-        if (restrictions.contains(static_cast<uint32_t>(mem_usr._unique_id))) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(mem_cand.begin(), mem_cand.end(), [&restrictions](const auto& mem_usr) {
+        return restrictions.contains(static_cast<uint32_t>(mem_usr._unique_id));
+    });
 }
 
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
@@ -414,8 +411,8 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
 
 memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engine(&engine), _config(config) {
     _mem_pool_util_threshold = _config.get_mem_pool_util_threshold();
-    if (_mem_pool_util_threshold < 0.f || _mem_pool_util_threshold > 1.f) {
-        _mem_pool_util_threshold = std::clamp(_mem_pool_util_threshold, 0.f, 1.f);
+    if (_mem_pool_util_threshold < 0.F || _mem_pool_util_threshold > 1.F) {
+        _mem_pool_util_threshold = std::clamp(_mem_pool_util_threshold, 0.F, 1.F);
         GPU_DEBUG_INFO << "[WARNING] mem_pool_util_threshold should be in range [0.f, 1.f]. Reset to "
             << _mem_pool_util_threshold << std::endl;
     }
@@ -427,15 +424,15 @@ inline std::string get_mb_size(size_t size) {
     if (size == 0) {
         return "0 MB";
     }
-    return std::to_string(static_cast<float>(size) / (1024.f * 1024.f)) + " MB";
+    return std::to_string(static_cast<float>(size) / (1024.F * 1024.F)) + " MB";
 }
 
 inline float get_utilization(size_t size, size_t total_size) {
-    return (static_cast<float>(size) * 100.0f / static_cast<float>(total_size));
+    return (static_cast<float>(size) * 100.0F / static_cast<float>(total_size));
 }
 #endif
 
-size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
+size_t memory_pool::get_total_mem_pool_size(allocation_type type) const {
 #ifdef GPU_DEBUG_CONFIG
     const auto host_mem_size = mem_size_no_reusable_host + mem_size_non_padded_pool_host + mem_size_padded_pool_host;
     const auto total_mem_size = total_mem_size_no_reusable + total_mem_size_non_padded_pool + total_mem_size_padded_pool;
@@ -502,8 +499,8 @@ void memory_pool::dump_to_screen(uint32_t net_id, int64_t iter) {
         for (auto mem : _non_padded_pool) {
             GPU_DEBUG_COUT << mem.second._memory->buffer_ptr() << " (size: " << get_mb_size(mem.first)
                 << ", type: " << mem.second._type << ")'s users: " << std::endl;
-            float min_utilization = 100.0f;
-            float max_utilization = 0.f;
+            float min_utilization = 100.0F;
+            float max_utilization = 0.F;
             for (auto user : mem.second._users) {
                 float utilization = get_utilization(user._mem_size, mem.first);
                 min_utilization = std::min(utilization, min_utilization);
@@ -525,8 +522,8 @@ void memory_pool::dump_to_screen(uint32_t net_id, int64_t iter) {
                 size_t mem_size = record._memory->size();
                 GPU_DEBUG_COUT << "  " << record._memory->buffer_ptr() << " (size:" << get_mb_size(mem_size)
                                 << "MB, type: " << record._type << ")'s users : " << std::endl;
-                float min_utilization = 100.0f;
-                float max_utilization = 0.f;
+                float min_utilization = 100.0F;
+                float max_utilization = 0.F;
                 for (auto user : record._users) {
                     float utilization = get_utilization(user._mem_size, mem_size);
                     min_utilization = std::min(utilization, min_utilization);

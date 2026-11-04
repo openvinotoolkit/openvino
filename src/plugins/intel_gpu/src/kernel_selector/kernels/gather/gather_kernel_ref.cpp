@@ -74,7 +74,7 @@ static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
         auto shape = shape_raw;
         int shape_idx = 0;
         for (size_t i = 0; i < DataTensor::max_rank(); i++) {
-            int shape_raw_idx = data_tensor.Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
+            int shape_raw_idx = DataTensor::Channelndex(data_tensor.GetLayout(), static_cast<Tensor::DataChannelName>(i));
             if (shape_raw_idx >= 0) {
                 shape[shape_idx++] = shape_raw[shape_raw_idx];
             }

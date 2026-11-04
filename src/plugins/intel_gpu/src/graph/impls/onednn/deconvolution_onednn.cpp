@@ -182,21 +182,32 @@ public:
         ib >> zero_bias;
 
         if (zero_bias) {
-            auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
-                                    ib.get_engine().get_onednn_engine(),
-                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::deconvolution_direct,
-                                    input_md, weights_md, output_md,
-                                    strides, dilates, padding_l, padding_r,
-                                    *_attrs.get());
+            auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(ib.get_engine().get_onednn_engine(),
+                                                                                           dnnl::prop_kind::forward_inference,
+                                                                                           dnnl::algorithm::deconvolution_direct,
+                                                                                           input_md,
+                                                                                           weights_md,
+                                                                                           output_md,
+                                                                                           strides,
+                                                                                           dilates,
+                                                                                           padding_l,
+                                                                                           padding_r,
+                                                                                           *_attrs);
             _pd = *prim_desc;
         } else {
             auto bias_md = onednn::layout_to_memory_desc_flatten(impl_params->get_input_layout(2), dnnl::memory::format_tag::any);
-            auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(
-                                    ib.get_engine().get_onednn_engine(),
-                                    dnnl::prop_kind::forward_inference, dnnl::algorithm::deconvolution_direct,
-                                    input_md, weights_md, bias_md, output_md,
-                                    strides, dilates, padding_l, padding_r,
-                                    *_attrs.get());
+            auto prim_desc = std::make_shared<dnnl::deconvolution_forward::primitive_desc>(ib.get_engine().get_onednn_engine(),
+                                                                                           dnnl::prop_kind::forward_inference,
+                                                                                           dnnl::algorithm::deconvolution_direct,
+                                                                                           input_md,
+                                                                                           weights_md,
+                                                                                           bias_md,
+                                                                                           output_md,
+                                                                                           strides,
+                                                                                           dilates,
+                                                                                           padding_l,
+                                                                                           padding_r,
+                                                                                           *_attrs);
             _pd = *prim_desc;
         }
 

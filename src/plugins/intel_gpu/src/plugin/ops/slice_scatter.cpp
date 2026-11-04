@@ -15,7 +15,7 @@ namespace ov::intel_gpu {
 
 namespace {
 
-static void CreateSliceScatterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::SliceScatter>& op) {
+void CreateSliceScatterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v15::SliceScatter>& op) {
     validate_inputs_count(op, {5, 6});
     auto inputs = p.GetInputInfo(op);
     cldnn::slice_scatter slice_scatter_prim{layer_type_name_ID(op), inputs};

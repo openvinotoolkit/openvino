@@ -65,8 +65,7 @@ public:
     static layout calc_output_layout(permute_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(permute_node const& node);
 
-public:
-    typed_primitive_inst(network& network, permute_node const& node);
+    typed_primitive_inst(network& network, const permute_node& node);
     void update_output_memory() override;
 
 private:

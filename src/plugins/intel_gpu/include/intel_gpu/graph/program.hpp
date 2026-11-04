@@ -168,7 +168,9 @@ public:
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     const std::vector<primitive_id>& get_allocating_order(bool forced_update = false);
-    uint32_t get_prog_id() { return prog_id; }
+    uint32_t get_prog_id() const {
+        return prog_id;
+    }
     stream& get_stream() { return *_stream; }
     stream::ptr get_stream_ptr() const { return _stream; }
     const stream& get_stream() const { return *_stream; }
@@ -213,7 +215,7 @@ public:
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
 
-    void add_connection(program_node& prev, program_node& next, int32_t port_idx = -1);
+    static void add_connection(program_node& prev, program_node& next, int32_t port_idx = -1);
 
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency
@@ -234,9 +236,9 @@ public:
     // returns if 'node' has been removed
     bool remove_if_dangling(program_node& node);
 
-    void mark_if_constant(program_node& node);
+    static void mark_if_constant(program_node& node);
     // mark if the node is in data flow assuming that all dependencies are marked properly
-    void mark_if_data_flow(program_node& node);
+    static void mark_if_data_flow(program_node& node);
     void mark_if_gemm_data_flow();
     // Reverses connection - user becomes dependency.
 
@@ -244,7 +246,7 @@ public:
     void dump_program(const char* stage, bool with_full_info) const;
 
     const primitives_info& get_primitives_info() const;
-    data_types get_inference_precision(const program_node& node) const;
+    static data_types get_inference_precision(const program_node& node);
     std::string get_implementation_info(const primitive_id& id) const;
     const graph_optimizer_info& get_optimizer_passes_info() const;
     void save_pass_info(std::string pass_name);
@@ -408,16 +410,16 @@ private:
     */
     void add_split_outputs();
     // mark if the node is constant assuming that all dependencies are marked properly
-    void reverse_connection(program_node& dep_node, program_node& user_node);
+    static void reverse_connection(program_node& dep_node, program_node& user_node);
 
-    void remove_connection(program_node& prev, program_node& next);
+    static void remove_connection(program_node& prev, program_node& next);
 
-    void remove_all_connections(program_node& node);
+    static void remove_all_connections(program_node& node);
 
     void rename(program_node& node, primitive_id const& new_id);
     void swap_names(program_node& node1, program_node& node2);
-    void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
-    void replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling = true);
+    static void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
+    static void replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling = true);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one

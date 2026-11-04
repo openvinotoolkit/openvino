@@ -70,13 +70,11 @@ struct crop : public primitive_base<crop> {
     ///                   borders, non-spatial dimensions - lower borders)
     /// @param rb_borders Border sizes (spatial dimensions define right (X) and bottom (Y)
     ///                   borders, non-spatial dimensions - upper borders)
-    crop(const primitive_id& id,
-         const input_info& input,
-         const tensor& lt_borders,
-         const tensor& rb_borders,
-         const crop_borders_t)
-        : primitive_base(id, {input}), reference_input(rb_borders.negate()),
-            offsets(lt_borders), op_mode(crop_ngraph_op_mode::none) {}
+    crop(const primitive_id& id, const input_info& input, const tensor& lt_borders, const tensor& rb_borders, const crop_borders_t /*unused*/)
+        : primitive_base(id, {input}),
+          reference_input(rb_borders.negate()),
+          offsets(lt_borders),
+          op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive (symmetric borders variant).
     ///
@@ -88,12 +86,11 @@ struct crop : public primitive_base<crop> {
     /// @param input      Identifier of input primitive which dimensions will be cropped.
     /// @param xy_borders Border sizes (symmetric; spatial dimensions define left/right (X)
     ///                   and top/bottom (Y) borders, non-spatial dimensions - lower/upper borders).
-    crop(const primitive_id& id,
-         const input_info& input,
-         const tensor& xy_borders,
-         const crop_borders_t)
-        : primitive_base(id, {input}), reference_input(xy_borders.negate()),
-            offsets(xy_borders), op_mode(crop_ngraph_op_mode::none) {}
+    crop(const primitive_id& id, const input_info& input, const tensor& xy_borders, const crop_borders_t /*unused*/)
+        : primitive_base(id, {input}),
+          reference_input(xy_borders.negate()),
+          offsets(xy_borders),
+          op_mode(crop_ngraph_op_mode::none) {}
 
     /// @brief Constructs crop primitive.
     /// @param id This primitive id.

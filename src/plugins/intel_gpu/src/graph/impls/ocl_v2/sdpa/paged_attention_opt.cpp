@@ -50,11 +50,13 @@ inline int32_t get_max_gqa_multi_tokens_per_subsequence() {
 inline std::optional<GQAMultiTokensKernel> get_forced_gqa_multi_tokens_kernel() {
     static const auto value = []() -> std::optional<GQAMultiTokensKernel> {
         const char* env = std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL");
-        if (!env)
+        if (!env) {
             return std::nullopt;
+        }
         const auto kernel = std::strtol(env, nullptr, 10);
-        if (kernel < 0 || kernel > static_cast<long>(GQAMultiTokensKernel::FALLBACK))
+        if (kernel < 0 || kernel > static_cast<long>(GQAMultiTokensKernel::FALLBACK)) {
             return std::nullopt;
+        }
         return static_cast<GQAMultiTokensKernel>(kernel);
     }();
     return value;
@@ -77,7 +79,7 @@ inline size_t get_element_size(ov::element::Type_t type) {
     return ov::element::Type(type).size();
 }
 
-static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
+size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
     if (is_kv_compressed) {
         const size_t optimal_scale_factor = 2;
         if (kernel_type == SDPAStage::SINGLE_TOKEN || kernel_type == SDPAStage::MULTI_TOKENS) {
@@ -89,7 +91,7 @@ static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head
     return 1;
 }
 
-static size_t get_heads_per_wi(const size_t kv_group_size) {
+size_t get_heads_per_wi(const size_t kv_group_size) {
     if (kv_group_size > 1) {
         std::vector<size_t> preferable_head_nums = {4, 3, 2};
         for (const auto& heads_num : preferable_head_nums) {
@@ -102,7 +104,7 @@ static size_t get_heads_per_wi(const size_t kv_group_size) {
     return 1;
 }
 
-static size_t get_num_k_head_size_partitions(bool is_key_by_channel, int64_t k_head_size) {
+size_t get_num_k_head_size_partitions(bool is_key_by_channel, int64_t k_head_size) {
     size_t head_size_partition = 1;
     if (is_key_by_channel) {
         if (k_head_size % subgroup_size == 0) {
@@ -182,29 +184,36 @@ inline bool supports_gqa_multi_tokens_fallback_kernel(const kernel_impl_params& 
 }
 
 inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& params) {
-    if (!supports_gqa_multi_tokens_fallback_kernel(params))
+    if (!supports_gqa_multi_tokens_fallback_kernel(params)) {
         return false;
+    }
 
     const auto& info = params.get_device_info();
     // SIMD16 DPAS
-    if (!info.supports_immad || info.arch < gpu_arch::xe_hpc)
+    if (!info.supports_immad || info.arch < gpu_arch::xe_hpc) {
         return false;
+    }
 
     const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_token_type_ids)
+    if (desc->has_token_type_ids) {
         return false;
+    }
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-    if (gqa_multi_tokens_rows_per_sg % kv_group_size != 0)
+    if (gqa_multi_tokens_rows_per_sg % kv_group_size != 0) {
         return false;
+    }
 
     const size_t head_size = desc->k_head_size;
-    if (head_size != desc->v_head_size || head_size % (u4_elems_per_byte * subgroup_size) != 0 || head_size > 256)
+    if (head_size != desc->v_head_size || head_size % (u4_elems_per_byte * subgroup_size) != 0 || head_size > 256) {
         return false;
+    }
 
-    if (params.get_input_layout(PagedAttentionInputIdx::QUERY).data_type != data_types::f16)
+    if (params.get_input_layout(PagedAttentionInputIdx::QUERY).data_type != data_types::f16) {
         return false;
-    if (!get_kv_compressed(params) && params.get_input_layout(PagedAttentionInputIdx::KEY_CACHE).data_type != data_types::f16)
+    }
+    if (!get_kv_compressed(params) && params.get_input_layout(PagedAttentionInputIdx::KEY_CACHE).data_type != data_types::f16) {
         return false;
+    }
 
     // Double-buffered f16 K and V tiles
     const size_t slm_size = 4 * paged_attention_block_size * head_size * sizeof(uint16_t);
@@ -213,27 +222,33 @@ inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& para
 
 // Speculative decoding validation step: MIXED stage where every subsequence has only a few new query tokens
 inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_params& params, const PagedAttentionStage& stage) {
-    if (stage != PagedAttentionStage::MIXED || !supports_gqa_multi_tokens_fallback_kernel(params))
+    if (stage != PagedAttentionStage::MIXED || !supports_gqa_multi_tokens_fallback_kernel(params)) {
         return GQAMultiTokensKernel::NONE;
+    }
 
     const auto max_tokens = get_max_gqa_multi_tokens_per_subsequence();
     const auto max_subsequence_len = get_max_subsequence_len(params);
-    if (max_tokens <= 0 || max_subsequence_len > static_cast<size_t>(max_tokens))
+    if (max_tokens <= 0 || max_subsequence_len > static_cast<size_t>(max_tokens)) {
         return GQAMultiTokensKernel::NONE;
+    }
 
     const auto forced = get_forced_gqa_multi_tokens_kernel();
-    if (forced == GQAMultiTokensKernel::NONE || forced == GQAMultiTokensKernel::FALLBACK)
+    if (forced == GQAMultiTokensKernel::NONE || forced == GQAMultiTokensKernel::FALLBACK) {
         return *forced;
+    }
 
-    if (!supports_gqa_multi_tokens_dpas_kernel(params))
+    if (!supports_gqa_multi_tokens_dpas_kernel(params)) {
         return GQAMultiTokensKernel::FALLBACK;
+    }
 
-    if (forced != GQAMultiTokensKernel::SMALL_Q && prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, get_max_context_len(params)))
+    if (forced != GQAMultiTokensKernel::SMALL_Q && prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, get_max_context_len(params))) {
         return GQAMultiTokensKernel::FALLBACK;
+    }
 
     const auto subgroups_num = ceil_div(max_subsequence_len, get_gqa_multi_tokens_per_sg(params));
-    if (subgroups_num * subgroup_size > params.get_device_info().max_work_group_size)
+    if (subgroups_num * subgroup_size > params.get_device_info().max_work_group_size) {
         return GQAMultiTokensKernel::NONE;
+    }
 
     return GQAMultiTokensKernel::SMALL_Q;
 }
@@ -258,7 +273,7 @@ inline size_t get_gqa_heads_num(size_t heads_num, size_t kv_heads_num) {
     return kv_heads_num * ceil_div(kv_group_size, get_heads_per_wi(kv_group_size));
 }
 
-static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size = 16) {
+int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const PagedAttentionStage& stage, int64_t target_seq_len_block_size = 16) {
     // Since at prefill stage Q, K, V inputs may contain multiple sequences with arbitrary
     // target sequence lengths each (shape is [sequences_num * target_seq_len, num_heads * head_size]),
     // to apply blocking to the first dimension (target_seq_len of each sequence), we need to calculate aligned total
@@ -1481,11 +1496,12 @@ public:
             // softmax_results, subsequence_offsets, exp_sums, max_logits, tmp_out
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // softmax_results
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // subsequence_offsets
-            if (has_score_aggregation)
+            if (has_score_aggregation) {
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // cumulative_score_aggregation_sum
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // exp_sums
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // max_logits
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // tmp_out
+            }
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // exp_sums
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // max_logits
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // tmp_out
 
             // Scalar used for proper offset calculation of intermediate data buffers
             args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -1648,10 +1664,12 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
-        if (stage == PagedAttentionStage::PREFILL)
+        if (stage == PagedAttentionStage::PREFILL) {
             return !pa_sdpa_micro->kd.micro_kernels.empty();
-        if (stage == PagedAttentionStage::MIXED)
+        }
+        if (stage == PagedAttentionStage::MIXED) {
             return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
+        }
         return false;
     }
 
@@ -1665,7 +1683,7 @@ public:
         return can_use_micro_sdpa;
     }
 
-    bool supports_micro_sdpa(const kernel_impl_params& params) const {
+    static bool supports_micro_sdpa(const kernel_impl_params& params) {
         auto& engine = params.get_program().get_engine();
         const auto desc = params.typed_desc<paged_attention>();
 
@@ -1727,10 +1745,12 @@ public:
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
-            if (stage == PagedAttentionStage::PREFILL)
+            if (stage == PagedAttentionStage::PREFILL) {
                 return get_micro_tile_qsize(pa_sdpa_micro->kd);
-            if (stage == PagedAttentionStage::MIXED)
+            }
+            if (stage == PagedAttentionStage::MIXED) {
                 return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
+            }
         }
         return default_block_size;
     }
@@ -1768,8 +1788,9 @@ public:
         }
         rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);
 
-        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
+        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
+        }
 
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
@@ -2154,8 +2175,9 @@ public:
             return sequential_gws_subseq_mapping_idx;
         };
 
-        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa))
+        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa)) {
             return;
+        }
 
         auto& stream = instance.get_network().get_stream();
         const auto past_lens_mem = instance.past_lens_memory_ptr();

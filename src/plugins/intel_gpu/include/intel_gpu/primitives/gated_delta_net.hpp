@@ -28,8 +28,15 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
     /// @param fuse_qk_l2norm     A boolean to enable l2norm for variables q and k.
     /// @param q_l2_norm_eps      Epsilon value for q's l2 normalization computation.
     /// @param k_l2_norm_eps      Epsilon value for k's l2 normalization computation.
-    gated_delta_net(const primitive_id& id, const std::vector<input_info>& inputs, bool fuse_qk_l2norm = false, float q_l2_norm_eps = 1e-6f, float k_l2_norm_eps = 1e-6f)
-        : primitive_base(id, inputs), fuse_qk_l2norm(fuse_qk_l2norm), q_l2_norm_eps(q_l2_norm_eps), k_l2_norm_eps(k_l2_norm_eps) {}
+    gated_delta_net(const primitive_id& id,
+                    const std::vector<input_info>& inputs,
+                    bool fuse_qk_l2norm = false,
+                    float q_l2_norm_eps = 1e-6F,
+                    float k_l2_norm_eps = 1e-6F)
+        : primitive_base(id, inputs),
+          fuse_qk_l2norm(fuse_qk_l2norm),
+          q_l2_norm_eps(q_l2_norm_eps),
+          k_l2_norm_eps(k_l2_norm_eps) {}
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -81,8 +88,8 @@ struct gated_delta_net : public primitive_base<gated_delta_net> {
     size_t k_heads_num = 0;
     size_t v_heads_num = 0;
     bool fuse_qk_l2norm = false;
-    float q_l2_norm_eps = 1e-6f;
-    float k_l2_norm_eps = 1e-6f;
+    float q_l2_norm_eps = 1e-6F;
+    float k_l2_norm_eps = 1e-6F;
 };
 
 }  // namespace cldnn

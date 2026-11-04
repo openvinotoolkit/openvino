@@ -49,10 +49,10 @@ bool ConcatenationKernel_b_fs_yx_fsv32::Validate(const Params& p) const {
 
     // All inputs must have the same layout
     auto same_layout = params.inputs[0].GetLayout();
-    for (const auto& lt : params.inputs) {
-        if (lt.GetLayout() != same_layout) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(params.inputs.begin(), params.inputs.end(), [same_layout](const auto& lt) {
+            return lt.GetLayout() != same_layout;
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

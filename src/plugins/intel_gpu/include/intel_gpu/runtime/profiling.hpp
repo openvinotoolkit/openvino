@@ -235,7 +235,7 @@ public:
         _after = get_memory_footprint();
     }
 
-    memory_footprint get_elapsed_mem_usage() {
+    memory_footprint get_elapsed_mem_usage() const {
         return memory_footprint{ _after.rss - _before.rss, _after.peak_rss - _before.peak_rss };
     }
 
@@ -260,7 +260,7 @@ public:
         GPU_DEBUG_LOG << log_msg << std::endl;
     }
 
-    int64_t get_gpu_dedicated_vram_used_kb() {
+    static int64_t get_gpu_dedicated_vram_used_kb() {
 #if defined(_WIN32)
         using Microsoft::WRL::ComPtr;
         static ComPtr<IDXGIFactory4> dxgi_factory;
@@ -363,7 +363,7 @@ private:
     }
 #endif
 
-    memory_footprint get_memory_footprint() {
+    static memory_footprint get_memory_footprint() {
         memory_footprint footprint;
 #if defined(_WIN32)
         PROCESS_MEMORY_COUNTERS pmc;

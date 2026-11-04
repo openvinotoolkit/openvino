@@ -28,7 +28,7 @@ KernelsData ExperimentalDetectronPriorGridGeneratorKernelRef::GetKernelsData(con
     }
     kernels_data.push_back(KernelData::Default<experimental_detectron_prior_grid_generator_params>(params));
     KernelData& kernel_data = kernels_data.front();
-    auto& derived_params = dynamic_cast<experimental_detectron_prior_grid_generator_params&>(*kernel_data.params.get());
+    auto& derived_params = dynamic_cast<experimental_detectron_prior_grid_generator_params&>(*kernel_data.params);
     auto dispatch_data = SetDefault(derived_params);
     auto entry_point = GetEntryPoint(kernelName, derived_params.layerID, params);
     auto jit_constants = GetJitConstants(derived_params);

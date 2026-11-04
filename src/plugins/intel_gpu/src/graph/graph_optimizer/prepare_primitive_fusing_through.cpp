@@ -170,13 +170,13 @@ void prepare_primitive_fusing_through::run(program& p) {
         }
 
         for (auto* dep : dependencies) {
-            p.remove_connection(*dep, *node);
+            program::remove_connection(*dep, *node);
         }
 
         p.move_node(*node, *new_prev, *new_next);
 
         for (auto* dep : dependencies) {
-            p.add_connection(*dep, *node);
+            program::add_connection(*dep, *node);
         }
 
         // Update node's layout and keep original data type

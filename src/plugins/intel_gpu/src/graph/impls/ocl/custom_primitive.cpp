@@ -169,7 +169,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         for (const auto& buf : instance.get_intermediates_memories()) {
             args.intermediates.push_back(buf);
         }
-        stream.set_arguments(*_kernels.front(), cl_kernel.get()->params, args);
+        stream.set_arguments(*_kernels.front(), cl_kernel->params, args);
     }
 
     event::ptr execute_impl(const std::vector<event::ptr>& events,
@@ -185,7 +185,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         for (const auto& buf : instance.get_intermediates_memories()) {
             args.intermediates.push_back(buf);
         }
-        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.needs_completion_event());
+        return stream.enqueue_kernel(*_kernels.front(), cl_kernel->params, args, events, instance.needs_completion_event());
     }
 
     std::vector<kernel::ptr> get_kernels() const override {

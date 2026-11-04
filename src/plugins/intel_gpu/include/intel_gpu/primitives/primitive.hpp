@@ -67,7 +67,7 @@ struct input_info {
     };
 
     bool is_valid() const {
-        return pid.compare("") != 0;
+        return !pid.empty();
     }
 
     void save(BinaryOutputBuffer& ob) const {
@@ -102,7 +102,7 @@ struct prim_map_storage {
         return map.at(type_string);
     }
 
-    const cldnn::primitive_id get_type_string(const cldnn::primitive_type_id type_id) const {
+    cldnn::primitive_id get_type_string(const cldnn::primitive_type_id type_id) const {
         return inverse_map.at(type_id);
     }
 

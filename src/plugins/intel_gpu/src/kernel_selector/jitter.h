@@ -262,17 +262,21 @@ class JitConstants {
 public:
     JitConstants(std::initializer_list<std::shared_ptr<JitConstant>> constants) : _constants(constants) {}
 
-    inline void AddConstant(std::shared_ptr<JitConstant> constant) { _constants.push_back(constant); }
+    void AddConstant(std::shared_ptr<JitConstant> constant) {
+        _constants.push_back(constant);
+    }
 
-    inline void AddConstants(const std::vector<std::shared_ptr<JitConstant>>& constants) {
+    void AddConstants(const std::vector<std::shared_ptr<JitConstant>>& constants) {
         for (const auto& c : constants) {
             _constants.push_back(c);
         }
     }
 
-    inline void Merge(const JitConstants& jit) { AddConstants(jit._constants); }
+    void Merge(const JitConstants& jit) {
+        AddConstants(jit._constants);
+    }
 
-    inline void RemoveConstant(std::string name) {
+    void RemoveConstant(std::string name) {
         _constants.erase(
             std::remove_if(_constants.begin(),
                            _constants.end(),
@@ -302,17 +306,17 @@ public:
 // target code as that would require looking into several place to understand
 // the logic.
 JitConstants MakeActivationJitConstants(const base_activation_params& params,
-                                        Datatype output_dt,
+                                        Datatype out_dt,
                                         const std::string& suffix = "",
                                         bool use_type_parameter = false,
                                         bool disable_type_conversion = false);
 JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
-                                        Datatype output_dt,
+                                        Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
                                         bool disable_type_conversion = false);
 JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activation_params> params,
-                                        Datatype output_dt,
+                                        Datatype out_dt,
                                         const std::string& suffix = "",
                                         bool use_type_parameter = false,
                                         bool disable_type_conversion = false,
@@ -388,10 +392,8 @@ public:
 
     JitConstants MakeFusedTensorJitConstants(const FusedOpsConfiguration& conf) const;
     JitConstants MakeInputDeclsJitConstants(const FusedOpsConfiguration& conf) const;
-    JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, const DataTensor prim_output) const;
-    JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf,
-                                    const std::string in_var, const Datatype in_type,
-                                    std::string& out_var) const;
+    JitConstants MakeLoadJitConstants(const FusedOpsConfiguration& conf, DataTensor prim_output) const;
+    JitConstants MakeOpJitConstants(const FusedOpsConfiguration& conf, std::string in_var, Datatype in_type, std::string& out_var) const;
 
     bool CanPreloadData(const FusedOpsConfiguration& conf) const;
 
@@ -399,21 +401,24 @@ public:
     std::string GetInputTensorName(size_t input_id) const;
     std::string GetOutputTensorName(size_t idx = 0) const;
     std::string GetInputTypeName(size_t input_id, size_t vec_size) const;
-    std::string GetJitLoad(const FusedOpsConfiguration& conf, size_t input_id, const DataTensor prim_output,
-                           bool reuse_index = false, std::string reused_idx = "") const;
+    std::string GetJitLoad(const FusedOpsConfiguration& conf,
+                           size_t input_id,
+                           DataTensor prim_output,
+                           bool reuse_index = false,
+                           std::string reused_idx = "") const;
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
     std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
     std::string GetDecodedInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "", size_t vec_size = 1) const;
-    std::string GetOutputVarName(std::string input_var_name, size_t op_id) const;
+    static std::string GetOutputVarName(std::string input_var_name, size_t op_id);
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1, size_t idx = 0) const;
-    std::string DecodeComputeType(std::string var, Datatype dt, size_t vec_size = 1) const;
-    std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
-    std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1) const;
-    std::string Broadcast(std::string var,  Datatype dt, size_t vec_size = 1) const;
+    static std::string DecodeComputeType(std::string var, Datatype dt, size_t vec_size = 1);
+    static std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1);
+    static std::string CastToType(std::string var, Datatype dt, size_t vec_size = 1);
+    static std::string Broadcast(std::string var, Datatype dt, size_t vec_size = 1);
     std::string ConvertToOutputTypeSat(std::string var, size_t vec_size = 1, size_t idx = 0) const;
     std::string GetOutputType(size_t vec_size = 1, size_t idx = 0) const;
-    std::string GetType(Datatype dt, size_t vec_size = 1) const;
+    static std::string GetType(Datatype dt, size_t vec_size = 1);
 
 private:
     std::vector<size_t> GetRequiredInputs() const;

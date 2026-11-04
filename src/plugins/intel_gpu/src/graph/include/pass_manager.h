@@ -43,7 +43,9 @@ class pass_manager {
 public:
     explicit pass_manager(program& p);
     void run(program& p, base_pass& pass);
-    uint32_t get_pass_count() { return pass_count; }
+    uint32_t get_pass_count() const {
+        return pass_count;
+    }
     uint32_t inc_pass_count() { return ++pass_count; }
     ~pass_manager() = default;
 
@@ -58,8 +60,8 @@ public:
 
 private:
     void run(program& p) override;
-    void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
-    bool test_format(cldnn::program_node& node, format requested_format);
+    static void add_reorder(program& p, program_node* node, program_node* usr, bool keep_original_dt = false);
+    static bool test_format(cldnn::program_node& node, format requested_format);
 };
 
 class compile_graph : public base_pass {
@@ -76,7 +78,7 @@ public:
 
 private:
     void run(program& p) override;
-    void set_outputs(program& p);
+    static void set_outputs(program& p);
 };
 
 class handle_reshape : public base_pass {
@@ -102,7 +104,7 @@ public:
 
 private:
     void run(program& p) override;
-    void mark_init_subgraph(program& p, read_value_node& node);
+    static void mark_init_subgraph(program& p, read_value_node& node);
 };
 
 class mark_shape_of_subgraphs : public base_pass {
@@ -116,9 +118,9 @@ public:
 
 private:
     void run(program& p) override;
-    void look_for_shape_of_subgraph(program_node& node);
-    bool can_mark_node(const program_node& node);
-    void mark_node(program_node& node);
+    static void look_for_shape_of_subgraph(program_node& node);
+    static bool can_mark_node(const program_node& node);
+    static void mark_node(program_node& node);
 };
 
 class prepare_buffer_fusing : public base_pass {
@@ -135,11 +137,11 @@ public:
 
 private:
     void run(program& p) override;
-    void handle_quantize_node(program& p, quantize_node& quantize_node);
-    void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
-    void remove_fake_reorders(program& p, reorder_node& reorder_node);
-    void prepare_scale_shift_opt(program& p, quantize_node& quantize_node);
-    bool optimize_quantize(program& p, quantize_node& quantize_node);
+    static void handle_quantize_node(program& p, quantize_node& quantize_node);
+    static void prepare_dequantize_merge(program& p, eltwise_node& eltwise_node);
+    static void remove_fake_reorders(program& p, reorder_node& reorder_node);
+    static void prepare_scale_shift_opt(program& p, quantize_node& quantize_node);
+    static bool optimize_quantize(program& p, quantize_node& quantize_node);
 };
 
 // TODO: Remove this pass once no unexpected reshapes/reorders are added during ov::Model -> cldnn::topology conversion
@@ -155,13 +157,13 @@ public:
 
 private:
     void run(program& p) override;
-    void fuse_bias(program& p);
-    void fuse_swiglu(program& p);
-    void fuse_reorders(program& p);
-    void fuse_simple_primitives(program& p);
-    void fuse_constant_transposes(program& p);
-    void optimize_fused_ops(program& p);
-    void remove_redundant_reshape(program& p);
+    static void fuse_bias(program& p);
+    static void fuse_swiglu(program& p);
+    static void fuse_reorders(program& p);
+    static void fuse_simple_primitives(program& p);
+    static void fuse_constant_transposes(program& p);
+    static void optimize_fused_ops(program& p);
+    static void remove_redundant_reshape(program& p);
 };
 
 class pre_replace_deconv : public base_pass {
@@ -190,7 +192,7 @@ public:
 
 private:
     void run(program& p) override;
-    program_node& add_reorder(program& p, program_node* node, program_node* usr, const layout& reorder_layout);
+    static program_node& add_reorder(program& p, program_node* node, program_node* usr, const layout& reorder_layout);
 };
 
 class post_optimize_weights : public base_pass {
@@ -211,24 +213,20 @@ private:
     weights_bias_offset get_weights_bias_offset(const T& node);
     template <typename T>
     void optimize_weights(T& node, program& p);
-    void select_implementation(program& p, program_node& node);
+    static void select_implementation(program& p, program_node& node);
     void add_lstm_weights_reorder(primitive_id input_id,
                                   std::shared_ptr<WeightsReorderParams> reorder_params,
                                   program& p,
-                                  cldnn::program_node&,
-                                  cldnn::program_node&,
-                                  size_t);
-    void add_gru_weights_reorder(primitive_id input_id,
-                                 program& p,
-                                 cldnn::program_node&,
-                                 cldnn::program_node&,
-                                 size_t);
+                                  cldnn::program_node& /*prev*/,
+                                  cldnn::program_node& /*node*/,
+                                  size_t /*i*/);
+    static void add_gru_weights_reorder(primitive_id input_id, program& p, cldnn::program_node& /*prev*/, cldnn::program_node& /*node*/, size_t /*i*/);
     void add_lstm_bias_reorder(primitive_id input_id,
                                std::shared_ptr<WeightsReorderParams> reorder_params,
                                program& p,
-                               cldnn::program_node&,
-                               cldnn::program_node&,
-                               size_t);
+                               cldnn::program_node& /*prev*/,
+                               cldnn::program_node& /*node*/,
+                               size_t /*i*/);
     reorder_factory& _rf;
 
     std::map<reorder_cache_key, program_node*> _cached_lstm_weights_reorder;
@@ -244,10 +242,10 @@ private:
     std::list<std::tuple<primitive_id, memory::ptr, std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
     calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
               const std::map<primitive_type_id, bool>& onednn_impls);
-    bool has_non_const_user(program_node& node) const;
+    static bool has_non_const_user(program_node& node);
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
-    void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& node);
+    void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& deps);
 
     bool has_non_trivial_constants = false;
     std::list<typed_program_node<data>*> const_inputs;

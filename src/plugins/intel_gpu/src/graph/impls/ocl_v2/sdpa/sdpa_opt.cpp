@@ -284,7 +284,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 
     auto data_inputs_num = get_data_inputs_num(*desc);
     // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
-    const auto mask_idx = 3lu;
+    const auto mask_idx = 3LU;
     if (!desc->attn_mask_val.has_value() && data_inputs_num > mask_idx && !params.get_input_layout(mask_idx).is_dynamic() &&
         params.get_input_layout(mask_idx).count() == 1) {
         return false;

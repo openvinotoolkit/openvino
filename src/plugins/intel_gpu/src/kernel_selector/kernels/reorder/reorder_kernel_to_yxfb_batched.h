@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ public:
 
 protected:
     JitConstants GetJitConstants(const reorder_params& params) const override;
-    DispatchData SetDefault(const reorder_params& arg) const override;
+    DispatchData SetDefault(const reorder_params& params) const override;
     bool Validate(const Params& p) const override;
 };
 }  // namespace kernel_selector

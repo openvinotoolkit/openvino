@@ -11,10 +11,10 @@ namespace cldnn {
 namespace ze {
 namespace {
 
-static constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x42B0;
-static constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x42B1;
-static constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x42B3;
-static constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
+constexpr cl_uint CL_L0_CONTEXT_HANDLE = 0x42B0;
+constexpr cl_uint CL_L0_IMMEDIATE_CMD_LIST_HANDLE = 0x42B1;
+constexpr cl_uint CL_L0_MEM_OBJ_HANDLE = 0x42B3;
+constexpr cl_uint CL_L0_DEVICE_HANDLE = 0x42B4;
 
 inline void expect_success(cl_int error, void *handle, const std::string& message) {
     if (error != CL_SUCCESS || handle == nullptr) {
@@ -90,7 +90,7 @@ std::vector<std::pair<ze_driver_handle_t, ze_device_handle_t>> find_ze_devices()
 
 bool ze_ocl_interop::check_support(ze_device_handle_t ze_device) const {
     try {
-        auto ocl_dev = find_ocl_device(ze_device);
+        auto* ocl_dev = find_ocl_device(ze_device);
         return (ocl_dev != nullptr);
     }
     catch(...) {
@@ -125,8 +125,8 @@ cl_device_id ze_ocl_interop::find_ocl_device(ze_device_handle_t ze_device) const
     return it->second;
 }
 
-ze_driver_handle_t ze_ocl_interop::find_ze_driver(cl_device_id ocl_device) const {
-    auto ze_device = get_ze_device(ocl_device);
+ze_driver_handle_t ze_ocl_interop::find_ze_driver(cl_device_id ocl_device) {
+    auto* ze_device = get_ze_device(ocl_device);
     auto all_devices = find_ze_devices();
     for (auto &device : all_devices) {
         if (device.second == ze_device) {
@@ -136,7 +136,7 @@ ze_driver_handle_t ze_ocl_interop::find_ze_driver(cl_device_id ocl_device) const
     OPENVINO_THROW("[GPU] Failed to find matching ZE driver for given ZE device");
 }
 
-ze_context_handle_t ze_ocl_interop::get_ze_context(cl_context context) const {
+ze_context_handle_t ze_ocl_interop::get_ze_context(cl_context context) {
     cl_int error;
     ze_context_handle_t ze_context = nullptr;
     error = clGetContextInfo(context, CL_L0_CONTEXT_HANDLE, sizeof(ze_context_handle_t), &ze_context, nullptr);
@@ -144,7 +144,7 @@ ze_context_handle_t ze_ocl_interop::get_ze_context(cl_context context) const {
     return ze_context;
 }
 
-ze_command_list_handle_t ze_ocl_interop::get_ze_cmd_list(cl_command_queue queue) const {
+ze_command_list_handle_t ze_ocl_interop::get_ze_cmd_list(cl_command_queue queue) {
     cl_int error;
     ze_command_list_handle_t ze_cmd_list;
     error = clGetCommandQueueInfo(queue, CL_L0_IMMEDIATE_CMD_LIST_HANDLE, sizeof(ze_command_list_handle_t), &ze_cmd_list, nullptr);
@@ -152,8 +152,8 @@ ze_command_list_handle_t ze_ocl_interop::get_ze_cmd_list(cl_command_queue queue)
     return ze_cmd_list;
 }
 
-void* ze_ocl_interop::get_ze_usm(cl_mem ocl_mem) const {
-    cl_mem mem = reinterpret_cast<cl_mem>(ocl_mem);
+void* ze_ocl_interop::get_ze_usm(cl_mem ocl_mem) {
+    cl_mem mem = ocl_mem;
     cl_int error;
     void *ze_mem;
     error = clGetMemObjectInfo(mem, CL_L0_MEM_OBJ_HANDLE, sizeof(void*), &ze_mem, nullptr);
@@ -161,8 +161,8 @@ void* ze_ocl_interop::get_ze_usm(cl_mem ocl_mem) const {
     return ze_mem;
 }
 
-ze_image_handle_t ze_ocl_interop::get_ze_image(cl_mem ocl_mem) const {
-    cl_mem mem = reinterpret_cast<cl_mem>(ocl_mem);
+ze_image_handle_t ze_ocl_interop::get_ze_image(cl_mem ocl_mem) {
+    cl_mem mem = ocl_mem;
     cl_int error;
     ze_image_handle_t ze_image;
     error = clGetMemObjectInfo(mem, CL_L0_MEM_OBJ_HANDLE, sizeof(ze_image_handle_t), &ze_image, nullptr);
@@ -170,33 +170,32 @@ ze_image_handle_t ze_ocl_interop::get_ze_image(cl_mem ocl_mem) const {
     return ze_image;
 }
 
-ze_device_handle_t ze_ocl_interop::get_ze_device(cl_device_id device) const {
+ze_device_handle_t ze_ocl_interop::get_ze_device(cl_device_id device) {
     ze_device_handle_t ze_device;
     cl_int error = clGetDeviceInfo(device, CL_L0_DEVICE_HANDLE, sizeof(ze_device_handle_t), &ze_device, nullptr);
     expect_success(error, ze_device, "[GPU] Attempt to extract ZE device from OCL device failed");
     return ze_device;
 }
 
-cl_context ze_ocl_interop::create_cl_context(ze_context_handle_t context, const ocl_context_args& args) const {
+cl_context ze_ocl_interop::create_cl_context(ze_context_handle_t context, const ocl_context_args& args) {
     cl_context_properties properties[] = {CL_L0_CONTEXT_HANDLE, reinterpret_cast<cl_context_properties>(context), 0};
     constexpr cl_uint num_devices = 1;
     cl_int error;
-    auto converted_context = clCreateContext(properties, num_devices, &args.device, nullptr, nullptr, &error);
+    auto* converted_context = clCreateContext(properties, num_devices, &args.device, nullptr, nullptr, &error);
     expect_success(error, converted_context, "[GPU] Attempt to create CL context from ZE context failed");
     return converted_context;
-
 }
 
-cl_command_queue ze_ocl_interop::create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args) const {
+cl_command_queue ze_ocl_interop::create_cl_queue(ze_command_list_handle_t cmd_list, const ocl_queue_args& args) {
     // Works only for immediate command lists
     cl_queue_properties properties[] = {CL_L0_IMMEDIATE_CMD_LIST_HANDLE, reinterpret_cast<cl_queue_properties>(cmd_list), 0};
     cl_int error;
-    auto converted_queue = clCreateCommandQueueWithProperties(args.context, args.device, properties, &error);
+    auto* converted_queue = clCreateCommandQueueWithProperties(args.context, args.device, properties, &error);
     expect_success(error, converted_queue, "[GPU] Attempt to create CL command queue from ZE command list failed");
     return converted_queue;
 }
 
-cl_mem ze_ocl_interop::create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args) const {
+cl_mem ze_ocl_interop::create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args) {
     cl_mem_properties properties[] = {CL_L0_MEM_OBJ_HANDLE, reinterpret_cast<cl_mem_properties>(usm_ptr), 0};
     cl_int error;
     cl_mem converted_mem = clCreateBufferWithProperties(args.context, properties, args.flags, args.size, nullptr, &error);
@@ -204,7 +203,7 @@ cl_mem ze_ocl_interop::create_cl_buffer(void* usm_ptr, const ocl_buffer_args& ar
     return converted_mem;
 }
 
-cl_mem ze_ocl_interop::create_cl_image(ze_image_handle_t image, const ocl_image_args &args) const {
+cl_mem ze_ocl_interop::create_cl_image(ze_image_handle_t image, const ocl_image_args& args) {
     cl_mem_properties properties[] = {CL_L0_MEM_OBJ_HANDLE, reinterpret_cast<cl_mem_properties>(image), 0};
     cl_int error;
     cl_mem converted_mem = clCreateImageWithProperties(args.context, properties, args.flags, &args.format, &args.desc, nullptr, &error);

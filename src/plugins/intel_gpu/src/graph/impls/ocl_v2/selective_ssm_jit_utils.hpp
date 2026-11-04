@@ -26,16 +26,20 @@ inline bool supports_simd_size(const cldnn::device_info& info, const size_t simd
 }
 
 inline size_t get_subgroup_size(const cldnn::device_info& info, const device_kind kind) {
-    if ((!info.supports_khr_subgroups && !info.supports_intel_subgroups) || !info.supports_intel_required_subgroup_size)
+    if ((!info.supports_khr_subgroups && !info.supports_intel_subgroups) || !info.supports_intel_required_subgroup_size) {
         return 0;
+    }
 
     const size_t preferred = kind == device_kind::discrete && info.arch >= cldnn::gpu_arch::xe2 ? 32 : 16;
-    if (supports_simd_size(info, preferred) && preferred <= info.max_work_group_size)
+    if (supports_simd_size(info, preferred) && preferred <= info.max_work_group_size) {
         return preferred;
-    if (supports_simd_size(info, 16) && 16 <= info.max_work_group_size)
+    }
+    if (supports_simd_size(info, 16) && 16 <= info.max_work_group_size) {
         return 16;
-    if (supports_simd_size(info, 8) && 8 <= info.max_work_group_size)
+    }
+    if (supports_simd_size(info, 8) && 8 <= info.max_work_group_size) {
         return 8;
+    }
     return 0;
 }
 
@@ -51,21 +55,27 @@ inline size_t get_head_dim_block(const size_t head_dim,
                                  const device_kind kind,
                                  const size_t max_private_values,
                                  const size_t discrete_target = default_discrete_head_dim_block) {
-    if (head_dim == 0 || state_size == 0 || subgroup_size == 0)
+    if (head_dim == 0 || state_size == 0 || subgroup_size == 0) {
         return 0;
+    }
 
     const size_t state_iterations = cldnn::ceil_div(state_size, subgroup_size);
-    const size_t target = kind == device_kind::discrete ? discrete_target : (info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4);
+    size_t target = discrete_target;
+    if (kind != device_kind::discrete) {
+        target = info.arch >= cldnn::gpu_arch::xe2 ? 8 : 4;
+    }
     size_t block = std::min(head_dim, target);
     if (kind == device_kind::integrated) {
         // Bound the scalarized recurrence state together with the two per-head-dimension temporaries.
-        while (block > 1 && block * (state_iterations + 2) > max_private_values)
+        while (block > 1 && block * (state_iterations + 2) > max_private_values) {
             --block;
+        }
         return block * (state_iterations + 2) <= max_private_values ? block : 0;
     }
     const size_t local_capacity = info.max_local_mem_size / sizeof(float);
-    while (block > 1 && block * state_size > local_capacity)
+    while (block > 1 && block * state_size > local_capacity) {
         --block;
+    }
     return block * state_size <= local_capacity ? block : 0;
 }
 

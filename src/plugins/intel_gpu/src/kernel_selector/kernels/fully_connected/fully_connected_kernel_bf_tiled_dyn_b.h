@@ -47,7 +47,7 @@ public:
     static bool IsBeneficial(const fully_connected_params& params);
 
     // Exposed for bf_tiled integration (sub-kernel creation in GetMultiKernelsData)
-    tune_params GetTuneParams(const fully_connected_params& params) const;
+    static tune_params GetTuneParams(const fully_connected_params& params);
     DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1, int kernel_number = 0) const override;
     JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
 

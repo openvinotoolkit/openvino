@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -45,13 +46,10 @@ struct Col2Im : public ImplementationManager {
             }
         }
 
-        for (const auto& output : node.get_output_layouts()) {
-            if (output.data_padding) {
-                return false;
-            }
-        }
-
-        return true;
+        const auto& output_layouts = node.get_output_layouts();
+        return std::all_of(output_layouts.begin(), output_layouts.end(), [](const auto& output) {
+            return !output.data_padding;
+        });
     }
 };
 

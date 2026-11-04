@@ -65,7 +65,13 @@ tensor calc_sliding_window_output_range(const tensor& input_size,
 
 /// @brief Fall-back implementation.
 template <swor_mode RangeMode>
-tensor calc_sliding_window_output_range(const tensor&, const tensor&, const tensor&, const ov::Strides&, const tensor&, bool, const tensor::value_type&) {
+tensor calc_sliding_window_output_range(const tensor& /*unused*/,
+                                        const tensor& /*unused*/,
+                                        const tensor& /*unused*/,
+                                        const ov::Strides& /*unused*/,
+                                        const tensor& /*unused*/,
+                                        bool /*unused*/,
+                                        const tensor::value_type& /*unused*/) {
     static_assert(cldnn::meta::always_false<cldnn::meta::val_tuple<swor_mode, RangeMode>>::value,
                   "Sliding window output range calculation mode is not supported. Please implement specialization "
                   "for new swor_mode.");
@@ -267,7 +273,7 @@ inline tensor calc_sliding_window_output_range<swor_mode::max>(const tensor& inp
                                                                const ov::CoordinateDiff& pad,
                                                                const ov::Strides& stride,
                                                                const ov::Strides& dilation,
-                                                               bool,
+                                                               bool /*unused*/,
                                                                const tensor::value_type& degen_val) {
     auto output_range_all_sym = calc_sliding_window_output_range<swor_mode::all>(input_size, size, pad, stride, dilation, true, degen_val);
     auto output_range_all_asym = calc_sliding_window_output_range<swor_mode::all>(input_size, size, pad, stride, dilation, false, degen_val);

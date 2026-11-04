@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,8 +25,8 @@ public:
 protected:
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
-    DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+    DispatchData SetDefault(const convolution_params& cp, int autoTuneIndex = -1) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override {
         return WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
@@ -43,7 +43,7 @@ private:
         std::string exeMode;
     };
 
-    AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
+    AutoTuneOption GetAutoTuneOptions(const Params& p, int autoTuneIndex) const;
     std::vector<AutoTuneOption> autoTuneOptions;
 };
 }  // namespace kernel_selector

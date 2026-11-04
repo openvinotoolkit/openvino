@@ -24,7 +24,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*params*/) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ JitConstants LRNKernelRef::GetJitConstants(const lrn_params& params, const LRNKe
         numElement = round_norm_size;
     }
 
-    const float num_element_div = 1.f / static_cast<float>(numElement);
+    const float num_element_div = 1.F / static_cast<float>(numElement);
 
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     jit.AddConstants({

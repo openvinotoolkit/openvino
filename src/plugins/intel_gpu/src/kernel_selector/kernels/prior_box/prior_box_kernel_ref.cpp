@@ -26,7 +26,7 @@ KernelsData PriorBoxKernelRef::GetKernelsData(const Params& params) const {
     }
 
     KernelData kernel_data = KernelData::Default<prior_box_params>(params);
-    const prior_box_params& new_params = dynamic_cast<const prior_box_params&>(*kernel_data.params.get());
+    const prior_box_params& new_params = dynamic_cast<const prior_box_params&>(*kernel_data.params);
 
     const auto dispatch_data = SetDefault(new_params);
     const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
@@ -107,7 +107,7 @@ JitConstants PriorBoxKernelRef::GetJitConstants(const prior_box_params& params) 
     if (params.flip) {
         jit.AddConstant(MakeJitConstant("FLIP", 1));
     }
-    if (params.step != 0.0f) {
+    if (params.step != 0.0F) {
         jit.AddConstant(MakeJitConstant("STEP", params.step));
     }
     jit.AddConstant(MakeJitConstant("OFFSET", params.offset));

@@ -52,11 +52,11 @@ struct lrn : public primitive_base<lrn> {
     /// @brief Size of normalization.
     uint32_t size = 0;
     /// @brief Hyper parameter "k".
-    float k = 0.0f;
+    float k = 0.0F;
     /// @brief Hyper parameter "alpha".
-    float alpha = 0.0f;
+    float alpha = 0.0F;
     /// @brief Hyper parameter "beta".
-    float beta = 0.0f;
+    float beta = 0.0F;
     /// @brief Normalize across or within channel
     lrn_norm_region norm_region = lrn_norm_region::lrn_norm_region_within_channel;
 

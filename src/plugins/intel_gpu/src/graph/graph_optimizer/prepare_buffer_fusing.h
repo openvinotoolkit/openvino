@@ -19,7 +19,7 @@ struct concat_noop_optimization : pattern_match_optimization_typed<concat_noop_o
     using base = pattern_match_optimization_typed<concat_noop_optimization, concatenation>;
     using base::base;
 
-    bool match(concatenation_node& node);
+    static bool match(concatenation_node& node);
     bool optimize(concatenation_node& node);
 };
 struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in_place_optimization, concatenation> {
@@ -33,17 +33,14 @@ struct concat_in_place_optimization : pattern_match_optimization_typed<concat_in
 
     // Runs concat in-place optimization and adds already optimized concatenations that need re-optimization to
     // `needs_reoptimization`.
-    void optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization);
-    static void update_in_place_concat_paddings(layout& concat_layout,
-                                 std::vector<layout>& preds_layouts,
-                                 size_t concat_axis,
-                                 bool is_runtime);
-    bool match(concatenation_node& node);
+    static void optimize_cascade(concatenation_node& node, std::list<concatenation_node*>& need_reoptimization);
+    static void update_in_place_concat_paddings(layout& concat_out_layout, std::vector<layout>& preds_layouts, size_t concat_axis, bool is_runtime);
+    static bool match(concatenation_node& node);
     static bool match(const program_node& concat_node,
                       kernel_impl_params& concat_params,
                       std::vector<kernel_impl_params>& pred_params,
                       bool is_runtime = false);
-    bool optimize(concatenation_node& node) {
+    static bool optimize(concatenation_node& node) {
         std::list<concatenation_node*> need_reopt;
         optimize_cascade(node, need_reopt);
         while (!need_reopt.empty()) {
@@ -69,12 +66,12 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
                                                     const layout& input_layout);
     static bool can_crop_be_optimized_simple_data_format(const layout& crop_layout,
                                                          const layout& input_layout);
-    bool match(crop_node& node);
+    static bool match(crop_node& node);
     static bool match(const program_node& node,
                       kernel_impl_params& crop_params,
                       layout& input_layout,
                       bool is_runtime = false);
-    bool optimize(crop_node& node);
+    static bool optimize(crop_node& node);
     // user_info.first: the reshape user program_node (or nullptr if the crop
     //                  has no propagatable reshape user). When non-null, the
     //                  helper writes the propagated padding into
@@ -86,17 +83,17 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
     //                  resets padding to empty for reshape_mode::base).
     static bool update_in_place_crop_padding_along_feature(const program_node& node,
                                                            layout& crop_layout,
-                                                           layout& pred_layout,
+                                                           layout& input_layout,
                                                            std::pair<const program_node*, layout>& user_info,
-                                                           const tensor offsets,
+                                                           tensor offsets,
                                                            size_t crop_axis,
                                                            bool is_runtime);
     static bool update_in_place_crop_padding_simple_data_format(layout& crop_layout,
-                                                                layout& pred_layout,
+                                                                layout& input_layout,
                                                                 std::pair<const program_node*, layout>& user_info,
-                                                                const tensor offsets,
+                                                                tensor offsets,
                                                                 size_t crop_axis,
                                                                 bool is_runtime);
 };
 
-} // namespace cldnn
+}  // namespace cldnn

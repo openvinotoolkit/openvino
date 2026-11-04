@@ -37,6 +37,6 @@ public:
     bool Validate(const Params& params) const override;
 
 protected:
-    virtual JitConstants GetJitConstants(const reorg_yolo_params& params) const;
+    virtual JitConstants GetJitConstants(const reorg_yolo_params& ry) const;
 };
 }  // namespace kernel_selector

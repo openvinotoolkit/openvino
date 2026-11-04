@@ -82,7 +82,7 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
 
     const size_t elem_count = oc * group_count;
     if (is_scale) {
-        const size_t elem_size = static_cast<size_t>(cldnn::data_type_traits::size_of(layout.data_type));
+        const size_t elem_size = cldnn::data_type_traits::size_of(layout.data_type);
         OPENVINO_ASSERT(elem_size > 0, "Invalid scale element size for offset_pos=", offset_pos);
         OPENVINO_ASSERT(elem_count * elem_size == per_expert_size,
                         "Unexpected scale payload size for offset_pos=",

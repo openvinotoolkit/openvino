@@ -18,7 +18,7 @@ public:
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*p*/) const override;
     JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
     DispatchData SetDefault(const pooling_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
@@ -27,7 +27,7 @@ protected:
                  FusedOpType::ACTIVATION };
     }
 
-    size_t GetBlockSize(const pooling_params& params) const;
-    size_t GetSimdSize(const pooling_params& params) const;
+    static size_t GetBlockSize(const pooling_params& params);
+    static size_t GetSimdSize(const pooling_params& params);
 };
 }  // namespace kernel_selector

@@ -15,7 +15,7 @@ class RemoteTensorImpl;
 
 class USMHostTensor : public ov::ITensor {
 public:
-    USMHostTensor(std::shared_ptr<RemoteContextImpl> context, const element::Type element_type, const Shape& shape);
+    USMHostTensor(std::shared_ptr<RemoteContextImpl> context, element::Type element_type, const Shape& shape);
     explicit USMHostTensor(std::shared_ptr<RemoteTensorImpl> tensor);
 
     ~USMHostTensor() override = default;

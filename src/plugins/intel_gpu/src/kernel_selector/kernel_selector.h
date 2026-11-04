@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,13 +27,12 @@ public:
 
 protected:
     template <typename T>
-    inline void Attach() {
+    void Attach() {
         implementations.push_back(std::make_shared<T>());
     }
     virtual KernelsData GetBestKernels(const Params& params) const = 0;
 
-    KernelsData GetNaiveBestKernel(const KernelList& all_impls,
-                                   const Params& params) const;
+    static KernelsData GetNaiveBestKernel(const KernelList& all_impls, const Params& params);
 
     KernelsData GetNaiveBestKernel(const Params& params,
                                    KernelType kType) const;

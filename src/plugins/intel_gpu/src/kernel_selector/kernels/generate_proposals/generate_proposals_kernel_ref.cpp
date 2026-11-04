@@ -27,7 +27,7 @@ ParamsKey GenerateProposalsRef::GetSupportedKey() const {
     return k;
 }
 
-KernelsPriority GenerateProposalsRef::GetKernelsPriority(const Params&) const {
+KernelsPriority GenerateProposalsRef::GetKernelsPriority(const Params& /*unused*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -68,9 +68,7 @@ GenerateProposalsRef::DispatchData SetDefault(const generate_proposals_params& p
 }
 }  // namespace
 
-void GenerateProposalsRef::SetKernelArguments(
-        const generate_proposals_params& params,
-        size_t idx, cldnn::arguments_desc& arguments) const {
+void GenerateProposalsRef::SetKernelArguments(const generate_proposals_params& params, size_t idx, cldnn::arguments_desc& arguments) {
     switch (idx) {
         case 0: { // refine anchors
             arguments.push_back({ArgumentDescriptor::Types::INPUT, kImInfoInputIdx});

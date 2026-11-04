@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,7 +42,7 @@ JitConstants BorderKernelBase::GetJitConstants(const border_params& params) cons
     return jit;
 }
 
-BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params& params) const {
+BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params& params) {
     const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
@@ -74,12 +74,12 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
     return dispatchData;
 }
 
-bool BorderKernelBase::SkipKernelExecution(const border_params& params) const {
+bool BorderKernelBase::SkipKernelExecution(const border_params& params) {
     return params.outputs[0].LogicalSize() == 0;
 }
 
 void BorderKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
-    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    kd.update_dispatch_data_func = [](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const border_params&>(params);
         auto dispatchData = SetDefault(prim_params);
         OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");

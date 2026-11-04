@@ -31,14 +31,14 @@ public:
     };
 
 protected:
-    Tensor::DataChannelName GetCumSumAxis(const cum_sum_params& params) const;
-    int32_t GetCumSumAxisIndex(const cum_sum_params& params) const;
-    size_t GetRealAxisIndex(const cum_sum_params& params) const;
+    static Tensor::DataChannelName GetCumSumAxis(const cum_sum_params& params);
+    static int32_t GetCumSumAxisIndex(const cum_sum_params& params);
+    static size_t GetRealAxisIndex(const cum_sum_params& params);
     virtual JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const cum_sum_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
-    bool Validate(const Params&) const override;
-    Datatype GetActivationType(const cum_sum_params& params) const;
+    bool Validate(const Params& /*unused*/) const override;
+    static Datatype GetActivationType(const cum_sum_params& params);
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

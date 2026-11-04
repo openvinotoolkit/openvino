@@ -45,11 +45,11 @@ DeviceFeaturesKey ConvolutionKernel_fs_byx_fsv32_depthwise::get_required_device_
     return get_common_subgroups_device_features_key(params);
 }
 
-size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getInputWidth(const convolution_params& arg, size_t blockWidth) const {
+size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getInputWidth(const convolution_params& arg, size_t blockWidth) {
     return (blockWidth - 1) * arg.stride.x + (arg.filterSize.x - 1) * arg.dilation.x + 1;
 }
 
-size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getMinRegisterUsage(const convolution_params& arg, size_t blockWidth) const {
+size_t ConvolutionKernel_fs_byx_fsv32_depthwise::getMinRegisterUsage(const convolution_params& arg, size_t blockWidth) {
     size_t weightsRegisters = 2;
     size_t outputRegisters = blockWidth * 2;
     size_t inputRegisters = getInputWidth(arg, blockWidth) * 2;

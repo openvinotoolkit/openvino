@@ -34,22 +34,26 @@ struct PagedSelectiveSSMOpt : public cldnn::ImplementationManager {
         ov::element::Type index_type = ov::element::dynamic;
         for (size_t i = 0; i < node.get_dependencies().size(); i++) {
             const auto& in_layout = node.get_input_layout(i);
-            if (!cldnn::one_of(in_layout.format, supported_fmts))
+            if (!cldnn::one_of(in_layout.format, supported_fmts)) {
                 return false;
+            }
             if (i < cldnn::paged_selective_ssm::RECURRENT_STATE_TABLE) {
-                if (!cldnn::one_of(in_layout.data_type, supported_real_types))
+                if (!cldnn::one_of(in_layout.data_type, supported_real_types)) {
                     return false;
+                }
                 if (data_type.is_dynamic()) {
                     data_type = in_layout.data_type;
                 } else if (data_type != in_layout.data_type) {
                     return false;
                 }
             } else if (i == cldnn::paged_selective_ssm::RECURRENT_STATE_TABLE) {
-                if (!cldnn::one_of(in_layout.data_type, supported_real_types))
+                if (!cldnn::one_of(in_layout.data_type, supported_real_types)) {
                     return false;
+                }
             } else {
-                if (!cldnn::one_of(in_layout.data_type, supported_index_types))
+                if (!cldnn::one_of(in_layout.data_type, supported_index_types)) {
                     return false;
+                }
                 if (index_type.is_dynamic()) {
                     index_type = in_layout.data_type;
                 } else if (index_type != in_layout.data_type) {

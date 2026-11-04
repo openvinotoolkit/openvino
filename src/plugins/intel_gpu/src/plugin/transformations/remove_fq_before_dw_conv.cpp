@@ -4,6 +4,7 @@
 
 #include "remove_fq_before_dw_conv.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -182,10 +183,10 @@ bool has_mvn_dequantization_barrier(const ov::Output<ov::Node>& output, size_t c
         return false;
     }
 
-    for (const auto& target_input : target_inputs) {
+    return std::all_of(target_inputs.begin(), target_inputs.end(), [current_channel_axis, bridge_operations](const auto& target_input) {
         const auto consumer = target_input.get_node()->shared_from_this();
         if (target_input.get_index() == 0 && mvn_reduces_channel(consumer, current_channel_axis)) {
-            continue;
+            return true;
         }
 
         if (bridge_operations >= max_bridge_operations) {
@@ -199,11 +200,8 @@ bool has_mvn_dequantization_barrier(const ov::Output<ov::Node>& output, size_t c
             }
 
             const size_t other_index = 1 - data_index;
-            if (ov::is_type<ov::op::v0::Constant>(add->get_input_node_shared_ptr(other_index)) &&
-                has_mvn_dequantization_barrier(add->output(0), current_channel_axis, bridge_operations + 1)) {
-                continue;
-            }
-            return false;
+            return ov::is_type<ov::op::v0::Constant>(add->get_input_node_shared_ptr(other_index)) &&
+                   has_mvn_dequantization_barrier(add->output(0), current_channel_axis, bridge_operations + 1);
         }
 
         if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(consumer)) {
@@ -212,16 +210,11 @@ bool has_mvn_dequantization_barrier(const ov::Output<ov::Node>& output, size_t c
             }
 
             const auto transposed_channel_axis = get_transposed_channel_axis(transpose, current_channel_axis);
-            if (transposed_channel_axis.has_value() && has_mvn_dequantization_barrier(transpose->output(0), *transposed_channel_axis, bridge_operations + 1)) {
-                continue;
-            }
-            return false;
+            return transposed_channel_axis.has_value() && has_mvn_dequantization_barrier(transpose->output(0), *transposed_channel_axis, bridge_operations + 1);
         }
 
         return false;
-    }
-
-    return true;
+    });
 }
 
 }  // namespace

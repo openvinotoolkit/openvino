@@ -34,7 +34,7 @@ protected:
     bool Validate(const Params& params) const override;
     DispatchData SetDefault(const gemm_params& params) const override;
     JitConstants GetJitConstants(const gemm_params& params) const override;
-    GemmTuningData SetTuningParams(const gemm_params& params) const;
+    static GemmTuningData SetTuningParams(const gemm_params& params);
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };

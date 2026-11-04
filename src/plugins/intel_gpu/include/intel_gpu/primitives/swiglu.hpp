@@ -32,18 +32,18 @@ struct swiglu : public primitive_base<swiglu> {
            const float swish_beta,
            const float up_add_val,
            const tensor output_size,
-           const float scale_factor = -1.0f)
-           : primitive_base(id, {input}),
-             axis(axis),
-             glu_stride(glu_stride),
-             glu_type(glu_type),
-             gate_idx(gate_idx),
-             clamp_min(clamp_min),
-             clamp_max(clamp_max),
-             swish_beta(swish_beta),
-             up_add_val(up_add_val),
-             scale_factor(scale_factor),
-             output_size(output_size) {}
+           const float scale_factor = -1.0F)
+        : primitive_base(id, {input}),
+          axis(axis),
+          glu_stride(glu_stride),
+          glu_type(glu_type),
+          gate_idx(gate_idx),
+          clamp_min(clamp_min),
+          clamp_max(clamp_max),
+          swish_beta(swish_beta),
+          up_add_val(up_add_val),
+          scale_factor(scale_factor),
+          output_size(output_size) {}
 
     swiglu(const primitive_id& id,
            const input_info& input,
@@ -60,10 +60,10 @@ struct swiglu : public primitive_base<swiglu> {
                  gate_idx,
                  std::numeric_limits<float>::lowest(),
                  std::numeric_limits<float>::max(),
-                 1.0f,
-                 0.0f,
+                 1.0F,
+                 0.0F,
                  output_size,
-                 -1.0f) {}
+                 -1.0F) {}
 
     int64_t axis = 0;
     int64_t glu_stride = 0;
@@ -71,12 +71,12 @@ struct swiglu : public primitive_base<swiglu> {
     size_t gate_idx = 0;
     float clamp_min = std::numeric_limits<float>::lowest();
     float clamp_max = std::numeric_limits<float>::max();;
-    float swish_beta = 1.0f;
-    float up_add_val = 0.0f;
+    float swish_beta = 1.0F;
+    float up_add_val = 0.0F;
     // Scale multiplied to both gate and value inputs before activation.
     // Used to compensate when the upstream producer has pre-divided the
     // activation (paired with weight pre-scaling on the feeding MatMuls).
-    float scale_factor = -1.0f;
+    float scale_factor = -1.0F;
     tensor output_size;
 
     size_t hash() const override {

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -157,17 +158,11 @@ struct kernel_impl_params final {
     }
 
     bool is_dynamic() const {
-        for (const auto& i : input_layouts) {
-            if (i.is_dynamic()) {
-                return true;
-            }
-        }
-        for (const auto& i : output_layouts) {
-            if (i.is_dynamic()) {
-                return true;
-            }
-        }
-        return false;
+        const auto layout_is_dynamic = [](const auto& input_layout) {
+            return input_layout.is_dynamic();
+        };
+        return std::any_of(input_layouts.begin(), input_layouts.end(), layout_is_dynamic) ||
+               std::any_of(output_layouts.begin(), output_layouts.end(), layout_is_dynamic);
     }
 
     bool can_be_optimized() const {

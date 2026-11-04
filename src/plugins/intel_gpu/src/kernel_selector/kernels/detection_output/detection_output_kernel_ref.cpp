@@ -10,7 +10,7 @@
 namespace kernel_selector {
 
 namespace {
-static inline int GetPartitionStep(int localWorkItemNum) {
+inline int GetPartitionStep(int localWorkItemNum) {
     int step_size = 0;
     for (int temp = localWorkItemNum; temp > 1; temp /= 2) {
         step_size++;
@@ -18,7 +18,7 @@ static inline int GetPartitionStep(int localWorkItemNum) {
     return step_size;
 }
 
-static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
+inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const EngineInfo& info) {
     const size_t optimal_values[] = {16, 8, 7, 6, 5, 4, 2, 1};
     const size_t splitNum = gws[2];
     const size_t globalClassNum = gws[1];
@@ -151,7 +151,7 @@ bool DetectionOutputKernelRef::Validate(const Params& p) const {
     return true;
 }
 
-void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) const {
+void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params& params, clKernelData& kernel, size_t idx) {
     if (params.detectOutParams.decrease_label_id) {
         if (idx == 0) {
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});

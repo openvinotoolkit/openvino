@@ -75,7 +75,7 @@ void CreateElementwiseOp(ProgramBuilder& p,
                 auto reshapeName = layerName + "_cldnn_in" + std::to_string(i) + "_reshape";
 
                 // Extend input dimensions by prepending ones
-                input_pshape.insert(input_pshape.begin(), out_rank - input_rank, 1ul);
+                input_pshape.insert(input_pshape.begin(), out_rank - input_rank, 1UL);
 
                 auto targetShape = tensor_from_dims(input_pshape.to_shape());
 
