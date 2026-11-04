@@ -591,6 +591,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/align_matmul_input_ranks.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_broadcast_to_tiles.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_broadcast_to_tiles.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.cpp
