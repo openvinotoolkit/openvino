@@ -120,10 +120,15 @@ size_t MoE3GemmInt3Gemv::get_nb(const RuntimeParams& params, Projection proj) {
 }
 
 // Most tokens per step for which the u3 batched GEMV beats the OneDNN grouped GEMM on a Qwen3.6-35B-A3B MoE layer. The
-// crossover grows with the GPU size: about 2 tokens on PTL 386H (32 EUs), 6 on LNL 258V (64 EUs), 16 on BMG B570 (144 EUs).
+// GEMV is bound by the memory bandwidth, the grouped GEMM by the compute: on the shared memory of an integrated GPU the
+// crossover drops with the EU count (6 tokens on LNL 258V with 64 EUs, about 2 on PTL 386H with 96 EUs), while a
+// discrete GPU stays on the GEMV much longer (about 16 tokens on BMG B570).
 size_t MoE3GemmInt3Gemv::get_default_threshold(const RuntimeParams& params) {
-    const auto eu_count = params.get_device_info().execution_units_count;
-    return eu_count <= 32 ? 2 : eu_count <= 64 ? 6 : 16;
+    const auto& info = params.get_device_info();
+    if (info.dev_type == cldnn::device_type::discrete_gpu) {
+        return 16;
+    }
+    return info.execution_units_count <= 64 ? 6 : 2;
 }
 
 JitConstants MoE3GemmInt3Gemv::get_jit_constants(const RuntimeParams& params) const {
