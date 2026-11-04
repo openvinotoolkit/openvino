@@ -133,6 +133,80 @@ trade-offs after optimization:
   There are three modes: INT8_ASYM, INT8_SYM, and NONE, which retains
   the original floating-point precision of the model weights (``INT8_ASYM`` is default value).
 
+* ``ignored_scope`` - this parameter can be used to exclude some layers from the quantization process to preserve the model accuracy. For example, when you want to exclude the last layer of the model from quantization. Below are some examples of how to use this parameter:
+
+  * Exclude by layer name:
+
+    .. code-block:: sh
+
+       names = ['layer_1', 'layer_2', 'layer_3']
+       nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(names=names))
+
+  * Exclude by layer type:
+
+    .. code-block:: sh
+
+       types = ['Conv2d', 'Linear']
+       nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(types=types))
+
+  * Exclude by regular expression:
+
+    .. code-block:: sh
+
+       regex = '.*layer_.*'
+       nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(patterns=regex))
+
+  * Exclude by subgraphs:
+
+    .. code-block:: sh
+
+       subgraph = nncf.Subgraph(inputs=['layer_1', 'layer_2'], outputs=['layer_3'])
+       nncf.quantize(model, dataset, ignored_scope=nncf.IgnoredScope(subgraphs=[subgraph]))
+
+    In this case, all nodes along all simple paths in the graph from input to output nodes will be excluded from the quantization process.
+
+* ``scoped_configs`` - a list of ``nncf.ScopedConfig`` objects that assign a custom compression
+  configuration (``mode`` and ``group_size``) to specific layers of the model. A typical use case
+  is a Mixture-of-Experts model, where the experts are compressed to 4 bits, while the attention
+  and router layers are kept in 8 bits to preserve accuracy. Each scoped config selects layers by
+  the same rules as ``ignored_scope``: node ``names``, regular expression ``patterns``,
+  operation ``types`` and ``subgraphs``. If ``group_size`` is not set, the default group size of
+  the given ``mode`` is used, and ``-1`` means per-channel quantization.
+
+  .. code-block:: python
+
+     import nncf
+     from nncf import compress_weights, CompressWeightsMode
+
+     compressed_model = compress_weights(
+       model,
+       mode=CompressWeightsMode.INT4_SYM,
+       group_size=64,
+       ratio=1.0,
+       scoped_configs=[
+         nncf.ScopedConfig(
+           patterns=[".*self_attn.*", ".*router.*"],
+           mode=CompressWeightsMode.INT8_ASYM,
+           group_size=-1,
+         ),
+         nncf.ScopedConfig(
+           patterns=[".*mlp.down_proj.*"],
+           mode=CompressWeightsMode.INT4_ASYM,
+           group_size=128,
+         ),
+       ],
+     )
+
+  The compression configuration of a layer is selected as follows:
+
+  * **Scoped configs** - a layer matched by a scoped config gets its configuration. If several
+    scoped configs match the same layer, the last one in the list is applied.
+  * **Ignored scope** - layers in the ``ignored_scope`` are not compressed, unless a scoped
+    config matches them, in which case the scoped config takes precedence.
+  * **All other layers** - get the configuration defined by ``mode``, ``group_size``, ``ratio``,
+    ``backup_mode`` and ``all_layers``. The mixed-precision ``ratio`` is counted only over the
+    layers that are not matched by ``scoped_configs`` or ``ignored_scope``.
+
 
 
 .. tip::
