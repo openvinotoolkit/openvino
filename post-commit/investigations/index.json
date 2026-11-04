@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 66,
+  "total": 67,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -673,6 +673,15 @@
       "category": "Network",
       "signature_hash": "36999727fab6986e",
       "commit_sha": "569fe8d7e523e3efa9a5a454f730cc0d126416cf"
+    },
+    {
+      "investigation_id": "2026-11-04-22-24-44-391-41921789891",
+      "run_id": "41921789891",
+      "timestamp": "2026-11-04T22:24:44Z",
+      "title": "Android build x64/arm64 fail to store artifacts: No space left on device on shared build-artifacts mount",
+      "category": "Infrastructure",
+      "signature_hash": "20bacf1a347a0b94",
+      "commit_sha": "98a58dac99b6dda19f91cf7f06158c1644a5c820"
     }
   ]
 }

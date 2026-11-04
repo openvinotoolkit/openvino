@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-04-22-24-44-391-41921789891",
+  "timestamp": "2026-11-04T22:24:44Z",
+  "run_id": "41921789891",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41921789891",
+  "workflow_name": "Android",
+  "commit_sha": "98a58dac99b6dda19f91cf7f06158c1644a5c820",
+  "pr_number": "39076",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39076",
+  "author": "dependabot[bot]",
+  "category": "Infrastructure",
+  "title": "Android build x64/arm64 fail to store artifacts: No space left on device on shared build-artifacts mount",
+  "signature": "Failed to copy build artifacts: [Errno 28] No space left on device on shared build-artifacts mount|Infrastructure",
+  "signature_hash": "20bacf1a347a0b94",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "Store artifacts step fails copying openvino_package.tar.gz with [Errno 28] No space left on device"
+    },
+    {
+      "name": "Build arm64",
+      "conclusion": "failure",
+      "symptom": "Store artifacts step fails copying openvino_package.tar.gz with [Errno 28] No space left on device"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because upstream Build x64/arm64 jobs failed"
+    }
+  ],
+  "key_errors": [
+    "11-04-2026 22:17:04 __main__ ERROR Failed to copy /__w/openvino/openvino/build/openvino_package.tar.gz: [Errno 28] No space left on device: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_android_x64_release'",
+    "11-04-2026 22:17:06 __main__ ERROR Failed to copy /__w/openvino/openvino/build/openvino_tests.tar.gz: [Errno 28] No space left on device: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_android_x64_release'",
+    "FileNotFoundError: [Errno 2] No such file or directory: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_android_x64_release/workflow_link.txt'",
+    "11-04-2026 22:16:25 __main__ ERROR Failed to copy /__w/openvino/openvino/build/openvino_package.tar.gz: [Errno 28] No space left on device: '/mount/build-artifacts/dldt/master/commit/98a58dac99b6dda19f91cf7f06158c1644a5c820/public_android_arm64_release'"
+  ],
+  "root_cause": "Both the x64 and arm64 Android build jobs completed compilation successfully, but the 'Store artifacts' custom action (.github/actions/store_artifacts) failed when copying the resulting openvino_package.tar.gz, openvino_tests.tar.gz, and manifest.yml to the shared network-mounted artifact storage at /mount/build-artifacts. The OS raised errno 28 (ENOSPC, 'No space left on device') on that mount, meaning the shared drive used to archive build artifacts for the 'dldt/master' branch was full at the time of the run. This is unrelated to the PR's content (a gitpython dependency bump in the store_artifacts action) or to the build itself; it is an infrastructure capacity issue on the shared storage backend. The subsequent FileNotFoundError for workflow_link.txt is a secondary symptom: the destination directory structure was never fully created because the preceding copy failed partway through. The ci/gha_overall_status_android job failed only because it aggregates the status of the two build jobs, both of which failed at this same storage step.",
+  "reproduction_steps": "N/A - this failure depends on the available free space on the external, shared /mount/build-artifacts network drive at the time of the run and cannot be reproduced by re-running identical code locally. To confirm, check disk usage on the storage backend mounted at /mount/build-artifacts (likely via `df -h /mount/build-artifacts` on the host/runner, or via the storage backend's own monitoring) at the time of the run.",
+  "recommended_actions": [
+    "Free up space on the shared build-artifacts storage backend (prune old/expired commit artifact directories under /mount/build-artifacts/dldt/master/commit/) or increase the mount's capacity.",
+    "Add automated retention/cleanup (e.g., a scheduled job) that deletes artifact directories for commits older than N days under /mount/build-artifacts/dldt/<branch>/commit/ to prevent recurrence.",
+    "Add a disk-space pre-check/alert in .github/actions/store_artifacts (or a separate monitoring workflow) that warns before the mount nears capacity, rather than failing silently inside build jobs.",
+    "Consider making the store_artifacts action fail more gracefully (clear instructive error, and/or retry after triggering cleanup) instead of leaving a partially-written destination directory, which caused the secondary FileNotFoundError on workflow_link.txt.",
+    "Re-run the Android workflow once the storage backend has free space; no code changes to the PR are required."
+  ],
+  "prevention_strategies": "Implement scheduled or threshold-triggered cleanup/retention on the shared /mount/build-artifacts network drive, and add monitoring/alerting on free space for that mount so operators are notified before it fills up, well ahead of CI jobs failing. Consider capping how many historical commit artifact sets are retained per branch.",
+  "historical_context": "No prior post-commit investigation in this knowledge base matches this exact signature (artifact-upload infrastructure failures previously recorded relate to network/connectivity errors such as ENOTFOUND, ECONNREFUSED, EAI_AGAIN, 503 Egress-over-limit on GitHub-hosted blob storage/Actions artifact service - not a full, self-managed /mount/build-artifacts drive). This is the first recorded occurrence of the shared build-artifacts mount running out of disk space (errno 28), so this becomes a new pattern going forward."
+}
