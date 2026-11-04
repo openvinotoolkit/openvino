@@ -4,10 +4,12 @@
 
 #include <gmock/gmock.h>
 
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <numeric>
 #include <utility>
 #include <vector>
@@ -1381,13 +1383,33 @@ ov::Tensor make_buffer_tensor(const ov::element::Type& type,
 }
 }  // namespace
 
+TEST_F(OVTensorTest, mappedMemoryPrefetchForwardsCompletionToken) {
+    const auto mapping = std::make_shared<MockMappedMemory>(64);
+    std::shared_ptr<ov::MappedMemory> memory = mapping;
+    std::shared_ptr<ov::util::IMemoryHints> hints = mapping;
+    std::promise<void> completion;
+    const auto expected = completion.get_future().share();
+
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, ov::auto_size)).Times(2).WillRepeatedly(testing::Return(expected));
+    const auto memory_token = memory->hint_prefetch();
+    const auto hints_token = hints->hint_prefetch();
+    ASSERT_TRUE(memory_token.valid());
+    ASSERT_TRUE(hints_token.valid());
+
+    EXPECT_EQ(memory_token.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    EXPECT_EQ(hints_token.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    completion.set_value();
+    EXPECT_EQ(memory_token.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    EXPECT_EQ(hints_token.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+}
+
 TEST_F(OVTensorTest, bufferTensorViewsBufferAndTakesItsId) {
     auto mapping = std::make_shared<MockMappedMemory>(64);
     const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{64}, mapping);
     EXPECT_EQ(tensor.data(), static_cast<const void*>(mapping->data()));
     EXPECT_EQ(ov::get_tensor_source_id(tensor), std::optional<uint64_t>{7u});
 
-    EXPECT_CALL(*mapping, hint_prefetch(0, ov::auto_size));
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, ov::auto_size));
     auto hints = ov::get_memory_hints(tensor);
     EXPECT_EQ(hints.get(), static_cast<ov::util::IMemoryHints*>(mapping.get()));
     hints->hint_prefetch();
@@ -1413,9 +1435,9 @@ TEST_F(OVTensorTest, memoryHintsCoverTensorRangeOfMapping) {
     const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{1000}, mapping);
     const ov::Tensor roi{tensor, {100}, {300}};
 
-    EXPECT_CALL(*mapping, hint_prefetch(0, 1000));
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, 1000));
     EXPECT_CALL(*mapping, hint_evict(0, 1000));
-    EXPECT_CALL(*mapping, hint_prefetch(100, 200));
+    EXPECT_CALL(*mapping, hint_prefetch_async(100, 200));
     EXPECT_CALL(*mapping, hint_evict(100, 200));
 
     auto hints = ov::get_memory_hints(tensor);
