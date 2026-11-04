@@ -42,7 +42,7 @@ TEST_F(TransformationTestsF, DecomposeRMSNormMixedPrecision) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, -1, 8});
         auto gamma = v0::Constant::create(element::f32, Shape{8}, {1.5F});
-        auto rms = std::make_shared<internal::RMS>(data, gamma, kEpsilon, element::f32);
+        auto rms = std::make_shared<ov::op::internal::RMS>(data, gamma, kEpsilon, element::f32);
         model = std::make_shared<Model>(OutputVector{rms}, ParameterVector{data});
         manager.register_pass<ov::intel_cpu::DecomposeRMSNorm>();
     }
@@ -59,7 +59,7 @@ TEST_F(TransformationTestsF, DecomposeRMSNormSamePrecision) {
     {
         auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1, 8});
         auto gamma = v0::Constant::create(element::f32, Shape{8}, {1.5F});
-        auto rms = std::make_shared<internal::RMS>(data, gamma, kEpsilon, element::f32);
+        auto rms = std::make_shared<ov::op::internal::RMS>(data, gamma, kEpsilon, element::f32);
         model = std::make_shared<Model>(OutputVector{rms}, ParameterVector{data});
         manager.register_pass<ov::intel_cpu::DecomposeRMSNorm>();
     }
