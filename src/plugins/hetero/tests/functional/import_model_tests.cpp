@@ -12,6 +12,7 @@
 #include "blob_serialization.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "hetero_tests.hpp"
+#include "properties.hpp"
 
 namespace ov {
 namespace hetero {
@@ -63,41 +64,6 @@ private:
     std::string m_name;
     std::string m_old_value;
     bool m_has_old_value = false;
-};
-
-class NonSeekableOutputBuffer : public std::streambuf {
-public:
-    const std::string& str() const {
-        return _data;
-    }
-
-protected:
-    std::streamsize xsputn(const char* data, std::streamsize count) override {
-        if (count <= 0) {
-            return 0;
-        }
-        _data.append(data, static_cast<std::string::size_type>(count));
-        return count;
-    }
-
-    int_type overflow(int_type ch) override {
-        if (traits_type::eq_int_type(ch, traits_type::eof())) {
-            return traits_type::not_eof(ch);
-        }
-        _data.push_back(traits_type::to_char_type(ch));
-        return ch;
-    }
-
-    pos_type seekoff(off_type, std::ios_base::seekdir, std::ios_base::openmode) override {
-        return pos_type(off_type(-1));
-    }
-
-    pos_type seekpos(pos_type, std::ios_base::openmode) override {
-        return pos_type(off_type(-1));
-    }
-
-private:
-    std::string _data;
 };
 
 class SeekCountingOutputBuffer : public std::streambuf {
@@ -288,6 +254,15 @@ void expect_compiled_model_runs(HeteroTests& fixture, ov::CompiledModel compiled
 
 // IR frontend is needed for import
 #ifdef IR_FRONTEND_ENABLED
+// Tests of the legacy blob layout: it is pinned until the legacy format is removed.
+class HeteroLegacyBlobTests : public HeteroTests {
+protected:
+    void SetUp() override {
+        HeteroTests::SetUp();
+        core.set_property(ov::test::utils::DEVICE_HETERO, ov::hetero::export_hsm_format(false));
+    }
+};
+
 TEST_F(HeteroTests, import_single_plugins) {
     std::stringstream model_stream;
     auto model = create_model_with_reshape();
@@ -309,7 +284,7 @@ TEST_F(HeteroTests, import_single_plugins) {
     EXPECT_EQ(input_tensor.get_element_type(), model->input().get_element_type());
 }
 
-TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
+TEST_F(HeteroLegacyBlobTests, export_single_plugin_uses_framed_payload) {
     auto model = create_model_with_reshape();
     const auto compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
@@ -330,7 +305,7 @@ TEST_F(HeteroTests, export_single_plugin_uses_framed_payload) {
     EXPECT_EQ(1, imported_model.outputs().size());
 }
 
-TEST_F(HeteroTests, export_single_plugin_without_export_import_uses_framed_ir_payload) {
+TEST_F(HeteroLegacyBlobTests, export_single_plugin_without_export_import_uses_framed_ir_payload) {
     auto model = create_model_with_reshape();
     EXPECT_NO_THROW(core.get_available_devices());
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
@@ -365,7 +340,7 @@ TEST_F(HeteroTests, export_single_plugin_to_non_seekable_stream) {
     EXPECT_EQ(1, imported_model.outputs().size());
 }
 
-TEST_F(HeteroTests, export_ir_payload_to_non_seekable_stream) {
+TEST_F(HeteroLegacyBlobTests, export_ir_payload_to_non_seekable_stream) {
     auto model = create_model_with_reshape();
     EXPECT_NO_THROW(core.get_available_devices());
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
@@ -388,7 +363,7 @@ TEST_F(HeteroTests, export_ir_payload_to_non_seekable_stream) {
     expect_compiled_model_runs(*this, imported_model);
 }
 
-TEST_F(HeteroTests, export_ir_payload_does_not_depend_on_temp_directory_environment) {
+TEST_F(HeteroLegacyBlobTests, export_ir_payload_does_not_depend_on_temp_directory_environment) {
     auto model = create_model_with_reshape();
     EXPECT_NO_THROW(core.get_available_devices());
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCKIR"));
@@ -477,7 +452,7 @@ TEST_F(HeteroTests, bounded_string_output_buffer_rejects_payload_larger_than_lim
     EXPECT_EQ("abc", payload_buffer.str());
 }
 
-TEST_F(HeteroTests, import_large_compiled_payload_uses_bounded_stream_and_throws) {
+TEST_F(HeteroLegacyBlobTests, import_large_compiled_payload_uses_bounded_stream_and_throws) {
     auto model = create_model_with_reshape();
     const auto compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
@@ -491,7 +466,7 @@ TEST_F(HeteroTests, import_large_compiled_payload_uses_bounded_stream_and_throws
     EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
 }
 
-TEST_F(HeteroTests, import_single_plugin_legacy_unframed_blob_without_format_version) {
+TEST_F(HeteroLegacyBlobTests, import_single_plugin_legacy_unframed_blob_without_format_version) {
     auto model = create_model_with_reshape();
     const auto hetero_compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
@@ -517,7 +492,7 @@ TEST_F(HeteroTests, import_single_plugin_legacy_unframed_blob_without_format_ver
     EXPECT_EQ(1, imported_model.outputs().size());
 }
 
-TEST_F(HeteroTests, import_single_plugin_legacy_unframed_ir_blob_without_format_version) {
+TEST_F(HeteroLegacyBlobTests, import_single_plugin_legacy_unframed_ir_blob_without_format_version) {
     auto model = create_model_with_reshape();
     EXPECT_NO_THROW(core.get_available_devices());
     const auto hetero_compiled_model =
@@ -530,7 +505,7 @@ TEST_F(HeteroTests, import_single_plugin_legacy_unframed_ir_blob_without_format_
     expect_compiled_model_runs(*this, imported_model);
 }
 
-TEST_F(HeteroTests, import_truncated_framed_payload_throws) {
+TEST_F(HeteroLegacyBlobTests, import_truncated_framed_payload_throws) {
     auto model = create_model_with_reshape();
     const auto compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
@@ -542,7 +517,7 @@ TEST_F(HeteroTests, import_truncated_framed_payload_throws) {
     EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
 }
 
-TEST_F(HeteroTests, import_truncated_framed_cpu_payload_throws) {
+TEST_F(HeteroLegacyBlobTests, import_truncated_framed_cpu_payload_throws) {
     auto model = create_model_with_reshape();
     const auto compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities(ov::test::utils::DEVICE_CPU));
@@ -554,7 +529,7 @@ TEST_F(HeteroTests, import_truncated_framed_cpu_payload_throws) {
     EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
 }
 
-TEST_F(HeteroTests, import_framed_ir_payload_with_oversized_xml_size_throws) {
+TEST_F(HeteroLegacyBlobTests, import_framed_ir_payload_with_oversized_xml_size_throws) {
     auto model = create_model_with_reshape();
     const auto compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
@@ -567,7 +542,7 @@ TEST_F(HeteroTests, import_framed_ir_payload_with_oversized_xml_size_throws) {
     EXPECT_THROW(core.import_model(model_stream, ov::test::utils::DEVICE_HETERO, {}), ov::Exception);
 }
 
-TEST_F(HeteroTests, import_framed_ir_payload_with_oversized_weights_size_throws) {
+TEST_F(HeteroLegacyBlobTests, import_framed_ir_payload_with_oversized_weights_size_throws) {
     auto model = create_model_with_reshape();
     const auto compiled_model =
         core.compile_model(model, ov::test::utils::DEVICE_HETERO, ov::device::priorities("MOCK0"));
