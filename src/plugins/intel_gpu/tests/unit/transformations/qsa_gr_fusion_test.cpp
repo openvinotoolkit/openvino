@@ -771,19 +771,6 @@ TEST(gated_residual_read_layout, input_forms) {
     EXPECT_FALSE(Op::read_layout(4, true).has_value());
 }
 
-TEST(gated_residual_group_size, op_accepts_signed_weights_and_optional_zero_points) {
-    const size_t cd = C * D;
-    const size_t lq = static_cast<size_t>(LQ);
-    for (const bool has_zp : {true, false}) {
-        std::shared_ptr<op::GatedResidual> gr;
-        ASSERT_NO_THROW(gr = make_compressed_op(ov::element::i4, cd / 32, lq / 32, has_zp));
-        EXPECT_EQ(gr->get_input_size(), has_zp ? 8u : 6u);
-        EXPECT_NO_THROW(make_compressed_op(ov::element::i8, 1, 1, has_zp));
-        EXPECT_NO_THROW(make_compressed_op(ov::element::u4, cd / 32, lq / 32, has_zp));
-        EXPECT_NO_THROW(make_compressed_op(ov::element::u8, 1, 1, has_zp));
-    }
-}
-
 TEST(gated_residual_group_size, op_validates_the_zero_point_type) {
     const size_t cd = C * D;
     const size_t lq = static_cast<size_t>(LQ);
@@ -852,9 +839,16 @@ TEST(gated_residual_group_size, write_gate_compression_support_has_only_c_rows) 
 
 TEST(gated_residual_group_size, op_accepts_supported_group_sizes) {
     const size_t cd = C * D;
-    for (const auto& wt : {ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8}) {
-        for (const size_t group : {size_t{32}, size_t{64}, size_t{128}, cd}) {
-            EXPECT_NO_THROW(make_compressed_op(wt, cd / group, 1)) << wt << " group " << group;
+    const size_t lq = static_cast<size_t>(LQ);
+    for (const bool has_zp : {true, false}) {
+        for (const auto& wt : {ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8}) {
+            for (const size_t group : {size_t{32}, size_t{64}, size_t{128}, cd}) {
+                // W_up keeps its K32 groups for the smallest W_down group size, per-channel otherwise
+                const size_t g_up = group == 32 ? lq / 32 : 1;
+                std::shared_ptr<op::GatedResidual> gr;
+                ASSERT_NO_THROW(gr = make_compressed_op(wt, cd / group, g_up, has_zp)) << wt << " group " << group;
+                EXPECT_EQ(gr->get_input_size(), has_zp ? 8u : 6u);
+            }
         }
     }
 }
