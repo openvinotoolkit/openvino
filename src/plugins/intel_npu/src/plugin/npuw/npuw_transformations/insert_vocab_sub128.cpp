@@ -153,7 +153,8 @@ bool same_storage(const std::optional<std::shared_ptr<ov::op::v0::Constant>>& lh
 
 class CollectVocabCandidates final : public ov::pass::MatcherPass {
 public:
-    CollectVocabCandidates(std::vector<Vocab>& vocabs, bool lm_head) {
+    // `matched` counts every matched root, also roots that are not stored as candidates.
+    CollectVocabCandidates(std::vector<Vocab>& vocabs, std::size_t& matched, bool lm_head) {
         const auto asymmetric_weight = opp::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
             return output.get_element_type() == ov::element::u8 && output.get_shape().size() == 2;
         });
@@ -180,12 +181,15 @@ public:
         const auto converted = opp::optional<ov::op::v0::Convert>({weight});
 
         std::shared_ptr<ov::Node> root;
+        std::shared_ptr<ov::Node> matmul;
         if (lm_head) {
-            const auto matmul = opp::wrap_type<ov::op::v0::MatMul>(
+            // Both weight layouts match here, so that each LM head that InsertVocabSub128 can mark
+            // is counted. Only the [V, H] layout can share storage with the embedding table.
+            matmul = opp::wrap_type<ov::op::v0::MatMul>(
                 {opp::any_input(), converted},
                 [](const ov::Output<ov::Node>& output) {
                     const auto node = ov::as_type_ptr<ov::op::v0::MatMul>(output.get_node_shared_ptr());
-                    return !node->get_transpose_a() && node->get_transpose_b();
+                    return !node->get_transpose_a();
                 });
             const auto add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
             const auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
@@ -203,8 +207,16 @@ public:
         }
 
         register_matcher(std::make_shared<opp::Matcher>(root, lm_head ? "CollectLmHeadVocab" : "CollectEmbeddingVocab"),
-                         [=, &vocabs](opp::Matcher& matcher) {
+                         [=, &vocabs, &matched](opp::Matcher& matcher) {
                              const auto& values = matcher.get_pattern_value_map();
+                             ++matched;
+                             if (lm_head) {
+                                 const auto matched_matmul =
+                                     ov::as_type_ptr<ov::op::v0::MatMul>(values.at(matmul).get_node_shared_ptr());
+                                 if (!matched_matmul->get_transpose_b()) {
+                                     return false;
+                                 }
+                             }
                              const auto constant = [&values](const std::shared_ptr<ov::Node>& pattern) {
                                  return ov::as_type_ptr<ov::op::v0::Constant>(values.at(pattern).get_node_shared_ptr());
                              };
@@ -240,10 +252,21 @@ bool ov::npuw::DetectVocabSharing::run_on_model(const std::shared_ptr<ov::Model>
 
     std::vector<Vocab> embedding_vocabs;
     std::vector<Vocab> lm_head_vocabs;
+    std::size_t embedding_count = 0;
+    std::size_t lm_head_count = 0;
     ov::pass::GraphRewrite rewrite;
-    rewrite.add_matcher<CollectVocabCandidates>(embedding_vocabs, false);
-    rewrite.add_matcher<CollectVocabCandidates>(lm_head_vocabs, true);
+    rewrite.add_matcher<CollectVocabCandidates>(embedding_vocabs, embedding_count, false);
+    rewrite.add_matcher<CollectVocabCandidates>(lm_head_vocabs, lm_head_count, true);
     rewrite.run_on_model(model);
+
+    // InsertVocabSub128 marks every LM head that it matches. With more than one LM head, a head
+    // that does not share the embedding vocabulary would be marked too, so detection stops here.
+    if (lm_head_count > 1) {
+        LOG_WARN("NPUW_LLM_VOCAB_ASYM_SHARED is enabled, but the model has "
+                 << lm_head_count
+                 << " LM-head outputs. Only one LM head is supported. Sub128 graph transformations are skipped.");
+        return false;
+    }
 
     for (const auto& embedding : embedding_vocabs) {
         for (const auto& lm_head : lm_head_vocabs) {

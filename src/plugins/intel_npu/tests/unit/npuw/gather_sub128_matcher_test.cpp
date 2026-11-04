@@ -4,25 +4,26 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
-#include <algorithm>
 #include <optional>
+#include <set>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include "lazy_tensor.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "lazy_tensor.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-#include "partitioning/patterns/opt.hpp"
 #include "partitioning/partitioning.hpp"
+#include "partitioning/patterns/opt.hpp"
 #include "transformations/rt_info/decompression.hpp"
 
 namespace {
@@ -327,6 +328,92 @@ bool contains_node(const std::shared_ptr<ov::Model>& model, const std::string& n
     });
 }
 
+struct TwoLmHeadModel {
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<ov::Node> tied_weight;
+    std::shared_ptr<ov::Node> tied_zero_point;  // nullptr for the f16 tied vocabulary
+    std::shared_ptr<ov::Node> extra_weight;
+    std::shared_ptr<ov::Node> extra_zero_point;
+};
+
+ov::Output<ov::Node> make_u8_dequantization(const std::shared_ptr<ov::Node>& weight,
+                                            const std::shared_ptr<ov::Node>& zero_point,
+                                            const std::shared_ptr<ov::Node>& scale) {
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(weight, ov::element::f32);
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f32);
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(weight_convert, zero_point_convert);
+    return std::make_shared<ov::opset10::Multiply>(dequantized, scale);
+}
+
+// Embedding Gather + main LM head share one vocabulary (tied). An extra LM head (for example an
+// MTP or auxiliary head) has its own, separate u8 asymmetric vocabulary. As in a real IR, each
+// consumer of the tied vocabulary has its own dequantization nodes over the same constants.
+TwoLmHeadModel make_two_lm_head_model(bool tied_u8, bool extra_pretransposed = false) {
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1});
+    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+
+    std::shared_ptr<ov::Node> tied_weight;
+    std::shared_ptr<ov::Node> tied_zero_point;
+    ov::Output<ov::Node> embedding_vocab;
+    ov::Output<ov::Node> main_head_vocab;
+    if (tied_u8) {
+        tied_weight = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
+        tied_zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
+        auto scale = ov::opset10::Constant::create(ov::element::f32, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
+        embedding_vocab = make_u8_dequantization(tied_weight, tied_zero_point, scale);
+        main_head_vocab = make_u8_dequantization(tied_weight, tied_zero_point, scale);
+    } else {
+        tied_weight = ov::opset10::Constant::create(ov::element::f16, ov::Shape{4, 2}, std::vector<float>(8, 1.0f));
+        embedding_vocab = std::make_shared<ov::opset10::Convert>(tied_weight, ov::element::f32);
+        main_head_vocab = std::make_shared<ov::opset10::Convert>(tied_weight, ov::element::f32);
+    }
+
+    // Pretransposed extra head: weight [H, V], zero point and scale [1, V], MatMul without transpose_b.
+    const auto extra_weight_shape = extra_pretransposed ? ov::Shape{2, 4} : ov::Shape{4, 2};
+    const auto extra_channel_shape = extra_pretransposed ? ov::Shape{1, 4} : ov::Shape{4, 1};
+    auto extra_weight =
+        ov::opset10::Constant::create(ov::element::u8, extra_weight_shape, std::vector<uint8_t>(8, 100));
+    auto extra_zero_point =
+        ov::opset10::Constant::create(ov::element::u8, extra_channel_shape, std::vector<uint8_t>(4, 120));
+    auto extra_scale =
+        ov::opset10::Constant::create(ov::element::f32, extra_channel_shape, std::vector<float>(4, 0.5f));
+    auto extra_head_vocab = make_u8_dequantization(extra_weight, extra_zero_point, extra_scale);
+
+    auto embedding = std::make_shared<ov::opset10::Gather>(embedding_vocab, ids, axis);
+    auto main_head = std::make_shared<ov::opset10::MatMul>(hidden, main_head_vocab, false, true);
+    auto extra_head = std::make_shared<ov::opset10::MatMul>(hidden, extra_head_vocab, false, !extra_pretransposed);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::opset10::Result>(embedding),
+                                                              std::make_shared<ov::opset10::Result>(main_head),
+                                                              std::make_shared<ov::opset10::Result>(extra_head)},
+                                             ov::ParameterVector{ids, hidden});
+    return {model, tied_weight, tied_zero_point, extra_weight, extra_zero_point};
+}
+
+// Same gate as in LLMCompiledModel when NPUW_LLM_VOCAB_ASYM_SHARED=YES. Returns the detection result.
+bool run_vocab_asym_shared_gate(const std::shared_ptr<ov::Model>& model) {
+    bool shared = false;
+    ov::npuw::DetectVocabSharing(shared).run_on_model(model);
+    if (!shared) {
+        return false;
+    }
+    ov::npuw::InsertVocabSub128().run_on_model(model);
+    return true;
+}
+
+// Source constants (behind the Convert) of all Subtracts marked as Sub128 shifts.
+std::set<std::shared_ptr<ov::Node>> sub128_shift_sources(const std::shared_ptr<ov::Model>& model) {
+    std::set<std::shared_ptr<ov::Node>> sources;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::opset10::Subtract>(node) &&
+            node->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0) {
+            const auto convert = node->input_value(0).get_node_shared_ptr();
+            sources.insert(convert->input_value(0).get_node_shared_ptr());
+        }
+    }
+    return sources;
+}
+
 }  // namespace
 
 TEST(DQLiftGatherAsymCWTest, LiftsPairedSub128Shifts) {
@@ -488,6 +575,40 @@ INSTANTIATE_TEST_SUITE_P(LmHeadTerminal,
                                          VocabMatMulTerminal::Convert,
                                          VocabMatMulTerminal::Divide,
                                          VocabMatMulTerminal::Gated));
+
+// InsertVocabSub128 marks every LM head that it matches. Thus detection must stop for a model with
+// more than one LM head, else an extra head with its own u8 vocabulary is marked too.
+TEST(DetectVocabSharingTwoLmHeadsTest, AbortsWhenF16HeadIsTiedAndU8HeadIsSeparate) {
+    const auto two_heads = make_two_lm_head_model(false);
+
+    EXPECT_FALSE(run_vocab_asym_shared_gate(two_heads.model));
+    EXPECT_EQ(count_sub128_shifts(two_heads.model), 0u);
+}
+
+TEST(DetectVocabSharingTwoLmHeadsTest, AbortsWhenU8HeadIsTiedAndU8HeadIsSeparate) {
+    const auto two_heads = make_two_lm_head_model(true);
+
+    EXPECT_FALSE(run_vocab_asym_shared_gate(two_heads.model));
+    EXPECT_EQ(count_sub128_shifts(two_heads.model), 0u);
+}
+
+TEST(DetectVocabSharingTwoLmHeadsTest, CountsPretransposedSeparateHead) {
+    // The pretransposed head cannot share the embedding storage, but InsertVocabSub128 marks it.
+    const auto two_heads = make_two_lm_head_model(true, true);
+
+    EXPECT_FALSE(run_vocab_asym_shared_gate(two_heads.model));
+    EXPECT_EQ(count_sub128_shifts(two_heads.model), 0u);
+}
+
+TEST(DetectVocabSharingTwoLmHeadsTest, IgnoresManuallyAddedSecondHead) {
+    // A manually added output (for example the Eagle-3 hidden state) is not an LM head.
+    const auto two_heads = make_two_lm_head_model(true);
+    two_heads.model->get_results().back()->get_rt_info()["manually_added_output"] = true;
+
+    EXPECT_TRUE(run_vocab_asym_shared_gate(two_heads.model));
+    const std::set<std::shared_ptr<ov::Node>> expected{two_heads.tied_weight, two_heads.tied_zero_point};
+    EXPECT_EQ(sub128_shift_sources(two_heads.model), expected);
+}
 
 TEST(DQLiftGatherAsymCWTest, RejectsNon128Subtractions) {
     const auto model = make_gather_model(127.0f);
