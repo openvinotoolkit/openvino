@@ -411,12 +411,16 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 }
 
 std::shared_ptr<ocl::ocl_device> sycl_device::get_ocl_device() const {
+    // Only NVIDIA builds include the OpenCL device and ever set _ocl_device, so elsewhere ocl_device is an
+    // incomplete type and the null pointer is returned as is.
+#ifdef OV_GPU_VENDOR_NVIDIA
     if (_ocl_device) {
         std::call_once(_ocl_device_init, [this]() {
             if (!_ocl_device->is_initialized())
                 _ocl_device->initialize();
         });
     }
+#endif
     return _ocl_device;
 }
 
