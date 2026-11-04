@@ -20,14 +20,15 @@ namespace nvidia {
 
 namespace {
 
+// Every entry point of the PTX is a kernel of the program: clBuildProgram on the NVIDIA OpenCL runtime emits exactly
+// the program's kernels, whatever their names (copy_with_offset included). The global work offset is not a separate
+// entry point but read from %envreg0-5, which patch_ptx_envreg() replaces with 0. Cached binaries are this same PTX,
+// so the same holds when they are loaded.
 std::vector<std::string> extract_ptx_entry_points(const std::string& ptx) {
     static const std::regex entry_pattern(R"((?:\.visible\s+)?\.entry\s+([\w.$]+)\s*\()");
     std::vector<std::string> names;
     for (std::sregex_iterator it(ptx.begin(), ptx.end(), entry_pattern), end; it != end; ++it) {
-        std::string name = (*it)[1].str();
-        if (name.size() > 12 && name.substr(name.size() - 12) == "_with_offset")
-            continue;
-        names.push_back(std::move(name));
+        names.push_back((*it)[1].str());
     }
     return names;
 }
