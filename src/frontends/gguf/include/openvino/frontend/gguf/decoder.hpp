@@ -9,15 +9,37 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/gguf/model_adapter.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
 namespace ov::frontend::gguf {
+
+struct ModelComponentContract {
+    std::vector<std::string> outputs;
+    std::string state_prefix;
+};
+
+struct ModelComponentGroup {
+    std::string primary;
+    std::map<std::string, ModelComponentContract> models;
+};
+
+struct ModelContract {
+    enum class ImageAttentionMode { CAUSAL, GLOBAL_AND_SLIDING, SLIDING_ONLY };
+
+    std::optional<bool> batchable_recurrent;
+    ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
+    std::vector<std::string> sequence_outputs;
+    std::map<std::string, ModelComponentGroup> component_groups;
+    std::optional<bool> supports_genai_adaptation;
+};
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array
 // the translators used to dereference by byte offset. A decoder is responsible for
@@ -156,6 +178,22 @@ public:
     // that knows which Result feeds which Parameter back.
     virtual const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const {
         static const std::vector<std::pair<std::string, std::string>> empty;
+        return empty;
+    }
+
+    /// \brief Resolved model semantics for shared conversion and runtime adaptation.
+    virtual ModelContract get_model_contract() const {
+        return {};
+    }
+
+    /// \brief Architecture identifier for diagnostics and converted-model metadata.
+    virtual std::string get_architecture() const {
+        return {};
+    }
+
+    /// \brief Builder-provided graph adapters applied during model conversion.
+    virtual const ModelAdapters& get_model_adapters() const {
+        static const ModelAdapters empty;
         return empty;
     }
 

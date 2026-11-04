@@ -17,7 +17,9 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <map>
+#include <optional>
 #include <utility>
 #include <set>
 
@@ -30,7 +32,9 @@ class pass_manager;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
+class tensor_conversion;
 class ICompilationContext;
+using tensor_conversion_key = std::pair<data_types, data_types>;
 
 
 struct program {
@@ -143,7 +147,8 @@ public:
             std::set<std::shared_ptr<program_node>> const& nodes,
             const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-            bool is_internal);
+            bool is_internal,
+            std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
 
     explicit program(engine& engine,
                 const ExecutionConfig& config = {});
@@ -273,9 +278,12 @@ public:
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                             bool is_internal);
+                             bool is_internal,
+                             std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
+    std::shared_ptr<tensor_conversion> get_tensor_conversion(bool create_if_not_exist = true) const;
+    void prepare_tensor_conversions(const std::vector<tensor_conversion_key>& keys);
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
@@ -315,6 +323,8 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
+    mutable std::shared_ptr<tensor_conversion> _tensor_conversion;
+    mutable std::mutex _tensor_conversion_mutex;
     ExecutionConfig _config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;
@@ -324,6 +334,8 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal = false;
+    // Forced oneDNN impls optimization attribute
+    std::optional<std::map<primitive_type_id, bool>> _onednn_impls;
     bool _is_body_program = false;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
