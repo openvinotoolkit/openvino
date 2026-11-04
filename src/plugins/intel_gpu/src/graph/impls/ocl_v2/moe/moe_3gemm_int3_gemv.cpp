@@ -119,10 +119,11 @@ size_t MoE3GemmInt3Gemv::get_nb(const RuntimeParams& params, Projection proj) {
     return nb;
 }
 
-// Most tokens per step for which the u3 batched GEMV beats the OneDNN grouped GEMM on a Qwen3.6-35B-A3B MoE layer:
-// 6 on LNL (9% faster at 2 tokens, 5% at 3, even at 6, 5% slower at 8). BMG stays on the GEMV much longer (24).
+// Most tokens per step for which the u3 batched GEMV beats the OneDNN grouped GEMM on a Qwen3.6-35B-A3B MoE layer. The
+// crossover grows with the GPU size: about 2 tokens on PTL 386H (32 EUs), 6 on LNL 258V (64 EUs), 16 on BMG B570 (144 EUs).
 size_t MoE3GemmInt3Gemv::get_default_threshold(const RuntimeParams& params) {
-    return params.get_device_info().dev_type == cldnn::device_type::discrete_gpu ? 24 : 6;
+    const auto eu_count = params.get_device_info().execution_units_count;
+    return eu_count <= 32 ? 2 : eu_count <= 64 ? 6 : 16;
 }
 
 JitConstants MoE3GemmInt3Gemv::get_jit_constants(const RuntimeParams& params) const {

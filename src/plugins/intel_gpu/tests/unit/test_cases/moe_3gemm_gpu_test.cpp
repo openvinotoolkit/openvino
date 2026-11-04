@@ -1777,8 +1777,8 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
 
     const auto moe_inst = network->get_primitive("moe");
     const auto executed_kernels = moe_inst->get_impl()->get_kernels_dump_info(*moe_inst->get_impl_params()).get_entries();
-    // Threshold 0 selects the per-device default, which is at least 6 tokens
-    const size_t threshold = param.batched_gemv_threshold != 0 ? param.batched_gemv_threshold : 6;
+    // Threshold 0 selects the per-device default, which is at least 2 tokens
+    const size_t threshold = param.batched_gemv_threshold != 0 ? param.batched_gemv_threshold : 2;
     const bool expect_gemv = param.seq_len <= threshold;
     for (const char* kernel_name : {"moe_3gemm_int3_gemv_gate_up", "moe_3gemm_int3_gemv_down"}) {
         ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, expect_gemv) << kernel_name << ", executed kernels: " << executed_kernels;
