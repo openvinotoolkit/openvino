@@ -3,7 +3,10 @@
 //
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
+#include <iterator>
+#include <string>
 
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
@@ -45,6 +48,34 @@ namespace ov::intel_gpu {
 namespace {
 
 constexpr float optimum_intel_default_asf = 8.0f;
+
+bool is_auto_offload_ratio_value(const std::string& value) {
+    if (value.size() != 4)
+        return false;
+
+    std::string upper_value;
+    upper_value.reserve(value.size());
+    std::transform(value.begin(), value.end(), std::back_inserter(upper_value), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+    return upper_value == "AUTO";
+}
+
+ov::AnyMap normalize_offload_ratio_auto(const ov::AnyMap& properties) {
+    auto normalized = properties;
+    auto it = normalized.find(ov::intel_gpu::offload_ratio.name());
+    if (it == normalized.end())
+        return normalized;
+
+    try {
+        const auto value = it->second.as<std::string>();
+        if (is_auto_offload_ratio_value(value))
+            it->second = ov::intel_gpu::OFFLOAD_RATIO_AUTO;
+    } catch (const std::exception&) {
+    }
+
+    return normalized;
+}
 
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
@@ -147,6 +178,14 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 
 ExecutionConfig::ExecutionConfig() = default;
 
+void ExecutionConfig::set_property(const ov::AnyMap& properties) {
+    PluginConfig::set_property(normalize_offload_ratio_auto(properties));
+}
+
+void ExecutionConfig::set_user_property(const ov::AnyMap& properties, OptionVisibility allowed_visibility) {
+    PluginConfig::set_user_property(normalize_offload_ratio_auto(properties), allowed_visibility);
+}
+
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
     m_is_finalized = other.m_is_finalized;
@@ -210,7 +249,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
     // using that mechanism. OTD (MoE offload) also requires the .bin path.
     apply_weightless_options();
-    if (get_enable_weightless() || get_offload_ratio() > 0) {
+    if (get_enable_weightless() || get_offload_ratio() != 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }
