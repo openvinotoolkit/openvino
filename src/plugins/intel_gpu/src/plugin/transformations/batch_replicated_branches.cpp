@@ -154,9 +154,7 @@ std::optional<std::vector<MatchedBranch>> match_branches(ReplicaBranches& blocks
         const auto& reference = branches.front();
         if (i == 0) {
             const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(branch.get("gather")->get_node_shared_ptr());
-            const auto data_shape = gather->get_input_shape(0);
-            const auto axis = static_cast<size_t>(gather->get_axis());
-            if (axis >= data_shape.size() || data_shape[axis] != replica_count)
+            if (gather->get_input_shape(0)[gather->get_axis()] != replica_count)
                 return std::nullopt;
         } else if (branch.get("data") != reference.get("data") || !branches_are_equal(reference, branch)) {
             return std::nullopt;
