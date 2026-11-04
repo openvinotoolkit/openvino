@@ -92,6 +92,7 @@ def histc(
     )
 
 
+@nameable_op
 def rgb_to_nv12(
     arg: NodeInput,
     single_plane: bool = True,
