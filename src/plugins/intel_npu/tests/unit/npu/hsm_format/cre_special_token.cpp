@@ -12,7 +12,6 @@ using namespace intel_npu;
 
 using CRESpecialTokenTest = ::testing::Test;
 
-// TODO test to_string
 TEST_F(CRESpecialTokenTest, CreateAllTokensUsingCorrectCode) {
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::AND).get_code(), CRESpecialTokenCode::AND);
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::OR).get_code(), CRESpecialTokenCode::OR);
@@ -38,4 +37,12 @@ TEST_F(CRESpecialTokenTest, IsSpecialToken) {
     ASSERT_FALSE(is_cre_special_token(section_type));
     ASSERT_FALSE(is_cre_special_token(section_id));
     ASSERT_TRUE(is_cre_special_token(cre_special_token));
+}
+
+TEST_F(CRESpecialTokenTest, ToString) {
+    ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::AND).to_string(), "AND");
+    ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::OR).to_string(), "OR");
+    ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::NOT).to_string(), "NOT");
+    ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::OPEN).to_string(), "OPEN");
+    ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::CLOSE).to_string(), "CLOSE");
 }

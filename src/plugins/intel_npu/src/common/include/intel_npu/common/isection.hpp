@@ -22,7 +22,6 @@
 
 namespace intel_npu {
 
-// TODOs: fix the circular dependencies
 // Consider moving the secion files in dedicated directories
 
 /**
@@ -38,9 +37,6 @@ std::string section_type_and_id_to_string(const SectionType type, const SectionI
  * section ID is an integer.
  */
 std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string(std::string_view type_and_id);
-
-class BlobWriterInterface;
-class BlobReaderInterface;
 
 /**
  * @brief Interface that should be implemented by all blob section handlers. Its role is to standardize the
@@ -117,7 +113,6 @@ private:
      * @note This value exists only if the current section has been added to a blob sections registry.
      */
     mutable std::optional<SectionID> m_id;
-    // TODO test alignment
     ov::runtime::hsm::SectionAlignment m_alignment;
     bool m_is_inline;
 };

@@ -12,7 +12,6 @@ namespace intel_npu {
 
 namespace utils {
 
-// TODO make a source file for this
 /**
  * @brief Uses the provided decryption callback to decrypt the given payload. The result is zero padded until page
  * alignment.

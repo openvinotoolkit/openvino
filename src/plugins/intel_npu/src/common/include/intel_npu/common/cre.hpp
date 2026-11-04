@@ -127,7 +127,6 @@ public:
 
     bool operator!=(const CRE& other) const;
 
-    // TODO reconsider these
     // Some "globals" for convenience
     static inline const auto AND_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);
     static inline const auto OR_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR);

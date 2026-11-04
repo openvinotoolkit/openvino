@@ -114,7 +114,6 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::decode");
     const Logger logger("ELFMainScheduleSection", Logger::global().level());
-    // TODO test these
     // The dynamic schedule section leverages the ELF main schedule one. So, the tag of the section may be either of
     // these two.
     OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ELF_MAIN_SCHEDULE) ||

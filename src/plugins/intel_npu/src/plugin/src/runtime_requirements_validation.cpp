@@ -54,7 +54,7 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
 
     try {
         return runtimeRequirementsSection->get_runtime_requirements()
-            .get_compatibility_check_result({}, instance_evaluators)
+            .check_compatibility({}, instance_evaluators)
             .final_result;
     } catch (...) {
         // Since the same checks would be performed at import time, a throw now means a throw while importing

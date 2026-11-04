@@ -510,7 +510,6 @@ ov::CompatibilityCheck CRE::evaluate(
             if (force_all_evaluations || (!skip_all_evaluations && !skip_next_evaluation)) {
                 const auto section_type = std::dynamic_pointer_cast<SectionType>(*expression_iterator);
 
-                // TODO any point in caching inside evaluators anymore?
                 type_evaluation_results[*section_type] = *section_type == SectionTypeCode::UNKNOWN ? false
                                                          : section_type_evaluators.count(*section_type)
                                                              ? section_type_evaluators.at(*section_type)->get_result()

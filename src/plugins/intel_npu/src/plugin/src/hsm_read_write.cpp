@@ -63,7 +63,7 @@ std::optional<RuntimeRequirementsEvaluationResult> parse_and_evaluate_runtime_re
 
     RuntimeRequirements runtime_requirements = runtime_requirements_section->get_runtime_requirements();
     const RuntimeRequirementsEvaluationResult evaluation_result =
-        runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
+        runtime_requirements.check_compatibility(type_evaluators, instance_evaluators);
     OPENVINO_ASSERT(evaluation_result.final_result != ov::CompatibilityCheck::UNSUPPORTED,
                     "The imported model is not compatible");
     logger.debug("Runtime requirements evaluation result: %s",
@@ -122,7 +122,6 @@ BlobSectionsRegistry read_from(
     const Logger logger("HSMReader", Logger::global().level());
     logger.debug("Parsing the HSM container");
 
-    // TODO dedicated tags instead of sectin types?
     std::optional<RuntimeRequirementsEvaluationResult> runtime_requirements_evaluation_result;
     const size_t n_runtime_requirements =
         base_reader.count(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
@@ -155,7 +154,6 @@ BlobSectionsRegistry read_from(
 
         logger.debug("Parsing the section %s", debug_name.data());
 
-        // TODO test the negative branch as well
         if (!runtime_requirements_evaluation_result.has_value()) {
             // No runtime requirements found. All sections are considered optional
             parse_section(base_reader,

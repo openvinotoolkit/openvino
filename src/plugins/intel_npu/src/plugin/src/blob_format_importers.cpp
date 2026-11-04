@@ -172,8 +172,6 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     return std::make_shared<ov::Model>(results, parameters);
 }
 
-// TODO move importers in separate files, another new directory. do not expose them tho
-
 /**
  * @brief Class used to import a blob that contains only the compiler main schedule.
  */
@@ -506,7 +504,6 @@ private:
     //  * ctor) since these sections are a core part of the format.
     //  */
 
-    // TODO move to anonymous namespace
     std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>> get_readers() const {
         return {
             {SectionTypeCode::RUNTIME_REQUIREMENTS, RuntimeRequirementsSection::decode},

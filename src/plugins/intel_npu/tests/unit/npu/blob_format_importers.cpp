@@ -60,7 +60,6 @@ struct BlobFormatImportersTest : public ::testing::Test {
     Config config;
 };
 
-// TODO can probably move the backend ptr out of the ctor after adapting the OV format
 /**
  * @brief Empty blobs should not be accepted by the importer factory
  */

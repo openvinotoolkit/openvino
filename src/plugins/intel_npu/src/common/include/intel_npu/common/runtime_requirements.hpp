@@ -42,7 +42,7 @@ public:
      * treated as "supported".
      * @return TODO "NOT_APPLICABLE" in uncertain scenarios. "SUPPORTED" or "UNSUPPORTED" when the result is known.
      */
-    RuntimeRequirementsEvaluationResult get_compatibility_check_result(
+    RuntimeRequirementsEvaluationResult check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
 

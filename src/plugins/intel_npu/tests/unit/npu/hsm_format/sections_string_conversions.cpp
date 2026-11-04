@@ -76,6 +76,10 @@ TEST_F(SectionsStringConversionsTest, ValidTypeAndNoIDFromString) {
     ASSERT_EQ(section_type_and_id_from_string("BATCH_SIZE"), result);
 }
 
+TEST_F(SectionsStringConversionsTest, EmptryArgument) {
+    OV_EXPECT_THROW(section_type_and_id_from_string(""), ov::Exception, _);
+}
+
 TEST_F(SectionsStringConversionsTest, InvalidTypesFromString) {
     const std::pair<SectionType, std::optional<SectionID>> result =
         std::make_pair(SectionType(SectionTypeCode::UNKNOWN), std::nullopt);

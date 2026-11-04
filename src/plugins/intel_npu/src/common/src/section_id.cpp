@@ -11,7 +11,6 @@
 
 namespace intel_npu {
 
-// TODO tests that check the section type enums did not change
 SectionID::SectionID(const uint16_t section_id) : CREToken(), m_id(section_id) {}
 
 // TODO consider renaming
