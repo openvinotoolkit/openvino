@@ -1,0 +1,33 @@
+{
+  "name": "install-wheel-action",
+  "description": "Action to install local python wheels together with their dependencies",
+  "version": "0.0.1",
+  "author": "OpenVINO Developers",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "GitHub",
+    "Actions",
+    "JavaScript"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "bundle": "npm run format:write && npm run package",
+    "format:write": "npx prettier --write .",
+    "format:check": "npx prettier --check .",
+    "package": "npx ncc build src/install_packages.js -o dist",
+    "package:watch": "npm run package -- --watch",
+    "all": "npm run format:write && npm run package"
+  },
+  "dependencies": {
+    "@actions/core": "^3.0.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.44.1",
+    "prettier": "^3.9.6"
+  },
+  "license": "Apache-2.0"
+}

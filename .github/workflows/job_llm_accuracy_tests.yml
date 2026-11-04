@@ -73,7 +73,6 @@ jobs:
           sparse-checkout: |
             .github/actions
             tests/llm
-            tests/constraints.txt
           sparse-checkout-cone-mode: false
           submodules: 'false'
 
@@ -93,14 +92,12 @@ jobs:
           self-hosted-runner: true
           use-pip-proxy: ${{ inputs.use-pip-proxy }}
 
-      - name: Install OpenVINO Python wheels
-        uses: ./.github/actions/install_ov_wheels
+      - name: Install OpenVINO wheels and LLM accuracy test requirements
+        uses: ./.github/actions/install_wheel
         with:
-          wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers openvino_genai whowhatbench'
-
-      - name: Install LLM accuracy test requirements
-        run: python3 -m pip install -r "${LLM_TEST_DIR}/requirements.txt"
+          local_wheel_dir: ${{ env.INSTALL_DIR }}
+          packages: 'openvino;openvino_tokenizers;openvino_genai;whowhatbench[llm-test-openvino]'
+          requirements_files: ${{ env.LLM_TEST_DIR }}/requirements.txt
 
       - name: LLM accuracy ${{ inputs.device }} tests
         env:

@@ -1,12 +1,6 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
-optimum-intel[tests,nncf]==2.2.0
-# Keep test dependencies compatible with the supported Optimum Intel release.
+whowhatbench[llm-test-openvino]
 torch==2.11.0
 torchvision==0.26.0
-torchaudio==2.11.0
-transformers[sentencepiece]==5.5.4
-sentence-transformers==5.6.1
-tqdm==4.70.0
 pytest
 pytest-html
-jinja2>=3.1.0

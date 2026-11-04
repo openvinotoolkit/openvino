@@ -100,10 +100,10 @@ jobs:
           merge-multiple: true
 
       - name: Install OpenVINO build wheel
-        uses: ./.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_wheel
         with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: openvino
+          local_wheel_dir: ${{ env.INSTALL_WHEELS_DIR }}
+          packages: openvino
 
       - name: Configure sccache
         run: |
