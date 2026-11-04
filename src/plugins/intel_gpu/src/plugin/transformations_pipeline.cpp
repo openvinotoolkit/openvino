@@ -605,6 +605,29 @@ public:
 };
 
 namespace {
+
+bool skip_constant_precision_preservation(const std::shared_ptr<const ov::Node>& node,
+                                          const std::unordered_set<const ov::Node*>& sincos_constants) {
+    const auto targets = node->get_output_target_inputs(0);
+    const ov::Node* next_node = node.get();
+    if (!targets.empty()) {
+        next_node = targets.begin()->get_node();
+    }
+    if (ov::is_type<ov::op::v0::Convert>(next_node)) {
+        const auto convert_targets = next_node->get_output_target_inputs(0);
+        if (!convert_targets.empty()) {
+            next_node = convert_targets.begin()->get_node();
+        }
+    }
+    if (ov::is_type_any_of<ov::op::v0::MatMul,
+                           ov::op::internal::MOE,
+                           ov::op::internal::GatherMatmulCompressed,
+                           ov::op::internal::GroupedMatMulCompressed>(next_node)) {
+        return false;
+    }
+    return sincos_constants.count(node.get()) == 0;
+}
+
 // Detect whether the model contains a linear-attention (Mamba2 / Gated DeltaNet)
 // block. Such hybrid-attention models have an SSM gated output whose activation
 // has a wide dynamic range and is unstable under per-token INT8 dyn-quant; we
@@ -930,17 +953,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
         manager.register_pass<ov::pass::BroadcastTransition>();
 
+        auto sincos_constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+        manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(sincos_constants);
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
         pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
-            [](const_node_ptr& node) -> bool {
-                auto* next_node = node->get_output_target_inputs(0).begin()->get_node();
-                if (is_type<ov::op::v0::Convert>(next_node)) {
-                    next_node = next_node->get_output_target_inputs(0).begin()->get_node();
-                }
-                return !is_type_any_of<ov::op::v0::MatMul,
-                                       ov::op::internal::MOE,
-                                       ov::op::internal::GatherMatmulCompressed,
-                                       ov::op::internal::GroupedMatMulCompressed>(next_node);
+            [sincos_constants](const_node_ptr& node) -> bool {
+                return ov::intel_gpu::skip_constant_precision_preservation(node, *sincos_constants);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
