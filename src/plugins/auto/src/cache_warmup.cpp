@@ -96,7 +96,7 @@ const std::string& CacheWarmup::get_log_tag() const noexcept {
 void CacheWarmup::start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates) {
     std::vector<DeviceInformation> devices;
     for (const auto& device : candidates) {
-        if (device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU") {
+        if (device.device_name != actual_device) {
             devices.push_back(device);
         }
     }

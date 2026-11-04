@@ -392,9 +392,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         return;
     }
     // if the select device is CPU, need to check the config of m_compile_context[CPU]
-    // if they are same, do not need to compile again
+    // if they are same, do not need to compile again (only when the CPU helper is enabled)
     cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);
-    if (cur_dev_is_cpu) {
+    if (cur_dev_is_cpu && m_compile_context[CPU].m_is_enabled) {
         auto compare = [](ov::AnyMap& a, ov::AnyMap& b) -> bool {
             if (a.size() != b.size()) {
                 return false;

@@ -25,8 +25,9 @@ class CacheWarmupManager;
 // exist the next time the model is loaded (e.g. when a different device is picked later). Needs a cache dir/path.
 //
 // Flow:
-//  1. start() is called once the actual device is known. It filters out the actual device and CPU (AUTO already
-//     compiles the CPU itself) and hands this object to CacheWarmupManager (once per object).
+//  1. start() is called once the actual device is known. It filters out the actual device (the CPU helper is disabled
+//     with compile_for_all, so a CPU candidate is warmed up like any other) and hands this object to
+//     CacheWarmupManager (once per object).
 //  2. The manager's single worker thread calls run(), which handles the devices one by one:
 //     - caching disabled for the device (no cache dir/path) -> skip;
 //     - the blob for this model/config is already in the cache -> skip;
@@ -57,7 +58,7 @@ public:
                 std::filesystem::path model_path,
                 std::string log_tag);
 
-    // Queues the warm-up of the candidates other than the actual device and CPU; only the first call counts.
+    // Queues the warm-up of the candidates other than the actual device; only the first call counts.
     void start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates);
     // Skips the remaining devices and waits for the in-flight compilation; idempotent.
     void stop();

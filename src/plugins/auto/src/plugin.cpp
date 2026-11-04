@@ -533,12 +533,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_compile_for_all = load_config.get_property(ov::intel_auto::compile_for_all);
     if (auto_s_context->m_compile_for_all) {
-        std::vector<const DeviceInformation*> warmup_candidates;
-        for (const auto& device : auto_s_context->m_device_priorities_initial) {
-            if (ov::DeviceIDParser(device.device_name).get_device_name() != "CPU")
-                warmup_candidates.push_back(&device);
-        }
-        // The actual device may be the CPU, so one non-CPU candidate is enough as long as another device exists.
         // A user blob ID does not identify a device, so blobs warmed up for other devices would overwrite each other.
         const bool has_blob_id =
             full_property.count(ov::cache_blob_id.name()) != 0 ||
@@ -561,7 +555,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                                 })) {
             // Independent of how many devices the host has, so the contract of an explicit true is the same everywhere.
             OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
-        } else if (warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
+        } else if (auto_s_context->m_device_priorities_initial.size() < 2) {
             LOG_WARNING_TAG("compile_for_all is ignored: no other candidate device to compile");
             auto_s_context->m_compile_for_all = false;
         }
