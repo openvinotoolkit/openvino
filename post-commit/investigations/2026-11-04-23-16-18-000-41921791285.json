@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-04-23-16-18-000-41921791285",
+  "timestamp": "2026-11-04T23:16:18Z",
+  "run_id": "41921791285",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41921791285",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
+  "commit_sha": "98a58dac99b6dda19f91cf7f06158c1644a5c820",
+  "pr_number": "39076",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39076",
+  "author": "dependabot[bot]",
+  "category": "Infrastructure",
+  "title": "Windows VS2022 Debug build fails to store artifacts: WinError 112 not enough space on shared build-artifacts mount",
+  "signature": "Failed to copy build artifacts: [Errno 28] No space left on device on shared build-artifacts mount|Infrastructure",
+  "signature_hash": "20bacf1a347a0b94",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Store artifacts step fails copying openvino_package.zip, developer_package.zip, openvino_tests.zip, manifest.yml, and JS/Node packages with [WinError 112] not enough space on disk, then FileNotFoundError writing workflow_link.txt"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_debug",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "11-04-2026 23:03:48 __main__ ERROR Failed to copy C:\\actions-runner\\_work\\openvino\\openvino\\openvino_build/openvino_package.zip: [WinError 112] There is not enough space on the disk: 'C:\\\\mount\\\\build-artifacts\\\\dldt\\\\master\\\\commit\\\\98a58dac99b6dda19f91cf7f06158c1644a5c820\\\\public_windows_vs2022_debug'",
+    "11-04-2026 23:03:49 __main__ ERROR Failed to copy C:\\actions-runner\\_work\\openvino\\openvino\\openvino_build/developer_package.zip: [WinError 112] There is not enough space on the disk: '...public_windows_vs2022_debug'",
+    "11-04-2026 23:03:49 __main__ ERROR Failed to copy C:\\actions-runner\\_work\\openvino\\openvino\\openvino_build/openvino_tests.zip: [WinError 112] There is not enough space on the disk: '...public_windows_vs2022_debug'",
+    "FileNotFoundError: [Errno 2] No such file or directory: 'C:\\\\mount\\\\build-artifacts\\\\dldt\\\\master\\\\commit\\\\98a58dac99b6dda19f91cf7f06158c1644a5c820\\\\public_windows_vs2022_debug\\\\workflow_link.txt'",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows VS2022 Debug build compiled, installed, and packaged successfully, but the 'Store artifacts to a shared drive' step (.github/actions/store_artifacts/store_artifacts.py) failed when copying every output artifact (openvino_package.zip, developer_package.zip, openvino_tests.zip, manifest.yml, JS/Node packages) to the shared network mount C:\\mount\\build-artifacts. Windows raised WinError 112 (ERROR_DISK_FULL) for every copy, indicating the shared storage backend used to archive post-commit build artifacts for dldt/master was out of free space. This is the fourth same-wave failure for this exact commit (98a58dac99b6dda19f91cf7f06158c1644a5c820, PR #39076 dependabot gitpython bump), following Android, Linux Ubuntu 24.04, and Windows VS2022 Release, confirming the shared build-artifacts storage backend (and its Windows mount equivalent) was globally exhausted at this time rather than a per-platform or per-PR code issue. The trailing FileNotFoundError on workflow_link.txt is a secondary symptom of the destination directory never being fully populated after the preceding copies failed.",
+  "reproduction_steps": "N/A - this failure depends on the free space available on the external, shared build-artifacts network drive at the time of the run and cannot be reproduced by re-running identical code locally. To confirm, check disk usage on the storage backend mounted at C:\\mount\\build-artifacts (Windows) / /mount/build-artifacts (Linux) around 2026-11-04T23:03 UTC.",
+  "recommended_actions": [
+    "Free up space on the shared build-artifacts storage backend (prune old/expired commit artifact directories under .../dldt/master/commit/) or increase the mount's capacity; this is now the fourth platform/configuration (Android, Linux Ubuntu 24.04, Windows VS2022 Release, Windows VS2022 Debug) hit by the same exhaustion event for this one commit.",
+    "Add automated retention/cleanup (scheduled job) that deletes artifact directories for commits older than N days under the shared mount, across all branches/platforms, to prevent recurrence.",
+    "Add a disk-space pre-check/alert in .github/actions/store_artifacts (or a separate monitoring workflow) that warns well before the mount nears capacity, instead of failing deep inside every build job across every platform simultaneously.",
+    "Make store_artifacts.py fail fast with a single clear error (and/or retry after triggering cleanup) instead of attempting every file copy and leaving a partially-written destination directory, which caused the secondary FileNotFoundError on workflow_link.txt.",
+    "Re-run the Windows VS2022 Debug workflow once the storage backend has free space; no code changes to the PR are required."
+  ],
+  "prevention_strategies": "Implement scheduled or threshold-triggered cleanup/retention on the shared build-artifacts network drive (both the Linux and Windows mount points), and add monitoring/alerting on free space so operators are notified before it fills up, well ahead of CI jobs failing across every build platform. Consider capping how many historical commit artifact sets are retained per branch, and centralize the disk-full check in one place so one storage-exhaustion event doesn't need to be independently diagnosed per-platform/per-configuration.",
+  "historical_context": "This is the fourth occurrence of this exact same shared-storage 'disk full' signature recorded for the same commit (98a58dac99b6dda19f91cf7f06158c1644a5c820, PR #39076 / dependabot gitpython bump): Android x64/arm64 builds hit it first (investigation 2026-11-04-22-24-44-391-41921789891), then Linux Ubuntu 24.04 (investigation 2026-11-04-22-36-17-481-41921791947, pattern 20bacf1a347a0b94), then Windows VS2022 Release (investigation 2026-11-04-23-01-00-000-41921791744), and now Windows VS2022 Debug. This confirms a single, global capacity-exhaustion event on the shared build-artifacts storage backend affecting multiple platforms/configurations in the same post-commit wave, rather than independent per-platform issues."
+}
