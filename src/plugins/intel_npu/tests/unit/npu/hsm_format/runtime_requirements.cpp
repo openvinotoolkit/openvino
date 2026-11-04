@@ -101,21 +101,6 @@ TEST_F(RuntimeRequirementsTest, MissingSectionID) {
     OV_EXPECT_THROW(runtime_requirements.get_compatibility_check_result({}, {}), ov::Exception, _);
 }
 
-TEST_F(RuntimeRequirementsTest, NoEvaluationResultBeforeEvaluation) {
-    RuntimeRequirements runtime_requirements({}, CRE(), {});
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::UNKNOWN), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
-
-    const std::unordered_map<SectionID, SectionType> section_id_to_type{
-        {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)}};
-    const CRE cre({ELF_MAIN_SCHEDULE_PTR, ID_0_PTR});
-    runtime_requirements =
-        RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_SUPPORTED.data()}}, cre, section_id_to_type);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
-}
-
 TEST_F(RuntimeRequirementsTest, EvaluationResultWithEvaluators) {
     const std::unordered_map<SectionID, SectionType> section_id_to_type{
         {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)}};
@@ -128,34 +113,38 @@ TEST_F(RuntimeRequirementsTest, EvaluationResultWithEvaluators) {
         {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_TYPE_EVALUATOR_FALSE}};
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
         {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators).final_result,
-              ov::CompatibilityCheck::UNSUPPORTED);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
-              std::make_optional(false));
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+    RuntimeRequirementsEvaluationResult evaluation_result =
+        runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
 
     type_evaluators[SectionTypeCode::ELF_MAIN_SCHEDULE] = MOCK_TYPE_EVALUATOR_TRUE;
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators).final_result,
-              ov::CompatibilityCheck::SUPPORTED);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
-              std::make_optional(true));
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::make_optional(true));
+    evaluation_result = runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::SUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::SUPPORTED);
 
     runtime_requirements =
         RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_UNSUPPORTED.data()}}, cre, section_id_to_type);
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators).final_result,
-              ov::CompatibilityCheck::UNSUPPORTED);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
-              std::make_optional(true));
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::make_optional(false));
+    evaluation_result = runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::UNSUPPORTED);
 
     runtime_requirements =
         RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_UNKNOWN.data()}}, cre, section_id_to_type);
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators).final_result,
-              ov::CompatibilityCheck::NOT_APPLICABLE);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
-              std::make_optional(true));
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+    evaluation_result = runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::NOT_APPLICABLE);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::NOT_APPLICABLE);
 }
 
 TEST_F(RuntimeRequirementsTest, EvaluationResultWithMissingEvaluators) {
@@ -171,21 +160,25 @@ TEST_F(RuntimeRequirementsTest, EvaluationResultWithMissingEvaluators) {
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
         {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
 
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, {}).final_result,
-              ov::CompatibilityCheck::SUPPORTED);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
-              std::make_optional(true));
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+    RuntimeRequirementsEvaluationResult evaluation_result =
+        runtime_requirements.get_compatibility_check_result(type_evaluators, {});
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::SUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::SUPPORTED);
 
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result({}, instance_evaluators).final_result,
-              ov::CompatibilityCheck::UNSUPPORTED);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+    evaluation_result = runtime_requirements.get_compatibility_check_result({}, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
 
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result({}, {}).final_result,
-              ov::CompatibilityCheck::UNSUPPORTED);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+    evaluation_result = runtime_requirements.get_compatibility_check_result({}, {});
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
 }
 
 TEST_F(RuntimeRequirementsTest, MoreComplexEvaluation) {
@@ -209,15 +202,18 @@ TEST_F(RuntimeRequirementsTest, MoreComplexEvaluation) {
         {SectionType(SectionTypeCode::COMPILER_VERSION), MOCK_INSTANCE_EVALUATOR},
         {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
 
-    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators).final_result,
-              ov::CompatibilityCheck::UNSUPPORTED);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::BATCH_SIZE), std::make_optional(true));
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::COMPILER_VERSION), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
-              std::make_optional(false));
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(1), std::nullopt);
-    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(2), std::make_optional(true));
+    const RuntimeRequirementsEvaluationResult evaluation_result =
+        runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::BATCH_SIZE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::BATCH_SIZE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.count(SectionTypeCode::COMPILER_VERSION));
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(1));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(2));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(2), ov::CompatibilityCheck::SUPPORTED);
 }
 
 using RuntimeRequirementsSectionTest = testing::Test;

@@ -107,6 +107,10 @@ protected:
         section_readers[SectionTypeCode::RUNTIME_REQUIREMENTS] = RuntimeRequirementsSection::decode;
         section_readers[SectionTypeCode::BATCH_SIZE] = BatchSizeSection::decode;
         section_readers[SectionTypeCode::COMPILER_VERSION] = CompilerVersionSection::decode;
+        section_readers[SectionTypeCode::IO_LAYOUTS] =
+            [](const ov::runtime::hsm::Section&) -> std::optional<std::shared_ptr<ISection>> {
+            return std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>({}), std::nullopt);
+        };
 
         type_evaluators[SectionTypeCode::BATCH_SIZE] = MOCK_TYPE_EVALUATOR_TRUE;
         type_evaluators[SectionTypeCode::COMPILER_VERSION] = MOCK_TYPE_EVALUATOR_TRUE;

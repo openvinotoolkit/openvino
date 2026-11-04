@@ -98,32 +98,7 @@ RuntimeRequirementsEvaluationResult RuntimeRequirements::get_compatibility_check
     OPENVINO_ASSERT(!type_evaluators.count(SectionTypeCode::UNKNOWN) &&
                     !instance_evaluators.count(SectionTypeCode::UNKNOWN));
 
-    m_type_evaluators = type_evaluators;
-    m_instance_evaluators = build_single_section_instance_evaluators(instance_evaluators);
-    return m_cre.check_compatibility(type_evaluators, m_instance_evaluators);
-}
-
-std::optional<bool> RuntimeRequirements::get_type_evaluation_result(const SectionType type) const {
-    return m_type_evaluators.count(type) && m_type_evaluators.at(type)->evaluated()
-               ? std::make_optional<>(m_type_evaluators.at(type)->get_result())
-               : std::nullopt;
-}
-
-std::optional<bool> RuntimeRequirements::get_instance_evaluation_result(const SectionID id) const {
-    if (!m_instance_evaluators.count(id) || !m_instance_evaluators.at(id).evaluated()) {
-        return std::nullopt;
-    }
-
-    switch (m_instance_evaluators.at(id).get_result()) {
-    case ov::CompatibilityCheck::SUPPORTED:
-        return true;
-    case ov::CompatibilityCheck::UNSUPPORTED:
-        return false;
-    case ov::CompatibilityCheck::NOT_APPLICABLE:
-        return std::nullopt;
-    default:
-        OPENVINO_THROW("Unsupported ov::CompatibilityCheck value");
-    }
+    return m_cre.check_compatibility(type_evaluators, build_single_section_instance_evaluators(instance_evaluators));
 }
 
 RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements)

@@ -49,7 +49,7 @@ SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>
     m_ids_to_sections[section_id] = section;
     m_types_to_sections[section_type].push_back(section);
 
-    m_logger.debug("Registered section %s", section_type_and_id_to_string(section_type, section_id));
+    m_logger.debug("Registered section %s", section_type_and_id_to_string(section_type, section_id).data());
 
     return section_id;
 }

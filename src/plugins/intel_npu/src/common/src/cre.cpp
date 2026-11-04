@@ -426,7 +426,7 @@ bool CRE::operator!=(const CRE& other) const {
 }
 
 bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expression) const {
-    m_logger.debug("Verifying the correctness of the CRE");
+    m_logger.debug("Verifying the correctness of a (sub)expression");
     if (expression.empty()) {
         return true;
     }

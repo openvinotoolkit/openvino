@@ -46,22 +46,6 @@ public:
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
 
-    /**
-     * @brief Retrieves the result of a section type evaluation.
-     * @note This makes sense to be called only after the runtime requirements evaluation has occurred.
-     * @return std::nullopt is the section type was not yet evaluated during a CRE evaluation. The evaluation result
-     * otherwise.
-     */
-    std::optional<bool> get_type_evaluation_result(const SectionType type) const;
-
-    /**
-     * @brief Retrieves the result of a section instance evaluation.
-     * @note This makes sense to be called only after the runtime requirements evaluation has occurred.
-     * @return std::nullopt is the section instance was not yet evaluated during a CRE evaluation, or if the result was
-     * "NOT_APPLICABLE". The evaluation result otherwise.
-     */
-    std::optional<bool> get_instance_evaluation_result(const SectionID id) const;
-
 private:
     /**
      * @brief Consucts the per-instance section evaluators using the all-instances evalutors.
@@ -79,17 +63,6 @@ private:
      */
     CRE m_cre;
     std::unordered_map<SectionID, SectionType> m_section_id_to_type;
-
-    /**
-     * @brief Instruct the CRE how to evaluate section types. Missing section types will be treated as
-     * "unsupported".
-     */
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_type_evaluators;
-    /**
-     * @brief Instruct the CRE how to evaluate section instances. Missing section instances will be
-     * treated as "supported".
-     */
-    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> m_instance_evaluators;
 
     Logger m_logger;
 };
