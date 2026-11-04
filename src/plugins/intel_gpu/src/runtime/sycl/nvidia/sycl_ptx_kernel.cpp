@@ -139,7 +139,7 @@ bool dims_fit_cuda_limits(const unsigned int (&block_per_dim)[3],
 
     // The thread count per block is the same for every mapping; only the per-axis caps
     // tell the mappings apart.  It is still checked here so that a work-group that is too
-    // large outright falls through to the legacy fallback instead of picking a mapping.
+    // large outright matches no mapping and is rejected at launch.
     if (static_cast<uint64_t>(block[0]) * block[1] * block[2] > CUDA_MAX_BLOCK_THREADS)
         return false;
 
@@ -391,49 +391,28 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         }
     }
 
-    if (mapping_found) {
-        unsigned int block[3];
-        unsigned int grid[3];
-        apply_dim_mapping(block_per_dim, dim_mappings()[mapping_idx], block);
-        apply_dim_mapping(grid_per_dim, dim_mappings()[mapping_idx], grid);
-        bx = block[0];
-        by = block[1];
-        bz = block[2];
-        gx = grid[0];
-        gy = grid[1];
-        gz = grid[2];
-    } else {
-        // No assignment fits, so the work-group is larger than a CUDA block can hold whatever
-        // axis carries it.  Fall back to the historical behaviour of splitting dimension 2,
-        // which only holds for kernels that neither synchronise nor share __local memory
-        // across the work-group.
-        if (bz > CUDA_MAX_BLOCK_Z && lws.size() > 2) {
-            const unsigned int gws_z = static_cast<unsigned int>(gws.size() > 2 ? gws[2] : 1);
-            unsigned int new_bz = CUDA_MAX_BLOCK_Z;
-            while (new_bz > 1 && gws_z % new_bz != 0)
-                --new_bz;
-            bz = new_bz;
-            gz = (gws_z + bz - 1) / bz;
-        }
-
-        if (gz > CUDA_MAX_GRID_YZ && lws.size() > 2) {
-            const unsigned int gws_z = static_cast<unsigned int>(gws.size() > 2 ? gws[2] : 1);
-            for (unsigned int try_bz = bz + 1; try_bz <= CUDA_MAX_BLOCK_Z; ++try_bz) {
-                if (gws_z % try_bz == 0) {
-                    const unsigned int try_gz = gws_z / try_bz;
-                    if (try_gz <= CUDA_MAX_GRID_YZ) {
-                        bz = try_bz;
-                        gz = try_gz;
-                        break;
-                    }
-                }
-            }
-            if (gz > CUDA_MAX_GRID_YZ) {
-                OPENVINO_THROW("[GPU][NVIDIA] Cannot map gws[2]=", gws.size() > 2 ? gws[2] : 1,
-                               " to a CUDA grid: grid.z would exceed 65535 with any block.z <= 64");
-            }
-        }
+    if (!mapping_found) {
+        // Resizing the work-group to fit would change get_local_size/get_group_id and split
+        // barriers and __local sharing, so an unmappable launch is rejected instead.
+        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _kernel_name, "' cannot be launched: work-group (",
+                       block_per_dim[0], ", ", block_per_dim[1], ", ", block_per_dim[2],
+                       ") with work-group count (",
+                       grid_per_dim[0], ", ", grid_per_dim[1], ", ", grid_per_dim[2],
+                       ") does not fit the CUDA launch limits (block <= 1024 threads, block.x/y <= 1024, "
+                       "block.z <= 64, grid.y/z <= 65535) under any dimension mapping that keeps the "
+                       "local id order");
     }
+
+    unsigned int block[3];
+    unsigned int grid[3];
+    apply_dim_mapping(block_per_dim, dim_mappings()[mapping_idx], block);
+    apply_dim_mapping(grid_per_dim, dim_mappings()[mapping_idx], grid);
+    bx = block[0];
+    by = block[1];
+    bz = block[2];
+    gx = grid[0];
+    gy = grid[1];
+    gz = grid[2];
 
     // Categorize args: gpu_buffer (need SYCL accessors) vs gpu_usm (direct pointer)
     std::vector<size_t> buf_arg_indices;
