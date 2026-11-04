@@ -76,8 +76,8 @@ protected:
         function = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
     }
 
-    // The default generator takes the range of the Gather data input, which is wider than [-1, 1], so the f16
-    // Convolution sums exceed abs_threshold. The same range as the constants keeps them within it
+    // By default the input gets the Gather data range from ranges.hpp ([0, 8]): the f16 Convolution outputs then
+    // grow large enough for their rounding error to exceed abs_threshold. Use the constants' range [-1, 1] instead
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
         inputs.clear();
         const auto& input = function->get_parameters().front();
