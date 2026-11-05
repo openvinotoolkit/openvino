@@ -4,7 +4,7 @@ on:
   schedule:
     # at 00:00 on Wednesday and Saturday (with latest OneDNN)
     - cron: '0 0 * * 3,6'
-    # at 02:00 every day: C++20 build only (all other jobs are skipped)
+    # at 02:00 every day: C++20 build without the regular build and tests
     - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
@@ -98,7 +98,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    # The daily C++20 schedule runs only Build_CPP20; skipping Build also skips all jobs that depend on it
+    # Skip the regular build and its dependent build/test jobs on the daily C++20 schedule.
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
@@ -127,12 +127,16 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
-  # Non-blocking C++20 compile check (CVS-189849), nightly/manual runs only: it is not green yet,
-  # so it must not consume pre-commit runners. Promote to a required pre-commit check when done.
+  # Non-blocking C++20 compile check (CVS-189849): daily, dispatched, or re-run workflows.
+  # Promote to a required pre-commit check once stable.
   Build_CPP20:
     name: Build (C++20, non-blocking)
     needs: [Docker, Smart_CI]
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch') }}
+    if: >-
+      ${{
+        !needs.smart_ci.outputs.skip_workflow &&
+        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch' || github.run_attempt > 1)
+      }}
     uses: ./.github/workflows/job_build_linux_cpp20.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
