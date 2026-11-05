@@ -31,8 +31,7 @@ bool key_cache_token_major(const RuntimeParams& params) {
     }
     const size_t block = cldnn::paged_attention::block_size;
     const bool int4 = data_type_traits::is_i4_u4(desc->cache_dt);
-    const size_t page_block =
-        (desc->is_kv_compressed && desc->is_key_by_channel) ? (int4 ? block / u4_elems_per_byte : block) + desc->scales_zp_size : block;
+    const size_t page_block = (desc->is_kv_compressed && desc->is_key_by_channel) ? (int4 ? block / u4_elems_per_byte : block) + desc->scales_zp_size : block;
     return cldnn::paged_attention::k_cache_token_major(params.input_layouts[cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE].get_partial_shape(),
                                                        page_block);
 }

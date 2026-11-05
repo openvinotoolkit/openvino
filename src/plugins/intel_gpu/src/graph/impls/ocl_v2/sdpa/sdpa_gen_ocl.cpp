@@ -34,15 +34,15 @@ struct sdpa_ocl_config_t {
     int sv_sg_tile_scores = 0;
     int sv_sg_per_wg_values = 0;
     int sv_sg_per_wg_scores = 0;
-    bool large_grf = false;         // compile with 256 GRF (get_build_options())
-    bool prefill_pipeline = false;  // PA PREFILL loop changes measured with this tiling (add_prefill_pipeline_jit())
-    bool v_prefetch = false;        // PA PREFILL V tile prefetch measured with this tiling (add_tensor_block_io_jit())
-    bool v_prefetch_l3 = false;     // PA PREFILL V tile L3 prefetch measured with this tiling (add_tensor_block_io_jit())
-    bool micro_math = true;         // PA PREFILL f16 sdpa_micro rounding with this tiling (add_micro_math_jit())
-    int wide_reads = 0;             // PA PREFILL wide K (1) / V (2) / Q_slm (4) reads measured with this tiling (add_tensor_block_io_jit())
-    bool mixed_prefetch_v = false;  // PA MIXED u4 V page prefetch measured with this tiling (add_pa_page_read_jit())
-    bool mixed_prefetch_k = false;  // PA MIXED u4 K page prefetch measured with this tiling (add_pa_page_read_jit())
-    bool hpg_pa_prefill = false;    // the xe_hpg PA PREFILL kernel, sdpa_ocl_hpg_pa_prefill.cl (hpg_pa_prefill_tiling())
+    bool large_grf = false;            // compile with 256 GRF (get_build_options())
+    bool prefill_pipeline = false;     // PA PREFILL loop changes measured with this tiling (add_prefill_pipeline_jit())
+    bool v_prefetch = false;           // PA PREFILL V tile prefetch measured with this tiling (add_tensor_block_io_jit())
+    bool v_prefetch_l3 = false;        // PA PREFILL V tile L3 prefetch measured with this tiling (add_tensor_block_io_jit())
+    bool micro_math = true;            // PA PREFILL f16 sdpa_micro rounding with this tiling (add_micro_math_jit())
+    int wide_reads = 0;                // PA PREFILL wide K (1) / V (2) / Q_slm (4) reads measured with this tiling (add_tensor_block_io_jit())
+    bool mixed_prefetch_v = false;     // PA MIXED u4 V page prefetch measured with this tiling (add_pa_page_read_jit())
+    bool mixed_prefetch_k = false;     // PA MIXED u4 K page prefetch measured with this tiling (add_pa_page_read_jit())
+    bool hpg_pa_prefill = false;       // the xe_hpg PA PREFILL kernel, sdpa_ocl_hpg_pa_prefill.cl (hpg_pa_prefill_tiling())
     bool noncausal_kq_branch = false;  // plain non-causal PREFILL CAUSAL_TILE_SKIP measured with this tiling (add_prefill_pipeline_jit())
     bool plain_decode = false;         // plain-SDPA decode tiling: the PREFILL loop flags above apply to that stage too
 
@@ -836,9 +836,9 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling() {
     t.micro_math = false;  // the kernel has one softmax rounding, sdpa_ocl's default
     t.hpg_pa_prefill = true;
     const bool split = solve_sv_split(t, 128);
-    OPENVINO_ASSERT(split && t.sv_sg_tile_values == 16 && t.sv_sg_tile_scores == 16 && t.sv_sg_per_wg_values == 8 &&
-                        tiling_fits_device(gpu_arch::xe_hpg, 128, t),
-                    "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling no longer derives the S*V split its kernel is written for");
+    OPENVINO_ASSERT(
+        split && t.sv_sg_tile_values == 16 && t.sv_sg_tile_scores == 16 && t.sv_sg_per_wg_values == 8 && tiling_fits_device(gpu_arch::xe_hpg, 128, t),
+        "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling no longer derives the S*V split its kernel is written for");
     return t;
 }
 
