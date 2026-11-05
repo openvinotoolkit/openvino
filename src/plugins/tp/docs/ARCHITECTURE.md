@@ -229,8 +229,9 @@ Plugin (IPlugin)                       stateless apart from its own config
 CompiledModel (ICompiledModel)
   ├── rank_compiled[N]                 intel_gpu ICompiledModel per rank; each
   │                                    holds its rank context
-  ├── CacheController                  paged-attention cache, one per model,
-  │                                    shared by every infer request
+  ├── CacheController                  paged-attention cache, one per model
+  │                                    (ov::plugin_managed_cache); binds the
+  │                                    cache to every registered request
   ├── sharded_state_ids[]              which variables hold a KV-cache slice
   │                                    rather than a replica
   ├── device locks                     process-wide, one per device (by UUID),
@@ -302,7 +303,7 @@ src/plugins/tp/
 │   ├── compiled_model.{hpp,cpp}            ← ICompiledModel, export/import
 │   ├── infer_request.{hpp,cpp}             ← ISyncInferRequest, rank fan-out
 │   ├── rank_workers.hpp                    ← persistent worker thread per rank
-│   ├── cache_controller.{hpp,cpp}          ← KV-cache control inputs per rank
+│   ├── cache_controller.{hpp,cpp}          ← IPluginManagedCache: the PA cache on every rank
 │   ├── transformations/                    ← L1, static library openvino_tp_transformations
 │   │   ├── include/tp_transformations/     ← annotations, analyzer, verifier, rank passes
 │   │   └── src/                            ← block passes (attention, MLP, vocabulary),
@@ -673,6 +674,46 @@ Both primitives:
 There is no CPU fallback: the collective needs a shared L0 context spanning
 every rank's device, and without one the compilation fails rather than
 silently degrading.
+
+### Device memory
+
+`ov_internal_tp_device_memory` (RO, argument `DEVICE_ID`) answers
+`ov::tp::internal::DeviceMemory{total, used, max_allocation}` for one device:
+`max_global_mem_size`, the device's memory in use by every engine of the
+process (`usm_device` + `cl_mem`, plus `usm_host` on an integrated GPU) and
+`max_alloc_mem_size`. The TP plugin sizes the paged-attention cache from it
+without reading GPU properties.
+
+## Plugin-managed Cache
+
+The paged-attention cache of a TP model is split by KV head across the rank
+devices, so the application cannot allocate it through one remote context.
+The compiled model offers `ov::plugin_managed_cache` instead (absent on a
+model without `key_cache.N` / `value_cache.N` inputs), an
+`ov::PluginManagedCache` facade over the `CacheController`:
+
+- **One KEY_VALUE group, model-level.** Tensors `key_cache.N` /
+  `value_cache.N` with the shapes a single GPU reports (block dimension
+  dynamic): the head dimension is the sum over the ranks with a KV head kept by
+  several ranks (Case 2) counted once, and `block_size_in_bytes` is the block
+  of the whole model. A block index means the same tokens on every rank; every
+  operation is the same request repeated per rank and layer. Case 2 needs no
+  mapping: each rank allocates from its own ports.
+- **Available memory**: the minimum over the ranks of
+  `(total - 1.1 * used) / rank block bytes`, capped by
+  `max_allocation / largest rank tensor block`, times the model block bytes.
+- **allocate / reallocate** build the complete new cache on every rank (kept
+  blocks copied device-to-device), then bind it; a failure rebinds the old
+  cache (or nothing) and leaves the size unchanged. **deallocate** binds
+  zero-block host placeholders so the rank requests let go of the memory.
+  **copy_blocks** and **zero_blocks** run on every rank tensor.
+- **Binding is eager.** Every infer request registers with the controller on
+  creation (unregisters on destruction) and is bound when it registers and on
+  every allocation change; `infer()` only checks that a cache is allocated.
+  `set_tensor` / `get_tensor` on a cache input are refused.
+
+GenAI's continuous batching asks for the property before looking for cache
+inputs and takes its memory budget from `get_available_memory()`.
 
 ## Compiled Blob
 

@@ -57,7 +57,7 @@ for the current file layout. Key entry points:
 | `src/transformations/`          | L1, the static library `openvino_tp_transformations`: `annotations.*` (`tp_shard` / `tp_role`, rank ranges), `attention_blocks.cpp` / `mlp_blocks.cpp` (block passes), `block_utils.*` (projection, weight-chain and shape-constant helpers), `analyzer.cpp` (`TPLayerAnalyzer`), `verifier.cpp` (`TPShardingVerifier`), `rank_passes.cpp` (`TPWeightShardingPass`, `TPInsertCollectives`). |
 | `src/infer_request.cpp`         | Rank fan-out, input replication, output collection from rank 0.                                                                                                                  |
 | `src/rank_workers.hpp`          | The persistent worker thread per rank.                                                                                                                                      |
-| `src/cache_controller.cpp`      | Per-rank KV-cache control inputs.                                                                                                                                                |
+| `src/cache_controller.cpp`      | `ov::plugin_managed_cache`: the paged-attention cache on every rank, request registry, available memory.                                                                         |
 | `src/compiled_model.cpp`        | `export_model` / state plumbing / port derivation.                                                                                                                               |
 | `src/tp_blob.hpp`               | The container format shared by export and import.                                                                                                                                |
 | `src/tp_config.cpp`             | Device-name resolution and validation.                                                                                                                                           |
@@ -242,8 +242,10 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 | `TP/TPAccuracyTest` | Сompiles the same synthetic block on one GPU and on TP, feeds both the same input and compares outputs.                              |
 |                           | Parametrized over world size {2, 3, 4} and precision {f16, f32};                                                                         |
 |                           | Precision is pinned on both sides, because left alone the GPU picks f16 and one ULP there is the same magnitude as a real sharding error |
-| `TPPagedAttentionTest` | PagedAttention path at world size 2: when a cache controller is offered at all, the geometry it reports, allocate/grow/clear,            |
-|                           | block copies on every rank, refusing to infer without a cache, and prefill and two-step accuracy against a single GPU                    |
+| `TPPagedAttentionTest` | PagedAttention path at world size 2 through `ov::plugin_managed_cache`: offered only for PA models, the model-level group,  |
+|                           | allocate/reallocate/deallocate, available memory following the allocation, a failed reallocation keeping the cache, cache ports      |
+|                           | refused, no inference without a cache; prefill and two-step accuracy against a single GPU (requests created before and after the  |
+|                           | allocation, a reallocation in between), copy_blocks and zero_blocks checked through decode numerics                                |
 | `TPSerializationTest`  | export/import round-trip, cache entries per topology                                                                                     |
 | `TPContextTest`        | The rank contexts through the collective contract, without the TP plugin: two ranks reducing through their contexts, and the refusals -- |
 |                           | a collective without a TP context, a collective of another rank, a second model on the channel, a context on the wrong device,           |

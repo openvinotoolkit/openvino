@@ -193,6 +193,26 @@ Things to know:
 - `compiled.get_property(ov::loaded_from_cache)` tells you which path was
   taken.
 
+## Paged Attention and Continuous Batching
+
+The KV cache of a paged-attention model is split across the GPUs, so the
+application does not allocate it. The compiled model offers
+`ov::plugin_managed_cache` instead; OpenVINO GenAI's continuous-batching
+pipeline uses it on its own. Everything it reports is about the model as if it
+were not split:
+
+```cpp
+auto cache = compiled.get_property(ov::plugin_managed_cache);
+auto group = cache.get_groups()[0];                   // KEY_VALUE: key_cache.N / value_cache.N
+size_t blocks = cache.get_available_memory() / group.block_size_in_bytes;
+cache.allocate(0, blocks, /*zero_initialize=*/false);  // bound to every infer request
+// ... reallocate(), copy_blocks(), zero_blocks(), deallocate()
+```
+
+- The cache inputs cannot be set or read through the infer request.
+- Inference before `allocate()` (or after `deallocate()`) fails.
+- A failed `reallocate()` keeps the previous cache and its contents.
+
 ## Limitations
 
 - **Architecture coverage.** The plugin recognizes attention and MLP blocks by
@@ -211,6 +231,9 @@ Things to know:
   the process that shares a device with another run one after another.
 - **No linear-attention models.** Models with linear-attention state
   (hybrid models) are rejected at compile time.
+- **No KV-cache eviction.** A paged-attention model compiled for cache
+  eviction (GenAI `SchedulerConfig::use_cache_eviction`) fails the compilation
+  (`The block around it is not fully recognized by any TP block pass`).
 - **No user-supplied remote context.** The plugin always creates the rank
   contexts of its device group itself, so importing into a caller-provided
   context is rejected.
