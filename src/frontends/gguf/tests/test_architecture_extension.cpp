@@ -69,7 +69,9 @@ private:
 std::string write_decoder_gguf(const std::string& dir,
                                const std::string& arch = "qwen3",
                                uint32_t layers = 2,
-                               bool layer_norm = false) {
+                               bool layer_norm = false,
+                               bool mtp = false,
+                               bool separate_embedding = false) {
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
@@ -81,8 +83,19 @@ std::string write_decoder_gguf(const std::string& dir,
     writer.kv_u32(arch + ".context_length", 32);
     writer.kv_f32(arch + (layer_norm ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"), 1e-5f);
     writer.kv_f32(arch + ".rope.scaling.factor", 4.f);
-    writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
-    writer.kv_u32(arch + ".attention.sliding_window", 2);
+    if (mtp) {
+        writer.kv_u32(arch + ".nextn_predict_layers", 1);
+        writer.kv_u32(arch + ".full_attention_interval", 1);
+        writer.kv_u32(arch + ".ssm.conv_kernel", 4);
+        writer.kv_u32(arch + ".ssm.state_size", 4);
+        writer.kv_u32(arch + ".ssm.group_count", 1);
+        writer.kv_u32(arch + ".ssm.time_step_rank", 2);
+        writer.kv_u32(arch + ".ssm.inner_size", 8);
+        writer.kv_u32_array(arch + ".rope.dimension_sections", {1, 1, 0, 0});
+    } else {
+        writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
+        writer.kv_u32(arch + ".attention.sliding_window", 2);
+    }
     const auto weight = [&](const std::string& name, const std::vector<uint64_t>& shape, bool norm = false) {
         writer.filled_tensor(name, shape, norm);
     };
@@ -95,7 +108,7 @@ std::string write_decoder_gguf(const std::string& dir,
         weight(prefix + "attn_norm.weight", {8}, true);
         if (layer_norm)
             weight(prefix + "attn_norm.bias", {8});
-        weight(prefix + "attn_q.weight", {8, 8});
+        weight(prefix + "attn_q.weight", {8, mtp ? 16u : 8u});
         weight(prefix + "attn_k.weight", {8, 4});
         weight(prefix + "attn_v.weight", {8, 4});
         weight(prefix + "attn_output.weight", {8, 8});
@@ -107,6 +120,14 @@ std::string write_decoder_gguf(const std::string& dir,
         weight(prefix + "ffn_gate.weight", {8, 12});
         weight(prefix + "ffn_up.weight", {8, 12});
         weight(prefix + "ffn_down.weight", {12, 8});
+        if (mtp && layer == layers - 1) {
+            weight(prefix + "nextn.eh_proj.weight", {16, 8});
+            weight(prefix + "nextn.enorm.weight", {8}, true);
+            weight(prefix + "nextn.hnorm.weight", {8}, true);
+            weight(prefix + "nextn.shared_head_norm.weight", {8}, true);
+            if (separate_embedding)
+                weight(prefix + "nextn.embed_tokens.weight", {8, 16});
+        }
     }
     return writer.write(path) ? path : std::string{};
 }
@@ -218,6 +239,53 @@ TEST(GGUFGenAIExtension, RegistrationIsLocalAndConversionCanBeRepeated) {
     OV_EXPECT_THROW(frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>()),
                     ov::Exception,
                     testing::HasSubstr("already registered"));
+}
+
+TEST(GGUFGenAIExtension, QwenMtpComponentHasIndependentCacheAndHiddenStateInputs) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true);
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    for (const auto& component : {std::string{}, std::string{"mtp"}}) {
+        ov::frontend::gguf::FrontEnd frontend;
+        auto extension = std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, component);
+        frontend.add_extension(extension);
+        auto model = frontend.convert(frontend.load(path));
+        ASSERT_TRUE(extension->get_embedding_model());
+        EXPECT_EQ(model->get_variables().size(), 2);
+        EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
+        EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        EXPECT_EQ(model->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
+        if (!component.empty())
+            EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        EXPECT_NO_THROW(ov::Core{}.compile_model(model, "CPU"));
+    }
+}
+
+TEST(GGUFGenAIExtension, MtpComponentRejectsMissingNextNWeights) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path());
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    OV_EXPECT_THROW(convert_with(path, {std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS, "mtp")}),
+                    ov::Exception,
+                    testing::HasSubstr("exactly one NextN block"));
+}
+
+TEST(GGUFGenAIExtension, MtpComponentRejectsMissingTargetAndSeparateEmbeddings) {
+    ScratchDir scratch;
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    for (const auto layers : {0u, 1u}) {
+        const auto path = write_decoder_gguf(scratch.path(), "qwen35", layers, false, true);
+        OV_EXPECT_THROW(
+            convert_with(path, {std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp")}),
+            ov::Exception,
+            testing::HasSubstr(layers ? "at least one target layer" : "qwen35.block_count"));
+    }
+    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true, true);
+    OV_EXPECT_THROW(
+        convert_with(path, {std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp")}),
+        ov::Exception,
+        testing::HasSubstr("shared token embeddings"));
 }
 
 TEST(GGUFArchitectureExtension, DecoderOptionsSelectTheActivation) {

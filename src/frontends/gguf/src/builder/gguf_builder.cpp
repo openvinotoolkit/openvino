@@ -48,7 +48,7 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
     return cfg;
 }
 
-GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
+GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, const std::string& component) {
     auto data = std::make_shared<GGUFLoad>(std::move(loaded));
     auto& [metadata, weights, qtypes, mmap] = *data;
 
@@ -73,7 +73,7 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
                        registry.describe_supported(),
                        ". Register an ArchitectureExtension.");
     }
-    return [data, definition = *definition, projectors = registry.projectors()](
+    return [data, definition = *definition, projectors = registry.projectors(), component](
                const std::unordered_map<std::string, CreatorFunction>& translators) {
         const auto& [metadata, source_weights, source_qtypes, mmap] = *data;
         auto weights = source_weights;
@@ -82,10 +82,17 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
         const GgufMetadata meta_view(meta_store);
         detail::WeightStore weight_store{weights, qtypes, &translators};
         BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
+        ctx.component = component;
         auto builder = definition.factory(ctx);
         OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
         auto graph = builder->build();
         OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition.id, "' returned no graph");
+        OPENVINO_ASSERT(graph->component == component,
+                        "[GGUF] architecture handler '",
+                        definition.id,
+                        "' does not implement component '",
+                        component,
+                        "'");
         graph->tokenizer_config = extract_tokenizer_config(metadata);
         graph->architecture = meta_view.architecture();
         return graph;
@@ -94,12 +101,16 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
 
 }  // namespace
 
-GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry) {
-    return make_gguf_builder(get_gguf_data(file), registry);
+GraphBuilder load_gguf_builder(const std::filesystem::path& file,
+                               const ArchRegistry& registry,
+                               const std::string& component) {
+    return make_gguf_builder(get_gguf_data(file), registry, component);
 }
 
-GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files, const ArchRegistry& registry) {
-    return make_gguf_builder(get_gguf_data(files), registry);
+GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files,
+                               const ArchRegistry& registry,
+                               const std::string& component) {
+    return make_gguf_builder(get_gguf_data(files), registry, component);
 }
 
 }  // namespace ov::frontend::gguf
