@@ -169,10 +169,12 @@ TEST_P(ZeroCmdQueuePoolTests, CreateQueueWithQos) {
             cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc));
         ASSERT_NE(cmd_queue, nullptr);
 
+        // The effective level may be adjusted by the driver/OS, so only check that it is reported as requested by the
+        // user.
         ze_command_queue_qos_ext_properties_t qos_properties = {};
         OV_ASSERT_NO_THROW(qos_properties = cmd_queue->getQos());
-        EXPECT_EQ(qos_properties.qos, qos) << "The queue must report the QoS level it was created with";
-        EXPECT_TRUE(qos_properties.isOverridden) << "A level requested at creation time must be reported as overridden";
+        EXPECT_TRUE(qos_properties.isOverridden)
+            << "A level requested at creation time must be reported as overridden, qos=" << (int)qos;
     }
 }
 
@@ -245,10 +247,8 @@ TEST_P(ZeroCmdQueuePoolTests, SetQosOnExistingQueue) {
 
     for (auto qos : explicitQosLevels) {
         OV_ASSERT_NO_THROW(cmd_queue->setQos(qos));
-
-        auto qos_properties = cmd_queue->getQos();
-        EXPECT_EQ(qos_properties.qos, qos) << "getQos must report the level applied by setQos";
-        EXPECT_TRUE(qos_properties.isOverridden);
+        EXPECT_TRUE(cmd_queue->getQos().isOverridden)
+            << "A level applied by setQos must be reported as overridden, qos=" << (int)qos;
     }
 
     // Setting DEFAULT reverts the queue to the driver/OS-selected level.
@@ -273,12 +273,53 @@ TEST_P(ZeroCmdQueuePoolTests, SetQosOnQueueCreatedWithQos) {
 
     auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc);
     ASSERT_NE(cmd_queue, nullptr);
-    ASSERT_EQ(cmd_queue->getQos().qos, ZE_COMMAND_QUEUE_QOS_EXT_HIGH);
+    ASSERT_TRUE(cmd_queue->getQos().isOverridden);
 
     OV_ASSERT_NO_THROW(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_ECO));
-    auto qos_properties = cmd_queue->getQos();
-    EXPECT_EQ(qos_properties.qos, ZE_COMMAND_QUEUE_QOS_EXT_ECO) << "setQos must override the creation-time level";
-    EXPECT_TRUE(qos_properties.isOverridden);
+    EXPECT_TRUE(cmd_queue->getQos().isOverridden);
+
+    // Setting DEFAULT must revert the creation-time level to the driver/OS-selected one.
+    OV_ASSERT_NO_THROW(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT));
+    EXPECT_FALSE(cmd_queue->getQos().isOverridden);
+}
+
+TEST_P(ZeroCmdQueuePoolTests, SetPriorityOnQueueCreatedWithQosKeepsQos) {
+    if (!init_struct->isCommandQueueQosSupported()) {
+        GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+    }
+
+    // The plugin assumes that every driver supporting QoS also supports changing the priority of an existing queue.
+    // Otherwise, Graph::set_model_priority falls back to recreating the queue, which drops a QoS level applied
+    // directly on the existing queue.
+    ASSERT_TRUE(init_struct->isCommandQueueSetPrioritySupported())
+        << "QoS is supported, but changing the priority of an existing queue is not. Graph::set_model_priority "
+           "would recreate the queue and lose the QoS level.";
+
+    int owner = 1;
+    ::intel_npu::CommandQueueDesc command_queue_desc{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                     std::nullopt,
+                                                     ZE_COMMAND_QUEUE_QOS_EXT_LOW,
+                                                     0,
+                                                     &owner,
+                                                     false};
+
+    auto cmd_queue = ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, command_queue_desc);
+    ASSERT_NE(cmd_queue, nullptr);
+
+    // The effective QoS level may be adjusted by the driver/OS based on other properties, so only check that the
+    // level requested by the user is still reported as overridden.
+    for (auto priority : {ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH,
+                          ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_LOW,
+                          ZE_COMMAND_QUEUE_PRIORITY_NORMAL}) {
+        OV_ASSERT_NO_THROW(cmd_queue->setPriority(priority));
+        EXPECT_TRUE(cmd_queue->getQos().isOverridden)
+            << "Changing the priority must not drop the QoS requested by the user, priority=" << (int)priority;
+    }
+
+    // The same must hold after the QoS level is changed on the existing queue.
+    OV_ASSERT_NO_THROW(cmd_queue->setQos(ZE_COMMAND_QUEUE_QOS_EXT_ECO));
+    OV_ASSERT_NO_THROW(cmd_queue->setPriority(ZE_COMMAND_QUEUE_PRIORITY_PRIORITY_HIGH));
+    EXPECT_TRUE(cmd_queue->getQos().isOverridden);
 }
 
 TEST_P(ZeroCmdQueuePoolTests, SetQosDoesNotAffectOtherQueues) {
@@ -286,17 +327,19 @@ TEST_P(ZeroCmdQueuePoolTests, SetQosDoesNotAffectOtherQueues) {
         GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
     }
 
+    // The effective level may be adjusted by the driver/OS, so the other queue is created without a QoS level and
+    // must keep reporting it as not overridden.
     int owner_a = 1;
     int owner_b = 2;
     ::intel_npu::CommandQueueDesc desc_a{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                          std::nullopt,
-                                         ZE_COMMAND_QUEUE_QOS_EXT_HIGH,
+                                         std::nullopt,
                                          0,
                                          &owner_a,
                                          false};
     ::intel_npu::CommandQueueDesc desc_b{ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
                                          std::nullopt,
-                                         ZE_COMMAND_QUEUE_QOS_EXT_HIGH,
+                                         std::nullopt,
                                          0,
                                          &owner_b,
                                          false};
@@ -307,8 +350,8 @@ TEST_P(ZeroCmdQueuePoolTests, SetQosDoesNotAffectOtherQueues) {
 
     OV_ASSERT_NO_THROW(queue_a->setQos(ZE_COMMAND_QUEUE_QOS_EXT_LOW));
 
-    EXPECT_EQ(queue_a->getQos().qos, ZE_COMMAND_QUEUE_QOS_EXT_LOW);
-    EXPECT_EQ(queue_b->getQos().qos, ZE_COMMAND_QUEUE_QOS_EXT_HIGH);
+    EXPECT_TRUE(queue_a->getQos().isOverridden);
+    EXPECT_FALSE(queue_b->getQos().isOverridden) << "setQos on one queue must not affect another queue";
 }
 
 TEST_P(ZeroCmdQueuePoolTests, QosParticipatesInPooling) {
@@ -384,7 +427,7 @@ TEST_P(ZeroCmdQueuePoolTests, AllQosLevelsWithCommandQueueOptions) {
             OV_ASSERT_NO_THROW(cmd_queue =
                                    ::intel_npu::ZeroCmdQueuePool::getInstance().getCommandQueue(init_struct, cmd_desc));
             ASSERT_NE(cmd_queue, nullptr);
-            EXPECT_EQ(cmd_queue->getQos().qos, qos) << "qos=" << (int)qos << " options=" << options;
+            EXPECT_TRUE(cmd_queue->getQos().isOverridden) << "qos=" << (int)qos << " options=" << options;
         }
     }
 }
