@@ -11,6 +11,7 @@
 #include "backends_registry.hpp"
 #include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -88,9 +89,15 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    // Loads the VCL library on first use: when PREFER_PLUGIN is resolved, a compiler-in-plugin is created, or a
-    // profiling decoder is created.
+    // The plugin loads the VCL library at most once, through this holder, which then owns the only set of entry points
+    // of the plugin. The library loads on first use: when PREFER_PLUGIN is resolved, a compiler-in-plugin is created,
+    // or a profiling decoder is created.
     std::shared_ptr<const VCLLoaderHolder> _vclLoaderHolder;
+
+    // The only factory of the plugin, built on the entry points of `_vclLoaderHolder`, and shared by compile, query,
+    // property and option support requests so that they all see what it learned about the compiler-in-plugin. Entry
+    // points of another holder would need another factory.
+    std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;

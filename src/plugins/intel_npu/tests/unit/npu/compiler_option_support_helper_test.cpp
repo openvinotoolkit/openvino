@@ -8,11 +8,12 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "npu/mock_backend_utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "vcl_provider_utils.hpp"
@@ -25,34 +26,23 @@ using CompilerType = ov::intel_npu::CompilerType;
 
 // No case below reaches the compiler-in-plugin branch of the factory. Each is answered from the
 // cache, rejected before any lookup, or uses the driver path without a device.
-VCLFunctionTableProvider noVclLibrary() {
-    return vcl_provider::forbidden("The VCL function table provider must not be invoked by this test");
+std::shared_ptr<const CompilerAdapterFactory> factoryWithoutVclLibrary() {
+    return std::make_shared<const CompilerAdapterFactory>(
+        vcl_provider::forbidden("The VCL function table provider must not be invoked by this test"));
 }
 
-// Minimal IEngineBackend double: exercises the real CompilerAdapterFactory::getCompiler() logic
-// (no device available) without requiring an actual NPU driver/compiler in the test environment.
-class MockEngineBackendNoDevice : public IEngineBackend {
-public:
-    const std::shared_ptr<IDevice> getDevice() const override {
-        return nullptr;
-    }
-    const std::string getName() const override {
-        return "MOCK";
-    }
-    bool isCommandQueueExtSupported() const override {
-        return false;
-    }
-    bool isLUIDExtSupported() const override {
-        return false;
-    }
-    bool isContextExtSupported() const override {
-        return false;
-    }
-    void updateInfo(const ov::AnyMap&) override {}
-};
+// A backend without devices, like in offline compilation. It exercises the real CompilerAdapterFactory::getCompiler()
+// logic without requiring an actual NPU driver/compiler in the test environment.
+ov::SoPtr<IEngineBackend> makeBackendWithoutDevice() {
+    return ov::SoPtr<IEngineBackend>(std::make_shared<npu_mock::MockEngineBackend>(std::vector<std::string>{}));
+}
+
+TEST(CompilerOptionSupportHelperTests, Construction_WithoutAdapterFactory_Throws) {
+    EXPECT_THROW(CompilerOptionSupportHelper({nullptr}, nullptr), ov::Exception);
+}
 
 TEST(CompilerOptionSupportHelperTests, ReturnsCachedSupportedOptionWithoutBackend) {
-    CompilerOptionSupportHelper helper({nullptr}, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper({nullptr}, factoryWithoutVclLibrary());
     const auto key = static_cast<OptionSupportCache::CacheKey>(CompilerType::PLUGIN);
     helper.getOptionSupportCache()->addSupportedOption(key, "CACHED_OPTION", true);
 
@@ -60,7 +50,7 @@ TEST(CompilerOptionSupportHelperTests, ReturnsCachedSupportedOptionWithoutBacken
 }
 
 TEST(CompilerOptionSupportHelperTests, ReturnsCachedUnsupportedOptionWithoutBackend) {
-    CompilerOptionSupportHelper helper({nullptr}, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper({nullptr}, factoryWithoutVclLibrary());
     const auto key = static_cast<OptionSupportCache::CacheKey>(CompilerType::DRIVER);
     helper.getOptionSupportCache()->addSupportedOption(key, "CACHED_OPTION", false);
 
@@ -68,7 +58,7 @@ TEST(CompilerOptionSupportHelperTests, ReturnsCachedUnsupportedOptionWithoutBack
 }
 
 TEST(CompilerOptionSupportHelperTests, KeepsCompilerTypeCacheEntriesIndependent) {
-    CompilerOptionSupportHelper helper({nullptr}, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper({nullptr}, factoryWithoutVclLibrary());
     const auto pluginKey = static_cast<OptionSupportCache::CacheKey>(CompilerType::PLUGIN);
     const auto driverKey = static_cast<OptionSupportCache::CacheKey>(CompilerType::DRIVER);
     helper.getOptionSupportCache()->addSupportedOption(pluginKey, "SHARED_OPTION", true);
@@ -79,35 +69,31 @@ TEST(CompilerOptionSupportHelperTests, KeepsCompilerTypeCacheEntriesIndependent)
 }
 
 TEST(CompilerOptionSupportHelperTests, RejectsPreferPluginBeforeCompilerLookup) {
-    CompilerOptionSupportHelper helper({nullptr}, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper({nullptr}, factoryWithoutVclLibrary());
 
     EXPECT_THROW(helper.isOptionSupported(CompilerType::PREFER_PLUGIN, "ANY_OPTION"), ov::Exception);
 }
 
 TEST(CompilerOptionSupportHelperTests, RejectsCompilerTypeOutsideSupportedList) {
-    CompilerOptionSupportHelper helper({nullptr}, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper({nullptr}, factoryWithoutVclLibrary());
 
     EXPECT_THROW(helper.isOptionSupported(static_cast<CompilerType>(999), "ANY_OPTION"), ov::Exception);
 }
 
 TEST(CompilerOptionSupportHelperTests, ExposesSharedOptionSupportCache) {
-    CompilerOptionSupportHelper helper({nullptr}, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper({nullptr}, factoryWithoutVclLibrary());
 
     ASSERT_NE(helper.getOptionSupportCache(), nullptr);
 }
 
 TEST(CompilerOptionSupportHelperTests, DriverLookupWithoutDeviceThrows) {
-    auto backend = std::make_shared<MockEngineBackendNoDevice>();
-    ov::SoPtr<IEngineBackend> backendPtr(backend);
-    CompilerOptionSupportHelper helper(backendPtr, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper(makeBackendWithoutDevice(), factoryWithoutVclLibrary());
 
     EXPECT_THROW(helper.isOptionSupported(CompilerType::DRIVER, "ANY_OPTION"), ov::Exception);
 }
 
 TEST(CompilerOptionSupportHelperTests, OptionValueBypassesCacheAndReachesCompilerLookup) {
-    auto backend = std::make_shared<MockEngineBackendNoDevice>();
-    ov::SoPtr<IEngineBackend> backendPtr(backend);
-    CompilerOptionSupportHelper helper(backendPtr, CompilerAdapterFactory{noVclLibrary()});
+    CompilerOptionSupportHelper helper(makeBackendWithoutDevice(), factoryWithoutVclLibrary());
     const auto key = static_cast<OptionSupportCache::CacheKey>(CompilerType::DRIVER);
     helper.getOptionSupportCache()->addSupportedOption(key, "ANY_OPTION", true);
 

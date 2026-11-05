@@ -117,12 +117,13 @@ private:
  *
  * Providers defer loading until the entry points are requested to resolve or construct a compiler-in-plugin,
  * or to create a profiling decoder. Profiling imports can request them even when using the driver compiler.
- * A provider should remember a failed load, so that callers do not repeat it.
+ * A provider should remember a failed load, so that callers do not repeat it, and always supply the same set of
+ * entry points: what is built from them, such as a CompilerAdapterFactory, is bound to that set.
  */
 using VCLFunctionTableProvider = std::function<std::shared_ptr<const VCLFunctionTable>()>;
 
 /**
- * @brief Owns one lazily loaded VCL compiler library.
+ * @brief Owns one lazily loaded VCL compiler library and its one set of entry points.
  *
  * Caches the outcome of the first load. The returned tables keep the library loaded even after the
  * plugin releases its holder.

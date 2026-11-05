@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -16,26 +19,41 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Creates compiler adapters on top of one set of VCL entry points.
+ *
+ * A factory knows how to build a compiler-in-plugin only from the entry points of the provider it was given. A plugin
+ * has one VCL loader holder, which loads the library at most once and holds one set of entry points, and one factory.
+ * Entry points from another provider need another factory.
+ *
+ * The factory therefore remembers, for its provider, whether a compiler-in-plugin can be created (see
+ * decideCompilerType()). It is not copyable: share one instance, for example through a
+ * `std::shared_ptr<const CompilerAdapterFactory>`, among everything that works with the same provider, so that all of
+ * it sees the same outcome and a failed attempt is not repeated. Never share an instance across providers.
+ */
 class CompilerAdapterFactory final {
 public:
     /**
      * @brief Creates a factory that obtains the VCL entry points from the given provider.
      *
-     * The factory calls the provider only to resolve PREFER_PLUGIN or to create a compiler-in-plugin; driver
-     * compilation never calls it. The factory keeps no availability state: the provider owns it and should remember
-     * a failed load (VCLLoaderHolder does).
+     * The factory calls the provider only to create a compiler-in-plugin, including the probe that resolves
+     * PREFER_PLUGIN. Driver compilation never calls it.
      *
      * @param vclFunctions Supplies the VCL entry points. Must not be empty.
      * @throws ov::Exception if the provider is empty.
      */
     explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions);
 
+    CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
+    CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
+
     /**
      * @brief Creates the compiler adapter and writes the resolved type back to `compilerType`.
      *
-     * A PREFER_PLUGIN request that the driver compiler can serve (online compilation) falls back to it when the
-     * plugin compiler cannot be loaded or created. An explicit PLUGIN request and offline compilation do not fall
-     * back.
+     * PREFER_PLUGIN is resolved like in decideCompilerType(), and a compiler that the probe creates is returned as is.
+     * A request that resolved to PLUGIN without probing, or that asked for PLUGIN explicitly, creates the
+     * compiler-in-plugin and throws if that fails; there is no fallback to the driver compiler at that point, and an
+     * explicit PLUGIN request retries every time.
      *
      * @param engineBackend The backend that provides the device and the Level Zero structures. May be empty for
      *        offline compilation with the compiler-in-plugin.
@@ -45,8 +63,8 @@ public:
      *        compilation on the backend device.
      * @param optionSupportCache Where the compiler records which options it supports. May be null.
      * @return The compiler adapter. Never null.
-     * @throws ov::Exception if the requested compiler cannot be created and no fallback applies, if the driver
-     *         compiler is selected without a device matching `platform`, or if `compilerType` is invalid.
+     * @throws ov::Exception if the requested compiler cannot be created, if the driver compiler is selected without a
+     *         device matching `platform`, or if `compilerType` is invalid.
      */
     std::unique_ptr<ICompilerAdapter> getCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -55,30 +73,45 @@ public:
         const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
 
     /**
-     * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER without creating a compiler.
+     * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER. Any other `compilerType` is left unchanged.
      *
-     * PLUGIN means that the provider can supply the VCL entry points, not that a compiler can be created from them.
-     * getCompiler() creates the compiler and, for an eligible PREFER_PLUGIN request, falls back to the driver
-     * compiler if the creation fails. The two can therefore disagree. Any other `compilerType` is left unchanged.
+     * Meant for validating properties against the compiler that will be used, so PLUGIN means that a
+     * compiler-in-plugin could really be created. The first resolution that needs to know creates one and discards
+     * it. The factory remembers the outcome, so later resolutions, including the ones of getCompiler(), do not probe
+     * again. A platform that only the driver compiler serves resolves to DRIVER without probing, when the
+     * compilation is online. Threads that race on the first resolution may each probe, with the same outcome.
      *
      * @param[in,out] compilerType The requested compiler type on input; the resolved type on output.
      * @param device The device that runs the compiled model. May be null for offline compilation.
      * @param platform The compilation target platform. Empty means no explicit target, which is treated as online
      *        compilation on `device`.
-     * @throws ov::Exception if the compilation is offline (or cross compilation) and the provider cannot supply the
-     *         VCL entry points, since only the compiler-in-plugin can serve it.
+     * @throws ov::Exception if the compilation is offline (or cross compilation) and the compiler-in-plugin cannot
+     *         be created, since only it can serve such a compilation.
      */
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
                             const std::shared_ptr<intel_npu::IDevice>& device,
-                            std::string_view platform);
+                            std::string_view platform) const;
 
     static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
 
 private:
     ov::intel_npu::CompilerType determineAppropriateCompilerTypeBasedOnPlatform(std::string_view platform) const;
 
-    ov::intel_npu::CompilerType resolvePreferPluginCompiler(const std::shared_ptr<intel_npu::IDevice>& device,
-                                                            std::string_view platform) const;
+    std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> resolvePreferPluginCompiler(
+        const ov::SoPtr<IEngineBackend>& engineBackend,
+        const std::shared_ptr<OptionSupportCache>& optionSupportCache,
+        const std::shared_ptr<intel_npu::IDevice>& device,
+        std::string_view platform) const;
+
+    enum class PluginCompilerPresence : std::uint8_t {
+        UNKNOWN = 0,  // Not probed yet.
+        PRESENT = 1,  // A compiler-in-plugin was created from the provider.
+        ABSENT = 2,   // Creating a compiler-in-plugin from the provider failed.
+    };
+
+    // Outcome of the compiler-in-plugin probe for this factory's provider. The factory is not copyable, so everything
+    // sharing one instance sees the same outcome, and a factory for another provider probes on its own.
+    mutable std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
 
     VCLFunctionTableProvider _vclFunctions;
 };
