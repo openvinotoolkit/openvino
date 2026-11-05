@@ -460,6 +460,16 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_gpu_test::PrintToStringParamName
 );
 
+// Decode (one query, batch 2, a per-head mask): on Xe2 the plain decode tiling, also through a saved and loaded blob
+// (basic_caching).
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_test_decode,
+                         sdpa_gpu_test,
+                         ::testing::Values(sdpa_test_params{128, 32, 1, 1000, 2, false},  // static
+                                           sdpa_test_params{128, 32, 1, 1000, 2, true},   // dynamic
+                                           sdpa_test_params{64, 16, 1, 333, 2, false},    // static
+                                           sdpa_test_params{256, 16, 1, 700, 2, true}),   // dynamic
+                         sdpa_gpu_test::PrintToStringParamName);
+
 TEST_P(sdpa_gpu_test, basic) {
     auto p = GetParam();
     execute(p);
@@ -799,6 +809,125 @@ TEST(sdpa_gpu_noncausal_tail, static_head72_16q_16kv_729seq) {
 
 TEST(sdpa_gpu_noncausal_tail, dynamic_head80_mask_16q_16kv_333q_1037kv) {
     run_sdpa_noncausal_vs_ref(16, 16, 333, 1037, 80, true, true);
+}
+
+// Plain-SDPA decode: the single-token stage (one query), which on Xe2 with f16 Q / K / V takes the decode tiling
+// (solve_plain_decode_tiling(): every subgroup on keys, a 16-query workgroup tile), element-wise against the host
+// reference. Key counts that end inside a workgroup key tile and inside a subgroup's keys, fewer keys than one subgroup
+// tile, GQA ratios 4 and 7, head sizes 64 / 72 (unaligned) / 80 / 128 / 256 / 512, static and dynamic, with and without
+// a mask.
+TEST(sdpa_gpu_plain_decode, static_32q_8kv_1000kv_d128) {
+    run_sdpa_noncausal_vs_ref(32, 8, 1, 1000, 128, false, false);
+}
+
+TEST(sdpa_gpu_plain_decode, dynamic_mask_28q_4kv_2049kv_d128) {
+    run_sdpa_noncausal_vs_ref(28, 4, 1, 2049, 128, true, true);
+}
+
+TEST(sdpa_gpu_plain_decode, static_32q_32kv_17kv_d64) {
+    run_sdpa_noncausal_vs_ref(32, 32, 1, 17, 64, false, false);
+}
+
+TEST(sdpa_gpu_plain_decode, dynamic_32q_8kv_333kv_d64) {
+    run_sdpa_noncausal_vs_ref(32, 8, 1, 333, 64, true, false);
+}
+
+TEST(sdpa_gpu_plain_decode, static_16q_16kv_729kv_d72) {
+    run_sdpa_noncausal_vs_ref(16, 16, 1, 729, 72, false, false);
+}
+
+TEST(sdpa_gpu_plain_decode, dynamic_mask_16q_16kv_1037kv_d80) {
+    run_sdpa_noncausal_vs_ref(16, 16, 1, 1037, 80, true, true);
+}
+
+TEST(sdpa_gpu_plain_decode, static_32q_8kv_1500kv_d256) {
+    run_sdpa_noncausal_vs_ref(32, 8, 1, 1500, 256, false, false);
+}
+
+TEST(sdpa_gpu_plain_decode, dynamic_mask_16q_8kv_700kv_d256) {
+    run_sdpa_noncausal_vs_ref(16, 8, 1, 700, 256, true, true);
+}
+
+TEST(sdpa_gpu_plain_decode, static_16q_2kv_1100kv_d512) {
+    run_sdpa_noncausal_vs_ref(16, 2, 1, 1100, 512, false, false);
+}
+
+// One dynamic network runs a prompt (the multi-token stage), then single tokens (the decode stage) over the grown key
+// range, as a stateful LLM does; every step against the host reference.
+static void run_sdpa_prompt_then_decode_vs_ref(int q_num_heads, int kv_num_heads, int head_size, int prompt, int decode_steps, bool with_mask) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const layout q_dyn_layout({1, q_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout kv_dyn_layout({1, kv_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout mask_dyn_layout({1, 1, -1, -1}, data_types::f16, format::bfyx);
+    topology topo;
+    topo.add(input_layout("q", q_dyn_layout));
+    topo.add(input_layout("k", kv_dyn_layout));
+    topo.add(input_layout("v", kv_dyn_layout));
+    std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v")};
+    if (with_mask) {
+        topo.add(input_layout("mask", mask_dyn_layout));
+        inputs.push_back(input_info("mask"));
+    }
+    topo.add(scaled_dot_product_attention("sdpa", inputs, false, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {}, false));
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+
+    for (int step = 0; step <= decode_steps; ++step) {
+        const int seq_q = step == 0 ? prompt : 1;
+        const int seq_kv = prompt + step;
+        auto q_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(q_num_heads) * seq_q * head_size, -4.0f, 4.0f);
+        auto k_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(kv_num_heads) * seq_kv * head_size, -1.0f, 1.0f);
+        auto v_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(kv_num_heads) * seq_kv * head_size, -1.0f, 1.0f);
+        auto mask_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(seq_q) * seq_kv, -2.0f, 0.0f);
+        const layout q_layout({1, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+        const layout kv_layout({1, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+        const layout mask_layout({1, 1, seq_q, seq_kv}, data_types::f16, format::bfyx);
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(kv_layout);
+        auto v_mem = engine.allocate_memory(kv_layout);
+        auto mask_mem = engine.allocate_memory(mask_layout);
+        set_values(q_mem, q_data);
+        set_values(k_mem, k_data);
+        set_values(v_mem, v_data);
+        set_values(mask_mem, mask_data);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        if (with_mask) {
+            net->set_input_data("mask", mask_mem);
+        }
+        auto out_mem = net->execute().at("result").get_memory();
+        const ov::Shape q_shape{1, size_t(q_num_heads), size_t(seq_q), size_t(head_size)};
+        const ov::Shape kv_shape{1, size_t(kv_num_heads), size_t(seq_kv), size_t(head_size)};
+        ASSERT_EQ(out_mem->get_layout().get_shape(), q_shape);
+        const auto ref_data = sdpa_host_reference(sdpa_to_float(q_data),
+                                                  q_shape,
+                                                  sdpa_to_float(k_data),
+                                                  kv_shape,
+                                                  sdpa_to_float(v_data),
+                                                  kv_shape,
+                                                  with_mask ? sdpa_to_float(mask_data) : std::vector<float>{},
+                                                  mask_layout.get_shape(),
+                                                  false,
+                                                  nullptr);
+        const auto diff = sdpa_compare_with_reference(ref_data, sdpa_to_float<ov::float16>(out_mem));
+        ASSERT_FALSE(diff.has_nan) << "step " << step << ": NaN in the output or the reference";
+        ASSERT_LE(diff.max_abs_err, 4e-3f) << "step " << step << " (" << seq_q << " queries over " << seq_kv << " keys): max abs error at index "
+                                           << diff.max_abs_idx;
+    }
+}
+
+TEST(sdpa_gpu_plain_decode, prompt_then_decode_32q_8kv_d128) {
+    run_sdpa_prompt_then_decode_vs_ref(32, 8, 128, 600, 3, false);
+}
+
+TEST(sdpa_gpu_plain_decode, prompt_then_decode_mask_28q_4kv_d64) {
+    run_sdpa_prompt_then_decode_vs_ref(28, 4, 64, 517, 2, true);
 }
 
 // Attention sink on the multi-token sdpa_opt kernel, with and without FlashAttention-v2 online softmax,
