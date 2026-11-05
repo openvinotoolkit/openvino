@@ -46,12 +46,6 @@ struct Term {
     }
 };
 
-// Exporters keep the hash multipliers as scalars or as [1] / [1, 1] constants.
-ov::pass::pattern::op::Predicate scalar_multiplier_shape() {
-    using ov::pass::pattern::shape_matches;
-    return shape_matches("[]") || shape_matches("[1]") || shape_matches("[1, 1]");
-}
-
 // A constant broadcast along the last axis only: scalar, [H] or [1, ..., 1, H].
 bool is_last_axis_constant(const ov::Output<ov::Node>& output) {
     const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
@@ -269,7 +263,9 @@ std::optional<std::vector<Term>> get_terms(const ov::op::internal::NGramHashFunc
 
 ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
     MATCHER_SCOPE(NGramHashBlockFusion);
-    const auto scalar_multiplier = ngram_hash_function_fusion::scalar_multiplier_shape();
+    // Exporters keep the hash multipliers as scalars or as [1] / [1, 1] constants.
+    const auto scalar_multiplier = ov::pass::pattern::shape_matches("[]") || ov::pass::pattern::shape_matches("[1]") ||
+                                   ov::pass::pattern::shape_matches("[1, 1]");
 
     // mix = ... ^ (token * multiplier): the top XOR has at least one Multiply-by-scalar operand.
     auto term_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
