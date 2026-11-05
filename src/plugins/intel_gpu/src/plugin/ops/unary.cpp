@@ -5,6 +5,9 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "transformations/utils/utils.hpp"
 
+#include <cstdint>
+#include <limits>
+
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -100,6 +103,9 @@ static void CreateClampOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::C
     double min = op->get_min();
     double max = op->get_max();
     if (op->get_output_element_type(0) == ov::element::i32) {
+        // Precision conversion preserves Clamp attributes, including i64 lower bounds.
+        // INT32_MIN is exactly representable as float and avoids an out-of-range convert_int.
+        min = std::max<double>(std::numeric_limits<int32_t>::lowest(), min);
         // Currently jitter saves all compile time constant as floats
         // and we have a code like that: (int)(as_float(0x4f000000))
         // So values in range (2147483583.0, 2147483647.0] are converted to  2147483648.0 due to fp32 representation error
