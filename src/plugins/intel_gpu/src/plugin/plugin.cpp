@@ -305,9 +305,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<RemoteContextImpl> context;
     if (offline) {
-        // Folded constants have no value at compile time, only a recipe, which is what the weightless
-        // mechanism already serializes. Offline compile needs it regardless of the user's cache mode.
-        config.set_user_property({ov::enable_weightless(true)});
         auto dev = std::make_shared<cldnn::ocl::offline_device>(
             cldnn::ocl::make_offline_device_info(offline_target),
             cldnn::ocl::make_offline_onednn_device_info(offline_target));

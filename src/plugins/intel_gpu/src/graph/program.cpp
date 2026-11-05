@@ -249,9 +249,8 @@ void program::init_program() {
                                                                       kernel_selector::KernelBase::get_db().get_batch_headers()));
 
     _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
-    // Only the top-level offline program exports placeholders; internal helper networks execute during
-    // their own build and need runnable kernels.
-    _kernels_cache->set_offline_export(get_engine().is_hw_free() && !is_internal);
+    // The internal constant sub-program is serialized too and runs at import, so it exports placeholders as well.
+    _kernels_cache->set_offline_export(get_engine().is_hw_free());
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -2055,6 +2054,26 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << state_initializer.second;
     }
 
+    ob << (_const_program != nullptr);
+    if (_const_program) {
+        _const_program->save(ob);
+        ob << _const_program_leaves.size();
+        for (const auto& [id, mem] : _const_program_leaves) {
+            mem_lock<uint8_t, mem_lock_type::read> lock(mem, mem->get_engine()->get_service_stream());
+            ob << id;
+            ob << mem->get_layout();
+            ob << mem->size();
+            ob << make_data(lock.data(), mem->size());
+        }
+        // Folded constants whose data node is still in this program.
+        std::vector<primitive_id> const_outputs;
+        for (const auto* out : _const_program->get_outputs()) {
+            if (has_node(out->id()))
+                const_outputs.push_back(out->id());
+        }
+        ob << const_outputs;
+    }
+
     const auto& dev_info = get_engine().get_device_info();
     if (!ob.is_encrypted() && get_engine().can_use_host_usm_zero_copy()) {
         if (const auto pad = ov::util::align_padding_size(dev_info.cacheline_size.value_or(0), ob.get_offset()); pad > 0) {
@@ -2281,6 +2300,40 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         ib >> variable_id;
         ib >> initializers;
         state_initializers[variable_id] = initializers;
+    }
+
+    bool has_const_program = false;
+    ib >> has_const_program;
+    if (has_const_program) {
+        // HW-free blob: run the constant sub-program once to fill the folded constants loaded without bytes.
+        auto const_prog = std::make_shared<program>(get_engine(), _config);
+        const_prog->load(ib);
+        auto net = std::make_shared<network>(const_prog, true, true);
+        size_t num_leaves = 0;
+        ib >> num_leaves;
+        for (size_t i = 0; i < num_leaves; i++) {
+            primitive_id id;
+            layout leaf_layout;
+            size_t size = 0;
+            ib >> id;
+            ib >> leaf_layout;
+            ib >> size;
+            auto mem = get_engine().allocate_memory(leaf_layout, false);
+            OPENVINO_ASSERT(mem->size() == size, "[GPU] Corrupt cache blob: constant program input ", id, " size mismatch");
+            std::vector<uint8_t> bytes(size);
+            ib >> make_data(bytes.data(), size);
+            mem->copy_from(net->get_stream(), bytes.data());
+            net->set_input_data(id, mem);
+        }
+        std::vector<primitive_id> const_outputs;
+        ib >> const_outputs;
+        for (const auto& id : const_outputs) {
+            auto& dst = get_node(id).as<data>().get_attached_memory();
+            // align_constant_memory_layouts() may have given the data node a different layout over the same buffer.
+            net->set_output_memory(id, get_engine().reinterpret_buffer(dst, const_prog->get_node(id).get_output_layout()));
+        }
+        net->execute({});
+        net->reset_execution(true);
     }
 
     const auto& dev_info = get_engine().get_device_info();

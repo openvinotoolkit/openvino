@@ -237,7 +237,7 @@ private:
 class propagate_constants : public base_pass {
 public:
     // defer_materialization: HW-free compile. Same graph surgery, but values are not computed here;
-    // each folded constant keeps only a layout plus a recipe and is materialized at import.
+    // the constant sub-program is stored with the program and materializes them at import.
     explicit propagate_constants(bool defer_materialization = false)
         : base_pass("propagate_constants")
         , _defer_materialization(defer_materialization) {}
@@ -250,7 +250,7 @@ private:
     replacement_list calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
     // HW-free counterpart of calculate(): same replacement list, nothing executed. Chains that cannot
     // be rebuilt at import are reported rather than silently left unfolded.
-    replacement_list defer_to_import(engine& engine);
+    replacement_list defer_to_import(program& p);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -258,8 +258,6 @@ private:
 
     // `data -> reorder` chains the import side can rebuild from the original weights.
     std::map<primitive_id, cache_tuple> collect_weightless_recipes() const;
-    // Whole constant sub-graph for chains the single-reorder recipe cannot express.
-    const_chain build_chain(program_node& out) const;
 
     bool _defer_materialization = false;
     bool has_non_trivial_constants = false;

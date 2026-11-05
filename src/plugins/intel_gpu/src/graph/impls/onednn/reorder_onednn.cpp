@@ -85,8 +85,13 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
-        auto input_md = onednn::layout_to_memory_desc_blocked(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
-        auto output_md = onednn::layout_to_memory_desc_blocked(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+        // As in create_reorder_weights(): a oneDNN-chosen weights format is described only by the oneDNN desc.
+        auto onednn_weights_params =
+            std::dynamic_pointer_cast<WeightsReorderParamsOneDNN>(impl_params->typed_desc<reorder>()->weights_reorder_params);
+        auto input_md = onednn_weights_params ? *onednn_weights_params->_in_desc
+                                              : onednn::layout_to_memory_desc_blocked(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
+        auto output_md = onednn_weights_params ? *onednn_weights_params->_out_desc
+                                               : onednn::layout_to_memory_desc_blocked(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
 
         auto prim_desc = std::make_shared<dnnl::reorder::primitive_desc>(
             ib.get_engine().get_onednn_engine(),

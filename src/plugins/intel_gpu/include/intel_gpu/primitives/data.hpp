@@ -7,7 +7,6 @@
 #include <climits>
 #include <variant>
 #include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -121,29 +120,11 @@ struct reorder_replication {
     std::shared_ptr<cldnn::reorder> reorder = nullptr;
 };
 
-// A constant sub-graph kept as a recipe: leaf constants plus the primitives that turn them into the
-// folded value. Replayed at load time, which is where the GPU is.
-struct const_chain {
-    struct leaf {
-        primitive_id id;
-        cldnn::layout lay;
-        std::vector<uint8_t> bytes;
-    };
-    std::vector<leaf> leaves;
-    std::vector<std::shared_ptr<primitive>> prims;
-    // Graph edges captured per prim: a primitive's own `input` can be stale after passes rewired the
-    // node, so the dependencies are what the replayed topology must be built from.
-    std::vector<std::vector<input_info>> prim_inputs;
-    primitive_id output_id;
-
-    bool empty() const { return prims.empty(); }
-};
-
 // Source the constant is rebuilt from: `original_model` needs the source model at load time,
-// `chain` is self-contained and covers constants created by transformations.
+// `const_program` is filled by the program's constant sub-program (HW-free compile), nothing follows it.
 enum class const_source : uint8_t {
     original_model = 0,
-    chain = 1,     // leaves carry their own bytes; see const_chain
+    const_program = 1,
 };
 
 struct weightless_cache_manager {
@@ -168,14 +149,13 @@ struct weightless_cache_manager {
         reorder_rep = {input_layout, reorder};
     }
 
-    // Multi-primitive counterpart of apply_reorder: the whole constant sub-graph travels in the blob.
-    void apply_chain(const_chain chain) { this->chain = std::move(chain); }
+    void set_const_program() { from_const_program = true; }
 
     // Drop the original-model recipe once the constant is modified in place, so the current value is serialized.
     void invalidate() { do_weightless_caching = false; }
 
     // True when this manager owns the value, so data::save must not write the (possibly empty) buffer.
-    bool is_managed() const { return do_weightless_caching || !chain.empty(); }
+    bool is_managed() const { return do_weightless_caching || from_const_program; }
 
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
         if (!is_managed()) {
@@ -184,29 +164,11 @@ struct weightless_cache_manager {
         }
 
         ob << true;
-        const auto source = !chain.empty() ? const_source::chain : const_source::original_model;
+        const auto source = from_const_program ? const_source::const_program : const_source::original_model;
         ob << make_data(&source, sizeof(source));
-        if (source == const_source::chain) {
-            ob << chain.leaves.size();
-            for (const auto& l : chain.leaves) {
-                ob << l.id;
-                ob << l.lay;
-                ob << l.bytes.size();
-                ob << make_data(l.bytes.data(), l.bytes.size());
-            }
-            ob << chain.prims.size();
-            for (size_t i = 0; i < chain.prims.size(); i++) {
-                ob << chain.prims[i];
-                ob << chain.prim_inputs[i].size();
-                for (const auto& in : chain.prim_inputs[i]) {
-                    ob << in.pid;
-                    ob << in.idx;
-                }
-            }
-            ob << chain.output_id;
-        } else {
-            ob << bin_offset;
-        }
+        if (source == const_source::const_program)
+            return true;
+        ob << bin_offset;
         ob << do_precision_conversion;
         if (do_precision_conversion) {
             ob << original_size;
@@ -230,43 +192,19 @@ struct weightless_cache_manager {
     }
 
     bool load(BinaryInputBuffer& ib, memory::ptr dst_mem, std::shared_ptr<WeightsMemory> weights_memory, bool weightless_caching) {
-        if (!weightless_caching) {
-            do_weightless_caching = false;
+        do_weightless_caching = weightless_caching;
+        if (!do_weightless_caching) {
             return false;
         }
 
         const_source source = const_source::original_model;
         ib >> make_data(&source, sizeof(source));
-        do_weightless_caching = (source == const_source::original_model);
-        if (source == const_source::chain) {
-            size_t n = 0;
-            ib >> n;
-            chain.leaves.resize(n);
-            for (auto& l : chain.leaves) {
-                size_t len = 0;
-                ib >> l.id;
-                ib >> l.lay;
-                ib >> len;
-                l.bytes.resize(len);
-                ib >> make_data(l.bytes.data(), len);
-            }
-            ib >> n;
-            chain.prims.resize(n);
-            chain.prim_inputs.resize(n);
-            for (size_t i = 0; i < n; i++) {
-                size_t num_in = 0;
-                ib >> chain.prims[i];
-                ib >> num_in;
-                chain.prim_inputs[i].resize(num_in);
-                for (auto& in : chain.prim_inputs[i]) {
-                    ib >> in.pid;
-                    ib >> in.idx;
-                }
-            }
-            ib >> chain.output_id;
-        } else {
-            ib >> bin_offset;
+        if (source == const_source::const_program) {
+            do_weightless_caching = false;
+            from_const_program = true;
+            return true;
         }
+        ib >> bin_offset;
         ib >> do_precision_conversion;
         if (do_precision_conversion) {
             ib >> original_size;
@@ -293,11 +231,8 @@ struct weightless_cache_manager {
                 original_size = reorder_rep.input_layout->bytes_count();
         }
 
-        constant_memory_ptr constant_ptr;
-        if (do_weightless_caching) {
-            OPENVINO_ASSERT(weights_memory != nullptr, "weights_memory is nullptr!!!");
-            constant_ptr = weights_memory->get_constant_buf(bin_offset, original_size);
-        }
+        OPENVINO_ASSERT(weights_memory != nullptr, "weights_memory is nullptr!!!");
+        auto constant_ptr = weights_memory->get_constant_buf(bin_offset, original_size);
 
         if (should_run_transformations()) {
             run_transformations(ib.get_engine(), dst_mem, constant_ptr);
@@ -313,7 +248,7 @@ private:
     bool do_precision_conversion = false;
     reorder_replication reorder_rep{};
 
-    const_chain chain;                     // multi-primitive constant sub-graph
+    bool from_const_program = false;
 
     size_t bin_offset = SIZE_MAX;
     size_t original_size = SIZE_MAX;
@@ -334,44 +269,12 @@ private:
     }
 
     bool should_run_transformations() {
-        return do_precision_conversion || should_run_reorder() || !chain.empty();
-    }
-
-    // Rebuilds the constant sub-graph as a throwaway network and writes its output into dst_mem.
-    void run_chain(engine& engine, memory::ptr dst_mem) {
-        const auto alloc_type = dst_mem->get_allocation_type();
-        topology t;
-        std::map<primitive_id, memory::ptr> inputs;
-        for (const auto& l : chain.leaves) {
-            auto mem = engine.allocate_memory(l.lay, alloc_type, false);
-            copy_to_dst_mem(mem, l.bytes.data());
-            t.add(input_layout(l.id, l.lay));
-            inputs[l.id] = mem;
-        }
-        for (size_t i = 0; i < chain.prims.size(); i++) {
-            chain.prims[i]->input = chain.prim_inputs[i];
-            t.add_primitive(chain.prims[i]);
-        }
-
-        ExecutionConfig config;
-        config.set_property(ov::intel_gpu::optimize_data(false));
-        cldnn::network network(engine, t, config, true);
-        for (const auto& [id, mem] : inputs)
-            network.set_input_data(id, mem);
-        network.set_output_memory(chain.output_id, dst_mem);
-        for (const auto& output : network.execute()) {
-            if (auto ev = output.second.get_event())
-                ev->wait();
-        }
+        return do_precision_conversion || should_run_reorder();
     }
 
     void run_transformations(engine& engine,
                              memory::ptr dst_mem,
                              constant_memory_ptr constant_ptr) {
-        if (!chain.empty()) {
-            run_chain(engine, dst_mem);
-            return;
-        }
         std::shared_ptr<ov::op::v0::Constant> transformed_constant = nullptr;
 
         // Note: this works only until the data is copied to dst_mem.

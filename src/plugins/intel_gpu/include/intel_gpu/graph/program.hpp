@@ -179,6 +179,11 @@ public:
     bool contains_state(const std::string& variable_id);
     const std::vector<primitive_id>& get_initializers(const std::string& variable_id) { return state_initializers.at(variable_id); }
     const std::map<std::string, std::vector<primitive_id>>& get_state_initializers() const { return state_initializers; }
+    // HW-free compile: constant sub-program and its input (leaf) memories, run once at import to fill folded constants.
+    void set_const_program(ptr prog, std::vector<std::pair<primitive_id, memory::ptr>> leaves) {
+        _const_program = std::move(prog);
+        _const_program_leaves = std::move(leaves);
+    }
 
     // returns already existing program_node for given primitive 'prim' (lookup in 'nodes_map')
     // if it was previously created, otherwise creates and then returns program_node
@@ -331,6 +336,9 @@ private:
     graph_optimizer_info optimizer_passes_info;
 
     std::map<std::string, std::vector<primitive_id>> state_initializers;
+
+    ptr _const_program;
+    std::vector<std::pair<primitive_id, memory::ptr>> _const_program_leaves;
 
     primitives_info get_current_stage_info() const;
     /*

@@ -8,7 +8,6 @@
 
 #include <cstdint>
 #include <cstdlib>
-#include <mutex>
 #include <string>
 #include <vector>
 
@@ -95,15 +94,6 @@ inline std::vector<uint8_t> ocloc_compile_ocl_c(const std::string& source,
         return {};
     }
 
-    // oclocInvoke drives process-wide IGC/FCL state and is not reentrant, so serialize the calls that
-    // kernels_cache would otherwise make in parallel.
-    static std::mutex ocloc_call_mutex;
-    // TEMP (Phase 0 reentrancy check): OV_GPU_OCLOC_NO_LOCK=1 skips the lock.
-    static const bool no_lock = getenv_or_null("OV_GPU_OCLOC_NO_LOCK") != nullptr;
-    std::unique_lock<std::mutex> call_lock(ocloc_call_mutex, std::defer_lock);
-    if (!no_lock)
-        call_lock.lock();
-
     // argv: ocloc compile -device <id> [-options "<opts>"] -file kernel.cl
     std::vector<const char*> argv;
     argv.push_back("ocloc");
@@ -113,6 +103,11 @@ inline std::vector<uint8_t> ocloc_compile_ocl_c(const std::string& source,
     // Native-ISA-only zebin. With the SPIR-V IR kept, a mismatched device would silently re-JIT from
     // it and mask a wrong target; without it, loading fails loudly.
     argv.push_back("-exclude_ir");
+    // TEMP: ocloc defaults DG2 (12.55-12.57) to bindless, but its runtime expects bindful and rejects the ISA.
+    if (device_arg.rfind("12.55.", 0) == 0 || device_arg.rfind("12.56.", 0) == 0 || device_arg.rfind("12.57.", 0) == 0) {
+        argv.push_back("-stateful_address_mode");
+        argv.push_back("bindful");
+    }
     if (!options.empty()) {
         argv.push_back("-options");
         argv.push_back(options.c_str());
