@@ -186,8 +186,9 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Right-padded chunk (query_seqlens): only the first Q of the S query rows are real tokens, so the past is
     // total - Q. All S rows are still written at [past, past + S) to keep shapes static; the padded tail lands at or
     // beyond total, where no query reads it and the next step overwrites it (ORT requires past + S <= capacity).
-    // Like seqlens_k, Q is taken as given (ORT: 1 <= Q <= min(S, total)); a statically single-token step skips it.
-    const bool has_query_seqlens = node->has_padded_query();
+    // Like seqlens_k, Q is taken as given (ORT: 0 <= Q <= min(S, total)); Q = 0 marks an idle entry (past = total),
+    // whose rows all land at or beyond total, so its valid cache is unchanged.
+    const bool has_query_seqlens = node->has_query_seqlens();
     const auto query_seqlens_i64 =
         has_query_seqlens
             ? register_new_node<v0::Convert>(get_input(GQAInputs::QUERY_SEQLENS), ov::element::i64)->output(0)
@@ -328,7 +329,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         // keeps the plain K/V, matching its own past_rows-only capacity rule.
         present_k = K;
         present_v = V;
-        if (!node->get_sliding_window_cache() && node->has_padded_query()) {
+        if (!node->get_sliding_window_cache() && node->has_query_seqlens()) {
             const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
             const bool has_total_sequence_length =
                 total_seqlen_pos < node->get_input_size() &&
@@ -523,7 +524,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                 one,
                 false);
             qk_scores = register_new_node<v8::Slice>(attention[1], zero, total_cols, one, three);
-            if (node->has_padded_query()) {
+            if (node->has_query_seqlens()) {
                 const auto attention_shape = register_new_node<v3::ShapeOf>(attention[1]);
                 const auto attention_cols = get_dimensions(attention_shape, {3});
                 const auto extra =
@@ -627,8 +628,9 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
         // an eviction, making the in-place kept = end_after - S negative, so it takes the staging path below.
         // A statically-known S > 1 is rejected up front (FE + op), so it never reaches here.
         const auto& q_ps = node->get_input_partial_shape(0);
+        // An idle single-token entry (query_seqlens = 0) appends nothing, so it takes the staging path as well.
         const bool static_single_token = q_ps.rank().is_static() && q_ps.rank().get_length() == 4 &&
-                                         q_ps[2].is_static() && q_ps[2].get_length() == 1;
+                                         q_ps[2].is_static() && q_ps[2].get_length() == 1 && !node->has_query_seqlens();
 
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         const auto zeros =
@@ -680,8 +682,9 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
             // A right-padded chunk (query_seqlens) has only Q = total - past valid rows: its padded tail stays
             // in the temp buffer (masked for the valid queries) but is never written back.
             const ov::Output<ov::Node> new_rows =
-                node->has_padded_query() ? register_new_node<v1::Subtract>(abs_total_scalar, abs_past_scalar)->output(0)
-                                         : current_seqlen_scalar;
+                node->has_query_seqlens()
+                    ? register_new_node<v1::Subtract>(abs_total_scalar, abs_past_scalar)->output(0)
+                    : current_seqlen_scalar;
             const auto temp_len = register_new_node<v1::Add>(end_before, new_rows);
             const auto tail_start = register_new_node<v1::Subtract>(temp_len, end_after);
             const auto tail_start_1d = register_new_node<v0::Unsqueeze>(tail_start, zero);
@@ -722,7 +725,7 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
         };
         // A padded chunk (query_seqlens) carries full S-row keys starting at the query past.
-        const ov::Output<ov::Node> kept_past = independent_kv_len && !node->has_padded_query()
+        const ov::Output<ov::Node> kept_past = independent_kv_len && !node->has_query_seqlens()
                                                    ? register_new_node<v1::Subtract>(seqlens_1d, kv_seqlen)->output(0)
                                                    : past_seqlen->output(0);
         const auto sliced_past_key = register_new_node<v8::Slice>(past_key, zero, kept_past, one, two);
@@ -732,7 +735,7 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
         const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
         const bool has_total_sequence_length = total_seqlen_pos < node->get_input_size() &&
                                                !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
-        if (node->has_padded_query() && has_total_sequence_length) {
+        if (node->has_query_seqlens() && has_total_sequence_length) {
             // sdpa_key/value already hold the chunk correctly placed at [kept_past, kept_past + rows(current)),
             // with no overlap to fix up (sliced_past_key/value are trimmed to exactly kept_past). present only
             // needs resizing to ORT's max(past_rows, total_sequence_length) capacity, independent of that write
@@ -813,7 +816,7 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
     // this step's write. Only a padded chunk can disagree with the plain past+kv_rows append below -- an ordinary
     // step's total_sequence_length always equals past_rows + kv_rows by ORT's own validation.
     const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
-    const bool has_total_sequence_length = node->has_padded_query() && total_seqlen_pos < node->get_input_size() &&
+    const bool has_total_sequence_length = node->has_query_seqlens() && total_seqlen_pos < node->get_input_size() &&
                                            !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
     const ov::Output<ov::Node> total_sequence_length =
         has_total_sequence_length

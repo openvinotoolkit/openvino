@@ -885,17 +885,26 @@ TEST(type_prop, group_query_attention_query_seqlens) {
     const auto plain =
         std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
     EXPECT_FALSE(plain->has_query_seqlens());
-    EXPECT_TRUE(op->has_padded_query());
-    EXPECT_FALSE(plain->has_padded_query());
 
-    // A single-token step ignores query_seqlens, so it lowers as if the input were absent.
+    // A single-token step honors query_seqlens too (0 marks an idle entry).
     auto decode_args = make_gqa_query_seqlens_args();
     for (size_t i = 0; i < 3; ++i) {
         decode_args[i] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, i == 0 ? 6 : 2, 1, 8});
     }
     const auto decode = std::make_shared<op::internal::GroupQueryAttention>(decode_args, 6, 2, 1.0f, false, false);
     EXPECT_TRUE(decode->has_query_seqlens());
-    EXPECT_FALSE(decode->has_padded_query());
+
+    // Batched padded chunks (sequence_length > 1, batch_size > 1) are supported.
+    auto batched = make_gqa_query_seqlens_args(PartialShape{2});
+    batched[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 6, 4, 8});
+    batched[1] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 4, 8});
+    batched[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 4, 8});
+    batched[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 5, 8});
+    batched[4] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 5, 8});
+    batched[5] = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto batched_op = std::make_shared<op::internal::GroupQueryAttention>(batched, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(batched_op->has_query_seqlens());
+    EXPECT_EQ(batched_op->get_output_partial_shape(0), (PartialShape{2, 4, 48}));
 }
 
 TEST(type_prop, group_query_attention_query_seqlens_invalid) {
@@ -941,18 +950,6 @@ TEST(type_prop, group_query_attention_query_seqlens_invalid) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(no_past, 6, 2, 1.0f, false, false),
                     ov::NodeValidationFailure,
                     HasSubstr("query_seqlens requires past_key and past_value"));
-
-    // A padded chunk (sequence_length > 1) is single-batch.
-    auto batched = make_gqa_query_seqlens_args(PartialShape{2});
-    batched[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 6, 4, 8});
-    batched[1] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 4, 8});
-    batched[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 4, 8});
-    batched[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 5, 8});
-    batched[4] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 5, 8});
-    batched[5] = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
-    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(batched, 6, 2, 1.0f, false, false),
-                    ov::NodeValidationFailure,
-                    HasSubstr("query_seqlens with sequence_length > 1 requires batch_size == 1"));
 
     // A statically mismatched key/value sequence_length would apply the query's S rotary/mask positions to a
     // differently-sized key chunk in the decomposition; reject it here instead.
