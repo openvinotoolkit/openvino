@@ -3,7 +3,8 @@
 //
 // Qwen3.8-Flash-Next (llama.cpp "qwen4exp"): Gated DeltaNet and block-sparse attention (QSA) layers
 // with MoE, four hyper-connection residual streams in place of every norm, and hashed n-gram
-// embeddings (PLE) added to the streams before one layer. NextN (MTP) blocks are not converted.
+// embeddings (PLE) added to the streams before one layer. The "mtp" component converts the single
+// NextN block as a draft that reads the target's hyper-connection residual.
 
 #include "qwen4exp_builder.hpp"
 
@@ -31,7 +32,12 @@ struct NgramConfig {
 
 class Qwen4ExpBuilder : public ModelBuilder {
 public:
-    explicit Qwen4ExpBuilder(const BuildContext& context) : g(context) {}
+    explicit Qwen4ExpBuilder(const BuildContext& context)
+        : g(context),
+          mtp(context.component == "mtp"),
+          export_requested(context.export_hidden_state) {
+        OPENVINO_ASSERT(context.component.empty() || mtp, "[GGUF] unknown qwen4exp component: ", context.component);
+    }
 
     std::shared_ptr<GgufGraph> build() override {
         const auto& m = g.metadata();
@@ -47,8 +53,11 @@ public:
 
         auto parameters = resolve_decoder_parameters(m, RopeMode::Interleaved, {});
         const auto stored_layers = static_cast<size_t>(parameters.dimensions.layers);
+        const bool has_nextn = parameters.hybrid.nextn_layers > 0;
         auto& sparse = parameters.attention.sparse;
-        const auto ratios = m.get_int_array(a + "attention.compress_ratios");
+        auto ratios = m.get_int_array(a + "attention.compress_ratios");
+        if (mtp)
+            configure_mtp(parameters, a);
         int64_t block = 0;
         for (auto ratio : ratios) {
             OPENVINO_ASSERT(ratio >= 0 && (ratio == 0 || block == 0 || ratio == block),
@@ -63,7 +72,8 @@ public:
             sparse.index_head_size = static_cast<int>(required("attention.indexer.key_length"));
             sparse.layers.assign(ratios.begin(), ratios.end());
         }
-        read_ngram(m, a, static_cast<int>(stored_layers));
+        if (!mtp)
+            read_ngram(m, a, static_cast<int>(stored_layers));
 
         const auto dims = g.configure_decoder(parameters);
         n_embd = dims.embedding;
@@ -73,6 +83,15 @@ public:
         g.build_attn_inp_kv();
         auto embeddings = g.build_inp_embd(weights->require("token_embd.weight"));
         const auto out_ids = g.build_inp_out_ids();
+        if (mtp)
+            return build_mtp(dims.layers - 1, embeddings, out_ids);
+        // The draft reads the residual of every token, so the rows are selected after the last layer.
+        const bool export_hidden = has_nextn || export_requested;
+        if (export_hidden) {
+            auto contract = g.model_contract();
+            contract.sequence_outputs.push_back("last_hidden_state");
+            g.configure_model_contract(contract);
+        }
         GgufValue ngram_embeddings;
         if (ngram.layer >= 0)
             ngram_embeddings = build_ngram_embeddings();
@@ -90,7 +109,7 @@ public:
             auto attention = mix(streams, prefix + "hc_attn_");
             auto cur = g.decoder_attention(layer, attention.mixed);
             auto inject = attention.inject;
-            if (layer == dims.layers - 1) {
+            if (layer == dims.layers - 1 && !export_hidden) {
                 cur = g.node("GGML_OP_GET_ROWS", {cur, out_ids});
                 inject = g.node("GGML_OP_GET_ROWS", {inject, out_ids});
                 streams = reshape(g.node("GGML_OP_GET_ROWS", {flat(streams), out_ids}), {0, -1, hc, n_embd});
@@ -99,15 +118,74 @@ public:
             auto ffn = mix(streams, prefix + "hc_ffn_");
             streams = combine(streams, g.decoder_ffn(layer, ffn.mixed), ffn.inject);
         }
-        auto head = mix(streams, "output_hc_");
-        // A missing output projection is tied to the token embeddings.
-        const auto output =
-            weights->has("output.weight") ? weights->require("output.weight") : weights->require("token_embd.weight");
-        g.set_primary_output(g.node("GGML_OP_MUL_MAT", {output, head.mixed}));
+        if (export_hidden)
+            streams = select_rows(streams, out_ids, "last_hidden_state");
+        build_logits(streams, "output_hc_");
         return g.finish();
     }
 
 private:
+    // The NextN block is the last stored layer; the target layers before it are not converted.
+    void configure_mtp(DecoderParameters& parameters, const std::string& a) {
+        const auto layers = parameters.dimensions.layers;
+        OPENVINO_ASSERT(parameters.hybrid.nextn_layers == 1 && layers > 1,
+                        "[GGUF] qwen4exp MTP requires exactly one NextN block and at least one target layer");
+        const auto prefix = "blk." + std::to_string(layers - 1) + ".";
+        const auto tensors = g.tensors();
+        OPENVINO_ASSERT(!tensors.has(prefix + "nextn.embed_tokens.weight"),
+                        "[GGUF] qwen4exp MTP requires shared token embeddings; a separate NextN embedding table "
+                        "is not supported");
+        OPENVINO_ASSERT(!g.metadata().get_bool(a + "nextn_shared_target_tensors").value_or(false) &&
+                            tensors.has("token_embd.weight"),
+                        "[GGUF] qwen4exp MTP head borrows token_embd/output from its target, which is not supported; "
+                        "use a self-contained MTP head or a model with embedded NextN layers");
+        parameters.hybrid.nextn_layers = 0;
+        parameters.layers.resize(layers);
+        parameters.layers.back().recurrent = false;
+        // A separate MTP head stores only this block, so the blk.0 expert probe cannot apply.
+        parameters.layers.back().experts = tensors.has(prefix + "ffn_gate_exps.weight");
+        parameters.model_contract.sequence_inputs = {"hidden_states"};
+        parameters.model_contract.sequence_outputs = {"last_hidden_state"};
+        g.implement_component();
+    }
+
+    // hidden_states [B, T, hc * n] is the target (or previous draft step) residual. Embedding and
+    // residual are normalized, concatenated per stream and projected back to the stream width.
+    std::shared_ptr<GgufGraph> build_mtp(int layer, const GgufValue& embeddings, const GgufValue& out_ids) {
+        const auto prefix = "blk." + std::to_string(layer) + ".";
+        const auto hidden = g.add_input("hidden_states", f32, ov::PartialShape({-1, -1, hc * n_embd}));
+        const auto h = grouped_norm(reshape(hidden, {0, -1, hc, n_embd}), prefix + "nextn.hnorm.weight");
+        const auto e =
+            g.build_norm(reshape(embeddings, {0, -1, 1, n_embd}), weights->require(prefix + "nextn.enorm.weight"), eps);
+        auto e_streams = e;
+        for (int64_t s = 1; s < hc; ++s)
+            e_streams = g.node("GGML_OP_CONCAT", {e_streams, e}, 0, {{"concat_axis", 1}});
+        auto streams = g.node("GGML_OP_MUL_MAT",
+                              {weights->require(prefix + "nextn.eh_proj.weight"),
+                               g.node("GGML_OP_CONCAT", {e_streams, h}, 0, {{"concat_axis", 0}})});
+        auto attention = mix(streams, prefix + "hc_attn_");
+        streams = combine(streams, g.decoder_attention(layer, attention.mixed), attention.inject);
+        auto ffn = mix(streams, prefix + "hc_ffn_");
+        streams = combine(streams, g.decoder_ffn(layer, ffn.mixed), ffn.inject);
+        build_logits(select_rows(streams, out_ids, "last_hidden_state"), prefix + "nextn.hc_head_");
+        return g.finish();
+    }
+
+    // Exports all rows of the streams as `name` [B, 1, T, hc * n] and returns the selected rows.
+    GgufValue select_rows(const GgufValue& streams, const GgufValue& out_ids, const std::string& name) {
+        const auto all = flat(streams);
+        g.set_output(all, name);
+        return reshape(g.node("GGML_OP_GET_ROWS", {all, out_ids}), {0, -1, hc, n_embd});
+    }
+
+    void build_logits(const GgufValue& streams, const std::string& mixer) {
+        auto head = mix(streams, mixer);
+        // A missing output projection is tied to the token embeddings.
+        const auto output =
+            weights->has("output.weight") ? weights->require("output.weight") : weights->require("token_embd.weight");
+        g.set_primary_output(g.node("GGML_OP_MUL_MAT", {output, head.mixed}));
+    }
+
     struct Mix {
         GgufValue mixed;   // [B, 1, T, n]
         GgufValue inject;  // [B, 1, T, hc], empty for the output mixer
@@ -272,6 +350,8 @@ private:
     }
 
     GgufGraphContext g;
+    bool mtp = false;
+    bool export_requested = false;
     std::unique_ptr<GgufTensors> weights;
     NgramConfig ngram;
     int64_t hc = 0, rank = 0, n_embd = 0;

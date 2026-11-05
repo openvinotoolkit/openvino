@@ -206,9 +206,13 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                                     ov::util::path_to_string(path));
         }
         const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
-        const auto component = m_impl->genai_extension ? m_impl->genai_extension->m_component : std::string{};
-        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry, component)
-                                      : load_gguf_builder(*paths, m_impl->arch_registry, component);
+        const auto& genai = m_impl->genai_extension;
+        const auto component = genai ? genai->m_component : std::string{};
+        const bool hidden_state =
+            genai && component.empty() && genai->m_mode == GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT;
+        const auto builder = discover
+                                 ? load_gguf_builder(paths->front(), m_impl->arch_registry, component, hidden_state)
+                                 : load_gguf_builder(*paths, m_impl->arch_registry, component, hidden_state);
         return std::make_shared<InputModel>(builder, m_extensions);
     }
 

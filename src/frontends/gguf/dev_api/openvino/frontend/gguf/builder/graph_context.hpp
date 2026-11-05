@@ -36,6 +36,8 @@ public:
     void configure_model_contract(const ModelContract& contract);
     // Contract declared so far, including declarations installed by projector callbacks.
     ModelContract model_contract() const;
+    // Declare the requested BuildContext::component as implemented.
+    void implement_component();
     DecoderDimensions configure_decoder(RopeMode rope, const DecoderOptions& options = {});
     DecoderLayerParameters decoder_layer_parameters(int layer) const;
     GgufValue decoder_attention(int layer, const GgufValue& normalized_input);

@@ -58,6 +58,11 @@ void GgufGraphContext::configure_model_contract(const ModelContract& contract) {
     m_impl->emitter.graph()->model_contract = contract;
 }
 
+void GgufGraphContext::implement_component() {
+    m_impl->check_open();
+    m_impl->emitter.graph()->component = m_impl->build_ctx.component;
+}
+
 ModelContract GgufGraphContext::model_contract() const {
     return m_impl->emitter.graph()->model_contract;
 }

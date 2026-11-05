@@ -694,21 +694,20 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
     }
 
-    // Token consumers that require a specific id at left-padded positions (hashed n-grams).
-    if (!inputs_embeds) {
-        for (const auto& node : model->get_ops()) {
-            const auto it = node->get_rt_info().find("gguf.padding_token_id");
-            if (it == node->get_rt_info().end())
-                continue;
-            auto current = make_shared<v8::Slice>(attention_mask, past_len, kv_len, one_1, one_1);
-            auto ids = make_shared<v1::Select>(
-                make_shared<v1::Equal>(current, v0::Constant::create(ov::element::i64, {}, {0})),
-                v0::Constant::create(ov::element::i64, {}, {it->second.as<int64_t>()}),
-                input_ids);
-            auto ids_4d =
-                make_shared<v1::Reshape>(make_shared<v0::Convert>(ids, ov::element::i32), shape_1_1_batch_seq, false);
-            node->input(0).replace_source_output(ids_4d);
-        }
+    // Token consumers that require a specific id at left-padded positions (hashed n-grams). They
+    // remain here whenever the n-gram lookup stays in the model (IDS and text-embedding modes).
+    for (const auto& node : model->get_ops()) {
+        const auto it = node->get_rt_info().find("gguf.padding_token_id");
+        if (it == node->get_rt_info().end())
+            continue;
+        auto current = make_shared<v8::Slice>(attention_mask, past_len, kv_len, one_1, one_1);
+        auto ids =
+            make_shared<v1::Select>(make_shared<v1::Equal>(current, v0::Constant::create(ov::element::i64, {}, {0})),
+                                    v0::Constant::create(ov::element::i64, {}, {it->second.as<int64_t>()}),
+                                    input_ids);
+        auto ids_4d =
+            make_shared<v1::Reshape>(make_shared<v0::Convert>(ids, ov::element::i32), shape_1_1_batch_seq, false);
+        node->input(0).replace_source_output(ids_4d);
     }
 
     if (batchable_recurrent) {

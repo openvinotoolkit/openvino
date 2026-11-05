@@ -19,6 +19,7 @@ per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-
 | `qwen4exp`, `qwen4exp-tied` | Upstream `0ec4027a2a0183de87c007069adddc06e665f7de` |
 | `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
 | `qwen35-mtp` | Upstream `5047748f114564fcf271e6a648f60e2d2eae6264` |
+| `qwen4exp-mtp` | Upstream `0ec4027a2a0183de87c007069adddc06e665f7de` |
 
 The cases use distinct nonzero weights and nonuniform norm scales, four query heads,
 grouped-query attention (single KV head for Gemma), and token batches `[1,2,3]`, `[4]`,
@@ -120,6 +121,23 @@ c++ -std=c++17 -O2 mtp_oracle.cpp \
     -L "$LLAMA_BUILD/bin" -Wl,-rpath,"$LLAMA_BUILD/bin" \
     -lllama -lggml -lggml-base -o mtp_oracle
 PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_mtp_accuracy.py --oracle ./mtp_oracle
+```
+
+`qwen4exp-mtp.npz` extends the `qwen4exp` fixture with one block-sparse NextN block
+(`nextn_predict_layers=1`). It stores:
+
+- draft outputs for external hc-wide hidden states (`[B,T,hc*n]`);
+- target logits and `last_hidden_state` from a second oracle run (`mtp_oracle ... target`);
+- Unsloth-style head files that keep only the NextN block: a self-contained one with
+  `token_embd`/`output`, and one with `nextn_shared_target_tensors`.
+
+`GGUFQwen4ExpMtpAccuracy` checks the full file and the self-contained head as drafts, the target
+export, and the rejection of the shared head. qwen4exp graphs contain extension operations that
+IR does not deserialize, so these tests skip the IR round-trip. Generate the fixture with the
+`qwen4exp` pin from the table above:
+
+```sh
+PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_mtp_accuracy.py --oracle ./mtp_oracle --architectures qwen4exp
 ```
 
 For the embedding checkpoint, put `llama-embed.gguf` and the output of

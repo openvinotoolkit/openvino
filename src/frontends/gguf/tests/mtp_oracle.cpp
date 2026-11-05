@@ -3,9 +3,11 @@
 //
 
 // CPU-only reference; see gen_mtp_accuracy.py for the pinned llama.cpp revision.
+// With a third argument "target", runs the target model and writes its NextN hidden states instead.
 #include <cmath>
 #include <fstream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "ggml-backend.h"
@@ -13,8 +15,9 @@
 #include "llama.h"
 
 int main(int argc, char** argv) {
-    if (argc != 3)
+    if (argc != 3 && argc != 4)
         return 2;
+    const bool target = argc == 4 && std::string(argv[3]) == "target";
     llama_backend_init();
     ggml_backend_dev_t devices[] = {ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU), nullptr};
     if (!devices[0])
@@ -27,7 +30,8 @@ int main(int argc, char** argv) {
     if (!model)
         return 3;
     auto cp = llama_context_default_params();
-    cp.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
+    if (!target)
+        cp.ctx_type = LLAMA_CONTEXT_TYPE_MTP;
     cp.n_ctx = 128;
     cp.n_batch = cp.n_ubatch = 64;
     cp.n_threads = cp.n_threads_batch = 2;
@@ -38,7 +42,7 @@ int main(int argc, char** argv) {
         return 4;
     llama_set_embeddings_nextn(ctx, true, true);
     auto* batch = llama_batch_ext_init(ctx);
-    const auto width = llama_model_n_embd(model);
+    const auto width = llama_model_n_embd_out(model);
     const auto vocab = llama_vocab_n_tokens(llama_model_get_vocab(model));
     std::ofstream out(argv[2], std::ios::binary);
     int32_t offset = 0;
@@ -51,13 +55,15 @@ int main(int argc, char** argv) {
             const auto idx = llama_batch_ext_add_token(batch, 0, tokens[i]);
             const llama_pos pos = offset + i;
             if (idx < 0 || !llama_batch_ext_set_pos(batch, idx, &pos) ||
-                !llama_batch_ext_set_embd_state(batch, idx, {hidden.data() + i * width, 1, size_t(width)}) ||
+                (!target &&
+                 !llama_batch_ext_set_embd_state(batch, idx, {hidden.data() + i * width, 1, size_t(width)})) ||
                 !llama_batch_ext_set_output_logits(batch, idx, true))
                 return 5;
         }
         if (llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, batch))
             return 6;
-        out.write(reinterpret_cast<const char*>(hidden.data()), hidden.size() * sizeof(float));
+        if (!target)
+            out.write(reinterpret_cast<const char*>(hidden.data()), hidden.size() * sizeof(float));
         for (size_t i = 0; i < tokens.size(); ++i) {
             out.write(reinterpret_cast<const char*>(llama_get_logits_ith(ctx, i)), vocab * sizeof(float));
             out.write(reinterpret_cast<const char*>(llama_get_embeddings_nextn_ith(ctx, i)), width * sizeof(float));

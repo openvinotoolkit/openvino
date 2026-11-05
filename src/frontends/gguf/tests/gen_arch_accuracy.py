@@ -244,19 +244,31 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
     finish(w)
 
 
-def write_qwen4exp_model(path, tied=False):
+def write_qwen4exp_model(path, tied=False, nextn=False, mtp_head=None):
+    """mtp_head="self" or "shared" writes only the NextN block, as Unsloth's separate MTP heads; a
+    "self" head also carries the token embeddings and output projection."""
     arch = "qwen4exp"
     w = gguf.GGUFWriter(path, arch)
+    if mtp_head:
+        add = w.add_tensor
+        shared = ("token_embd.weight", "output.weight") if mtp_head == "self" else ()
+        w.add_tensor = lambda name, *args, **kwargs: (add(name, *args, **kwargs)
+                                                      if name.startswith("blk.4.") or name in shared else None)
+        if mtp_head == "shared":
+            w.add_bool(arch + ".nextn_shared_target_tensors", True)
     d, head, heads, kv, ff, vocab, hc, rank = 16, 16, 4, 2, 16, 32, 4, 4
     state, groups, vheads, kernel = 8, 2, 4, 4
     inner, conv = state * vheads, state * (2 * groups + vheads)
     index_heads, index_dim, ngram, per_ngram, ple_kernel, ple_dim = 2, 12, 3, 2, 4, 4
     vocab_sizes = [7, 11, 13, 17]
     offsets = [int(x) for x in np.cumsum([0] + vocab_sizes[:-1])]
-    recurrent = [True, True, False, True]
+    recurrent = [True, True, False, True] + [False] * nextn
+    layers = len(recurrent)
     w.add_context_length(128)
     w.add_embedding_length(d)
-    w.add_block_count(4)
+    w.add_block_count(layers)
+    if nextn:
+        w.add_nextn_predict_layers(1)
     w.add_head_count(heads)
     w.add_head_count_kv(kv)
     w.add_key_length(head)
@@ -301,9 +313,9 @@ def write_qwen4exp_model(path, tied=False):
     tensor("output_hc_norm.weight", (hc * d,), True)
     tensor("output_hc_down.weight", (rank, hc * d))
     tensor("output_hc_up.weight", (hc * d, rank))
-    for layer in range(4):
+    for layer in range(layers):
         p = f"blk.{layer}."
-        packed = layer != 1
+        packed = layer not in (1, 4)
         for mixer in ("attn", "ffn"):
             tensor(p + f"hc_{mixer}_norm.weight", (hc * d,), True)
             tensor(p + f"hc_{mixer}_up.weight", (hc * d, rank))
@@ -349,6 +361,13 @@ def write_qwen4exp_model(path, tied=False):
         tensor(p + "ffn_gate_inp_shexp.weight", (d,))
         for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
             tensor(p + f"ffn_{name}_shexp.weight", shape)
+        if layer == 4:
+            tensor(p + "nextn.eh_proj.weight", (d, 2 * d))
+            tensor(p + "nextn.enorm.weight", (d,), True)
+            for name in ("hnorm", "hc_head_norm"):
+                tensor(p + f"nextn.{name}.weight", (hc * d,), True)
+            tensor(p + "nextn.hc_head_down.weight", (rank, hc * d))
+            tensor(p + "nextn.hc_head_up.weight", (hc * d, rank))
     finish(w)
 
 

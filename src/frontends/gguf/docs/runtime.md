@@ -146,6 +146,25 @@ The frontend supplies graphs, not an MTP sampler. OpenVINO GenAI's
 components from the same file and connects them to its existing greedy MTP strategy. A plain
 Bonsai GGUF without the embedded NextN weights cannot be used as an MTP draft.
 
+### Qwen3.8-Flash-Next MTP
+
+`qwen4exp` uses the same `"mtp"` component. The draft reads and returns the hyper-connection
+residual before the output mixer, `hidden_states`/`last_hidden_state [B,T,hc*n]`. It runs one
+block-sparse NextN block with its own caches and mixes its streams through `nextn.hc_head_*`
+before the output projection. The source can be:
+
+- a model with embedded NextN blocks, or
+- a self-contained head such as Unsloth's `mtp-*.gguf`, which stores only the NextN block,
+  `token_embd` and `output`.
+
+Heads with `nextn_shared_target_tensors` borrow the target's embeddings and are rejected.
+
+The target exports `last_hidden_state` in two cases: when its file has NextN blocks, or when it is
+converted with `EMBEDS_TO_LOGITS_TEXT` and no component. The second case covers Unsloth's target
+files, which have no NextN metadata. The target keeps its n-gram lookup, so `input_ids` stays an
+input next to `inputs_embeds`. GenAI's MTP pipeline needs paged attention, which `qwen4exp` does
+not support yet, so the frontend currently supplies only the graphs.
+
 `GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
 for consumers that keep GGUF IO. The llama.cpp backend uses its own stateful lowering for its
 cache-slot and fixed-mask semantics, without GenAI adaptation.

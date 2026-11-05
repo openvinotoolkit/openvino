@@ -48,7 +48,10 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
     return cfg;
 }
 
-GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, const std::string& component) {
+GraphBuilder make_gguf_builder(GGUFLoad loaded,
+                               const ArchRegistry& registry,
+                               const std::string& component,
+                               bool export_hidden_state) {
     auto data = std::make_shared<GGUFLoad>(std::move(loaded));
     auto& [metadata, weights, qtypes, mmap] = *data;
 
@@ -73,7 +76,7 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, co
                        registry.describe_supported(),
                        ". Register an ArchitectureExtension.");
     }
-    return [data, definition = *definition, projectors = registry.projectors(), component](
+    return [data, definition = *definition, projectors = registry.projectors(), component, export_hidden_state](
                const std::unordered_map<std::string, CreatorFunction>& translators) {
         const auto& [metadata, source_weights, source_qtypes, mmap] = *data;
         auto weights = source_weights;
@@ -83,6 +86,7 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, co
         detail::WeightStore weight_store{weights, qtypes, &translators};
         BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
         ctx.component = component;
+        ctx.export_hidden_state = export_hidden_state;
         auto builder = definition.factory(ctx);
         OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
         auto graph = builder->build();
@@ -103,14 +107,16 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, co
 
 GraphBuilder load_gguf_builder(const std::filesystem::path& file,
                                const ArchRegistry& registry,
-                               const std::string& component) {
-    return make_gguf_builder(get_gguf_data(file), registry, component);
+                               const std::string& component,
+                               bool export_hidden_state) {
+    return make_gguf_builder(get_gguf_data(file), registry, component, export_hidden_state);
 }
 
 GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files,
                                const ArchRegistry& registry,
-                               const std::string& component) {
-    return make_gguf_builder(get_gguf_data(files), registry, component);
+                               const std::string& component,
+                               bool export_hidden_state) {
+    return make_gguf_builder(get_gguf_data(files), registry, component, export_hidden_state);
 }
 
 }  // namespace ov::frontend::gguf

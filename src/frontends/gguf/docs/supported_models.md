@@ -143,7 +143,13 @@ preview of the Qwen4 architecture. The builder converts the text model:
 - Four hyper-connection residual streams (fused or separate `down`/`inject` projections) in place
   of every norm, including the output mixer.
 - Hashed n-gram embeddings (PLE) before one layer, with a gated, dilated causal convolution.
-- Shared-expert MoE. NextN (MTP) blocks are ignored.
+- Shared-expert MoE.
+- NextN (MTP) blocks. Unsloth publishes them as separate `mtp-*.gguf` heads; see
+  [Qwen3.8-Flash-Next MTP](runtime.md#qwen38-flash-next-mtp).
+
+Unsloth's release uses i-quants in every file below `UD-Q4_K_XL`, and the frontend does not convert
+i-quants. `UD-Q5_K_XL`, `UD-Q6_K_XL`, `Q8_0` and `BF16` convert. `UD-Q4_K_XL` stores its n-gram
+table as `IQ4_NL`; pair it with the `Q8_0` or `Q5_1` n-gram file.
 
 Running the sparse operations requires plugin kernels; CPU support is in #39309 and GPU support in
 [#38902](https://github.com/openvinotoolkit/openvino/pull/38902). Without them the qwen4exp tests skip.
@@ -161,6 +167,10 @@ Validation, all on CPU with the #39309 kernels:
 - Left-padded batches with any pad id equal single-sequence runs; beam search runs.
 - `EMBEDS_TO_LOGITS` moves the n-gram lookup into a separate model with the optimum-intel IO
   (`input_ids`, `ngram_history` -> `ngram_embeddings`, `new_ngram_history`) and matches token input.
+- MTP: the `qwen4exp-mtp` fixture matches llama.cpp `0ec4027a2` for the draft and for the target's
+  exported hidden states through prefill and cached decode (NMSE below `1e-5`). The real Unsloth
+  `mtp-Qwen3.8-Flash-Next-Q8_0.gguf` header, filled with zero weights, converts, compiles and runs
+  on CPU.
 
 Limitations: PagedAttention conversion is not supported yet; no real checkpoint has been run
 (memory); the vision projector is not covered; the llama.cpp cgraph path has converters for the new
