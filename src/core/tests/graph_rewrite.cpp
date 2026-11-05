@@ -9,13 +9,18 @@
 #include "openvino/core/rtti.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -267,6 +272,202 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassOrder2) {
     anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Tanh>(f), 1);
+}
+
+namespace {
+
+std::shared_ptr<MatcherPass> make_recording_pass(const std::shared_ptr<Node>& root, NodeVector& visited) {
+    auto matcher = std::make_shared<pattern::Matcher>(root, "RecordingPass");
+    return std::make_shared<MatcherPass>("RecordingPass", matcher, [&visited](const std::shared_ptr<Node>& node) {
+        visited.push_back(node);
+        return false;
+    });
+}
+
+}  // namespace
+
+TEST(GraphRewriteTest, OrRootFiltersUnrelatedTypes) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::wrap_type<op::v0::Relu>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 1);
+    EXPECT_TRUE(ov::is_type<op::v1::Divide>(visited.front()));
+}
+
+TEST(GraphRewriteTest, NestedOrRootVisitsSharedTypeOnce) {
+    auto model = get_model();
+    auto divide = pattern::wrap_type<op::v1::Divide>();
+    auto root = (divide | pattern::wrap_type<op::v0::Relu>()) | divide;
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 1);
+    EXPECT_TRUE(ov::is_type<op::v1::Divide>(visited.front()));
+}
+
+TEST(GraphRewriteTest, OrRootVisitsOverlappingBaseAndDerivedTypesOnce) {
+    auto model = get_derived_model();
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::wrap_type<PrivateDivide>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 1);
+    EXPECT_TRUE(ov::is_type<PrivateDivide>(visited.front()));
+}
+
+TEST(GraphRewriteTest, OrRootSupportsOperationPatterns) {
+    auto model = get_model();
+    auto divide = std::make_shared<op::v1::Divide>(pattern::any_input(), pattern::any_input());
+    auto root = divide | pattern::wrap_type<op::v0::Relu>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 1);
+    EXPECT_TRUE(ov::is_type<op::v1::Divide>(visited.front()));
+}
+
+TEST(GraphRewriteTest, OrRootWithUntypedAlternativeKeepsFallback) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::any_input();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    EXPECT_EQ(visited, model->get_ordered_ops());
+}
+
+TEST(GraphRewriteTest, OrRootWithOptionalAlternativeKeepsFallback) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v0::Relu>() | pattern::optional<op::v0::Tanh>(pattern::any_input());
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    EXPECT_EQ(visited, model->get_ordered_ops());
+}
+
+TEST(GraphRewriteTest, OrRootPreservesMatcherOrder) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v0::Relu>() | pattern::wrap_type<op::v1::Divide>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 1);
+    EXPECT_TRUE(ov::is_type<op::v1::Divide>(visited.front()));
+    EXPECT_EQ(count_ops_of_type<op::v0::Relu>(model), 1);
+}
+
+TEST(GraphRewriteTest, OrRootStopsAfterSuccessfulMatcher) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::wrap_type<op::v0::Relu>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    EXPECT_TRUE(visited.empty());
+    EXPECT_EQ(count_ops_of_type<op::v0::Relu>(model), 1);
+}
+
+TEST(GraphRewriteTest, DisabledOrRootDoesNotRun) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::wrap_type<op::v0::Relu>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.get_pass_config()->disable<MatcherPass>();
+    pass.run_on_model(model);
+
+    EXPECT_TRUE(visited.empty());
+}
+
+TEST(BackwardGraphRewriteOrderTest, OrRootPreservesReverseOrder) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::wrap_type<op::v0::Parameter>();
+    NodeVector visited;
+    BackwardGraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 2);
+    EXPECT_TRUE(ov::is_type<op::v1::Divide>(visited[0]));
+    EXPECT_EQ(visited[1], model->get_parameters().front());
+}
+
+TEST(GraphRewriteTest, OrRootWithMultiOutputAlternative) {
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{4});
+    auto axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto split = std::make_shared<op::v1::Split>(input, axis, 2);
+    auto model = std::make_shared<Model>(split->outputs(), ParameterVector{input});
+    auto split_pattern = std::make_shared<op::v1::Split>(pattern::any_input(), axis, 2);
+    auto root = split_pattern | pattern::wrap_type<op::v0::Relu>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    EXPECT_EQ(visited, NodeVector{split});
+}
+
+TEST(GraphRewriteTest, OrRootRecursesIntoSubgraphs) {
+    auto then_body = get_model();
+    auto else_body = get_model();
+    auto input = std::make_shared<op::v0::Parameter>(element::f32, Shape{3, 1, 2});
+    auto condition = op::v0::Constant::create(element::boolean, Shape{}, {true});
+    auto if_op = std::make_shared<op::v8::If>(condition);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(input, then_body->get_parameters().front(), else_body->get_parameters().front());
+    auto output = if_op->set_output(then_body->get_results().front(), else_body->get_results().front());
+    auto model = std::make_shared<Model>(OutputVector{output}, ParameterVector{input});
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::wrap_type<op::v0::Relu>();
+    NodeVector visited;
+    GraphRewrite pass;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    ASSERT_EQ(visited.size(), 2);
+    EXPECT_EQ(visited[0], then_body->get_results().front()->input_value(0).get_node_shared_ptr());
+    EXPECT_EQ(visited[1], else_body->get_results().front()->input_value(0).get_node_shared_ptr());
+}
+
+TEST(GraphRewriteTest, OrRootProcessesRegisteredNodes) {
+    auto model = get_model();
+    auto root = pattern::wrap_type<op::v1::Divide>() | pattern::wrap_type<op::v0::Relu>();
+    auto matcher = std::make_shared<pattern::Matcher>(root, "DivideToRelu");
+    GraphRewrite pass;
+    std::shared_ptr<MatcherPass> rewrite;
+    rewrite = pass.add_matcher(std::make_shared<MatcherPass>(matcher, [&rewrite](pattern::Matcher& m) {
+        auto node = m.get_match_root();
+        if (!ov::is_type<op::v1::Divide>(node))
+            return false;
+        auto relu = rewrite->register_new_node<op::v0::Relu>(node->input_value(0));
+        ov::replace_node(node, relu);
+        return true;
+    }));
+    NodeVector visited;
+    pass.add_matcher(make_recording_pass(root, visited));
+    pass.run_on_model(model);
+
+    EXPECT_EQ(visited, NodeVector{model->get_results().front()->input_value(0).get_node_shared_ptr()});
+    ASSERT_EQ(visited.size(), 1);
+    EXPECT_TRUE(ov::is_type<op::v0::Relu>(visited.front()));
 }
 
 TEST(PassConfigTest, Test1) {

@@ -13,6 +13,10 @@
  * [Matcher logging README](./debug_capabilities/matcher_logging.md)
  * [Transformation statistics collection and Visualization README](./debug_capabilities/transformation_profiling.md)
 
+## Performance
+
+ * [MOC transformation performance audit](./moc_performance.md)
+
 ## Key Contacts
 
 For assistance regarding snippets, contact a member of [openvino-ie-transformations-maintainers](https://github.com/orgs/openvinotoolkit/teams/openvino-ie-transformations-maintainers) group.
