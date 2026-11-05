@@ -7,15 +7,18 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -94,9 +97,60 @@ ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
                                                                  exclude_pad,
                                                                  rounding_type_v1,
                                                                  avg_pool_v14->get_auto_pad());
-        avg_pool_v1->set_friendly_name(avg_pool_v14->get_friendly_name());
+        std::shared_ptr<ov::Node> result = avg_pool_v1;
+        if (rounding_type_v14 == ov::op::RoundingType::CEIL_TORCH) {
+            // Unlike CEIL_TORCH, CEIL keeps a last window starting in the right padding; slice it off.
+            const auto& kernel = avg_pool_v14->get_kernel();
+            const auto& strides = avg_pool_v14->get_strides();
+            const auto& pads_begin_v14 = avg_pool_v14->get_pads_begin();
+            // The no-exclude-pad workaround above pads both ends with pads_begin.
+            const auto& applied_pads_end = exclude_pad ? avg_pool_v14->get_pads_end() : pads_begin_v14;
+            const auto auto_pad = avg_pool_v14->get_auto_pad();
+            const bool has_explicit_pads = auto_pad == ov::op::PadType::EXPLICIT || auto_pad == ov::op::PadType::NOTSET;
+            const auto& shape_v14 = avg_pool_v14->get_output_partial_shape(0);
+            const auto& shape_v1 = avg_pool_v1->get_output_partial_shape(0);
+            const auto spatial = static_cast<int64_t>(kernel.size());
+            std::vector<int64_t> axes, offsets, steps, stops;
+            bool static_stops = true;
+            for (int64_t i = 0; i < spatial; ++i) {
+                const auto axis = i - spatial;
+                const bool is_static =
+                    shape_v14.rank().is_static() && shape_v14[axis].is_static() && shape_v1[axis].is_static();
+                if (is_static && shape_v14[axis] != shape_v1[axis]) {
+                    stops.push_back(shape_v14[axis].get_length());
+                } else if (!is_static && has_explicit_pads && applied_pads_end[i] + strides[i] > kernel[i]) {
+                    static_stops = false;
+                } else {
+                    continue;
+                }
+                axes.push_back(axis);
+                offsets.push_back(static_cast<int64_t>(pads_begin_v14[i] + strides[i] - 1));
+                steps.push_back(static_cast<int64_t>(strides[i]));
+            }
+            if (!axes.empty()) {
+                const auto axes_node = node_registry.make<Constant>(element::i64, Shape{axes.size()}, axes);
+                ov::Output<ov::Node> stop;
+                if (static_stops) {
+                    stop = node_registry.make<Constant>(element::i64, Shape{stops.size()}, stops);
+                } else {
+                    // CEIL_TORCH keeps ceil((L + pads_begin) / stride) windows at most.
+                    const auto shape = node_registry.make<ShapeOf>(input, element::i64);
+                    const auto zero = node_registry.make<Constant>(element::i64, Shape{}, 0);
+                    const auto lengths = node_registry.make<ov::op::v8::Gather>(shape, axes_node, zero);
+                    const auto offsets_node =
+                        node_registry.make<Constant>(element::i64, Shape{offsets.size()}, offsets);
+                    const auto shifted = node_registry.make<v1::Add>(lengths, offsets_node);
+                    const auto steps_node = node_registry.make<Constant>(element::i64, Shape{steps.size()}, steps);
+                    stop = node_registry.make<v1::Divide>(shifted, steps_node);
+                }
+                const auto start = node_registry.make<Constant>(element::i64, Shape{axes.size()}, 0);
+                const auto step = node_registry.make<Constant>(element::i64, Shape{axes.size()}, 1);
+                result = node_registry.make<ov::op::v8::Slice>(avg_pool_v1, start, stop, step, axes_node);
+            }
+        }
+        result->set_friendly_name(avg_pool_v14->get_friendly_name());
         copy_runtime_info(avg_pool_v14, node_registry.get());
-        replace_node(avg_pool_v14, avg_pool_v1);
+        replace_node(avg_pool_v14, result);
         return true;
     };
 

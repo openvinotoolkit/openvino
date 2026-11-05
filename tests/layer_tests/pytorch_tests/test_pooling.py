@@ -173,6 +173,8 @@ class TestPooling(PytorchLayerTest):
         # The last width window PyTorch uses already reaches the input end.
         ("avg_pool2d", [1, 8, 7, 10], [8, 8], [2, 2], 0),
         ("avg_pool2d", [1, 8, 7, 5], [8, 2], [3, 2], [0, 1]),
+        ("avg_pool1d", [1, 8, 3], 9, None, 1),
+        ("avg_pool2d", [1, 8, 3, 7], [8, 3], [2, 3], [2, 1]),
     ])
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
@@ -190,34 +192,40 @@ class TestPooling(PytorchLayerTest):
                    dynamic_shapes=is_dynamic_shapes)
 
     @pytest.mark.parametrize("kernel_size,stride,padding", [([32, 32], None, 0), ([8, 8], [2, 3], 0),
-                                                            ([8, 8], [2, 3], [0, 1])])
+                                                            ([8, 8], [2, 3], [2, 1])])
     @pytest.mark.parametrize("count_include_pad", [True, False])
-    @pytest.mark.parametrize("downgrade_ceil", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_avg_pool_oversized_kernel_dynamic_reuse(self, kernel_size, stride, padding, count_include_pad,
-                                                     downgrade_ceil, ie_device, precision, ir_version):
+                                                     ie_device, precision, ir_version):
         model, _ = self.create_model("avg_pool2d", kernel_size=kernel_size, stride=stride, padding=padding,
                                      ceil_mode=True, count_include_pad=count_include_pad)
         example = torch.randn(1, 2, 7, 7)
         traced = torch.jit.trace(model, example)
         ov_model = ov.convert_model(traced, example_input=(example,), input=[ov.PartialShape([-1] * 4)])
-        if downgrade_ceil:
-            # Mirrors ConvertAvgPool14ToAvgPool1 (run e.g. by GPU), which replaces CEIL_TORCH with CEIL.
-            from openvino import opset1
-            for node in ov_model.get_ordered_ops():
-                if node.get_type_name() == "AvgPool":
-                    attrs = node.get_attributes()
-                    assert attrs["exclude-pad"]
-                    pool = opset1.avg_pool(node.input_value(0), attrs["strides"], attrs["pads_begin"],
-                                           attrs["pads_end"], attrs["kernel"], True, "ceil")
-                    node.output(0).replace(pool.output(0))
-            ov_model.validate_nodes_and_infer_types()
         compiled = ov.Core().compile_model(ov_model, ie_device, {"INFERENCE_PRECISION_HINT": "f32"})
         for shape in [(1, 2, 7, 7), (1, 2, 15, 15), (1, 2, 40, 64), (1, 2, 64, 7)]:
             data = torch.randn(*shape)
             actual = compiled((data.numpy(),))[0]
             np.testing.assert_allclose(actual, traced(data).numpy(), rtol=1e-4, atol=1e-4)
+
+    @pytest.mark.parametrize("kernel_size,stride,padding,count_include_pad", [
+        (2, 2, 0, False),
+        (3, 2, 1, True),
+        (3, 3, 1, True),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_ceil_mode_keeps_single_pool(self, kernel_size, stride, padding, count_include_pad,
+                                                  ie_device, precision, ir_version):
+        # Common ceil-mode pools must stay a single AvgPool even when the input shape is dynamic.
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel_size, stride=stride, padding=padding,
+                                     ceil_mode=True, count_include_pad=count_include_pad)
+        example = torch.randn(1, 2, 8, 8)
+        ov_model = ov.convert_model(torch.jit.trace(model, example), example_input=(example,),
+                                    input=[ov.PartialShape([-1] * 4)])
+        op_types = [node.get_type_name() for node in ov_model.get_ordered_ops()]
+        assert op_types.count("AvgPool") == 1 and "Slice" not in op_types and "Pad" not in op_types, op_types
 
     @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
