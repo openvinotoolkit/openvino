@@ -16,6 +16,7 @@
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "vcl_provider_utils.hpp"
 
 namespace {
 
@@ -93,11 +94,8 @@ ov::SoPtr<IEngineBackend> makeBackend(bool withDevice, bool throwOnInitStructs =
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineWithAvailableProvider_ResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
-    size_t calls = 0;
-    CompilerAdapterFactory factory([&] {
-        calls++;
-        return fake.functions();
-    });
+    std::size_t calls = 0;
+    CompilerAdapterFactory factory(vcl_provider::counted(calls, fake.provider()));
     auto type = CompilerType::PREFER_PLUGIN;
     factory.decideCompilerType(type, std::make_shared<FactoryDevice>(), "4000");
     EXPECT_EQ(type, CompilerType::PLUGIN);
@@ -105,11 +103,8 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineWithAvailableProvider
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineWithUnavailableProvider_FallsBackToDriver) {
-    size_t calls = 0;
-    CompilerAdapterFactory factory([&]() -> std::shared_ptr<const VCLFunctionTable> {
-        calls++;
-        OPENVINO_THROW("Injected unavailable provider");
-    });
+    std::size_t calls = 0;
+    CompilerAdapterFactory factory(vcl_provider::counted(calls, vcl_provider::unavailable()));
     auto type = CompilerType::PREFER_PLUGIN;
     factory.decideCompilerType(type, std::make_shared<FactoryDevice>(), "4000");
     EXPECT_EQ(type, CompilerType::DRIVER);
@@ -118,37 +113,28 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineWithUnavailableProvid
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerType_OfflineWithAvailableProvider_ResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
-    CompilerAdapterFactory factory([&] {
-        return fake.functions();
-    });
+    CompilerAdapterFactory factory(fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
     factory.decideCompilerType(type, nullptr, "4000");
     EXPECT_EQ(type, CompilerType::PLUGIN);
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerType_OfflineWithUnavailableProvider_Throws) {
-    CompilerAdapterFactory factory([]() -> std::shared_ptr<const VCLFunctionTable> {
-        OPENVINO_THROW("Injected unavailable provider");
-    });
+    CompilerAdapterFactory factory(vcl_provider::unavailable());
     auto type = CompilerType::PREFER_PLUGIN;
     EXPECT_THROW(factory.decideCompilerType(type, nullptr, "4000"), ov::Exception);
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineDriverPlatform_DoesNotInvokeProvider) {
-    CompilerAdapterFactory factory([]() -> std::shared_ptr<const VCLFunctionTable> {
-        ADD_FAILURE() << "A driver only platform must not request VCL entry points";
-        OPENVINO_THROW("Unexpected provider invocation");
-    });
+    CompilerAdapterFactory factory(vcl_provider::forbidden("A driver only platform must not request VCL entry points"));
     auto type = CompilerType::PREFER_PLUGIN;
     factory.decideCompilerType(type, std::make_shared<FactoryDevice>("3720"), "3720");
     EXPECT_EQ(type, CompilerType::DRIVER);
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerType_ExplicitCompilerType_DoesNotInvokeProvider) {
-    CompilerAdapterFactory factory([]() -> std::shared_ptr<const VCLFunctionTable> {
-        ADD_FAILURE() << "An explicit compiler type must not be resolved through the provider";
-        OPENVINO_THROW("Unexpected provider invocation");
-    });
+    CompilerAdapterFactory factory(
+        vcl_provider::forbidden("An explicit compiler type must not be resolved through the provider"));
     for (const auto explicitType : {CompilerType::DRIVER, CompilerType::PLUGIN}) {
         auto type = explicitType;
         factory.decideCompilerType(type, std::make_shared<FactoryDevice>(), "4000");
@@ -156,12 +142,35 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_ExplicitCompilerType_DoesNo
     }
 }
 
+TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineWithAvailableProvider_DoesNotCreateCompiler) {
+    fake_vcl::FakeVcl fake;
+    CompilerAdapterFactory factory(fake.provider());
+    auto type = CompilerType::PREFER_PLUGIN;
+    factory.decideCompilerType(type, std::make_shared<FactoryDevice>(), "4000");
+    EXPECT_FALSE(fake.called("vclCompilerCreate"));
+}
+
+// Documents the contract described on decideCompilerType(): the decision only probes the entry points, while
+// getCompiler() creates the compiler and recovers by falling back to the driver compiler.
+TEST(CompilerAdapterFactoryTests, DecideThenGetCompiler_OnlineWithFailingCompilerCreation_DisagreeOnCompilerType) {
+    fake_vcl::FakeVcl fake;
+    fake.failWith("vclCompilerCreate", VCL_RESULT_ERROR_UNKNOWN);
+    CompilerAdapterFactory factory(fake.provider());
+
+    auto decidedType = CompilerType::PREFER_PLUGIN;
+    factory.decideCompilerType(decidedType, std::make_shared<FactoryDevice>(), "4000");
+    EXPECT_EQ(decidedType, CompilerType::PLUGIN);
+    EXPECT_FALSE(fake.called("vclCompilerCreate"));
+
+    auto createdType = CompilerType::PREFER_PLUGIN;
+    EXPECT_THROW(factory.getCompiler(makeBackend(true, true), createdType, "4000"), ov::Exception);
+    EXPECT_TRUE(fake.called("vclCompilerCreate"));
+    EXPECT_EQ(createdType, CompilerType::DRIVER);
+}
+
 TEST(CompilerAdapterFactoryTests, GetCompiler_ExplicitPluginWithUnavailableProvider_Throws) {
-    size_t calls = 0;
-    const CompilerAdapterFactory factory([&]() -> std::shared_ptr<const VCLFunctionTable> {
-        calls++;
-        OPENVINO_THROW("Injected unavailable provider");
-    });
+    std::size_t calls = 0;
+    const CompilerAdapterFactory factory(vcl_provider::counted(calls, vcl_provider::unavailable()));
     auto type = CompilerType::PLUGIN;
     EXPECT_THROW(factory.getCompiler({}, type, "4000"), ov::Exception);
     EXPECT_EQ(calls, 1u);
@@ -170,9 +179,7 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_ExplicitPluginWithUnavailableProvi
 TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginOnlineWithFailingCompilerCreation_FallsBackToDriver) {
     fake_vcl::FakeVcl fake;
     fake.failWith("vclCompilerCreate", VCL_RESULT_ERROR_UNKNOWN);
-    const CompilerAdapterFactory factory([&] {
-        return fake.functions();
-    });
+    const CompilerAdapterFactory factory(fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
     try {
         factory.getCompiler(makeBackend(true, true), type, "4000");
@@ -186,9 +193,7 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginOnlineWithFailingCompi
 
 TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginOnlineWithWorkingCompiler_UsesPlugin) {
     fake_vcl::FakeVcl fake;
-    const CompilerAdapterFactory factory([&] {
-        return fake.functions();
-    });
+    const CompilerAdapterFactory factory(fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
     EXPECT_NE(factory.getCompiler(makeBackend(true), type, "4000"), nullptr);
     EXPECT_EQ(type, CompilerType::PLUGIN);
@@ -197,9 +202,7 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginOnlineWithWorkingCompi
 TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginOfflineWithFailingCompilerCreation_Throws) {
     fake_vcl::FakeVcl fake;
     fake.failWith("vclCompilerCreate", VCL_RESULT_ERROR_UNKNOWN);
-    const CompilerAdapterFactory factory([&] {
-        return fake.functions();
-    });
+    const CompilerAdapterFactory factory(fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
     try {
         factory.getCompiler(makeBackend(false, true), type, "4000");
@@ -213,9 +216,7 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginOfflineWithFailingComp
 TEST(CompilerAdapterFactoryTests, GetCompiler_ExplicitPluginWithFailingCompilerCreation_ThrowsWithoutFallback) {
     fake_vcl::FakeVcl fake;
     fake.failWith("vclCompilerCreate", VCL_RESULT_ERROR_UNKNOWN);
-    const CompilerAdapterFactory factory([&] {
-        return fake.functions();
-    });
+    const CompilerAdapterFactory factory(fake.provider());
     auto type = CompilerType::PLUGIN;
     try {
         factory.getCompiler(makeBackend(true, true), type, "4000");
@@ -227,10 +228,8 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_ExplicitPluginWithFailingCompilerC
 }
 
 TEST(CompilerAdapterFactoryTests, GetCompiler_DriverType_DoesNotInvokeProvider) {
-    const CompilerAdapterFactory factory([]() -> std::shared_ptr<const VCLFunctionTable> {
-        ADD_FAILURE() << "Driver compilation must not request VCL entry points";
-        OPENVINO_THROW("Unexpected provider invocation");
-    });
+    const CompilerAdapterFactory factory(
+        vcl_provider::forbidden("Driver compilation must not request VCL entry points"));
     auto type = CompilerType::DRIVER;
     EXPECT_THROW(factory.getCompiler({}, type, "4000"), ov::Exception);
 }

@@ -27,7 +27,6 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/npuw_private_properties.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/log.hpp"
 #include "openvino/runtime/core.hpp"
@@ -35,6 +34,7 @@
 #include "openvino/util/codec_xor.hpp"
 #include "plugin_property_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "vcl_provider_utils.hpp"
 #include "zero_backend.hpp"
 
 using ::testing::AllOf;
@@ -46,16 +46,6 @@ using ConfigParams = std::tuple<std::string,   // Device name
 namespace ov {
 namespace test {
 namespace behavior {
-namespace {
-using namespace ::intel_npu;
-
-VCLFunctionTableProvider testVclFunctions() {
-    static const auto holder = std::make_shared<VCLLoaderHolder>();
-    return [] {
-        return holder->functions();
-    };
-}
-}  // namespace
 
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
@@ -171,9 +161,10 @@ public:
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend,
-                                                                       CompilerAdapterFactory{testVclFunctions()}),
-            testVclFunctions(),
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(
+                backend,
+                ::intel_npu::CompilerAdapterFactory{vcl_provider::processWide()}),
+            vcl_provider::processWide(),
             ::intel_npu::Logger::global());
     }
 
@@ -701,8 +692,8 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
         backend,
         std::make_shared<::intel_npu::CompilerOptionSupportHelper>(
             backend,
-            ::intel_npu::CompilerAdapterFactory{testVclFunctions()}),
-        testVclFunctions(),
+            ::intel_npu::CompilerAdapterFactory{vcl_provider::processWide()}),
+        vcl_provider::processWide(),
         ::intel_npu::Logger::global());
 
     {

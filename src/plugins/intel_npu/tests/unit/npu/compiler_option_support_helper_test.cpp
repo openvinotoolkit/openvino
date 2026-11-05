@@ -6,7 +6,16 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <string>
+
+#include "intel_npu/common/compiler_adapter_factory.hpp"
+#include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
+#include "vcl_provider_utils.hpp"
 
 namespace {
 
@@ -17,10 +26,7 @@ using CompilerType = ov::intel_npu::CompilerType;
 // No case below reaches the compiler-in-plugin branch of the factory. Each is answered from the
 // cache, rejected before any lookup, or uses the driver path without a device.
 VCLFunctionTableProvider noVclLibrary() {
-    return []() -> std::shared_ptr<const VCLFunctionTable> {
-        ADD_FAILURE() << "The VCL function table provider must not be invoked by this test";
-        OPENVINO_THROW("The VCL function table provider must not be invoked by this test");
-    };
+    return vcl_provider::forbidden("The VCL function table provider must not be invoked by this test");
 }
 
 // Minimal IEngineBackend double: exercises the real CompilerAdapterFactory::getCompiler() logic

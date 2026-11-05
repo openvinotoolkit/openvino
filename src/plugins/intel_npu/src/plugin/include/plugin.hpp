@@ -88,8 +88,9 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    // Delays VCL loading until compiler construction or profiling decoder creation needs it.
-    std::shared_ptr<VCLLoaderHolder> _vclLoaderHolder;
+    // Loads the VCL library on first use: when PREFER_PLUGIN is resolved, a compiler-in-plugin is created, or a
+    // profiling decoder is created.
+    std::shared_ptr<const VCLLoaderHolder> _vclLoaderHolder;
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;

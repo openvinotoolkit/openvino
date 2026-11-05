@@ -169,7 +169,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
 namespace intel_npu {
 
 Plugin::Plugin()
-    : _vclLoaderHolder(std::make_shared<VCLLoaderHolder>()),
+    : _vclLoaderHolder(std::make_shared<const VCLLoaderHolder>()),
       _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");

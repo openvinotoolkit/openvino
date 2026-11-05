@@ -18,10 +18,10 @@
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "vcl_provider_utils.hpp"
 #include "zero_backend.hpp"
 
 namespace ov {
@@ -31,13 +31,6 @@ namespace behavior {
 using namespace ::intel_npu;
 
 namespace {
-VCLFunctionTableProvider testVclFunctions() {
-    static const auto holder = std::make_shared<VCLLoaderHolder>();
-    return [] {
-        return holder->functions();
-    };
-}
-
 // Log markers emitted once per adapter, when its constructor runs (see driver_compiler_adapter.cpp /
 // plugin_compiler_adapter.cpp). Used to detect whether a given compiler type had to be (re)initialized.
 std::string startMarkerFor(ov::intel_npu::CompilerType compilerType) {
@@ -80,7 +73,8 @@ protected:
 
         compilerType = GetParam();
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
-        helper = std::make_unique<CompilerOptionSupportHelper>(backend, CompilerAdapterFactory{testVclFunctions()});
+        helper =
+            std::make_unique<CompilerOptionSupportHelper>(backend, CompilerAdapterFactory{vcl_provider::processWide()});
     }
 
     void TearDown() override {
@@ -237,7 +231,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOpti
 TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirectCompilerProbe) {
     const std::string batchModeOption = ov::intel_npu::batch_mode.name();
 
-    CompilerAdapterFactory factory{testVclFunctions()};
+    CompilerAdapterFactory factory{vcl_provider::processWide()};
     auto adapterCompilerType = compilerType;
     std::unique_ptr<ICompilerAdapter> compilerAdapter;
     OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(backend, adapterCompilerType, ""));
@@ -343,7 +337,8 @@ protected:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
-        helper = std::make_unique<CompilerOptionSupportHelper>(backend, CompilerAdapterFactory{testVclFunctions()});
+        helper =
+            std::make_unique<CompilerOptionSupportHelper>(backend, CompilerAdapterFactory{vcl_provider::processWide()});
     }
 
     void TearDown() override {

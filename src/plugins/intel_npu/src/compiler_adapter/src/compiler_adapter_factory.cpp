@@ -7,10 +7,12 @@
 #include <exception>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "plugin_compiler_adapter.hpp"
@@ -66,7 +68,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
             compilerType = ov::intel_npu::CompilerType::DRIVER;
         }
 
-        if (compiler != nullptr) {
+        if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
             std::shared_ptr<IProfilingDecoder> profilingDecoder;
             try {
                 profilingDecoder = std::make_shared<VCLProfilingDecoder>(functions);

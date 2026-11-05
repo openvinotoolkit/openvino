@@ -69,6 +69,12 @@ public:
     std::shared_ptr<const intel_npu::VCLFunctionTable> functions() const {
         return _functions;
     }
+    /// A provider that always hands out the function table. Shares the table, so it stays valid after the fake.
+    intel_npu::VCLFunctionTableProvider provider() const {
+        return [functions = _functions] {
+            return functions;
+        };
+    }
     /// Same table, writable, for tests that need to null an entry point out.
     std::shared_ptr<intel_npu::VCLFunctionTable> mutableFunctions() const {
         return _functions;
