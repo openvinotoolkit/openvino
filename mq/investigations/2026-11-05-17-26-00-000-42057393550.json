@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-17-26-00-000-42057393550",
+  "timestamp": "2026-11-05T17:26:00Z",
+  "run_id": "42057393550",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42057393550",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38909",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38909",
+  "author": "bumbosiepsak",
+  "category": "External Service",
+  "title": "NVIDIA plugin CMake configure fails because sccache times out waiting for server startup",
+  "signature": "sccache error timed out waiting for server startup maybe the remote service is unreachable cmake test c compiler check for working c compiler broken|External Service",
+  "signature_hash": "e78859139d383270",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NVIDIA plugin",
+      "conclusion": "failure",
+      "symptom": "Cmake & Build - NVIDIA Plugin step fails: CMake's compiler-check TryCompile invokes 'sccache /usr/bin/c++ ...' which errors 'Timed out waiting for server startup. Maybe the remote service is unreachable?', so CMake reports the C++ compiler as broken and configuration aborts"
+    },
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build - OpenVINO fails (non-blocking lane): GCC -Werror=deprecated on implicit 'this' capture via '[=]' in two intel_gpu plugin transformation lambdas (l2_norm_to_rms.cpp:41, increase_position_ids_precision.cpp:650); does not affect overall workflow conclusion"
+    },
+    {
+      "name": "Keras 3 OpenVINO Backend Tests / Keras 3 OpenVINO Backend",
+      "conclusion": "cancelled",
+      "symptom": "Test with pytest step cancelled, consistent with the run being aborted after the blocking NVIDIA plugin job failed"
+    }
+  ],
+  "key_errors": [
+    "-- Detecting CXX compiler ABI info - failed\n-- Check for working CXX compiler: /usr/bin/c++\nCMake Error at /usr/local/share/cmake-3.26/Modules/CMakeTestCXXCompiler.cmake:60 (message):\n-- Check for working CXX compiler: /usr/bin/c++ - broken\n  The C++ compiler\n-- Configuring incomplete, errors occurred!",
+    "Run Build Command(s):/venv/bin/ninja -v cmTC_972d7 && [1/2] sccache /usr/bin/c++ -DCMAKE_INTDIR=\\\"Debug\\\"  -g -o CMakeFiles/cmTC_972d7.dir/Debug/testCXXCompiler.cxx.o -c .../testCXXCompiler.cxx\n    FAILED: [code=2] CMakeFiles/cmTC_972d7.dir/Debug/testCXXCompiler.cxx.o\n    sccache: error: Timed out waiting for server startup. Maybe the remote service is unreachable?\n    Run with SCCACHE_LOG=debug SCCACHE_NO_DAEMON=1 to get more information\n    ninja: build stopped: subcommand failed.",
+    "/home/runner/_work/openvino/openvino/openvino/src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41:42: error: implicit capture of 'this' via '[=]' is deprecated in C++20 [-Werror=deprecated]\n   41 |     ov::matcher_pass_callback callback = [=](Matcher& m) {\ncc1plus: all warnings being treated as errors"
+  ],
+  "root_cause": "The run's blocking failure is the 'NVIDIA plugin' job: during CMake configuration of the nvidia_plugin_build tree, CMake's internal compiler-sanity TryCompile invokes the compiler through the 'sccache' launcher ('sccache /usr/bin/c++ ...'). sccache itself failed with 'Timed out waiting for server startup. Maybe the remote service is unreachable?' before it could even hand off to the real compiler, so the trivial test program never compiled and CMake declared the C++ compiler 'broken', aborting configuration before any NVIDIA-plugin-specific source was touched. This is identical (job-agnostic) to a previously recorded pattern (signature_hash e78859139d383270, first seen on an ARM64 CMake configure job on 2026-11-05T12:59:21Z, PR #39524) that also failed purely because sccache's local daemon could not start/respond in time - unrelated to the PR's actual ONNX DeformConv changes, which were not touched by either failing job. Separately, the already-known non-blocking 'implicit this capture' C++20 lambda issue (pattern ccd816b048b85b86) recurred in the GPU plugin build and does not affect the overall conclusion.",
+  "reproduction_steps": "Not reliably reproducible locally: the failure stems from the ephemeral sccache daemon on the CI runner failing to start/respond within its startup timeout before the compiler can run. Locally, configure with SCCACHE_IGNORE_SERVER_IO_ERROR=1 and CMAKE_CXX_COMPILER_LAUNCHER=sccache, then run `cmake --build . --target cmTC_972d7` while artificially delaying/blocking the sccache server process to reproduce 'Timed out waiting for server startup'.",
+  "recommended_actions": [
+    "Re-run the failed 'NVIDIA plugin' job; this is a transient sccache server-startup issue unrelated to the PR's code changes.",
+    "If recurrences continue, consider raising SCCACHE_SERVER_STARTUP_TIMEOUT or verifying the Azure sccache backend (SCCACHE_AZURE_CONNECTION_STRING) is healthy / not rate-limiting concurrent runner connections.",
+    "Separately (non-blocking, pre-existing): fix implicit 'this' captures in src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41 and increase_position_ids_precision.cpp:650 by adding an explicit 'this' to the lambda capture list."
+  ],
+  "prevention_strategies": "Add a bounded retry/backoff around the initial sccache server-startup handshake in CI (or fall back to a direct, launcher-less compiler invocation) so a slow daemon start does not escalate into a CMake 'broken compiler' failure that aborts the whole configure step. For the recurring non-blocking C++20 lane, periodically build each plugin under -std=c++20 to catch accumulating implicit-this-capture deprecation warnings before they pile up across components.",
+  "historical_context": "This is the 2nd occurrence of the sccache 'Timed out waiting for server startup' signature (e78859139d383270): first recorded 2026-11-05T12:59:21Z on an ARM64 CMake configure job (PR #39524), now also hitting the NVIDIA plugin CMake configure on this merge-queue run. It is already a candidate rerun pattern ('Timed out waiting for server startup') proposed for the workflow rerunner. The non-blocking GPU-plugin implicit-this-capture C++20 build failure (ccd816b048b85b86) is also a recurrence, first seen 2026-11-05T16:35:05Z on PR #39381, now recurring on this run; both occurrences are below the 3-in-12h escalation threshold."
+}

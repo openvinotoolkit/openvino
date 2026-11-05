@@ -4,16 +4,19 @@
   "signature_hash": "e78859139d383270",
   "title": "ARM64 CMake configure fails because sccache times out waiting for server startup",
   "category": "External Service",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-05T12:59:21Z",
-  "last_seen": "2026-11-05T12:59:21Z",
+  "last_seen": "2026-11-05T17:26:00Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42057393550",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42026334922"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38909",
     "https://github.com/openvinotoolkit/openvino/pull/39524"
   ],
   "recent_timestamps": [
+    "2026-11-05T17:26:00Z",
     "2026-11-05T12:59:21Z"
   ],
   "rerun_search_string": "Timed out waiting for server startup"

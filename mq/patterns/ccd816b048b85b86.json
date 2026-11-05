@@ -4,16 +4,19 @@
   "signature_hash": "ccd816b048b85b86",
   "title": "Build (C++20, non-blocking) fails - implicit 'this' capture deprecated in GPU plugin matcher_pass_callback lambdas",
   "category": "Code Issue",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-05T16:35:05Z",
-  "last_seen": "2026-11-05T16:35:05Z",
+  "last_seen": "2026-11-05T17:26:00Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42057393550",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42045188647"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38909",
     "https://github.com/openvinotoolkit/openvino/pull/39381"
   ],
   "recent_timestamps": [
+    "2026-11-05T17:26:00Z",
     "2026-11-05T16:35:05Z"
   ],
   "rerun_search_string": null
