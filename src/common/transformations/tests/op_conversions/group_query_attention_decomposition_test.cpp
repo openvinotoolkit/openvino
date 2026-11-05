@@ -566,7 +566,7 @@ TEST(GroupQueryAttentionValues, padded_query_empty_past_keeps_total_sequence_len
     const auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
     args.push_back(query_seqlens);
     const auto gqa = std::make_shared<GroupQueryAttention>(args, 4, 2, 0.0f, false, false);
-    ASSERT_TRUE(gqa->has_padded_query());
+    ASSERT_TRUE(gqa->has_query_seqlens());
     const auto expected_shape = PartialShape{1, 2, 10, 8};
     EXPECT_EQ(gqa->get_output_partial_shape(1), expected_shape);
     EXPECT_EQ(gqa->get_output_partial_shape(2), expected_shape);
@@ -967,7 +967,7 @@ TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_s
                                                      /*scale*/ 0.0f,
                                                      /*do_rotary*/ false,
                                                      /*rotary_interleaved*/ false);
-    ASSERT_TRUE(gqa->has_padded_query());
+    ASSERT_TRUE(gqa->has_query_seqlens());
     ASSERT_FALSE(gqa->has_fixed_kv_capacity());
 
     // Only present_key/present_value are checked, so only they are declared as Results: they don't depend on the
@@ -1066,7 +1066,7 @@ TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_s
                                                      /*scale*/ 0.0f,
                                                      /*do_rotary*/ false,
                                                      /*rotary_interleaved*/ false);
-    ASSERT_TRUE(gqa->has_padded_query());
+    ASSERT_TRUE(gqa->has_query_seqlens());
     ASSERT_FALSE(gqa->has_fixed_kv_capacity());
 
     ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
@@ -1183,7 +1183,7 @@ TEST(GroupQueryAttentionValues, padded_query_qk_output_keeps_total_sequence_leng
                                                          /*softcap*/ 0.0f,
                                                          /*qk_norm_epsilon*/ 1e-6f,
                                                          mode);
-        ASSERT_TRUE(gqa->has_padded_query());
+        ASSERT_TRUE(gqa->has_query_seqlens());
 
         // Only the QK scores output is checked, so only it is declared as a Result.
         ResultVector results{std::make_shared<op::v0::Result>(gqa->output(3))};

@@ -177,11 +177,9 @@ public:
     // RMS-normalized over head_size before RoPE: x * rsqrt(mean(x^2) + qk_norm_epsilon) * weight.
     bool has_qk_norm() const;
     // Right-padded query chunk (ONNX query_seqlens): only the first query_seqlens[b] of the S query rows are real
-    // tokens, so the past length is seqlens_k + 1 - query_seqlens[b] instead of seqlens_k + 1 - S.
+    // tokens, so the past length is seqlens_k + 1 - query_seqlens[b] instead of seqlens_k + 1 - S. Also honored for a
+    // single-token step, where 0 marks an idle entry (ONNX Runtime).
     bool has_query_seqlens() const;
-    // True when query_seqlens can change the result: it is present and sequence_length is not statically 1 (a
-    // single-token step ignores it, as in ONNX Runtime), so decode graphs keep the plain lowering.
-    bool has_padded_query() const;
     float get_qk_norm_epsilon() const {
         return m_qk_norm_epsilon;
     }
