@@ -5,7 +5,7 @@
 #include "gated_residual.hpp"
 
 #include <algorithm>
-#include <cstdlib>
+#include <cstdio>
 #include <limits>
 #include <memory>
 #include <string>
@@ -16,14 +16,17 @@
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
-#include "gated_residual_stage_events.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/primitives/gated_residual.hpp"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "registry/implementation_manager.hpp"
 
 namespace ov::intel_gpu::ocl {
 
 using namespace cldnn;
+namespace caps = cldnn::gated_residual_caps;
 
 namespace {
 
@@ -35,16 +38,6 @@ constexpr size_t gr_down_tn = 32;      // low-rank columns per down-projection s
 constexpr size_t gr_decode_rows = 32;  // up to here both GEMMs use decode tiling
 constexpr size_t gr_read_dpas_tm = 32;
 constexpr size_t gr_read_dpas_nt = 2;
-
-/// Per-stage GPU events recorded by the most recent GatedResidualImpl::execute() call (thread local: networks may run on
-/// different threads); exposed through gr_debug::take_stage_events().
-thread_local std::vector<std::pair<std::string, event::ptr>> g_gr_stage_events;
-
-void record_stage_event(const char* name, const event::ptr& ev) {
-    if (ev != nullptr) {
-        g_gr_stage_events.emplace_back(name, ev);
-    }
-}
 
 size_t get_num_rows(const layout& l, size_t last_dim) {
     const auto count = l.count();
@@ -217,24 +210,9 @@ bool use_single_dpas_read(const gated_residual& desc, const cldnn::device_info& 
     return desc.hidden_size % 32 == 0 && num_rows > 4 * static_cast<size_t>(info.execution_units_count);
 }
 
-bool xmx_available(const cldnn::device_info& info) {
-    return !GrOp::force_scalar() && info.arch >= gpu_arch::xe2 && info.supports_immad;
-}
-
-/// Whether the systolic READ/FINAL_MIX path can replace the fused scalar gr_read kernel.
-bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& info) {
-    if (!xmx_available(info)) {
-        return false;
-    }
-    const size_t cd = desc.hc_count * desc.hidden_size;
-    if (cd < 32 || cd % 32 != 0) {
-        return false;
-    }
-    if (desc.lowrank < 32 || desc.lowrank % 32 != 0) {
-        return false;
-    }
-    // the write gate is one N16 column tile stored in half pairs
-    return desc.hc_count != 0 && desc.hc_count % 2 == 0 && desc.hc_count <= gr_dpas_n;
+/// Whether the READ / FINAL_MIX runs on the systolic kernels instead of the fused scalar gr_read kernel.
+bool can_use_dpas_gr_read(const RuntimeParams& params) {
+    return caps::uses_dpas_read(params.typed_desc<gated_residual>()->lowrank, caps::has_systolic(params.get_device_info(), params.get_program().get_config()));
 }
 
 GrWType gr_weight_type(const RuntimeParams& params) {
@@ -300,15 +278,11 @@ constexpr size_t gr_up_q_st = 4;
 
 /// The 3-dispatch pipeline needs rows * C*D * 2 bytes of Rbar scratch; beyond this the compressed single kernel (which keeps
 /// Rbar in SLM, but dequantizes per token tile) is used instead.
-size_t gr_q_scratch_limit() {
-    static const size_t bytes = [] {
-        const char* env = std::getenv("OV_GPU_GR_Q_SCRATCH_LIMIT_MB");  // lets tests reach the single-kernel path with few rows
-        return (env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10)) : size_t{256}) << 20;
-    }();
-    return bytes;
+size_t gr_q_scratch_limit(const RuntimeParams& params) {
+    return GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_gr_q_scratch_limit_mb(), size_t{256}) << 20;
 }
 
-bool use_single_read(const gated_residual& desc, const cldnn::device_info& info, size_t rows, bool compressed);
+bool use_single_read(const RuntimeParams& params, size_t rows, bool compressed);
 
 /// 4-bit decode GEMMs unpack their weights in a permuted K order and read Rbar / T stored with the same permutation (GR_KP). The
 /// decode RBAR cannot know the row count of a dynamic shape, so this holds only when no decode row count can take the
@@ -316,22 +290,19 @@ bool use_single_read(const gated_residual& desc, const cldnn::device_info& info,
 bool gr_kperm(const RuntimeParams& params, GrTier tier, bool q, bool pd);
 
 /// Compressed READ above this many rows dequantizes both matrices into f16 scratch buffers with a separate kernel and then runs
-/// the f16 kernels; below it the compute kernels dequantize on the fly. OV_GPU_GR_PD_MIN_ROWS overrides the threshold.
-size_t gr_pd_min_rows(const cldnn::device_info& info) {
-    static const long long env = [] {
-        const char* e = std::getenv("OV_GPU_GR_PD_MIN_ROWS");
-        return e != nullptr ? std::strtoll(e, nullptr, 10) : -1LL;
-    }();
+/// the f16 kernels; below it the compute kernels dequantize on the fly.
+size_t gr_pd_min_rows(const RuntimeParams& params) {
+    const int64_t rows = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_gr_pd_min_rows(), int64_t{-1});
     // Below ~4 rows per EU the dequantizing GEMM kernels win; above ~5 rows per EU a separate dequantization followed by the f16
     // single kernel (no Rbar / T scratch traffic, weights hot in cache) wins.
-    return env >= 0 ? static_cast<size_t>(env) : 5 * static_cast<size_t>(info.execution_units_count);
+    return rows >= 0 ? static_cast<size_t>(rows) : 5 * static_cast<size_t>(params.get_device_info().execution_units_count);
 }
 
 /// Group size along K (K / G) of the weight whose f16 scale is input `scale_idx`.
 size_t gr_group_size(const RuntimeParams& params, size_t scale_idx, size_t k) {
     const auto& ps = params.get_input_layout(scale_idx).get_partial_shape();
     OPENVINO_ASSERT(ps.rank().is_static() && ps.size() == 2 && ps[0].is_static(), "[GPU][OCL] gated_residual: the scale must be a static [G, N] tensor");
-    return GrOp::derive_group_size(k, static_cast<size_t>(ps[0].get_length()));
+    return caps::derive_group_size(k, static_cast<size_t>(ps[0].get_length()));
 }
 
 /// GR_<prefix>_KCH / _NRAW / _RB / _GS32 (group size in K32 slices) / _PERCH (one group) of one weight matrix [N, K].
@@ -986,12 +957,13 @@ protected:
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         const auto layout = gr_read_layout(params);
+        const uint32_t w_idx = m_down ? GrOp::ReadInputIdx::W_DOWN : GrOp::ReadInputIdx::W_UP;
+        const uint32_t scale_idx = m_down ? GrOp::ReadInputIdx::SCALE_DOWN : GrOp::ReadInputIdx::SCALE_UP;
+        const uint32_t zp_idx = m_down ? GrOp::ReadInputIdx::ZP_DOWN : GrOp::ReadInputIdx::ZP_UP;
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 2u : 3u});  // weights
-        args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 4u : 5u});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT,
-                        m_down ? gr_zp_input(layout, GrOp::ReadInputIdx::ZP_DOWN, GrOp::ReadInputIdx::SCALE_DOWN)
-                               : gr_zp_input(layout, GrOp::ReadInputIdx::ZP_UP, GrOp::ReadInputIdx::SCALE_UP)});  // zp
+        args.push_back({ArgumentDescriptor::Types::INPUT, w_idx});
+        args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});
+        args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, zp_idx, scale_idx)});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER,
                         static_cast<uint32_t>(m_down ? GatedResidualInternalBufIdx::WD_F16 : GatedResidualInternalBufIdx::WU_F16)});
         return args;
@@ -1051,31 +1023,31 @@ protected:
     }
 };
 
-bool use_single_read(const gated_residual& desc, const cldnn::device_info& info, size_t rows, bool compressed) {
+bool use_single_read(const RuntimeParams& params, size_t rows, bool compressed) {
+    const auto desc = params.typed_desc<gated_residual>();
     if (!compressed) {
-        return use_single_dpas_read(desc, info, rows);
+        return use_single_dpas_read(*desc, params.get_device_info(), rows);
     }
-    return desc.hidden_size % 32 == 0 && rows * desc.hc_count * desc.hidden_size * 2 > gr_q_scratch_limit();
+    return desc->hidden_size % 32 == 0 && rows * desc->hc_count * desc->hidden_size * 2 > gr_q_scratch_limit(params);
 }
 
 /// Dequantize the weights into f16 scratch and run the f16 kernels. A compressed READ with a write gate also takes this route
 /// where it would use the compressed single kernel, which has no write-gate tile.
-bool use_predequant(const gated_residual& desc, GrWType t, size_t num_rows, const cldnn::device_info& info) {
+bool use_predequant(const RuntimeParams& params, GrWType t, size_t num_rows) {
     if (t == GrWType::f16) {
         return false;
     }
-    return num_rows > gr_pd_min_rows(info) || (desc.produce_write_gate && use_single_read(desc, info, num_rows, /*compressed=*/true));
+    return num_rows > gr_pd_min_rows(params) ||
+           (params.typed_desc<gated_residual>()->produce_write_gate && use_single_read(params, num_rows, /*compressed=*/true));
 }
 
 bool gr_kperm(const RuntimeParams& params, GrTier tier, bool q, bool pd) {
     if (!q || pd || !gr_decode_like(tier) || gr_weight_type(params) != GrWType::u4) {
         return false;
     }
-    const auto desc = params.typed_desc<gated_residual>();
-    const auto& info = params.get_device_info();
     // the decode RBAR permutes in registers: 128-half chunks, 8 halves per lane
-    return gr_best_tile(desc->hidden_size) == 128 && !use_predequant(*desc, GrWType::u4, gr_decode_rows, info) &&
-           !use_single_read(*desc, info, gr_decode_rows, /*compressed=*/true);
+    return gr_best_tile(params.typed_desc<gated_residual>()->hidden_size) == 128 && !use_predequant(params, GrWType::u4, gr_decode_rows) &&
+           !use_single_read(params, gr_decode_rows, /*compressed=*/true);
 }
 
 class GatedResidualImpl : public PrimitiveImplOCL {
@@ -1101,7 +1073,7 @@ public:
     Stage::Ptr gr_up_proj_q = make_stage<GrUpProjGenerator>(GrTier::wide, true);
     Stage::Ptr gr_up_proj_q_decode = make_stage<GrUpProjGenerator>(GrTier::decode, true);
     Stage::Ptr gr_read_dpas_q = make_stage<GrReadDpasGenerator>(true);
-    // compressed weights dequantized into f16 scratch by gr_dq_*, then the f16 kernels on the scratch (OV_GPU_GR_PD_MIN_ROWS)
+    // compressed weights dequantized into f16 scratch by gr_dq_*, then the f16 kernels on the scratch (see gr_pd_min_rows)
     Stage::Ptr gr_dq_down = make_stage<GrDequantGenerator>(true);
     Stage::Ptr gr_dq_up = make_stage<GrDequantGenerator>(false);
     Stage::Ptr gr_down_proj_pd = make_stage<GrDownProjGenerator>(GrTier::wide, false, true);
@@ -1126,13 +1098,15 @@ public:
         bool dq_inject;   // compressed W_inject dequantized into f16 scratch
     };
 
-    static ReadPlan read_plan(const gated_residual& desc, GrWType wtype, size_t rows, const cldnn::device_info& info) {
+    static ReadPlan read_plan(const RuntimeParams& params, size_t rows) {
+        const auto desc = params.typed_desc<gated_residual>();
+        const auto wtype = gr_weight_type(params);
         ReadPlan p;
         p.q = wtype != GrWType::f16;
-        p.pd = use_predequant(desc, wtype, rows, info);
-        p.single = use_single_read(desc, info, rows, p.q && !p.pd);
-        p.tier = gr_down_tier(rows, info);
-        const bool gate_q = p.q && desc.produce_write_gate;
+        p.pd = use_predequant(params, wtype, rows);
+        p.single = use_single_read(params, rows, p.q && !p.pd);
+        p.tier = gr_down_tier(rows, params.get_device_info());
+        const bool gate_q = p.q && desc->produce_write_gate;
         p.gate_stage = gate_q && !p.pd && !p.single && !gr_decode_like(p.tier);
         p.dq_inject = gate_q && (p.pd || p.gate_stage);
         return p;
@@ -1141,71 +1115,79 @@ public:
     GatedResidualImpl() : PrimitiveImplOCL(GatedResidualImplementationManager::get_type_info_static()) {}
     GatedResidualImpl(const program_node& /*node*/, const RuntimeParams& params) : GatedResidualImpl() {
         const auto desc = params.typed_desc<gated_residual>();
-        const auto& info = params.get_device_info();
-        // READ and WRITE cannot be merged: an attention / GDN / MLP sub-layer sits between them.
+        if (!params.is_dynamic()) {
+            for (auto* stage : stages_for(params, rows_of(params, *desc))) {
+                add_stage(*stage, params);
+            }
+            return;
+        }
+        // A dynamic shape builds every stage some row count can take.
         if (desc->mode == gated_residual::Mode::WRITE) {
             add_stage(gr_write, params);
-        } else if (can_use_dpas_gr_read(*desc, info)) {
-            // Producer/consumer order through the RBAR/T scratch buffers is enforced by execute(); static shapes only build
-            // what their row count needs.
-            const auto wtype = gr_weight_type(params);
-            const bool q = wtype != GrWType::f16;
-            const bool gate_q = q && desc->produce_write_gate;
-            if (params.is_dynamic()) {
-                add_stage(gr_rbar, params);
-                add_stage(gr_rbar_decode, params);
-                for (auto* stage : {&down_stage(GrTier::decode, q),
-                                    &down_stage(GrTier::mid, q),
-                                    &down_stage(GrTier::wide, q),
-                                    &up_stage(GrTier::decode, q),
-                                    &up_stage(GrTier::wide, q)}) {
+        } else if (can_use_dpas_gr_read(params)) {
+            const bool q = gr_weight_type(params) != GrWType::f16;
+            add_stage(gr_rbar, params);
+            add_stage(gr_rbar_decode, params);
+            for (auto* stage : {&down_stage(GrTier::decode, q),
+                                &down_stage(GrTier::mid, q),
+                                &down_stage(GrTier::wide, q),
+                                &up_stage(GrTier::decode, q),
+                                &up_stage(GrTier::wide, q)}) {
+                add_stage(*stage, params);
+            }
+            if (desc->hidden_size % 32 == 0) {
+                add_stage(q ? gr_read_dpas_q : gr_read_dpas, params);
+            }
+            if (q) {
+                add_stage(gr_down_proj_q_gemv, params);
+                for (auto* stage :
+                     {&gr_dq_down, &gr_dq_up, &gr_down_proj_pd_decode, &gr_down_proj_pd_mid, &gr_down_proj_pd, &gr_up_proj_pd_decode, &gr_up_proj_pd}) {
                     add_stage(*stage, params);
                 }
                 if (desc->hidden_size % 32 == 0) {
-                    add_stage(q ? gr_read_dpas_q : gr_read_dpas, params);
-                }
-                if (q) {
-                    add_stage(gr_down_proj_q_gemv, params);
-                    for (auto* stage :
-                         {&gr_dq_down, &gr_dq_up, &gr_down_proj_pd_decode, &gr_down_proj_pd_mid, &gr_down_proj_pd, &gr_up_proj_pd_decode, &gr_up_proj_pd}) {
-                        add_stage(*stage, params);
-                    }
-                    if (desc->hidden_size % 32 == 0) {
-                        add_stage(gr_read_dpas_pd, params);
-                    }
-                }
-                if (gate_q) {
-                    for (auto* stage : {&gr_dq_inject, &gr_gate_mid, &gr_gate_wide}) {
-                        add_stage(*stage, params);
-                    }
-                }
-            } else {
-                const size_t rows = rows_of(params, *desc);
-                const auto p = read_plan(*desc, wtype, rows, info);
-                if (p.pd) {
-                    add_stage(gr_dq_down, params);
-                    add_stage(gr_dq_up, params);
-                }
-                if (p.dq_inject) {
-                    add_stage(gr_dq_inject, params);
-                }
-                if (p.single) {
-                    add_stage(p.pd ? gr_read_dpas_pd : (q ? gr_read_dpas_q : gr_read_dpas), params);
-                } else {
-                    add_stage(rbar_stage(rows), params);
-                    if (p.gate_stage) {
-                        add_stage(gate_stage(p.tier), params);
-                    }
-                    add_stage(down_stage(p.tier, q, p.pd), params);
-                    add_stage(up_stage(gr_up_tier(rows), q, p.pd), params);
+                    add_stage(gr_read_dpas_pd, params);
                 }
             }
-        } else if (params.is_dynamic()) {
+            if (q && desc->produce_write_gate) {
+                for (auto* stage : {&gr_dq_inject, &gr_gate_mid, &gr_gate_wide}) {
+                    add_stage(*stage, params);
+                }
+            }
+        } else {
             add_stage(gr_read_decode, params);
             add_stage(gr_read, params);
-        } else {
-            add_stage(rows_of(params, *desc) <= gr_decode_rows ? gr_read_decode : gr_read, params);
         }
+    }
+
+    /// The stages one call over `rows` token rows dispatches, in order: the scratch buffers are produced and consumed in it.
+    std::vector<Stage::Ptr*> stages_for(const RuntimeParams& params, size_t rows) {
+        const auto desc = params.typed_desc<gated_residual>();
+        if (desc->mode == gated_residual::Mode::WRITE) {
+            return {&gr_write};
+        }
+        if (!can_use_dpas_gr_read(params)) {
+            return {rows <= gr_decode_rows ? &gr_read_decode : &gr_read};
+        }
+        const auto p = read_plan(params, rows);
+        std::vector<Stage::Ptr*> stages;
+        if (p.pd) {
+            stages.push_back(&gr_dq_down);
+            stages.push_back(&gr_dq_up);
+        }
+        if (p.dq_inject) {
+            stages.push_back(&gr_dq_inject);
+        }
+        if (p.single) {
+            stages.push_back(p.pd ? &gr_read_dpas_pd : (p.q ? &gr_read_dpas_q : &gr_read_dpas));
+            return stages;
+        }
+        stages.push_back(&rbar_stage(rows));
+        if (p.gate_stage) {
+            stages.push_back(&gate_stage(p.tier));
+        }
+        stages.push_back(&down_stage(p.tier, p.q, p.pd));
+        stages.push_back(&up_stage(gr_up_tier(rows), p.q, p.pd));
+        return stages;
     }
 
     Stage::Ptr& rbar_stage(size_t rows) {
@@ -1243,103 +1225,45 @@ public:
         return make_deep_copy<GatedResidualImpl>(this);
     }
 
-    // The default execute() would only expose the LAST dispatched kernel's event, which is wrong for the 3-dispatch READ
-    // pipeline; this override chains the stages explicitly and records every stage's own event for the roofline tests.
-    event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
-        kernel_dump_info.clear_entries();
-        if (instance.can_be_optimized()) {
-            return instance.get_network().get_stream().aggregate_events(events, events.size() > 1, instance.is_output());
+    // A dynamic impl holds every stage; the row count picks the ones to run.
+    [[nodiscard]] std::vector<size_t> get_stages_execution_order(const kernel_impl_params& params) const override {
+        const size_t rows = rows_of(params, *params.typed_desc<gated_residual>());
+        // stages_for only reads the identities of the stage members
+        const auto stages = const_cast<GatedResidualImpl*>(this)->stages_for(params, rows);
+        std::vector<size_t> order;
+        for (const auto* stage : stages) {
+            const auto it = std::find(_stages.begin(), _stages.end(), stage->get());
+            OPENVINO_ASSERT(it != _stages.end() && has_stage(*stage), "[GPU][OCL] gated_residual: a stage for ", rows, " rows was not built");
+            order.push_back(static_cast<size_t>(it - _stages.begin()));
         }
-        update_rt_params(instance);
-        g_gr_stage_events.clear();
-
-        if (has_stage(gr_write)) {
-            auto ev = execute_stage(events, instance, gr_write);
-            record_stage_event("WRITE", ev);
-            return ev;
-        }
-        const auto& params = *instance.get_impl_params();
-        const auto desc = params.typed_desc<gated_residual>();
-        const size_t rows = rows_of(params, *desc);
-        if (can_use_dpas_gr_read(*desc, params.get_device_info())) {
-            const auto p = read_plan(*desc, gr_weight_type(params), rows, params.get_device_info());
-            std::vector<event::ptr> deps = events;
-            std::vector<event::ptr> all;
-            // every stage depends on the previous one: the scratch buffers are produced and consumed in this order
-            auto run = [&](const char* name, Stage::Ptr& stage) {
-                OPENVINO_ASSERT(has_stage(stage), "[GPU][OCL] gated_residual: stage ", name, " for ", rows, " rows was not built");
-                auto ev = execute_stage(deps, instance, stage);
-                record_stage_event(name, ev);
-                deps = {ev};
-                all.push_back(ev);
-            };
-            if (p.pd) {
-                run("DEQUANT", gr_dq_down);
-                run("DEQUANT", gr_dq_up);
-            }
-            if (p.dq_inject) {
-                run("DEQUANT", gr_dq_inject);
-            }
-            if (p.single) {
-                run("READ_DPAS", p.pd ? gr_read_dpas_pd : (p.q ? gr_read_dpas_q : gr_read_dpas));
-                return all.size() == 1 ? all.front() : instance.get_network().get_stream().aggregate_events(all, true, instance.is_output());
-            }
-            run("RBAR", rbar_stage(rows));
-            if (p.gate_stage) {
-                run("GATE", gate_stage(p.tier));
-            }
-            run("DOWN_PROJ", down_stage(p.tier, p.q, p.pd));
-            run("UP_PROJ", up_stage(gr_up_tier(rows), p.q, p.pd));
-            return instance.get_network().get_stream().aggregate_events(all, true, instance.is_output());
-        }
-        auto& read = rows <= gr_decode_rows ? gr_read_decode : gr_read;
-        OPENVINO_ASSERT(has_stage(read), "[GPU][OCL] gated_residual: read stage for ", rows, " rows was not built");
-        auto ev = execute_stage(events, instance, read);
-        record_stage_event("READ", ev);
-        return ev;
+        return order;
     }
 
-    // RBAR / T scratch exist only for the static 3-dispatch pipeline.
+    // The scratch buffers exist only for the static dpas READ. Their indices are fixed (the dynamic impl's kernels bind them
+    // before the row count is known), so a buffer the plan does not use is a 1-element placeholder.
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
         if (params.is_dynamic()) {
             return {};
         }
         const auto desc = params.typed_desc<gated_residual>();
-        if (desc->mode == gated_residual::Mode::WRITE || !can_use_dpas_gr_read(*desc, params.get_device_info())) {
+        if (desc->mode == gated_residual::Mode::WRITE || !can_use_dpas_gr_read(params)) {
             return {};
         }
         const size_t cd = desc->hc_count * desc->hidden_size;
         const size_t num_rows = std::max<size_t>(1, get_num_rows(params.get_input_layout(0), cd));
-        const auto p = read_plan(*desc, gr_weight_type(params), num_rows, params.get_device_info());
-        if (p.single && !p.pd) {
-            return {};  // gr_read_dpas keeps its intermediates in SLM
-        }
-        std::vector<BufferDescriptor> bufs;
-        // the single kernel does not use RBAR / T_SCRATCH; they only keep the indices of the weight scratch buffers stable
-        bufs.emplace_back(p.single ? 1 : num_rows * cd, ov::element::f16);                                  // RBAR
-        bufs.emplace_back(p.single ? 1 : num_rows * std::max<size_t>(1, desc->lowrank), ov::element::f16);  // T_SCRATCH
-        if (p.pd || p.dq_inject) {
-            bufs.emplace_back(p.pd ? desc->lowrank * cd : 1, ov::element::f16);  // WD_F16
-            bufs.emplace_back(p.pd ? cd * desc->lowrank : 1, ov::element::f16);  // WU_F16
-        }
-        if (p.dq_inject) {
-            bufs.emplace_back(desc->hc_count * cd, ov::element::f16);  // WI_F16
-        }
-        return bufs;
+        const auto p = read_plan(params, num_rows);
+        const auto size = [](bool used, size_t count) {
+            return used ? count : size_t{1};
+        };
+        return {BufferDescriptor{size(!p.single, num_rows * cd), ov::element::f16},             // RBAR
+                BufferDescriptor{size(!p.single, num_rows * desc->lowrank), ov::element::f16},  // T_SCRATCH
+                BufferDescriptor{size(p.pd, desc->lowrank * cd), ov::element::f16},             // WD_F16
+                BufferDescriptor{size(p.pd, cd * desc->lowrank), ov::element::f16},             // WU_F16
+                BufferDescriptor{size(p.dq_inject, desc->hc_count * cd), ov::element::f16}};    // WI_F16
     }
 };
 
 }  // namespace
-
-namespace gr_debug {
-
-std::vector<std::pair<std::string, event::ptr>> take_stage_events() {
-    std::vector<std::pair<std::string, event::ptr>> result;
-    result.swap(g_gr_stage_events);
-    return result;
-}
-
-}  // namespace gr_debug
 
 bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node& node) const {
     assert(node.is_type<cldnn::gated_residual>());
@@ -1349,21 +1273,18 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
     }
 
     const auto& info = node.get_program().get_engine().get_device_info();
-    if (!info.supports_intel_subgroups || !info.supports_intel_subgroups_short) {
+    if (!caps::is_device_supported(info)) {
         return false;
     }
 
     const auto desc = node.as<cldnn::gated_residual>().get_primitive();
-    if (!ov::intel_gpu::op::GatedResidual::is_geometry_supported(desc->mode,
-                                                                 desc->hc_count,
-                                                                 desc->hidden_size,
-                                                                 desc->lowrank,
-                                                                 ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(info))) {
+    const bool systolic = caps::has_systolic(info, node.get_program().get_config());
+    if (!caps::is_geometry_supported(desc->mode, desc->hc_count, desc->hidden_size, desc->lowrank, systolic)) {
         return false;
     }
 
-    // Compressed READ / FINAL_MIX: i4 / u4 (group 32) or i8 / u8 (per-channel) W_down / W_up (and W_inject) with f16 scales and
-    // optional zero points of the weight type, dpas path only.
+    // Compressed READ / FINAL_MIX: i4 / u4 / i8 / u8 W_down / W_up (and W_inject) with f16 scales and optional zero points of
+    // the weight type, dpas path only.
     const size_t input_count = node.get_dependencies().size();
     std::optional<GrOp::ReadLayout> layout;
     if (desc->mode != cldnn::gated_residual::Mode::WRITE) {
@@ -1373,7 +1294,7 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         }
     }
     if (layout && layout->compressed) {
-        if (!GrOp::is_compression_arch_supported(info) || !can_use_dpas_gr_read(*desc, info)) {
+        if (!caps::uses_dpas_read(desc->lowrank, systolic)) {
             return false;
         }
         const auto wt = node.get_input_layout(2).data_type;
@@ -1397,8 +1318,8 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         const size_t gd = sd.get_shape()[0];
         const size_t gu = su.get_shape()[0];
         const size_t bits = ov::element::Type(wt).bitwidth();
-        if (sd.get_shape()[1] != desc->lowrank || su.get_shape()[1] != cd ||
-            !GrOp::is_weight_compression_supported(bits, desc->lowrank, cd, gd, cd, desc->lowrank, gu)) {
+        if (sd.get_shape()[1] != desc->lowrank || su.get_shape()[1] != cd || !caps::is_matrix_compression_supported(bits, desc->lowrank, cd, gd) ||
+            !caps::is_matrix_compression_supported(bits, cd, desc->lowrank, gu)) {
             return false;
         }
         if (desc->produce_write_gate) {
@@ -1406,7 +1327,7 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
             const auto& si = node.get_input_layout(layout->scale_inject);
             if (wi.is_dynamic() || si.is_dynamic() || wi.get_partial_shape().size() != 2 || si.get_partial_shape().size() != 2 ||
                 wi.get_shape()[0] != desc->hc_count || wi.get_shape()[1] != cd || si.get_shape()[1] != desc->hc_count ||
-                !GrOp::is_write_gate_compression_supported(bits, desc->hc_count, cd, si.get_shape()[0])) {
+                !caps::is_row_compression_supported(bits, cd, si.get_shape()[0])) {
                 return false;
             }
         }

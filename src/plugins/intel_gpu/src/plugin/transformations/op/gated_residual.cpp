@@ -10,7 +10,7 @@ namespace {
 
 /// Rank is dynamic, or last dimension is dynamic, or it equals `expected`.
 bool last_dim_matches(const ov::PartialShape& ps, size_t expected) {
-    return ps.rank().is_dynamic() || ps.rank().get_length() == 0 || ps[ps.rank().get_length() - 1].compatible(static_cast<int64_t>(expected));
+    return ps.rank().is_dynamic() || (ps.rank().get_length() > 0 && ps[ps.rank().get_length() - 1].compatible(static_cast<int64_t>(expected)));
 }
 
 /// Rank-2 weight [rows, cols] where each static dimension must match.
@@ -148,8 +148,7 @@ void GatedResidual::validate_and_infer_types() {
                           "GatedResidual takes i4/u4/i8/u8 weights exactly with the compressed input forms.");
     if (compressed) {
         // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; the group size along K is K / G (not an attribute).
-        const size_t bits = wd_et.is_dynamic() ? 8 : wd_et.bitwidth();
-        auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name, bool write_gate) {
+        auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name) {
             const auto& sps = get_input_partial_shape(scale_idx);
             NODE_VALIDATION_CHECK(this,
                                   sps.rank().is_dynamic() || (sps.rank().get_length() == 2 && sps[1].compatible(static_cast<int64_t>(n))),
@@ -181,41 +180,17 @@ void GatedResidual::validate_and_infer_types() {
             }
             if (sps.rank().is_static() && sps[0].is_static()) {
                 const auto g = static_cast<size_t>(sps[0].get_length());
-                const size_t group_size = derive_group_size(k, g);
-                NODE_VALIDATION_CHECK(this, group_size != 0, "GatedResidual ", name, ": K = ", k, " is not divisible by the scale group count G = ", g);
-                NODE_VALIDATION_CHECK(this,
-                                      is_group_size_supported(k, group_size),
-                                      "GatedResidual ",
-                                      name,
-                                      ": unsupported group size ",
-                                      group_size,
-                                      " (K / G with K = ",
-                                      k,
-                                      ", G = ",
-                                      g,
-                                      "); supported: a multiple of ",
-                                      group_size_step,
-                                      " that divides K.");
-                NODE_VALIDATION_CHECK(this,
-                                      write_gate ? is_write_gate_compression_supported(bits, n, k, g) : is_weight_compression_supported(bits, n, k, g, n, k, g),
-                                      "GatedResidual ",
-                                      name,
-                                      ": unsupported weight geometry N = ",
-                                      n,
-                                      ", K = ",
-                                      k,
-                                      write_gate ? " (K must be a multiple of 32 and K * bits / 8 a multiple of 16)."
-                                                 : " (N must be a multiple of 16, K a multiple of 32, and K * bits / 8 a multiple of 16).");
+                NODE_VALIDATION_CHECK(this, g != 0 && k % g == 0, "GatedResidual ", name, ": K = ", k, " is not divisible by the scale group count G = ", g);
             }
         };
-        check_group(ReadInputIdx::SCALE_DOWN, ReadInputIdx::ZP_DOWN, m_lowrank, cd, "W_down", false);
-        check_group(ReadInputIdx::SCALE_UP, ReadInputIdx::ZP_UP, cd, m_lowrank, "W_up", false);
+        check_group(ReadInputIdx::SCALE_DOWN, ReadInputIdx::ZP_DOWN, m_lowrank, cd, "W_down");
+        check_group(ReadInputIdx::SCALE_UP, ReadInputIdx::ZP_UP, cd, m_lowrank, "W_up");
         if (m_produce_write_gate) {
             NODE_VALIDATION_CHECK(this,
                                   get_input_element_type(layout->w_inject).is_dynamic() || get_input_element_type(layout->w_inject) == wd_et,
                                   "GatedResidual W_inject must have the weight element type ",
                                   wd_et);
-            check_group(layout->scale_inject, layout->zp_inject, m_hc_count, cd, "W_inject", true);
+            check_group(layout->scale_inject, layout->zp_inject, m_hc_count, cd, "W_inject");
         }
     }
     if (m_produce_write_gate) {

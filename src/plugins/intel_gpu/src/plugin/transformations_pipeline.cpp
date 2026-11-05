@@ -104,13 +104,13 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_avg_down.hpp"
-#include "plugin/transformations/qsa_gr_fusion.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_grouped_depth_to_space.hpp"
 #include "plugin/transformations/fuse_hadamard_fc.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
 #include "plugin/transformations/fuse_rms_rope.hpp"
+#include "plugin/transformations/gated_residual_fusion.hpp"
 #include "plugin/transformations/group_query_attention_decomposition.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
@@ -125,7 +125,7 @@
 #include "plugin/transformations/stateless_kv_fusion.hpp"
 #include "plugin/transformations/swoosh_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
-#include "intel_gpu/op/gated_residual.hpp"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
 #include "transformations/common_optimizations/move_fc_reshape_to_weights.hpp"
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
@@ -1654,7 +1654,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
         manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
-        manager.register_pass<ov::intel_gpu::GatedResidualFusion>(ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(device_info));
+        // A fused GatedResidual node has no implementation without the subgroup extensions.
+        if (cldnn::gated_residual_caps::is_device_supported(device_info)) {
+            manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::has_systolic(device_info, config));
+        }
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 

@@ -2,83 +2,52 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "qsa_gr_fusion.hpp"
+#include "gated_residual_fusion.hpp"
 
+#include <algorithm>
 #include <cmath>
-#include <deque>
-#include <functional>
 #include <memory>
 #include <optional>
-#include <unordered_set>
 #include <vector>
 
 #include "compressed_weights_pattern.hpp"
 #include "intel_gpu/op/gated_residual.hpp"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
-#include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/variable.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu {
 
 namespace {
 
-/// Compressed-weight checkpoints store scalars as `Convert(f16-Constant)`, and some
-/// dynamic-shape exporters clamp a static capacity with `Minimum(capacity, runtime_len)`.
-/// Neither of those wrapper nodes changes the value we actually care about, so peel
-/// through them to find the underlying constant.
+namespace caps = cldnn::gated_residual_caps;
+
+/// Compressed-weight checkpoints store scalars as `Convert(f16-Constant)`; peel the Convert to find the underlying constant.
 ov::Output<ov::Node> resolve_constant_source(ov::Output<ov::Node> out) {
-    for (int guard = 0; guard < 4; ++guard) {
-        auto node = out.get_node_shared_ptr();
-        if (ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-            return out;
-        }
-        if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
-            out = convert->input_value(0);
-            continue;
-        }
-        if (auto minimum = ov::as_type_ptr<ov::op::v1::Minimum>(node)) {
-            if (ov::as_type_ptr<ov::op::v0::Constant>(minimum->input_value(0).get_node_shared_ptr())) {
-                out = minimum->input_value(0);
-                continue;
-            }
-            if (ov::as_type_ptr<ov::op::v0::Constant>(minimum->input_value(1).get_node_shared_ptr())) {
-                out = minimum->input_value(1);
-                continue;
-            }
-        }
-        break;
+    while (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(out.get_node_shared_ptr())) {
+        out = convert->input_value(0);
     }
     return out;
 }
@@ -175,8 +144,6 @@ std::optional<ov::Output<ov::Node>> other_operand(const std::shared_ptr<ov::Node
     return std::nullopt;
 }
 
-constexpr size_t supported_branch_count = 4;
-
 /// Reads the [..., C, D] branch split from a Reshape's inferred output shape, so rank-4
 /// [B, L, C, D] splits and ShapeOf-built (non-Constant) targets of dynamic models qualify.
 bool get_branch_split(const ov::Output<ov::Node>& split, size_t& C, size_t& D) {
@@ -196,8 +163,8 @@ struct CompressedWeight {
     ov::Output<ov::Node> scale;    // Constant f16 [G, N]
     ov::Output<ov::Node> zp;       // Constant of the weight type (4-bit packed) [G, N]; empty without zero points
     ov::element::Type type;        // weight element type
-    size_t bits = 0;               // 4 (group 32) or 8 (per-channel)
-    size_t groups = 0;
+    size_t bits = 0;               // 4 or 8
+    size_t groups = 0;             // scale rows G, the group size is K / G
 
     bool has_zp() const {
         return zp.get_node() != nullptr;
@@ -209,7 +176,7 @@ struct CompressedWeight {
 /// A scalar zero point of 0, or of 2^(bits - 1) on unsigned weights (older NNCF symmetric u4 / u8), is the symmetric form: the
 /// latter is converted to the equivalent signed weights without zero point by flipping the sign bit of every element.
 /// Rejected: transposed [K, N] weights, an extra scale multiply, non-Constant weights / scale / zp, a scalar scale, other scalar
-/// zero points and group sizes that GatedResidual::is_group_size_supported() refuses.
+/// zero points and group sizes that caps::is_group_size_supported() refuses.
 std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w, size_t N, size_t K) {
     using namespace ov::pass::pattern;
     FC_COMPRESSED_WEIGHT_PATTERN
@@ -260,7 +227,7 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     } else {
         return std::nullopt;
     }
-    if ((has_zp && zp->get_shape() != ss) || !op::GatedResidual::is_group_size_supported(K, op::GatedResidual::derive_group_size(K, G))) {
+    if ((has_zp && zp->get_shape() != ss) || !caps::is_group_size_supported(K, caps::derive_group_size(K, G))) {
         return std::nullopt;
     }
 
@@ -465,7 +432,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
 
     auto root_pattern = mixed | reduced_mean;
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         auto root = m.get_match_root();
         if (transformation_callback(root)) {
@@ -505,7 +472,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
             C = static_cast<size_t>(w_down_shape[1].get_length()) / D;
         }
-        if (C != supported_branch_count || D == 0) {
+        if (C != caps::supported_hc_count || D == 0) {
             return false;
         }
 
@@ -567,7 +534,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
         const auto w_up = up_mm->input_value(1);
         const auto& w_down_ps = w_down.get_partial_shape();
         const auto& w_up_ps = w_up.get_partial_shape();
-        if (w_down_ps.rank().get_length() != 2 || w_up_ps.rank().get_length() != 2 || w_down_ps.is_dynamic() || w_up_ps.is_dynamic()) {
+        if (w_down_ps.is_dynamic() || w_up_ps.is_dynamic() || w_down_ps.size() != 2 || w_up_ps.size() != 2) {
             return false;
         }
         const auto L = static_cast<size_t>(w_down_ps[0].get_length());
@@ -575,7 +542,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             static_cast<size_t>(w_up_ps[1].get_length()) != L) {
             return false;
         }
-        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, L, systolic)) {
+        if (!caps::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, L, systolic)) {
             return false;
         }
 
@@ -586,8 +553,8 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
         if (systolic) {
             const auto cd = match_compressed_weight(w_down, L, C * D);
             const auto cu = match_compressed_weight(w_up, C * D, L);
-            if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp() &&
-                op::GatedResidual::is_weight_compression_supported(cd->bits, L, C * D, cd->groups, C * D, L, cu->groups)) {
+            if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp() && caps::is_matrix_compression_supported(cd->bits, L, C * D, cd->groups) &&
+                caps::is_matrix_compression_supported(cu->bits, C * D, L, cu->groups)) {
                 weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale};
                 if (cd->has_zp()) {
                     weight_inputs.push_back(cd->zp);
@@ -680,7 +647,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             if (compressed_down) {
                 const auto ci = match_compressed_weight(gate_branch->w_inject, C, C * D);
                 if (ci && ci->type == compressed_down->type && ci->has_zp() == compressed_down->has_zp() &&
-                    op::GatedResidual::is_write_gate_compression_supported(ci->bits, C, C * D, ci->groups)) {
+                    caps::is_row_compression_supported(ci->bits, C * D, ci->groups)) {
                     gate_inputs = {ci->weights, ci->scale};
                     if (ci->has_zp()) {
                         gate_inputs.push_back(ci->zp);
@@ -771,7 +738,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
 
     auto root_pattern = result_a | updated_b;
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         auto root = m.get_match_root();
         if (transformation_callback(root)) {
@@ -793,7 +760,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         }
         const auto C = static_cast<size_t>(gate_ps[gate_ps.size() - 2].get_length());
         const auto D = static_cast<size_t>(y_ps[y_ps.size() - 1].get_length());
-        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::WRITE, C, D, 0)) {
+        if (!caps::is_geometry_supported(op::GatedResidual::Mode::WRITE, C, D, 0, false)) {
             return false;
         }
 

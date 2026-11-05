@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/gated_residual.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -25,11 +26,13 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "gated_residual_inst.h"
-#include "impls/ocl_v2/gated_residual/gated_residual_stage_events.hpp"
 #include "intel_gpu/op/gated_residual.hpp"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -50,18 +53,26 @@
 
 using namespace cldnn;
 using namespace ::tests;
+namespace caps = cldnn::gated_residual_caps;
 
 namespace {
 
 constexpr size_t kBranches = 4;
 
 bool gr_available() {
-    const auto& info = get_test_engine().get_device_info();
-    return info.supports_intel_subgroups && info.supports_intel_subgroups_short;
+    return caps::is_device_supported(get_test_engine().get_device_info());
 }
 
-std::vector<std::pair<std::string, cldnn::event::ptr>> take_stage_events() {
-    return ov::intel_gpu::ocl::gr_debug::take_stage_events();
+/// The test networks' config after finalization, i.e. with the GPU_GR_* debug options read from the environment.
+ExecutionConfig finalized_test_config() {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.finalize(engine);
+    return config;
+}
+
+bool gr_systolic() {
+    return caps::has_systolic(get_test_engine().get_device_info(), finalized_test_config());
 }
 
 float sigmoidf(float x) {
@@ -177,11 +188,34 @@ memory::ptr make_f16(engine& eng, const ov::PartialShape& shape, const std::vect
     return mem;
 }
 
-/// Stage names recorded by the last GatedResidualImpl::execute() on this thread.
-std::vector<std::string> executed_stages() {
+/// Stages the last execution of `id` dispatched, named after their kernels' entry points.
+std::vector<std::string> executed_stages(network& net, const primitive_id& id) {
+    const auto inst = net.get_primitive(id);
+    std::istringstream entries(inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries());
     std::vector<std::string> names;
-    for (const auto& stage_event : take_stage_events()) {
-        names.push_back(stage_event.first);
+    for (std::string kernel; entries >> kernel;) {
+        auto starts_with = [&](const char* prefix) {
+            return kernel.rfind(prefix, 0) == 0;
+        };
+        if (starts_with("gr_write_")) {
+            names.emplace_back("WRITE");
+        } else if (starts_with("gr_read_pipeline_rbar")) {
+            names.emplace_back("RBAR");
+        } else if (starts_with("gr_read_pipeline_down")) {
+            names.emplace_back("DOWN_PROJ");
+        } else if (starts_with("gr_read_pipeline_up")) {
+            names.emplace_back("UP_PROJ");
+        } else if (starts_with("gr_read_pipeline_gate")) {
+            names.emplace_back("GATE");
+        } else if (starts_with("gr_read_dpas_")) {
+            names.emplace_back("READ_DPAS");
+        } else if (starts_with("gr_read_")) {
+            names.emplace_back("READ");
+        } else if (starts_with("gr_common_")) {
+            names.emplace_back("DEQUANT");
+        } else {
+            names.push_back(kernel);
+        }
     }
     return names;
 }
@@ -195,12 +229,10 @@ std::vector<std::string> pipeline_stages() {
 }
 
 std::vector<std::string> expected_read_stages(size_t rows, size_t D, size_t L) {
-    const auto& info = get_test_engine().get_device_info();
-    const bool xmx = !ov::intel_gpu::op::GatedResidual::force_scalar() && info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad;
-    if (!xmx || L % 32 != 0) {
+    if (!caps::uses_dpas_read(L, gr_systolic())) {
         return {"READ"};
     }
-    const size_t eu = info.execution_units_count;
+    const size_t eu = get_test_engine().get_device_info().execution_units_count;
     if (D % 32 == 0 && rows > 4 * eu) {
         return {"READ_DPAS"};
     }
@@ -224,8 +256,7 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
     }
 
     const auto tc = GetParam();
-    using GR = ov::intel_gpu::op::GatedResidual;
-    if (!GR::is_geometry_supported(GR::Mode::READ, 4, tc.D, tc.L, GR::is_compression_arch_supported(get_test_engine().get_device_info()))) {
+    if (!caps::is_geometry_supported(gated_residual::Mode::READ, 4, tc.D, tc.L, gr_systolic())) {
         GTEST_SKIP() << "the geometry needs the systolic READ kernels";
     }
     gr_ref_params p;
@@ -289,7 +320,7 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
     ASSERT_TRUE(outputs.count("gr_read") > 0);
 
     cldnn::mem_lock<ov::float16> mixed_out(outputs.at("gr_read").get_memory(), get_test_stream());
-    EXPECT_EQ(executed_stages(), expected_read_stages(p.rows, p.D, p.L));
+    EXPECT_EQ(executed_stages(network, "gr_read"), expected_read_stages(p.rows, p.D, p.L));
     ASSERT_EQ(mixed_out.size(), ref_mixed.size());
     float mixed_err = 0.0f;
     for (size_t i = 0; i < ref_mixed.size(); i++) {
@@ -367,8 +398,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
 // --- compressed weights: u4 (group 32) / u8 (per-channel), asymmetric ------------------------------------------------------
 
 bool gr_compression_available() {
-    const auto& info = get_test_engine().get_device_info();
-    return ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(info);
+    return gr_systolic();
 }
 
 /// One quantized [N, K] weight matrix with its [G, N] scale / optional zp and the exact f16 tensor the decompression graph produces.
@@ -515,7 +545,7 @@ gr_run_result run_gr_read(const gr_ref_params& p,
         cldnn::mem_lock<ov::float16> gate(network.get_primitive("gr")->output_memory_ptr(1), get_test_stream());
         result.gate.assign(gate.begin(), gate.end());
     }
-    result.stages = executed_stages();
+    result.stages = executed_stages(network, "gr");
     return result;
 }
 
@@ -532,14 +562,12 @@ struct gr_quant_case {
 };
 
 size_t scratch_limit_bytes() {
-    const char* env = std::getenv("OV_GPU_GR_Q_SCRATCH_LIMIT_MB");
-    return (env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10)) : size_t{256}) << 20;
+    return GPU_DEBUG_VALUE_OR(finalized_test_config().get_gr_q_scratch_limit_mb(), size_t{256}) << 20;
 }
 
 size_t pd_min_rows() {
-    const char* env = std::getenv("OV_GPU_GR_PD_MIN_ROWS");
-    return env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10))
-                          : 5 * static_cast<size_t>(get_test_engine().get_device_info().execution_units_count);
+    const int64_t rows = GPU_DEBUG_VALUE_OR(finalized_test_config().get_gr_pd_min_rows(), int64_t{-1});
+    return rows >= 0 ? static_cast<size_t>(rows) : 5 * static_cast<size_t>(get_test_engine().get_device_info().execution_units_count);
 }
 
 class gated_residual_quant_test : public ::testing::TestWithParam<gr_quant_case> {};
@@ -894,7 +922,7 @@ TEST_P(gated_residual_write_test, combines_branches) {
 
     auto outputs = network.execute();
     cldnn::mem_lock<ov::float16> out(outputs.at("gr_write").get_memory(), get_test_stream());
-    EXPECT_EQ(executed_stages(), std::vector<std::string>{"WRITE"});
+    EXPECT_EQ(executed_stages(network, "gr_write"), std::vector<std::string>{"WRITE"});
     ASSERT_EQ(out.size(), ref.size());
     for (size_t i = 0; i < ref.size(); i++) {
         ASSERT_NEAR(static_cast<float>(out[i]), ref[i], 1e-2f) << "residual update mismatch at " << i;
@@ -1127,69 +1155,32 @@ double executing_ms(const event::ptr& ev) {
     return -1.0;
 }
 
-/// GPU-side total duration of one gated_residual call, summed across every kernel
-/// dispatch recorded via gated_residual_stage_events.hpp. The systolic READ/FINAL_MIX path runs 3
-/// kernels (RBAR, down-proj, up-proj) behind one clDNN primitive, so
-/// `network::get_executed_primitives()` alone would only expose the last of them (see
-/// gated_residual_stage_events.hpp). `per_stage`, if
-/// given, receives each stage's mean time in dispatch order.
-double time_primitive_ms(network& net,
-                         const std::string& primitive_id,
-                         int warmup,
-                         int iterations,
-                         std::vector<std::pair<std::string, double>>* per_stage = nullptr) {
+/// GPU-side mean duration of one gated_residual call. The profiling event of a multi-dispatch READ aggregates all of its kernels.
+double time_primitive_ms(network& net, const std::string& primitive_id, int warmup, int iterations) {
     for (int i = 0; i < warmup; i++) {
-        auto outputs = net.execute();
-        outputs.at(primitive_id).get_memory();
-        for (auto& stage_event : take_stage_events()) {
-            if (stage_event.second != nullptr) {
-                stage_event.second->wait();
-            }
-        }
+        net.execute().at("sink").get_memory();
     }
     // Iterations are enqueued back-to-back and only synchronized at the end: a host wait per
     // iteration leaves the GPU idle long enough for DVFS to drop the clock, which makes the
     // per-kernel times drift within one run.
-    std::vector<std::vector<std::pair<std::string, event::ptr>>> iteration_events;
-    iteration_events.reserve(static_cast<size_t>(iterations));
+    std::vector<event::ptr> events;
+    events.reserve(static_cast<size_t>(iterations));
     for (int i = 0; i < iterations; i++) {
         net.execute();
-        iteration_events.push_back(take_stage_events());
+        events.push_back(net.get_executed_primitives().at(primitive_id));
     }
     std::vector<double> samples;
-    samples.reserve(static_cast<size_t>(iterations));
-    std::vector<std::pair<std::string, double>> stage_sums;
-    for (const auto& stage_events : iteration_events) {
-        double total = 0.0;
-        bool any = false;
-        size_t idx = 0;
-        for (const auto& stage_event : stage_events) {
-            if (stage_event.second != nullptr) {
-                stage_event.second->wait();
-            }
-            const double ms = executing_ms(stage_event.second);
-            if (ms >= 0.0) {
-                total += ms;
-                any = true;
-                if (stage_sums.size() <= idx) {
-                    stage_sums.emplace_back(stage_event.first, 0.0);
-                }
-                stage_sums[idx].second += ms;
-            }
-            idx++;
-        }
-        if (any) {
-            samples.push_back(total);
+    samples.reserve(events.size());
+    for (const auto& ev : events) {
+        ev->wait();
+        const double ms = executing_ms(ev);
+        if (ms >= 0.0) {
+            samples.push_back(ms);
         }
     }
     if (samples.empty()) {
         ADD_FAILURE() << "no 'executing' profiling interval was captured for " << primitive_id;
         return 0.0;
-    }
-    if (per_stage != nullptr) {
-        for (auto& s : stage_sums) {
-            per_stage->emplace_back(s.first, s.second / static_cast<double>(samples.size()));
-        }
     }
     return mean_ms(samples);
 }
@@ -1245,6 +1236,8 @@ void run_point(const char* phase, size_t tokens) {
                                 p.eps,
                                 /*norm_gain_plus_one=*/false,
                                 /*produce_write_gate=*/false));
+    // A network output's event is a marker; with a consumer the event of a multi-dispatch READ groups all of its kernels.
+    topology.add(activation("sink", input_info("gr_read"), activation_func::abs));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -1253,12 +1246,7 @@ void run_point(const char* phase, size_t tokens) {
     network net(engine, topology, config);
     net.set_input_data("residual", residual_mem);
 
-    std::vector<std::pair<std::string, double>> per_stage;
-    const double ms = time_primitive_ms(net, "gr_read", /*warmup=*/20, /*iterations=*/100, &per_stage);
-    for (const auto& s : per_stage) {
-        print_measurement(phase, tokens, s.first.c_str(), s.second);
-    }
-    print_measurement(phase, tokens, "READ/MIX", ms);
+    print_measurement(phase, tokens, "READ/MIX", time_primitive_ms(net, "gr_read", /*warmup=*/20, /*iterations=*/100));
 }
 
 }  // namespace roofline
@@ -1285,49 +1273,25 @@ memory::ptr to_device(engine& eng, const memory::ptr& host) {
     return dev;
 }
 
-double measure_cycle(ab_config& cfg, int warmup, int iterations, std::vector<std::pair<std::string, double>>& per_stage) {
+/// Mean GPU time of one call, cycling through the layers of `cfg`.
+double measure_cycle(ab_config& cfg, int warmup, int iterations) {
     const size_t nl = cfg.layers.size();
     for (int i = 0; i < warmup; i++) {
-        auto& net = *cfg.layers[static_cast<size_t>(i) % nl];
-        net.execute();
-        for (auto& e : take_stage_events()) {
-            if (e.second != nullptr) {
-                e.second->wait();
-            }
-        }
+        cfg.layers[static_cast<size_t>(i) % nl]->execute().at("sink").get_memory();
     }
-    std::vector<std::vector<std::pair<std::string, event::ptr>>> events;
+    std::vector<event::ptr> events;
     events.reserve(static_cast<size_t>(iterations));
     for (int i = 0; i < iterations; i++) {
-        cfg.layers[static_cast<size_t>(i) % nl]->execute();
-        events.push_back(take_stage_events());
+        auto& net = *cfg.layers[static_cast<size_t>(i) % nl];
+        net.execute();
+        events.push_back(net.get_executed_primitives().at("gr"));
     }
-    std::vector<std::pair<std::string, double>> sums;
-    size_t counted = 0;
-    for (const auto& stage_events : events) {
-        size_t idx = 0;
-        for (const auto& e : stage_events) {
-            if (e.second != nullptr) {
-                e.second->wait();
-            }
-            const double ms = roofline::executing_ms(e.second);
-            if (ms >= 0.0) {
-                if (sums.size() <= idx) {
-                    sums.emplace_back(e.first, 0.0);
-                }
-                sums[idx].second += ms;
-            }
-            idx++;
-        }
-        counted++;
-    }
-    per_stage.clear();
     double total = 0.0;
-    for (auto& s : sums) {
-        per_stage.emplace_back(s.first, s.second / static_cast<double>(counted));
-        total += s.second / static_cast<double>(counted);
+    for (const auto& ev : events) {
+        ev->wait();
+        total += std::max(0.0, roofline::executing_ms(ev));
     }
-    return total;
+    return total / static_cast<double>(events.size());
 }
 
 }  // namespace quant_ab
@@ -1486,6 +1450,7 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
                     inputs.emplace_back("w" + std::to_string(i));
                 }
                 topology.add(gated_residual("gr", inputs, gated_residual::Mode::READ, p.C, D, L, p.eps, false, cfg.gate));
+                topology.add(activation("sink", input_info("gr"), activation_func::abs));  // see roofline::run_point
                 ExecutionConfig config = get_test_default_config(engine);
                 config.set_property(ov::intel_gpu::optimize_data(true));
                 config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1498,23 +1463,13 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
 
         // keep the best round of every configuration; rounds alternate between the configurations
         std::vector<double> best(configs.size(), 1e30);
-        std::vector<std::vector<std::pair<std::string, double>>> best_stages(configs.size());
         const int rounds = long_rows ? 3 : 8;
         for (int r = 0; r < rounds; r++) {
             for (size_t c = 0; c < configs.size(); c++) {
-                std::vector<std::pair<std::string, double>> stages;
-                const double ms = quant_ab::measure_cycle(configs[c], long_rows ? 3 : 20, long_rows ? 8 : (rows >= 4096 ? 40 : 100), stages);
-                if (ms < best[c]) {
-                    best[c] = ms;
-                    best_stages[c] = stages;
-                }
+                best[c] = std::min(best[c], quant_ab::measure_cycle(configs[c], long_rows ? 3 : 20, long_rows ? 8 : (rows >= 4096 ? 40 : 100)));
             }
         }
         for (size_t c = 0; c < configs.size(); c++) {
-            for (const auto& st : best_stages[c]) {
-                std::cout << "GR_AB {\"rows\":" << rows << ",\"D\":" << D << ",\"w\":\"" << configs[c].name << "\",\"stage\":\"" << st.first
-                          << "\",\"us\":" << st.second * 1000.0 << "}" << std::endl;
-            }
             std::cout << "GR_AB {\"rows\":" << rows << ",\"D\":" << D << ",\"w\":\"" << configs[c].name << "\",\"stage\":\"TOTAL\",\"us\":" << best[c] * 1000.0
                       << "}" << std::endl;
         }
@@ -1547,14 +1502,16 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_roofline,
 // model is compiled through the normal plugin pipeline (which must fuse it into a single
 // gated_residual node) and compared against the FP32 reference of the *decomposed* math.
 // With the write gate (2 * sigmoid(Rbar . W_inject^T / C), on the same Rbar as the READ) the gate branch is fused into the READ as well:
-// one gated_residual node with two outputs, no MatMul left, and both outputs match the FP32 reference.
-class gated_residual_decomposed_read_test : public ::testing::TestWithParam<bool> {};
+// one gated_residual node with two outputs, no MatMul left, and both outputs match the FP32 reference. A fully static model
+// compiles without the new shape inference unless an op requires it, which the two-output READ does.
+class gated_residual_decomposed_read_test : public ::testing::TestWithParam<std::tuple<bool, bool>> {};
 
 TEST_P(gated_residual_decomposed_read_test, fuses_and_matches_reference) {
     if (!gr_available()) {
         GTEST_SKIP() << "no GatedResidual implementation is available on this device";
     }
-    const bool with_write_gate = GetParam();
+    const bool with_write_gate = std::get<0>(GetParam());
+    const bool static_rows = std::get<1>(GetParam());
 
     const size_t C = kBranches;
     const size_t D = 64;
@@ -1582,7 +1539,8 @@ TEST_P(gated_residual_decomposed_read_test, fuses_and_matches_reference) {
 
     // Gain and weights are model inputs so ConstantFolding cannot fold the 1/C scale into W_down
     // (real checkpoints keep their compressed weights opaque in the same way).
-    auto residual_p = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, static_cast<int64_t>(CD)});
+    constexpr int64_t kStaticRows = 64;
+    auto residual_p = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{static_rows ? kStaticRows : -1, static_cast<int64_t>(CD)});
     auto gain_p = f16_param(ov::Shape{CD});
     auto w_down_p = f16_param(ov::Shape{L, CD});
     auto w_up_p = f16_param(ov::Shape{CD, L});
@@ -1649,7 +1607,8 @@ TEST_P(gated_residual_decomposed_read_test, fuses_and_matches_reference) {
     if (with_write_gate) {
         fill(infer_request.get_input_tensor(4), w_inject);
     }
-    for (const size_t rows : {size_t{3}, size_t{64}, size_t{700}}) {
+    const auto row_counts = static_rows ? std::vector<size_t>{kStaticRows} : std::vector<size_t>{3, 64, 700};
+    for (const size_t rows : row_counts) {
         tests::random_generator input_rg;
         input_rg.set_seed(static_cast<uint32_t>(rows));
         const auto residual = random_vec(input_rg, rows * CD, 1.0f);
@@ -1689,6 +1648,6 @@ TEST_P(gated_residual_decomposed_read_test, fuses_and_matches_reference) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_decomposed_read_test, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_decomposed_read_test, ::testing::Combine(::testing::Bool(), ::testing::Bool()));
 
 }  // namespace

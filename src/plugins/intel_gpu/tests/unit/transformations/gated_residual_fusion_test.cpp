@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "plugin/transformations/qsa_gr_fusion.hpp"
+#include "plugin/transformations/gated_residual_fusion.hpp"
 
 #include <gtest/gtest.h>
 
@@ -12,6 +12,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/gated_residual.hpp"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -21,6 +22,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
@@ -38,6 +40,7 @@
 
 using namespace testing;
 using namespace ov::intel_gpu;
+namespace caps = cldnn::gated_residual_caps;
 
 namespace {
 
@@ -263,7 +266,7 @@ void expect_compressed(const std::shared_ptr<op::GatedResidual>& gr, const ov::e
 
 }  // namespace
 
-TEST(qsa_gr_fusion, gated_residual_read_is_fused) {
+TEST(gated_residual_fusion, gated_residual_read_is_fused) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
@@ -287,7 +290,7 @@ TEST(qsa_gr_fusion, gated_residual_read_is_fused) {
     }
 }
 
-TEST(qsa_gr_fusion, gated_residual_read_requires_both_inv_c_scalings) {
+TEST(gated_residual_fusion, gated_residual_read_requires_both_inv_c_scalings) {
     // The 1/C inside SiLU(W_down * Rbar / C) is model semantics, not a foldable constant.
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read(residual, 1.0f, 1.0f / C, C);
@@ -300,7 +303,22 @@ TEST(qsa_gr_fusion, gated_residual_read_requires_both_inv_c_scalings) {
     ASSERT_EQ(count_gated_residual(model), 0u) << "the generic graph must be preserved when 1/C is missing";
 }
 
-TEST(qsa_gr_fusion, gated_residual_read_rejects_unsupported_branch_count) {
+TEST(gated_residual_fusion, scale_behind_minimum_is_not_a_constant) {
+    // min(1/C, x) equals 1/C only for some runtime x: the generic graph must be kept.
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    auto limit = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{});
+    auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C);
+    mixed->input(1).replace_source_output(std::make_shared<ov::op::v1::Minimum>(mixed->input_value(1), limit));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual, limit});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 0u);
+}
+
+TEST(gated_residual_fusion, gated_residual_read_rejects_unsupported_branch_count) {
     constexpr int64_t branches = 2;
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, branches * D});
     auto mixed = build_gr_read(residual, 1.0f / branches, 1.0f / branches, branches);
@@ -313,7 +331,7 @@ TEST(qsa_gr_fusion, gated_residual_read_rejects_unsupported_branch_count) {
     ASSERT_EQ(count_gated_residual(model), 0u) << "only C == 4 is supported by the first version";
 }
 
-TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
+TEST(gated_residual_fusion, gated_residual_read_decomposed_form_is_fused) {
     // Mirrors the graph shape actually emitted by the model export:
     // decomposed RMSNorm (no fused ov::op::internal::RMS) and a ReduceMean-based
     // branch mix (no trailing 1/C Multiply).
@@ -341,7 +359,7 @@ TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
 }
 
 // The commutative Multiply / Add nodes of the patterns are matched in either operand order.
-TEST(qsa_gr_fusion, gated_residual_read_operand_order_is_irrelevant) {
+TEST(gated_residual_fusion, gated_residual_read_operand_order_is_irrelevant) {
     for (const bool decomposed : {false, true}) {
         auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
         auto mixed = decomposed ? build_gr_read_decomposed(residual, 1.0f / C, C, true, true)
@@ -357,7 +375,7 @@ TEST(qsa_gr_fusion, gated_residual_read_operand_order_is_irrelevant) {
 }
 
 // The 1/C scalars are read by operand, not by position.
-TEST(qsa_gr_fusion, gated_residual_read_scalar_as_first_operand_of_the_down_scale) {
+TEST(gated_residual_fusion, gated_residual_read_scalar_as_first_operand_of_the_down_scale) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C, ov::element::f16, true, false, true, false);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
@@ -369,7 +387,7 @@ TEST(qsa_gr_fusion, gated_residual_read_scalar_as_first_operand_of_the_down_scal
     ASSERT_EQ(count_gated_residual(model), 1u);
 }
 
-TEST(qsa_gr_fusion, gated_residual_read_scalar_as_first_operand_of_the_mix_scale) {
+TEST(gated_residual_fusion, gated_residual_read_scalar_as_first_operand_of_the_mix_scale) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C, ov::element::f16, true, false, false, true);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
@@ -381,10 +399,10 @@ TEST(qsa_gr_fusion, gated_residual_read_scalar_as_first_operand_of_the_mix_scale
     ASSERT_EQ(count_gated_residual(model), 1u);
 }
 
-class qsa_gr_fusion_folded_gain : public ::testing::TestWithParam<bool> {};
+class gated_residual_fusion_folded_gain : public ::testing::TestWithParam<bool> {};
 
 // An exporter folds a gain of ones away, leaving the bare (fused or decomposed) normalization in front of the GEMM.
-TEST_P(qsa_gr_fusion_folded_gain, gated_residual_read_gets_a_unit_gain) {
+TEST_P(gated_residual_fusion_folded_gain, gated_residual_read_gets_a_unit_gain) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = GetParam() ? build_gr_read_decomposed(residual, 1.0f / C, C, false) : build_gr_read(residual, 1.0f / C, 1.0f / C, C, ov::element::f16, false);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
@@ -407,11 +425,11 @@ TEST_P(qsa_gr_fusion_folded_gain, gated_residual_read_gets_a_unit_gain) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, qsa_gr_fusion_folded_gain, ::testing::Values(false, true), [](const ::testing::TestParamInfo<bool>& info) {
+INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_fusion_folded_gain, ::testing::Values(false, true), [](const ::testing::TestParamInfo<bool>& info) {
     return info.param ? std::string("decomposed") : std::string("fused_rms");
 });
 
-TEST(qsa_gr_fusion, gated_residual_write_is_fused) {
+TEST(gated_residual_fusion, gated_residual_write_is_fused) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, D});
     auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C});
@@ -442,7 +460,7 @@ TEST(qsa_gr_fusion, gated_residual_write_is_fused) {
     }
 }
 
-TEST(qsa_gr_fusion, gated_residual_write_rejects_wrong_broadcast_axis) {
+TEST(gated_residual_fusion, gated_residual_write_rejects_wrong_broadcast_axis) {
     // Broadcasting the gate along the channel axis instead of the branch axis is a
     // different operator and must not be fused. The graph itself stays valid so that
     // the matcher - not shape inference - is what rejects it.
@@ -466,7 +484,7 @@ TEST(qsa_gr_fusion, gated_residual_write_rejects_wrong_broadcast_axis) {
     ASSERT_EQ(count_gated_residual(model), 0u);
 }
 
-TEST(qsa_gr_fusion, gated_residual_write_decomposed_form_is_fused) {
+TEST(gated_residual_fusion, gated_residual_write_decomposed_form_is_fused) {
     // Mirrors the real export: the gate/y are broadcast to 3D via Unsqueeze (not
     // Reshape), and the Add happens in the flat [*, C*D] domain against an
     // already-flat residual, with the split-form reshape appearing *after* the Add.
@@ -501,7 +519,7 @@ TEST(qsa_gr_fusion, gated_residual_write_decomposed_form_is_fused) {
     }
 }
 
-TEST(qsa_gr_fusion, gated_residual_write_operand_order_is_irrelevant) {
+TEST(gated_residual_fusion, gated_residual_write_operand_order_is_irrelevant) {
     for (const bool flat_add : {false, true}) {
         auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
         auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, D});
@@ -521,9 +539,9 @@ TEST(qsa_gr_fusion, gated_residual_write_operand_order_is_irrelevant) {
     }
 }
 
-class qsa_gr_fusion_dynamic_split : public ::testing::TestWithParam<bool> {};
+class gated_residual_fusion_dynamic_split : public ::testing::TestWithParam<bool> {};
 
-TEST_P(qsa_gr_fusion_dynamic_split, gated_residual_read_rank3_dynamic_is_fused) {
+TEST_P(gated_residual_fusion_dynamic_split, gated_residual_read_rank3_dynamic_is_fused) {
     const split_fn split = GetParam() ? split_fn(shape_of_split) : split_fn(zero_split);
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C * D});
     auto mixed = build_gr_read_rank3(residual, split);
@@ -543,7 +561,7 @@ TEST_P(qsa_gr_fusion_dynamic_split, gated_residual_read_rank3_dynamic_is_fused) 
     }
 }
 
-TEST_P(qsa_gr_fusion_dynamic_split, gated_residual_write_rank3_dynamic_is_fused) {
+TEST_P(gated_residual_fusion_dynamic_split, gated_residual_write_rank3_dynamic_is_fused) {
     const split_fn split = GetParam() ? split_fn(shape_of_split) : split_fn(zero_split);
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C * D});
     auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, D});
@@ -571,11 +589,11 @@ TEST_P(qsa_gr_fusion_dynamic_split, gated_residual_write_rank3_dynamic_is_fused)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, qsa_gr_fusion_dynamic_split, ::testing::Values(false, true), [](const ::testing::TestParamInfo<bool>& info) {
+INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_fusion_dynamic_split, ::testing::Values(false, true), [](const ::testing::TestParamInfo<bool>& info) {
     return info.param ? std::string("shape_of_target") : std::string("constant_target");
 });
 
-TEST(qsa_gr_fusion, gated_residual_read_rejects_rank_changing_split) {
+TEST(gated_residual_fusion, gated_residual_read_rejects_rank_changing_split) {
     // [B, L, C*D] -> [-1, C, D] flattens B and L; the fused op would keep them.
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, T, C * D});
     auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C);
@@ -588,7 +606,7 @@ TEST(qsa_gr_fusion, gated_residual_read_rejects_rank_changing_split) {
     ASSERT_EQ(count_gated_residual(model), 0u);
 }
 
-TEST(qsa_gr_fusion, gated_residual_read_rejects_f32) {
+TEST(gated_residual_fusion, gated_residual_read_rejects_f32) {
     // The kernels are f16-only; an f32 pattern must stay decomposed rather than be
     // fused into a node with no available GPU implementation.
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
@@ -602,7 +620,7 @@ TEST(qsa_gr_fusion, gated_residual_read_rejects_f32) {
     ASSERT_EQ(count_gated_residual(model), 0u);
 }
 
-TEST(qsa_gr_fusion, gated_residual_write_rejects_f32) {
+TEST(gated_residual_fusion, gated_residual_write_rejects_f32) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
     auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, D});
     auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C});
@@ -623,19 +641,19 @@ TEST(qsa_gr_fusion, gated_residual_write_rejects_f32) {
     ASSERT_EQ(count_gated_residual(model), 0u);
 }
 
-TEST(qsa_gr_fusion, compressed_u4_group32_weights_are_fused) {
+TEST(gated_residual_fusion, compressed_u4_group32_weights_are_fused) {
     const size_t cd = C * D;
     auto gr = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), true);
     expect_compressed(gr, ov::element::u4, cd / 32, LQ / 32);
 }
 
-TEST(qsa_gr_fusion, compressed_u8_per_channel_weights_are_fused) {
+TEST(gated_residual_fusion, compressed_u8_per_channel_weights_are_fused) {
     const size_t cd = C * D;
     auto gr = run_read_fusion(make_decompressed(ov::element::u8, LQ, cd, cd), make_decompressed(ov::element::u8, cd, LQ, LQ), true);
     expect_compressed(gr, ov::element::u8, 1, 1);
 }
 
-TEST(qsa_gr_fusion, compressed_signed_weights_are_fused) {
+TEST(gated_residual_fusion, compressed_signed_weights_are_fused) {
     const size_t cd = C * D;
     expect_compressed(run_read_fusion(make_decompressed(ov::element::i4, LQ, cd, 32), make_decompressed(ov::element::i4, cd, LQ, 32), true),
                       ov::element::i4,
@@ -647,7 +665,7 @@ TEST(qsa_gr_fusion, compressed_signed_weights_are_fused) {
                       1);
 }
 
-TEST(qsa_gr_fusion, compressed_weights_without_zero_points_are_fused_with_six_inputs) {
+TEST(gated_residual_fusion, compressed_weights_without_zero_points_are_fused_with_six_inputs) {
     const size_t cd = C * D;
     for (const auto& wt : {ov::element::u4, ov::element::i4}) {
         expect_compressed(run_read_fusion(make_decompressed(wt, LQ, cd, 32, false, false), make_decompressed(wt, cd, LQ, 32, false, false), true),
@@ -665,7 +683,7 @@ TEST(qsa_gr_fusion, compressed_weights_without_zero_points_are_fused_with_six_in
     }
 }
 
-TEST(qsa_gr_fusion, compressed_weights_must_agree_on_type_and_zero_points) {
+TEST(gated_residual_fusion, compressed_weights_must_agree_on_type_and_zero_points) {
     const size_t cd = C * D;
     // W_down has zero points, W_up has none
     auto mixed_zp = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32, false, false), true);
@@ -677,7 +695,7 @@ TEST(qsa_gr_fusion, compressed_weights_must_agree_on_type_and_zero_points) {
     EXPECT_EQ(mixed_sign->get_input_size(), 4u);
 }
 
-TEST(qsa_gr_fusion, scalar_symmetric_zero_point_is_the_signed_form_without_zero_points) {
+TEST(gated_residual_fusion, scalar_symmetric_zero_point_is_the_signed_form_without_zero_points) {
     const size_t cd = C * D;
     // unsigned weights with the scalar zero point 2^(bits - 1) (older NNCF symmetric) become i4 / i8 without zero points, q - zp unchanged
     auto u4 =
@@ -716,7 +734,7 @@ TEST(qsa_gr_fusion, scalar_symmetric_zero_point_is_the_signed_form_without_zero_
     EXPECT_EQ(signed_zp->get_input_size(), 4u);
 }
 
-TEST(qsa_gr_fusion, compressed_scale_is_transposed_to_group_major) {
+TEST(gated_residual_fusion, compressed_scale_is_transposed_to_group_major) {
     const size_t cd = C * D;
     const size_t g = cd / 32;
     // scale[n, g] = n * 10 + g, so [G, N] holds element (g, n) at g * N + n
@@ -745,26 +763,26 @@ TEST(qsa_gr_fusion, compressed_scale_is_transposed_to_group_major) {
 }
 
 TEST(gated_residual_geometry, systolic_kernels_lift_the_scalar_limits) {
-    using GR = op::GatedResidual;
+    using Mode = op::GatedResidual::Mode;
     // D = 5120 (C*D = 20480), L = 640
-    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, true));
-    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, false));
-    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 2560, 640, false)) << "L is kept in registers by the scalar kernel";
-    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 512, false)) << "C*D is kept in SLM by the scalar kernel";
-    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::READ, 4, 64, 16, true)) << "the scalar kernel is still there";
-    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 64, 8, true));
-    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::WRITE, 4, 5120, 0)) << "no SLM in WRITE";
-    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::WRITE, 3, 64, 0));
+    EXPECT_TRUE(caps::is_geometry_supported(Mode::READ, 4, 5120, 640, true));
+    EXPECT_FALSE(caps::is_geometry_supported(Mode::READ, 4, 5120, 640, false));
+    EXPECT_FALSE(caps::is_geometry_supported(Mode::READ, 4, 2560, 640, false)) << "L is kept in registers by the scalar kernel";
+    EXPECT_FALSE(caps::is_geometry_supported(Mode::READ, 4, 5120, 512, false)) << "C*D is kept in SLM by the scalar kernel";
+    EXPECT_TRUE(caps::is_geometry_supported(Mode::READ, 4, 64, 16, true)) << "the scalar kernel is still there";
+    EXPECT_FALSE(caps::is_geometry_supported(Mode::READ, 4, 64, 8, true));
+    EXPECT_TRUE(caps::is_geometry_supported(Mode::WRITE, 4, 5120, 0, false)) << "no SLM in WRITE";
+    EXPECT_FALSE(caps::is_geometry_supported(Mode::WRITE, 3, 64, 0, false));
 }
 
-TEST(qsa_gr_fusion, compressed_weights_need_the_flag) {
+TEST(gated_residual_fusion, compressed_weights_need_the_flag) {
     const size_t cd = C * D;
     auto gr = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), false);
     ASSERT_NE(gr, nullptr);
     EXPECT_EQ(gr->get_input_size(), 4u) << "the decompressed f16 tensors feed the op when compression is not allowed";
 }
 
-TEST(qsa_gr_fusion, compressed_rejects_unsupported_quantization) {
+TEST(gated_residual_fusion, compressed_rejects_unsupported_quantization) {
     const size_t cd = C * D;
     // W_down and W_up must be compressed the same way
     auto mixed = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u8, cd, LQ, LQ), true);
@@ -776,7 +794,7 @@ TEST(qsa_gr_fusion, compressed_rejects_unsupported_quantization) {
     EXPECT_EQ(scalar->get_input_size(), 4u);
 }
 
-TEST(qsa_gr_fusion, compressed_group_sizes_are_multiples_of_32) {
+TEST(gated_residual_fusion, compressed_group_sizes_are_multiples_of_32) {
     const size_t cd = C * D;
     // W_down [LQ, cd] takes 32 / 64 / 128 / per-channel (K = 256); W_up [cd, LQ] has K = 32, i.e. one group of 32
     for (const auto& wt : {ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8}) {
@@ -787,7 +805,7 @@ TEST(qsa_gr_fusion, compressed_group_sizes_are_multiples_of_32) {
     }
 }
 
-TEST(qsa_gr_fusion, compressed_group_size_is_derived_from_the_shapes) {
+TEST(gated_residual_fusion, compressed_group_size_is_derived_from_the_shapes) {
     const size_t cd = C * D;
     // group size 16 is not a multiple of 32
     auto g16 = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 16), make_decompressed(ov::element::u4, cd, LQ, 16), true);
@@ -873,50 +891,52 @@ TEST(gated_residual_group_size, op_validates_the_zero_point_type) {
 }
 
 TEST(gated_residual_group_size, derive_group_size) {
-    EXPECT_EQ(op::GatedResidual::derive_group_size(256, 8), 32u);
-    EXPECT_EQ(op::GatedResidual::derive_group_size(256, 1), 256u);
-    EXPECT_EQ(op::GatedResidual::derive_group_size(256, 0), 0u) << "no scale rows";
-    EXPECT_EQ(op::GatedResidual::derive_group_size(256, 7), 0u) << "K is not divisible by G";
+    EXPECT_EQ(caps::derive_group_size(256, 8), 32u);
+    EXPECT_EQ(caps::derive_group_size(256, 1), 256u);
+    EXPECT_EQ(caps::derive_group_size(256, 0), 0u) << "no scale rows";
+    EXPECT_EQ(caps::derive_group_size(256, 7), 0u) << "K is not divisible by G";
 }
 
 TEST(gated_residual_group_size, supported_group_sizes) {
-    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 32));
-    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 64));
-    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 128));
-    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 256)) << "per-channel";
-    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(320, 160)) << "a multiple of 32 that divides K";
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 16));
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 48)) << "not a multiple of 32";
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 96)) << "does not divide K";
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(320, 128)) << "does not divide K";
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 512)) << "larger than K";
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 0));
+    EXPECT_TRUE(caps::is_group_size_supported(256, 32));
+    EXPECT_TRUE(caps::is_group_size_supported(256, 64));
+    EXPECT_TRUE(caps::is_group_size_supported(256, 128));
+    EXPECT_TRUE(caps::is_group_size_supported(256, 256)) << "per-channel";
+    EXPECT_TRUE(caps::is_group_size_supported(320, 160)) << "a multiple of 32 that divides K";
+    EXPECT_FALSE(caps::is_group_size_supported(256, 16));
+    EXPECT_FALSE(caps::is_group_size_supported(256, 48)) << "not a multiple of 32";
+    EXPECT_FALSE(caps::is_group_size_supported(256, 96)) << "does not divide K";
+    EXPECT_FALSE(caps::is_group_size_supported(320, 128)) << "does not divide K";
+    EXPECT_FALSE(caps::is_group_size_supported(256, 512)) << "larger than K";
+    EXPECT_FALSE(caps::is_group_size_supported(256, 0));
 }
 
-TEST(gated_residual_group_size, weight_compression_support_uses_k_over_g) {
+TEST(gated_residual_group_size, matrix_compression_support_uses_k_over_g) {
     // W_down [32, 256], W_up [256, 32]
     for (const size_t bits : {size_t{4}, size_t{8}}) {
         for (const size_t g_down : {size_t{8}, size_t{4}, size_t{2}, size_t{1}}) {
-            EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, g_down, 256, 32, 1)) << bits << " bits, " << g_down << " groups";
+            EXPECT_TRUE(caps::is_matrix_compression_supported(bits, 32, 256, g_down)) << bits << " bits, " << g_down << " groups";
         }
-        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 16, 256, 32, 1)) << "W_down group size 16";
-        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 8, 256, 32, 2)) << "W_up group size 16";
-        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 7, 256, 32, 1)) << "K not divisible by G";
-        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 0, 256, 32, 1));
+        EXPECT_TRUE(caps::is_matrix_compression_supported(bits, 256, 32, 1));
+        EXPECT_FALSE(caps::is_matrix_compression_supported(bits, 32, 256, 16)) << "W_down group size 16";
+        EXPECT_FALSE(caps::is_matrix_compression_supported(bits, 256, 32, 2)) << "W_up group size 16";
+        EXPECT_FALSE(caps::is_matrix_compression_supported(bits, 32, 256, 7)) << "K not divisible by G";
+        EXPECT_FALSE(caps::is_matrix_compression_supported(bits, 32, 256, 0));
+        EXPECT_FALSE(caps::is_matrix_compression_supported(bits, 4, 256, 1)) << "N % 16";
     }
 }
 
-TEST(gated_residual_group_size, write_gate_compression_support_has_only_c_rows) {
+TEST(gated_residual_group_size, row_compression_support_has_no_row_count_rule) {
     // W_inject [C = 4, K = 256]: N is not a multiple of 16, the group rules are those of W_down / W_up
     for (const size_t bits : {size_t{4}, size_t{8}}) {
         for (const size_t g : {size_t{8}, size_t{4}, size_t{2}, size_t{1}}) {
-            EXPECT_TRUE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 256, g)) << bits << " bits, " << g << " groups";
+            EXPECT_TRUE(caps::is_row_compression_supported(bits, 256, g)) << bits << " bits, " << g << " groups";
         }
-        EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 256, 16)) << "group size 16";
-        EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 256, 7)) << "K not divisible by G";
-        EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 48, 1)) << "K % 32";
+        EXPECT_FALSE(caps::is_row_compression_supported(bits, 256, 16)) << "group size 16";
+        EXPECT_FALSE(caps::is_row_compression_supported(bits, 256, 7)) << "K not divisible by G";
+        EXPECT_FALSE(caps::is_row_compression_supported(bits, 48, 1)) << "K % 32";
     }
-    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(2, 4, 256, 8)) << "bits";
+    EXPECT_FALSE(caps::is_row_compression_supported(2, 256, 8)) << "bits";
 }
 
 TEST(gated_residual_group_size, op_accepts_supported_group_sizes) {
@@ -935,13 +955,15 @@ TEST(gated_residual_group_size, op_accepts_supported_group_sizes) {
     }
 }
 
-TEST(gated_residual_group_size, op_rejects_unsupported_group_sizes) {
+TEST(gated_residual_group_size, op_rejects_only_indivisible_group_counts) {
     const size_t cd = C * D;
     const size_t lq = static_cast<size_t>(LQ);
     for (const auto& wt : {ov::element::u4, ov::element::u8}) {
-        EXPECT_THROW(make_compressed_op(wt, cd / 16, 1), ov::NodeValidationFailure) << "W_down group size 16";
-        EXPECT_THROW(make_compressed_op(wt, cd / 32, lq / 16), ov::NodeValidationFailure) << "W_up group size 16";
         EXPECT_THROW(make_compressed_op(wt, 7, 1), ov::NodeValidationFailure) << "K not divisible by G";
+        EXPECT_THROW(make_compressed_op(wt, cd / 32, 3), ov::NodeValidationFailure) << "K not divisible by G";
+        // what the kernels support is the impl's and the fusion's business, not the op's
+        EXPECT_NO_THROW(make_compressed_op(wt, cd / 16, 1)) << "W_down group size 16";
+        EXPECT_NO_THROW(make_compressed_op(wt, cd / 32, lq / 16)) << "W_up group size 16";
     }
 }
 
@@ -1014,8 +1036,8 @@ TEST(gated_residual_write_gate_op, compressed_write_gate_rejects_inconsistent_in
         << "W_inject must have the element type of W_down / W_up";
     EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 32, ov::element::u4, {c + 1}), ov::NodeValidationFailure)
         << "scale_inject must have C columns";
-    EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 16, ov::element::u4, {c}), ov::NodeValidationFailure)
-        << "W_inject group size 16";
+    EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, 7, ov::element::u4, {c}), ov::NodeValidationFailure)
+        << "W_inject K not divisible by G";
 }
 
 TEST(gated_residual_write_gate_op, f16_write_gate_keeps_five_inputs) {
@@ -1145,17 +1167,17 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> f16_read_weights() {
 
 }  // namespace
 
-TEST(qsa_gr_fusion_write_gate, multiply_scale_is_fused) {
+TEST(gated_residual_fusion_write_gate, multiply_scale_is_fused) {
     const auto [w_down, w_up] = f16_read_weights();
     expect_gate_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(), false), 5u);
 }
 
-TEST(qsa_gr_fusion_write_gate, divide_scale_is_fused) {
+TEST(gated_residual_fusion_write_gate, divide_scale_is_fused) {
     const auto [w_down, w_up] = f16_read_weights();
     expect_gate_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::divide, static_cast<float>(C)), false), 5u);
 }
 
-TEST(qsa_gr_fusion_write_gate, scale_folded_into_w_inject_is_fused) {
+TEST(gated_residual_fusion_write_gate, scale_folded_into_w_inject_is_fused) {
     const auto [w_down, w_up] = f16_read_weights();
     auto r = run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::folded), false);
     expect_gate_fused(r, 5u);
@@ -1164,7 +1186,7 @@ TEST(qsa_gr_fusion_write_gate, scale_folded_into_w_inject_is_fused) {
     EXPECT_NE(w_inject, nullptr);
 }
 
-TEST(qsa_gr_fusion_write_gate, write_gate_feeds_the_write_fusion) {
+TEST(gated_residual_fusion_write_gate, write_gate_feeds_the_write_fusion) {
     const auto [w_down, w_up] = f16_read_weights();
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     ov::Output<ov::Node> rbar;
@@ -1194,20 +1216,20 @@ TEST(qsa_gr_fusion_write_gate, write_gate_feeds_the_write_fusion) {
     EXPECT_EQ(write->input_value(op::GatedResidual::WriteInputIdx::WRITE_GATE).get_node(), read.get());
 }
 
-TEST(qsa_gr_fusion_write_gate, wrong_branch_scale_leaves_the_gate_in_the_graph) {
+TEST(gated_residual_fusion_write_gate, wrong_branch_scale_leaves_the_gate_in_the_graph) {
     const auto [w_down, w_up] = f16_read_weights();
     expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::multiply, 1.0f / (C + 1)), false), 4u);
     expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::divide, static_cast<float>(C + 1)), false), 4u);
 }
 
-TEST(qsa_gr_fusion_write_gate, wrong_gate_range_leaves_the_gate_in_the_graph) {
+TEST(gated_residual_fusion_write_gate, wrong_gate_range_leaves_the_gate_in_the_graph) {
     const auto [w_down, w_up] = f16_read_weights();
     // a plain sigmoid or 2 * sigmoid scaled differently is not the write gate
     expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::multiply, 1.0f / C, 1.0f), false), 4u);
     expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::multiply, 1.0f / C, 3.0f), false), 4u);
 }
 
-TEST(qsa_gr_fusion_write_gate, branch_on_another_normalization_is_not_fused) {
+TEST(gated_residual_fusion_write_gate, branch_on_another_normalization_is_not_fused) {
     const auto [w_down, w_up] = f16_read_weights();
     // the inject MatMul reads its own RMS of the residual, not the Rbar of the READ
     gate_fn other_rbar = [](const ov::Output<ov::Node>& residual, const ov::Output<ov::Node>&) {
@@ -1218,7 +1240,7 @@ TEST(qsa_gr_fusion_write_gate, branch_on_another_normalization_is_not_fused) {
     expect_gate_not_fused(run_gate_fusion(w_down, w_up, other_rbar, false), 4u);
 }
 
-TEST(qsa_gr_fusion_write_gate, transposed_or_misshaped_w_inject_is_not_fused) {
+TEST(gated_residual_fusion_write_gate, transposed_or_misshaped_w_inject_is_not_fused) {
     const auto [w_down, w_up] = f16_read_weights();
     gate_fn misshaped = [](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
         auto w = ov::op::v0::Constant::create(ov::element::f16,
@@ -1231,7 +1253,7 @@ TEST(qsa_gr_fusion_write_gate, transposed_or_misshaped_w_inject_is_not_fused) {
     EXPECT_FALSE(r.gr->get_produce_write_gate());
 }
 
-TEST(qsa_gr_fusion_write_gate, gate_chain_with_other_consumers_is_not_fused) {
+TEST(gated_residual_fusion_write_gate, gate_chain_with_other_consumers_is_not_fused) {
     const auto [w_down, w_up] = f16_read_weights();
     // the raw inject MatMul is also a model output, so it cannot be removed
     ov::Output<ov::Node> inject_mm;
@@ -1249,7 +1271,7 @@ TEST(qsa_gr_fusion_write_gate, gate_chain_with_other_consumers_is_not_fused) {
     EXPECT_FALSE(r.gr->get_produce_write_gate());
 }
 
-TEST(qsa_gr_fusion_write_gate, compressed_weights_take_a_compressed_w_inject) {
+TEST(gated_residual_fusion_write_gate, compressed_weights_take_a_compressed_w_inject) {
     const size_t cd = C * D;
     const auto c = static_cast<size_t>(C);
     const auto lq = static_cast<size_t>(LQ);
@@ -1287,7 +1309,7 @@ TEST(qsa_gr_fusion_write_gate, compressed_weights_take_a_compressed_w_inject) {
     }
 }
 
-TEST(qsa_gr_fusion_write_gate, compressed_read_with_f16_or_mismatched_w_inject_fuses_only_the_read) {
+TEST(gated_residual_fusion_write_gate, compressed_read_with_f16_or_mismatched_w_inject_fuses_only_the_read) {
     const size_t cd = C * D;
     const auto c = static_cast<size_t>(C);
     // W_inject stays an f16 tensor while W_down / W_up are compressed
@@ -1311,7 +1333,7 @@ TEST(qsa_gr_fusion_write_gate, compressed_read_with_f16_or_mismatched_w_inject_f
     expect_gate_fused(run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), g128_inject, true), 11u);
 }
 
-TEST(qsa_gr_fusion_write_gate, compressed_w_inject_with_f16_read_weights_uses_the_decompressed_tensor) {
+TEST(gated_residual_fusion_write_gate, compressed_w_inject_with_f16_read_weights_uses_the_decompressed_tensor) {
     const size_t cd = C * D;
     const auto c = static_cast<size_t>(C);
     const auto [w_down, w_up] = f16_read_weights();

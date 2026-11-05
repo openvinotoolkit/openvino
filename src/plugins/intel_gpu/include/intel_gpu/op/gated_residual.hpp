@@ -5,10 +5,8 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdlib>
 #include <optional>
 
-#include "intel_gpu/runtime/device_info.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
@@ -106,8 +104,6 @@ public:
         return read_layout(get_input_size(), m_produce_write_gate);
     }
 
-    static constexpr size_t group_size_step = 32;  ///< group sizes along K are multiples of this (one dpas K32 slice)
-
     static bool is_compressed_weight_type(const ov::element::Type& t) {
         return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
     }
@@ -154,78 +150,6 @@ public:
     }
     bool get_produce_write_gate() const {
         return m_produce_write_gate;
-    }
-
-    /// Geometry the kernels can execute; shared by the fusion pass and the impl's validate_impl.
-    static constexpr size_t supported_hc_count = 4;
-    static constexpr size_t max_lowrank = 512;        // kept in registers by gr_read.cl
-    static constexpr size_t max_total_width = 16384;  // C*D must fit into SLM as f16 in gr_read.cl
-
-    /// @param systolic the device runs the dpas READ kernels (is_compression_arch_supported), which keep Rbar and T in scratch
-    ///        buffers and are bound only by L being a multiple of 32; the two limits above belong to the scalar gr_read.cl.
-    static constexpr bool is_geometry_supported(Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank, bool systolic = false) {
-        if (hc_count != supported_hc_count || hidden_size == 0 || hidden_size % 16 != 0) {
-            return false;
-        }
-        if (mode == Mode::WRITE) {
-            return true;
-        }
-        if (systolic && lowrank != 0 && lowrank % 32 == 0) {
-            return true;
-        }
-        return hc_count * hidden_size <= max_total_width && lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank;
-    }
-
-    /// OV_GPU_GR_FORCE_SCALAR=1 makes every device look like one without systolic arrays (tests of the scalar paths).
-    static bool force_scalar() {
-        static const bool forced = [] {
-            const char* env = std::getenv("OV_GPU_GR_FORCE_SCALAR");
-            return env != nullptr && env[0] == '1';
-        }();
-        return forced;
-    }
-
-    /// Compressed weights run on the systolic path only.
-    static bool is_compression_arch_supported(const cldnn::device_info& info) {
-        return !force_scalar() && info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad && info.supports_intel_subgroups &&
-               info.supports_intel_subgroups_short;
-    }
-
-    /// Group size along K, derived from the weight columns K and the scale / zp rows G; 0 when K is not divisible by G.
-    static constexpr size_t derive_group_size(size_t k, size_t g) {
-        return (g == 0 || k % g != 0) ? 0 : k / g;
-    }
-
-    /// Group sizes the kernels support: a multiple of 32 that divides K (group size == K is per-channel).
-    static constexpr bool is_group_size_supported(size_t k, size_t group_size) {
-        return group_size != 0 && group_size % group_size_step == 0 && k % group_size == 0;
-    }
-
-    /// Shared by the fusion pass and the impl's validate_impl. N/K/G are the weight rows / columns / scale rows of W_down and
-    /// W_up; bits is 4 (i4 / u4) or 8 (i8 / u8). The group size is K / G.
-    static bool is_weight_compression_supported(size_t bits, size_t n_down, size_t k_down, size_t g_down, size_t n_up, size_t k_up, size_t g_up) {
-        if (bits != 4 && bits != 8) {
-            return false;
-        }
-        auto matrix_ok = [bits](size_t n, size_t k, size_t g) {
-            if (n == 0 || n % 16 != 0 || k == 0 || k % 32 != 0) {
-                return false;
-            }
-            if (!is_group_size_supported(k, derive_group_size(k, g))) {
-                return false;
-            }
-            return (k * bits / 8) % 16 == 0;
-        };
-        return matrix_ok(n_down, k_down, g_down) && matrix_ok(n_up, k_up, g_up);
-    }
-
-    /// Compressed W_inject [C, K = C*D] with a [G, C] scale / zp. It has only C (< 16) output rows, so the N % 16 rule of
-    /// is_weight_compression_supported does not apply; the group rules are the same as for W_down / W_up.
-    static bool is_write_gate_compression_supported(size_t bits, size_t hc_count, size_t k, size_t g) {
-        if ((bits != 4 && bits != 8) || hc_count == 0 || k == 0 || k % 32 != 0) {
-            return false;
-        }
-        return is_group_size_supported(k, derive_group_size(k, g)) && (k * bits / 8) % 16 == 0;
     }
 
 private:

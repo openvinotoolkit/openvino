@@ -6,11 +6,19 @@
 #include <vector>
 
 #include "gated_residual_inst.h"
+#include "intel_gpu/primitives/gated_residual_caps.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
 #include "to_string_utils.h"
 
 namespace cldnn {
+
+bool gated_residual_caps::has_systolic(const device_info& info, const ov::intel_gpu::ExecutionConfig& config) {
+    const bool force_scalar = GPU_DEBUG_VALUE_OR(config.get_gr_force_scalar(), false);
+    return !force_scalar && is_device_supported(info) && info.arch >= gpu_arch::xe2 && info.supports_immad;
+}
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(gated_residual)
 
