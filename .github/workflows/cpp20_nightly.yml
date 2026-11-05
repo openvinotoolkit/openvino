@@ -1,0 +1,150 @@
+name: C++20 Build (Nightly)
+on:
+  schedule:
+    # at 00:00 every day
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+  pull_request:
+    paths:
+      - '.github/workflows/cpp20_nightly.yml'
+      - '.github/workflows/job_build_linux_cpp20.yml'
+      - '.github/workflows/job_build_windows_cpp20.yml'
+
+concurrency:
+  group: ${{ github.ref }}-cpp20-nightly
+  cancel-in-progress: true
+
+env:
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.ref }}
+
+permissions: read-all
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+      target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
+    steps:
+      - name: checkout action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+
+      - name: Get target branch
+        id: set_target_branch
+        run: |
+          echo "target_branch=${TARGET_BRANCH#refs/heads/}" >> $GITHUB_OUTPUT
+
+  Docker:
+    needs: Smart_CI
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images }}"
+    steps:
+      - name: Checkout
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_22_04_x64
+            ov_build/ubuntu_24_04_x64
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  # Non-blocking C++20 compile checks (CVS-189849): promote to required checks when done.
+  Build_CPP20_Ubuntu_22:
+    name: Build (C++20, Ubuntu 22.04)
+    needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_build_linux_cpp20.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      os: 'ubuntu_22_04'
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DCMAKE_CXX_STANDARD=20
+
+  Build_CPP20_Ubuntu_24:
+    name: Build (C++20, Ubuntu 24.04)
+    needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_build_linux_cpp20.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      os: 'ubuntu_24_04'
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DCMAKE_CXX_STANDARD=20
+
+  Build_CPP20_Windows:
+    name: Build (C++20, Windows VS2022 Release)
+    needs: [ Smart_CI ]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_build_windows_cpp20.yml
+    with:
+      runner: 'aks-win-16-cores-32gb-build'
+      cmake-build-parallel-level: '15'
+      build-type: 'Release'
+      target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_PYTHON=ON
+            -DENABLE_WHEEL=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config_cpp20"
+            -DCMAKE_CXX_STANDARD=20
