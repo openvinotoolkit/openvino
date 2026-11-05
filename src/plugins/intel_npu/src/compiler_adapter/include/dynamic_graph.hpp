@@ -44,8 +44,6 @@ public:
 
     CommandQueueDesc get_command_queue_desc() const override;
     void set_workload_type(const ov::WorkloadType workloadType) override;
-    void set_qos(const ov::QoS qos) override;
-    ov::QoSInfo get_qos_info(const CommandQueueParams& commandQueueParams) const override;
     void set_model_priority(const ov::hint::Priority modelPriority) override;
 
     uint32_t get_unique_id() override;
