@@ -281,7 +281,7 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
     m_cache_input.assign(num_inputs, 0);
     if (const auto& controller = m_compiled_model->get_cache_controller()) {
         std::unordered_set<std::string> cache_names;
-        for (const auto& port : controller->ports(0)) {
+        for (const auto& port : controller->ports()) {
             cache_names.insert(port.get_names().begin(), port.get_names().end());
         }
         const auto& inputs = compiled_model->inputs();
@@ -301,6 +301,33 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
 
     m_rank_time.resize(m_rank_requests.size());
     m_rank_start.resize(m_rank_requests.size() > 1 ? m_rank_requests.size() : 0);
+
+    if (const auto& controller = m_compiled_model->get_cache_controller())
+        m_cache_registration = controller->register_request(m_rank_requests);
+}
+
+InferRequest::~InferRequest() {
+    if (const auto& controller = m_compiled_model->get_cache_controller())
+        controller->unregister_request(m_cache_registration);
+}
+
+bool InferRequest::is_cache_port(const ov::Output<const ov::Node>& port) const {
+    auto found = find_port(port);
+    return found.found() && found.is_input() && found.idx < m_cache_input.size() && m_cache_input[found.idx] != 0;
+}
+
+void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
+    OPENVINO_ASSERT(!is_cache_port(port), "[TP] '", port.get_any_name(),
+                    "' is a paged-attention cache input managed by the plugin: allocate it through "
+                    "ov::plugin_managed_cache instead of setting a tensor");
+    ov::ISyncInferRequest::set_tensor(port, tensor);
+}
+
+ov::SoPtr<ov::ITensor> InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    OPENVINO_ASSERT(!is_cache_port(port), "[TP] '", port.get_any_name(),
+                    "' is a paged-attention cache input managed by the plugin; it is split across the ranks "
+                    "and has no tensor of its own");
+    return ov::ISyncInferRequest::get_tensor(port);
 }
 
 ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
@@ -348,25 +375,8 @@ ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
 }
 
 void InferRequest::bind_cache() {
-    const auto& controller = m_compiled_model->get_cache_controller();
-    if (!controller) {
-        return;
-    }
-    OPENVINO_ASSERT(controller->get_num_allocated_blocks() > 0,
-                    "[TP] The paged-attention cache has not been allocated. Allocate it through "
-                    "the compiled model's cache controller before inferring.");
-    if (controller->generation() == m_bound_cache_generation) {
-        return;
-    }
-
-    for (size_t rank = 0; rank < m_rank_requests.size(); ++rank) {
-        const auto& ports = controller->ports(rank);
-        const auto& tensors = controller->tensors(rank);
-        for (size_t i = 0; i < ports.size(); ++i) {
-            m_rank_requests[rank]->set_tensor(ports[i], tensors[i]);
-        }
-    }
-    m_bound_cache_generation = controller->generation();
+    if (const auto& controller = m_compiled_model->get_cache_controller())
+        controller->check_allocated();
 }
 
 void InferRequest::check_tensors() const {

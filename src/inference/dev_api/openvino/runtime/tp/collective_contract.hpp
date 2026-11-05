@@ -217,6 +217,17 @@ static constexpr ov::Property<std::string, ov::PropertyMutability::RO> collectiv
 /// Argument of the support query (default "AUTO").
 static constexpr ov::Property<std::string> collective_backend{"ov_internal_tp_collective_backend"};
 
+/// Memory of one device, in bytes.
+struct DeviceMemory {
+    uint64_t total = 0;           ///< device memory
+    uint64_t used = 0;            ///< in use by every context on the device, the TP contexts included
+    uint64_t max_allocation = 0;  ///< largest single allocation
+};
+
+/// Memory of the device named by the argument ov::device::id (D11): what the TP plugin sizes the caches it
+/// manages against.
+static constexpr ov::Property<DeviceMemory, ov::PropertyMutability::RO> device_memory{"ov_internal_tp_device_memory"};
+
 }  // namespace internal
 }  // namespace tp
 }  // namespace ov

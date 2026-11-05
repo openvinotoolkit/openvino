@@ -965,6 +965,20 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::intel_gpu::memory_statistics)::value_type{
             cldnn::engine::get_device_memory_statistics(device_info)};
     }
+    if (name == ov::tp::internal::device_memory.name()) {
+        const auto statistics = cldnn::engine::get_device_memory_statistics(device_info);
+        auto in_use = [&](const char* type) -> uint64_t {
+            const auto it = statistics.find(type);
+            return it == statistics.end() ? 0 : it->second;
+        };
+        ov::tp::internal::DeviceMemory memory;
+        memory.total = device_info.max_global_mem_size;
+        memory.used = in_use("usm_device") + in_use("cl_mem");
+        if (device_info.dev_type == cldnn::device_type::integrated_gpu)
+            memory.used += in_use("usm_host");
+        memory.max_allocation = device_info.max_alloc_mem_size;
+        return decltype(ov::tp::internal::device_memory)::value_type{memory};
+    }
     if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
     }
@@ -1107,7 +1121,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
         ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO},
         ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::tp::internal::collective_backends.name(), ov::PropertyMutability::RO},
-        ov::PropertyName{ov::tp::internal::collective_support.name(), ov::PropertyMutability::RO}};
+        ov::PropertyName{ov::tp::internal::collective_support.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::tp::internal::device_memory.name(), ov::PropertyMutability::RO}};
     return supported_internal_properties;
 }
 

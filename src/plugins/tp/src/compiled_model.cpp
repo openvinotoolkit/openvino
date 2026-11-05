@@ -9,7 +9,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/tp_gpu/paged_attention_cache_controller.hpp"
+#include "openvino/runtime/plugin_managed_cache.hpp"
 #include "remote_context.hpp"
 #include "tp_blob.hpp"
 
@@ -78,7 +78,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                     " outputs, its ranks ", m_rank_compiled.front()->inputs().size(), " and ",
                     m_rank_compiled.front()->outputs().size());
 
-    m_cache_controller = CacheController::create(m_rank_compiled);
+    m_cache_controller = CacheController::create(m_rank_compiled, m_device_names, plugin->get_core(), m_state_replicas);
 }
 
 const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
@@ -166,7 +166,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
         };
         if (m_cache_controller) {
-            properties.emplace_back(ov::tp_gpu::paged_attention_cache_controller.name(), ov::PropertyMutability::RO);
+            properties.emplace_back(ov::plugin_managed_cache.name(), ov::PropertyMutability::RO);
         }
 
         const auto rank_properties = m_rank_compiled.front()->get_property(name);
@@ -196,12 +196,11 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::tp::internal::world_size.name(), ov::PropertyMutability::RO}};
     }
 
-    if (name == ov::tp_gpu::paged_attention_cache_controller.name()) {
+    if (name == ov::plugin_managed_cache.name()) {
         // Absent on models that do not use a paged-attention cache: a caller
         // finding nothing here has to keep allocating the cache itself.
-        OPENVINO_ASSERT(m_cache_controller,
-                        "[TP] This model has no paged-attention cache to hand over");
-        return std::static_pointer_cast<ov::tp_gpu::IPagedAttentionCacheController>(m_cache_controller);
+        OPENVINO_ASSERT(m_cache_controller, "[TP] This model has no paged-attention cache to hand over");
+        return ov::PluginManagedCache(m_cache_controller);
     }
 
     return m_rank_compiled.front()->get_property(name);

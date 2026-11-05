@@ -28,8 +28,13 @@ class CompiledModel;
 class InferRequest : public ov::ISyncInferRequest {
 public:
     explicit InferRequest(const std::shared_ptr<const CompiledModel>& compiled_model);
+    ~InferRequest() override;
 
     void infer() override;
+
+    /// The paged-attention cache ports are bound by the plugin (ov::plugin_managed_cache): refused here.
+    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     /// The caller is not expected to supply the paged-attention cache: that
     /// memory belongs to the plugin, which binds it per rank. Every other
@@ -41,10 +46,10 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
-    /// Hand each rank the slice of the paged-attention cache it owns. A no-op
-    /// when the model has no such cache, or when the tensors already bound are
-    /// still the current ones.
+    /// Throws unless the plugin-managed cache, if the model has one, is allocated.
     void bind_cache();
+
+    bool is_cache_port(const ov::Output<const ov::Node>& port) const;
 
     /// Give every rank the caller's inputs, staging the small ones.
     void set_rank_inputs();
@@ -76,8 +81,8 @@ private:
     /// Those are filled from the cache controller, not from the caller's tensors.
     std::vector<uint8_t> m_cache_input;
 
-    /// Cache generation the rank requests were last bound to.
-    uint64_t m_bound_cache_generation = 0;
+    /// Registration with the cache controller, which binds the cache to the rank requests.
+    uint64_t m_cache_registration = 0;
 
     /// Size ceiling for staging an input through plugin-owned host memory.
     size_t m_stage_limit = 0;

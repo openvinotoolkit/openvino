@@ -5,79 +5,89 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <vector>
 
+#include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/icore.hpp"
+#include "openvino/runtime/iplugin_managed_cache.hpp"
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
-#include "openvino/runtime/tp_gpu/paged_attention_cache_controller.hpp"
 
 namespace ov {
 namespace tp {
 
-/// \brief The physical KV cache of a tensor-parallel paged-attention model.
+/// \brief The paged-attention KV cache of a tensor-parallel model, managed by the plugin.
 ///
-/// Each rank owns the slice of the cache that belongs to its KV heads, in its
-/// own device memory. Block indices are logical and mean the same thing on
-/// every rank, so growing, duplicating and clearing blocks is the same request
-/// repeated per rank.
-///
-/// The controller only owns the tensors; binding them to the per-rank infer
-/// requests is the infer request's job, which is why it can be created before
-/// any request exists. `generation()` tells a request whether the tensors it
-/// last bound are still the current ones.
-class CacheController : public ov::tp_gpu::IPagedAttentionCacheController {
+/// One KEY_VALUE group in the model-level representation: key_cache.N / value_cache.N with the model's KV head
+/// count. Each rank holds the slice of its KV heads in its own device memory; block indices mean the same blocks
+/// on every rank, so every operation is the same request repeated per rank and layer. The cache is bound to every
+/// infer request of the compiled model as soon as it exists, and unbound when it is freed.
+class CacheController : public ov::IPluginManagedCache {
 public:
-    /// Builds a controller over the cache ports of the given rank models, or
-    /// returns null when they have none -- which is the normal case: only
-    /// models converted to paged attention carry a cache the plugin can own.
-    static std::shared_ptr<CacheController> create(
-        const std::vector<ov::SoPtr<ov::ICompiledModel>>& rank_compiled);
+    /// Null when the rank models have no cache ports (no paged attention).
+    /// \param kv_replicas Consecutive ranks holding the same KV heads (fewer KV heads than ranks).
+    static std::shared_ptr<CacheController> create(const std::vector<ov::SoPtr<ov::ICompiledModel>>& rank_compiled,
+                                                   const std::vector<std::string>& device_names,
+                                                   std::shared_ptr<const ov::ICore> core,
+                                                   size_t kv_replicas);
 
-    void allocate_cache_if_needed(size_t num_blocks) override;
-    void copy_blocks(const std::map<size_t, std::list<size_t>>& block_copy_map) override;
-    void zero_blocks(const std::set<size_t>& block_indices) override;
-    void clear() override;
+    std::vector<ov::CacheGroupInfo> get_groups() const override;
+    size_t get_available_memory() const override;
+    void allocate(size_t group, size_t num_blocks, bool zero_initialize) override;
+    void reallocate(size_t group, size_t num_blocks, bool zero_initialize_new_blocks) override;
+    void deallocate(size_t group) override;
+    size_t get_num_allocated_blocks(size_t group) const override;
+    void copy_blocks(size_t group, const std::map<size_t, std::list<size_t>>& block_copy_map) override;
+    void zero_blocks(size_t group, const std::set<size_t>& block_indices) override;
 
-    size_t get_num_layers() const override { return m_num_layers; }
-    size_t get_num_cache_tensors() const override;
-    size_t get_block_size() const override { return m_block_size; }
-    size_t get_block_size_in_bytes() const override { return m_block_size_in_bytes; }
-    size_t get_num_allocated_blocks() const override { return m_allocated_blocks; }
+    /// Binds the cache, if any, to a new infer request's rank requests and keeps doing so until unregistered.
+    uint64_t register_request(const std::vector<ov::SoPtr<ov::IAsyncInferRequest>>& rank_requests);
+    void unregister_request(uint64_t id);
 
-    /// The cache ports of one rank, in a fixed order.
-    const std::vector<ov::Output<const ov::Node>>& ports(size_t rank) const {
-        return m_ranks.at(rank).ports;
+    /// Throws unless the cache has been allocated.
+    void check_allocated() const;
+
+    /// The cache ports of rank 0, in the order of the group's tensors.
+    const std::vector<ov::Output<const ov::Node>>& ports() const {
+        return m_ranks.front().ports;
     }
-
-    /// The tensors currently bound to those ports. Empty until the first
-    /// allocation, and replaced wholesale whenever the cache grows.
-    const std::vector<ov::SoPtr<ov::ITensor>>& tensors(size_t rank) const {
-        return m_ranks.at(rank).tensors;
-    }
-
-    size_t world_size() const { return m_ranks.size(); }
-
-    /// Bumped on every reallocation. A request that bound tensors at an older
-    /// generation is holding tensors that no longer belong to the cache.
-    uint64_t generation() const { return m_generation; }
 
 private:
+    using RankTensors = std::vector<std::vector<ov::SoPtr<ov::ITensor>>>;  // [rank][tensor]
+
     struct Rank {
+        std::string device;
         ov::SoPtr<ov::IRemoteContext> context;
         std::vector<ov::Output<const ov::Node>> ports;
         std::vector<ov::element::Type> precisions;
-        std::vector<ov::Shape> shapes;
-        std::vector<ov::SoPtr<ov::ITensor>> tensors;
+        std::vector<ov::Shape> shapes;  ///< 0 blocks
+        size_t block_bytes = 0;         ///< one block of all tensors of the rank
+        size_t max_tensor_block_bytes = 0;
     };
 
+    CacheController() = default;
+    void check_group(size_t group) const;
+    /// The complete cache with `num_blocks` blocks, blocks [0, keep) copied from the current one; touches no member.
+    RankTensors build(size_t num_blocks, size_t keep, bool zero_new) const;
+    /// Binds `tensors` (or zero-block placeholders when empty) to every registered request.
+    void bind_all(const RankTensors& tensors);
+    void bind(const std::vector<std::weak_ptr<ov::IAsyncInferRequest>>& request, const RankTensors& tensors) const;
+    RankTensors placeholders() const;
+    void zero(const ov::SoPtr<ov::ITensor>& tensor, size_t first_block, size_t num_blocks) const;
+
     std::vector<Rank> m_ranks;
-    size_t m_num_layers = 0;
-    size_t m_block_size = 0;
-    size_t m_block_size_in_bytes = 0;
-    size_t m_allocated_blocks = 0;
-    uint64_t m_generation = 0;
+    std::shared_ptr<const ov::ICore> m_core;
+    ov::CacheGroupInfo m_group;
+
+    mutable std::mutex m_mutex;
+    RankTensors m_tensors;
+    size_t m_num_blocks = 0;
+    std::map<uint64_t, std::vector<std::weak_ptr<ov::IAsyncInferRequest>>> m_requests;
+    uint64_t m_next_request = 0;
 };
 
 using CacheControllerPtr = std::shared_ptr<CacheController>;
