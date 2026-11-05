@@ -18,6 +18,7 @@
 #include "sdpa_ocl_utils.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
+#    include <algorithm>
 #    include <iostream>
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -356,6 +357,51 @@ bool solve_pa_mixed_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool few_
     return true;
 }
 
+// The query / key counts the plain-SDPA PREFILL tiling policy may read. The dispatch re-derives the tiling
+// from every runtime shape (get_dispatch_data_func()), so a stage compiled for dynamic shapes -- it has the
+// SHAPE_INFO argument -- must get one tiling whatever the counts: shape_agnostic leaves them unread.
+struct plain_prefill_shape {
+    bool shape_agnostic = true;
+    int64_t n_keys = 0;
+    int64_t q_len = 0;
+    bool f16_qkv = false;  // f16 Q, K and V: what the tilings below were measured with (no bf16, no compressed KV)
+};
+
+// Plain (non-PA) SDPA PREFILL on Xe2+ at d_max 128: from ~2K keys the sdpa_micro xehpc_h128 workgroup
+// (16 x 2 subgroups of 16 keys x 64 queries = 256 keys x 128 queries, 256 GRF) is what closes the gap to
+// sdpa_micro on the f16-KV chunked-prefill shapes PR-39316 optimizes (PTL-H B390: 3.2x faster than the
+// table tile at 8K keys). It takes the PA PREFILL loop changes (wide K reads, V prefetch, branchless
+// softmax + split S-max barrier); micro_math stays off (plain SDPA never emits MICRO_MATH). A static stage
+// takes it for at least one mirror query tile and 2K keys; below that the table tile wins. A shape-agnostic
+// stage keeps the table tile: SDPA_OCL_PLAIN_MIRROR=0/1 forces table/mirror on both for A/B.
+bool solve_plain_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
+    if (d_max != 128 || vd_max != 128 || arch < gpu_arch::xe2 || !shape.f16_qkv) {
+        return false;
+    }
+    const bool fixed_shape_mirror = !shape.shape_agnostic && shape.q_len >= 128 && shape.n_keys >= 2048;
+    const int force = env_int("SDPA_OCL_PLAIN_MIRROR", -1);
+    if (force == 0 || (force < 0 && !fixed_shape_mirror)) {
+        return false;
+    }
+    sdpa_ocl_config_t mirror;
+    mirror.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+    mirror.kq_sg_tile_keys = 16;
+    mirror.kq_sg_tile_queries = 64;
+    mirror.kq_sg_per_wg_keys = 16;
+    mirror.kq_sg_per_wg_queries = 2;
+    mirror.large_grf = true;
+    mirror.prefill_pipeline = true;
+    mirror.v_prefetch = true;
+    mirror.v_prefetch_l3 = false;
+    mirror.micro_math = false;
+    mirror.wide_reads = 1;
+    if (!solve_sv_split(mirror, vd_max) || !tiling_fits_device(arch, d_max, mirror)) {
+        return false;
+    }
+    config = mirror;
+    return true;
+}
+
 // The tuned tiling for d_max, with the S*V split re-derived for vd_max when they differ. Tier 2 (a 64 x 64
 // KQ workgroup tile) covers the pairs the tuned query tile cannot split, e.g. k >= 72 with v <= 32; it is
 // unreachable for k_head_size == v_head_size, so the tuned tilings stay as they are. False: no tiling.
@@ -365,16 +411,29 @@ bool solve_tiling(gpu_arch arch,
                   sdpa_ocl_config_t& config,
                   bool pa_prefill = false,
                   bool pa_mixed = false,
-                  bool few_heads = false) {
+                  bool few_heads = false,
+                  bool plain_prefill = false,
+                  const plain_prefill_shape& plain_shape = {}) {
     if (pa_prefill && solve_pa_prefill_tiling(arch, d_max, vd_max, config)) {
         return true;
     }
     if (pa_mixed && solve_pa_mixed_tiling(arch, d_max, vd_max, few_heads, config)) {
         return true;
     }
+    if (plain_prefill && solve_plain_prefill_tiling(arch, d_max, vd_max, plain_shape, config)) {
+        return true;
+    }
     config = choose_config_kq_only(arch, d_max);
     // A tuned table row has its S*V split filled in; the xe_hpg seed leaves it zero when it found none.
     const bool tuned_split = config.sv_sg_tile_values > 0;
+    if (plain_prefill && plain_shape.f16_qkv && d_max == 128 && arch >= gpu_arch::xe2 && env_int("SDPA_OCL_PLAIN_TABLE_FLAGS", 1) != 0) {
+        // The table tile below the mirror threshold still takes the PA PREFILL loop changes (wide K reads,
+        // V prefetch, branchless softmax / split barrier); measured faster than the bare table at 0.5K-1.5K
+        // key chunks, and the jit gates keep them off the decode/mixed stages which share this row.
+        config.prefill_pipeline = true;
+        config.v_prefetch = true;
+        config.wide_reads = 1;
+    }
     if (((vd_max == d_max && tuned_split) || solve_sv_split(config, vd_max)) && tiling_fits_device(arch, d_max, config)) {
         return true;
     }
@@ -421,11 +480,18 @@ bool resolve_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_
 }
 
 // d_max drives the KQ side (the Q/K contraction depth, hence DKS and the query tile), vd_max the S*V side.
-sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max, bool pa_prefill, bool pa_mixed, bool few_heads) {
+sdpa_ocl_config_t choose_config(gpu_arch arch,
+                                size_t d_max,
+                                size_t vd_max,
+                                bool pa_prefill,
+                                bool pa_mixed,
+                                bool few_heads,
+                                bool plain_prefill = false,
+                                const plain_prefill_shape& plain_shape = {}) {
     OPENVINO_ASSERT(vd_max <= 512, "[GPU] sdpa_ocl: unsupported value head size (vd_max=", vd_max, "); the tiling table covers vd_max <= 512 only");
 
     sdpa_ocl_config_t config;
-    const bool solved = solve_tiling(arch, d_max, vd_max, config, pa_prefill, pa_mixed, few_heads);
+    const bool solved = solve_tiling(arch, d_max, vd_max, config, pa_prefill, pa_mixed, few_heads, plain_prefill, plain_shape);
     OPENVINO_ASSERT(solved,
                     "[GPU] sdpa_ocl: no valid S*V split for d_max=",
                     d_max,
@@ -733,8 +799,10 @@ struct sdpa_ocl_problem {
     sdpa_ocl_config_t tiling;
 };
 
-// is_prefill: the generator's stage (true for PA PREFILL and plain-SDPA multi-token).
-sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill) {
+// is_prefill: the generator's stage (true for PA PREFILL and plain-SDPA multi-token). shape_agnostic: the stage
+// was (compile time: is being) built for dynamic shapes, i.e. has the SHAPE_INFO argument; the dispatch passes
+// what the compiled stage was, not what its runtime params are, so both see the same tiling.
+sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill, bool shape_agnostic) {
     sdpa_ocl_problem p;
     p.k_head_size = qkv_head_size(params, 1);
     p.v_head_size = qkv_head_size(params, 2);
@@ -745,10 +813,29 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill)
     // up to this many heads.
     const auto& info = params.get_device_info();
     const bool few_heads = is_pa && !is_prefill && qkv_heads_num(params, 0) * (256 / 32) * 16 <= static_cast<size_t>(info.execution_units_count) * 4;
+    // Plain-SDPA prefill: a static stage's query / key counts steer the mirror-vs-table tiling policy.
+    const bool plain_prefill = !is_pa && is_prefill;
+    plain_prefill_shape plain_shape;
+    plain_shape.shape_agnostic = shape_agnostic;
+    plain_shape.f16_qkv = params.input_layouts[0].data_type == data_types::f16 && params.input_layouts[1].data_type == data_types::f16 &&
+                          params.input_layouts[2].data_type == data_types::f16;
+    if (plain_prefill && !shape_agnostic) {
+        plain_shape.n_keys = aligned_seq_length(params, 1).get_length();
+        plain_shape.q_len = aligned_seq_length(params, 0).get_length();
+    }
     p.tiling = (is_pa && is_prefill && hpg_pa_prefill_ok(params, p.k_head_size, p.v_head_size))
                    ? hpg_pa_prefill_tiling()
-                   : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads);
+                   : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads, plain_prefill, plain_shape);
     return p;
+}
+
+// Whether a compiled stage is shape-agnostic: get_arguments_desc() gives it the SHAPE_INFO argument exactly when
+// its params were dynamic, and the argument list is saved with the stage, so this also holds for a loaded blob.
+bool compiled_shape_agnostic(const KernelData& kd) {
+    const auto& args = kd.params.arguments;
+    return std::any_of(args.begin(), args.end(), [](const ArgumentDescriptor& a) {
+        return a.t == ArgumentDescriptor::Types::SHAPE_INFO;
+    });
 }
 
 // How the stage reads a paged-attention KV cache; all false for plain SDPA and for PA PREFILL, whose K is
@@ -823,7 +910,7 @@ jit_inputs make_jit_inputs(const kernel_impl_params& params, bool is_prefill) {
     const auto& k = (is_pa && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
     const auto& v = (is_pa && !is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
     const auto& out = params.output_layouts[0];
-    const auto problem = make_problem(params, is_prefill);
+    const auto problem = make_problem(params, is_prefill, params.is_dynamic());
     const auto precision = pa_kv_cache_precision(params);
     const auto cache = classify_pa_cache(params, is_prefill, k, precision, problem);
     // A packed 4-bit row is head_size / 2 bytes.
@@ -890,12 +977,13 @@ void add_micro_math_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("MICRO_MATH", env_int("SDPA_OCL_MICRO_MATH", in.problem.tiling.micro_math ? 1 : 0) == 0 ? 0 : 1);
 }
 
-// PA PREFILL loop changes, on by default with the tiling they were measured with (solve_pa_prefill_tiling()); each
-// switch forces its change on (1) or off (0) on any PA PREFILL ("Paged-attention PREFILL tiling" in the docs). None
-// changes a result: the select returns what the ternary did, the split barrier orders the same accesses, and the
-// last-tile mask skips only elements no mask touches, taking the maxima in the same order.
+// PA PREFILL loop changes, on by default with the tiling they were measured with (solve_pa_prefill_tiling(); for
+// plain-SDPA PREFILL its f16 d_max 128 tilings in solve_tiling()); each switch forces its change on (1) or off (0) on
+// any PREFILL ("Paged-attention PREFILL tiling" in the docs). None changes a result: the select returns what the
+// ternary did, the split barrier orders the same accesses, and the last-tile mask skips only elements no mask touches,
+// taking the maxima in the same order.
 void add_prefill_pipeline_jit(JitConstants& jit, const jit_inputs& in) {
-    if (!in.is_pa || !in.is_prefill) {
+    if (!in.is_prefill) {
         return;
     }
     const auto& t = in.problem.tiling;
@@ -905,14 +993,16 @@ void add_prefill_pipeline_jit(JitConstants& jit, const jit_inputs& in) {
     // The S_max barrier split into arrive / wait around the V prefetch, as sdpa_micro does.
     jit.make("MAX_SPLIT_BARRIER", env_int("SDPA_OCL_MAX_SPLIT", dflt));
     // Only the last key tile (and the tiles a sliding window cuts) can hold masked keys when the workgroup query tile
-    // divides the key tile and no other mask reaches back (bidirectional image groups).
-    const auto desc = in.params.typed_desc<paged_attention>();
-    const bool mask_last_ok = !desc->has_token_type_ids && t.kq_wg_tile_keys() % t.kq_wg_tile_queries() == 0;
+    // divides the key tile and no other mask reaches back (bidirectional image groups). Measured on PA PREFILL only;
+    // plain SDPA prefill takes the other loop changes but keeps these two off (the masked-tile handling there is
+    // the table one, and the combination does not compile for the plain kernel variant).
+    const bool has_token_type_ids = in.is_pa && in.params.typed_desc<paged_attention>()->has_token_type_ids;
+    const bool mask_last_ok = in.is_pa && !has_token_type_ids && t.kq_wg_tile_keys() % t.kq_wg_tile_queries() == 0;
     jit.make("CAUSAL_MASK_LAST_ONLY", mask_last_ok ? env_int("SDPA_OCL_MASK_LAST", dflt) : 0);
     // Skip the KQ / S*V work the causal triangle of the diagonal tile masks out, per subgroup: the short-prompt gap to
     // sdpa_micro (qwen3-8b 32 / 1K tokens 24.7 / 253 to 14.1 / 216 us per call, sdpa_micro 12.6 / 214). At d_max 64 the
     // added branches cost more than the skipped work from 4K on (llama-3.2-1b +6.8%), so not there.
-    const int tile_skip = (t.prefill_pipeline && in.problem.d_max >= 128) ? 1 : 0;
+    const int tile_skip = (in.is_pa && t.prefill_pipeline && in.problem.d_max >= 128) ? 1 : 0;
     jit.make("CAUSAL_TILE_SKIP", env_int("SDPA_OCL_CAUSAL_SKIP", tile_skip));
 }
 
@@ -977,19 +1067,20 @@ void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
     // L1/L3 prefetch of each key tile's V rows, as sdpa_micro's PREFETCH_V does: on by default with the PA PREFILL
     // tilings it was measured with (solve_pa_prefill_tiling()), SDPA_OCL_V_PREFETCH=0/1 for A/B on any PA PREFILL.
-    const bool pa_prefill = in.is_pa && in.is_prefill;
+    // The plain (non-PA) PREFILL lane takes them from its tiling the same way (on for its f16 d_max 128 tilings).
+    const bool prefill_lane = in.is_prefill;
     // The same V rows into L3 only, one request per 256 B line; SDPA_OCL_V_PREFETCH_L3=0/1 for A/B on any PA PREFILL,
     // and it replaces the block prefetch when on.
-    const int v_prefetch_l3 = pa_prefill ? env_int("SDPA_OCL_V_PREFETCH_L3", in.problem.tiling.v_prefetch_l3 ? 1 : 0) : 0;
+    const int v_prefetch_l3 = prefill_lane ? env_int("SDPA_OCL_V_PREFETCH_L3", in.problem.tiling.v_prefetch_l3 ? 1 : 0) : 0;
     jit.make("PREFETCH_V_L3", v_prefetch_l3);
-    jit.make("PREFETCH_V", (kv_2d && pa_prefill && !v_prefetch_l3) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
+    jit.make("PREFETCH_V", (kv_2d && prefill_lane && !v_prefetch_l3) ? env_int("SDPA_OCL_V_PREFETCH", in.problem.tiling.v_prefetch ? 1 : 0) : 0);
     // Fewer, larger K (1) / V (2) / Q_slm (4) reads per key tile: the mask of the PA PREFILL tiling they were measured
     // with (solve_pa_prefill_tiling()), SDPA_OCL_WIDE_READS=<mask> for A/B on any PA PREFILL. With a sliding window
     // d_max 64 keeps the narrow reads: the window's few key tiles stay in cache, and gpt-oss-20b's 128-key window
     // layers were 10-12% slower with K + Q_slm and up to 0.7% with K alone.
     const bool narrow_window = in.problem.d_max == 64 && in.config.paged_attention_sliding_window != 0;
     const int wide_reads = narrow_window ? 0 : in.problem.tiling.wide_reads;
-    jit.make("WIDE_READS", (kv_2d && pa_prefill) ? env_int("SDPA_OCL_WIDE_READS", wide_reads) : 0);
+    jit.make("WIDE_READS", (kv_2d && prefill_lane) ? env_int("SDPA_OCL_WIDE_READS", wide_reads) : 0);
 
     // The output is f16 whatever the KV precision, so KV compression must not disable it.
     jit.make("USE_2D_BLOCK_IO_A", block2d_env_int("SDPA_OCL_A_2D", block2d_layout_ok(in.out, in.lda) ? 1 : 0, allowed));
@@ -1358,7 +1449,7 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     // 256 GRF halves the threads per EU, so it only pays where it removes spill ("Tiling" in the docs): the tilings
     // that ask for it, and SDPA_OCL_256GRF=1 (=0 turns it off for them).
     // xe_hpg always takes it: at 128 GRF every measured DG2 tile spills.
-    const bool large_grf = make_problem(params, m_is_prefill).tiling.large_grf;
+    const bool large_grf = make_problem(params, m_is_prefill, params.is_dynamic()).tiling.large_grf;
     if (env_int("SDPA_OCL_256GRF", large_grf ? 1 : 0) != 0 || params.get_device_info().arch == gpu_arch::xe_hpg)
         extra_options += " -cl-intel-256-GRF-per-thread";
 
@@ -1366,7 +1457,7 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
 }
 
 size_t SDPAOclGenerator::get_query_block_size(const kernel_impl_params& params, bool is_prefill) {
-    return static_cast<size_t>(make_problem(params, is_prefill).tiling.kq_wg_tile_queries());
+    return static_cast<size_t>(make_problem(params, is_prefill, params.is_dynamic()).tiling.kq_wg_tile_queries());
 }
 
 // make_problem() takes hpg_pa_prefill_tiling() exactly when hpg_pa_prefill_ok(), so this skips the tiling solve; the arch
@@ -1765,7 +1856,7 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             return;
         }
         const auto& out_ps = params.output_layouts[0].get_partial_shape();
-        const auto p = make_problem(params, is_prefill);
+        const auto p = make_problem(params, is_prefill, compiled_shape_agnostic(kd));
         const auto& t = p.tiling;
 
         const bool is_pa = params.is_type<paged_attention>();
