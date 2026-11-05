@@ -96,6 +96,10 @@ void regmodule_properties(py::module m) {
 
     wrap_property_WO(m_properties, ov::cache_encryption_callbacks, "cache_encryption_callbacks");
     wrap_property_WO(m_properties, ov::qos, "qos");
+    // Zero-argument overload returning the name, required by the openvino.properties Property wrapper
+    m_properties.def("qos", []() {
+        return ov::qos.name();
+    });
 
     // Submodule hint
     py::module m_hint =

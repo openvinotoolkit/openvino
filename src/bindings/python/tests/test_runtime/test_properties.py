@@ -569,6 +569,18 @@ def test_properties_qos_info():
 
 @pytest.mark.parametrize("level", [props.QoS.DEFAULT, props.QoS.HIGH, props.QoS.MEDIUM,
                                    props.QoS.LOW, props.QoS.UTILITY, props.QoS.ECO])
+def test_properties_qos(level):
+    # Access through the public openvino.properties module, which wraps the binding in Property
+    assert props.qos == "QOS"
+    assert props.qos() == "QOS"
+
+    property_tuple = props.qos(level)
+    assert property_tuple[0] == "QOS"
+    assert property_tuple[1].value == level
+
+
+@pytest.mark.parametrize("level", [props.QoS.DEFAULT, props.QoS.HIGH, props.QoS.MEDIUM,
+                                   props.QoS.LOW, props.QoS.UTILITY, props.QoS.ECO])
 def test_properties_qos_from_ov_any(level):
     # ov::Any holding ov::QoS must convert back to the Python QoS enum, not a string or int
     value = OVAny(level).value
