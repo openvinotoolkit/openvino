@@ -314,7 +314,12 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{512, 8, 1, 1024, 2, true},
         sdpa_test_params{64, 32, 128, 128, 2, true, data_types::bf16},   // bf16 dynamic
         sdpa_test_params{64, 32, 128, 128, 2, false, data_types::bf16},  // bf16 static
-        sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16}      // bf16 two ranks mask
+        sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16},     // bf16 two ranks mask
+        // Head 128 multi-token on Xe2+: a static stage this long takes the 256-key x 128-query tiling, a shape-agnostic
+        // one keeps a single tiling for every runtime shape (its dispatch re-derives the workgroup from the runtime one).
+        sdpa_test_params{128, 8, 512, 2048, 1, false},  // static
+        sdpa_test_params{128, 8, 512, 2048, 1, true},   // dynamic
+        sdpa_test_params{128, 8, 256, 1024, 1, true}    // dynamic
     ),
     sdpa_gpu_test::PrintToStringParamName
 );
@@ -480,6 +485,12 @@ TEST(sdpa_gpu_causal_mask, decode_40q_10kv_444seq) {
 
 TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
     run_sdpa_causal_mask(1, 32, 8, 1, 1024, 128);
+}
+
+// A 512-token chunk over 2K keys: the explicit-mask reference is a static stage (Xe2+: the 256-key x 128-query tiling),
+// the is_causal one a shape-agnostic stage dispatched with these runtime counts.
+TEST(sdpa_gpu_causal_mask, prefill_32q_8kv_512q_2048kv) {
+    run_sdpa_causal_mask(1, 32, 8, 512, 2048, 128);
 }
 
 // Attention sink on the multi-token sdpa_opt kernel, with and without FlashAttention-v2 online softmax,
