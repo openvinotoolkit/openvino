@@ -38,6 +38,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/memory_solver_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/native_stream_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/parallel_read_streambuf_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/plugin_managed_cache_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/property_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/query_model_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/single_file_storage.cpp
