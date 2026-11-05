@@ -526,6 +526,17 @@ void GroupQueryAttention::validate_and_infer_types() {
             output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
         }
     }
+    // ORT's CheckQuerySeqlens: a non-windowed cache must hold the whole padded chunk (output_kv_len is this op's
+    // present/cache_capacity at this point).
+    if (!m_sliding_window_cache && has_query_seqlens() && sequence_len.is_static() && output_kv_len.is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              sequence_len.get_length() <= output_kv_len.get_length(),
+                              "GroupQueryAttention: query_seqlens requires the KV cache capacity (",
+                              output_kv_len,
+                              ") to hold a whole query chunk (sequence_length=",
+                              sequence_len,
+                              ").");
+    }
 
     set_output_type(0, q_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
     for (auto&& port : {1, 2}) {
