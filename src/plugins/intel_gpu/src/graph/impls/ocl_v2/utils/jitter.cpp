@@ -355,7 +355,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         val_one = "_intel_convert_hf8_to_f16((uchar)0x38)";
         val_zero = "_intel_convert_hf8_to_f16((uchar)0x0)";
         to_type = "_intel_convert_f16_to_hf8(convert_half(v))";
-        to_type_sat = "_intel_convert_f16_to_hf8_sat(convert_half(v))";
+        to_type_sat = "_intel_convert_f16_to_hf8_sat(convert_half_sat(v))";
         compute_type = "half";
         to_compute_type = "convert_half(v)";
         decode_compute_type = "_intel_convert_hf8_to_f16(v)";
@@ -371,7 +371,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         val_one = "_intel_convert_bf8_to_f16((uchar)0x3C)";
         val_zero = "_intel_convert_bf8_to_f16((uchar)0x0)";
         to_type = "_intel_convert_f16_to_bf8(convert_half(v))";
-        to_type_sat = "_intel_convert_f16_to_bf8_sat(convert_half(v))";
+        to_type_sat = "_intel_convert_f16_to_bf8_sat(convert_half_sat(v))";
         compute_type = "half";
         to_compute_type = "convert_half(v)";
         decode_compute_type = "_intel_convert_bf8_to_f16(v)";
@@ -386,7 +386,7 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         min_val = "_intel_convert_e8m0_to_f32((uchar)0x00)";  // 2^(-127)
         val_one = "_intel_convert_e8m0_to_f32((uchar)0x7F)";
         to_type = "_intel_convert_f32_to_e8m0(convert_float(v))";
-        to_type_sat = "_intel_convert_f32_to_e8m0_sat(convert_float(v))";
+        to_type_sat = "_intel_convert_f32_to_e8m0_sat(convert_float_sat(v))";
         compute_type = "float";
         to_compute_type = "convert_float(v)";
         decode_compute_type = "_intel_convert_e8m0_to_f32(v)";

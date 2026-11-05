@@ -2578,11 +2578,11 @@ std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, s
     if (dt == Datatype::BF16) {
         ret = "CONVERT_BFLOAT16_AS_USHORT(" + var + ", " + toCodeString(vec_size) + ")";
     } else if (dt == Datatype::F8E4M3) {
-        ret = "CONVERT_F8E4M3_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
+        ret = "CONVERT_F8E4M3_AS_UCHAR(convert_half" + toCodeString(vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     } else if (dt == Datatype::F8E5M2) {
-        ret = "CONVERT_F8E5M2_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
+        ret = "CONVERT_F8E5M2_AS_UCHAR(convert_half" + toCodeString(vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     } else if (dt == Datatype::F8E8M0) {
-        ret = "CONVERT_F8E8M0_AS_UCHAR(" + var + ", " + toCodeString(vec_size) + ")";
+        ret = "CONVERT_F8E8M0_AS_UCHAR(convert_float" + toCodeString(vec_size) + "(" + var + "), " + toCodeString(vec_size) + ")";
     }
     return ret;
 }

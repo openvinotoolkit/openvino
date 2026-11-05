@@ -11,8 +11,6 @@
 #define USE_BLOCK_WRITE (((OUTPUT_TYPE_SIZE * OUTPUT_FEATURE_PITCH) & 0xF) == 0)
 
 #if HAS_DYNAMIC_QUANTIZE
-#include "include/batch_headers/common.cl"
-#include "include/f8_utils.cl"
 #include "include/dynamic_quantize_utils.cl"
 #define NORMALIZED_TYPE float
 #define TO_NORMALIZED_TYPE(x) convert_float(x)

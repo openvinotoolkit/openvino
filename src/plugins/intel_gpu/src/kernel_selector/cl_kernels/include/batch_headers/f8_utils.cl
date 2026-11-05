@@ -7,7 +7,7 @@
 #ifndef OV_GPU_OCL_F8_UTILS_H
 #define OV_GPU_OCL_F8_UTILS_H
 
-uchar _f16_to_bf8_universal(half val, bool is_saturation) {
+inline uchar _f16_to_bf8_universal(half val, bool is_saturation) {
     half val_fp16 = val;
     const ushort *p = (ushort *)&val_fp16;
     const ushort mant = p[0] & 0x3FF;
@@ -28,22 +28,22 @@ uchar _f16_to_bf8_universal(half val, bool is_saturation) {
     return ret_tmp;
 }
 
-uchar _intel_convert_f16_to_bf8(half val) {
+inline uchar _intel_convert_f16_to_bf8(half val) {
     return _f16_to_bf8_universal(val, false);
 }
 
-uchar _intel_convert_f16_to_bf8_sat(half val) {
+inline uchar _intel_convert_f16_to_bf8_sat(half val) {
     return _f16_to_bf8_universal(val, true);
 }
 
-half _intel_convert_bf8_to_f16(uchar val) {
+inline half _intel_convert_bf8_to_f16(uchar val) {
     ushort temp = val;
     temp = temp << 0x8;
     half temp_fp16 = as_half(temp);
     return temp_fp16;
 }
 
-uchar _f16_to_hf8_universal(half val, bool is_saturation) {
+inline uchar _f16_to_hf8_universal(half val, bool is_saturation) {
     half val_fp16 = val;
     ushort *p = (ushort *)&val_fp16;
     ushort src = p[0];
@@ -104,15 +104,15 @@ uchar _f16_to_hf8_universal(half val, bool is_saturation) {
     return src_sign << (exp_size + mant_size) | dst_val;
 }
 
-uchar _intel_convert_f16_to_hf8(half val) {
+inline uchar _intel_convert_f16_to_hf8(half val) {
     return _f16_to_hf8_universal(val, false);
 }
 
-uchar _intel_convert_f16_to_hf8_sat(half val) {
+inline uchar _intel_convert_f16_to_hf8_sat(half val) {
     return _f16_to_hf8_universal(val, true);
 }
 
-half _intel_convert_hf8_to_f16(uchar val) {
+inline half _intel_convert_hf8_to_f16(uchar val) {
     const short exp_bias = 7;
     uchar data = val;
     ushort sign = data >> 7;
@@ -138,16 +138,16 @@ half _intel_convert_hf8_to_f16(uchar val) {
     return temp_fp16;
 }
 
-uchar _intel_convert_f32_to_e8m0(float val) {
+inline uchar _intel_convert_f32_to_e8m0(float val) {
     uint val_uint = as_uint(val);
     return (uchar)((val_uint >> 23) & 0xFF);
 }
 
-uchar _intel_convert_f32_to_e8m0_sat(float val) {
+inline uchar _intel_convert_f32_to_e8m0_sat(float val) {
     return _intel_convert_f32_to_e8m0(val);
 }
 
-float _intel_convert_e8m0_to_f32(uchar val) {
+inline float _intel_convert_e8m0_to_f32(uchar val) {
     if (val == 0xFF) {
         return as_float(0xFFC00000); // NaN
     } else if (val == 0) {

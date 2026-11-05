@@ -4,10 +4,6 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
-#include "opencl_helper_instance.hpp"
-#include "ocl/ocl_device.hpp"
-#include "runtime/ocl/ocl_stream.hpp"
-#include <ocl/ocl_wrapper.hpp>
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
@@ -2324,8 +2320,8 @@ TEST(reorder_gpu, basic_convert_f8e4m3_f32_f8e4m3) {
     ASSERT_TRUE(are_equal(interm_ptr[0x40 + 0x7F], -2.0f));
     ASSERT_TRUE(are_equal(interm_ptr[0x48 + 0x7F], -4.0f));
     // Special values.
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFE]));
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFF]));
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFE]) && !std::signbit(interm_ptr[0xFE]));
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFF]) && std::signbit(interm_ptr[0xFF]));
 
     auto output = outputs.at("reorder_f32_f8e4m3").get_memory();
     cldnn::mem_lock<ov::float8_e4m3, mem_lock_type::read> output_ptr(output, get_test_stream());
@@ -2355,10 +2351,11 @@ TEST(reorder_gpu, basic_convert_f8e5m2_f32_f8e5m2) {
     // Special values.
     expected_values[0xF8] = ov::float8_e5m2::from_bits(0x7C);    // +inf
     expected_values[0xF9] = ov::float8_e5m2::from_bits(0xFC);    // -inf
-    expected_values[0xFA] = ov::float8_e5m2::from_bits(0x7E);  // +NaN
+    // Ambiguous values.
+    expected_values[0xFA] = ov::float8_e5m2::from_bits(0x7D);  // +NaN
     expected_values[0xFB] = ov::float8_e5m2::from_bits(0x7E);  // +NaN
     expected_values[0xFC] = ov::float8_e5m2::from_bits(0x7F);  // +NaN
-    expected_values[0xFD] = ov::float8_e5m2::from_bits(0xFE);  // -NaN
+    expected_values[0xFD] = ov::float8_e5m2::from_bits(0xFD);  // -NaN
     expected_values[0xFE] = ov::float8_e5m2::from_bits(0xFE);  // -NaN
     expected_values[0xFF] = ov::float8_e5m2::from_bits(0xFF);  // -NaN
 
@@ -2400,20 +2397,20 @@ TEST(reorder_gpu, basic_convert_f8e5m2_f32_f8e5m2) {
     ASSERT_TRUE(are_equal(interm_ptr[0x40 + 0x7C], -2.0f));
     ASSERT_TRUE(are_equal(interm_ptr[0x44 + 0x7C], -4.0f));
     // Special values.
-    ASSERT_TRUE(std::isinf(interm_ptr[0xF8]));
-    ASSERT_TRUE(std::isinf(interm_ptr[0xF9]));
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFA]));
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFB]));
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFC]));
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFD]));
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFE]));
-    ASSERT_TRUE(std::isnan(interm_ptr[0xFF]));
+    ASSERT_TRUE(std::isinf(interm_ptr[0xF8]) && !std::signbit(interm_ptr[0xF8])); // +inf
+    ASSERT_TRUE(std::isinf(interm_ptr[0xF9]) && std::signbit(interm_ptr[0xF9]));  // -inf
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFA]) && !std::signbit(interm_ptr[0xFA])); // +nan
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFB]) && !std::signbit(interm_ptr[0xFB])); // +nan
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFC]) && !std::signbit(interm_ptr[0xFC])); // +nan
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFD]) && std::signbit(interm_ptr[0xFD]));  // -nan
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFE]) && std::signbit(interm_ptr[0xFE]));  // -nan
+    ASSERT_TRUE(std::isnan(interm_ptr[0xFF]) && std::signbit(interm_ptr[0xFF]));  // -nan
 
     auto output = outputs.at("reorder_f32_f8e5m2").get_memory();
     cldnn::mem_lock<ov::float8_e5m2, mem_lock_type::read> output_ptr(output, get_test_stream());
-    for (int i = 0; i < 0x100; ++i)
+    for (int i = 0; i < 0xFA; ++i) // Excluding ambiguous values.
     {
-        ASSERT_TRUE(are_equal(static_cast<uint8_t>(expected_values[i]), static_cast<uint8_t>(output_ptr[i])));
+        ASSERT_TRUE(are_equal(expected_values[i].to_bits(), output_ptr[i].to_bits()));
     }
 }
 
@@ -2472,7 +2469,7 @@ TEST(reorder_gpu, basic_convert_f8e8m0_f32_f8e8m0) {
     cldnn::mem_lock<ov::float8_e8m0, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 0xFF; ++i)
     {
-        ASSERT_TRUE(are_equal(static_cast<uint8_t>(expected_values[i]), static_cast<uint8_t>(output_ptr[i])));
+        ASSERT_TRUE(are_equal(expected_values[i].to_bits(), output_ptr[i].to_bits()));
     }
 }
 
@@ -4689,6 +4686,74 @@ TEST(reorder_weights_gpu_i32, reorder_weights)
     ASSERT_EQ(output_ptr.size(), ref_output.size());
     for (size_t i = 0; i < ref_output.size(); ++i) {
         ASSERT_EQ(output_ptr[i], ref_output[i]);
+    }
+}
+
+template <typename T>
+struct reorder_weights_opt_f8 : public ::testing::Test {};
+
+using reorder_weights_f8_types = ::testing::Types<ov::float8_e4m3, ov::float8_e5m2, ov::float8_e8m0>;
+TYPED_TEST_SUITE(reorder_weights_opt_f8, reorder_weights_f8_types);
+
+TYPED_TEST(reorder_weights_opt_f8, os_is_yx_isv16_osv16_ifm_zero_fill) {
+    auto& engine = get_test_engine();
+    const auto dt = ov::element::from<TypeParam>();
+
+    constexpr int ofm = 16;
+    constexpr int ifm = 3;
+    constexpr int spatial = 2;
+    // os_is_yx_isv16_osv16 with IFM=3 is padded to one isv block of 16.
+    constexpr size_t padded_size = 16 * 16 * spatial;
+    constexpr uint8_t sentinel = 0xEE;
+    layout in_layout(dt, format::bfyx, { ofm, ifm, spatial, 1 });
+    layout out_layout(dt, format::os_is_yx_isv16_osv16, { ofm, ifm, spatial, 1 });
+    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(in_layout, out_layout);
+
+    auto input = engine.allocate_memory(in_layout);
+
+    std::vector<TypeParam> in_vals;
+    for (int idx = 0; idx < ofm * ifm * spatial; ++idx) {
+        in_vals.push_back(TypeParam::from_bits(static_cast<uint8_t>(idx + 1)));
+    }
+    set_values(input, in_vals);
+
+    auto output_mem = engine.allocate_memory(out_layout);
+    set_values(output_mem, std::vector<TypeParam>(padded_size, TypeParam::from_bits(sentinel)));
+
+    topology topology {
+        input_layout("input", in_layout),
+        reorder("reorder", input_info("input"), weights_reorder_params)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc wr_impl_desc = { format::os_is_yx_isv16_osv16, "reorder_weights_opt", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", wr_impl_desc} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_output_memory("reorder", output_mem);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<TypeParam, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), padded_size);
+
+    // Every position must be written: valid positions hold the reordered values, IFM
+    // padding positions (i=3..15) must be zero-filled (no sentinel byte may survive).
+    std::vector<uint8_t> expected(padded_size, 0x00);
+    for (int o = 0; o < ofm; ++o) {
+        for (int i = 0; i < ifm; ++i) {
+            for (int s = 0; s < spatial; ++s) {
+                const size_t out_idx = s * 16 * 16 + i * 16 + o;
+                expected[out_idx] = in_vals[(o * ifm + i) * spatial + s].to_bits();
+            }
+        }
+    }
+    for (size_t i = 0; i < padded_size; ++i) {
+        ASSERT_EQ(output_ptr[i].to_bits(), expected[i]) << "at blocked offset " << i;
     }
 }
 
