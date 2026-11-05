@@ -128,10 +128,11 @@ TEST(SdpaOclHpg, XeHpgTilingCoversEveryHead) {
             EXPECT_LE(t.slm_bytes, 64u * 1024);
             EXPECT_EQ(t.slm_bytes, oracle_slm(t, pow2_ceil(k)));
             expect_valid_tiling(t, pow2_ceil(v), what);
-            if (k == v) {  // the seed: 16 x 16 KQ tile, 4 x 2 subgroups (measured on DG2)
+            if (k == v) {  // the seed: 16 x 16 KQ tile, 4 / 8 / 16 x 2 subgroups up to head 128 / 256 / 512 (DG2 spill)
+                const size_t d_max = pow2_ceil(k);
                 EXPECT_EQ(t.kq_sg_tile_keys, 16);
                 EXPECT_EQ(t.kq_sg_tile_queries, 16);
-                EXPECT_EQ(t.kq_sg_per_wg_keys, 4);
+                EXPECT_EQ(t.kq_sg_per_wg_keys, d_max <= 128 ? 4 : (d_max <= 256 ? 8 : 16));
                 EXPECT_EQ(t.kq_sg_per_wg_queries, 2);
             }
         }
