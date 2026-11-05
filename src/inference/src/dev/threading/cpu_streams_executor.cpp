@@ -279,9 +279,6 @@ struct CPUStreamsExecutor::Impl {
         std::unique_ptr<custom::task_arena> _taskArena;
         std::unique_ptr<Observer> _observer;
         std::vector<int> _cpu_ids;
-#elif OV_THREAD == OV_THREAD_SEQ
-        CpuSet _mask = nullptr;
-        int _ncpus = 0;
 #endif
     };
     // if the thread is created by CPUStreamsExecutor, the Impl::Stream of the thread is stored by tbb Class
@@ -451,38 +448,35 @@ struct CPUStreamsExecutor::Impl {
         } else {
             task();
         }
-#else
-        pin_stream_to_cpus();
-        task();
-        unpin_stream_to_cpus();
-#endif
-    }
-
-    void pin_stream_to_cpus() {
-#if OV_THREAD == OV_THREAD_SEQ
+#elif OV_THREAD == OV_THREAD_SEQ
         if (_config.get_cpu_pinning()) {
-            auto stream = _streams->local();
-            auto proc_type_table = get_org_proc_type_table();
-            std::tie(stream->_mask, stream->_ncpus) = get_process_mask();
-            if (get_num_numa_nodes() > 1) {
-                pin_current_thread_to_socket(stream->_numaNodeId);
-            } else if (proc_type_table.size() == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
-                if (nullptr != stream->_mask) {
-                    pin_thread_to_vacant_core(stream->_streamId + _config.get_thread_binding_offset(),
-                                              _config.get_thread_binding_step(),
-                                              stream->_ncpus,
-                                              stream->_mask);
-                }
-            }
+            ScopedThreadAffinity affinity_guard;
+            pin_stream_to_cpus(stream);
+            task();
+        } else {
+            task();
         }
+#else
+        task();
 #endif
     }
 
-    void unpin_stream_to_cpus() {
+    void pin_stream_to_cpus(Stream& stream) {
 #if OV_THREAD == OV_THREAD_SEQ
-        auto stream = _streams->local();
-        if (stream->_mask) {
-            pin_current_thread_by_mask(stream->_ncpus, stream->_mask);
+        auto proc_type_table = get_org_proc_type_table();
+        // Use the process baseline mask for choosing a vacant core to pin to.
+        CpuSet process_mask;
+        int process_ncpus = 0;
+        std::tie(process_mask, process_ncpus) = get_process_mask();
+        if (get_num_numa_nodes() > 1) {
+            pin_current_thread_to_socket(stream._numaNodeId);
+        } else if (proc_type_table.size() == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0) {
+            if (nullptr != process_mask) {
+                pin_thread_to_vacant_core(stream._streamId + _config.get_thread_binding_offset(),
+                                          _config.get_thread_binding_step(),
+                                          process_ncpus,
+                                          process_mask);
+            }
         }
 #endif
     }

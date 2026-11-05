@@ -11,11 +11,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     // Crop is an obsolete experimental ONNX operation.
     // Crops an image's spatial dimensions.
@@ -26,6 +22,12 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     // Spec defines four borders (left, top, right, bottom); when scale is present only left/top are used.
     const auto border = node.get_attribute_value<std::vector<std::int64_t>>("border");
 
+    // border[0] and border[1] are read below to build `begin`, regardless of whether 'scale' is set.
+    CHECK_VALID_NODE(node,
+                     border.size() >= 2,
+                     "ONNX Crop expects at least 2 values in 'border' attribute, found: ",
+                     border.size());
+
     std::shared_ptr<ov::Node> end;
 
     // Set slice begin values to border values (note order of indexes)
@@ -35,10 +37,6 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
     // If scale is given, then start crop at left/top `border`
     // and end on left/top `border` + `scale`.
     if (node.has_attribute("scale")) {
-        CHECK_VALID_NODE(node,
-                         border.size() >= 2,
-                         "ONNX Crop with 'scale' expects at least 2 values in 'border' attribute, found: ",
-                         border.size());
         // List of ints height, width
         const auto scale = node.get_attribute_value<std::vector<std::int64_t>>("scale");
 
@@ -75,8 +73,4 @@ ov::OutputVector crop(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Crop", OPSET_SINCE(1), ai_onnx::opset_1::crop);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

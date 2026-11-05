@@ -186,11 +186,12 @@ bool Bank::is_remote(int64_t uid) const {
     // FIXME: make generic
     std::unique_lock guard(m_mutex);
 
-    auto npu_bank = m_device_banks.find("NPU");
-    if (npu_bank != m_device_banks.end()) {
-        if (npu_bank->second.storage.find(uid) != npu_bank->second.storage.end()) {
-            // Found in NPU bank so considered remote (utterly wrong for the generic case)
-            return true;
+    for (const auto& bank : m_device_banks) {
+        if (ov::npuw::util::starts_with(bank.first, "NPU")) {
+            if (bank.second.storage.find(uid) != bank.second.storage.end()) {
+                // Found in NPU bank so considered remote (utterly wrong for the generic case)
+                return true;
+            }
         }
     }
     return false;

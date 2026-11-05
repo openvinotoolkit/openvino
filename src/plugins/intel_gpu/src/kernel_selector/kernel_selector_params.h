@@ -247,6 +247,7 @@ public:
         union DataTypesKey {
             struct val_t {
                 uint32_t uint2 : 1;
+                uint32_t uint3 : 1;
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
                 uint32_t int8 : 1;
@@ -406,8 +407,8 @@ struct EngineInfo {
     gpu_arch arch = gpu_arch::unknown;
     uint32_t maxThreadsPerExecutionUnit = 0;
     uint32_t maxThreadsPerDevice = 0;
-    uint64_t maxWorkGroupSize = 0;
-    uint64_t maxLocalMemSize = 0;
+    size_t maxWorkGroupSize = 0;
+    size_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
     std::string deviceId;
@@ -634,7 +635,7 @@ struct fused_operation_desc {
     int32_t dep_idx_start;
     size_t dep_size;
     MultiDataTensor tensors;
-    DataTensor output_tensor;
+    MultiDataTensor output_tensors;
     size_t op_id;
     std::vector<dep_info> dep_data;
 

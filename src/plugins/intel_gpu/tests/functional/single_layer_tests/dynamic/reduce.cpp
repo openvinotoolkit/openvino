@@ -204,14 +204,14 @@ const auto reduceMean = ::testing::Combine(
 );
 INSTANTIATE_TEST_SUITE_P(smoke_reduce_mean_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceMean, ReduceLayerGPUTest::getTestCaseName);
 
-const auto reduceProd = ::testing::Combine(
-        ::testing::ValuesIn({dyn2d, dyn4d}),
-        ::testing::ValuesIn({ov::element::f32}),
-        ::testing::Values(ov::test::utils::ReductionType::Prod),
-        ::testing::ValuesIn(keepDims),
-        ::testing::Values(ov::test::utils::DEVICE_GPU)
-);
-INSTANTIATE_TEST_SUITE_P(smoke_reduce_prod_compareWithRefs_dynamic, ReduceLayerGPUTest, reduceProd, ReduceLayerGPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_reduce_prod_compareWithRefs_dynamic,
+                         ReduceLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn({dyn2d, dyn4d}),
+                                            ::testing::ValuesIn({ov::element::f32}),
+                                            ::testing::Values(ov::test::utils::ReductionType::Prod),
+                                            ::testing::ValuesIn(keepDims),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         ReduceLayerGPUTest::getTestCaseName);
 
 const auto reduceL2 = ::testing::Combine(
         ::testing::ValuesIn({dyn4d, dyn5d}),

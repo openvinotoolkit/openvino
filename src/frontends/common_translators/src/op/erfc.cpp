@@ -7,9 +7,7 @@
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace common_translators {
+namespace ov::frontend::common_translators {
 
 using namespace ov::op;
 using namespace std;
@@ -28,6 +26,4 @@ OutputVector translate_erfc(const NodeContext& context) {
     return translate_erfc_util(context, data);
 }
 
-}  // namespace common_translators
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::common_translators

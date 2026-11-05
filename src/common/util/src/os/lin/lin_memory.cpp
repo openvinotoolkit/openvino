@@ -27,10 +27,13 @@ void madvise_hint(void* ptr, size_t size) noexcept {
 }  // namespace
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
-    if (alignment == 0) {
+    // Some std::aligned_alloc implementations (for example on macOS) return nullptr for
+    // alignments smaller than sizeof(void*), so small alignments are raised as documented.
+    if (alignment < alignof(std::max_align_t)) {
         alignment = alignof(std::max_align_t);
     }
-    return std::aligned_alloc(alignment, align_size_up(size, alignment));
+    const auto aligned_size = align_size_up_overflow(size, alignment);
+    return aligned_size ? std::aligned_alloc(alignment, *aligned_size) : nullptr;
 }
 
 void aligned_free(void* ptr) noexcept {
@@ -78,8 +81,8 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {
         madvise_hint(ptr, size);
-    } else {
-        PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
+    } else if (const auto done = submit_page_toucher_tasks(ptr, size, num_threads); done.valid()) {
+        done.wait();
     }
 }
 
@@ -89,7 +92,7 @@ PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noex
         madvise_hint(ptr, size);
         return {};
     }
-    return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
+    return submit_page_toucher_tasks(ptr, size, num_threads);
 }
 
 }  // namespace ov::util

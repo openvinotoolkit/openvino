@@ -71,13 +71,14 @@ target_sources(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/src/log.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/memory_prefetch.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/memory_prefetch.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/mmap_object.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_stream.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/native_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/parallel_read_streambuf.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_parse_utils.cpp
         # Windows specific sources
         "$<$<BOOL:${WIN32}>:${WIN32_SOURCES}>"
-         # Unix specific sources
+        # Unix specific sources
         "$<$<BOOL:${UNIX}>:${UNIX_SOURCES}>"
 )
 

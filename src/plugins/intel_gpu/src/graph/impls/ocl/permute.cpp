@@ -99,6 +99,7 @@ attach_permute_impl::attach_permute_impl() {
 
     auto dyn_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,

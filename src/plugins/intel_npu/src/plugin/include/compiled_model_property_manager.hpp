@@ -11,9 +11,9 @@
 #include <string>
 #include <vector>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "property_registration.hpp"
@@ -22,7 +22,7 @@ namespace intel_npu {
 
 class CompiledModelPropertyManager final : private PropertyRegistrationBase {
 public:
-    CompiledModelPropertyManager(const FilteredConfig& config,
+    CompiledModelPropertyManager(const Config& config,
                                  const ov::AnyMap& properties,
                                  const std::shared_ptr<IDevice>& device,
                                  const std::shared_ptr<IGraph>& graph,
@@ -32,12 +32,12 @@ public:
     void setProperty(const ov::AnyMap& properties);
     ov::Any getProperty(const std::string& name) const;
 
-    FilteredConfig getConfig() const;
+    Config getConfig() const;
 
 private:
     void registerProperties();
 
-    FilteredConfig _config;
+    Config _config;
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;

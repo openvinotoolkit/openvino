@@ -13,6 +13,7 @@
 #include <system_error>
 
 #include "attention.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "compiled_model.hpp"
@@ -20,13 +21,18 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "lazy_tensor.hpp"
+#include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
@@ -34,8 +40,71 @@
 #include "weights_bank.hpp"
 
 using ov::test::npuw::ModelBuilder;
+using Gather = ov::npuw::Subgraph::Gather;
+using QuantUnpackGather = ov::npuw::Subgraph::QuantUnpackGather;
+using Stream = ov::npuw::s11n::Stream;
+using ov::test::npuw::MockSubCompiledModel;
+using ov::test::npuw::NullPlugin;
 
 namespace {
+
+std::shared_ptr<ov::Model> make_validation_model(std::size_t n_inputs) {
+    ov::ParameterVector parameters;
+    for (std::size_t i = 0; i < n_inputs; ++i) {
+        parameters.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}));
+    }
+    return std::make_shared<ov::Model>(ov::ResultVector{}, parameters);
+}
+
+void expect_serialize_valid(const Gather& hg,
+                            const QuantUnpackGather& qug,
+                            std::size_t param_base,
+                            std::size_t closure_size,
+                            std::size_t n_model_inputs) {
+    auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
+    auto plugin = std::make_shared<NullPlugin>();
+    if (n_model_inputs != 0) {
+        auto model = make_validation_model(n_model_inputs);
+        ov::npuw::CompiledModelDescTestAccessor::compiled_model(writer) =
+            ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    }
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(writer) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::quant_unpack_gather(writer) = qug;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(writer) = param_base;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
+    closure.get().closure.resize(closure_size);
+    closure.get().closure_uid.resize(closure_size, -1);
+    closure.get().is_remote.resize(closure_size, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    writer.serialize(stream, {});
+}
+
+void expect_serialize_throws(const Gather& hg,
+                             const QuantUnpackGather& qug,
+                             std::size_t param_base,
+                             std::size_t closure_size,
+                             std::size_t n_model_inputs) {
+    auto writer = ov::npuw::CompiledModelDescTestAccessor::make();
+    auto plugin = std::make_shared<NullPlugin>();
+    if (n_model_inputs != 0) {
+        auto model = make_validation_model(n_model_inputs);
+        ov::npuw::CompiledModelDescTestAccessor::compiled_model(writer) =
+            ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    }
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(writer) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::quant_unpack_gather(writer) = qug;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(writer) = param_base;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(writer);
+    closure.get().closure.resize(closure_size);
+    closure.get().closure_uid.resize(closure_size, -1);
+    closure.get().is_remote.resize(closure_size, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    writer.serialize(stream, {});
+}
 
 class SerializationNullPlugin final : public ov::IPlugin {
 public:
@@ -78,6 +147,7 @@ public:
         return {};
     }
 };
+
 constexpr char kExpectedOobIndexMessage[] = "CPU closure index is out of range";
 constexpr char kExpectedClosureUidSizeMessage[] = "closure_uid size does not match closure size";
 constexpr char kExpectedIsRemoteSizeMessage[] = "is_remote size does not match closure size";
@@ -473,7 +543,7 @@ void expect_attention_equal(const ov::npuw::compiled::Attention& expected,
 
 void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionContiguous& expected,
                                     const ov::npuw::compiled::PyramidAttentionContiguous& actual) {
-    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.original_query_length, actual.original_query_length);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
@@ -483,7 +553,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
         EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
-        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.compiled_query_size, rhs.compiled_query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.params.size(), rhs.params.size());
         for (std::size_t j = 0; j < lhs.params.size(); ++j) {
@@ -495,7 +565,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
 
 void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBlock& expected,
                                     const ov::npuw::compiled::PyramidAttentionBlock& actual) {
-    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.original_query_length, actual.original_query_length);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
@@ -507,7 +577,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBl
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
         EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
-        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.compiled_query_size, rhs.compiled_query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.param_port_map, rhs.param_port_map);
         EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
@@ -539,7 +609,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._tile_output_indices.acc, rhs._tile_output_indices.acc);
     EXPECT_EQ(lhs._tile_output_indices.max, rhs._tile_output_indices.max);
     EXPECT_EQ(lhs._tile_output_indices.d, rhs._tile_output_indices.d);
-    EXPECT_EQ(expected._tile_size, actual._tile_size);
+    EXPECT_EQ(expected._past_tile_size, actual._past_tile_size);
+    EXPECT_EQ(expected._final_tile_size, actual._final_tile_size);
     EXPECT_EQ(expected._can_use_tensor_view, actual._can_use_tensor_view);
 }
 
@@ -970,7 +1041,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionContiguous var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.global_mask_idx = 4;
@@ -979,13 +1050,13 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
     info1.params = {{0, 2}, {1, 3}};
     info1.mask_idx_local = 4;
-    info1.query_size = 16;
+    info1.compiled_query_size = 16;
     info1.context_length = 32;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info2;
     info2.params = {{2, 1}};
     info2.mask_idx_local = 5;
-    info2.query_size = 16;
+    info2.compiled_query_size = 16;
     info2.context_length = 64;
 
     var._attention_infos = {info1, info2};
@@ -1004,7 +1075,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionBlock var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
@@ -1014,14 +1085,14 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info1;
     info1.mask_idx_local = 4;
-    info1.query_size = 16;
+    info1.compiled_query_size = 16;
     info1.context_length = 32;
     // This variant dropped all KV blocks — no entries for global indices 10/11/12/20/21/22.
     info1.param_port_map = {{4, 4}};
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info2;
     info2.mask_idx_local = 5;
-    info2.query_size = 16;
+    info2.compiled_query_size = 16;
     info2.context_length = 64;
     // This variant retained one K block (global 10 -> local 0) and one V block (global 20 -> local 1).
     info2.param_port_map = {{4, 5}, {10, 0}, {20, 1}};
@@ -1049,7 +1120,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode_RebuildsGlobalBlockSe
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionBlock var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
@@ -1094,7 +1165,8 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;
@@ -1122,13 +1194,223 @@ TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, std::numeric_limits<std::size_t>::max(), 14, 15};
     var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;
     std::stringstream ss;
     write(ss, var);
     EXPECT_THROW(read(ss, res), ov::Exception);
+}
+
+namespace {
+
+class HFAFakePlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected compile_model call");
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        OPENVINO_THROW("Unexpected compile_model(context) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(stream) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(stream, context) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(blob) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(blob, context) call");
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected query_model call");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+    bool is_property_supported(const std::string&, const ov::AnyMap&) const override {
+        return false;
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected create_context call");
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected get_default_context call");
+    }
+};
+
+class HFAFakeCompiledModel final : public ov::ICompiledModel {
+public:
+    HFAFakeCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin, nullptr, nullptr) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        OPENVINO_THROW("Unexpected get_runtime_model call");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name) const override {
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        OPENVINO_THROW("Unexpected create_sync_infer_request call");
+    }
+};
+
+// Model with a fixed number of Parameter inputs/Result outputs, used to stand in for the
+// compiled tile models that HostFlashAttention::is_valid() bound-checks against.
+std::shared_ptr<ov::Model> make_hfa_stub_model(std::size_t num_inputs, std::size_t num_outputs) {
+    ov::ParameterVector params;
+    ov::ResultVector results;
+    for (std::size_t i = 0; i < num_inputs; ++i) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1, 1}));
+    }
+    for (std::size_t i = 0; i < num_outputs; ++i) {
+        auto add = std::make_shared<ov::op::v1::Add>(params.at(0), params.at(0));
+        results.push_back(std::make_shared<ov::op::v0::Result>(add));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+ov::SoPtr<ov::ICompiledModel> make_hfa_fake_compiled_model(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                           std::size_t num_inputs,
+                                                           std::size_t num_outputs) {
+    auto model = make_hfa_stub_model(num_inputs, num_outputs);
+    return ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(model, plugin));
+}
+
+ov::npuw::compiled::HostFlashAttention make_deserialized_hfa(std::size_t k_seq_dim,
+                                                             std::size_t v_seq_dim,
+                                                             std::size_t context_size = 32) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention source;
+    source._sdpa_attention_info._query_size = 8;
+    source._sdpa_attention_info._context_size = context_size;
+    source._sdpa_attention_info._k_seq_dim = k_seq_dim;
+    source._sdpa_attention_info._v_seq_dim = v_seq_dim;
+    source._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
+    source._sdpa_attention_info._tile_input_indices = {0, 1, 2, 3, 0, 1, 2};
+    source._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    source._past_tile_size = 8;
+    source._final_tile_size = 8;
+
+    ov::npuw::compiled::HostFlashAttention result;
+    std::stringstream stream;
+    write(stream, source);
+    read(stream, result);
+
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    result._compiled_tile_model = make_hfa_fake_compiled_model(plugin, 3, 3);
+    result._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, 4, 3);
+    return result;
+}
+
+}  // namespace
+
+// Reproduces an attacker-controlled cache blob carrying an out-of-range tile input index:
+// the raw index round-trips through the s11n write()/read() path unchecked, and is_valid()
+// must reject it once attached to compiled models whose real input/output counts are known.
+TEST(SerializationTest, HostFlashAttention_OutOfRangeTileIndexRejectedAfterDeserialization) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._query_size = 8;
+    var._sdpa_attention_info._context_size = 32;
+    var._sdpa_attention_info._k_seq_dim = 1;
+    var._sdpa_attention_info._v_seq_dim = 2;
+    var._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
+    // Only 3 inputs will exist on the compiled tile models below, so index 999 is out of range.
+    var._sdpa_attention_info._tile_input_indices = {999, 1, 2, 3, 0, 1, 2};
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    var._past_tile_size = 8;
+    var._final_tile_size = 8;
+    var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    // The out-of-range index survives deserialization unchanged - no validation happens in
+    // the s11n layer itself.
+    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.q, static_cast<std::size_t>(999));
+
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    res._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/3, /*num_outputs=*/3);
+    res._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/4, /*num_outputs=*/3);
+
+    EXPECT_FALSE(res.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_OutOfRangeKSeqDimRejectedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/4, /*v_seq_dim=*/2);
+
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_OutOfRangeVSeqDimRejectedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/4);
+
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+// Positive control for the rejection tests above: the baseline configuration they are derived from
+// must be accepted. Without it, an over-strict is_valid() - which would break every HFA inference
+// at the OPENVINO_ASSERT in ensure_hfa_requests - would still leave those tests green.
+TEST(SerializationTest, HostFlashAttention_ValidConfigurationAcceptedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+
+    EXPECT_TRUE(hfa.is_valid());
+}
+
+// Mask-skipping optimization: the regular tile model is compiled without a mask input, so the
+// mask index deliberately points past its inputs while still addressing the final tile model's
+// mask port. is_valid() must accept that, and must still reject an index that is out of range
+// for the final tile model as well.
+TEST(SerializationTest, HostFlashAttention_MaskSkippingConfigurationAccepted) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+    auto plugin = std::make_shared<HFAFakePlugin>();
+
+    // Regular tile model: [acc, max, d, k, v, q]; final tile model additionally has mask at index 6.
+    hfa._sdpa_attention_info._tile_input_indices = {/*q=*/5,
+                                                    /*k=*/3,
+                                                    /*v=*/4,
+                                                    /*mask=*/6,
+                                                    /*acc=*/0,
+                                                    /*max=*/1,
+                                                    /*d=*/2};
+    hfa._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
+    hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/7, /*num_outputs=*/3);
+    EXPECT_TRUE(hfa.is_valid());
+
+    hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+// _context_size feeds the mask tile buffer allocation loop in
+// HFARuntimeContext::initialize_mask_cache (ceil(context_size / past_tile_size) device allocations),
+// so zero and absurdly large values must be rejected while a partial final interval remains valid.
+TEST(SerializationTest, HostFlashAttention_InvalidContextSizeRejectedAfterDeserialization) {
+    EXPECT_FALSE(make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2, /*context_size=*/0).is_valid());
+    EXPECT_TRUE(make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2, /*context_size=*/33).is_valid());
+    // Would request nearly 2^61 mask tile buffers.
+    EXPECT_FALSE(make_deserialized_hfa(/*k_seq_dim=*/1,
+                                       /*v_seq_dim=*/2,
+                                       /*context_size=*/std::numeric_limits<std::size_t>::max() - 7)
+                     .is_valid());
 }
 
 TEST(SerializationTest, OVTypes_MoEExperts) {
@@ -1493,6 +1775,42 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
 }
 
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
+                                                       {0, 1, 127, 128, 254, 255}, 0);
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    ov::npuw::weights::LazyTensor res;
+    const auto expected = var.eval();
+
+    std::stringstream ss;
+    write(ss, var);
+    var.detach();
+    read(ss, res);
+    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({constant}), {}));
+
+    expect_lazy_tensor_transform_types_equal(var, res);
+    EXPECT_EQ(var.get_hash(), res.get_hash());
+    EXPECT_EQ(res.eval_meta().shape, (ov::Shape{2, 3}));
+    EXPECT_EQ(res.eval_meta().type, ov::element::i8);
+    expect_tensors_equal(expected, res.eval());
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_embedded_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4}, {0, 127, 128, 255});
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    const auto expected = var.eval();
+    ov::npuw::weights::LazyTensor res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    expect_tensors_equal(expected, res.eval());
+}
+
 TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
     using namespace ov::npuw::s11n;
 
@@ -1563,6 +1881,458 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, AllSentinelsPass) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0));
+}
+
+TEST(SerializationTest, AllSentinelsPassWithNonZeroInputCount) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, ValidHostGatherIndicesPass) {
+    Gather hg{5, 3, 6};
+    EXPECT_NO_THROW(expect_serialize_valid(hg, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, ValidQuantUnpackGatherIndicesPass) {
+    QuantUnpackGather qug{0, 1, 2, 3, 4};
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, qug, 0, 0, 8));
+}
+
+TEST(SerializationTest, HostGatherDstIdxExactlyAtBoundFails) {
+    Gather hg{8, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherDstIdxFarOOBFails) {
+    Gather hg{1000, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherDstIdxNegativeNonSentinelFails) {
+    Gather hg{-2, 5, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherIdxIdxOOBFails) {
+    Gather hg{0, 5, 8};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxBelowParamBaseFails) {
+    Gather hg{0, 1, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxExactlyAtClosureEndFails) {
+    Gather hg{0, 6, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxFarPastClosureFails) {
+    Gather hg{0, 1000, 0};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherSrcIdxAtLastValidClosureSlotPasses) {
+    Gather hg{0, 5, 0};
+    EXPECT_NO_THROW(expect_serialize_valid(hg, {-1, -1, -1, -1, -1}, 2, 4, 8));
+}
+
+TEST(SerializationTest, HostGatherActiveMissingSrcIdxFails) {
+    Gather hg{0, -1, 1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherActiveMissingIdxIdxFails) {
+    Gather hg{0, 5, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherInactiveNonSentinelSrcIdxFails) {
+    Gather hg{-1, 5, -1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, HostGatherInactiveNonSentinelIdxIdxFails) {
+    Gather hg{-1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws(hg, {-1, -1, -1, -1, -1}, 2, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherDstIdxOOBFails) {
+    QuantUnpackGather qug{8, 0, -1, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcWIdxOOBFails) {
+    QuantUnpackGather qug{0, 8, -1, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcZIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, 8, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherSrcSIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, -1, 8, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherIdxIdxOOBFails) {
+    QuantUnpackGather qug{0, 1, -1, 1, 8};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingSrcWIdxFails) {
+    QuantUnpackGather qug{0, -1, -1, 1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingSrcSIdxFails) {
+    QuantUnpackGather qug{0, 1, -1, -1, 1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveMissingIdxIdxFails) {
+    QuantUnpackGather qug{0, 1, -1, 1, -1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, QuantUnpackGatherActiveOptionalSrcZIdxPasses) {
+    QuantUnpackGather qug{0, 1, -1, 2, 3};
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, qug, 0, 0, 8));
+}
+
+TEST(SerializationTest, QuantUnpackGatherInactiveNonSentinelSrcWIdxFails) {
+    QuantUnpackGather qug{-1, 1, -1, -1, -1};
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, qug, 0, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeExceedsInputsFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 6, 4, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeOverflowWrapFails) {
+    EXPECT_THROW(
+        expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, std::numeric_limits<std::size_t>::max(), 2, 8),
+        ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseClosureSizeExactlyAtBoundPasses) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 4, 4, 8));
+}
+
+TEST(SerializationTest, ParamBaseLargerThanInputsFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 9, 1, 8), ov::Exception);
+}
+
+TEST(SerializationTest, ParamBaseLargerThanInputsZeroClosureFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {-1, -1, -1, -1, -1}, 9, 0, 8), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelAllSentinelsPasses) {
+    EXPECT_NO_THROW(expect_serialize_valid({-1, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0));
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelDstIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({0, -1, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelSrcIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, 0, -1}, {-1, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, NoCompiledModelNonSentinelQuantDstIdxFails) {
+    EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {0, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
+}
+
+TEST(SerializationTest, BlockKVHFAAllowsSmallerCompiledModel) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(7);
+    auto submodel = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(submodel) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    ov::npuw::CompiledModelDescTestAccessor::param_base(submodel) = 18;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(submodel));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+
+    ov::npuw::v1::subgraphs::RuntimeBehaviorSpec behavior;
+    behavior.handles_function_prologue = true;
+    submodels[0].pipeline.runtime_behavior = std::move(behavior);
+    // Other prologue-owning behaviors (Dynamic/Pyramid attention, MoE) still get the check.
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+
+    auto hfa = std::make_shared<ov::npuw::compiled::HostFlashAttention>();
+    auto& sdpa_indices = hfa->_sdpa_attention_info._sdpa_indices;
+    sdpa_indices.past_key_blocks = {0};
+    sdpa_indices.past_value_blocks = {1};
+    ov::npuw::attn::put_compiled_hfa(submodels[0].pipeline.context, hfa);
+    // Regular HFA has a single past K/V input each and still gets the check.
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+
+    sdpa_indices.past_key_blocks = {0, 2};
+    sdpa_indices.past_value_blocks = {1, 3};
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
+}
+
+TEST(SerializationTest, BlockKVHFAFuncallUsesFunctionBodyBehavior) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(7);
+    auto body = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(body) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    body.replaced_by = 0;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(body) = 18;
+    ov::npuw::v1::subgraphs::RuntimeBehaviorSpec behavior;
+    behavior.handles_function_prologue = true;
+    body.pipeline.runtime_behavior = std::move(behavior);
+
+    auto hfa = std::make_shared<ov::npuw::compiled::HostFlashAttention>();
+    auto& sdpa_indices = hfa->_sdpa_attention_info._sdpa_indices;
+    sdpa_indices.past_key_blocks = {0, 2};
+    sdpa_indices.past_value_blocks = {1, 3};
+    ov::npuw::attn::put_compiled_hfa(body.pipeline.context, hfa);
+
+    auto funcall = ov::npuw::CompiledModelDescTestAccessor::make();
+    funcall.replaced_by = 0;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(funcall) = 18;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(body));
+    submodels.push_back(std::move(funcall));
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
+
+    sdpa_indices.past_key_blocks = {0};
+    sdpa_indices.past_value_blocks = {1};
+    ov::npuw::CompiledModelDescTestAccessor::param_base(submodels[0]) = 0;
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelValidHostGatherPasses) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 2;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
+}
+
+TEST(SerializationTest, FuncallSubmodelHostGatherDstIdxOOBFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0, but host_gather dst_idx=8 is out of bounds [0, 8)
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{8, 0, 0};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(1);
+    closure1.get().closure_uid.resize(1, -1);
+    closure1.get().is_remote.resize(1, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelClosureOverflowFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body with 8 inputs
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call referencing submodel 0, param_base=6 + closure_size=4 = 10 > 8
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 6;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_NO_THROW(submodels[0].serialize(stream, {}));
+    EXPECT_NO_THROW(submodels[1].serialize(stream, {}));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelRoundTripThroughReadPath) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+    ov::SoPtr<ov::ICompiledModel> body_cm{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) = body_cm;
+
+    // Submodel 1: function call into submodel 0, carrying an active host gather
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+    Gather hg{5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(sub1) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(sub1) = 2;
+    auto& closure1 = ov::npuw::CompiledModelDescTestAccessor::closure(sub1);
+    closure1.get().closure.resize(4);
+    closure1.get().closure_uid.resize(4, -1);
+    closure1.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto writer = Stream::writer(ss);
+    ASSERT_NO_THROW(sub0.serialize(writer, {}));
+    ASSERT_NO_THROW(sub1.serialize(writer, {}));
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec imported;
+    imported.push_back(ov::npuw::CompiledModelDescTestAccessor::make());
+    imported.push_back(ov::npuw::CompiledModelDescTestAccessor::make());
+
+    // Reading a funcall desc must not trip the in-codec index check, which is skipped
+    // because the funcall has no compiled model of its own at this point.
+    auto reader = Stream::reader(ss);
+    ASSERT_NO_THROW(imported[0].serialize(reader, {}));
+    ASSERT_NO_THROW(imported[1].serialize(reader, {}));
+
+    ASSERT_EQ(ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx, 5);
+    ASSERT_FALSE(ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[1]));
+
+    // Import attaches a compiled model to the function body only.
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(imported[0]) = body_cm;
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(imported));
+
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(imported[1]).dst_idx = 8;
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(imported), ov::Exception);
+}
+
+// The checks below need no compiled model, so a funcall desc must be rejected by the codec itself.
+TEST(SerializationTest, FuncallSubmodelNegativeGatherIndexFails) {
+    auto desc = ov::npuw::CompiledModelDescTestAccessor::make();
+    desc.replaced_by = 0;
+    Gather hg{-5, 3, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(desc) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(desc) = 2;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
+    closure.get().closure.resize(4);
+    closure.get().closure_uid.resize(4, -1);
+    closure.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_THROW(desc.serialize(stream, {}), ov::Exception);
+}
+
+TEST(SerializationTest, FuncallSubmodelHostGatherSrcIdxOutOfClosureFails) {
+    auto desc = ov::npuw::CompiledModelDescTestAccessor::make();
+    desc.replaced_by = 0;
+    // src_idx - param_base == 7, past the end of a 4-entry closure
+    Gather hg{5, 9, 6};
+    ov::npuw::CompiledModelDescTestAccessor::host_gather(desc) = hg;
+    ov::npuw::CompiledModelDescTestAccessor::param_base(desc) = 2;
+    auto& closure = ov::npuw::CompiledModelDescTestAccessor::closure(desc);
+    closure.get().closure.resize(4);
+    closure.get().closure_uid.resize(4, -1);
+    closure.get().is_remote.resize(4, false);
+
+    std::stringstream ss;
+    auto stream = Stream::writer(ss);
+    EXPECT_THROW(desc.serialize(stream, {}), ov::Exception);
+}
+
+TEST(SerializationTest, ReplacedByOutOfRangeFails) {
+    // Submodel 0: replaced_by points to submodel 5 (out of range)
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub0.replaced_by = 5;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, FunctionBodyWithCorruptedReplacedByFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: Function body that has a compiled_model, but its replaced_by field is corrupted (points OOB to 99)
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    sub0.replaced_by = 99;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+}
+
+TEST(SerializationTest, MultiHopReplacedByFails) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(8);
+
+    // Submodel 0: function body with compiled_model
+    auto sub0 = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(sub0) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+
+    // Submodel 1: function call targeting submodel 0 (no compiled_model)
+    auto sub1 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub1.replaced_by = 0;
+
+    // Submodel 2: multi-hop function call targeting submodel 1 instead of function body submodel 0 directly
+    auto sub2 = ov::npuw::CompiledModelDescTestAccessor::make();
+    sub2.replaced_by = 1;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(sub0));
+    submodels.push_back(std::move(sub1));
+    submodels.push_back(std::move(sub2));
+
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
 }
 
 TEST(SerializationTest, ReconstructClosureRejectsMismatchedClosureMetadata) {

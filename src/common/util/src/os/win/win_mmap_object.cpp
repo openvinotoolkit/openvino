@@ -8,6 +8,7 @@
 #include <future>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <stdexcept>
 #include <thread>
@@ -283,7 +284,7 @@ public:
     }
 };
 
-class MapHolder : public ov::MappedMemory {
+class MapHolder final : public ov::MappedMemory {
 public:
     MapHolder() = default;
     ~MapHolder() override;
@@ -297,29 +298,32 @@ public:
     bool try_remap_slot(uintptr_t fault_addr);
 
     // ov::MappedMemory interface
-    char* data() noexcept override {
-        return static_cast<char*>(m_data);
+    const std::byte* data() const noexcept override final {
+        return m_data;
     }
-    size_t size() const noexcept override {
+    std::byte* data() noexcept override final {
+        return m_data;
+    }
+    size_t size() const noexcept override final {
         return m_size;
     }
 
-    uint64_t get_id() const noexcept override {
+    std::optional<uint64_t> get_id() const noexcept override {
         return m_id;
     }
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t offset, size_t size) override;
+    void hint_prefetch(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch_async(size_t offset, size_t size) override;
+    util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) noexcept override;
 
 private:
     /**
-     * @brief Adopts futures detached from a util::PrefetchToken, reaping already-finished ones so
-     * the pending list doesn't grow unbounded across repeated hint_prefetch_async() calls.
+     * @brief Adopts the handle returned by util::vm_prefetch_async(), reaping already-finished ones
+     * so the pending list doesn't grow unbounded across repeated hint_prefetch_async() calls.
      */
-    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks);
+    void adopt_pending_prefetch(util::PrefetchToken task) noexcept;
 
     /** @brief Joins all outstanding background prefetch tasks. Must run before any teardown that
      *  unmaps or frees the view, since a detached task may still be touching those pages. */
@@ -375,9 +379,9 @@ private:
                                 size_t file_tail_offset,
                                 size_t tail_data_size);
 
-    void* m_data{};   //!< pointer exposed to callers
-    size_t m_size{};  //!< user-visible byte count
-    uint64_t m_id{std::numeric_limits<uint64_t>::max()};
+    std::byte* m_data{};  //!< pointer exposed to callers
+    size_t m_size{};      //!< user-visible byte count
+    std::optional<uint64_t> m_id;
 
     HandleHolder m_handle{};       //!< section object from CreateFileMappingW
     HandleHolder m_file_handle{};  //!< file HANDLE kept open to block DeleteFile (set-by-path only)
@@ -395,9 +399,9 @@ private:
      */
     std::mutex m_slot_mutex;
 
-    // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
+    // Handles shared with hint_prefetch_async()'s caller; joined before unmapping (see ~MapHolder).
     std::mutex m_pending_prefetch_mutex;
-    std::vector<std::future<void>> m_pending_prefetch;
+    std::vector<util::PrefetchToken> m_pending_prefetch;
 };
 
 LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
@@ -614,7 +618,7 @@ bool MapHolder::try_placeholder_setup(size_t aligned_offset, size_t head_pad, si
     m_view_base = base;
     m_total_va_size = total_va_size;
     m_file_mapped_size = actual_map_size;
-    m_data = base + head_pad;
+    m_data = reinterpret_cast<std::byte*>(base + head_pad);
     return true;
 }
 
@@ -626,7 +630,7 @@ void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size
                                     static_cast<DWORD>(aligned_offset & 0xFFFFFFFF),
                                     head_pad + size)) {
         m_view_base = static_cast<char*>(view);
-        m_data = m_view_base + head_pad;
+        m_data = reinterpret_cast<std::byte*>(m_view_base + head_pad);
     } else {
         throw std::runtime_error{"MapViewOfFile failed: " + std::to_string(::GetLastError())};
     }
@@ -653,7 +657,7 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     set_id(file_handle, offset, size);
     if (mode == MmapMode::READ_WRITE) {
         // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
-        m_id = no_mapping_id;
+        m_id = std::nullopt;
     }
 
     if (m_size == 0) {
@@ -797,20 +801,28 @@ util::AlignedRegion clamp_align_region(const void* data, size_t mapping_size, si
 
 }  // namespace
 
-void MapHolder::adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
-    std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
-    // Reap already-finished futures so the vector doesn't grow without bound across repeated
-    // hint_prefetch_async() calls over this mapping's lifetime.
-    m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
-                                            m_pending_prefetch.end(),
-                                            [](std::future<void>& task) {
-                                                return !task.valid() || task.wait_for(std::chrono::seconds(0)) ==
-                                                                            std::future_status::ready;
-                                            }),
-                             m_pending_prefetch.end());
-    m_pending_prefetch.insert(m_pending_prefetch.end(),
-                              std::make_move_iterator(tasks.begin()),
-                              std::make_move_iterator(tasks.end()));
+void MapHolder::adopt_pending_prefetch(util::PrefetchToken task) noexcept {
+    if (task.valid()) {
+        try {
+            std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+            // Reap already-finished handles so the vector doesn't grow without bound across repeated
+            // hint_prefetch_async() calls over this mapping's lifetime.
+            m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
+                                                    m_pending_prefetch.end(),
+                                                    [](util::PrefetchToken& pending) {
+                                                        return !pending.valid() ||
+                                                               pending.wait_for(std::chrono::seconds(0)) ==
+                                                                   std::future_status::ready;
+                                                    }),
+                                     m_pending_prefetch.end());
+            m_pending_prefetch.push_back(std::move(task));
+        } catch (const std::exception&) {
+            // Bookkeeping failed (e.g. allocation failure): the prefetch already started in the
+            // background, so block here instead of returning with it untracked, or ~MapHolder could
+            // unmap while it is still touching these pages.
+            task.wait();
+        }
+    }
 }
 
 void MapHolder::wait_for_pending_prefetch() noexcept {
@@ -823,7 +835,7 @@ void MapHolder::wait_for_pending_prefetch() noexcept {
     m_pending_prefetch.clear();
 }
 
-void MapHolder::hint_prefetch(size_t offset, size_t size) {
+void MapHolder::hint_prefetch(size_t offset, size_t size) noexcept {
     // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
     if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
         const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());
@@ -833,14 +845,16 @@ void MapHolder::hint_prefetch(size_t offset, size_t size) {
     }
 }
 
-void MapHolder::hint_prefetch_async(size_t offset, size_t size) {
+util::PrefetchToken MapHolder::hint_prefetch_async(size_t offset, size_t size) noexcept {
     if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
         region.m_length > util::default_parallel_io_threshold) {
-        auto token = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
-                                             region.m_length,
-                                             util::prefetch_thread_count(region.m_length));
-        adopt_pending_prefetch(token.detach());
+        auto future = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
+                                              region.m_length,
+                                              util::prefetch_thread_count(region.m_length));
+        adopt_pending_prefetch(future);
+        return future;
     }
+    return {};
 }
 
 std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t size) const noexcept {
@@ -860,7 +874,7 @@ std::pair<char*, char*> MapHolder::compute_evict_range(size_t offset, size_t siz
     const auto gran = util::get_system_alloc_granularity();
 
     // Convert user [offset, size) to a VA range relative to m_view_base.
-    const size_t head_pad = static_cast<size_t>(static_cast<char*>(m_data) - m_view_base);
+    const size_t head_pad = static_cast<size_t>(reinterpret_cast<char*>(m_data) - m_view_base);
     const size_t va_begin_raw = head_pad + clamped_offset;
     if (va_begin_raw >= m_total_va_size)
         return {};

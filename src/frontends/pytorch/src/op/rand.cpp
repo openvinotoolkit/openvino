@@ -18,10 +18,7 @@
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -285,16 +282,24 @@ OutputVector translate_normal(const NodeContext& context) {
     auto mean = context.get_input(0);
     auto std = context.get_input(1);
     auto dtype = element::f32;
-    if (context.get_input_size() == 3 || context.get_input_size() == 4) {
+    if (context.get_op_type().find("aten.normal.float_float") == 0) {
+        if (context.has_attribute("dtype")) {
+            dtype = context.get_attribute<element::Type>("dtype");
+        }
+        return make_random_normal(context, context.get_input(2), dtype, std, mean);
+    }
+    if (context.get_input_size() >= 2 && context.get_input_size() <= 4) {
         // aten::normal.Tensor_float(Tensor mean, float std=1., *, Generator? generator=None) -> Tensor
         // aten::normal.Tensor_Tensor(Tensor mean, Tensor std, *, Generator? generator=None) -> Tensor
+        // aten::normal.float_Tensor(float mean, Tensor std, *, Generator? generator=None) -> Tensor
         // aten::normal.Tensor_float_out(Tensor mean, float std=1., *, Generator? generator=None, Tensor(a!) out) ->
         // Tensor(a!)
-        // aten::normal.Tensor_float_out(Tensor mean, float std=1., *, Generator? generator=None, Tensor(a!)
+        // aten::normal.float_Tensor_out(float mean, Tensor std, *, Generator? generator=None, Tensor(a!)
         // out) -> Tensor(a!)
         // aten::normal.Tensor_Tensor_out(Tensor mean, Tensor std, *, Generator? generator=None,
         // Tensor(a!) out) -> Tensor(a!)
-        auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(mean, element::i32));
+        const auto tensor = is_python_scalar_input(context, 0) ? std : mean;
+        auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
         auto res = make_random_normal(context, sizes, dtype, std, mean);
         if (!context.input_is_none(3)) {
             // out
@@ -343,7 +348,4 @@ OutputVector translate_normal(const NodeContext& context) {
     }
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

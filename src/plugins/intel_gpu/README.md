@@ -26,6 +26,7 @@ GPU Plugin contains the following components:
   * [Memory allocation in GPU plugin](./docs/memory_allocation_gpu_plugin.md)
 * [Memory formats](./docs/gpu_memory_formats.md)
 * [Kernels and kernel selectors](./docs/gpu_kernels.md)
+* [Kernel synchronization](./docs/gpu_kernel_synchronization.md)
 * [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
 * [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
 * [Run benchmark from device_mem](./docs/use_device_mem.md)
@@ -66,6 +67,7 @@ This contents explain the internal implementation of dynamic shape support in th
 
 ## Blog posting
 * [INT4 KV Cache Compression for LLM Inference on Intel GPU: New in OpenVINO 2026.2](./docs/blog/int4_kv_cache_support_in_2026_2.md)
+* [Activations Scale Factor from Model rt_info: Behavior Change in OpenVINO 2026.5](./docs/blog/activations_scale_factor_rt_info_in_2026_5.md)
 
 ## Attached licenses
 

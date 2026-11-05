@@ -42,6 +42,10 @@ public:
     [[nodiscard]] bool isSupported(const ReduceAttrs& reduceAttrs,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
+        if (reduceAttrs.axes.empty()) {
+            DEBUG_LOG("ACL has no reduction primitive for an empty axes list");
+            return false;
+        }
         if (!aclSupported({srcDescs[0], dstDescs[0]})) {
             DEBUG_LOG("ACL common preconditions are not met");
             return false;

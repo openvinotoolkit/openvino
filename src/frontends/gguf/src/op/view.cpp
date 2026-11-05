@@ -17,16 +17,19 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 // Put the reshape target's single -1 on the axis carrying the runtime token count, recovered by
 // element-count conservation: product(tgt) / product(res_ps's static dims). No-op for a static
 // res_ps, where the target is already exact and a -1 could land on the wrong axis.
 void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape& res_ps) {
+    if (std::find(tgt.begin(), tgt.end(), -1) != tgt.end()) {
+        // The decoder can identify the runtime axis exactly from ggml strides/permutations. Keep
+        // that stronger contract, especially for zero-length captures where element-count
+        // inference below is intentionally impossible.
+        return;
+    }
     if (res_ps.rank().is_dynamic()) {
         return;
     }
@@ -61,11 +64,22 @@ void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape&
 
 // Cases 2-5 are shared by both ingest paths: the llama.cpp cgraph decoder classifies a ggml view
 // into them (see ggml-decoder.cpp::compute_op_case) and the native .gguf builder describes its own
-// views the same way. Case 104 is builder-only: it takes a second (shape-reference) input the
-// cgraph path does not supply, so it has a different arity than the shared cases. See its comment
-// below, and docs/frontend_design.md for the other two builder-only cases in the frontend.
+// views the same way. The native builder can supply an optional second shape-reference input
+// for case 3 to preserve the runtime token layout. Builder-only case 104 also uses that input.
+// See its comment below and docs/frontend_design.md for the builder-only cases.
 OutputVector translate_view(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
+
+    // op_case 105 (builder): constant row or column permutation of a weight.
+    if (context.get_op_case() == 105) {
+        const auto gather_indices = context.get_attribute<std::vector<int64_t>>("gather_indices");
+        const auto axis = context.get_attribute<int64_t>("gather_axis");
+        auto indices = ov::op::v0::Constant::create(ov::element::i64, {gather_indices.size()}, gather_indices);
+        auto axis_node = ov::op::v0::Constant::create(ov::element::i64, {}, {axis});
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v8::Gather>(context.get_input(0), indices, axis_node)},
+            context.get_name());
+    }
 
     const auto& output_shape = context.get_output_shape();
     const auto& input_shape = context.get_input_shape(0);
@@ -100,9 +114,9 @@ OutputVector translate_view(const NodeContext& context) {
 
         // Restore the original ggml (base) shape if the OV input was already reshaped, mirroring
         // op_case 3. The base is [F, T] (ggml) == OV [.., T, F]; we then split F into G x group_stride.
-        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape");
+        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
         auto input_ov_shape = input.get_partial_shape();
-        if (input_ov_shape.rank().is_static() &&
+        if (!input_ggml_shape.empty() && input_ov_shape.rank().is_static() &&
             static_cast<size_t>(input_ov_shape.rank().get_length()) != input_ggml_shape.size()) {
             input = std::make_shared<ov::op::v1::Reshape>(
                 input,
@@ -184,10 +198,10 @@ OutputVector translate_view(const NodeContext& context) {
     if (context.get_attribute<int>("op_case", 0) == 3) {
         auto input = context.get_input(0);
         auto input_ov_shape = input.get_partial_shape();
-        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape");
+        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
 
         // Input already reshaped: restore the original ggml (base) shape before slicing.
-        if (input_ov_shape.rank().is_static() &&
+        if (!input_ggml_shape.empty() && input_ov_shape.rank().is_static() &&
             static_cast<size_t>(input_ov_shape.rank().get_length()) != input_ggml_shape.size()) {
             input = std::make_shared<ov::op::v1::Reshape>(
                 input,
@@ -201,7 +215,24 @@ OutputVector translate_view(const NodeContext& context) {
         // ggml strides.
         auto slice = context.get_attribute<std::vector<int64_t>>("view_slice", {});
         ov::Output<ov::Node> result = input;
-        if (slice.size() == 3) {
+        bool whole_concat_input = false;
+        // Selecting a complete Concat input needs no packing or copy. This also keeps
+        // SSM token outputs independent of the final state when converting to paged execution.
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(input.get_node_shared_ptr());
+        if (slice.size() == 3 && concat && concat->get_input_size() == 2 && concat->get_axis() == slice[0] &&
+            slice[0] >= 0 && concat->get_input_partial_shape(1).rank().is_static()) {
+            const auto& tail = concat->get_input_partial_shape(1)[slice[0]];
+            if (tail.is_static() && tail.get_length() > 0) {
+                const auto count = tail.get_length();
+                const bool prefix = slice[1] == 0 && slice[2] == -count;
+                const bool suffix = slice[1] == -count && slice[2] == count;
+                if (prefix || suffix) {
+                    result = concat->input_value(suffix ? 1 : 0);
+                    whole_concat_input = true;
+                }
+            }
+        }
+        if (!whole_concat_input && slice.size() == 3) {
             const int64_t axis = slice[0], start = slice[1], len = slice[2];
             if (axis >= 0 && static_cast<size_t>(axis) < input_ggml_shape.size() &&
                 start >= static_cast<int64_t>(input_ggml_shape[axis])) {
@@ -236,10 +267,15 @@ OutputVector translate_view(const NodeContext& context) {
                                                       false);
             result.get_node_shared_ptr()->set_friendly_name("view_reshape_" + context.get_name());
         }
-        // A view that neither restores rank, slices nor reshapes is a pass-through: the value is
-        // still the producer's output, so renaming it here would rename a node owned by another
-        // ggml tensor (and the suffix compounds, since the helper appends).
-        if (result == context.get_input(0)) {
+        // A second operand provides the runtime layout for a view of a packed recurrent
+        // output. This preserves token placement when paged execution flattens the batch.
+        if (context.get_input_size() == 2) {
+            result = std::make_shared<ov::op::v1::Reshape>(result,
+                                                           std::make_shared<ov::op::v3::ShapeOf>(context.get_input(1)),
+                                                           false);
+        }
+        // Preserve producer names when the view reuses an existing value.
+        if (result == context.get_input(0) || (whole_concat_input && tgt.empty() && context.get_input_size() == 1)) {
             return {std::move(result)};
         }
         return rename_outputs_with_suffix({std::move(result)}, context.get_name());
@@ -268,7 +304,7 @@ OutputVector translate_view(const NodeContext& context) {
             const auto ref_rank = ref.get_partial_shape().rank();
             FRONT_END_OP_CONVERSION_CHECK(ref_rank.is_static(),
                                           "VIEW case 104 shape reference must have a static rank");
-            const auto d_ps = context.get_output_shape();
+            const auto d_ps = input.get_partial_shape();
             const int64_t rank = ref_rank.get_length();
             FRONT_END_OP_CONVERSION_CHECK(d_ps.rank().is_static() && d_ps[d_ps.rank().get_length() - 1].is_static(),
                                           "VIEW case 104 requires a static per-layer embedding width");
@@ -299,9 +335,54 @@ OutputVector translate_view(const NodeContext& context) {
         const auto src_strides = context.get_attribute<std::vector<int64_t>>("view_input_strides", {});
         const auto dst_strides = context.get_attribute<std::vector<int64_t>>("view_output_strides", {});
         const int64_t byte_offset = context.get_attribute<int64_t>("view_offset_bytes", 0);
+        const int64_t block_size = context.get_attribute<int64_t>("view_block_size", 1);
 
-        if (src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
-            src_strides == dst_strides && byte_offset >= 0) {
+        const auto element_size = context.get_input(0).get_element_type().size();
+        const auto is_contiguous = [element_size](const ov::Shape& shape, const std::vector<int64_t>& strides) {
+            if (shape.size() != strides.size() || strides.empty() || strides[0] != static_cast<int64_t>(element_size)) {
+                return false;
+            }
+            int64_t expected_stride = static_cast<int64_t>(element_size);
+            for (size_t d = 0; d < shape.size(); ++d) {
+                const auto dim = static_cast<int64_t>(shape[shape.size() - 1 - d]);
+                if (dim > 1 && strides[d] != expected_stride) {
+                    return false;
+                }
+                expected_stride *= dim;
+            }
+            return true;
+        };
+        if (byte_offset >= 0 && element_size > 0 && byte_offset % element_size == 0 &&
+            is_contiguous(src_shape, src_strides) && is_contiguous(dst_shape, dst_strides)) {
+            const int64_t start = byte_offset / element_size;
+            const int64_t count = static_cast<int64_t>(ov::shape_size(dst_shape));
+            const int64_t source_count = static_cast<int64_t>(ov::shape_size(src_shape));
+            if (start <= source_count && count <= source_count - start && (start != 0 || count != source_count)) {
+                auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+                auto flat = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), flat_shape, false);
+                auto starts = ov::op::v0::Constant::create(ov::element::i64, {1}, {start});
+                auto stops = ov::op::v0::Constant::create(ov::element::i64, {1}, {start + count});
+                auto steps = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+                auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+                auto selected = std::make_shared<ov::op::v8::Slice>(flat, starts, stops, steps, axes);
+                auto target = ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape);
+                auto result = std::make_shared<ov::op::v1::Reshape>(selected, target, false);
+                return rename_outputs_with_suffix({std::move(result)}, context.get_name());
+            }
+        }
+
+        bool same_strides = src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
+                            src_strides.size() == dst_strides.size();
+        if (same_strides) {
+            for (size_t d = 0; d < src_shape.size(); ++d) {
+                const auto axis = src_shape.size() - 1 - d;
+                if (dst_shape[axis] > 1 && src_strides[d] != dst_strides[d]) {
+                    same_strides = false;
+                    break;
+                }
+            }
+        }
+        if (same_strides && byte_offset >= 0 && block_size > 0) {
             std::vector<int64_t> starts(src_shape.size(), 0);
             std::vector<size_t> dims(src_shape.size());
             std::iota(dims.begin(), dims.end(), 0);
@@ -318,6 +399,9 @@ OutputVector translate_view(const NodeContext& context) {
                 }
                 starts[d] = remaining / src_strides[d];
                 remaining %= src_strides[d];
+                if (d == 0) {
+                    starts[d] *= block_size;
+                }
                 if (starts[d] < 0 || starts[d] + static_cast<int64_t>(dst_shape[src_shape.size() - 1 - d]) >
                                          static_cast<int64_t>(src_shape[src_shape.size() - 1 - d])) {
                     valid = false;
@@ -337,12 +421,17 @@ OutputVector translate_view(const NodeContext& context) {
                     end[ov_axis] = begin[ov_axis] + static_cast<int64_t>(dst_shape[ov_axis]);
                     axes[ov_axis] = static_cast<int64_t>(ov_axis);
                 }
-                auto result = std::make_shared<ov::op::v8::Slice>(
-                    context.get_input(0),
-                    ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin),
-                    ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
-                    ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
-                    ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
+                auto begin_node = ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin);
+                auto end_node = ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end);
+                auto step_node = ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step);
+                auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
+                auto data = context.get_input(0);
+                if (data.get_partial_shape().rank().is_static() &&
+                    data.get_partial_shape().rank().get_length() != static_cast<int64_t>(src_shape.size())) {
+                    auto source_shape = ov::op::v0::Constant::create(ov::element::i64, {src_shape.size()}, src_shape);
+                    data = std::make_shared<ov::op::v1::Reshape>(data, source_shape, false);
+                }
+                auto result = std::make_shared<ov::op::v8::Slice>(data, begin_node, end_node, step_node, axes_node);
                 return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
 
@@ -350,7 +439,7 @@ OutputVector translate_view(const NodeContext& context) {
             // the outer planes. Flatten the two innermost ggml dimensions for that case.
             if (src_shape.size() == 4 && src_shape[0] == dst_shape[0] && src_shape[1] == dst_shape[1] &&
                 src_strides[0] > 0 && byte_offset % src_strides[0] == 0) {
-                const int64_t begin_elem = byte_offset / src_strides[0];
+                const int64_t begin_elem = (byte_offset / src_strides[0]) * block_size;
                 const int64_t src_plane = static_cast<int64_t>(src_shape[2] * src_shape[3]);
                 const int64_t dst_plane = static_cast<int64_t>(dst_shape[2] * dst_shape[3]);
                 if (begin_elem >= 0 && begin_elem + dst_plane <= src_plane) {
@@ -375,7 +464,7 @@ OutputVector translate_view(const NodeContext& context) {
         }
 
         if (src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
-            src_strides.size() == dst_strides.size() && byte_offset >= 0) {
+            src_strides.size() == dst_strides.size() && byte_offset >= 0 && block_size > 0) {
             std::vector<int64_t> starts(src_shape.size(), 0);
             std::vector<int64_t> steps(src_shape.size(), 1);
             std::vector<size_t> dims(src_shape.size());
@@ -394,6 +483,13 @@ OutputVector translate_view(const NodeContext& context) {
                 steps[d] = dst_strides[d] / src_strides[d];
                 starts[d] = remaining / src_strides[d];
                 remaining %= src_strides[d];
+                if (d == 0) {
+                    if (starts[d] > std::numeric_limits<int64_t>::max() / block_size) {
+                        valid = false;
+                        break;
+                    }
+                    starts[d] *= block_size;
+                }
                 const size_t ov_axis = src_shape.size() - 1 - d;
                 const int64_t last = starts[d] + steps[d] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1);
                 if (starts[d] < 0 || last >= static_cast<int64_t>(src_shape[ov_axis])) {
@@ -414,18 +510,28 @@ OutputVector translate_view(const NodeContext& context) {
                     end[ov_axis] = begin[ov_axis] + step[ov_axis] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1) + 1;
                     axes[ov_axis] = static_cast<int64_t>(ov_axis);
                 }
-                auto result = std::make_shared<ov::op::v8::Slice>(
-                    context.get_input(0),
-                    ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin),
-                    ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
-                    ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
-                    ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
+                auto begin_node = ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin);
+                auto end_node = ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end);
+                auto step_node = ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step);
+                auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
+                auto data = context.get_input(0);
+                if (data.get_partial_shape().rank().is_static() &&
+                    data.get_partial_shape().rank().get_length() != static_cast<int64_t>(src_shape.size())) {
+                    auto source_shape = ov::op::v0::Constant::create(ov::element::i64, {src_shape.size()}, src_shape);
+                    auto restored = std::make_shared<ov::op::v1::Reshape>(data, source_shape, false);
+                    data = restored;
+                }
+                auto result = std::make_shared<ov::op::v8::Slice>(data, begin_node, end_node, step_node, axes_node);
                 return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
         }
 
         if (byte_offset == 0 && ov::shape_size(src_shape) == ov::shape_size(dst_shape)) {
-            auto target = ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape);
+            auto target_shape = context.get_attribute<std::vector<int64_t>>("view_reshape", {});
+            if (target_shape.empty()) {
+                target_shape.assign(dst_shape.begin(), dst_shape.end());
+            }
+            auto target = ov::op::v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
             auto result = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), target, false);
             return rename_outputs_with_suffix({std::move(result)}, context.get_name());
         }
@@ -433,7 +539,4 @@ OutputVector translate_view(const NodeContext& context) {
     return {context.get_input(0)};
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

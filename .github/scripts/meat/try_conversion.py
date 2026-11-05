@@ -23,7 +23,8 @@ import json
 import os
 import pathlib
 import shutil
-import subprocess
+# Invokes optimum/export CLIs as argv lists; model paths come from CI agent workspace artifacts.
+import subprocess  # nosec B404
 import sys
 import time
 

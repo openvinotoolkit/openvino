@@ -290,7 +290,11 @@ macro(ov_arm_sve_optimization_flags flags)
                 # (svld1/svmla_f32/...) and are unaffected. Both GCC and Clang auto-vectorize to SVE here,
                 # but the knob is compiler-specific (Android/MSVC/IntelLLVM handled above).
                 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-                    list(APPEND ${flags} --param=aarch64-autovec-preference=1)
+                    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+                        list(APPEND ${flags} -mautovec-preference=asimd-only)
+                    else()
+                        list(APPEND ${flags} --param=aarch64-autovec-preference=1)
+                    endif()
                 elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
                     list(APPEND ${flags} -mllvm -scalable-vectorization=off)
                 endif()
@@ -432,7 +436,7 @@ function(ov_target_link_libraries_as_system TARGET_NAME LINK_TYPE)
                 endif()
                 foreach(include_directory IN LISTS include_directories)
                     # cannot include /usr/include headers as SYSTEM
-                    if(NOT "${include_directory}" MATCHES ".*/usr/include.*$")
+                    if(NOT "${include_directory}" MATCHES "^/usr/include($|/)")
                         # Note, some include dirs can be wrapper with $<BUILD_INTERFACE:dir1 dir2 ...> and we need to clean it
                         if ("${include_directory}" MATCHES "^\\$<BUILD_INTERFACE:.*>$")
                             string(REGEX REPLACE "^\\$<BUILD_INTERFACE:" "" include_directory "${include_directory}")

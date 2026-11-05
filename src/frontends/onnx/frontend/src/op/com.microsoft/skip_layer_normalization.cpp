@@ -16,11 +16,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 ov::OutputVector skip_layer_normalization(const ov::frontend::onnx::Node& node) {
     auto nodes = node.get_ov_inputs();
     const auto num_nodes = nodes.size();
@@ -92,8 +88,4 @@ ov::OutputVector skip_layer_normalization(const ov::frontend::onnx::Node& node) 
     return results;
 }
 ONNX_OP("SkipLayerNormalization", OPSET_SINCE(1), com_microsoft::opset_1::skip_layer_normalization, MICROSOFT_DOMAIN);
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

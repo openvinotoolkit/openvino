@@ -9,8 +9,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/common_util.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 bool UnconvertedOpsReport::has_issues() const {
     return !unconverted_ops.empty();
@@ -153,5 +152,4 @@ void check_unconverted_ops(const UnconvertedOpsReport& report,
     }
 }
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

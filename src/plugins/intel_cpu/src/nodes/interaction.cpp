@@ -230,7 +230,7 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         return;
     }
     dataPrecision = getOriginalInputPrecisionAtPort(0);
-    if (dataPrecision != ov::element::f32 && ov::with_cpu_x86_bfloat16()) {
+    if (dataPrecision.is_real() && dataPrecision != ov::element::f32 && ov::with_cpu_x86_bfloat16()) {
         dataPrecision = ov::element::bf16;
     } else {
         dataPrecision = ov::element::f32;
@@ -360,13 +360,13 @@ void Interaction::prepareParams() {
     interJcp.input_size = interactFeatureSize;
 
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(cpu_isa_t::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx512_core>>(jcp);
         moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx512_core>>(interJcp);
-    } else if (mayiuse(cpu_isa_t::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(jcp);
         moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(interJcp);
-    } else if (mayiuse(cpu_isa_t::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(jcp);
         moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(interJcp);
     }

@@ -507,6 +507,9 @@ set(_OV_ENABLE_OPENVINO_BUILD_SHARED "@BUILD_SHARED_LIBS@")
 
 if(NOT TARGET openvino)
     set(_ov_as_external_package ON)
+    if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
+        _ov_find_intel_cpu_dependencies()
+    endif()
     include("${CMAKE_CURRENT_LIST_DIR}/OpenVINOTargets.cmake")
 
     # since OpenVINO is compiled with _GLIBCXX_USE_CXX11_ABI=0

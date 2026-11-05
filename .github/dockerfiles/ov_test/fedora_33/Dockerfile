@@ -28,7 +28,7 @@ RUN dnf update -y && dnf install -y \
     xz
 
 # Install Node
-ENV NODE_VERSION=21.7.3
+ENV NODE_VERSION=22.23.2
 ENV NVM_DIR=/.nvm
 RUN mkdir -p $NVM_DIR
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash

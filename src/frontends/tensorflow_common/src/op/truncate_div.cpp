@@ -14,16 +14,13 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_truncate_div_op(const NodeContext& node) {
     default_op_checks(node, 2, {"TruncateDiv"});
     auto x = node.get_input(0);
     auto y = node.get_input(1);
 
-    auto res = make_shared<v1::Divide>(x, y);
+    auto res = make_shared<v1::Divide>(x, y, false);
     auto is_res_negative = make_shared<v1::Less>(res, create_same_type_const_scalar(x, 0));
     auto final_res =
         make_shared<v1::Select>(is_res_negative, make_shared<v0::Ceiling>(res), make_shared<v0::Floor>(res));
@@ -31,7 +28,4 @@ OutputVector translate_truncate_div_op(const NodeContext& node) {
     set_node_name(node.get_name(), final_res);
     return final_res->outputs();
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

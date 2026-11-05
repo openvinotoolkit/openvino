@@ -53,6 +53,9 @@
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
@@ -338,6 +341,10 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
         CREATE_GELU_V7_EMITTER(intel_cpu::jit_gelu_erf_emitter, intel_cpu::jit_gelu_tanh_emitter);
     jitters[ov::op::v9::SoftSign::get_type_info_static()] =
         emitter_factory.from_node<intel_cpu::jit_soft_sign_emitter>();
+    jitters[ov::op::v10::IsFinite::get_type_info_static()] =
+        emitter_factory.from_node<intel_cpu::jit_is_finite_emitter>();
+    jitters[ov::op::v10::IsInf::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_is_inf_emitter>();
+    jitters[ov::op::v10::IsNaN::get_type_info_static()] = emitter_factory.from_node<intel_cpu::jit_is_nan_emitter>();
     jitters[snippets::op::Fill::get_type_info_static()] = emitter_factory.from_expr<intel_cpu::jit_fill_emitter>();
 
     jitters[snippets::op::HorizonMax::get_type_info_static()] =

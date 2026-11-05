@@ -3,7 +3,8 @@
 
 import logging
 import os
-import subprocess
+# Registry manifest checks: docker CLI strings built from Image refs in maintainer CI workflows.
+import subprocess  # nosec B404
 from pathlib import Path
 from collections.abc import Iterable
 

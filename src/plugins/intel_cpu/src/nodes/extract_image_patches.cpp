@@ -725,11 +725,11 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
     [[maybe_unused]] const size_t prcSize) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
-    if (mayiuse(x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::avx512_core>>(jpp);
-    } else if (mayiuse(x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::avx2>>(jpp);
-    } else if (mayiuse(x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::sse41>>(jpp);
     } else {
         OPENVINO_THROW("Can't create jit extract image patches kernel");

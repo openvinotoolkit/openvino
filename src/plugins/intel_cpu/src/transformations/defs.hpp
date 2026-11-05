@@ -46,6 +46,16 @@ namespace ov::intel_cpu {
 
 #endif  // OPENVINO_ARCH_X86
 
+#if defined(OPENVINO_ARCH_RISCV64)
+
+#    define CPU_SET_CALLBACK_RISCV64(MANAGER, CALLBACK, ...) CPU_SET_CALLBACK_COMMON(MANAGER, CALLBACK, __VA_ARGS__)
+
+#else
+
+#    define CPU_SET_CALLBACK_RISCV64(MANAGER, CALLBACK, ...)
+
+#endif  // OPENVINO_ARCH_RISCV64
+
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 
 #    if defined(OPENVINO_ARCH_ARM)

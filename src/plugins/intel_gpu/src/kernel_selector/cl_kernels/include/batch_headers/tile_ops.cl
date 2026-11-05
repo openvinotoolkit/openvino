@@ -17,6 +17,17 @@
 #ifndef GPU_OCL_TILE_OPS_H
 #define GPU_OCL_TILE_OPS_H
 
+// oneDNN microkernel shims use named low-precision types. Map to OpenCL's
+// storage types. These are storage aliases; the microkernel handles numerical
+// interpretation.
+typedef ushort bf16;
+typedef uchar f8_e5m2;
+typedef uchar f8_e4m3;
+typedef uchar e8m0;
+typedef uchar f4_e2m1;
+typedef uchar s4;
+typedef uchar u4;
+
 float __builtin_IB_atomic_max_local_f32(__local float *, float);
 
 __attribute__((overloadable)) float local_atomic_max(local float *p, float v) {

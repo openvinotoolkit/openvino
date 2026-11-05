@@ -22,8 +22,7 @@ struct Edge {
     const int m_port_idx;
     const std::string m_new_input_name;
 };
-namespace frontend {
-namespace onnx {
+namespace frontend::onnx {
 /// \brief Defines an edge connected to an input of any node in the graph.
 ///        It consists of a node index in the processed ONNX model and the port index.
 ///        The node index should point to a node in the topological sort of the underlying
@@ -124,6 +123,5 @@ struct EditorNode {
     std::string m_output_name = "";
     int m_node_index = -1;
 };
-}  // namespace onnx
-}  // namespace frontend
+}  // namespace frontend::onnx
 }  // namespace ov

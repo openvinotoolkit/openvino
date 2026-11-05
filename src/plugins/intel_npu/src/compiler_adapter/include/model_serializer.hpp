@@ -9,7 +9,7 @@
 #include <iostream>
 #include <string>
 
-#include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -74,7 +74,7 @@ SerializedIR serializeIR(const std::shared_ptr<const ov::Model>& model,
  */
 std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const bool useIndices);
 
-std::string serializeConfig(const FilteredConfig& config,
+std::string serializeConfig(const Config& config,
                             const ze_graph_compiler_version_info_t& compilerVersion,
                             const std::function<bool(const std::string&)>& isOptionSupportedByCompiler);
 

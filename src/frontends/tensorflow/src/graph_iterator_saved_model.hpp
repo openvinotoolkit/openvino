@@ -12,9 +12,7 @@
 #include "ov_tensorflow/saved_model.pb.h"
 #include "variables_index.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 std::filesystem::path get_saved_model_name();
 std::filesystem::path get_variables_index_name();
@@ -199,6 +197,4 @@ private:
     std::vector<std::string> split_tags(const std::string tags) const;
 };  // GraphIteratorSavedModel
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

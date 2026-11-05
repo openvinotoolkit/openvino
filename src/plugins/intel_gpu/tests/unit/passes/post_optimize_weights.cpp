@@ -6,12 +6,61 @@
 #include "program_wrapper.h"
 #include "fully_connected_inst.h"
 #include "convolution_inst.h"
+#include "gru_seq_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "graph/impls/onednn/utils.hpp"
 #endif
 
 using namespace cldnn;
 using namespace ::tests;
+
+TEST(post_optimize_weights, dynamic_gru_weights_are_permuted) {
+    auto& engine = get_test_engine();
+
+    auto hidden = engine.allocate_memory({ov::PartialShape{1, 1, 3}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({ov::PartialShape{1, 9, 4}, data_types::f16, format::bfyx});
+    auto recurrent = engine.allocate_memory({ov::PartialShape{1, 9, 3}, data_types::f16, format::bfyx});
+    auto bias = engine.allocate_memory({ov::PartialShape{1, 12}, data_types::f16, format::bfyx});
+    auto sequence_lengths = engine.allocate_memory({ov::PartialShape{1}, data_types::i32, format::bfyx});
+
+    gru_seq gru("gru",
+                input_info("input"),
+                input_info("hidden"),
+                input_info(),
+                input_info("weights"),
+                input_info("recurrent"),
+                input_info("bias"),
+                input_info("sequence_lengths"),
+                0.f,
+                false,
+                {activation_func::logistic, activation_func::hyperbolic_tan},
+                {},
+                lstm_weights_order::iofz,
+                ov::op::RecurrentSequenceDirection::FORWARD,
+                2);
+    gru.linear_before_reset = true;
+
+    topology topology(input_layout("input", {ov::PartialShape{1, -1, 4}, data_types::f16, format::bfyx}),
+                      data("hidden", hidden),
+                      data("weights", weights),
+                      data("recurrent", recurrent),
+                      data("bias", bias),
+                      data("sequence_lengths", sequence_lengths),
+                      gru);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    reorder_factory rf;
+    program_wrapper::apply_opt_pass<compile_graph>(*prog);
+    program_wrapper::apply_opt_pass<post_optimize_weights>(*prog, rf);
+
+    auto& gru_node = prog->get_node("gru");
+    EXPECT_EQ(gru_node.get_dependency(2).get_output_layout().get_shape(), ov::Shape({1, 4, 9}));
+    EXPECT_EQ(gru_node.get_dependency(3).get_output_layout().get_shape(), ov::Shape({1, 3, 9}));
+}
 
 TEST(post_optimize_weights, fuse_reorder_to_weights_reorder_test) {
     auto& engine = get_test_engine();

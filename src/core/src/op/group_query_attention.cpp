@@ -5,6 +5,7 @@
 #include "openvino/op/group_query_attention.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
@@ -15,6 +16,10 @@ namespace ov::op::internal {
 
 std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQuantType& quant_type) {
     return s << as_string(quant_type);
+}
+
+std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQKOutput& qk_output) {
+    return s << as_string(qk_output);
 }
 
 }  // namespace ov::op::internal
@@ -34,6 +39,19 @@ EnumNames<op::internal::GroupQueryAttentionQuantType>::get() {
 
 AttributeAdapter<op::internal::GroupQueryAttentionQuantType>::~AttributeAdapter() = default;
 
+template <>
+OPENVINO_API EnumNames<op::internal::GroupQueryAttentionQKOutput>&
+EnumNames<op::internal::GroupQueryAttentionQKOutput>::get() {
+    static auto enum_names = EnumNames<op::internal::GroupQueryAttentionQKOutput>(
+        "op::internal::GroupQueryAttentionQKOutput",
+        {{"NONE", op::internal::GroupQueryAttentionQKOutput::NONE},
+         {"BEFORE_SOFTMAX", op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX},
+         {"AFTER_SOFTMAX", op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX}});
+    return enum_names;
+}
+
+AttributeAdapter<op::internal::GroupQueryAttentionQKOutput>::~AttributeAdapter() = default;
+
 }  // namespace ov
 
 namespace ov::op::internal {
@@ -50,7 +68,10 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
                                          int64_t local_window_size,
                                          bool sliding_window_cache,
                                          bool smooth_softmax,
-                                         bool causal)
+                                         bool causal,
+                                         float softcap,
+                                         float qk_norm_epsilon,
+                                         GroupQueryAttentionQKOutput qk_output)
     : Op(args),
       m_num_heads(num_heads),
       m_kv_num_heads(kv_num_heads),
@@ -63,7 +84,10 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
       m_local_window_size(local_window_size),
       m_sliding_window_cache(sliding_window_cache),
       m_smooth_softmax(smooth_softmax),
-      m_causal(causal) {
+      m_causal(causal),
+      m_softcap(softcap),
+      m_qk_norm_epsilon(qk_norm_epsilon),
+      m_qk_output(qk_output) {
     constructor_validate_and_infer_types();
 }
 
@@ -109,8 +133,25 @@ void GroupQueryAttention::validate_and_infer_types() {
             return "k_scale";
         case GroupQueryAttentionInputs::V_SCALE:
             return "v_scale";
+        case GroupQueryAttentionInputs::Q_NORM_WEIGHT:
+            return "q_norm_weight";
+        case GroupQueryAttentionInputs::K_NORM_WEIGHT:
+            return "k_norm_weight";
         }
         return "unknown";
+    };
+
+    const auto is_present = [&](GroupQueryAttentionInputs input) {
+        const auto pos = static_cast<size_t>(input);
+        return (pos < get_input_size()) && !ov::util::is_empty_constant_tensor(input_value(pos));
+    };
+    const auto is_typed_empty_past = [&](GroupQueryAttentionInputs input) {
+        const auto pos = static_cast<size_t>(input);
+        if (pos >= get_input_size() || !ov::util::is_empty_constant_tensor(input_value(pos))) {
+            return false;
+        }
+        const auto& shape = get_input_partial_shape(pos);
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && get_input_element_type(pos).is_static();
     };
 
     const auto check_input = [&](GroupQueryAttentionInputs input,
@@ -118,7 +159,7 @@ void GroupQueryAttention::validate_and_infer_types() {
                                  const std::vector<element::Type>& allowed_types,
                                  bool required = true) {
         const auto pos = static_cast<size_t>(input);
-        const bool present = (pos < get_input_size()) && !ov::util::is_empty_constant_tensor(input_value(pos));
+        const bool present = is_present(input);
         NODE_VALIDATION_CHECK(this,
                               !required || present,
                               "GroupQueryAttention requires ",
@@ -163,6 +204,10 @@ void GroupQueryAttention::validate_and_infer_types() {
         return types;
     }();
 
+    NODE_VALIDATION_CHECK(this,
+                          m_softcap >= 0.0f,
+                          "GroupQueryAttention expects softcap >= 0 (0 disables it), got: ",
+                          m_softcap);
     NODE_VALIDATION_CHECK(this, m_num_heads > 0, "GroupQueryAttention expects num_heads > 0, got: ", m_num_heads);
     NODE_VALIDATION_CHECK(this,
                           m_kv_num_heads > 0,
@@ -170,17 +215,40 @@ void GroupQueryAttention::validate_and_infer_types() {
                           m_kv_num_heads);
 
     // Base input checks in input_check-style form: required + rank/type whitelist.
-    check_input(GroupQueryAttentionInputs::QUERY, {4}, {element::f16, element::f32});
-    check_input(GroupQueryAttentionInputs::KEY, {4}, {element::f16, element::f32});
-    check_input(GroupQueryAttentionInputs::VALUE, {4}, {element::f16, element::f32});
+    // Activations: the ONNX spec type T (f32, f16, bf16).
+    const std::vector<element::Type> float_types{element::f32, element::f16, element::bf16};
+    check_input(GroupQueryAttentionInputs::QUERY, {4}, float_types);
+    check_input(GroupQueryAttentionInputs::KEY, {4}, float_types);
+    check_input(GroupQueryAttentionInputs::VALUE, {4}, float_types);
+    // An absent past (empty Constant) is an empty KV cache; past_key and past_value come as a pair.
     check_input(GroupQueryAttentionInputs::PAST_KEY,
                 {4},
-                {element::f32, element::f16, element::i8, element::u8, element::f8e4m3});
+                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3},
+                false);
     check_input(GroupQueryAttentionInputs::PAST_VALUE,
                 {4},
-                {element::f32, element::f16, element::i8, element::u8, element::f8e4m3});
+                {element::f32, element::f16, element::bf16, element::i8, element::u8, element::f8e4m3},
+                false);
+    // RemoveEmptyKVInputs replaces a zero-sized past Parameter with a rank-4 Constant of the same type and shape.
+    // The frontend uses a rank-1 {0} Constant when ONNX omits past; infer its layout from KEY, but reject quantization
+    // because the floating-point KEY cannot identify the cache type.
+    const bool has_past = is_present(GroupQueryAttentionInputs::PAST_KEY);
+    const bool has_past_value = is_present(GroupQueryAttentionInputs::PAST_VALUE);
+    NODE_VALIDATION_CHECK(this,
+                          has_past == has_past_value,
+                          "GroupQueryAttention expects past_key and past_value to be both present or both absent");
+    const bool has_past_layout = has_past || is_typed_empty_past(GroupQueryAttentionInputs::PAST_KEY);
+    const bool has_past_value_layout = has_past_value || is_typed_empty_past(GroupQueryAttentionInputs::PAST_VALUE);
+    NODE_VALIDATION_CHECK(this,
+                          has_past_layout == has_past_value_layout,
+                          "GroupQueryAttention expects past_key and past_value to both provide cache layout "
+                          "information or neither");
     check_input(GroupQueryAttentionInputs::SEQLENS_K, {1, 2}, integral_types);
-    check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH, {0, 1}, integral_types, false);
+    // output_qk is laid out over total_sequence_length (ORT), so qk_output needs it.
+    check_input(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH,
+                {0, 1},
+                integral_types,
+                m_qk_output != GroupQueryAttentionQKOutput::NONE);
 
     if (m_do_rotary) {
         check_input(GroupQueryAttentionInputs::COS_CACHE, {2}, {}, true);
@@ -188,15 +256,74 @@ void GroupQueryAttention::validate_and_infer_types() {
         check_input(GroupQueryAttentionInputs::POSITION_IDS, {1, 2}, integral_types, false);
     }
     check_input(GroupQueryAttentionInputs::ATTENTION_BIAS, {4}, {}, false);
+    check_input(GroupQueryAttentionInputs::HEAD_SINK, {1}, float_types, false);
+    // head_sink holds one softmax-sink logit per query head (ONNX spec shape [num_heads]).
+    // Only the internal empty-constant placeholder means "absent"; a real zero-length sink is rejected.
+    const auto sink_pos = static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK);
+    if (sink_pos < get_input_size() && !ov::util::is_empty_constant_tensor(input_value(sink_pos))) {
+        const auto& sink_ps = get_input_partial_shape(sink_pos);
+        NODE_VALIDATION_CHECK(this,
+                              sink_ps.rank().is_dynamic() || sink_ps.rank().get_length() != 1 ||
+                                  sink_ps[0].is_dynamic() || sink_ps[0].get_length() == m_num_heads,
+                              "GroupQueryAttention: head_sink must have num_heads (",
+                              m_num_heads,
+                              ") elements, got shape ",
+                              sink_ps);
+    }
 
     const auto q_shape = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
-    const auto past_k_shape = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
-
+    // QK-Norm weights (ONNX spec shape [head_size], type T) must be provided together, as in ONNX Runtime.
+    check_input(GroupQueryAttentionInputs::Q_NORM_WEIGHT, {1}, float_types, false);
+    check_input(GroupQueryAttentionInputs::K_NORM_WEIGHT, {1}, float_types, false);
+    const auto k_norm_pos = static_cast<size_t>(GroupQueryAttentionInputs::K_NORM_WEIGHT);
+    NODE_VALIDATION_CHECK(this,
+                          has_qk_norm() == (k_norm_pos < get_input_size() &&
+                                            !ov::util::is_empty_constant_tensor(input_value(k_norm_pos))),
+                          "GroupQueryAttention: q_norm_weight and k_norm_weight must be provided together.");
+    // Validated with or without QK-Norm weights, as ONNX Runtime does.
+    NODE_VALIDATION_CHECK(this,
+                          std::isfinite(m_qk_norm_epsilon) && m_qk_norm_epsilon > 0.0f,
+                          "GroupQueryAttention expects a finite qk_norm_epsilon > 0, got: ",
+                          m_qk_norm_epsilon);
+    if (has_qk_norm()) {
+        for (const auto input : {GroupQueryAttentionInputs::Q_NORM_WEIGHT, GroupQueryAttentionInputs::K_NORM_WEIGHT}) {
+            const auto pos = static_cast<size_t>(input);
+            const auto& weight_ps = get_input_partial_shape(pos);
+            NODE_VALIDATION_CHECK(
+                this,
+                weight_ps.rank().is_dynamic() || q_shape.rank().is_dynamic() || weight_ps[0].compatible(q_shape[3]),
+                "GroupQueryAttention: ",
+                input_name(input),
+                " must have head_size (",
+                q_shape.rank().is_static() ? q_shape[3] : Dimension::dynamic(),
+                ") elements, got shape ",
+                weight_ps);
+            NODE_VALIDATION_CHECK(this,
+                                  get_input_element_type(pos).compatible(
+                                      get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::QUERY))),
+                                  "GroupQueryAttention: ",
+                                  input_name(input),
+                                  " element type must match query, got ",
+                                  get_input_element_type(pos));
+        }
+    }
     const auto& q_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
 
     const auto& batch_size = q_shape[0];
     const auto& sequence_len = q_shape[2];
     const auto& head_size = q_shape[3];
+
+    // seqlens_k holds one length per batch entry (ORT: batch_size elements, e.g. [B] or [B, 1]).
+    const auto& seqlens_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::SEQLENS_K));
+    if (seqlens_ps.is_static() && batch_size.is_static()) {
+        NODE_VALIDATION_CHECK(this,
+                              static_cast<int64_t>(shape_size(seqlens_ps.to_shape())) == batch_size.get_length(),
+                              "GroupQueryAttention: seqlens_k must have batch_size (",
+                              batch_size.get_length(),
+                              ") elements, got shape ",
+                              seqlens_ps,
+                              ".");
+    }
 
     if (m_do_rotary) {
         // Partial RoPE (GPT-NeoX/Phi-style): rotary_dim = 2 * cos_cache.shape[-1] may be smaller than
@@ -235,6 +362,10 @@ void GroupQueryAttention::validate_and_infer_types() {
                           m_local_window_size);
     // causal=0 (bidirectional) is mutually exclusive with a sliding window, matching the ONNX Runtime
     // precondition (gqa_attention_base.h: causal_ || local_window_size_ == -1).
+    // ONNX Runtime CPU (the only provider of qk_output) rejects it with a windowed cache.
+    NODE_VALIDATION_CHECK(this,
+                          m_qk_output == GroupQueryAttentionQKOutput::NONE || !m_sliding_window_cache,
+                          "GroupQueryAttention: qk_output is not supported with sliding_window_cache.");
     NODE_VALIDATION_CHECK(this,
                           m_causal || m_local_window_size == -1,
                           "GroupQueryAttention: local_window_size requires causal=1, got causal=0 and "
@@ -250,30 +381,43 @@ void GroupQueryAttention::validate_and_infer_types() {
     // sequence_length > 1 takes the identical staging branch a dynamic sequence_length resolving to the same
     // runtime value would, so it is not rejected here.
 
-    // The decomposition derives a scalar past length (past_seqlen = total - current) and assumes a single
-    // batch entry ("Only consider batch is 1"); with batch_size > 1 the per-batch past lengths differ and the
-    // attention mask / cache indexing would be silently wrong. The batch dimension is dynamic in the usual
-    // dynamic-shape deployments (CPU/GPU), which cannot be checked here, so reject only a statically known
-    // batch_size > 1 rather than the whole dynamic path.
-    if (batch_size.is_static()) {
+    // Any batch size is supported with per-batch seqlens_k, except the windowed cache (single-batch rolling
+    // arithmetic): a statically known batch_size > 1 is rejected there; a dynamic batch resolving to > 1 fails at
+    // inference (seqlens_k cannot be reshaped to the single past length), so it never produces silently wrong results.
+    if (m_sliding_window_cache && batch_size.is_static()) {
         NODE_VALIDATION_CHECK(this,
                               batch_size.get_length() == 1,
-                              "GroupQueryAttention is only supported for batch_size == 1 when the batch dimension is "
-                              "statically known, got batch_size = ",
+                              "GroupQueryAttention sliding_window_cache is only supported for batch_size == 1, got "
+                              "batch_size = ",
                               batch_size.get_length(),
                               ".");
     }
 
     // The KV cache (past_key/past_value, input 3/4) may be quantized. present_key/present_value inherit the
     // cache element type so a quantized (i8/u8/f8e4m3) cache round-trips from past to present, matching the ONNX spec.
-    const auto& kv_cache_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
-    const auto& past_value_type = get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_VALUE));
     NODE_VALIDATION_CHECK(this,
-                          kv_cache_type.compatible(past_value_type),
-                          "GroupQueryAttention expects past_key and past_value element types to match, got ",
-                          kv_cache_type,
-                          " and ",
-                          past_value_type);
+                          !m_sliding_window_cache || has_past || has_past_layout,
+                          "GroupQueryAttention requires past_key and past_value with a known layout for a windowed "
+                          "KV cache");
+    NODE_VALIDATION_CHECK(this,
+                          !is_shared_kv() || has_past,
+                          "GroupQueryAttention requires non-empty past_key and past_value for shared KV");
+    NODE_VALIDATION_CHECK(this,
+                          has_past_layout || !is_kv_quantized(),
+                          "GroupQueryAttention with a quantized KV cache and no past requires a typed rank-4 empty "
+                          "past_key and past_value");
+    const auto kv_cache_type = get_input_element_type(
+        static_cast<size_t>(has_past_layout ? GroupQueryAttentionInputs::PAST_KEY : GroupQueryAttentionInputs::KEY));
+    if (has_past_layout) {
+        const auto& past_value_type =
+            get_input_element_type(static_cast<size_t>(GroupQueryAttentionInputs::PAST_VALUE));
+        NODE_VALIDATION_CHECK(this,
+                              kv_cache_type.compatible(past_value_type),
+                              "GroupQueryAttention expects past_key and past_value element types to match, got ",
+                              kv_cache_type,
+                              " and ",
+                              past_value_type);
+    }
     if (is_kv_quantized()) {
         NODE_VALIDATION_CHECK(
             this,
@@ -304,18 +448,66 @@ void GroupQueryAttention::validate_and_infer_types() {
 
     // present_key/present_value keep the past KV layout: kv head size may differ from query head size
     // when the cache is quantized (e.g. 4-bit values packed two per byte).
+    const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
+    const auto past_key_pos = static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY);
+    const auto past_k_shape = has_past_layout
+                                  ? get_input_partial_shape(past_key_pos)
+                                  : PartialShape{Dimension::dynamic(),
+                                                 m_kv_num_heads,
+                                                 0,
+                                                 key_ps.rank().is_static() ? key_ps[3] : Dimension::dynamic()};
     auto kv_shape = PartialShape{batch_size, m_kv_num_heads, past_k_shape[2], past_k_shape[3]};
     auto& output_kv_len = kv_shape[2];
     // A windowed KV cache keeps the past buffer's own (capacity) sequence dimension: it rolls in place
     // with front eviction instead of growing. Otherwise present = past + current.
-    if (!m_sliding_window_cache && (output_kv_len.is_dynamic() || sequence_len.is_dynamic())) {
-        output_kv_len += sequence_len;
+    // A zero-capacity past (absent/empty cache) cannot be written in place either, so present grows by the step.
+    // Shared KV (statically empty key, kv_sequence_length == 0) appends nothing: present is the past as is.
+    // A key/value of dynamic length cannot be written in place, so present grows by its own length.
+    const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
+    const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
+    if ((!m_sliding_window_cache || empty_past) && !is_shared_kv() && !has_fixed_kv_capacity()) {
+        output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
     }
 
     set_output_type(0, q_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
     for (auto&& port : {1, 2}) {
         set_output_type(port, kv_cache_type, kv_shape);
     }
+    if (m_qk_output != GroupQueryAttentionQKOutput::NONE) {
+        // The last dim is the runtime total_sequence_length.
+        set_output_type(3, q_type, PartialShape{batch_size, m_num_heads, sequence_len, Dimension::dynamic()});
+    }
+}
+
+bool GroupQueryAttention::is_shared_kv() const {
+    const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
+    return key_ps.rank().is_static() && key_ps.rank().get_length() == 4 && key_ps[2].is_static() &&
+           key_ps[2].get_length() == 0;
+}
+
+bool GroupQueryAttention::has_independent_kv_length() const {
+    const auto key_idx = static_cast<size_t>(GroupQueryAttentionInputs::KEY);
+    const auto& key_ps = get_input_partial_shape(key_idx);
+    const bool packed_qkv = input_value(static_cast<size_t>(GroupQueryAttentionInputs::QUERY)).get_node() ==
+                            input_value(key_idx).get_node();
+    return !packed_qkv && key_ps.rank().is_static() && key_ps.rank().get_length() == 4 && key_ps[2].is_dynamic();
+}
+
+bool GroupQueryAttention::has_fixed_kv_capacity() const {
+    const auto& past_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::PAST_KEY));
+    const auto& query_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
+    const auto& key_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
+    if (past_ps.rank().is_dynamic() || past_ps.rank().get_length() != 4 || query_ps.rank().is_dynamic() ||
+        query_ps.rank().get_length() != 4) {
+        return false;
+    }
+    const bool static_key_len = key_ps.rank().is_dynamic() || key_ps[2].is_static();
+    return past_ps[2].is_static() && past_ps[2].get_length() > 0 && query_ps[2].is_static() && static_key_len;
+}
+
+bool GroupQueryAttention::has_qk_norm() const {
+    const auto pos = static_cast<size_t>(GroupQueryAttentionInputs::Q_NORM_WEIGHT);
+    return pos < get_input_size() && !ov::util::is_empty_constant_tensor(input_value(pos));
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
@@ -327,10 +519,13 @@ bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("kv_num_heads", m_kv_num_heads);
     visitor.on_attribute("local_window_size", m_local_window_size);
     visitor.on_attribute("num_heads", m_num_heads);
+    visitor.on_attribute("qk_norm_epsilon", m_qk_norm_epsilon);
+    visitor.on_attribute("qk_output", m_qk_output);
     visitor.on_attribute("rotary_interleaved", m_rotary_interleaved);
     visitor.on_attribute("scale", m_scale);
     visitor.on_attribute("sliding_window_cache", m_sliding_window_cache);
     visitor.on_attribute("smooth_softmax", m_smooth_softmax);
+    visitor.on_attribute("softcap", m_softcap);
     visitor.on_attribute("v_quant_type", m_v_quant_type);
     return true;
 }
@@ -350,7 +545,10 @@ std::shared_ptr<ov::Node> GroupQueryAttention::clone_with_new_inputs(const ov::O
                                                  m_local_window_size,
                                                  m_sliding_window_cache,
                                                  m_smooth_softmax,
-                                                 m_causal);
+                                                 m_causal,
+                                                 m_softcap,
+                                                 m_qk_norm_epsilon,
+                                                 m_qk_output);
 }
 
 }  // namespace ov::op::internal

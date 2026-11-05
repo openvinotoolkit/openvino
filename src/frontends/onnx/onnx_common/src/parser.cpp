@@ -13,10 +13,7 @@
 
 using namespace ::ONNX_NAMESPACE;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace common {
+namespace ov::frontend::onnx::common {
 ModelProto parse_from_file(const std::filesystem::path& file_path) {
     std::ifstream file_stream{file_path, std::ios::binary};
 
@@ -45,7 +42,4 @@ ModelProto parse_from_istream(std::istream& model_stream) {
     return model_proto;
 }
 
-}  // namespace common
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::common

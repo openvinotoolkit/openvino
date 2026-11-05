@@ -41,10 +41,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
+namespace ov::frontend::onnx::com_microsoft {
 namespace detail {
 namespace {
 ov::NodeVector split_to_QKV(const std::shared_ptr<v1::Add>& node,
@@ -553,7 +550,4 @@ std::shared_ptr<ov::Node> get_present_state(const std::shared_ptr<ov::Node>& K,
 }
 }  // namespace
 }  // namespace detail
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft
