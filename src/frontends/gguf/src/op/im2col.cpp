@@ -71,8 +71,9 @@ struct Im2col3dExtent {
 };
 
 Im2col3dExtent im2col_3d_extent(size_t input, size_t kernel, int32_t stride, int32_t padding, int32_t dilation) {
-    constexpr auto max_i64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
-    FRONT_END_OP_CONVERSION_CHECK(input <= max_i64 && kernel <= max_i64, "IM2COL_3D dimension overflow");
+    constexpr auto max_i64 = static_cast<uintmax_t>(std::numeric_limits<int64_t>::max());
+    FRONT_END_OP_CONVERSION_CHECK(static_cast<uintmax_t>(input) <= max_i64 && static_cast<uintmax_t>(kernel) <= max_i64,
+                                  "IM2COL_3D dimension overflow");
     int64_t padded_input = 0;
     int64_t effective_kernel = 0;
     FRONT_END_OP_CONVERSION_CHECK(
@@ -95,12 +96,12 @@ Im2col3dExtent im2col_3d_extent(size_t input, size_t kernel, int32_t stride, int
 }
 
 int64_t im2col_3d_product(std::initializer_list<size_t> factors) {
-    constexpr auto max_i64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+    constexpr auto max_i64 = static_cast<uintmax_t>(std::numeric_limits<int64_t>::max());
     int64_t product = 1;
     for (const auto factor : factors) {
-        FRONT_END_OP_CONVERSION_CHECK(
-            factor <= max_i64 && !ov::util::mul_overflow(product, static_cast<int64_t>(factor), product),
-            "IM2COL_3D shape overflow");
+        FRONT_END_OP_CONVERSION_CHECK(static_cast<uintmax_t>(factor) <= max_i64 &&
+                                          !ov::util::mul_overflow(product, static_cast<int64_t>(factor), product),
+                                      "IM2COL_3D shape overflow");
     }
     FRONT_END_OP_CONVERSION_CHECK(static_cast<uint64_t>(product) <= std::numeric_limits<size_t>::max(),
                                   "IM2COL_3D shape overflow");

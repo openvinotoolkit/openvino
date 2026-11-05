@@ -141,7 +141,22 @@ same binaries locally with `--gtest_filter` while editing; use GHA for broader
 coverage and inspect test counts and skips in its artifacts.
 [Model-hub CI](../../../../.github/workflows/job_gguf_models_tests.yml) runs checkpoint lists;
 [llama.cpp compatibility CI](../../../../.github/workflows/job_gguf_llamacpp_validation.yml) records
-the backend revision, operator tests, state scenarios, and exclusions. These validate different contracts.
+the pinned companion backend revision, operator tests, state scenarios, and exclusions. It builds
+Preetha's `ov-gguf-frontend` branch against the same-run OpenVINO package and verifies that the
+backend links that package's GGUF frontend. The job compares selected ADD, MUL_MAT, SOFT_MAX, and
+ROPE cases with ggml CPU, checks concurrent inference, and uses
+[generated Llama, Qwen2, and Qwen3 fixtures](../tests/llamacpp_integration.cpp) to compare every
+logit across two sequences, flash attention on/off, and sequence-state save/restore. Model checks
+use F32 inference and KV caches with `1e-3` absolute and relative tolerances. The Q4_K operator
+checks use `OV_GGUF_Q4_K_ZP_F16=1`; the production requantized path has separate frontend tests.
+Smart CI runs this job on pull requests when GGUF tests are affected, including changes to its
+declared dependencies.
+
+This is not the full upstream llama.cpp suite: the pinned branch has known mixed-batch
+architecture-test failures, failed-restore and state-rotation failures in `test-save-load-state`,
+and failures in some repeated ADD and standalone FLASH_ATTN_EXT backend-op cases. Those cases are
+not covered by the passing selection, which must not be interpreted as a full compatibility or
+quantized-inference claim. These CI jobs validate different contracts.
 
 [GenAI acceptance CI](../../../../.github/workflows/job_gguf_genai_validation.yml)
 uses this workflow's OpenVINO package and wheels and a pinned companion GenAI

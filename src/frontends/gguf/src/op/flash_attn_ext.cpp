@@ -174,10 +174,6 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
             auto token_len = get_dimensions(q, {token_axis});
             mask_sliced = std::make_shared<ov::op::v8::Slice>(context.get_input(3), zero, token_len, one, two);
         }
-
-        if (mask_sliced.get_element_type() != sdpa_type) {
-            mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, sdpa_type);
-        }
     } else {
         mask_sliced = ov::op::v0::Constant::create(sdpa_type, Shape{}, {0.0f});
     }
@@ -220,12 +216,18 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
                                   "FLASH_ATTN_EXT requires matching K/V heads dividing the query heads");
     if (max_bias > 0.0f && has_mask) {
         // ALiBi: ggml scales the additive mask by a per-head slope (ggml_compute_forward_flash_attn_ext).
-        const auto slope_node = make_alibi_slopes(sdpa_type,
+        if (mask_sliced.get_element_type() != ov::element::f32) {
+            mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, ov::element::f32);
+        }
+        const auto slope_node = make_alibi_slopes(ov::element::f32,
                                                   4,
                                                   head_axis,
                                                   static_cast<uint32_t>(q_shape[head_axis].get_length()),
                                                   max_bias);
         mask_sliced = std::make_shared<ov::op::v1::Multiply>(mask_sliced, slope_node);
+    }
+    if (mask_sliced.get_element_type() != sdpa_type) {
+        mask_sliced = std::make_shared<ov::op::v0::Convert>(mask_sliced, sdpa_type);
     }
     // K/V can arrive longer than the active attention window (a full-size cache bound for a sliding window
     // layer or a multi-sequence cache). The mask's key axis is the active window, so trim to it. A dynamic

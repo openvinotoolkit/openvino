@@ -4553,6 +4553,58 @@ TEST(GGUFOps, ViewRawStridesDenseCropAndDynamicReuse) {
     }
 }
 
+TEST(GGUFOps, ViewRawRejectsSteppedSingletonDynamicAxis) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_VIEW")
+                       .input("x", ov::element::f32, {1, 1, -1, 4})
+                       .output("out", ov::element::f32, {1, 1, 1, 4})
+                       .attr("view_input_strides", std::vector<int64_t>{4, 16, 16, 16})
+                       .attr("view_output_strides", std::vector<int64_t>{4, 32, 32, 32})
+                       .attr("view_offset_bytes", int64_t{0})
+                       .attr("output_dynamic_axis", 2);
+    try {
+        build_captured_op(builder, {{"x", {1, 1, 1, 4}}});
+        FAIL() << "A stepped dynamic VIEW was accepted";
+    } catch (const std::exception& error) {
+        EXPECT_NE(std::string(error.what()).find("Dynamic strided VIEW requires explicit runtime slice bounds"),
+                  std::string::npos)
+            << error.what();
+    }
+}
+
+TEST(GGUFOps, ViewRawDynamicLayerOffsetWithSingletonCapture) {
+    for (int64_t captured_tokens : {int64_t{1}, int64_t{2}}) {
+        for (size_t layer : {0u, 1u, 2u}) {
+            SCOPED_TRACE(captured_tokens);
+            SCOPED_TRACE(layer);
+            auto builder =
+                SingleOpBuilder()
+                    .op("GGML_OP_VIEW")
+                    .input("x", ov::element::f32, {1, 3, -1, 4})
+                    .output("out", ov::element::f32, {1, 1, captured_tokens, 4})
+                    .attr("view_input_strides", std::vector<int64_t>{4, 16, 16 * captured_tokens, 48 * captured_tokens})
+                    .attr("view_output_strides",
+                          std::vector<int64_t>{4, 16, 16 * captured_tokens, 16 * captured_tokens})
+                    .attr("view_offset_bytes", int64_t{16} * captured_tokens * static_cast<int64_t>(layer))
+                    .attr("output_dynamic_axis", 2);
+            auto model = build_captured_op(builder, {{"x", {1, 3, captured_tokens, 4}}});
+            ov::Core core;
+            auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+            auto request = compiled.create_infer_request();
+            for (size_t tokens : {1u, 5u}) {
+                SCOPED_TRACE(tokens);
+                std::vector<float> values(3 * tokens * 4);
+                std::iota(values.begin(), values.end(), 0.0f);
+                request.set_tensor("x", make_f32_tensor({1, 3, tokens, 4}, values));
+                request.infer();
+                ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 1, tokens, 4}));
+                const auto begin = values.begin() + layer * tokens * 4;
+                expect_near(request.get_output_tensor(), std::vector<float>(begin, begin + tokens * 4), 0.0f, 0.0f);
+            }
+        }
+    }
+}
+
 TEST(GGUFOps, ViewRawInvalidStridesAreRejected) {
     for (const auto& strides : {std::vector<int64_t>{6, 16, 32, 32},
                                 std::vector<int64_t>{0, 16, 32, 32},
@@ -4992,6 +5044,38 @@ TEST(GGUFOps, FlashAttnExtAlibiScalesMaskPerHead) {
     }
     // SDPA runs in f16.
     expect_near(out, expected, 2e-3f, 2e-3f);
+}
+
+TEST(GGUFOps, FlashAttnExtAlibiSmallSlopesPreserveMask) {
+    const float masked = -std::numeric_limits<float>::infinity();
+    for (const bool f32_attention : {false, true}) {
+        for (const float soft_cap : {0.0f, 1.0f}) {
+            SCOPED_TRACE(::testing::Message() << "f32: " << f32_attention << ", soft cap: " << soft_cap);
+            auto model = SingleOpBuilder()
+                             .op("GGML_OP_FLASH_ATTN_EXT")
+                             .input("q", ov::element::f32, {1, 2, 1, 1})
+                             .input("k", ov::element::f32, {1, 2, 2, 1})
+                             .input("v", ov::element::f32, {1, 2, 2, 1})
+                             .input("mask", ov::element::f32, {1, 1, 1, 2})
+                             .output("out", ov::element::f32, {1, 1, 2, 1})
+                             .attr("scale", 1.0f)
+                             .attr("max_bias", 32.0f)
+                             .attr("kq_soft_cap", soft_cap)
+                             .attr("f32_attention", f32_attention)
+                             .attr("has_mask", true)
+                             .build();
+            for (const float mask_value : {masked, -4294967296.0f}) {
+                SCOPED_TRACE(mask_value);
+                auto out = run_on_cpu(model,
+                                      {{"q", make_f32_tensor({1, 2, 1, 1}, {0, 0})},
+                                       {"k", make_f32_tensor({1, 2, 2, 1}, {0, 0, 0, 0})},
+                                       {"v", make_f32_tensor({1, 2, 2, 1}, {2, 3, 5, 9})},
+                                       {"mask", make_f32_tensor({1, 1, 1, 2}, {0, mask_value})}});
+                const float second = std::isinf(mask_value) ? 5.0f : 5.0f + 4.0f / (1.0f + std::exp(1.0f));
+                expect_near(out, {2.0f, second}, 1e-2f, 1e-3f);
+            }
+        }
+    }
 }
 
 TEST(GGUFOps, FlashAttnExtManualGqaWithAlibi) {

@@ -778,7 +778,9 @@ OutputVector translate_view(const NodeContext& context) {
             int64_t remaining = byte_offset;
             bool valid = true;
             for (size_t d : dims) {
-                if (src_shape[src_shape.size() - 1 - d] == 1 && dst_shape[dst_shape.size() - 1 - d] == 1) {
+                const size_t ov_axis = src_shape.size() - 1 - d;
+                const bool singleton = src_shape[ov_axis] == 1 && dst_shape[ov_axis] == 1;
+                if (static_cast<int>(ov_axis) != dynamic_axis && singleton) {
                     continue;
                 }
                 if (src_strides[d] <= 0 || dst_strides[d] <= 0 || dst_strides[d] % src_strides[d] != 0) {
@@ -786,9 +788,12 @@ OutputVector translate_view(const NodeContext& context) {
                     break;
                 }
                 steps[d] = dst_strides[d] / src_strides[d];
+                // A captured singleton dynamic axis must validate its step without consuming the offset.
+                if (singleton) {
+                    continue;
+                }
                 starts[d] = remaining / src_strides[d];
                 remaining %= src_strides[d];
-                const size_t ov_axis = src_shape.size() - 1 - d;
                 const int64_t last = starts[d] + steps[d] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1);
                 if (starts[d] < 0 || last >= static_cast<int64_t>(src_shape[ov_axis])) {
                     valid = false;
