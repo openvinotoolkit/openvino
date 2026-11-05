@@ -340,6 +340,10 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{257, 640, 320, true},        // production-like width, mid tiling
                                            gr_read_case{17, 2560, 320, true},        // real Qwen4-Exp width, decode tiling
                                            gr_read_case{100, 2560, 320, true},       // real Qwen4-Exp width, mid tiling
+                                           gr_read_case{1, 5120, 640, true},         // Qwen4-27B width (C*D > 16384, L > 512), decode
+                                           gr_read_case{17, 5120, 640, true},        // Qwen4-27B width, prefill with a partial tile
+                                           gr_read_case{100, 5120, 640, true},       // Qwen4-27B width, mid tiling
+                                           gr_read_case{17, 5120, 640, false, false, true},  // Qwen4-27B width, FINAL_MIX
                                            gr_read_case{1000, 64, 32, true},         // wide tiling / single kernel (> 4 rows per EU)
                                            gr_read_case{777, 48, 64, false},         // wide tiling, partial tiles (D % 32 != 0)
                                            gr_read_case{1111, 128, 64, true, true},  // single kernel, partial 32-row tile
@@ -726,6 +730,14 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_quant_case{1, 2560, 320, false, false, true},
                                            gr_quant_case{8, 2560, 320, true, false, true},
                                            gr_quant_case{8, 2560, 320, false, false, true},
+                                           // Qwen4-27B width: RBAR splits the 5120-wide branch rows across subgroups at decode
+                                           gr_quant_case{1, 5120, 640, true},
+                                           gr_quant_case{1, 5120, 640, false},
+                                           gr_quant_case{17, 5120, 640, true},
+                                           gr_quant_case{17, 5120, 640, false},
+                                           gr_quant_case{100, 5120, 640, true},
+                                           gr_quant_case{1, 5120, 640, true, false, true},
+                                           gr_quant_case{17, 5120, 640, false, false, true},
                                            // signed weights (i4 / i8) with zero points: gemv, decode, mid, predequantized and FINAL_MIX
                                            gr_quant_case{1, 64, 32, true, false, false, true},
                                            gr_quant_case{1, 64, 32, false, false, false, true},
@@ -878,7 +890,9 @@ TEST_P(gated_residual_write_test, combines_branches) {
 }
 
 // D=48 is a multiple of 16 but not of 32 or 64, so gr_best_tile() falls back to GR_WRITE_TILE=16; D=64 and 256 use the wide tile.
-INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_write_test, ::testing::Values(gr_write_case{5, 64}, gr_write_case{9, 48}, gr_write_case{37, 256}));
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_write_test,
+                         ::testing::Values(gr_write_case{5, 64}, gr_write_case{9, 48}, gr_write_case{37, 256}, gr_write_case{3, 5120}, gr_write_case{33, 5120}));
 
 // --- ov::Model / ov::Core level tests (plugin pipeline, dynamic rows) ----------
 //
@@ -1351,7 +1365,10 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
             }
         }
     }
-    const size_t L = 320;
+    size_t L = 320;
+    if (const char* l_env = std::getenv("GR_AB_L")) {  // GR_AB_L=640 for the Qwen4-27B low rank
+        L = std::stoull(l_env);
+    }
     for (const auto& [rows, D] : points) {
         const size_t CD = kBranches * D;
         gr_ref_params p;
