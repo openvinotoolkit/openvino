@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-09-41-55-538-41988857090",
+  "timestamp": "2026-11-05T09:41:55Z",
+  "run_id": "41988857090",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41988857090",
+  "workflow_name": "OpenVINO JS API (26) / OpenVINO JS API",
+  "pr_number": "39148",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39148",
+  "author": "clee30",
+  "category": "Code Issue",
+  "title": "infer_request.test.js GC safety suite corrupts glibc heap (malloc_consolidate unaligned fastbin chunk)",
+  "signature": "infer_request.test.js gc safety infer inferasync suite glibc malloc_consolidate unaligned fastbin chunk detected heap corruption|Code Issue",
+  "signature_hash": "a59d13e7e8bb25d4",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (26) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "Node test runner subprocess running tests/unit/infer_request.test.js aborted after glibc printed 'malloc_consolidate(): unaligned fastbin chunk detected' right after the 'original TypedArray is alive during infer()' subtest in the 'GC safety infer() / inferAsync()' suite; 269/270 subtests passed, 1 file reported failed."
+    }
+  ],
+  "key_errors": [
+    "2026-11-05T08:38:57.8547335Z   ✔ original TypedArray is alive during infer() (92.179818ms)\n2026-11-05T08:38:57.8548094Z malloc_consolidate(): unaligned fastbin chunk detected\n2026-11-05T08:38:57.8548998Z ✖ tests/unit/infer_request.test.js (1851.939291ms)",
+    "2026-11-05T08:38:57.8686742Z ℹ tests 270\n2026-11-05T08:38:57.8687550Z ℹ suites 48\n2026-11-05T08:38:57.8687976Z ℹ pass 269\n2026-11-05T08:38:57.8688388Z ℹ fail 1",
+    "2026-11-05T08:38:57.9260106Z ✖ tests/unit/infer_request.test.js (1851.939291ms)\n2026-11-05T08:38:57.9261125Z   'test failed'\n2026-11-05T08:38:57.9284296Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Node.js N-API bindings test file src/bindings/js/node/tests/unit/infer_request.test.js aborted with glibc's 'malloc_consolidate(): unaligned fastbin chunk detected' heap-corruption detector, triggered right after the 'original TypedArray is alive during infer()' subtest in the 'GC safety infer() / inferAsync()' describe block (lines 449-505). That suite repeatedly allocates Float32Array buffers, wraps them in ov.Tensor, and runs multiple concurrent infer()/inferAsync() calls specifically to stress native buffer-lifetime/GC-pinning behavior in the InferRequest/Tensor N-API bindings (src/bindings/js/node/src/infer_request.cpp, src/bindings/js/node/include/infer_request.hpp). glibc's fastbin-chunk check firing here indicates a native heap-corrupting bug (e.g., double free, out-of-bounds write, or use-after-free on a TypedArray-backed buffer) in that wrapping/reference-keeping code, exercised by async/GC timing. The failing PR (#39148) only touches src/plugins/intel_gpu (sdpa_micro.cl GPU kernel and a GPU unit test) and runs CPU inference in this JS test, so the PR diff is unrelated to the crash; this is the same test suite flagged in a prior investigation (signature_hash 64286f1d490ba863, SIGSEGV) for a likely related native memory-lifetime bug, but the specific glibc abort signature differs (heap corruption vs. segfault) so it is tracked as a separate pattern.",
+  "reproduction_steps": "Build the Node.js bindings (src/bindings/js/node) for OpenVINO on Linux, then from that directory run `node --test tests/unit/infer_request.test.js` repeatedly (ideally in a loop, e.g. 20-50x) focusing on the 'GC safety infer() / inferAsync()' describe block (lines 449-505 of the test file). The corruption is timing/GC-dependent and may not reproduce on every run; running under glibc with MALLOC_CHECK_=3 or under valgrind/ASan will surface the faulting write more reliably than the bare 'malloc_consolidate' abort message.",
+  "recommended_actions": [
+    "Re-run the failed 'OpenVINO JS API (26) / OpenVINO JS API' job; if it passes on retry this supports a timing-dependent (GC/async-scheduling) native memory bug rather than a deterministic one.",
+    "Run the Node JS bindings test suite under AddressSanitizer or valgrind in a diagnostic CI lane to get an exact faulting write location in src/bindings/js/node/src/infer_request.cpp / tensor.cpp.",
+    "Audit how ov.Tensor/InferRequest N-API bindings keep the backing ArrayBuffer/TypedArray alive across concurrent infer()/inferAsync() calls (Napi::Reference lifetime, finalizer callbacks) for double-free or buffer-overrun bugs, particularly around the newly added GC-safety test scenarios.",
+    "Add core-dump / sanitizer-based CI diagnostics for this job so future glibc heap-corruption aborts include an actual backtrace instead of only the bare 'malloc_consolidate' message."
+  ],
+  "prevention_strategies": "Run new native-memory-lifetime stress tests (like the 'GC safety' suite) multiple times under ASan/valgrind before merging, since GC/async-timing-dependent heap corruption is often intermittent and easy to miss in a single CI pass. Add persistent core-dump/sanitizer tooling to the JS API CI job so any future native abort (SIGSEGV, SIGABRT, malloc_consolidate) yields a stack trace automatically.",
+  "historical_context": "Pattern 64286f1d490ba863 (count 1 prior to this run) recorded a SIGSEGV crash in the exact same 'GC safety infer() / inferAsync()' suite of infer_request.test.js on run 41502170440 (PR #39321), also unrelated to that PR's actual diff. This occurrence shows a different glibc abort signature (malloc_consolidate heap corruption) in the same suite, consistent with an underlying native buffer-lifetime bug in the N-API Tensor/InferRequest bindings; tracked as a new, distinct pattern (a59d13e7e8bb25d4) because the manifestation differs, but both point at the same component."
+}

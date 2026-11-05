@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "infer_request.test.js gc safety infer inferasync suite glibc malloc_consolidate unaligned fastbin chunk detected heap corruption|Code Issue",
+  "signature_hash": "a59d13e7e8bb25d4",
+  "title": "infer_request.test.js GC safety suite corrupts glibc heap (malloc_consolidate unaligned fastbin chunk)",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-11-05T09:41:55Z",
+  "last_seen": "2026-11-05T09:41:55Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41988857090"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39148"
+  ],
+  "recent_timestamps": [
+    "2026-11-05T09:41:55Z"
+  ],
+  "rerun_search_string": null
+}
