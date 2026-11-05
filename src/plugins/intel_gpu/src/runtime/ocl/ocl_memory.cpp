@@ -589,15 +589,13 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
     auto dep_ev_ocl = utils::get_cl_events(dep_events);
     try {
         cl_int err = cl_stream.get_usm_helper().enqueue_fill_mem(cl_stream.get_cl_queue(),
-                                                    _buffer.get(),
-                                                    static_cast<const void*>(&pattern),
-                                                    sizeof(unsigned char),
-                                                    _bytes_count,
-                                                    dep_ev_ocl.empty() ? nullptr : &dep_ev_ocl,
-                                                    &ev_ocl);
-        if (err != CL_SUCCESS) {
-            OPENVINO_THROW("[GPU] clEnqueueMemFillINTEL failed with error code: ", err);
-        }
+                                                                 _buffer.get(),
+                                                                 static_cast<const void*>(&pattern),
+                                                                 sizeof(unsigned char),
+                                                                 _bytes_count,
+                                                                 dep_ev_ocl.empty() ? nullptr : &dep_ev_ocl,
+                                                                 &ev_ocl);
+        OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clEnqueueMemFillINTEL failed with error code: ", err);
         if (blocking) {
             ev_ocl.wait();
         }

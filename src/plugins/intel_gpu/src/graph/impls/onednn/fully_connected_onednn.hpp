@@ -96,7 +96,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             // oneDNN requires every non-unit stride of a sub-byte weights descriptor to hold a whole number of bytes.
             // The row stride equals the innermost (padded) dimension, so reject weights whose innermost dimension
             // doesn't fill whole bytes and let another FC implementation handle them.
-            if (const auto wei_bits = ov::element::Type(wei_dt).bitwidth(); wei_bits < 8) {
+            // Constant u4/i4 weights are padded later by prepare_padding (only when oneDNN is preferred), so keep them here.
+            const auto& wei_node = fc_node.weights();
+            const bool padded_later = one_of(wei_dt, {data_types::u4, data_types::i4}) && wei_node.is_constant() && wei_node.is_type<data>();
+            if (const auto wei_bits = ov::element::Type(wei_dt).bitwidth(); wei_bits < 8 && !padded_later) {
                 const auto wei_layout = fc_node.weights().get_output_layout(false);
                 if (wei_layout.is_static()) {
                     const auto elems_per_byte = std::lcm<size_t>(wei_bits, 8) / wei_bits;

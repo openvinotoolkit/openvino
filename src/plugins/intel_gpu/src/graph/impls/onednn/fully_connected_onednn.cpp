@@ -383,10 +383,8 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
-                const auto ifm = weights_layout.get_dim(ifm_dim_idx);
-                const auto ngroups = get_ngroups(weights_layout, scale_layout, prim->weights_transposed);
-                group_size = static_cast<int>(ifm / ngroups);
+                const auto [ngroups, scale_group_size] = get_scale_groups(weights_layout, scale_layout, prim->weights_transposed);
+                group_size = static_cast<int>(scale_group_size);
                 OPENVINO_ASSERT(is_supported_scale_group(ngroups, group_size),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
