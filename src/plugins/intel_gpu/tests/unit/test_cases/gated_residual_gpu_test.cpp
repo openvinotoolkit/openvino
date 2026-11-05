@@ -196,7 +196,7 @@ std::vector<std::string> pipeline_stages() {
 
 std::vector<std::string> expected_read_stages(size_t rows, size_t D, size_t L) {
     const auto& info = get_test_engine().get_device_info();
-    const bool xmx = info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad;
+    const bool xmx = !ov::intel_gpu::op::GatedResidual::force_scalar() && info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad;
     if (!xmx || L % 32 != 0) {
         return {"READ"};
     }
@@ -812,6 +812,14 @@ std::vector<gr_quant_case> group_size_cases() {
             cases.push_back({17, 640, 320, u4, false, true, true, false, group});
             cases.push_back({1, 2560, 320, u4, false, false, true, true, group});
             cases.push_back({257, 640, 320, u4, false, true, false, false, group});
+        }
+    }
+    // L = 640 (Qwen4-27B) divides by 64 / 128, so W_up really uses the group size too instead of falling back to the default
+    for (const size_t group : {size_t{64}, size_t{128}}) {
+        for (const bool u4 : {true, false}) {
+            for (const size_t rows : {size_t{1}, size_t{17}, size_t{100}, size_t{257}, size_t{1000}}) {
+                cases.push_back({rows, 640, 640, u4, false, true, false, true, group});
+            }
         }
     }
     return cases;

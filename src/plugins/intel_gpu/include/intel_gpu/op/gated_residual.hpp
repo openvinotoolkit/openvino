@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdlib>
 #include <optional>
 
 #include "intel_gpu/runtime/device_info.hpp"
@@ -175,9 +176,19 @@ public:
         return hc_count * hidden_size <= max_total_width && lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank;
     }
 
+    /// OV_GPU_GR_FORCE_SCALAR=1 makes every device look like one without systolic arrays (tests of the scalar paths).
+    static bool force_scalar() {
+        static const bool forced = [] {
+            const char* env = std::getenv("OV_GPU_GR_FORCE_SCALAR");
+            return env != nullptr && env[0] == '1';
+        }();
+        return forced;
+    }
+
     /// Compressed weights run on the systolic path only.
     static bool is_compression_arch_supported(const cldnn::device_info& info) {
-        return info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad && info.supports_intel_subgroups && info.supports_intel_subgroups_short;
+        return !force_scalar() && info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad && info.supports_intel_subgroups &&
+               info.supports_intel_subgroups_short;
     }
 
     /// Group size along K, derived from the weight columns K and the scale / zp rows G; 0 when K is not divisible by G.

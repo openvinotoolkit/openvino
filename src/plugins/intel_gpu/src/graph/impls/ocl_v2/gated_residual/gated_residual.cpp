@@ -204,7 +204,7 @@ bool use_single_dpas_read(const gated_residual& desc, const cldnn::device_info& 
 }
 
 bool xmx_available(const cldnn::device_info& info) {
-    return info.arch >= gpu_arch::xe2 && info.supports_immad;
+    return !GrOp::force_scalar() && info.arch >= gpu_arch::xe2 && info.supports_immad;
 }
 
 /// Whether the systolic READ/FINAL_MIX path can replace the fused scalar gr_read kernel.
