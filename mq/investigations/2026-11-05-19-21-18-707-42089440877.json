@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-19-21-18-707-42089440877",
+  "timestamp": "2026-11-05T19:21:18Z",
+  "run_id": "42089440877",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42089440877",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38824",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38824",
+  "author": "akashchi",
+  "category": "Network",
+  "title": "Docker image build fails - wget cannot resolve raw.githubusercontent.com (DNS failure)",
+  "signature": "temporary failure in name resolution unable to resolve host address raw githubusercontent com|Network",
+  "signature_hash": "69728e8311b16d64",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "Image build for ubuntu_22_04_x64_igpu failed during 'RUN wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py' step with DNS resolution failure."
+    }
+  ],
+  "key_errors": [
+    "#14 0.100 Resolving raw.githubusercontent.com (raw.githubusercontent.com)... failed: Temporary failure in name resolution.",
+    "#14 20.11 wget: unable to resolve host address 'raw.githubusercontent.com'",
+    "#14 ERROR: process \"/bin/sh -c wget https://raw.githubusercontent.com/google/gtest-parallel/master/gtest_parallel.py -O /usr/local/bin/gtest_parallel.py &&     chmod +x /usr/local/bin/gtest_parallel.py\" did not complete successfully: exit code: 4",
+    "RuntimeError: Command 'docker buildx build ... --file .github/dockerfiles/ov_test/ubuntu_22_04_x64_igpu/Dockerfile ...' returned non-zero exit status 1"
+  ],
+  "root_cause": "The 'Docker' job builds the ubuntu_22_04_x64_igpu test image. During the Dockerfile RUN step that downloads gtest_parallel.py from raw.githubusercontent.com via wget, DNS resolution for raw.githubusercontent.com failed inside the Docker build container ('Temporary failure in name resolution'). This is a transient network/DNS outage inside the build container/runner network, not caused by the PR's sccache version bump (which only touches Dockerfile build-arg/ENV lines for sccache, unrelated to this wget step or network setup). The PR's changed files do not modify networking, DNS, or the gtest_parallel.py download step.",
+  "reproduction_steps": "N/A - not reliably reproducible locally; requires hitting the same transient DNS outage. Re-running the failed 'Docker' job alone is expected to succeed once DNS resolves normally.",
+  "recommended_actions": [
+    "Re-run the failed 'Docker' job (no code change needed); the workflow rerunner already covers this via 'unable to resolve host' / 'Temporary failure in name resolution' entries in errors_to_look_for.json.",
+    "If this recurs frequently, consider mirroring gtest_parallel.py into the internal Azure Container Registry/artifact cache instead of fetching it live from raw.githubusercontent.com during image builds.",
+    "Monitor runner/network health for aks-linux-4-cores-16gb-docker-build if DNS failures become frequent."
+  ],
+  "prevention_strategies": "Avoid depending on live external downloads (wget/curl to GitHub raw content) inside Dockerfile RUN steps for CI-critical images; vendor or cache such scripts in the registry so a transient DNS/network blip does not fail the whole merge-queue run.",
+  "historical_context": "No prior pattern record for this exact DNS-resolution signature (raw.githubusercontent.com wget failure during Docker image build) was found in repo-memory. A related but distinct pattern (signature_hash 966a1b79fea18174) recorded a Docker buildx builder boot failure (BuildKit image not found in ACR) on 2026-07-15, which is a different root cause (builder provisioning vs. in-container DNS resolution)."
+}

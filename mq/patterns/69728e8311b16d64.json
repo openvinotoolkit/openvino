@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "temporary failure in name resolution unable to resolve host address raw githubusercontent com|Network",
+  "signature_hash": "69728e8311b16d64",
+  "title": "Docker image build fails - wget cannot resolve raw.githubusercontent.com (DNS failure)",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-05T19:21:18Z",
+  "last_seen": "2026-11-05T19:21:18Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42089440877"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38824"
+  ],
+  "recent_timestamps": [
+    "2026-11-05T19:21:18Z"
+  ],
+  "rerun_search_string": "unable to resolve host"
+}
