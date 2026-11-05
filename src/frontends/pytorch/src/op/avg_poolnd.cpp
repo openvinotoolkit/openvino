@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
@@ -74,12 +76,14 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
                                 "Translation for aten::avg_pool2d do not support divisor_override input.");
 
     // PyTorch 1D/2D ceil-mode pooling clips a kernel larger than an unpadded axis to the input, while AvgPool
-    // requires it to fit. Excluded end padding of kernel - 1 makes it fit for any non-empty axis, and with
-    // stride >= kernel it adds no window starting inside the input, so results are unchanged.
+    // requires it to fit. Excluded end padding of min(kernel, stride) - 1 makes it fit exactly for the extents
+    // PyTorch accepts. It adds no window starting inside the input when stride >= kernel; otherwise a surplus
+    // last window is sliced off.
     bool exclude_pad = !count_include_pad;
     auto pads_begin = pads;
     auto pads_end = pads;
     bool extended = false;
+    std::vector<int64_t> slice_axes, slice_offsets, slice_steps;
     if (dims < 3 && rounding_type == RoundingType::CEIL_TORCH && strides.size() == kernel.size() &&
         pads.size() == kernel.size()) {
         const auto& shape = input.get_partial_shape();
@@ -87,39 +91,49 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
         for (size_t i = 0; i < kernel.size(); ++i) {
             const bool may_be_short =
                 !has_spatial_dims || shape[i + 2].get_min_length() < static_cast<int64_t>(kernel[i]);
-            if (kernel[i] > 1 && pads[i] == 0 && strides[i] >= kernel[i] && may_be_short) {
-                pads_end[i] = kernel[i] - 1;
+            if (kernel[i] > 1 && strides[i] > 1 && pads[i] == 0 && may_be_short) {
+                pads_end[i] = std::min(kernel[i], strides[i]) - 1;
                 extended = true;
+                if (strides[i] < kernel[i]) {
+                    // PyTorch has ceil((L - k) / s) + 1 windows here.
+                    slice_axes.push_back(static_cast<int64_t>(i + 2));
+                    slice_offsets.push_back(static_cast<int64_t>(2 * strides[i]) - static_cast<int64_t>(kernel[i]) - 1);
+                    slice_steps.push_back(static_cast<int64_t>(strides[i]));
+                }
             }
         }
     }
-    Output<Node> window_count;
-    std::shared_ptr<v0::Constant> padded_axes;
+    std::vector<int64_t> explicit_pads(kernel.size() + 2, 0);
+    bool pad_explicitly = false;
     if (extended && !exclude_pad) {
         // Included padding becomes explicit zeros, since the extra end padding must stay out of the divisor.
-        std::vector<int64_t> explicit_pads(kernel.size() + 2, 0), axes, offsets, steps;
         for (size_t i = 0; i < kernel.size(); ++i) {
             if (pads[i] > 0) {
                 explicit_pads[i + 2] = static_cast<int64_t>(pads[i]);
                 pads_begin[i] = pads_end[i] = 0;
-                axes.push_back(static_cast<int64_t>(i + 2));
-                offsets.push_back(static_cast<int64_t>(pads[i] + strides[i] - 1));
-                steps.push_back(static_cast<int64_t>(strides[i]));
+                pad_explicitly = true;
+                // PyTorch drops a last window starting in the right padding, which AvgPool now sees as data.
+                slice_axes.push_back(static_cast<int64_t>(i + 2));
+                slice_offsets.push_back(static_cast<int64_t>(pads[i] + strides[i] - 1));
+                slice_steps.push_back(static_cast<int64_t>(strides[i]));
             }
         }
-        if (!axes.empty()) {
-            padded_axes = v0::Constant::create(element::i64, Shape{axes.size()}, axes);
-            auto shape_of = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-            auto zero = v0::Constant::create(element::i64, Shape{}, {0});
-            auto lengths = context.mark_node(std::make_shared<v8::Gather>(shape_of, padded_axes, zero));
-            // PyTorch drops a last window starting in the right padding, which AvgPool now sees as data.
-            auto offsets_const = v0::Constant::create(element::i64, Shape{offsets.size()}, offsets);
-            auto steps_const = v0::Constant::create(element::i64, Shape{steps.size()}, steps);
-            auto padded_lengths = context.mark_node(std::make_shared<v1::Add>(lengths, offsets_const));
-            window_count = context.mark_node(std::make_shared<v1::Divide>(padded_lengths, steps_const));
-            auto pads_const = v0::Constant::create(element::i64, Shape{explicit_pads.size()}, explicit_pads);
-            input = context.mark_node(std::make_shared<v12::Pad>(input, pads_const, pads_const, PadMode::CONSTANT));
-        }
+    }
+    std::shared_ptr<v0::Constant> slice_axes_const;
+    Output<Node> window_count;
+    if (!slice_axes.empty()) {
+        slice_axes_const = v0::Constant::create(element::i64, Shape{slice_axes.size()}, slice_axes);
+        auto shape_of = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+        auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+        auto lengths = context.mark_node(std::make_shared<v8::Gather>(shape_of, slice_axes_const, zero));
+        auto offsets_const = v0::Constant::create(element::i64, Shape{slice_offsets.size()}, slice_offsets);
+        auto steps_const = v0::Constant::create(element::i64, Shape{slice_steps.size()}, slice_steps);
+        auto shifted_lengths = context.mark_node(std::make_shared<v1::Add>(lengths, offsets_const));
+        window_count = context.mark_node(std::make_shared<v1::Divide>(shifted_lengths, steps_const));
+    }
+    if (pad_explicitly) {
+        auto pads_const = v0::Constant::create(element::i64, Shape{explicit_pads.size()}, explicit_pads);
+        input = context.mark_node(std::make_shared<v12::Pad>(input, pads_const, pads_const, PadMode::CONSTANT));
     }
     Output<Node> res = context.mark_node(std::make_shared<v14::AvgPool>(input,
                                                                         strides,
@@ -128,11 +142,11 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
                                                                         kernel,
                                                                         exclude_pad || extended,
                                                                         rounding_type));
-    if (padded_axes) {
-        const auto& axes_shape = padded_axes->get_shape();
+    if (slice_axes_const) {
+        const auto& axes_shape = slice_axes_const->get_shape();
         auto zeros = v0::Constant::create(element::i64, axes_shape, {0});
         auto ones = v0::Constant::create(element::i64, axes_shape, {1});
-        res = context.mark_node(std::make_shared<v8::Slice>(res, zeros, window_count, ones, padded_axes));
+        res = context.mark_node(std::make_shared<v8::Slice>(res, zeros, window_count, ones, slice_axes_const));
     }
 
     if (is_static) {
