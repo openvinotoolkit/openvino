@@ -73,8 +73,13 @@ void MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITenso
     setArg(arg);
     setOffset(offset);
     setSize(tensor->get_shape());
-    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    setStrides(tensor->get_strides(), static_cast<int32_t>(elementSize));
+    const auto& elementType = tensor->get_element_type();
+    if (elementType.bitwidth() < 8) {
+        // Packed sub-byte tensors have no byte strides, so contiguous element strides are derived from the shape
+        updateStride();
+        return;
+    }
+    setStrides(tensor->get_strides(), static_cast<int32_t>(elementType.size()));
 }
 
 void MemRefType::updateStride() {

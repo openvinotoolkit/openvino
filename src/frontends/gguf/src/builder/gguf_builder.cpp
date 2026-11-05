@@ -53,7 +53,7 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded,
                                const std::string& component,
                                bool export_hidden_state) {
     auto data = std::make_shared<GGUFLoad>(std::move(loaded));
-    auto& [metadata, weights, qtypes, mmap] = *data;
+    auto& metadata = std::get<0>(*data);
 
     const detail::MetadataStore meta_store{metadata};
     const GgufMetadata meta_view(meta_store);
@@ -78,12 +78,10 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded,
     }
     return [data, definition = *definition, projectors = registry.projectors(), component, export_hidden_state](
                const std::unordered_map<std::string, CreatorFunction>& translators) {
-        const auto& [metadata, source_weights, source_qtypes, mmap] = *data;
-        auto weights = source_weights;
-        auto qtypes = source_qtypes;
+        const auto& [metadata, weights, mmap] = *data;
         const detail::MetadataStore meta_store{metadata};
         const GgufMetadata meta_view(meta_store);
-        detail::WeightStore weight_store{weights, qtypes, &translators};
+        detail::WeightStore weight_store{weights, &translators};
         BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
         ctx.component = component;
         ctx.export_hidden_state = export_hidden_state;

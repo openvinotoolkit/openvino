@@ -63,7 +63,7 @@ DecoderParameters component_parameters(const BuildContext& context, DecoderParam
 
 DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
     : m_cfg(component_parameters(context, parameters), context.weights->weights),
-      m_emit(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators),
+      m_emit(context.weights->weights, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)),
       m_mtp(context.component == "mtp"),
       m_export_hidden(parameters.architecture == "qwen35" && parameters.hybrid.nextn_layers > 0) {
@@ -298,7 +298,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         auto ffn_norm_r = norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
         // Mirror the non-recurrent FFN dispatch below: Qwen3-Next is MoE for every trunk layer
         // (llama.cpp routes both the GDN and full-attention layers through build_moe_ffn), so a
-        // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
+        // real model has no per-layer dense FFN tensors here and dense_ffn's weight lookup
         // would assert.
         const bool is_moe_layer_r = m_cfg.layer_is_moe(il);
         auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r)
@@ -358,7 +358,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
     // Gemma4: per-layer output scale (layer_output_scale.weight is a scalar [1]).
     if (m_emit.has_weight(p + "layer_output_scale.weight")) {
-        m_emit.add_named_weight(p + "layer_output_scale.weight");
+        m_emit.add_weight(p + "layer_output_scale.weight");
         cur = m_emit.add_op("GGML_OP_MUL", p + "scaled_out", {cur, p + "layer_output_scale.weight"});
     }
     return cur;
