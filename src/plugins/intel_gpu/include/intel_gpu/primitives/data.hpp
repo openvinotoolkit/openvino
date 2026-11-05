@@ -235,9 +235,7 @@ struct weightless_cache_manager {
                             "Invalid resident expert count in weightless cache");
             upload_shape[0] = resident_expert_num;
             auto upload_layout = layout(upload_shape, output_layout.data_type, output_layout.format);
-            auto upload_mem = ib.get_engine().allocate_memory(upload_layout,
-                                                              ib.get_engine().get_preferred_memory_allocation_type(),
-                                                              false);
+            auto upload_mem = ib.get_engine().allocate_memory(upload_layout, allocation_type, false);
             dst_mem = ib.get_engine().reinterpret_buffer(*upload_mem, output_layout);
             return true;
         }

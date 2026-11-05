@@ -387,7 +387,10 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     auto& engine = get_test_engine();
     const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
     const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
-    auto resident_memory = engine.allocate_memory(resident_layout, true);
+    const auto serialized_allocation_type = engine.supports_allocation(allocation_type::usm_host)
+                                                ? allocation_type::usm_host
+                                                : engine.get_default_allocation_type();
+    auto resident_memory = engine.allocate_memory(resident_layout, serialized_allocation_type, true);
     auto partial_memory = engine.reinterpret_buffer(*resident_memory, full_layout);
 
     const uint32_t resident_expert_num = static_cast<uint32_t>(resident_layout.get_shape()[0]);
@@ -429,6 +432,7 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
 
     EXPECT_TRUE(loaded_data.skip_device_transfer());
     EXPECT_EQ(loaded_data.mem->get_layout(), full_layout);
+    EXPECT_EQ(loaded_data.mem->get_allocation_type(), serialized_allocation_type);
     EXPECT_EQ(loaded_data.get_resident_expert_num(), resident_expert_num);
     ASSERT_NE(loaded_data.mem->get_mem_tracker(), nullptr);
     EXPECT_EQ(loaded_data.mem->get_mem_tracker()->size(), resident_memory->size());
