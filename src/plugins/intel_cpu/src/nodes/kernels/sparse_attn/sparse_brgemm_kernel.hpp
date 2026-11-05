@@ -29,21 +29,21 @@
 
 namespace ov::Extensions::Cpu::XARCH {
 
-/// @brief scores[r] *= scale for r < rows; returns the maximum of the scaled scores.
-inline float scale_and_max(float* scores, size_t rows, float scale) {
+/// @brief scores[r] *= scale for r < kv_len; returns the maximum of the scaled scores.
+inline float scale_and_max(float* scores, size_t kv_len, float scale) {
     size_t r = 0;
     float max_value = -std::numeric_limits<float>::infinity();
 #if defined(HAVE_AVX512F)
     const auto v_scale = _mm512_set1_ps(scale);
     auto v_max = _mm512_set1_ps(max_value);
-    for (; r + 16 <= rows; r += 16) {
+    for (; r + 16 <= kv_len; r += 16) {
         const auto v = _mm512_mul_ps(_mm512_loadu_ps(scores + r), v_scale);
         _mm512_storeu_ps(scores + r, v);
         v_max = _mm512_max_ps(v_max, v);
     }
     max_value = _mm512_reduce_max_ps(v_max);
 #endif
-    for (; r < rows; r++) {
+    for (; r < kv_len; r++) {
         scores[r] *= scale;
         max_value = std::max(max_value, scores[r]);
     }
@@ -121,11 +121,11 @@ struct BrgemmBuffers {
 /// @brief B operand of the QK product (keys, b_transposed, N = 32): dst[d][n] = the 32-bit pair d of the key row n, so
 /// a 32 x (k_head_size / 2) transpose of 32-bit values, 16 x 16 at a time.
 template <typename T>
-void pack_k_block(const T* const* rows, size_t k_head_size, T* dst) {
+void pack_k_block(const T* const* kv_ptrs, size_t k_head_size, T* dst) {
     auto* out = reinterpret_cast<uint32_t*>(dst);
     const size_t pairs = k_head_size / 2;
     for (size_t half = 0; half < 2; half++) {
-        const auto* const* r = reinterpret_cast<const uint32_t* const*>(rows + half * 16);
+        const auto* const* r = reinterpret_cast<const uint32_t* const*>(kv_ptrs + half * 16);
         for (size_t d = 0; d < pairs; d += 16) {
             __m512i r0 = _mm512_loadu_si512(r[0] + d);
             __m512i r1 = _mm512_loadu_si512(r[1] + d);
@@ -168,13 +168,13 @@ void pack_k_block(const T* const* rows, size_t k_head_size, T* dst) {
 /// @brief B operand of the P.V product (values, K = 32 rows): the row pair (2i, 2i + 1) interleaved element by element
 /// into the row i of dst, whose stride is 2 * v_head_size elements.
 template <typename T>
-void pack_v_block(const T* const* rows, size_t v_head_size, T* dst) {
+void pack_v_block(const T* const* kv_ptrs, size_t v_head_size, T* dst) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     const auto midx = _mm512_loadu_si512(idx);
     auto* out_row = reinterpret_cast<uint16_t*>(dst);
     for (size_t i = 0; i < 16; i++) {
-        const auto* row_a = reinterpret_cast<const uint16_t*>(rows[2 * i]);
-        const auto* row_b = reinterpret_cast<const uint16_t*>(rows[2 * i + 1]);
+        const auto* row_a = reinterpret_cast<const uint16_t*>(kv_ptrs[2 * i]);
+        const auto* row_b = reinterpret_cast<const uint16_t*>(kv_ptrs[2 * i + 1]);
         for (size_t k = 0; k < v_head_size; k += 32) {
             const auto a = _mm512_permutexvar_epi64(midx, _mm512_loadu_si512(row_a + k));
             const auto b = _mm512_permutexvar_epi64(midx, _mm512_loadu_si512(row_b + k));
@@ -186,31 +186,35 @@ void pack_v_block(const T* const* rows, size_t v_head_size, T* dst) {
 }
 #    else
 template <typename T>
-void pack_k_block([[maybe_unused]] const T* const* rows, [[maybe_unused]] size_t k_head_size, [[maybe_unused]] T* dst) {
+void pack_k_block([[maybe_unused]] const T* const* kv_ptrs,
+                  [[maybe_unused]] size_t k_head_size,
+                  [[maybe_unused]] T* dst) {
     OPENVINO_THROW("[CPU] sparse attention: the fused key packing needs AVX512");
 }
 template <typename T>
-void pack_v_block([[maybe_unused]] const T* const* rows, [[maybe_unused]] size_t v_head_size, [[maybe_unused]] T* dst) {
+void pack_v_block([[maybe_unused]] const T* const* kv_ptrs,
+                  [[maybe_unused]] size_t v_head_size,
+                  [[maybe_unused]] T* dst) {
     OPENVINO_THROW("[CPU] sparse attention: the fused value packing needs AVX512");
 }
 #    endif
 
-/// Phase 1: scores[head, row] = query[head] . keys[row] for the pack's heads and every row block of the tile. The keys
+/// Phase 1: scores[head, kv] = query[head] . keys[kv] for the pack's heads and every row block of the tile. The keys
 /// of a row block are packed into the AMX layout once for all the heads of the pack.
 template <typename T>
-void qk_scores_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows_pad) {
+void qk_scores_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t tile_kv_len_pad) {
     ov::intel_cpu::AmxTileState tiles;  // the row blocks share one tile configuration
     const bool fused = fused_pack_supported(p.k_head_size, p.v_head_size);
-    for (size_t row = 0; row < rows_pad; row += kBrgemmRowBlock) {
+    for (size_t tile_kv_start = 0; tile_kv_start < tile_kv_len_pad; tile_kv_start += kBrgemmRowBlock) {
         if (fused) {
-            pack_k_block<T>(b.k_ptrs + row, p.k_head_size, static_cast<T*>(b.scratch_b));
+            pack_k_block<T>(b.k_ptrs + tile_kv_start, p.k_head_size, static_cast<T*>(b.scratch_b));
         } else {
-            b.qk->copy_buffer_b(b.k_rows + row * p.k_head_size, b.scratch_b);
+            b.qk->copy_buffer_b(b.k_rows + tile_kv_start * p.k_head_size, b.scratch_b);
         }
         b.qk->executeGemm(true,
                           const_cast<void*>(p.query),
                           b.scratch_b,
-                          b.weights.scores(0) + row,
+                          b.weights.scores(0) + tile_kv_start,
                           nullptr,
                           nullptr,
                           b.wsp,
@@ -219,14 +223,18 @@ void qk_scores_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t row
     }
 }
 
-/// Phase 2: online-softmax step of every head over the tile's rows (vectorized): rescales the head's state to the new
-/// maximum (not for the first tile, whose state is empty) and turns the scores into weights, converted to T in place.
-/// The padding rows get weight 0.
+/// Phase 2: online-softmax step of every head over the tile's KV entries (vectorized): rescales the head's state to the
+/// new maximum (not for the first tile, whose state is empty) and turns the scores into weights, converted to T in
+/// place. The padding entries get weight 0.
 template <typename T>
-void softmax_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows, size_t rows_pad, bool first_tile) {
+void softmax_brgemm(const BrgemmPack& p,
+                    const BrgemmBuffers<T>& b,
+                    size_t tile_kv_len,
+                    size_t tile_kv_len_pad,
+                    bool first_tile) {
     for (size_t head = 0; head < p.pack_size; head++) {
         float* scores = b.weights.scores(head);
-        const float new_max = std::max(p.running_max[head], scale_and_max(scores, rows, p.scale));
+        const float new_max = std::max(p.running_max[head], scale_and_max(scores, tile_kv_len, p.scale));
         if (!first_tile) {
             const float corr = std::exp(p.running_max[head] - new_max);
             p.running_sum[head] *= corr;
@@ -236,11 +244,11 @@ void softmax_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows,
             }
         }
         float sum = 0.0F;
-        exp_reduce_sum(scores, new_max, rows, sum);
+        exp_reduce_sum(scores, new_max, tile_kv_len, sum);
         p.running_sum[head] = (first_tile ? 0.0F : p.running_sum[head]) + sum;
         p.running_max[head] = new_max;
-        std::fill(scores + rows, scores + rows_pad, 0.0F);
-        cvt_copy(b.weights.weights(head), scores, 1, rows_pad, 0, 0);
+        std::fill(scores + tile_kv_len, scores + tile_kv_len_pad, 0.0F);
+        cvt_copy(b.weights.weights(head), scores, 1, tile_kv_len_pad, 0, 0);
     }
 }
 
@@ -248,18 +256,18 @@ void softmax_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows,
 /// a row block are packed into the AMX layout once for all the heads of the pack. The first row block of the first tile
 /// overwrites acc (beta = 0), every other one accumulates (beta = 1).
 template <typename T>
-void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows_pad, bool first_tile) {
+void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t tile_kv_len_pad, bool first_tile) {
     ov::intel_cpu::AmxTileState tiles;  // the row blocks share one tile configuration
     const bool fused = fused_pack_supported(p.k_head_size, p.v_head_size);
-    for (size_t row = 0; row < rows_pad; row += kBrgemmRowBlock) {
+    for (size_t tile_kv_start = 0; tile_kv_start < tile_kv_len_pad; tile_kv_start += kBrgemmRowBlock) {
         if (fused) {
-            pack_v_block<T>(b.v_ptrs + row, p.v_head_size, static_cast<T*>(b.scratch_b));
+            pack_v_block<T>(b.v_ptrs + tile_kv_start, p.v_head_size, static_cast<T*>(b.scratch_b));
         } else {
-            b.pv_overwrite->copy_buffer_b(b.v_rows + row * p.v_head_size, b.scratch_b);
+            b.pv_overwrite->copy_buffer_b(b.v_rows + tile_kv_start * p.v_head_size, b.scratch_b);
         }
-        (first_tile && row == 0 ? b.pv_overwrite : b.pv_accumulate)
+        (first_tile && tile_kv_start == 0 ? b.pv_overwrite : b.pv_accumulate)
             ->executeGemm(true,
-                          b.weights.weights(0) + row,
+                          b.weights.weights(0) + tile_kv_start,
                           b.scratch_b,
                           p.acc,
                           nullptr,
@@ -270,28 +278,33 @@ void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t
     }
 }
 
-/// @brief Attention of the pack's heads over one tile of `rows` gathered rows in b.k_rows / b.v_rows (1 <= rows <=
-/// tile_rows): phases 1-3 above, updating the pack's running state. The padding of the last row block is zeroed here.
+/// @brief Attention of the pack's heads over one tile of `tile_kv_len` gathered KV entries in b.k_rows / b.v_rows
+/// (1 <= tile_kv_len <= tile_rows): phases 1-3 above, updating the pack's running state. The padding of the last row
+/// block is zeroed here.
 template <typename T>
-void attention_over_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows, bool first_tile) {
-    const size_t rows_pad = ov::intel_cpu::rnd_up(rows, kBrgemmRowBlock);
+void attention_over_tile(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t tile_kv_len, bool first_tile) {
+    const size_t tile_kv_len_pad = ov::intel_cpu::rnd_up(tile_kv_len, kBrgemmRowBlock);
     if (fused_pack_supported(p.k_head_size, p.v_head_size)) {
-        // the padding rows of the last block all read one row of zeros
-        if (rows_pad > rows) {
-            T* const zero_k = b.k_rows + rows * p.k_head_size;
-            T* const zero_v = b.v_rows + rows * p.v_head_size;
+        // the padding entries of the last block all read one row of zeros
+        if (tile_kv_len_pad > tile_kv_len) {
+            T* const zero_k = b.k_rows + tile_kv_len * p.k_head_size;
+            T* const zero_v = b.v_rows + tile_kv_len * p.v_head_size;
             std::memset(zero_k, 0, p.k_head_size * sizeof(T));
             std::memset(zero_v, 0, p.v_head_size * sizeof(T));
-            std::fill(b.k_ptrs + rows, b.k_ptrs + rows_pad, zero_k);
-            std::fill(b.v_ptrs + rows, b.v_ptrs + rows_pad, zero_v);
+            std::fill(b.k_ptrs + tile_kv_len, b.k_ptrs + tile_kv_len_pad, zero_k);
+            std::fill(b.v_ptrs + tile_kv_len, b.v_ptrs + tile_kv_len_pad, zero_v);
         }
     } else {
-        std::memset(b.k_rows + rows * p.k_head_size, 0, (rows_pad - rows) * p.k_head_size * sizeof(T));
-        std::memset(b.v_rows + rows * p.v_head_size, 0, (rows_pad - rows) * p.v_head_size * sizeof(T));
+        std::memset(b.k_rows + tile_kv_len * p.k_head_size,
+                    0,
+                    (tile_kv_len_pad - tile_kv_len) * p.k_head_size * sizeof(T));
+        std::memset(b.v_rows + tile_kv_len * p.v_head_size,
+                    0,
+                    (tile_kv_len_pad - tile_kv_len) * p.v_head_size * sizeof(T));
     }
-    qk_scores_brgemm<T>(p, b, rows_pad);
-    softmax_brgemm<T>(p, b, rows, rows_pad, first_tile);
-    pv_accumulate_brgemm<T>(p, b, rows_pad, first_tile);
+    qk_scores_brgemm<T>(p, b, tile_kv_len_pad);
+    softmax_brgemm<T>(p, b, tile_kv_len, tile_kv_len_pad, first_tile);
+    pv_accumulate_brgemm<T>(p, b, tile_kv_len_pad, first_tile);
 }
 
 /// @brief The rows gathered into the current tile of an item so far.
@@ -380,8 +393,6 @@ void attention_over_selection_tiles(const RowSource& src,
                                     const BrgemmBuffers<T>& b,
                                     const BrgemmSelection& sel) {
     TileState tile;
-    // One block at a time: the packing reads every row through its own pointer, so adjacent blocks gain nothing from
-    // being merged into a run (a block never crosses a page: key_block_size divides the page size)
     for (size_t i = 0; i < sel.nblocks; i++) {
         gather_run<T>(src, pack, b, tile, sel.first_pos + sel.block_ids[i] * sel.key_block_size, sel.key_block_size);
     }
