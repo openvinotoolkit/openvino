@@ -338,6 +338,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_atan2_decomposed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_grouped_depth_to_space_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_expert_sort_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_scatter_reduce_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_scale_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_shared_expert_test.cpp
@@ -437,6 +438,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_hadamard_fc.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_expert_sort.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_expert_sort.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_scatter_reduce.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_scatter_reduce.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router_scale.cpp
@@ -509,6 +512,7 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/kv_cache.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/lora_subgraph_fused.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/moe_expert_sort.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/moe_scatter_reduce.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/moe_router_fused.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/placeholder.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/read_value.cpp

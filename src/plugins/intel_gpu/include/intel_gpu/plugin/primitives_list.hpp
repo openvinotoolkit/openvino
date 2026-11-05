@@ -327,6 +327,7 @@ REGISTER_FACTORY(internal, VLSDPA);
 REGISTER_FACTORY(internal, MOECompressed);
 REGISTER_FACTORY(internal, MoERouterFused);
 REGISTER_FACTORY(internal, MoEExpertSort);
+REGISTER_FACTORY(internal, MoEScatterReduce);
 REGISTER_FACTORY(internal, GatedDeltaNet);
 REGISTER_FACTORY(internal, SelectiveSSM);
 REGISTER_FACTORY(internal, PagedCausalConv1D);

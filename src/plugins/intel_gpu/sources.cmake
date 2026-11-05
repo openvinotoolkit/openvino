@@ -77,6 +77,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/mlir_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe_expert_sort.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe_scatter_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe_offload_constant.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/moe_router_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/msda.cpp
@@ -179,6 +180,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_grouped_depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_hadamard_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_expert_sort.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_scatter_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_router.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_router_scale.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_shared_expert.cpp
@@ -225,6 +227,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/lora_subgraph_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/mlir_op.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/moe_expert_sort.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/moe_scatter_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/moe_router_fused.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/placeholder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/read_value.cpp

@@ -9,6 +9,7 @@
 #if OV_GPU_WITH_OCL
     #include "impls/ocl_v2/moe/moe_scatter_reduction_ref.hpp"
     #include "impls/ocl_v2/moe/moe_scatter_reduction_opt.hpp"
+    #include "impls/ocl_v2/moe/moe_scatter_reduction_row_lut.hpp"
 #endif
 
 namespace ov {
@@ -18,6 +19,8 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<moe_scatter_reduction>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::MoeScatterReductionRowLut, shape_types::dynamic_shape)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::MoeScatterReductionRowLut, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::MoeScatterReductionOpt, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::MoeScatterReductionOpt, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::MoeScatterReductionRef, shape_types::dynamic_shape)

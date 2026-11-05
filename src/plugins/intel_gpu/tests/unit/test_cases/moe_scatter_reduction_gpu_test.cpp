@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <random>
 #include "test_utils.h"
 #include "random_generator.hpp"
 
@@ -257,3 +259,64 @@ TEST(moe_unit, moe_scatter_reduction_test_multi_batch_unaligned_f16) {
 TEST(moe_unit, moe_scatter_reduction_test_cached) {
     test_moe_scatter_reduction<float>(true, 64);
 }
+
+// row_lut mode: output[t] = sum_k weights[t, k] * data[row_lut[t * top_k + k]]. The token counts run through one network.
+class moe_scatter_reduction_row_lut : public ::testing::TestWithParam<std::tuple<int32_t, int32_t>> {};  // top_k, hidden size
+
+TEST_P(moe_scatter_reduction_row_lut, matches_reference) {
+    auto& engine = get_test_engine();
+    const auto [top_k, hidden_size] = GetParam();
+
+    topology topology(input_layout("data", layout{ov::PartialShape{ov::Dimension::dynamic(), hidden_size}, data_types::f16, format::bfyx}),
+                      input_layout("weights", layout{ov::PartialShape{ov::Dimension::dynamic(), top_k}, data_types::f16, format::bfyx}),
+                      input_layout("row_lut", layout{ov::PartialShape{ov::Dimension::dynamic()}, data_types::i32, format::bfyx}),
+                      moe_scatter_reduction("combine", input_info("data"), input_info("weights"), input_info("row_lut"), top_k));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+    std::mt19937 gen(top_k * 31 + hidden_size);
+    std::uniform_real_distribution<float> dist(-1.f, 1.f);
+    for (const int32_t num_tokens : {1, 38, 5}) {
+        const int32_t rows = num_tokens * top_k;
+        std::vector<ov::float16> data(static_cast<size_t>(rows) * hidden_size), weights(rows);
+        for (auto& v : data) {
+            v = ov::float16(dist(gen));
+        }
+        for (auto& v : weights) {
+            v = ov::float16(dist(gen));
+        }
+        std::vector<int32_t> row_lut(rows);
+        std::iota(row_lut.begin(), row_lut.end(), 0);
+        std::shuffle(row_lut.begin(), row_lut.end(), gen);
+
+        auto data_mem = engine.allocate_memory(layout{ov::PartialShape{rows, hidden_size}, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory(layout{ov::PartialShape{num_tokens, top_k}, data_types::f16, format::bfyx});
+        auto lut_mem = engine.allocate_memory(layout{ov::PartialShape{rows}, data_types::i32, format::bfyx});
+        set_values(data_mem, data);
+        set_values(weights_mem, weights);
+        set_values(lut_mem, row_lut);
+        network->set_input_data("data", data_mem);
+        network->set_input_data("weights", weights_mem);
+        network->set_input_data("row_lut", lut_mem);
+        auto output = network->execute().at("combine").get_memory();
+        ASSERT_EQ(output->get_layout().get_shape(), (ov::Shape{static_cast<size_t>(num_tokens), static_cast<size_t>(hidden_size)}));
+
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(output, get_test_stream());
+        for (int32_t t = 0; t < num_tokens; t++) {
+            for (int32_t h = 0; h < hidden_size; h++) {
+                float ref = 0.f;
+                for (int32_t k = 0; k < top_k; k++) {
+                    const auto s = t * top_k + k;
+                    ref += static_cast<float>(weights[s]) * static_cast<float>(data[static_cast<size_t>(row_lut[s]) * hidden_size + h]);
+                }
+                ASSERT_NEAR(static_cast<float>(out_ptr[t * hidden_size + h]), ref, 1e-2f) << "token " << t << " h " << h << " tokens " << num_tokens;
+            }
+        }
+    }
+}
+
+// hidden 8192 needs two vector blocks per work-item
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_scatter_reduction_row_lut,
+                         ::testing::Values(std::make_tuple(6, 1536), std::make_tuple(8, 32), std::make_tuple(2, 8192)));

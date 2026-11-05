@@ -25,6 +25,10 @@ std::vector<layout> moe_scatter_reduction_inst::calc_output_layouts(moe_scatter_
     const auto& input_shape = impl_param.input_layouts[0].get<ShapeType>();
     const auto& hidden_size = input_shape[input_shape.size() - 1];
     OPENVINO_ASSERT(hidden_size.is_static(), impl_param.desc->id, " hidden size dimension (shape[1]) must be static");
+    if (desc->use_row_lut) {
+        const auto& weights_shape = impl_param.input_layouts[1].get<ShapeType>();
+        return {layout{ShapeType{weights_shape[0], hidden_size}, impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};
+    }
     if (impl_param.input_layouts[0].is_dynamic()) {
         return {layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension(hidden_size)},
                 impl_param.input_layouts[0].data_type, impl_param.input_layouts[0].format}};

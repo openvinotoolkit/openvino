@@ -15,7 +15,7 @@ template <>
 struct typed_program_node<moe_scatter_reduction> : public typed_program_node_base<moe_scatter_reduction> {
     using parent = typed_program_node_base<moe_scatter_reduction>;
     typed_program_node(const std::shared_ptr<moe_scatter_reduction> prim, program& prog) : parent(prim, prog) {
-        support_padding_all(true);
+        support_padding_all(!prim->use_row_lut);
     }
 
 public:

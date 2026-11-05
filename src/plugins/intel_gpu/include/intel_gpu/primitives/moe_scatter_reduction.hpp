@@ -40,15 +40,32 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
           has_batch_dim(moe_config.has_batch_dim),
           onednn_grouped_gemm_used(onednn_grouped_gemm_used) {}
 
+    /// @brief Constructs moe_scatter_reduction primitive in row_lut mode:
+    /// output[t] = sum_k expert_weights[t, k] * data[row_lut[t * top_k + k]], output shape [T, hidden].
+    /// @param data            expert-sorted rows [T * top_k, hidden]
+    /// @param expert_weights  router weights [T, top_k]
+    /// @param row_lut         sorted row of each flat (token, k) position [T * top_k], i32
+    moe_scatter_reduction(const primitive_id& id,
+                          const input_info& data,
+                          const input_info& expert_weights,
+                          const input_info& row_lut,
+                          int32_t top_k)
+        : primitive_base(id, {data, expert_weights, row_lut}),
+          num_active_experts_per_token(top_k),
+          has_batch_dim(false),
+          use_row_lut(true) {}
+
     int32_t num_active_experts_per_token = 0;
     bool has_batch_dim = true;
     bool onednn_grouped_gemm_used = false;
+    bool use_row_lut = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, num_active_experts_per_token);
         seed = hash_combine(seed, has_batch_dim);
         seed = hash_combine(seed, onednn_grouped_gemm_used);
+        seed = hash_combine(seed, use_row_lut);
         return seed;
     }
 
@@ -61,7 +78,8 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
 
         return num_active_experts_per_token == rhs_casted.num_active_experts_per_token &&
                has_batch_dim == rhs_casted.has_batch_dim &&
-               onednn_grouped_gemm_used == rhs_casted.onednn_grouped_gemm_used;
+               onednn_grouped_gemm_used == rhs_casted.onednn_grouped_gemm_used &&
+               use_row_lut == rhs_casted.use_row_lut;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -69,6 +87,7 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
         ob << num_active_experts_per_token;
         ob << has_batch_dim;
         ob << onednn_grouped_gemm_used;
+        ob << use_row_lut;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -76,6 +95,7 @@ struct moe_scatter_reduction : public primitive_base<moe_scatter_reduction> {
         ib >> num_active_experts_per_token;
         ib >> has_batch_dim;
         ib >> onednn_grouped_gemm_used;
+        ib >> use_row_lut;
     }
 };
 }  // namespace cldnn
