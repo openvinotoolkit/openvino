@@ -72,7 +72,7 @@ private:
     NetworkMetadata _metadata;
 
     // Preserve previous behavior: when shared common queue is disabled and a new queue is created due to a priority
-    // change, keep the same workload type and QoS to avoid creating a queue with an unexpected configuration.
+    // change, keep the same workload type to avoid creating a queue with an unexpected workload.
     std::optional<ov::WorkloadType> _workloadType = std::nullopt;
     std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
