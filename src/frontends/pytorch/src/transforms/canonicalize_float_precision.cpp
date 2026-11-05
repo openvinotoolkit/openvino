@@ -6,11 +6,14 @@
 
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
 #include "openvino/core/model.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/floor.hpp"
@@ -18,11 +21,22 @@
 #include "openvino/op/mod.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sign.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
@@ -36,6 +50,7 @@ namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace v4 = ov::op::v4;
 namespace v5 = ov::op::v5;
+namespace v8 = ov::op::v8;
 
 // Narrow Constants up to this many elements (scalars, eps, rotary tables) are folded to f32 instead of
 // kept behind a decompression Convert. A size heuristic, not part of the decompression form itself:
@@ -65,24 +80,72 @@ bool is_rounding_sensitive(const Node* node) {
     });
 }
 
+// An op that passes its float input on unchanged: a cast to the same or a wider float type, or data movement. A
+// rounding-sensitive consumer behind it still sees the rounded value.
+bool is_value_preserving(const Node* node) {
+    if (const auto convert = ov::as_type<const v0::Convert>(node)) {
+        const auto& src = convert->get_input_element_type(0);
+        const auto& dst = convert->get_destination_type();
+        return dst.is_real() && (dst == src || dst.bitwidth() > src.bitwidth());
+    }
+    return ov::is_type_any_of<v1::Reshape,
+                              ov::op::util::SqueezeBase,
+                              v0::Unsqueeze,
+                              v1::Transpose,
+                              ov::op::util::GatherBase,
+                              v1::StridedSlice,
+                              v8::Slice,
+                              v0::Concat,
+                              ov::op::util::BroadcastBase,
+                              v0::Tile,
+                              v1::Split,
+                              v1::VariadicSplit>(node);
+}
+
+// True if the node is rounding-sensitive or passes its input on, through value-preserving ops only, to a
+// rounding-sensitive consumer: x.to(bf16).float().to(int32) depends on the bf16 rounding as much as
+// x.to(bf16).to(int32) does.
+bool reaches_rounding_sensitive(const Node* node, std::unordered_map<const Node*, bool>& memo) {
+    if (const auto it = memo.find(node); it != memo.end()) {
+        return it->second;
+    }
+    bool reaches = is_rounding_sensitive(node);
+    if (!reaches && is_value_preserving(node)) {
+        for (const auto& output : node->outputs()) {
+            const auto targets = output.get_target_inputs();
+            reaches = std::any_of(targets.begin(), targets.end(), [&memo](const Input<Node>& target) {
+                return reaches_rounding_sensitive(target.get_node(), memo);
+            });
+            if (reaches) {
+                break;
+            }
+        }
+    }
+    memo[node] = reaches;
+    return reaches;
+}
+
 // An explicit cast to bf16/f16 rounds: 1.999 -> bf16 2.0, i32 257 -> bf16 256. Retargeting it to f32 like the other
 // narrow Converts drops that rounding; float math downstream is meant to run in f32 anyway, but a rounding-sensitive
 // consumer (see above) can turn the difference into a different integer, boolean or step, which the output types
-// restored at the end can't repair. A Range with a narrow output type rounds the same way: it becomes an f32 Range,
+// restored at the end can't repair; the consumer may also read it through value-preserving ops (see above), which
+// then read the rounded value as well. A Range with a narrow output type rounds the same way: it becomes an f32 Range,
 // and its sensitive consumers read it through such a cast. Gives the sensitive consumers a narrowing Convert of
 // their own (shared with other consumers it would be retyped) and returns those Converts for ConvertPrecision to
 // skip. A consumer other than a Convert reads it through a same-type Convert, which ConvertPrecision then widens to
 // f32 like any read-through.
 std::unordered_set<const Node*> isolate_rounding_casts(const std::shared_ptr<ov::Model>& model) {
     std::unordered_set<const Node*> rounding_casts;
+    std::unordered_map<const Node*, bool> memo;
+    const auto sensitive_target = [&memo](const Input<Node>& target) {
+        return reaches_rounding_sensitive(target.get_node(), memo);
+    };
     for (const auto& node : model->get_ordered_ops()) {
         std::shared_ptr<v0::Convert> convert;
         if (const auto range = ov::as_type_ptr<v4::Range>(node)) {
             const auto type = range->get_output_type();
             const auto targets = range->output(0).get_target_inputs();
-            if (!is_narrow(type) || std::none_of(targets.begin(), targets.end(), [](const Input<Node>& target) {
-                    return is_rounding_sensitive(target.get_node());
-                })) {
+            if (!is_narrow(type) || std::none_of(targets.begin(), targets.end(), sensitive_target)) {
                 continue;
             }
             range->set_output_type(element::f32);
@@ -90,7 +153,7 @@ std::unordered_set<const Node*> isolate_rounding_casts(const std::shared_ptr<ov:
             convert = std::make_shared<v0::Convert>(range, type);
             convert->set_friendly_name(range->get_friendly_name() + "/rounding");
             for (auto target : targets) {
-                if (is_rounding_sensitive(target.get_node())) {
+                if (sensitive_target(target)) {
                     target.replace_source_output(convert);
                 }
             }
@@ -106,7 +169,7 @@ std::unordered_set<const Node*> isolate_rounding_casts(const std::shared_ptr<ov:
         std::vector<Input<Node>> sensitive;
         const auto targets = convert->output(0).get_target_inputs();
         for (const auto& target : targets) {
-            if (is_rounding_sensitive(target.get_node())) {
+            if (sensitive_target(target)) {
                 sensitive.push_back(target);
             }
         }
