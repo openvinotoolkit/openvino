@@ -296,8 +296,8 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format_im
         num_weights = std::accumulate(constant_ids_per_source_id_ordered.begin(),
                                       constant_ids_per_source_id_ordered.end(),
                                       num_weights,
-                                      [&source_ids](size_t sum, const auto& pair) {
-                                          return source_ids.count(pair.first) ? sum + pair.second.size() : sum;
+                                      [&device_source_ids = source_ids](size_t sum, const auto& pair) {
+                                          return device_source_ids.count(pair.first) ? sum + pair.second.size() : sum;
                                       });
         LOG_DEBUG("WeightSharingContextAccessor::serialize_native_format_impl - total weights for device "
                   << device << ": " << num_weights);
