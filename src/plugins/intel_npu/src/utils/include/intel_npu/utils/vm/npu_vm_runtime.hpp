@@ -103,9 +103,11 @@ typedef enum _npu_vm_runtime_result_t {
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Blob descriptor
+/// @details The runtime does not copy the buffer. The handle created from it reads the bytecode and the kernel
+///          binaries in place, so the buffer must stay valid and unmodified until npuVMRuntimeDestroy returns.
 typedef struct _npu_vm_runtime_blob_desc_t {
     size_t inputSize;       ///< [in] Size of input buffer in bytes
-    const uint8_t* pInput;  ///< [in] Pointer to input buffer
+    const uint8_t* pInput;  ///< [in] Pointer to input buffer, borrowed for the lifetime of the runtime handle
 } npu_vm_runtime_blob_desc_t;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -150,6 +152,7 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Init VM runtime instance and return handle
+/// @details The handle borrows desc->pInput without copying it. Keep the buffer alive until npuVMRuntimeDestroy.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(
     const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
     npu_vm_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of VM runtime object created
@@ -299,6 +302,8 @@ typedef struct _npu_vm_runtime_config_desc_t {
 ///          Shared command queue usage is selected by passing a non-null commandQueue handle
 ///          in v2 execution-context creation and execute parameters, not by a config descriptor.
 ///          Updated queue configuration can still be provided per call through npuVMRuntimeExecute2::pConfig.
+///          As with npuVMRuntimeCreate, the handle borrows desc->pInput without copying it. Keep the buffer alive
+///          until npuVMRuntimeDestroy.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate2(
     const npu_vm_runtime_blob_desc_t* desc,  ///< [in] pointer to graph descriptor
     const npu_vm_runtime_config_desc_t*
