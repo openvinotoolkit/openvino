@@ -361,7 +361,9 @@ TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {
 // present length silently reverting to plain seqlens_1d and losing the padded-tail offset.
 TEST(GQADecompositionTest, padded_query_uses_stateless_kv_present_length) {
     GQAConfig cfg;
-    cfg.static_past_cache = true;
+    // A declared fixed (static) capacity instead falls back to the generic writer (see
+    // padded_query_fixed_capacity_falls_back_to_generic_cache below) -- keep the past dynamic here so this
+    // config stays on the path it is meant to exercise.
     cfg.query_seqlens = true;
     cfg.sequence_length = 4;
 
@@ -388,6 +390,36 @@ TEST(GQADecompositionTest, padded_query_uses_stateless_kv_present_length) {
         EXPECT_TRUE(ov::is_type<ov::op::v1::Add>(stateless_kv->input_value(2).get_node()))
             << "StatelessKV present length is not P + S for a right-padded query chunk";
     }
+}
+
+// A declared fixed (static) capacity falls back to the generic (non-StatelessKV) cache writer instead: the
+// capacity can need growing past its static size (ORT's max(past_rows, total_sequence_length)), which
+// StatelessKV's own shape inference does not do for a runtime present length. The generic writer's present
+// buffer can then hold capacity slack beyond the true past + current total, so this must also take an
+// explicit (mask-based) SDPA rather than the native is_causal + LOWER_RIGHT alignment, which assumes the
+// query sits at the buffer's tail -- untrue once there is capacity slack.
+TEST(GQADecompositionTest, padded_query_fixed_capacity_falls_back_to_generic_cache) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
+    size_t statelesskv_count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto current_sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(node)) {
+            sdpa = current_sdpa;
+        }
+        if (ov::is_type<ov::intel_gpu::op::StatelessKV>(node)) {
+            ++statelesskv_count;
+        }
+    }
+    EXPECT_EQ(statelesskv_count, 0u) << "a fixed-capacity padded chunk must not use StatelessKV's present-length path";
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_FALSE(sdpa->get_causal()) << "a fixed-capacity padded chunk must take an explicit mask, not the native LOWER_RIGHT alignment";
 }
 
 TEST(GQADecompositionTest, transpose_v_fused) {
