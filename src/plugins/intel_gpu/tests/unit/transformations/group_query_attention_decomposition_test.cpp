@@ -19,6 +19,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
@@ -64,6 +65,9 @@ struct GQAConfig {
     // rows (S > 1) and a query_seqlens Parameter is wired in, exercising the StatelessKV P+S present-length path.
     bool query_seqlens = false;
     int64_t sequence_length = 1;
+    // When set, total_sequence_length (input 6) is wired as an empty constant instead of a live Parameter, matching
+    // what the ONNX FE emits when the attribute is absent.
+    bool omit_total_sequence_length = false;
 };
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
@@ -85,7 +89,6 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
         gqa_past_value = std::make_shared<ov::op::v1::Transpose>(gqa_past_value, value_transpose_order);
     }
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
-    auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
     // query_seqlens (input 16) is appended only when wired, matching the ONNX FE: models without it keep a
     // 16-input op instead of a 17-input op with an empty placeholder at 16.
@@ -96,11 +99,17 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     inputs[3] = past_key;
     inputs[4] = gqa_past_value;
     inputs[5] = seqlens_k;
-    inputs[6] = total_sequence_length;
     for (size_t i = 7; i <= 15; ++i) {
         inputs[i] = ov::op::v0::Constant::create(f32, ov::Shape{0}, {});
     }
-    ov::ParameterVector parameters{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
+    ov::ParameterVector parameters{query, key, value, past_key, past_value, seqlens_k};
+    if (cfg.omit_total_sequence_length) {
+        inputs[6] = ov::op::v0::Constant::create(f32, ov::Shape{0}, {});
+    } else {
+        auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
+        inputs[6] = total_sequence_length;
+        parameters.push_back(total_sequence_length);
+    }
 
     if (cfg.query_seqlens) {
         auto query_seqlens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
@@ -385,10 +394,38 @@ TEST(GQADecompositionTest, padded_query_uses_stateless_kv_present_length) {
 
     ASSERT_EQ(statelesskvs.size(), 2u);
     for (const auto& stateless_kv : statelesskvs) {
-        // present_len (input 2) must be P + S (an Add), not the plain total seqlens_1d a non-padded chunk uses;
-        // StatelessKV would otherwise roll the cache by the full chunk length and drop the padded-tail offset.
+        // present_len (input 2) must honor max(P + S, total_sequence_length): the GQA model always carries a live
+        // total_sequence_length input, so present_len is a Maximum wrapping the P + S Add, not a bare Add -- a bare
+        // Add would silently drop any capacity headroom total_sequence_length declares beyond P + S.
+        const auto present_len_node = stateless_kv->input_value(2).get_node();
+        ASSERT_TRUE(ov::is_type<ov::op::v1::Maximum>(present_len_node))
+            << "StatelessKV present length does not honor total_sequence_length headroom for a right-padded query chunk";
+        const auto maximum = ov::as_type<ov::op::v1::Maximum>(present_len_node);
+        EXPECT_TRUE(ov::is_type<ov::op::v1::Add>(maximum->input_value(0).get_node())) << "Maximum's first operand is not the P + S Add";
+    }
+}
+
+// Same right-padded chunk as above, but with no total_sequence_length declared (an empty optional input, as ONNX FE
+// emits when the attribute is absent): present_len falls back to the plain P + S Add, since there is no capacity
+// headroom to honor and wrapping in an unconditional Maximum would be pure overhead.
+TEST(GQADecompositionTest, padded_query_without_total_sequence_length_uses_plain_present_length) {
+    GQAConfig cfg;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+    cfg.omit_total_sequence_length = true;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    for (const auto& stateless_kv : statelesskvs) {
         EXPECT_TRUE(ov::is_type<ov::op::v1::Add>(stateless_kv->input_value(2).get_node()))
-            << "StatelessKV present length is not P + S for a right-padded query chunk";
+            << "StatelessKV present length should stay a plain P + S Add with no total_sequence_length to honor";
     }
 }
 
