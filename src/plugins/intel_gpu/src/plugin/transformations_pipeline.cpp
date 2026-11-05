@@ -1885,11 +1885,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // the whole model if a linear-attention block is detected.
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2;
-            // oneDNN has int8-activation kernels for u2 weights on Xe2 and Xe3. They are measured faster than f16 on
-            // Xe3 and on integrated Xe2; discrete Xe2 keeps f16 activations until it is measured.
-            const auto& u2_device_info = m_context->get_engine().get_device_info();
-            const bool u2_int8_activations = u2_device_info.arch == cldnn::gpu_arch::xe3 ||
-                                             (u2_device_info.arch == cldnn::gpu_arch::xe2 && u2_device_info.dev_type == cldnn::device_type::integrated_gpu);
+            // oneDNN has int8-activation kernels for u2 weights on Xe2 and Xe3, measured faster than f16 on both.
+            const auto u2_arch = m_context->get_engine().get_device_info().arch;
+            const bool u2_int8_activations = u2_arch == cldnn::gpu_arch::xe2 || u2_arch == cldnn::gpu_arch::xe3;
             const uint64_t dynamic_quantization_threshold = config.get_dynamic_quantization_threshold();
 
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
