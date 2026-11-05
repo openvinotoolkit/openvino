@@ -883,8 +883,10 @@ sdpa_configuration make_sdpa_configuration(const kernel_impl_params& params) {
 }
 
 // A token matrix the xe_hpg PA PREFILL kernel may read with dword loads: every head starts at a multiple of 4 B and so
-// does every token. Unpadded at head 128 that holds; a static padding is checked; a dynamic one is taken on trust, as the
-// block2d fixup tier does (block2d_layout_fixup_ok()): a crop view of a fused QKV tensor at head-size offsets has it.
+// does every token. Unpadded that holds; a static padding is checked; a dynamic one is taken on trust, as the block2d
+// fixup tier does (block2d_layout_fixup_ok()): a crop view of a fused QKV tensor at head-size offsets has it. The kernel
+// checks Q's at runtime (q_dword_ok); a dynamic K / V padding 2 B off still reads wrong values (the feature_pad_residual
+// cases).
 bool dword_token_matrix_ok(const layout& l) {
     if (layout_unpadded(l) || (is_token_matrix(l) && l.data_padding.is_dynamic()))
         return true;
@@ -893,19 +895,21 @@ bool dword_token_matrix_ok(const layout& l) {
     return token_matrix_bytes(l, first_head, token_stride) && first_head % 4 == 0 && token_stride % 4 == 0;
 }
 
-// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) serves f16 head 128, with or without a sliding window but
-// without a sink, token_type_ids, alibi or a runtime scale, on dword-aligned Q / K / V rows; every other PA PREFILL takes
-// the generic kernel.
+// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) serves f16 head 64, 128 and 256 (k == v), with or without a
+// sliding window, a sink and token_type_ids, but without alibi or a runtime scale, on dword-aligned Q / K / V rows; every
+// other PA PREFILL takes the generic kernel. Not head 512: its 512 x 16 tiling (32 x 1 subgroups) left one 8 x 8
+// accumulator tile of a random subgroup as garbage in about one run in ten on DG2 (IGC 2.41, cause not found).
 // SDPA_OCL_HPG_PA_PREFILL=0 turns it off for A/B, and a SDPA_OCL_KQ_* override does too (it tiles the generic kernel).
 bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
-    if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<paged_attention>() || k_head_size != 128 || v_head_size != 128) {
+    const bool head_ok = k_head_size == v_head_size && (k_head_size == 64 || k_head_size == 128 || k_head_size == 256);
+    if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<paged_attention>() || !head_ok) {
         return false;
     }
     if (env_int("SDPA_OCL_HPG_PA_PREFILL", 1) == 0 || kq_override_requested()) {
         return false;
     }
     const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_sink_input || desc->has_token_type_ids || desc->has_alibi || !desc->scale_val.has_value()) {
+    if (desc->has_alibi || !desc->scale_val.has_value()) {
         return false;
     }
     for (const size_t idx : {PagedAttentionInputIdx::QUERY, PagedAttentionInputIdx::KEY, PagedAttentionInputIdx::VALUE}) {
@@ -917,23 +921,31 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, siz
     return params.output_layouts[0].data_type == data_types::f16;
 }
 
-// Its tiling: 8 x 2 subgroups of 32 keys x 16 queries (a 256-key x 32-query workgroup tile, 16 SG8 threads at 256 GRF), the
-// S*V split 16 values x 16 queries with each S*V subgroup on its KQ subgroup's queries. Measured against sdpa_micro on DG2
-// ("xe_hpg PA PREFILL kernel" in the docs).
-sdpa_ocl_config_t hpg_pa_prefill_tiling() {
+// Its tiling, by head size (keys x queries per workgroup, measured per call against sdpa_micro on DG2 in real models):
+// 32 x 16 subgroup tiles, 4 x 2 at head 64 (128 x 32; 0.96-1.01x sdpa_micro at 1K tokens, where sdpa_micro's own 64 x 128
+// was 1.24x) and 8 x 2 at head 128 (256 x 32, "xe_hpg PA PREFILL kernel" in the docs); 16 x 16 subgroup tiles, 16 x 2 at
+// head 256 (256 x 32, sdpa_micro's: 1.13x at 1K tokens), where 32 value columns per S*V subgroup spilled 4.7-9.4 KB.
+// Each S*V subgroup holds the queries of its KQ subgroup and head / kq_sg_per_wg_keys value columns.
+// SDPA_OCL_HPG_PA_TILE_KEYS / _PER_WG_KEYS / _PER_WG_QUERIES replace a value for A/B; a tiling the kernel is not written
+// for throws.
+sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size) {
     sdpa_ocl_config_t t;
     t.subgroup_size = static_cast<int>(get_subgroup_size(gpu_arch::xe_hpg));
-    t.kq_sg_tile_keys = 32;
+    t.kq_sg_tile_keys = head_size <= 128 ? 32 : 16;
     t.kq_sg_tile_queries = 16;
-    t.kq_sg_per_wg_keys = 8;
+    t.kq_sg_per_wg_keys = head_size == 64 ? 4 : (head_size == 128 ? 8 : 16);
     t.kq_sg_per_wg_queries = 2;
+    t.kq_sg_tile_keys = env_int("SDPA_OCL_HPG_PA_TILE_KEYS", t.kq_sg_tile_keys);
+    t.kq_sg_per_wg_keys = env_int("SDPA_OCL_HPG_PA_PER_WG_KEYS", t.kq_sg_per_wg_keys);
+    t.kq_sg_per_wg_queries = env_int("SDPA_OCL_HPG_PA_PER_WG_QUERIES", t.kq_sg_per_wg_queries);
     t.large_grf = true;
     t.micro_math = false;  // the kernel has one softmax rounding, sdpa_ocl's default
     t.hpg_pa_prefill = true;
-    const bool split = solve_sv_split(t, 128);
-    OPENVINO_ASSERT(
-        split && t.sv_sg_tile_values == 16 && t.sv_sg_tile_scores == 16 && t.sv_sg_per_wg_values == 8 && tiling_fits_device(gpu_arch::xe_hpg, 128, t),
-        "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling no longer derives the S*V split its kernel is written for");
+    const bool split = (t.kq_sg_tile_keys == 16 || t.kq_sg_tile_keys == 32) && solve_sv_split(t, head_size);
+    OPENVINO_ASSERT(split && t.sv_sg_tile_scores == t.kq_sg_tile_queries && t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys &&
+                        (t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) && tiling_fits_device(gpu_arch::xe_hpg, head_size, t),
+                    "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling (", t.kq_sg_tile_keys, ", ", t.kq_sg_per_wg_keys, ", ",
+                    t.kq_sg_per_wg_queries, ") at head ", head_size, " does not derive the S*V split its kernel is written for");
     return t;
 }
 
@@ -978,7 +990,7 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
     }
     p.tiling =
         (is_pa && is_prefill && hpg_pa_prefill_ok(params, p.k_head_size, p.v_head_size))
-            ? hpg_pa_prefill_tiling()
+            ? hpg_pa_prefill_tiling(p.k_head_size)
             : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads, plain_prefill, plain_shape, plain_decode);
     return p;
 }
@@ -1210,10 +1222,16 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
         }
     }
     // sdpa_ocl.cl includes sdpa_ocl_hpg_pa_prefill.cl in place of its kernel. Absent otherwise, so no other jit changes.
-    // HPG_PA_V_LEAD: key blocks of V loaded ahead (6 measured best on DG2 with IGC 2.41; SDPA_OCL_HPG_PA_V_LEAD for A/B).
+    // HPG_PA_V_LEAD: key blocks of V loaded ahead (6 measured best on DG2 with IGC 2.41 at head 128; at most the tile's
+    // key blocks, and 3 when each V row slice is 32 values, twice the registers; SDPA_OCL_HPG_PA_V_LEAD for A/B).
+    // HPG_PA_KQ_UNROLL: unroll of the KQ depth loop, whole up to head 128 and 2 at 256, where IGC 2.41 would load K of
+    // every depth tile ahead (SDPA_OCL_HPG_PA_KQ_UNROLL, 0 = whole).
     if (t.hpg_pa_prefill) {
         jit.make("HPG_PA_PREFILL", 1);
-        jit.make("HPG_PA_V_LEAD", env_int("SDPA_OCL_HPG_PA_V_LEAD", 6));
+        const int v_lead = std::min(t.sv_sg_tile_values == 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
+        jit.make("HPG_PA_V_LEAD", env_int("SDPA_OCL_HPG_PA_V_LEAD", v_lead));
+        if (const int kq = env_int("SDPA_OCL_HPG_PA_KQ_UNROLL", p.d_max > 128 ? 2 : 0); kq > 0)
+            jit.make("HPG_PA_KQ_UNROLL", kq);
     }
 }
 
