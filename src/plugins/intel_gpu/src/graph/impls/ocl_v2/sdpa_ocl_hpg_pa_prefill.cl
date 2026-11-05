@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// xe_hpg (DG2) PA PREFILL kernel, f16 head 128 with no PA feature but a sliding window (HPG_PA_PREFILL, set by the host:
-// SDPAOclGenerator's hpg_pa_prefill()). Included by sdpa_ocl.cl in place of its own kernel, after the config and loader
-// headers. The loop is sdpa_ocl.cl's (online softmax over 256-key workgroup tiles, causal and window bounds, S_max_slm /
-// S_sum_slm exchange); what differs is built around the SG8 operand forms that keep DG2's DPAS fed:
+// xe_hpg (DG2) PA PREFILL kernel, f16 head 64 / 128 / 256 (k == v), with or without a sliding window, a sink and
+// token_type_ids (HPG_PA_PREFILL, set by the host: SDPAOclGenerator's hpg_pa_prefill_ok()). Included by sdpa_ocl.cl in place of its own
+// kernel, after the config and loader headers. The loop is sdpa_ocl.cl's (online softmax over workgroup key tiles, causal
+// and window bounds, S_max_slm / S_sum_slm exchange); what differs is built around the SG8 operand forms that keep DG2's
+// DPAS fed:
 //  - KQ is DPAS(Q, K): A = Q from Q_slm (staged so one ulong4 SLM block read is the operand), B = K straight from the
 //    input (lane = key, 16 depth halves per lane: one 32 B read per key row, no repacking). The scores come out
 //    lane = key; a per-subgroup 8 x 8 SLM transpose turns them to lane = query for the mask and softmax.
@@ -16,18 +17,24 @@
 //    latency exposed (5% slower S*V on DG2).
 //  - A subgroup tile entirely below the diagonal and inside the window (every key <= its first query and in the window
 //    of its last query, all keys < k) skips the mask.
+// The sink and the image groups of token_type_ids follow sdpa_ocl.cl: the sink seeds the online-softmax state (max = the
+// sink logit, sum = 1 in one subgroup), and an image group is bidirectional (the causal bound reaches the end of the group
+// of the workgroup's last query, the window start the start of the group it cuts, and a key in a query's own group is
+// never masked).
 // Out-of-range rows are clamped to the last valid key or query, so no read leaves the subsequence, and their scores are
 // masked to -INFINITY (P = 0 times a finite V). The design and its measurements: "xe_hpg PA PREFILL kernel" in
 // docs/sdpa_ocl.md.
 
-#if !(SG8 && IS_PAGED_ATTENTION && IS_PREFILL && K_HEAD_SIZE == 128 && V_HEAD_SIZE == 128 && kq_sg_tile_keys == 32 && \
-      kq_sg_tile_queries == 16 && kq_sg_per_wg_keys == 8 && kq_sg_per_wg_queries == 2 && sv_sg_tile_scores == 16 && \
-      sv_sg_tile_values == 16 && sv_sg_per_wg_scores == 2 && sv_sg_per_wg_values == 8)
-#  error "sdpa_ocl_hpg_pa_prefill.cl: the host gate (hpg_pa_prefill()) and this kernel disagree on the shape or the tiling"
+// The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score
+// tile is the KQ query tile), and each holds 16 or 32 value columns of the head (hpg_pa_prefill_tiling()).
+#if !(SG8 && IS_PAGED_ATTENTION && IS_PREFILL && K_HEAD_SIZE == V_HEAD_SIZE && K_HEAD_SIZE == D_MAX && \
+      kq_sg_tile_queries == 16 && sv_sg_tile_scores == 16 && sv_sg_per_wg_scores == kq_sg_per_wg_queries && \
+      sv_sg_per_wg_values == kq_sg_per_wg_keys && (sv_sg_tile_values == 16 || sv_sg_tile_values == 32) && \
+      sv_sg_tile_values * sv_sg_per_wg_values == V_HEAD_SIZE)
+#  error "sdpa_ocl_hpg_pa_prefill.cl: the host gate (hpg_pa_prefill_ok()) and this kernel disagree on the shape or the tiling"
 #endif
-#if WITH_ATTN_MASK || defined(HAS_SCALAR_ATTN_MASK) || defined(STATIC_SCALAR_ATTN_MASK_VALUE) || defined(HAS_SINK_INPUT) || \
-    HAS_TOKEN_TYPE_IDS || WITH_SCALE || defined(KV_COMPRESSED) || MICRO_MATH || !IS_CAUSAL || \
-    INPUT0_IS_BF16
+#if WITH_ATTN_MASK || defined(HAS_SCALAR_ATTN_MASK) || defined(STATIC_SCALAR_ATTN_MASK_VALUE) || WITH_SCALE || \
+    defined(KV_COMPRESSED) || MICRO_MATH || !IS_CAUSAL || INPUT0_IS_BF16
 #  error "sdpa_ocl_hpg_pa_prefill.cl: an op the host gate (hpg_pa_prefill()) should have sent to the generic kernel"
 #endif
 #if !defined(HPG_PA_V_LEAD) || HPG_PA_V_LEAD < 1 || HPG_PA_V_LEAD > sv_key_blocks
@@ -42,6 +49,15 @@
 #  define HPG_PA_WINDOW SLIDING_WINDOW_SIZE
 #endif
 
+// One lane's slice of a V row: the sv_sg_tile_values value columns of its S*V subgroup, as dwords.
+#if sv_sg_tile_values == 16
+#  define HPG_V_T       uint8
+#  define HPG_V_LOAD(p) vload8(0, p)
+#else
+#  define HPG_V_T       uint16
+#  define HPG_V_LOAD(p) vload16(0, p)
+#endif
+
 // P in S_slm: the 16-key block key_block of the workgroup tile for the 8 queries of query_block, one SG8 block-read
 // operand (dword j of lane l = keys 2j, 2j + 1 of query l) at P_SLM_OFF, 64 dwords.
 #define P_SLM_OFF(key_block, query_block) \
@@ -54,7 +70,12 @@ SDPA_OCL_INLINE void FUNC(hpg_kq)(__private float8 (*scores)[kq_query_blocks], c
                                   __local uint *transpose, const uint lane) {
     if (key_base >= causal_k)
         return;
+#ifdef HPG_PA_KQ_UNROLL
+    // Unrolled whole at head 256, IGC 2.41 would load K of every depth tile ahead (the host's HPG_PA_KQ_UNROLL).
+    __attribute__((opencl_unroll_hint(HPG_PA_KQ_UNROLL)))
+#else
     #pragma unroll
+#endif
     for (int db = 0; db < DKS_ACTIVE; ++db) {
         int8 k_b[kq_key_blocks];
         #pragma unroll
@@ -84,20 +105,20 @@ SDPA_OCL_INLINE void FUNC(hpg_kq)(__private float8 (*scores)[kq_query_blocks], c
 }
 
 // The V rows of one 16-key block for this lane: keys key0 + 2 lane and key0 + 2 lane + 1 (clamped to causal_k - 1),
-// value columns col..col + 15.
+// value columns col..col + sv_sg_tile_values - 1.
 SDPA_OCL_INLINE void FUNC(hpg_v_rows)(const __global half *V, const uint ldv, const int key0, const int causal_k,
-                                      const uint col, const uint lane, __private uint8 *even, __private uint8 *odd) {
+                                      const uint col, const uint lane, __private HPG_V_T *even, __private HPG_V_T *odd) {
     const int even_row = min(key0 + (int)lane * 2, causal_k - 1);
     const int odd_row = min(even_row + 1, causal_k - 1);
-    *even = vload8(0, (const __global uint *)(V + (size_t)even_row * ldv + col));
-    *odd = vload8(0, (const __global uint *)(V + (size_t)odd_row * ldv + col));
+    *even = HPG_V_LOAD((const __global uint *)(V + (size_t)even_row * ldv + col));
+    *odd = HPG_V_LOAD((const __global uint *)(V + (size_t)odd_row * ldv + col));
 }
 
 // acc[qb][vb] += V^T P over the sv_key_blocks key blocks of the tile, with V HPG_PA_V_LEAD blocks ahead in a ring
 // (the caller fills slots 0..HPG_PA_V_LEAD - 1 with blocks 0..HPG_PA_V_LEAD - 1).
 SDPA_OCL_INLINE void FUNC(hpg_sv)(__private float8 (*acc)[sv_value_blocks], const __local uint *p_slm,
                                   const __global half *V, const uint ldv, const int k0, const int causal_k,
-                                  const uint col, const uint lane, __private uint8 *ring_even, __private uint8 *ring_odd) {
+                                  const uint col, const uint lane, __private HPG_V_T *ring_even, __private HPG_V_T *ring_odd) {
     int8 p_cur[sv_score_blocks];
     #pragma unroll
     for (int qb = 0; qb < sv_score_blocks; ++qb)
@@ -111,8 +132,8 @@ SDPA_OCL_INLINE void FUNC(hpg_sv)(__private float8 (*acc)[sv_value_blocks], cons
                 p_next[qb] = as_int8(intel_sub_group_block_read8(p_slm + P_SLM_OFF(kb + 1, qb)));
         }
         const int slot = kb % HPG_PA_V_LEAD;
-        const uint8 even = ring_even[slot];
-        const uint8 odd = ring_odd[slot];
+        const HPG_V_T even = ring_even[slot];
+        const HPG_V_T odd = ring_odd[slot];
         if (kb + HPG_PA_V_LEAD < sv_key_blocks)
             FUNC_CALL(hpg_v_rows)(V, ldv, k0 + (kb + HPG_PA_V_LEAD) * DPAS_K, causal_k, col, lane, &ring_even[slot],
                                   &ring_odd[slot]);
@@ -144,6 +165,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const global VAL_DATA_T *V,
         global OUTPUT_TYPE *A,
         const __global INPUT3_TYPE* subsequence_begins,
+#ifdef HAS_SINK_INPUT
+        const global SINK_DATA_T *sink_ptr,
+#endif
+#if HAS_TOKEN_TYPE_IDS
+        const __global int* token_type_ids,
+        const int token_type_ids_count,
+#endif
         const __global int* blocked_indexes_start_and_gws_mapping)
 {
     const uint query_block_idx = get_group_id(0) << 1;
@@ -181,6 +209,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     float scale = native_recip(sqrt(convert_float(K_HEAD_SIZE)));
 #endif
     scale *= 1.4426950408889634f;  // log2(e): the softmax runs on exp2
+#ifdef HAS_SINK_INPUT
+    // The sink logit in the raw score domain (divided by the attention scale), with sdpa_ocl.cl's inverse scale.
+    #if defined(STATIC_SCALE_VALUE) && INVERT_SCALE
+    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * convert_float(STATIC_SCALE_VALUE);
+    #elif defined(STATIC_SCALE_VALUE)
+    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * convert_float(STATIC_SCALE_VALUE_INV);
+    #else
+    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * sqrt(convert_float(K_HEAD_SIZE));
+    #endif
+#endif
 
     const uint ldq = K_HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
     const uint ldk = K_HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
@@ -190,6 +228,25 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     K += (size_t)subsequence_begin * ldk + b0_kv * K_HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
     V += (size_t)subsequence_begin * ldv + b0_kv * V_HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     A += (size_t)subsequence_begin * lda + b0 * V_HEAD_SIZE;
+    // A dynamic padding is taken on trust by the host (dword_token_matrix_ok()); Q's is checked here, where a row 2 B off
+    // costs two ushort loads per dword once per workgroup (an unaligned dword load returns wrong data without an error).
+#if defined(NEG_SG8) && NEG_SG8 == 4
+    // Not a negative control: forces the fallback so the PA suites cover it (they must still PASS).
+    const bool q_dword_ok = false;
+#else
+    const bool q_dword_ok = ((ldq & 1u) == 0) && ((as_long(Q) & 3) == 0);
+#endif
+#if BIDIR_MASK
+    // As in sdpa_ocl.cl: workgroup-uniform, false for an empty token_type_ids (never read then), and the buffer holds one
+    // entry per new token, so it takes the subsequence bump. PREFILL keys and queries share the local coordinates.
+    #if USE_BIDIR_GATE
+    const bool bidir_active = token_type_ids_count > 0;
+    #else
+    const bool bidir_active = true;  // negative control (SDPA_OCL_BIDIR_GATE=0)
+    #endif
+    if (bidir_active)
+        token_type_ids += subsequence_begin;
+#endif
 
     local uint Q_slm[DKS_ACTIVE * q_blocks * Q_DWORDS * SUBGROUP_SIZE] __attribute__((aligned(8)));
     local uint S_slm[kq_wg_tile_keys * kq_wg_tile_queries / 2];
@@ -200,7 +257,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     local float S_max_slm[kq_wg_tile_queries];
 
     for (int qi = sg_ij * SUBGROUP_SIZE + lane; qi < kq_wg_tile_queries; qi += sg_per_wg * SUBGROUP_SIZE)
+#ifdef HAS_SINK_INPUT
+        S_max_slm[qi] = sink_raw;  // the running max over every tile and subgroup starts at the sink
+#else
         S_max_slm[qi] = -INFINITY;
+#endif
 
     // Q staging, one (query block, depth-tile pair) per subgroup step: lane l reads 32 halves of query row
     // wg_j0 + 8 q_block + l (clamped to q - 1), and adjacent lanes trade halves so that the ulong4 block read in hpg_kq()
@@ -209,7 +270,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int q_block = tile % q_blocks;
         const int db = (tile / q_blocks) * 2;
         const int query = min(wg_j0 + q_block * SUBGROUP_SIZE + (int)lane, q - 1);
-        const uint16 qq = vload16(0, (const global uint *)(Q + (size_t)query * ldq + db * DPAS_K));
+        const global QRY_DATA_T *q_row = Q + (size_t)query * ldq + db * DPAS_K;
+        uint16 qq;
+        if (q_dword_ok) {
+            qq = vload16(0, (const global uint *)q_row);
+        } else {
+            qq.lo = as_uint8(vload16(0, (const global ushort *)q_row));
+            qq.hi = as_uint8(vload16(1, (const global ushort *)q_row));
+        }
         #pragma unroll
         for (int half_db = 0; half_db < 2; ++half_db) {
             const uint8 src = half_db ? qq.hi : qq.lo;
@@ -231,8 +299,18 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     float S_sum_tile[kq_query_blocks];
     #pragma unroll
     for (int qb = 0; qb < kq_query_blocks; ++qb) {
+#ifdef HAS_SINK_INPUT
+        // exp2(sink - sink) = 1, counted by one subgroup only: the epilogue sums every subgroup's S_sum_slm slot.
+        S_max_tile[qb] = sink_raw * scale;
+    #if defined(NEG_SG8) && NEG_SG8 == 7
+        S_sum_tile[qb] = 1.0f;  // negative control: every subgroup counts the sink
+    #else
+        S_sum_tile[qb] = sg_i_kq == 0 ? 1.0f : 0.0f;
+    #endif
+#else
         S_max_tile[qb] = -INFINITY;
         S_sum_tile[qb] = 0.0f;
+#endif
     }
 
     float8 A_tile[sv_score_blocks][sv_value_blocks];
@@ -244,13 +322,55 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Causal bound: no query of the workgroup needs a key past its last query.
-    const int causal_k = min(k, wg_j0 + kq_wg_tile_queries);
+    // Causal bound: no query of the workgroup needs a key past its last query (or past the end of its image group).
+    int causal_k = min(k, wg_j0 + kq_wg_tile_queries);
+#if BIDIR_MASK
+    {
+        const int wg_q_end = causal_k - 1;
+        if (bidir_active && token_type_ids[wg_q_end] == 1)
+            causal_k = max(causal_k, FUNC_CALL(bidir_scan_end)(token_type_ids, wg_q_end, q, (int)lane));
+    }
+#endif
 #if SLIDING_WINDOW_SIZE
-    // Window bound: none needs a key before its first query's window, rounded down to a workgroup tile as in sdpa_ocl.cl.
-    const int window_k0_begin = (max(0, wg_j0 - SLIDING_WINDOW_SIZE + 1) / kq_wg_tile_keys) * kq_wg_tile_keys;
+    // Window bound: none needs a key before its first query's window (or before the start of the image group that window
+    // cuts), rounded down to a workgroup tile as in sdpa_ocl.cl.
+    int window_k_begin = max(0, wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    #if BIDIR_MASK
+    if (bidir_active && window_k_begin > 0 && token_type_ids[window_k_begin] == 1)
+        window_k_begin = FUNC_CALL(bidir_scan_begin)(token_type_ids, window_k_begin, (int)lane);
+    #endif
+    const int window_k0_begin = (window_k_begin / kq_wg_tile_keys) * kq_wg_tile_keys;
 #else
     const int window_k0_begin = 0;
+#endif
+#if BIDIR_MASK
+    // Each query keeps its causal (and window) keys and its image group: one interval [keep_begin, keep_begin + keep_len),
+    // as both hold the query, so the mask stays one unsigned compare (a separate group test spilled 0.6-1.9 KB with a
+    // window on DG2, IGC 2.41). The group is scanned within the keys the loop visits, as sdpa_ocl.cl does.
+    int keep_begin[kq_query_blocks];
+    uint keep_len[kq_query_blocks];
+    #pragma unroll
+    for (int qb = 0; qb < kq_query_blocks; ++qb) {
+        const int query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + (int)lane;
+    #if SLIDING_WINDOW_SIZE
+        int begin = query + 1 - HPG_PA_WINDOW;
+    #else
+        int begin = 0;
+    #endif
+        int end = query + 1;
+        if (bidir_active && query < q && token_type_ids[query] == 1) {
+            int group_begin = query;
+            while (group_begin > window_k0_begin && token_type_ids[group_begin - 1] == 1)
+                --group_begin;
+            int group_end = query + 1;
+            while (group_end < causal_k && token_type_ids[group_end] == 1)
+                ++group_end;
+            begin = min(begin, group_begin);
+            end = max(end, group_end);
+        }
+        keep_begin[qb] = begin;
+        keep_len[qb] = (uint)(end - begin);
+    }
 #endif
 
     for (int k0 = window_k0_begin; k0 < causal_k; k0 += kq_wg_tile_keys) {
@@ -314,7 +434,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         const int key_rel = mb * DPAS_ROWS + mm;
                         float s = S_tile[mb][qb][mm] +
                                   sub_group_broadcast(k_mask[key_rel / SUBGROUP_SIZE], key_rel % SUBGROUP_SIZE);
-#if SLIDING_WINDOW_SIZE
+#if BIDIR_MASK
+                        if (!causal_block_clear && (uint)(key_base + key_rel - keep_begin[qb]) >= keep_len[qb])
+#elif SLIDING_WINDOW_SIZE
                         // 0 <= query - key < window as one unsigned compare: the two signed ones (key > query, key <=
                         // query - window) spilled 2.5 KB on DG2 (IGC 2.41).
                         if (!causal_block_clear && (uint)(query - key_base - key_rel) >= (uint)HPG_PA_WINDOW)
@@ -373,8 +495,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         }
 
         // V does not depend on P, so the first blocks are loaded before the wait (see the header).
-        uint8 v_even[HPG_PA_V_LEAD];
-        uint8 v_odd[HPG_PA_V_LEAD];
+        HPG_V_T v_even[HPG_PA_V_LEAD];
+        HPG_V_T v_odd[HPG_PA_V_LEAD];
         #pragma unroll
         for (int pb = 0; pb < HPG_PA_V_LEAD; ++pb)
             FUNC_CALL(hpg_v_rows)((const global half *)V, ldv, k0 + pb * DPAS_K, causal_k, sg_j0_sv, lane, &v_even[pb],
@@ -405,5 +527,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
 #undef P_SLM_OFF
 #undef HPG_PA_WINDOW
+#undef HPG_V_T
+#undef HPG_V_LOAD
 
 #define SDPA_OCL_HPG_PA_PREFILL_INL 1

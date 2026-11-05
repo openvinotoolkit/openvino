@@ -527,21 +527,33 @@ INSTANTIATE_TEST_SUITE_P(
 // PA PREFILL at head 128: the xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) on xe_hpg with the sdpa_ocl lane, the
 // generic kernels elsewhere. Lengths around its 32-query and 256-key workgroup tiles, several subsequences per call (its
 // workgroups are dispatched out of order), GQA and MQA, padded rows, sliding windows, and every case again with a sharp
-// softmax, which a misread Q or K row cannot pass.
-class paged_attention_prefill_h128_test : public PagedAttentionTest<paged_attention_test_params> {};
+// softmax, which a misread Q or K row cannot pass. paged_attention_prefill_heads_test runs the same cases at heads 64 and
+// 256, where the kernel has other workgroup tiles (128 x 32 and 256 x 32 keys x queries), and at 512, which the generic
+// kernel serves, plus their tile edges.
+class paged_attention_prefill_h128_test : public PagedAttentionTest<paged_attention_test_params> {
+public:
+    void run_case(paged_attention_test_params p) {
+        // As in paged_attention_feature_pad_test: padded rows are sdpa_ocl's gate to get right (sdpa_micro misreads the 2 B one).
+        if (p.input_pads.has_value() && !sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
+            GTEST_SKIP() << "the padded cases check the gates of sdpa_ocl, which does not serve this op here";
+        execute(p, true);
+    }
+};
 
 TEST_P(paged_attention_prefill_h128_test, matches_reference) {
-    auto p = GetParam();
-    // As in paged_attention_feature_pad_test: padded rows are sdpa_ocl's gate to get right (sdpa_micro misreads the 2 B one).
-    if (p.input_pads.has_value() && !sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
-        GTEST_SKIP() << "the padded cases check the gates of sdpa_ocl, which does not serve this op here";
-    execute(p, true);
+    run_case(GetParam());
+}
+
+class paged_attention_prefill_heads_test : public paged_attention_prefill_h128_test {};
+
+TEST_P(paged_attention_prefill_heads_test, matches_reference) {
+    run_case(GetParam());
 }
 
 namespace {
-std::vector<paged_attention_test_params> prefill_h128_cases() {
-    auto prefill = [](std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads) {
-        return paged_attention_test_params{ subsequences, heads, kv_heads, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+std::vector<paged_attention_test_params> prefill_hpg_cases(int head, std::vector<int> tile_edges) {
+    auto prefill = [head](std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads) {
+        return paged_attention_test_params{ subsequences, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
     };
     std::vector<paged_attention_test_params> cases = {
         prefill({{1, 0}}, 2, 2),
@@ -575,10 +587,21 @@ std::vector<paged_attention_test_params> prefill_h128_cases() {
     cases.push_back(windowed({{17, 0}, {513, 0}, {300, 0}}, 8, 2, 100));
     cases.push_back(windowed({{257, 0}}, 2, 2, 1));
     cases.push_back(windowed({{600, 0}}, 2, 2, 5000));
+    for (const int length : tile_edges)
+        cases.push_back(prefill({{length, 0}}, 2, 2));
     const size_t base_count = cases.size();
     for (size_t i = 0; i < base_count; i++) {
         if (!cases[i].runtime_scale_multiplier.has_value())  // exclusive with logit_scale_gain
             cases.push_back(sharp_softmax(cases[i]));
+    }
+    return cases;
+}
+
+std::vector<paged_attention_test_params> prefill_heads_cases() {
+    std::vector<paged_attention_test_params> cases;
+    for (const auto& [head, edges] : std::vector<std::pair<int, std::vector<int>>>{{64, {127, 128, 129}}, {256, {}}, {512, {16, 511, 512}}}) {
+        const auto head_cases = prefill_hpg_cases(head, edges);
+        cases.insert(cases.end(), head_cases.begin(), head_cases.end());
     }
     return cases;
 }
@@ -587,7 +610,12 @@ std::vector<paged_attention_test_params> prefill_h128_cases() {
 INSTANTIATE_TEST_SUITE_P(
     smoke_paged_attention_prefill_h128,
     paged_attention_prefill_h128_test,
-    ::testing::ValuesIn(prefill_h128_cases()));
+    ::testing::ValuesIn(prefill_hpg_cases(128, {})));
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_prefill_heads,
+    paged_attention_prefill_heads_test,
+    ::testing::ValuesIn(prefill_heads_cases()));
 
 // The dynamic K/V paddings the host cannot prove: the fixup tier takes a dynamic padding on trust ("Block2d rules" in
 // docs/sdpa_ocl.md), so a token stride that is not a multiple of 16 B, or a start of the first head that is not a multiple
@@ -1087,6 +1115,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_feature_sink, paged_attention_fea
     sharp_softmax(with_sinks(feature_case({{700, 0}}, 8, 2, 64, 64, 128))),
     sharp_softmax(with_sinks(feature_case({{1, 34}, {25, 0}, {10, 34}}, 8, 2, 128, 128))),
     sharp_softmax(with_sinks(feature_case({{50, 200}}, 2, 2, 96, 96))),
+    sharp_softmax(with_sinks(feature_case({{400, 0}, {33, 0}}, 8, 4, 256, 256))),
+    sharp_softmax(with_sinks(feature_case({{600, 0}}, 4, 2, 256, 256, 129))),
+    sharp_softmax(with_sinks(feature_case({{600, 0}}, 2, 2, 128, 128, 300))),
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_feature_bidir, paged_attention_feature_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -1095,6 +1126,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_feature_bidir, paged_attention_fe
     sharp_softmax(with_image_groups(feature_case({{200, 0}}, 2, 2, 128, 128, 32), {{50, 120}})),       // a group wider than the window
     sharp_softmax(with_image_groups(feature_case({{40, 60}}, 2, 2, 128, 128), {{5, 20}})),
     sharp_softmax(with_image_groups(feature_case({{64, 48}, {30, 0}}, 2, 2, 64, 64), {{8, 40}, {70, 90}})),
+    // The xe_hpg PA PREFILL kernel's tiles: groups across its 32-query blocks and 128 / 256-key tiles, from token 0, wider
+    // than the window, and in the second subsequence. Q, K and V are the same data when the head counts match, so the
+    // query's own key dominates a sharp softmax and a mask that keeps it hardly moves the output (SDPA_OCL_BIDIR=0 passed
+    // the 400-token case with 2 / 2 heads at head 256): the wide cases use GQA.
+    sharp_softmax(with_image_groups(feature_case({{300, 0}}, 8, 4, 256, 256), {{0, 20}, {200, 290}})),
+    sharp_softmax(with_image_groups(feature_case({{400, 0}}, 4, 2, 256, 256, 64), {{100, 260}})),
+    sharp_softmax(with_image_groups(feature_case({{600, 0}}, 4, 2, 128, 128), {{200, 400}})),
+    sharp_softmax(with_image_groups(feature_case({{500, 0}}, 2, 2, 64, 64, 50), {{100, 300}})),
+    sharp_softmax(with_image_groups(feature_case({{90, 0}, {300, 0}}, 4, 1, 64, 64), {{20, 30}, {150, 230}})),
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_feature_qq_bias, paged_attention_feature_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
