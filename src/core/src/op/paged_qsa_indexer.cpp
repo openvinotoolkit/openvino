@@ -95,27 +95,29 @@ PagedQSAIndexer::PagedQSAIndexer(const ov::OutputVector& args, const Config& con
 }
 
 bool PagedQSAIndexer::validate_config(const Config& c, std::string& reason) {
-    auto fail = [&reason](const char* msg) {
-        reason = msg;
-        return false;
-    };
     if (c.key_block_size == 0) {
-        return fail("key_block_size must be positive");
+        reason = "key_block_size must be positive";
+        return false;
     }
     if (c.block_topk == 0) {
-        return fail("block_topk must be positive");
+        reason = "block_topk must be positive";
+        return false;
     }
     if (c.num_selection_heads == 0) {
-        return fail("num_selection_heads must be positive");
+        reason = "num_selection_heads must be positive";
+        return false;
     }
     if (c.indexer_head_dim == 0) {
-        return fail("indexer_head_dim must be positive");
+        reason = "indexer_head_dim must be positive";
+        return false;
     }
-    if (c.indexer_rotary_dim % 2 != 0 || c.indexer_rotary_dim > c.indexer_head_dim) {
-        return fail("indexer_rotary_dim must be even and not exceed indexer_head_dim");
+    if (c.indexer_rotary_dim == 0 || c.indexer_rotary_dim % 2 != 0 || c.indexer_rotary_dim > c.indexer_head_dim) {
+        reason = "indexer_rotary_dim must be positive, even and not exceed indexer_head_dim";
+        return false;
     }
     if (!std::isfinite(c.scale) || c.scale < 0.0f) {
-        return fail("scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))");
+        reason = "scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))";
+        return false;
     }
     return true;
 }

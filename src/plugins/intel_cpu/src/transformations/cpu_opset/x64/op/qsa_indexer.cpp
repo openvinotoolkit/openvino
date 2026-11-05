@@ -118,27 +118,29 @@ QSAIndexerNode::QSAIndexerNode(const ov::OutputVector& args, const Config& confi
 }
 
 bool QSAIndexerNode::validate_config(const Config& c, std::string& reason) {
-    auto fail = [&reason](const char* msg) {
-        reason = msg;
+    if (c.compress_ratio < 2) {
+        reason = "compress_ratio must be at least 2";
         return false;
-    };
-    if (c.compress_ratio == 0) {
-        return fail("compress_ratio must be positive");
     }
     if (c.block_topk == 0) {
-        return fail("block_topk must be positive");
+        reason = "block_topk must be positive";
+        return false;
     }
     if (c.h_sel == 0) {
-        return fail("h_sel must be positive");
+        reason = "h_sel must be positive";
+        return false;
     }
     if (c.indexer_head_dim == 0) {
-        return fail("indexer_head_dim must be positive");
+        reason = "indexer_head_dim must be positive";
+        return false;
     }
-    if (c.indexer_rotary_dim % 2 != 0 || c.indexer_rotary_dim > c.indexer_head_dim) {
-        return fail("indexer_rotary_dim must be even and not exceed indexer_head_dim");
+    if (c.indexer_rotary_dim == 0 || c.indexer_rotary_dim % 2 != 0 || c.indexer_rotary_dim > c.indexer_head_dim) {
+        reason = "indexer_rotary_dim must be positive, even and not exceed indexer_head_dim";
+        return false;
     }
     if (!std::isfinite(c.scale) || c.scale < 0.0F) {
-        return fail("scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))");
+        reason = "scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))";
+        return false;
     }
     return true;
 }

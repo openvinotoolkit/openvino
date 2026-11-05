@@ -18,6 +18,7 @@
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_attn_kernel.hpp"
 #include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp"
 #ifdef OPENVINO_ARCH_X86_64
@@ -286,10 +287,10 @@ std::pair<size_t, size_t> physical_address(const PackWork& w, int64_t logical_po
             static_cast<size_t>(logical_pos % w.page_size)};
 }
 
-// ---- The phases of attention over a run of key rows, for one query head of the pack ----
-//   1. qk_scores_*:     scores   = query . keys^T
-//   2. online_softmax*: weights  = softmax(scale * scores), rescaling the running (max, sum, acc)
-//   3. pv_accumulate_*: acc     += weights . values
+// ---- The phases of attention over a run of key rows, for the heads of the pack (one head is a pack of one) ----
+//   1. qk_scores_gqa:     scores   = query . keys^T
+//   2. online_softmax:    weights  = softmax(scale * scores), rescaling the running (max, sum, acc)
+//   3. pv_accumulate_gqa: acc     += weights . values
 // attention_over_* run them for a run, the selected blocks or the causal tail.
 
 // Phase 2: online-softmax step of query head `head` over its scores[0, rows) of one run of key rows: rescales the
@@ -309,30 +310,6 @@ void online_softmax(PackWork& w, size_t head, size_t rows) {
     w.running_max[head] = new_max;
 }
 
-// Phase 1, plain caches: the rows are contiguous in the cache, so PagedAttention's block kernel reads them in place.
-template <typename T>
-void qk_scores_plain(const PackWork& w, size_t head, T* key_rows, size_t rows) {
-    constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
-    dot_product_block<T, prec>(const_cast<T*>(static_cast<const T*>(w.query)) + head * w.k_head_size,
-                               key_rows,
-                               w.run_scores + head * static_cast<size_t>(w.max_run_rows),
-                               w.k_head_size,
-                               rows,
-                               0);
-}
-
-// Phase 3, plain caches.
-template <typename T>
-void pv_accumulate_plain(PackWork& w, size_t head, T* value_rows, size_t rows) {
-    constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
-    attn_acc_value_block<T, prec>(w.acc + head * w.v_head_size,
-                                  w.run_scores + head * static_cast<size_t>(w.max_run_rows),
-                                  value_rows,
-                                  w.v_head_size,
-                                  rows,
-                                  0);
-}
-
 // Plain caches: attention over up to `n` consecutive logical positions [kpos0, kpos0 + n), all inside one physical
 // page, for every query head of the pack: no per-row conversion and one page-table lookup.
 template <typename T>
@@ -341,11 +318,12 @@ void attention_over_run_plain(PackWork& w, int64_t kpos0, int64_t n) {
     const auto rows = static_cast<size_t>(n);
     T* key_rows = w.key_cache.ptr<T>(phys_block, w.k_head, slot);
     T* value_rows = w.value_cache.ptr<T>(phys_block, w.k_head, slot);
+    const auto score_stride = static_cast<size_t>(w.max_run_rows);
+    qk_scores_gqa<T>(w.q, w.pack_size, w.k_head_size, key_rows, rows, w.run_scores, score_stride);
     for (size_t head = 0; head < w.pack_size; head++) {
-        qk_scores_plain<T>(w, head, key_rows, rows);
         online_softmax(w, head, rows);
-        pv_accumulate_plain<T>(w, head, value_rows, rows);
     }
+    pv_accumulate_gqa<T>(w.acc, w.pack_size, w.v_head_size, w.run_scores, score_stride, value_rows, rows);
 }
 
 // Quantized caches. A one-head pack reads by-token rows directly with PagedAttention's fused block kernels (by-channel
@@ -362,39 +340,35 @@ void dequantize_run(PackWork& w, size_t phys_block, size_t slot, size_t rows, bo
     }
 }
 
-// Phase 1, quantized caches.
-void qk_scores_quant(PackWork& w, size_t head, size_t phys_block, size_t slot, size_t rows, bool fused_keys) {
-    float* q = w.q + head * w.k_head_size;
-    float* scores = w.run_scores + head * static_cast<size_t>(w.max_run_rows);
-    if (fused_keys) {
-        dot_key_rows_by_token(w.quant, w.key_cache, phys_block, w.k_head, slot, rows, w.k_head_size, q, scores);
-    } else {
-        dot_product_block<float, ov::element::f32>(q, w.k_run, scores, w.k_head_size, rows, 0);
-    }
-}
-
-// Phase 3, quantized caches.
-void pv_accumulate_quant(PackWork& w, size_t head, size_t phys_block, size_t slot, size_t rows, bool fused_values) {
-    float* scores = w.run_scores + head * static_cast<size_t>(w.max_run_rows);
-    float* acc = w.acc + head * w.v_head_size;
-    if (fused_values) {
-        acc_value_rows_by_token(w.quant, w.value_cache, phys_block, w.k_head, slot, rows, w.v_head_size, scores, acc);
-    } else {
-        attn_acc_value_block<float, ov::element::f32>(acc, scores, w.v_run, w.v_head_size, rows, 0);
-    }
-}
-
-// Quantized caches: attention over a run of rows inside one physical page.
+// Quantized caches: attention over a run of rows inside one physical page. A fused phase (one-head pack) reads the
+// quantized rows in place, the other one uses the dequantized f32 run through the head-pack kernels.
 void attention_over_run_quant(PackWork& w, int64_t kpos0, int64_t n) {
     const auto [phys_block, slot] = physical_address(w, kpos0);
     const auto rows = static_cast<size_t>(n);
     const bool fused_keys = w.pack_size == 1 && !w.quant.key_bychannel;
     const bool fused_values = w.pack_size == 1;
+    const auto score_stride = static_cast<size_t>(w.max_run_rows);
     dequantize_run(w, phys_block, slot, rows, fused_keys, fused_values);
+    if (fused_keys) {
+        dot_key_rows_by_token(w.quant, w.key_cache, phys_block, w.k_head, slot, rows, w.k_head_size, w.q, w.run_scores);
+    } else {
+        qk_scores_gqa<float>(w.q, w.pack_size, w.k_head_size, w.k_run, rows, w.run_scores, score_stride);
+    }
     for (size_t head = 0; head < w.pack_size; head++) {
-        qk_scores_quant(w, head, phys_block, slot, rows, fused_keys);
         online_softmax(w, head, rows);
-        pv_accumulate_quant(w, head, phys_block, slot, rows, fused_values);
+    }
+    if (fused_values) {
+        acc_value_rows_by_token(w.quant,
+                                w.value_cache,
+                                phys_block,
+                                w.k_head,
+                                slot,
+                                rows,
+                                w.v_head_size,
+                                w.run_scores,
+                                w.acc);
+    } else {
+        pv_accumulate_gqa<float>(w.acc, w.pack_size, w.v_head_size, w.run_scores, score_stride, w.v_run, rows);
     }
 }
 

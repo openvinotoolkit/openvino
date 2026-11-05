@@ -71,10 +71,10 @@ public:
     };
 
     struct Config {
-        size_t compress_ratio = 4;      ///< r (key_block_size)
+        size_t compress_ratio = 4;      ///< r (key_block_size), at least 2
         size_t block_topk = 0;          ///< K_max, required
         size_t h_sel = 1;               ///< 1 or H_ik
-        size_t indexer_rotary_dim = 0;  ///< <= indexer_head_dim, even
+        size_t indexer_rotary_dim = 0;  ///< positive, even, <= indexer_head_dim
         size_t indexer_head_dim = 0;    ///< D_idx
         float eps = 1e-6F;              ///< RMSNorm epsilon
         float scale = 0.0F;             ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)

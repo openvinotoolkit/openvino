@@ -17,6 +17,7 @@
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_attn_kernel.hpp"
 #include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp"
 #include "nodes/kernels/sparse_attn/sparse_sdpa_scratch.hpp"
@@ -197,20 +198,15 @@ inline void softmax_step(DecodeItem& it, size_t head, size_t rows, size_t valid)
     std::fill(scores + valid, scores + rows, 0.0F);
 }
 
-// Attention of every head of the pack over `rows` key / value rows (all attended), in the element types TK / TV.
+// Attention of every head of the pack (one head is a pack of one) over `rows` key / value rows (all attended), in the
+// element types TK / TV: the rows are converted once and multiplied with all the heads.
 template <typename TK, typename TV>
 void attend_run_rows(DecodeItem& it, void* key_rows, void* value_rows, size_t rows) {
+    qk_scores_gqa<TK>(it.q, it.pack, it.Dh, static_cast<TK*>(key_rows), rows, it.scores, it.score_stride);
     for (size_t head = 0; head < it.pack; head++) {
-        float* scores = it.scores + head * it.score_stride;
-        dot_product_block<float, prec_of<TK>()>(it.q + head * it.Dh, key_rows, scores, it.Dh, rows, 0);
         softmax_step(it, head, rows, rows);
-        attn_acc_value_block<TV, prec_of<TV>()>(it.acc + head * it.Dv,
-                                                scores,
-                                                static_cast<TV*>(value_rows),
-                                                it.Dv,
-                                                rows,
-                                                0);
     }
+    pv_accumulate_gqa<TV>(it.acc, it.pack, it.Dv, it.scores, it.score_stride, static_cast<TV*>(value_rows), rows);
 }
 
 // Attention over up to `n` consecutive rows from the physical position kpos0, clamped to the rows the query attends.
