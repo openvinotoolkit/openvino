@@ -452,7 +452,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // The sink's exp2(sink - sink) = 1 goes to ONE subgroup only. Each subgroup writes its own
         // S_sum_slm[query * kq_sg_per_wg_keys + sg_i_kq] slot and the epilogue sums all of them, so
         // seeding every subgroup would count the sink kq_sg_per_wg_keys times.
+    #if SG8 && defined(NEG_SG8) && NEG_SG8 == 7
+        S_sum_tile[qb] = 1.0f;  // Negative control: every subgroup counts the sink.
+    #else
         S_sum_tile[qb] = (sg_i_kq == 0) ? 1.0f : 0.0f;
+    #endif
 #else
         S_max_tile[qb] = -INFINITY;
         S_sum_tile[qb] = 0.0f;
@@ -956,7 +960,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     if (qq_bias_num > 0 && key >= past_len && key < past_len + (int)spec_num) {
                         const int key_spec = key - past_len;
                         if (query >= 0 && query < (int)spec_num) {
+    #if SG8 && defined(NEG_SG8) && NEG_SG8 == 8
+                            // Negative control: the (query, key) pair read transposed.
+                            const uint qq_off = cumulated_spec_num + (uint)key_spec * spec_num + (uint)query;
+    #else
                             const uint qq_off = cumulated_spec_num + (uint)query * spec_num + (uint)key_spec;
+    #endif
                             if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0)
                                 s = -INFINITY;
                         }
@@ -968,8 +977,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         // Keys outside (query - SLIDING_WINDOW_SIZE, query] are dropped, matching
                         // sdpa_micro's greater_than() predicate. With a bottom-right-aligned mask
                         // the whole window shifts by (k - q), exactly as micro's col_offset does.
+        #if SG8 && defined(NEG_SG8) && NEG_SG8 == 9
+                        // Negative control: the window starts one 16-key block late.
+                        if (key > LOWER_RIGHT_SHIFT(query_position) ||
+                            key <= LOWER_RIGHT_SHIFT(query_position - SLIDING_WINDOW_SIZE + DPAS_K)) {
+        #else
                         if (key > LOWER_RIGHT_SHIFT(query_position) ||
                             key <= LOWER_RIGHT_SHIFT(query_position - SLIDING_WINDOW_SIZE)) {
+        #endif
     #else
                         if (key > LOWER_RIGHT_SHIFT(query_position)) {
     #endif

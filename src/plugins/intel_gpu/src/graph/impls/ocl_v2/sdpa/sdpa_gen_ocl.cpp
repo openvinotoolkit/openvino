@@ -889,8 +889,9 @@ bool dword_token_matrix_ok(const layout& l) {
     return token_matrix_bytes(l, first_head, token_stride) && first_head % 4 == 0 && token_stride % 4 == 0;
 }
 
-// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) serves f16 head 128 without a sink, token_type_ids, alibi, a
-// sliding window or a runtime scale, on dword-aligned Q / K / V rows; every other PA PREFILL takes the generic kernel.
+// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) serves f16 head 128, with or without a sliding window but
+// without a sink, token_type_ids, alibi or a runtime scale, on dword-aligned Q / K / V rows; every other PA PREFILL takes
+// the generic kernel.
 // SDPA_OCL_HPG_PA_PREFILL=0 turns it off for A/B, and a SDPA_OCL_KQ_* override does too (it tiles the generic kernel).
 bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
     if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<paged_attention>() || k_head_size != 128 || v_head_size != 128) {
@@ -900,7 +901,7 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, siz
         return false;
     }
     const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_sink_input || desc->has_token_type_ids || desc->has_alibi || desc->sliding_window != 0 || !desc->scale_val.has_value()) {
+    if (desc->has_sink_input || desc->has_token_type_ids || desc->has_alibi || !desc->scale_val.has_value()) {
         return false;
     }
     for (const size_t idx : {PagedAttentionInputIdx::QUERY, PagedAttentionInputIdx::KEY, PagedAttentionInputIdx::VALUE}) {
@@ -1188,8 +1189,9 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     jit.make("SUBGROUP_SIZE", t.subgroup_size);
     // Negative controls of the SG8 operand mapping (1 = K pair order, 2 = pA transposed, 3 = S_slm pair order): each must
     // fail a sharp-softmax test. 4 is the positive twin: it forces the unaligned-K fallback, which must still pass. 5 = full 2D mask read
-    // with the SG16 lane width, 6 = per-key mask broadcast one lane off (both must fail the mask tests). Absent unless asked for, so the default jit (and every
-    // SG16 jit) is unchanged.
+    // with the SG16 lane width, 6 = per-key mask broadcast one lane off (both must fail the mask tests). 7 = the sink counted by
+    // every subgroup, 8 = qq_bias read transposed, 9 = the sliding window one 16-key block short (each must fail its PA feature
+    // test). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
