@@ -8,6 +8,8 @@
  * @file template/remote_tensor.hpp
  */
 
+#pragma once
+
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 
