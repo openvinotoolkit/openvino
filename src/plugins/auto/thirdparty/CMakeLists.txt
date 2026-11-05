@@ -53,10 +53,11 @@ if(TARGET ClientApi)
                                                EXCLUDE_FROM_DEFAULT_BUILD TRUE)
 endif()
 
-# Keep the header-only nlohmann/json dependency out of the exported link interface.
+# Keep the header-only nlohmann/json dependency out of the exported link interface,
+# including BUILD_INTERFACE wrappers and the OpenVINO export namespace.
 get_target_property(_ipf_link_interface ClientApiLib INTERFACE_LINK_LIBRARIES)
 if(_ipf_link_interface)
-    list(FILTER _ipf_link_interface EXCLUDE REGEX "^(\\$<LINK_ONLY:)?nlohmann_json(::nlohmann_json)?>?$")
+    list(FILTER _ipf_link_interface EXCLUDE REGEX "nlohmann_json")
     set_property(TARGET ClientApiLib PROPERTY INTERFACE_LINK_LIBRARIES "${_ipf_link_interface}")
 endif()
 
