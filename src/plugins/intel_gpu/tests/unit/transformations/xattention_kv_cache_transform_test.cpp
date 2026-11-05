@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -174,6 +175,56 @@ bool has_node_type(const std::shared_ptr<const ov::Model>& model, const std::str
 using DynamicQuantizeParams = std::tuple<bool, bool, size_t, bool>;
 
 class DynamicQuantizeTransformPipelineTest : public testing::TestWithParam<DynamicQuantizeParams> {};
+
+TEST_F(TransformationTestsF, MarkWeightlessCacheAttributes_AddsOffset) {
+    auto source = v0::Constant::create(element::i32, Shape{4}, {1, 2, 3, 4});
+    auto expected = v0::Constant::create(element::i32, Shape{4}, {1, 2, 3, 4});
+    source->set_friendly_name("weights");
+    expected->set_friendly_name("weights");
+    const auto& attribute_type = ov::WeightlessCacheAttribute::get_type_info_static();
+    const auto attribute = ov::WeightlessCacheAttribute(4 * sizeof(int32_t), 64, element::i32);
+    source->get_rt_info()[attribute_type] = attribute;
+    expected->get_rt_info()[attribute_type] = attribute;
+    expected->get_rt_info()["otd_bin_offset"] = int64_t{64};
+    model = std::make_shared<ov::Model>(OutputVector{source}, ParameterVector{});
+    model_ref = std::make_shared<ov::Model>(OutputVector{expected}, ParameterVector{});
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<ov::intel_gpu::MarkWeightlessCacheAttributes>(
+        std::make_shared<ov::intel_gpu::WeightlessConstantMap>());
+}
+
+class RestoreWeightlessCacheAttributesPassTest : public TransformationTestsF,
+                                                public testing::WithParamInterface<bool> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        auto source = v0::Constant::create(element::i32, Shape{4}, {1, 2, 3, 4});
+        const auto attribute = ov::WeightlessCacheAttribute(4 * sizeof(int64_t), 64, element::i64);
+        auto originals = std::make_shared<ov::intel_gpu::WeightlessConstantMap>();
+        originals->emplace(64, std::make_pair(source, attribute));
+        const std::vector<int32_t> values = GetParam() ? std::vector<int32_t>{1, 3, 2, 4}
+                                                      : std::vector<int32_t>{1, 2, 3, 4};
+        auto candidate = v0::Constant::create(element::i32, Shape{4}, values);
+        auto expected = v0::Constant::create(element::i32, Shape{4}, values);
+        candidate->set_friendly_name("weights");
+        expected->set_friendly_name("weights");
+        candidate->get_rt_info()["otd_bin_offset"] = int64_t{64};
+        expected->get_rt_info()["otd_bin_offset"] = int64_t{64};
+        if (!GetParam()) {
+            expected->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] = attribute;
+        }
+        model = std::make_shared<ov::Model>(OutputVector{candidate}, ParameterVector{});
+        model_ref = std::make_shared<ov::Model>(OutputVector{expected}, ParameterVector{});
+        manager.register_pass<ov::intel_gpu::RestoreWeightlessCacheAttributes>(originals);
+    }
+};
+
+TEST_P(RestoreWeightlessCacheAttributesPassTest, RestoresOnlyMatchingBytes) {}
+
+INSTANTIATE_TEST_SUITE_P(smoke_WeightlessPass,
+                         RestoreWeightlessCacheAttributesPassTest,
+                         testing::Bool());
 
 class WeightlessConstantTransformPipelineTest : public testing::TestWithParam<bool> {};
 

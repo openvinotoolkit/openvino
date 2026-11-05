@@ -71,6 +71,7 @@ ov_add_test_target(
         gflags
         common_test_utils
         openvino::reference
+        openvino::conditional_compilation
         gmock
     LABELS
         OV UNIT GPU

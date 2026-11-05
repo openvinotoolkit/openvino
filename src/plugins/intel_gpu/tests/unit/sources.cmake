@@ -456,6 +456,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_gqa_kv_scale_precision.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_moe_3gemm_const_precision.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_moe_3gemm_const_precision.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/weightless_cache_attributes.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/weightless_cache_attributes.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_xattention_threshold_precision.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_xattention_threshold_precision.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/kv_cache_compression.cpp
