@@ -1,6 +1,4 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 whowhatbench[llm-test-openvino]
-torch==2.13.0
-torchvision==0.28.0
 pytest
 pytest-html

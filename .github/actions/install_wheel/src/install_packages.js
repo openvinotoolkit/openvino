@@ -1,13 +1,13 @@
 import * as core from '@actions/core';
 import { readdir } from 'fs/promises';
 import path from 'path';
-import { exec } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 async function getPythonVersion() {
-  const { stdout } = await execAsync('python --version');
+  const { stdout } = await execFileAsync('python', ['--version']);
   const versionMatch = stdout.match(/Python (\d+)\.(\d+)\.(\d+)/);
   if (versionMatch) {
     return {
@@ -55,7 +55,7 @@ async function installPackages(packages, localWheelDir, requirementsFiles) {
     const packageName = pkg.split('[')[0];
     if (localWheels[packageName]) {
       const wheelPath = localWheels[packageName];
-      wheelPaths.push(`"${wheelPath}${pkg.slice(packageName.length)}"`);
+      wheelPaths.push(`${wheelPath}${pkg.slice(packageName.length)}`);
     } else {
       core.setFailed(`Package ${pkg} not found locally.`);
       return;
@@ -64,7 +64,10 @@ async function installPackages(packages, localWheelDir, requirementsFiles) {
   core.debug(`Collected wheel paths: ${wheelPaths}`);
 
   // Collect requirements files
-  const requirementsArgs = requirementsFiles.map(reqFile => `-r ${reqFile}`);
+  const requirementsArgs = requirementsFiles.flatMap(reqFile => [
+    '-r',
+    reqFile
+  ]);
   core.debug(`Requirements arguments: ${requirementsArgs}`);
 
   // Install all wheels and requirements in one command
@@ -74,21 +77,32 @@ async function installPackages(packages, localWheelDir, requirementsFiles) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         core.debug(`Attempt ${attempt} of 3`);
-        const { stdout, stderr } = await execAsync(
-          `python -m pip install ${installArgs.join(' ')}`,
-          {
-            stdio: 'inherit'
-          }
-        );
-        if (stdout) {
-          core.debug('stdout:', stdout);
-        }
-        if (stderr) {
-          core.error('stderr:', stderr);
-        }
+        await new Promise((resolve, reject) => {
+          const child = spawn(
+            'python',
+            ['-m', 'pip', 'install', ...installArgs],
+            {
+              stdio: 'inherit'
+            }
+          );
+          child.once('error', reject);
+          child.once('close', (code, signal) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(
+                new Error(
+                  signal
+                    ? `pip install terminated by signal ${signal}`
+                    : `pip install exited with code ${code}`
+                )
+              );
+            }
+          });
+        });
         break;
       } catch (error) {
-        core.error(`Attempt ${attempt + 1} failed:`, error.message);
+        core.warning(`Attempt ${attempt + 1} failed: ${error.message}`);
         if (attempt === 2) {
           throw error;
         }

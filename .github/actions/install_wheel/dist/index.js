@@ -31417,7 +31417,7 @@ function setCommandEcho(enabled) {
  */
 function setFailed(message) {
     process.exitCode = ExitCode.Failure;
-    core_error(message);
+    error(message);
 }
 //-----------------------------------------------------------------------
 // Logging Commands
@@ -31440,7 +31440,7 @@ function core_debug(message) {
  * @param message error issue message. Errors will be converted to string via toString()
  * @param properties optional properties to add to the annotation.
  */
-function core_error(message, properties = {}) {
+function error(message, properties = {}) {
     command_issueCommand('error', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
@@ -31449,7 +31449,7 @@ function core_error(message, properties = {}) {
  * @param properties optional properties to add to the annotation.
  */
 function warning(message, properties = {}) {
-    issueCommand('warning', toCommandProperties(properties), message instanceof Error ? message.toString() : message);
+    command_issueCommand('warning', utils_toCommandProperties(properties), message instanceof Error ? message.toString() : message);
 }
 /**
  * Adds a notice issue
@@ -31562,10 +31562,10 @@ var external_util_ = __nccwpck_require__(9023);
 
 
 
-const execAsync = (0,external_util_.promisify)(external_child_process_namespaceObject.exec);
+const execFileAsync = (0,external_util_.promisify)(external_child_process_namespaceObject.execFile);
 
 async function getPythonVersion() {
-  const { stdout } = await execAsync('python --version');
+  const { stdout } = await execFileAsync('python', ['--version']);
   const versionMatch = stdout.match(/Python (\d+)\.(\d+)\.(\d+)/);
   if (versionMatch) {
     return {
@@ -31613,7 +31613,7 @@ async function installPackages(packages, localWheelDir, requirementsFiles) {
     const packageName = pkg.split('[')[0];
     if (localWheels[packageName]) {
       const wheelPath = localWheels[packageName];
-      wheelPaths.push(`"${wheelPath}${pkg.slice(packageName.length)}"`);
+      wheelPaths.push(`${wheelPath}${pkg.slice(packageName.length)}`);
     } else {
       setFailed(`Package ${pkg} not found locally.`);
       return;
@@ -31622,7 +31622,10 @@ async function installPackages(packages, localWheelDir, requirementsFiles) {
   core_debug(`Collected wheel paths: ${wheelPaths}`);
 
   // Collect requirements files
-  const requirementsArgs = requirementsFiles.map(reqFile => `-r ${reqFile}`);
+  const requirementsArgs = requirementsFiles.flatMap(reqFile => [
+    '-r',
+    reqFile
+  ]);
   core_debug(`Requirements arguments: ${requirementsArgs}`);
 
   // Install all wheels and requirements in one command
@@ -31632,21 +31635,32 @@ async function installPackages(packages, localWheelDir, requirementsFiles) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         core_debug(`Attempt ${attempt} of 3`);
-        const { stdout, stderr } = await execAsync(
-          `python -m pip install ${installArgs.join(' ')}`,
-          {
-            stdio: 'inherit'
-          }
-        );
-        if (stdout) {
-          core_debug('stdout:', stdout);
-        }
-        if (stderr) {
-          core_error('stderr:', stderr);
-        }
+        await new Promise((resolve, reject) => {
+          const child = (0,external_child_process_namespaceObject.spawn)(
+            'python',
+            ['-m', 'pip', 'install', ...installArgs],
+            {
+              stdio: 'inherit'
+            }
+          );
+          child.once('error', reject);
+          child.once('close', (code, signal) => {
+            if (code === 0) {
+              resolve();
+            } else {
+              reject(
+                new Error(
+                  signal
+                    ? `pip install terminated by signal ${signal}`
+                    : `pip install exited with code ${code}`
+                )
+              );
+            }
+          });
+        });
         break;
       } catch (error) {
-        core_error(`Attempt ${attempt + 1} failed:`, error.message);
+        warning(`Attempt ${attempt + 1} failed: ${error.message}`);
         if (attempt === 2) {
           throw error;
         }
