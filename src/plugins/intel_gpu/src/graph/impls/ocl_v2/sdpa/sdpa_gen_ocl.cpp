@@ -43,6 +43,7 @@ struct sdpa_ocl_config_t {
     bool mixed_prefetch_v = false;  // PA MIXED u4 V page prefetch measured with this tiling (add_pa_page_read_jit())
     bool mixed_prefetch_k = false;  // PA MIXED u4 K page prefetch measured with this tiling (add_pa_page_read_jit())
     bool hpg_pa_prefill = false;    // the xe_hpg PA PREFILL kernel, sdpa_ocl_hpg_pa_prefill.cl (hpg_pa_prefill_tiling())
+    bool noncausal_kq_branch = false;  // plain non-causal PREFILL CAUSAL_TILE_SKIP measured with this tiling (add_prefill_pipeline_jit())
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -433,6 +434,7 @@ bool solve_tiling(gpu_arch arch,
         config.prefill_pipeline = true;
         config.v_prefetch = true;
         config.wide_reads = 1;
+        config.noncausal_kq_branch = true;
     }
     if (((vd_max == d_max && tuned_split) || solve_sv_split(config, vd_max)) && tiling_fits_device(arch, d_max, config)) {
         return true;
@@ -460,6 +462,7 @@ void read_kq_override(sdpa_ocl_config_t& config) {
     config.wide_reads = 0;
     config.mixed_prefetch_v = false;
     config.mixed_prefetch_k = false;
+    config.noncausal_kq_branch = false;
     config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
     config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
     config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
@@ -994,15 +997,23 @@ void add_prefill_pipeline_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("MAX_SPLIT_BARRIER", env_int("SDPA_OCL_MAX_SPLIT", dflt));
     // Only the last key tile (and the tiles a sliding window cuts) can hold masked keys when the workgroup query tile
     // divides the key tile and no other mask reaches back (bidirectional image groups). Measured on PA PREFILL only;
-    // plain SDPA prefill takes the other loop changes but keeps these two off (the masked-tile handling there is
-    // the table one, and the combination does not compile for the plain kernel variant).
+    // plain SDPA prefill keeps it off (the masked-tile handling there is the table one, and its #error rejects
+    // lower-right causal and an attention mask).
     const bool has_token_type_ids = in.is_pa && in.params.typed_desc<paged_attention>()->has_token_type_ids;
     const bool mask_last_ok = in.is_pa && !has_token_type_ids && t.kq_wg_tile_keys() % t.kq_wg_tile_queries() == 0;
     jit.make("CAUSAL_MASK_LAST_ONLY", mask_last_ok ? env_int("SDPA_OCL_MASK_LAST", dflt) : 0);
     // Skip the KQ / S*V work the causal triangle of the diagonal tile masks out, per subgroup: the short-prompt gap to
     // sdpa_micro (qwen3-8b 32 / 1K tokens 24.7 / 253 to 14.1 / 216 us per call, sdpa_micro 12.6 / 214). At d_max 64 the
-    // added branches cost more than the skipped work from 4K on (llama-3.2-1b +6.8%), so not there.
-    const int tile_skip = (in.is_pa && t.prefill_pipeline && in.problem.d_max >= 128) ? 1 : 0;
+    // added branches cost more than the skipped work from 4K on (llama-3.2-1b +6.8%), so not there. Plain SDPA takes
+    // it with is_causal: the kernel bounds the subgroup by the same lower-right offset as its causal predicate.
+    // A non-causal plain stage of the table tile without an attention mask takes it too, for the KQ branch alone (the
+    // kernel keeps the S*V skip causal): it skips nothing there but the subgroups past the last key, yet as a runtime
+    // branch it puts the KQ depth loop in a block of its own, where IGC issues the first two K reads ahead of the Q
+    // SLM reads instead of each right before its DPAS (0.76-0.97x at head 96-128, 0.97-0.999x at 72 / 80). With a
+    // mask it was 0.997-1.022x, and on the 256 x 128 tile 1.002-1.009x, so those stay off.
+    const bool noncausal_kq_branch = !in.config.is_causal && t.noncausal_kq_branch && !in.config.has_const_attn_mask_val &&
+                                     !sdpa_has_runtime_attn_mask_input(in.params) && !has_scalar_runtime_attn_mask_input(in.params);
+    const int tile_skip = ((in.config.is_causal || noncausal_kq_branch) && t.prefill_pipeline && in.problem.d_max >= 128) ? 1 : 0;
     jit.make("CAUSAL_TILE_SKIP", env_int("SDPA_OCL_CAUSAL_SKIP", tile_skip));
 }
 
