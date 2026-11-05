@@ -68,12 +68,12 @@ not a proposal to combine them automatically.
 | Stage | Passes and current implementation | Performance assessment |
 |---|---|---|
 | Initialization | InitNodeInfo (P) | Initializes every node's provenance, recursively. Keep model-wide markup before rewriting. |
-| Pre-fold transpose handling | TransposeConvert, TransposeMatMul (M) | Two traversals. Candidate for a dedicated G after checking shared inputs and created-node visibility; keep before folding. |
+| Pre-fold transpose handling | TransposeConvert, TransposeMatMul (M, one G `TransposeMatMulFusions`) | Grouped: Convert and MatMul roots are disjoint, and the Transpose created for a Convert is visible to its later MatMul consumer. Keep before folding. |
 | Low-precision markup | MarkGatherSubgraph (M); MarkDequantization (M, two configurations) | Preserve configuration order, precision sets, and folding restrictions. Consider shared traversal only after markup-interaction tests. |
 | Shape-folding control | DisableShapeOfConstantFolding (M, two conditional registrations) | The second run covers nodes introduced by shape simplification; do not simply remove it. |
-| Early elimination | EliminateConvert, EliminateScatterUpdate, RemoveConcatZeroDimInput, EliminateLoopInputsOutputs, EliminateDuplicateTIInputs (M) | Potential batching, but body-descriptor and empty-tensor dependencies prevent treating the whole sequence as independent. |
+| Early elimination | EliminateConvert, EliminateScatterUpdate, RemoveConcatZeroDimInput, EliminateLoopInputsOutputs (M, one G `EarlyEliminations`); EliminateDuplicateTIInputs (M) | The first four have disjoint roots and are grouped. EliminateDuplicateTIInputs shares the TensorIterator root with EliminateLoopInputsOutputs, so it stays a separate pass after them. |
 | Interface cleanup | RemoveMultiSubGraphOpDanglingParamsResults (P) | Reverse-order traversal and body input/output descriptor changes. Keep P. |
-| Empty/constant bodies | FoldSubgraphEmptyInputs (M), DisableRandomUniformConstantFolding (M), PushConstantToSubgraph (P) | Keep before folding. P edits body parameters and outer descriptors; changing its base does not make the work local. |
+| Empty/constant bodies | FoldSubgraphEmptyInputs, DisableRandomUniformConstantFolding (M, one G `SubgraphConstantFoldingPreparation`), PushConstantToSubgraph (P) | The two matchers have disjoint roots and are grouped. Keep before folding. P edits body parameters and outer descriptors; changing its base does not make the work local. |
 | First folding | ConstantFolding (P) | Global evaluation/bounds work, not an ordinary local matcher. Preserve its boundary. |
 | Filtering boxes | FuseFilteringBoxesBySize (G) | Complex early pattern and dynamism handling; keep its position. |
 | Smart reshape | LSTMStatesBroadcast (P), ReshapeSinkingMatMul (M), conditional on `!use_shapes` | P tracks batch symbols through TI bodies with temporary shapes and validation. Not a simple matcher conversion. |
@@ -81,7 +81,7 @@ not a proposal to combine them automatically.
 | Shape graph | SimplifyShapeOfSubGraph (P) | Orchestrator containing matching, global deduplication, and validation; optimize children, not its public base. |
 | NMS indices | ConvertNmsGatherPathToUnsigned (G) | Already shares initialization/propagation/conversion matchers. Markup has forward dependencies. |
 | Slices | StridedSliceOptimization (P) | Contains local elimination plus global sibling grouping/deduplication. Retain its staged orchestration. |
-| Broadcasting | BroadcastElementwiseFusion, BroadcastMatMulFusion, BroadcastTransition (M) | Or-root dispatch helps the latter two. Batching may alter which broadcast edges are removed or moved; requires interaction tests. |
+| Broadcasting | BroadcastElementwiseFusion, BroadcastMatMulFusion (M, one G `BroadcastFusions`); BroadcastTransition (M) | Elementwise and MatMul roots are disjoint, so the first two are grouped. BroadcastTransition also matches elementwise roots; first-success semantics would change if it joined the group. |
 | Reductions | PullThroughReduce (G) | Already groups Unsqueeze/Reshape-through-reduction matchers. |
 | Recurrent fusions | LSTMCellFusion (G), GRUCellFusion (M), SequenceFusion (M) | Keep before no-op elimination. Possible batching needs cell-to-sequence and generated-node tests. |
 | Concat simplification | ConcatToBroadcast (M) | Local rewrite; retain position before transpose cleanup. |
@@ -96,7 +96,7 @@ not a proposal to combine them automatically.
 | CommonFusions: arithmetic/layout | DivideFusion, SubtractFusion, TransposeToReshape, ReshapeSequenceFusion, MatMulConstTransposesExtraction (M) | Already batched. Do not confuse these with later arithmetic decomposition passes. |
 | CommonFusions: remaining local patterns | PReluFusion (G); DepthToSpaceFusion, ShuffleChannelsFusion, NonZeroHorizontalFusion, AdaptivePoolToReduce, ConvertU4WeightsZeroPointToScalar (M) | Keep current sharing. NonZero horizontal fusion inspects siblings, so batching new peers would need consumer-interaction analysis. |
 | Attention packing | PackMultiHeadAttention (P) | Six successive matching passes with generated-pattern dependencies and manager validation. Candidate for phase-level work, not automatic flattening. |
-| Attention fusion | SDPAFusion (P) | Symbolic context plus four matching stages. Keep propagation before shape-symbol predicates. |
+| Attention fusion | SDPAFusion (P) | Symbolic context plus four matching stages. Returns early when the model (including subgraph bodies) has no Softmax or ScaledDotProductAttention, since no stage can match; otherwise keeps propagation before shape-symbol predicates. |
 | Binary convolution | BinarizeWeights, ConvToBinaryConv (M) | Potential G, but weight canonicalization/created nodes must remain visible to the second pass. |
 | Decomposition | BatchNormDecomposition, ConvertDivideWithConstant, ConvertSubtractWithConstant, ConvertNegative, ConvertConvertPromoteTypes (M, one G) | BatchNormDecomposition's Or of opset versions previously disabled typed dispatch for the group. |
 | Linear arithmetic | LinOpSequenceFusion (G) | Already shares multiplication/addition simplifications. Preserve after decomposition. |
@@ -109,7 +109,7 @@ not a proposal to combine them automatically.
 | Fourth folding | ConstantFolding (P) | Final explicit MOC folding boundary; nested pipelines also have their own evaluation work. |
 | Symbolic optimization | SymbolicOptimizations (P) | Propagation/equivalence/value optimization and another shape-simplification pipeline. Major remaining traversal cost, but stages depend on global symbolic state. |
 | Naming | ResolveNameCollisions (P) | Global uniqueness maps across model and bodies. Not a local rewrite. |
-| MoE | FuseMOE (P), VectorizedMOE2GEMMTransposeWeights (M) | First is an orchestrator for FuseMOEExperts. Keep its matching before weight transposition; folding large expert tensors can dominate. |
+| MoE | FuseMOE (P), VectorizedMOE2GEMMTransposeWeights (M) | First is an orchestrator for FuseMOEExperts; it returns early without a top-level NonZero, which both of its MultiMatcher patterns require. Keep its matching before weight transposition; folding large expert tensors can dominate. |
 | Validation/restoration | Validate (P), final `validate_nodes_and_infer_types()` | Preserve shape restoration and validation; measure before considering removal of potentially overlapping work. |
 | Legacy entry point | MOCLegacyTransformations (P) -> ChangePlaceholderTypes (P) | Iterates parameters/consumers rather than the whole graph. Wrapping it in G would add unnecessary node visits. |
 
@@ -150,14 +150,69 @@ not a proposal to combine them automatically.
   TI-to-sequence variants. Splitting them into individual Manager registrations
   would increase traversals rather than improve performance.
 
+## Transformation-level grouping and early exits
+
+With typed Or-root dispatch in place, no MOC GraphRewrite falls back to visiting
+all matchers. Per-pass profiles (`OV_ENABLE_PROFILE_PASS`) then show that
+standalone MatcherPasses cost one traversal each (~0.05-0.15 ms on 1-3k node
+graphs), while the largest remaining costs are model-wide orchestrators:
+ConstantFolding, SymbolicOptimizations, SDPAFusion (7-13% of MOC on the
+measured models, mostly its SymbolicPropagation), and SimplifyShapeOfSubGraph.
+
+Applied changes:
+
+* **Groupings.** Adjacent standalone MatcherPasses are merged into named
+  GraphRewrites only if their root types are disjoint and unrelated by
+  inheritance. Within one GraphRewrite, only the first successful matcher fires
+  on a node, so shared roots would change behavior. Matchers stay registered
+  through `ADD_MATCHER`, so PassConfig disabling still works:
+  `TransposeMatMulFusions`, `EarlyEliminations`,
+  `SubgraphConstantFoldingPreparation`, and `BroadcastFusions`.
+* **SDPAFusion early exit.** The fusion matchers need `v8::Softmax`, and the
+  reshape fusion needs `v13::ScaledDotProductAttention`. Without either op
+  (searched recursively in subgraph bodies), the pass skips its symbolic
+  propagation and returns false.
+* **FuseMOE early exit.** Both MultiMatcher patterns contain `v3::NonZero`, and
+  MultiMatcher only visits top-level ops, so the pass returns false when there
+  is no top-level NonZero.
+
+Rejected candidates:
+
+* BinarizeWeights + ConvToBinaryConv, the two MarkDequantization registrations,
+  BroadcastElementwiseFusion + BroadcastTransition, and EliminateLoopInputsOutputs
+  + EliminateDuplicateTIInputs all share root types.
+* LSTMCellFusion is a public GraphRewrite; flattening it changes how it is
+  disabled.
+* Merging decomposition, LinOpSequenceFusion, and MultiplyFusions: their
+  rewrites interact through consumers and newly registered nodes.
+* Removing the SimplifyShapeOfSubGraph Validate boundaries: GatherNopElimination
+  relies on refreshed shapes.
+* Gating PackMultiHeadAttention: its sub-passes are anchored on Concat and Add,
+  which almost every model contains.
+
+Optimized graphs on the measured models are structurally identical to the
+previous revision. Only auto-generated friendly-name counters shift, because
+skipped passes no longer create temporary nodes.
+
+Median MOC time, 15 iterations, one pinned core, compared with typed Or-root
+dispatch alone:
+
+| Model | Nodes | use_shapes=1 | use_shapes=0 |
+|---|---:|---:|---:|
+| KWS (no attention) | 1425 | 34.04 -> 29.57 ms (-13.1%) | 33.84 -> 29.51 ms (-12.8%) |
+| ResNet-101 ONNX (no attention) | 1509 | 18.17 -> 16.04 ms (-11.7%) | 21.01 -> 19.11 ms (-9.0%) |
+| Geekbench 011 | 1213 | 31.02 -> 29.91 ms (-3.6%) | 28.67 -> 28.07 ms (-2.1%) |
+| SDPA subgraph | 1561 | 46.31 -> 45.36 ms (-2.1%) | 45.44 -> 45.18 ms (-0.6%) |
+| Qwen tiny LM | 2785 | 106.87 -> 105.14 ms (-1.6%) | 110.87 -> 109.25 ms (-1.5%) |
+| MobileNetV2 int8 (TF) | 1249 | 41.76 -> 42.92 ms (+2.8%, noise) | 40.40 -> 39.98 ms (-1.0%) |
+
 ## Follow-up priorities
 
 1. Retain type-based dispatch for fully typed Or alternatives (implemented).
-2. Profile the remaining symbolic/shape passes with real pre-MOC graphs; measure
+2. Group disjoint-root standalone matchers and gate SDPAFusion/FuseMOE
+   (implemented, see above).
+3. Profile the remaining symbolic/shape passes with real pre-MOC graphs; measure
    time in inference and evaluation separately from matching.
-3. Experiment with small, contiguous batches, starting with pre-fold transpose
-   handling and binary convolution. Compare optimized graphs, tensor/runtime
-   names, disabled-pass configurations, and nested bodies before accepting them.
 4. Consider converting UselessSliceEraser, but only together with a useful shared
    traversal. Changing P to M in isolation still performs a full traversal.
 5. Defer global-state/descriptor/forward-backward passes and folding/validation

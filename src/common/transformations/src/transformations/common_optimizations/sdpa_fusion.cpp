@@ -26,6 +26,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -48,6 +49,23 @@ namespace v8 = ov::op::v8;
 namespace v13 = ov::op::v13;
 namespace op_util = ov::op::util;
 namespace {
+
+// Every SDPAFusion matcher requires a Softmax (new fusion) or an existing SDPA (reshape fusion).
+bool has_attention_candidates(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        if (ov::is_type<v8::Softmax>(op) || ov::is_type<v13::ScaledDotProductAttention>(op)) {
+            return true;
+        }
+        if (const auto sub_graph_op = ov::as_type_ptr<op_util::MultiSubGraphOp>(op)) {
+            for (size_t i = 0; i < sub_graph_op->get_internal_subgraphs_size(); ++i) {
+                if (has_attention_candidates(sub_graph_op->get_function(i))) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
 
 std::vector<size_t> get_order(const ov::pass::pattern::PatternSymbolValue& any_layout_sym,
                               const std::vector<ov::pass::pattern::PatternSymbolValue>& to_find) {
@@ -151,6 +169,10 @@ namespace ov::pass {
 
 bool SDPAFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAFusion);
+    // Skip the model-wide symbolic propagation when none of the matchers can apply.
+    if (!has_attention_candidates(model)) {
+        return false;
+    }
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::SDPAFusionMatcher>();
