@@ -199,7 +199,7 @@ updates:
     open-pull-requests-limit: 5
     versioning-strategy: increase-if-necessary
     groups:
-      pip-infrastructure:
+      pip-ci-infrastructure:
         patterns:
           - "*"
 
