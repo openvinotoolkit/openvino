@@ -535,6 +535,7 @@ public:
 
             const auto reduction_op = ov::as_type_ptr<ov::op::v1::ReduceSum>(reduce);
             const auto multiply_op = ov::as_type_ptr<ov::op::v1::Multiply>(multiply);
+            OPENVINO_ASSERT(reduction_op && multiply_op);
             const auto axes = ov::util::get_constant_from_source(reduction_op->input_value(1));
             const auto routing_rank = routing.get_partial_shape().rank();
             if (reduction_op->get_keep_dims() || !axes ||
