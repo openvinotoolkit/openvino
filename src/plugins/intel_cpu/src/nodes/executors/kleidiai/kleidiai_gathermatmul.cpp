@@ -99,6 +99,8 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] cons
             const auto& zeroPoints = zpIt->second;
             OPENVINO_ASSERT(zeroPoints->getDesc().getShape().getStaticDims() == fullScalesShape,
                             "Zero-points and scales must have the same shape for GatherMatmulCompressed op");
+            OPENVINO_ASSERT(gather_axis_size == 1 || (N * numGroups * zeroPoints->getPrecision().bitwidth()) % 8 == 0,
+                            "Per-expert zero-points slice is not byte-aligned for GatherMatmulCompressed op");
             m_zeroPointsMemory = zeroPoints;
             zeroPointsDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(zeroPoints->getPrecision(), paramShape);
         }
