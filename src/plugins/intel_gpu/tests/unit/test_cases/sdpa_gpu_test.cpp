@@ -755,7 +755,13 @@ class sdpa_mask_fill_test : public ::testing::TestWithParam<sdpa_mask_fill_param
 public:
     static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_mask_fill_params>& info) {
         const auto& p = info.param;
-        std::string fill = std::isinf(p.fill) ? "neg_inf" : std::to_string(static_cast<int>(std::log10(-p.fill) * 100));
+        std::string fill;
+        if (std::isinf(p.fill))
+            fill = "neg_inf";
+        else if (std::isnan(p.fill))
+            fill = "nan";
+        else
+            fill = std::to_string(static_cast<int>(std::log10(-p.fill) * 100));
         return std::string(p.dt == data_types::bf16 ? "bf16" : "f16") + "_fill_" + fill + (p.use_micro ? "_micro" : "_opt") +
                (p.scalar_mask ? "_scalar_mask" : "_tensor_mask") + (p.scale != 0.0f ? "_custom_scale" : "");
     }
@@ -916,6 +922,7 @@ TEST_P(sdpa_mask_fill_test, fully_masked_rows_stay_finite) {
 constexpr float torch_mask_fill = -2.381976325057654e38f;
 constexpr float bf16_lowest = -3.3895313892515355e38f;
 constexpr float neg_inf = -std::numeric_limits<float>::infinity();
+constexpr float quiet_nan = std::numeric_limits<float>::quiet_NaN();
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_mask_fill,
                          sdpa_mask_fill_test,
@@ -926,8 +933,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_mask_fill,
                              sdpa_mask_fill_params{data_types::bf16, neg_inf, true, false, masked_row_check::mean_v},
                              sdpa_mask_fill_params{data_types::bf16, -1e4f, true, false, masked_row_check::softmax},  // control: never overflowed
                              sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, true, masked_row_check::mean_v},
-                             // small custom scale: the saturated mask must still give the masked keys exactly zero weight
+                             // small custom scale: the folded mask stays finite, so nothing is saturated here
                              sdpa_mask_fill_params{data_types::bf16, -1e4f, true, false, masked_row_check::mean_v, 1e-30f},
+                             sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, true, false, masked_row_check::mean_v, 1e-30f},
+                             sdpa_mask_fill_params{data_types::bf16, quiet_nan, true, false, masked_row_check::mean_v},
                              sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, false, masked_row_check::hull},
                              sdpa_mask_fill_params{data_types::bf16, neg_inf, false, false, masked_row_check::hull},
                              sdpa_mask_fill_params{data_types::bf16, torch_mask_fill, false, true, masked_row_check::hull},
