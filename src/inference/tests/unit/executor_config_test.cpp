@@ -59,7 +59,7 @@ public:
         if (test_data._streams_info_table_in.empty() && test_data._num_streams > 0) {
             ASSERT_LE(config.get_streams(), test_data._num_streams);
             ASSERT_LE(config.get_threads(), test_data._num_streams * test_data._threads_per_stream);
-            if (test_data._num_streams > 1) {
+            if (config.get_streams() > 1) {
                 for (const auto& stream_info : config.get_streams_info_table()) {
                     ASSERT_GT(stream_info[NUMBER_OF_STREAMS], 0);
                 }
@@ -1541,6 +1541,20 @@ ExecutorConfigTestCase _mixed_core_pool_stream_1_threads_4 = {
     {{0, 1, 2, 3}},
 };
 
+ExecutorConfigTestCase _streams_clamped_to_single_ecore = {
+    {{1, 0, 1, 0, 0, 0, 0}},
+    {{0, 0, 0, 0, EFFICIENT_CORE_PROC, 0, -1}},
+    2,
+    1,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    true,
+    true,
+    {},
+    {{1, ALL_PROC, 1, 0, 0}, {0, EFFICIENT_CORE_PROC, 1, 0, 0}},
+    {{0}},
+};
+
 TEST_P(ExecutorConfigTest, ExecutorConfig) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
@@ -1586,6 +1600,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
                                          _partial_core_pool_then_full_pool_streams_5,
                                          _partial_pools_streams_2_threads_4,
                                          _partial_pools_streams_2_threads_2,
-                                         _mixed_core_pool_stream_1_threads_4));
+                                         _mixed_core_pool_stream_1_threads_4,
+                                         _streams_clamped_to_single_ecore));
 #endif
 }  // namespace
