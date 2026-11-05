@@ -155,8 +155,10 @@ jobs:
         include:
           - lane: npu
             runner: '["self-hosted", "Windows", "npu", "coverage"]'
+            ca-bundle: 'C:\certs\IntelProxyRootCA.crt'
           - lane: npu-offline
             runner: '["aks-win-4-cores-8gb-test"]'
+            ca-bundle: ''
     runs-on: ${{ fromJSON(matrix.runner) }}
     defaults:
       run:
@@ -165,9 +167,20 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/.tmp/windows-package-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       WINDOWS_ARTIFACT_DIR: ${{ github.workspace }}/.tmp/windows-results-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
       COVERAGE_LANE: ${{ matrix.lane }}
+      CA_CERTS: ${{ matrix.ca-bundle }}
       NODE_EXTRA_CA_CERTS: ''
       PYTHONUTF8: '1'
     steps:
+      - name: Configure corporate proxy certificates
+        if: ${{ env.CA_CERTS != '' }}
+        run: |
+          if (!(Test-Path -LiteralPath $env:CA_CERTS -PathType Leaf)) {
+            throw "Corporate proxy CA bundle not found: $env:CA_CERTS"
+          }
+          foreach ($variable in @('SSL_CERT_FILE', 'CURL_CA_BUNDLE', 'REQUESTS_CA_BUNDLE', 'NODE_EXTRA_CA_CERTS')) {
+            "$variable=$env:CA_CERTS" >> $env:GITHUB_ENV
+          }
+
       - name: Checkout sources
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15

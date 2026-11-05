@@ -234,6 +234,37 @@ class WindowsCoverageTests(unittest.TestCase):
             if step["name"].startswith("Build additional Python wheels"):
                 self.assertEqual(step["if"], "${{ inputs.build-additional-python-wheels }}")
 
+    @unittest.skipUnless(shutil.which("pwsh"), "PowerShell is required to validate certificate setup")
+    def test_windows_proxy_certificates(self):
+        import yaml
+
+        workflow = yaml.safe_load((REPO / ".github/workflows/coverage.yml").read_text())
+        job = workflow["jobs"]["CoverageWindows"]
+        lanes = {lane["lane"]: lane for lane in job["strategy"]["matrix"]["include"]}
+        self.assertEqual(lanes["npu"]["ca-bundle"], r"C:\certs\IntelProxyRootCA.crt")
+        self.assertEqual(lanes["npu-offline"]["ca-bundle"], "")
+        self.assertEqual(job["env"]["CA_CERTS"], "${{ matrix.ca-bundle }}")
+        self.assertEqual(job["env"]["NODE_EXTRA_CA_CERTS"], "")
+        setup, checkout = job["steps"][:2]
+        self.assertEqual(setup["name"], "Configure corporate proxy certificates")
+        self.assertEqual(setup["if"], "${{ env.CA_CERTS != '' }}")
+        self.assertEqual(checkout["name"], "Checkout sources")
+        bundle = self.workspace / "proxy-ca.crt"
+        output = self.workspace / "github-env"
+        env = {**os.environ, "CA_CERTS": str(bundle), "NODE_EXTRA_CA_CERTS": "", "GITHUB_ENV": str(output)}
+        command = ["pwsh", "-NoProfile", "-NonInteractive", "-Command", setup["run"]]
+        missing = subprocess.run(command, env=env, capture_output=True, text=True, check=False)
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("Corporate proxy CA bundle not found", missing.stderr)
+        self.assertFalse(output.exists())
+        bundle.touch()
+        result = subprocess.run(command, env=env, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(set(output.read_text().splitlines()), {
+            f"{variable}={bundle}"
+            for variable in ("SSL_CERT_FILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS")
+        })
+
     @unittest.skipUnless(shutil.which("bash"), "bash is required to validate lane selection")
     def test_pull_request_and_dispatch_selection(self):
         import yaml
