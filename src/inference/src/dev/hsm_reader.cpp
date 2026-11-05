@@ -64,6 +64,10 @@ bool entry_matches(const ManifestEntry& entry, DeviceId device, uint32_t tag_id)
     return entry.device == device && entry.tag.id() == tag_id;
 }
 
+bool entry_matches(const ManifestEntry& entry, DeviceId device, SectionTagReserved tag_id) noexcept {
+    return entry.device == device && entry.tag.id() == tag_id.tag.id() && entry.tag_reserved == tag_id.bytes;
+}
+
 // Resizes `manifest` per header.manifest_size and reads it in; a no-op read for an empty manifest.
 bool read_manifest(std::istream& stream,
                    std::streampos start,
@@ -140,6 +144,13 @@ Section Reader::make_section(const ManifestEntry& entry) const {
 }
 
 std::optional<Section> Reader::section_by_id(DeviceId device, uint32_t tag_id) const {
+    const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), [device, tag_id](const auto& entry) {
+        return entry_matches(entry, device, tag_id);
+    });
+    return found != m_manifest.end() ? std::optional<Section>(make_section(*found)) : std::nullopt;
+}
+
+std::optional<Section> Reader::section_by_id(DeviceId device, SectionTagReserved tag_id) const {
     const auto found = std::find_if(m_manifest.begin(), m_manifest.end(), [device, tag_id](const auto& entry) {
         return entry_matches(entry, device, tag_id);
     });
