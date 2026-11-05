@@ -15,6 +15,7 @@ NGramHashFunction
 
 **Detailed description**
 
+The largest n-gram order ``ngram_size`` is the number of ``multipliers`` and must be at least ``2``.
 The last input dimension contains ``ngram_size`` token IDs, oldest first. For each window, let
 ``x[k] = ngrams[..., ngram_size - 1 - k]``, so ``x[0]`` is the current token.
 
@@ -41,14 +42,6 @@ padding and sequence boundaries are handled outside the operation.
 
 **Attributes**
 
-* *ngram_size*
-
-  * **Description**: the largest n-gram order and the size of the last dimension of ``ngrams``.
-    Orders ``2 .. ngram_size`` are hashed.
-  * **Range of values**: an integer ``>= 2``
-  * **Type**: ``int``
-  * **Required**: *yes*
-
 * *heads_per_order*
 
   * **Description**: the number of hashed heads of every n-gram order ``2 .. ngram_size``,
@@ -61,8 +54,9 @@ padding and sequence boundaries are handled outside the operation.
 * *multipliers*
 
   * **Description**: the ``ngram_size`` hash multipliers; ``multipliers[k]`` applies to the token ``k``
-    steps back (``multipliers[0]`` to the current token).
-  * **Range of values**: any ``int64``
+    steps back (``multipliers[0]`` to the current token). Their count defines ``ngram_size``, the largest
+    hashed order and the size of the last dimension of ``ngrams``.
+  * **Range of values**: any ``int64``, at least ``2`` values
   * **Type**: ``int64[]``
   * **Required**: *yes*
 
@@ -115,18 +109,17 @@ For ``ngrams = [[1, 2, 3], [4, 5, 6]]``, the following configuration produces
    :force:
 
     <layer id="1" name="ngram_hash" type="NGramHashFunction" version="extension">
-      <data ngram_size="3" heads_per_order="1,1" multipliers="3,5,7"
-          head_vocab_sizes="11,13" head_offsets="0,11"/>
+        <data heads_per_order="1,1" multipliers="3,5,7" head_vocab_sizes="11,13" head_offsets="0,11"/>
         <input>
-        <port id="0" precision="I64">
-          <dim>2</dim>
-          <dim>3</dim>
+            <port id="0" precision="I64">
+                <dim>2</dim>
+                <dim>3</dim>
             </port>
         </input>
         <output>
-        <port id="1" precision="I32">
-          <dim>2</dim>
-          <dim>2</dim>
+            <port id="1" precision="I32">
+                <dim>2</dim>
+                <dim>2</dim>
             </port>
         </output>
     </layer>

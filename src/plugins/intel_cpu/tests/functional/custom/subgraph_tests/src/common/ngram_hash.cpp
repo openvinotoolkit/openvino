@@ -98,7 +98,6 @@ std::vector<int64_t> make_offsets(const std::vector<int64_t>& vocab) {
 std::shared_ptr<Node> make_hash(const Output<Node>& windows, const NGramHashCase& config) {
     const auto vocab = make_vocab_sizes(config);
     return std::make_shared<op::internal::NGramHashFunction>(windows,
-                                                             config.multipliers.size(),
                                                              config.heads_per_order,
                                                              config.multipliers,
                                                              vocab,

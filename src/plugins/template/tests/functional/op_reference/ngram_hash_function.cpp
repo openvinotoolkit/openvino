@@ -31,13 +31,11 @@ public:
     void SetUp() override {
         const auto& params = GetParam();
         const auto input = std::make_shared<ov::op::v0::Parameter>(params.input.type, params.input.shape);
-        const auto hash =
-            std::make_shared<ov::op::internal::NGramHashFunction>(input,
-                                                                  static_cast<int64_t>(params.multipliers.size()),
-                                                                  params.heads_per_order,
-                                                                  params.multipliers,
-                                                                  params.vocab_sizes,
-                                                                  params.offsets);
+        const auto hash = std::make_shared<ov::op::internal::NGramHashFunction>(input,
+                                                                                params.heads_per_order,
+                                                                                params.multipliers,
+                                                                                params.vocab_sizes,
+                                                                                params.offsets);
         function = std::make_shared<ov::Model>(ov::OutputVector{hash}, ov::ParameterVector{input});
         inputData = {params.input.data};
         refOutData = {params.expected.data};

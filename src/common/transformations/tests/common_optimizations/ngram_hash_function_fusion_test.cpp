@@ -22,10 +22,12 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/floor_mod.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 
@@ -133,7 +135,6 @@ Output<Node> make_fused_hash(const OutputVector& tokens,
         window.push_back(std::make_shared<v0::Unsqueeze>(*it, axis));
     }
     const auto hash = std::make_shared<ov::op::internal::NGramHashFunction>(std::make_shared<v0::Concat>(window, -1),
-                                                                            static_cast<int64_t>(tokens.size()),
                                                                             heads_per_order,
                                                                             multipliers,
                                                                             vocab_sizes,
@@ -424,6 +425,165 @@ TEST_F(NGramHashFunctionFusionTests, FusesSingleInferredPrefixDimension) {
     replace_unsqueeze_with_reshape(model, {-1, 1}, false);
     model_ref = make_fused_model(config, t);
 }
+
+TEST_F(NGramHashFunctionFusionTests, FusesReshapeWithSingleDynamicDimension) {
+    // NopElimination turns an Unsqueeze with one dynamic dimension into this Reshape.
+    const HashGraphConfig config{"Reshape", {11, 13}, {2}, {-1, 3}};
+    const auto t = make_tables(config.heads_per_order);
+    model = make_hash_model(config, t);
+    replace_unsqueeze_with_reshape(model, {-1, 3, 1}, false);
+    model_ref = make_fused_model(config, t);
+}
+
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseReshapeWithDynamicAndZeroDimensions) {
+    // The shapes match ([?, 0] -> [?, 0, 1]), but Reshape([-1, 0, 1]) maps a [2, 0] input to [0, 0, 1].
+    const HashGraphConfig config{"EmptyTokens", {11, 13}, {2}, {-1, 0}};
+    model = make_hash_model(config, make_tables(config.heads_per_order));
+    replace_unsqueeze_with_reshape(model, {-1, 0, 1}, false);
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<v1::Reshape>(node)) {
+            EXPECT_EQ(node->get_output_partial_shape(0), PartialShape({-1, 0, 1}));
+        }
+    }
+}
+
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseReshapeThatSwapsDynamicDimensions) {
+    // The shapes match ([?, ?] -> [?, ?, 1]), but the target shape swaps the two input dimensions.
+    model = make_hash_model(kBigram, make_tables(kBigram.heads_per_order));
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
+            const auto x = unsqueeze->input_value(0);
+            const auto swapped = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(x),
+                                                              v0::Constant::create(element::i64, Shape{2}, {1, 0}),
+                                                              v0::Constant::create(element::i64, Shape{}, {0}));
+            const auto target =
+                std::make_shared<v0::Concat>(OutputVector{swapped, v0::Constant::create(element::i64, Shape{1}, {1})},
+                                             0);
+            const auto reshape = std::make_shared<v1::Reshape>(x, target, false);
+            EXPECT_EQ(reshape->get_output_partial_shape(0), PartialShape({-1, -1, 1}));
+            ov::replace_node(unsqueeze, reshape);
+        }
+    }
+    model->validate_nodes_and_infer_types();
+}
+
+// A single trigram block whose top XOR has the newest term on the given side; collect order follows the XOR inputs.
+struct TrigramBlock {
+    std::shared_ptr<Model> model;
+    std::shared_ptr<Model> fused;
+};
+
+TrigramBlock make_trigram_block(const Shape& multiplier_shape,
+                                bool term_first,
+                                const PartialShape& token_shape = {-1, -1}) {
+    const HashGraphConfig c{"TrigramBlock", {11, 13, 17}, {0, 4}, token_shape};
+    const auto t = make_tables(c.heads_per_order);
+    const auto tokens = make_tokens(c);
+    auto term = [&](size_t k) {
+        return std::make_shared<v1::Multiply>(tokens[k],
+                                              v0::Constant::create(element::i64, multiplier_shape, {c.multipliers[k]}));
+    };
+    const auto inner = std::make_shared<v13::BitwiseXor>(term(0), term(1));
+    const auto mix = term_first ? std::make_shared<v13::BitwiseXor>(term(2), inner)
+                                : std::make_shared<v13::BitwiseXor>(inner, term(2));
+    const auto unsq = std::make_shared<v0::Unsqueeze>(mix, v0::Constant::create(element::i64, Shape{}, {-1}));
+    Shape vocab_shape(token_shape.size() + 1, 1);
+    vocab_shape.back() = t.vocab_sizes.size();
+    const auto mod =
+        std::make_shared<v1::FloorMod>(unsq, v0::Constant::create(element::i64, vocab_shape, t.vocab_sizes));
+    const auto add =
+        std::make_shared<v1::Add>(mod, v0::Constant::create(element::i64, Shape{t.offsets.size()}, t.offsets));
+
+    const std::vector<size_t> order = term_first ? std::vector<size_t>{2, 0, 1} : std::vector<size_t>{0, 1, 2};
+    const auto ref_tokens = make_tokens(c);
+    OutputVector fused_tokens;
+    std::vector<int64_t> fused_multipliers;
+    for (const auto k : order) {
+        fused_tokens.push_back(ref_tokens[k]);
+        fused_multipliers.push_back(c.multipliers[k]);
+    }
+    const auto fused = make_fused_order(fused_tokens, fused_multipliers, t.vocab_sizes, t.offsets);
+    return {std::make_shared<Model>(OutputVector{add}, tokens),
+            std::make_shared<Model>(OutputVector{fused}, ref_tokens)};
+}
+
+class NGramHashFunctionFusionXorOrderTests : public NGramHashFunctionFusionTests,
+                                             public testing::WithParamInterface<bool> {};
+
+// BitwiseXor is not commutative for the pattern matcher, so the term must be found on either XOR input.
+TEST_P(NGramHashFunctionFusionXorOrderTests, FusesTermOnEitherXorInput) {
+    auto block = make_trigram_block(Shape{}, GetParam());
+    model = block.model;
+    model_ref = block.fused;
+    expect_same_outputs(model, model_ref);
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         NGramHashFunctionFusionXorOrderTests,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? std::string("TermFirst") : std::string("TermLast");
+                         });
+
+class NGramHashFunctionFusionMultiplierShapeTests : public NGramHashFunctionFusionTests,
+                                                    public testing::WithParamInterface<Shape> {};
+
+TEST_P(NGramHashFunctionFusionMultiplierShapeTests, FusesScalarLikeMultipliers) {
+    auto block = make_trigram_block(GetParam(), false);
+    model = block.model;
+    model_ref = block.fused;
+    expect_same_outputs(model, model_ref);
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         NGramHashFunctionFusionMultiplierShapeTests,
+                         testing::Values(Shape{}, Shape{1}, Shape{1, 1}),
+                         [](const testing::TestParamInfo<Shape>& info) {
+                             return "Rank" + std::to_string(info.param.size());
+                         });
+
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseOtherMultiplierShape) {
+    model = make_trigram_block(Shape{1, 1, 1}, false, {-1, -1, -1}).model;
+}
+
+// A [1, 1] multiplier broadcasts rank-1 tokens to rank 2, which packing the tokens would not.
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseMultiplierThatRaisesDynamicTokenRank) {
+    model = make_trigram_block(Shape{1, 1}, false, {-1}).model;
+}
+
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseMultiplierThatRaisesStaticTokenRank) {
+    model = make_trigram_block(Shape{1, 1}, true, {5}).model;
+}
+
+class NGramHashFunctionFusionNonConstantMultiplierTests : public NGramHashFunctionFusionTests,
+                                                          public testing::WithParamInterface<size_t> {};
+
+// A scalar-shaped multiplier whose value isn't known when fusing, either on the top term matched by the pattern (2)
+// or on a term found by the manual XOR walk (0).
+TEST_P(NGramHashFunctionFusionNonConstantMultiplierTests, DoesNotFuseScalarParameterMultiplier) {
+    const auto tokens = make_tokens(kTrigram);
+    const auto multiplier = std::make_shared<v0::Parameter>(element::i64, PartialShape{});
+    auto term = [&](size_t k) {
+        const Output<Node> factor =
+            k == GetParam() ? Output<Node>(multiplier)
+                            : v0::Constant::create(element::i64, Shape{}, {kTrigram.multipliers[k]})->output(0);
+        return std::make_shared<v1::Multiply>(tokens[k], factor);
+    };
+    const auto mix = std::make_shared<v13::BitwiseXor>(std::make_shared<v13::BitwiseXor>(term(0), term(1)), term(2));
+    const auto unsq = std::make_shared<v0::Unsqueeze>(mix, v0::Constant::create(element::i64, Shape{}, {-1}));
+    const auto mod = std::make_shared<v1::FloorMod>(unsq, v0::Constant::create(element::i64, Shape{1}, {1000003}));
+    const auto add = std::make_shared<v1::Add>(mod, v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto params = tokens;
+    params.push_back(multiplier);
+    model = std::make_shared<Model>(OutputVector{add}, params);
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         NGramHashFunctionFusionNonConstantMultiplierTests,
+                         testing::Values(size_t{2}, size_t{0}),
+                         [](const testing::TestParamInfo<size_t>& info) {
+                             return info.param == 2 ? std::string("MatchedTerm") : std::string("WalkedTerm");
+                         });
 
 class NGramHashFunctionFusionNonNumpyTests : public NGramHashFunctionFusionTests,
                                              public testing::WithParamInterface<std::string> {};

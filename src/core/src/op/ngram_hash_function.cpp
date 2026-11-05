@@ -16,13 +16,11 @@ namespace op {
 namespace internal {
 
 NGramHashFunction::NGramHashFunction(const Output<Node>& ngrams,
-                                     int64_t ngram_size,
                                      std::vector<int64_t> heads_per_order,
                                      std::vector<int64_t> multipliers,
                                      std::vector<int64_t> head_vocab_sizes,
                                      std::vector<int64_t> head_offsets)
     : Op({ngrams}),
-      m_ngram_size(ngram_size),
       m_heads_per_order(std::move(heads_per_order)),
       m_multipliers(std::move(multipliers)),
       m_head_vocab_sizes(std::move(head_vocab_sizes)),
@@ -32,7 +30,6 @@ NGramHashFunction::NGramHashFunction(const Output<Node>& ngrams,
 
 bool NGramHashFunction::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(internal_NGramHashFunction_visit_attributes);
-    visitor.on_attribute("ngram_size", m_ngram_size);
     visitor.on_attribute("heads_per_order", m_heads_per_order);
     visitor.on_attribute("multipliers", m_multipliers);
     visitor.on_attribute("head_vocab_sizes", m_head_vocab_sizes);
@@ -57,17 +54,14 @@ size_t NGramHashFunction::get_num_heads() const {
 void NGramHashFunction::validate_and_infer_types() {
     OV_OP_SCOPE(internal_NGramHashFunction_validate_and_infer_types);
 
-    NODE_VALIDATION_CHECK(this, m_ngram_size >= 2, "ngram_size must be >= 2. Got: ", m_ngram_size);
     NODE_VALIDATION_CHECK(this,
-                          m_multipliers.size() == static_cast<size_t>(m_ngram_size),
-                          "multipliers must have ngram_size (",
-                          m_ngram_size,
-                          ") values. Got: ",
+                          m_multipliers.size() >= 2,
+                          "multipliers must have ngram_size >= 2 values. Got: ",
                           m_multipliers.size());
     NODE_VALIDATION_CHECK(this,
-                          m_heads_per_order.size() == static_cast<size_t>(m_ngram_size - 1),
+                          m_heads_per_order.size() == m_multipliers.size() - 1,
                           "heads_per_order must have ngram_size - 1 (",
-                          m_ngram_size - 1,
+                          m_multipliers.size() - 1,
                           ") values. Got: ",
                           m_heads_per_order.size());
     const auto num_heads = get_num_heads();
@@ -107,7 +101,6 @@ std::shared_ptr<Node> NGramHashFunction::clone_with_new_inputs(const ov::OutputV
     OV_OP_SCOPE(internal_NGramHashFunction_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return std::make_shared<NGramHashFunction>(new_args.at(0),
-                                               m_ngram_size,
                                                m_heads_per_order,
                                                m_multipliers,
                                                m_head_vocab_sizes,
