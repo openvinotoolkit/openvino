@@ -9,7 +9,6 @@
 #include <utility>
 
 #include "openvino/core/memory_util.hpp"
-#include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -153,8 +152,8 @@ public:
     }
 
     const Strides& get_strides() const override {
-        const auto has_byte_strides = util::has_byte_strides(m_element_type, m_shape);
-        OPENVINO_ASSERT(has_byte_strides,
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(m_element_type, m_shape);
+        OPENVINO_ASSERT(can_compute_byte_strides,
                         "Could not get strides for tensor type: ",
                         m_element_type,
                         ", shape: ",
@@ -189,7 +188,7 @@ protected:
     }
 
     void update_strides() const {
-        if (m_strides.empty() && util::has_byte_strides(m_element_type, get_shape())) {
+        if (m_strides.empty() && util::can_compute_byte_strides(m_element_type, get_shape())) {
             m_strides = util::get_dense_byte_strides(m_element_type, get_shape());
         }
     }
@@ -259,8 +258,8 @@ class StridedViewTensor : public ViewTensor {
 public:
     StridedViewTensor(const element::Type element_type, const Shape& shape, void* ptr, const Strides& strides)
         : ViewTensor{element_type, shape, ptr} {
-        const auto has_byte_strides = util::has_byte_strides(get_element_type(), shape);
-        OPENVINO_ASSERT(has_byte_strides,
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(get_element_type(), shape);
+        OPENVINO_ASSERT(can_compute_byte_strides,
                         "Could not create strided access tensor for tensor type: ",
                         get_element_type(),
                         ", shape: ",

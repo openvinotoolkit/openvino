@@ -10,6 +10,8 @@
 
 namespace ov::util {
 namespace {
+constexpr size_t bits_per_byte = 8;
+
 size_t get_bit_memory_size(const element::Type& type, const size_t elements_count) {
     const auto bit_width = type.bitwidth();
     // Any 8 elements occupy exactly bit_width bytes, so ceil(elements_count * bit_width / 8) is taken in two steps
@@ -61,5 +63,38 @@ size_t get_elements_capacity(const element::Type& type, const size_t memory_size
         const size_t bytes_per_element = type.bitwidth() / 8;
         return memory_size / bytes_per_element;
     }
+}
+
+bool can_compute_byte_strides(const element::Type& type, const Shape& shape) {
+    const auto bitwidth = type.bitwidth();
+    return bitwidth >= bits_per_byte || (bitwidth > 0 && (bits_per_byte % bitwidth) == 0 && !shape.empty() &&
+                                         (shape.back() * bitwidth) % bits_per_byte == 0);
+}
+
+Strides get_dense_byte_strides(const element::Type& type, const Shape& shape) {
+    Strides strides(shape.size());
+    if (!strides.empty()) {
+        const auto bitwidth = type.bitwidth();
+        strides.back() = shape.back() == 0 ? 0 : type.size();
+
+        if (strides.size() > 1) {
+            const auto row_byte_size =
+                bitwidth < bits_per_byte ? shape.back() * bitwidth / bits_per_byte : shape.back() * type.size();
+            strides[strides.size() - 2] = row_byte_size;
+            for (auto i = strides.size() - 2; i > 0; --i) {
+                strides[i - 1] = strides[i] * shape[i];
+            }
+        }
+    }
+    return strides;
+}
+
+Shape get_byte_memory_shape(const element::Type& type, const Shape& shape) {
+    auto byte_shape = shape;
+    const auto bitwidth = type.bitwidth();
+    if (bitwidth < bits_per_byte && !byte_shape.empty()) {
+        byte_shape.back() = byte_shape.back() * bitwidth / bits_per_byte;
+    }
+    return byte_shape;
 }
 }  // namespace ov::util

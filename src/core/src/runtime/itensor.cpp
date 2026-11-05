@@ -9,7 +9,6 @@
 #include "compare.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
-#include "openvino/core/shape_util.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -29,7 +28,7 @@ size_t ITensor::get_byte_size() const {
 bool ITensor::is_continuous() const {
     const auto& type = get_element_type();
     const auto& shape = get_shape();
-    if (shape_size(shape) == 0 || !util::has_byte_strides(type, shape)) {
+    if (shape_size(shape) == 0 || !util::can_compute_byte_strides(type, shape)) {
         return true;
     }
 
@@ -85,7 +84,7 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
     ov::Shape cur_pos{0};
     ov::Shape max_pos{1};
 
-    if (!util::has_byte_strides(type, shape) || (get_strides() == dst->get_strides() && is_continuous()) ||
+    if (!util::can_compute_byte_strides(type, shape) || (get_strides() == dst->get_strides() && is_continuous()) ||
         (is_scalar(shape) && is_scalar(dst->get_shape()))) {
         // byte strides are not representable for this LP type/shape or both tensors have default strides
         // Strides and positions already initialized
@@ -97,7 +96,7 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         // for sub-byte types the last dimension's element count does not match its real byte
         // span (default_strides.back() is an unaddressable placeholder) - use its packed byte
         // count instead, so dimension counts below always line up with real byte strides
-        const auto byte_shape = util::get_shape_for_byte_strides(type, shape);
+        const auto byte_shape = util::get_byte_memory_shape(type, shape);
 
         src_strides = get_strides();
         dst_strides = dst->get_strides();
