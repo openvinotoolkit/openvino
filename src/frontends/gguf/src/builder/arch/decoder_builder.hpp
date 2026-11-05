@@ -18,27 +18,10 @@
 
 namespace ov::frontend::gguf {
 
-// Whole-model builder for the causal decoder family: the "llama family" of dense and MoE
-// decoder-only transformers (llama-3, qwen2/2.5/3, phi-3, minicpm, gemma 1-4, gpt-oss, OLMoE,
-// qwen3moe, the qwen35 hybrid Gated-DeltaNet stack, ...).
-//
-// ONE builder covers all of them. Per-architecture differences are resolved into DecoderConfig by
-// structural detection on the GGUF tensor table, so enabling a same-family architecture is a name
-// in arch_registry.cpp and no code here. This is a deliberate departure from llama.cpp's
-// one-file-per-architecture layout, which exists there because each architecture must enumerate
-// its tensors by hand; the GGUF frontend derives them instead.
-//
-// Emits the STATELESS graph: KV caches are plain model Parameters written by GGML_OP_SET_ROWS and
-// read back as Results, and every activation keeps ggml's rank-4 shape. A caller that wants an
-// OpenVINO KV cache registers ov::frontend::gguf::pass::MakeStateful as a transformation extension.
+// Whole-model topology for configured dense, expert and hybrid decoder layers.
 class DecoderBuilder : public ModelBuilder {
 public:
-    DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
-                   std::unordered_map<std::string, ov::Tensor>& weights,
-                   std::unordered_map<std::string, GgufTensorType>& qtypes,
-                   std::optional<RopeMode> rope = {},
-                   const DecoderOptions& options = {},
-                   const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
+    DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters);
 
     std::shared_ptr<GgufGraph> build() override;
 

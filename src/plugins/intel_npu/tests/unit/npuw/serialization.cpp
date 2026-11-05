@@ -68,7 +68,7 @@ TEST(SerializationTest, RejectsPreviousNpuwVersion) {
     write(old_header, major);
     write(old_header, minor);
     write(old_header, patch);
-    write(old_header, std::string("0.35"));
+    write(old_header, std::string("0.36"));
     EXPECT_THROW(read_and_check_header(old_header, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel"),
                  ov::Exception);
 }
