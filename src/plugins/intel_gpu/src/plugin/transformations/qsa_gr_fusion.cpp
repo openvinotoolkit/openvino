@@ -164,6 +164,17 @@ bool is_f16(const ov::Output<ov::Node>& out) {
     return out.get_element_type() == ov::element::f16;
 }
 
+/// The input of a binary node that is not `x`, when `x` is one of its two inputs.
+std::optional<ov::Output<ov::Node>> other_operand(const std::shared_ptr<ov::Node>& node, const ov::Output<ov::Node>& x) {
+    if (node->input_value(0) == x) {
+        return node->input_value(1);
+    }
+    if (node->input_value(1) == x) {
+        return node->input_value(0);
+    }
+    return std::nullopt;
+}
+
 constexpr size_t supported_branch_count = 4;
 
 /// Reads the [..., C, D] branch split from a Reshape's inferred output shape, so rank-4
@@ -322,16 +333,6 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
         const auto targets = out.get_target_inputs();
         return targets.size() == 1 ? targets.begin()->get_node()->shared_from_this() : nullptr;
     };
-    // the operand of a binary node that is not `x`, when `x` is one of its two inputs
-    auto other_operand = [](const std::shared_ptr<ov::Node>& node, const ov::Output<ov::Node>& x) -> std::optional<ov::Output<ov::Node>> {
-        if (node->input_value(0) == x) {
-            return node->input_value(1);
-        }
-        if (node->input_value(1) == x) {
-            return node->input_value(0);
-        }
-        return std::nullopt;
-    };
 
     for (const auto& target : rbar.get_target_inputs()) {
         auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(target.get_node()->shared_from_this());
@@ -401,14 +402,15 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
 // GR READ / MIX
 // ===========================================================================
 GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
+    using namespace ov::pass;
     using namespace ov::pass::pattern;
 
     auto residual = any_input();
     auto residual_3d = wrap_type<ov::op::v1::Reshape>({residual, any_input()});
 
-    // --- normalization: a fused RMS op, or the decomposed RMSNorm form
+    // normalization: a fused RMS op, or the decomposed RMSNorm form
     // (Power -> ReduceMean -> Add(eps) -> Sqrt -> Divide -> Multiply) that some
-    // checkpoints still export the gain as a separate `1 + w` fold on top of. -----
+    // checkpoints still export the gain as a separate `1 + w` fold on top of.
     auto norm_fused = wrap_type<ov::op::internal::RMS>({residual_3d, any_input()});
     auto rbar_fused = wrap_type<ov::op::v1::Reshape>({norm_fused, any_input()});
 
@@ -419,68 +421,54 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
     // 1 / sqrt(.): Divide(1, sqrt) as exported, or Power(sqrt, -1) once Divide has been converted.
     auto inv_rms_div = wrap_type<ov::op::v1::Divide>({any_input(), rms_val});
     auto inv_rms_pow = wrap_type<ov::op::v1::Power>({rms_val, any_input()});
-    auto inv_rms = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{inv_rms_div, inv_rms_pow});
-    auto normalized_a = wrap_type<ov::op::v1::Multiply>({residual_3d, inv_rms});
-    auto normalized_b = wrap_type<ov::op::v1::Multiply>({inv_rms, residual_3d});
-    auto normalized = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{normalized_a, normalized_b});
+    auto inv_rms = inv_rms_div | inv_rms_pow;
+    auto normalized = wrap_type<ov::op::v1::Multiply>({residual_3d, inv_rms});
     auto normalized_flat = wrap_type<ov::op::v1::Reshape>({normalized, any_input()});
     // The gain is whatever multiplies the flattened normalized value: an explicit `1 + w` Add
     // or, once constants are folded, a plain Constant. Its size is verified in the callback.
     auto decomposed_gain = any_input();
-    auto rbar_decomposed_a = wrap_type<ov::op::v1::Multiply>({normalized_flat, decomposed_gain});
-    auto rbar_decomposed_b = wrap_type<ov::op::v1::Multiply>({decomposed_gain, normalized_flat});
-    auto rbar_decomposed = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_decomposed_a, rbar_decomposed_b});
+    auto rbar_decomposed = wrap_type<ov::op::v1::Multiply>({normalized_flat, decomposed_gain});
 
     // RMSFusion (earlier in the GPU pipeline) turns the gain-less normalization into a
     // single-input RMS; the `1 + w` gain is then applied after the flattening Reshape.
     auto norm_nogamma = wrap_type<ov::op::internal::RMS>({residual_3d});
     auto nogamma_flat = wrap_type<ov::op::v1::Reshape>({norm_nogamma, any_input()});
     auto gain_nogamma = any_input();
-    auto rbar_nogamma_a = wrap_type<ov::op::v1::Multiply>({nogamma_flat, gain_nogamma});
-    auto rbar_nogamma_b = wrap_type<ov::op::v1::Multiply>({gain_nogamma, nogamma_flat});
-    auto rbar_nogamma = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_nogamma_a, rbar_nogamma_b});
+    auto rbar_nogamma = wrap_type<ov::op::v1::Multiply>({nogamma_flat, gain_nogamma});
 
     // A gain of ones is folded away by the exporter, so the flattened normalization feeds the GEMM directly.
-    auto rbar = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_fused, rbar_decomposed, rbar_nogamma, nogamma_flat, normalized_flat});
+    auto rbar = rbar_fused | rbar_decomposed | rbar_nogamma | nogamma_flat | normalized_flat;
 
     auto low = wrap_type<ov::op::v0::MatMul>({rbar, any_input()});
     // The 1/C scale sits after the down projection as exported, or on W_down itself once an
     // earlier pass has pushed the scalar into the weights; the callback proves either form.
-    auto low_scaled = wrap_type<ov::op::v1::Multiply>({low, any_input()});
-    auto low_maybe_scaled = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{low_scaled, low});
-    auto activation = wrap_type<ov::op::v4::Swish>({low_maybe_scaled});
+    auto low_scaled = optional<ov::op::v1::Multiply>({low, any_input()});
+    auto activation = wrap_type<ov::op::v4::Swish>({low_scaled});
     auto up = wrap_type<ov::op::v0::MatMul>({activation, any_input()});
     auto read_gate = wrap_type<ov::op::v0::Sigmoid>({up});
 
-    // The gate multiply may appear in either operand order (canonical form: both flat,
-    // reshaped to [*, C, D] only afterwards).
-    auto weighted_a = wrap_type<ov::op::v1::Multiply>({read_gate, rbar});
-    auto weighted_b = wrap_type<ov::op::v1::Multiply>({rbar, read_gate});
-    auto weighted = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{weighted_a, weighted_b});
+    // Canonical form: both flat, reshaped to [*, C, D] only afterwards.
+    auto weighted = wrap_type<ov::op::v1::Multiply>({read_gate, rbar});
 
-    // --- branch reduction: ReduceSum + an explicit 1/C Multiply (root), or a
+    // branch reduction: ReduceSum + an explicit 1/C Multiply (root), or a
     // ReduceMean that already folds the 1/C scaling into the reduction itself. In the
-    // ReduceMean form both operands are reshaped to [*, C, D] *before* multiplying. ---
+    // ReduceMean form both operands are reshaped to [*, C, D] *before* multiplying.
     auto weighted_3d = wrap_type<ov::op::v1::Reshape>({weighted, any_input()});
     auto reduced_sum = wrap_type<ov::op::v1::ReduceSum>({weighted_3d, any_input()});
-    auto mixed = wrap_type<ov::op::v1::Multiply>({reduced_sum, any_input()});
+    // The kernels are f16-only, see is_f16().
+    auto mixed = wrap_type<ov::op::v1::Multiply>({reduced_sum, any_input()}, type_matches(ov::element::f16));
 
     auto gate_split = wrap_type<ov::op::v1::Reshape>({read_gate, any_input()});
     auto rbar_split = wrap_type<ov::op::v1::Reshape>({rbar, any_input()});
-    auto weighted_split_a = wrap_type<ov::op::v1::Multiply>({gate_split, rbar_split});
-    auto weighted_split_b = wrap_type<ov::op::v1::Multiply>({rbar_split, gate_split});
-    auto weighted_split = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{weighted_split_a, weighted_split_b});
-    auto reduced_mean = wrap_type<ov::op::v1::ReduceMean>({weighted_split, any_input()});
+    auto weighted_split = wrap_type<ov::op::v1::Multiply>({gate_split, rbar_split});
+    auto reduced_mean = wrap_type<ov::op::v1::ReduceMean>({weighted_split, any_input()}, type_matches(ov::element::f16));
 
-    auto root_pattern = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{mixed, reduced_mean});
+    auto root_pattern = mixed | reduced_mean;
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         auto root = m.get_match_root();
         if (transformation_callback(root)) {
-            return false;
-        }
-        if (!is_f16(root->output(0))) {
             return false;
         }
 
@@ -499,7 +487,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             return false;
         }
 
-        // --- branch geometry must be static and provable -----------------------
+        // branch geometry must be static and provable
         size_t C = 0;
         size_t D = 0;
         if (!get_branch_split(pm.at(residual_3d), C, D)) {
@@ -526,7 +514,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             return false;
         }
 
-        // --- the reduction must run over the branch axis ------------------------
+        // the reduction must run over the branch axis
         auto reduce_node = root_is_mixed ? pm.at(reduced_sum).get_node_shared_ptr() : root;
         std::vector<int64_t> reduce_axes;
         if (!get_i64_vector(reduce_node->input_value(1), reduce_axes) || reduce_axes.size() != 1) {
@@ -538,14 +526,15 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             return false;
         }
 
-        // --- both 1/C scalings are model semantics; the branch-mix one is either an
-        // explicit Multiply (ReduceSum form) or implicit in a ReduceMean (root). -----
+        // both 1/C scalings are model semantics; the branch-mix one is either an
+        // explicit Multiply (ReduceSum form) or implicit in a ReduceMean (root).
         const float inv_c = 1.0f / static_cast<float>(C);
         // The kernel applies 1/C itself, so it needs the unscaled W_down.
         auto w_down = low_mm->input_value(1);
         if (pm.count(low_scaled) != 0) {
             float low_scale = 0.0f;
-            if (!get_scalar_f32(pm.at(low_scaled).get_node_shared_ptr()->input_value(1), low_scale) || !close(low_scale, inv_c)) {
+            const auto scale = other_operand(pm.at(low_scaled).get_node_shared_ptr(), pm.at(low));
+            if (!scale || !get_scalar_f32(*scale, low_scale) || !close(low_scale, inv_c)) {
                 return false;
             }
         } else {
@@ -564,12 +553,13 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
         }
         if (root_is_mixed) {
             float mix_scale = 0.0f;
-            if (!get_scalar_f32(root->input_value(1), mix_scale) || !close(mix_scale, inv_c)) {
+            const auto scale = other_operand(root, pm.at(reduced_sum));
+            if (!scale || !get_scalar_f32(*scale, mix_scale) || !close(mix_scale, inv_c)) {
                 return false;
             }
         }
 
-        // --- weights must be stored as [out, in] (transpose_b) ------------------
+        // weights must be stored as [out, in] (transpose_b)
         if (low_mm->get_transpose_a() || !low_mm->get_transpose_b() || up_mm->get_transpose_a() || !up_mm->get_transpose_b()) {
             return false;
         }
@@ -616,7 +606,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             if (!rms_node) {
                 return false;
             }
-            // --- the grouped norm must be per branch (gain width C*D or D) ------
+            // the grouped norm must be per branch (gain width C*D or D)
             const auto gain = rms_node->input_value(1);
             if (static_element_count(gain.get_partial_shape()) != C * D) {
                 // A [D]-wide gain would be a valid branch-shared gain, but the kernels
@@ -752,45 +742,34 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
 // GR WRITE / COMBINE
 // ===========================================================================
 GatedResidualWriteFusion::GatedResidualWriteFusion() {
+    using namespace ov::pass;
     using namespace ov::pass::pattern;
 
     auto write_gate = any_input();  // S: [T, C], produced by 2 * sigmoid(W_inject * Rbar / C)
-    // The gate broadcasts as [*, C, 1] and Y as [*, 1, D]; both wrappers are
-    // structurally identical (Reshape-or-Unsqueeze of a generic input), so a shape
-    // predicate is required at *match* time - otherwise `Or(Mul(gate,y), Mul(y,gate))`
-    // can bind the operands swapped and there is no way to backtrack out of a
-    // callback rejection afterwards.
-    auto gate_3d_reshape = wrap_type<ov::op::v1::Reshape>({write_gate, any_input()}, last_dim_is_one);
-    auto gate_3d_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({write_gate, any_input()}, last_dim_is_one);
-    auto gate_3d = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{gate_3d_reshape, gate_3d_unsqueeze});
+    // The gate broadcasts as [*, C, 1] and Y as [*, 1, D]; both wrappers are structurally identical (Reshape-or-Unsqueeze
+    // of a generic input), so the shape predicates are what lets the commutative Multiply bind the operands the right way round.
+    auto gate_3d = wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({write_gate, any_input()}, last_dim_is_one);
 
     auto y_src = any_input();
-    auto y_3d_reshape = wrap_type<ov::op::v1::Reshape>({y_src, any_input()}, second_to_last_dim_is_one);
-    auto y_3d_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({y_src, any_input()}, second_to_last_dim_is_one);
-    auto y_3d = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{y_3d_reshape, y_3d_unsqueeze});
+    auto y_3d = wrap_type<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>({y_src, any_input()}, second_to_last_dim_is_one);
 
-    auto scaled_a = wrap_type<ov::op::v1::Multiply>({gate_3d, y_3d});
-    auto scaled_b = wrap_type<ov::op::v1::Multiply>({y_3d, gate_3d});
-    auto scaled = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{scaled_a, scaled_b});
+    auto scaled = wrap_type<ov::op::v1::Multiply>({gate_3d, y_3d});
 
     // Case A (canonical): Add happens in the split [*, C, D] domain and a single
     // trailing reshape flattens the result back to [*, C*D] (this is the root).
     auto residual_3d = wrap_type<ov::op::v1::Reshape>({any_input(), any_input()});
-    auto updated_a_1 = wrap_type<ov::op::v1::Add>({residual_3d, scaled});
-    auto updated_a_2 = wrap_type<ov::op::v1::Add>({scaled, residual_3d});
-    auto updated_a = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{updated_a_1, updated_a_2});
-    auto result_a = wrap_type<ov::op::v1::Reshape>({updated_a, any_input()});
+    auto updated_a = wrap_type<ov::op::v1::Add>({residual_3d, scaled});
+    // The kernels are f16-only, see is_f16().
+    auto result_a = wrap_type<ov::op::v1::Reshape>({updated_a, any_input()}, type_matches(ov::element::f16));
 
     // Case B: `scaled` is flattened first and added directly to an already-flat
     // residual stream; any reshape back to split form happens *after* the Add and is
     // left untouched by this pass (the fused op's WRITE output is always flat).
     auto scaled_flat = wrap_type<ov::op::v1::Reshape>({scaled, any_input()});
     auto residual_flat = any_input();
-    auto updated_b_1 = wrap_type<ov::op::v1::Add>({residual_flat, scaled_flat});
-    auto updated_b_2 = wrap_type<ov::op::v1::Add>({scaled_flat, residual_flat});
-    auto updated_b = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{updated_b_1, updated_b_2});
+    auto updated_b = wrap_type<ov::op::v1::Add>({residual_flat, scaled_flat}, type_matches(ov::element::f16));
 
-    auto root_pattern = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{result_a, updated_b});
+    auto root_pattern = result_a | updated_b;
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
@@ -798,12 +777,9 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         if (transformation_callback(root)) {
             return false;
         }
-        if (!is_f16(root->output(0))) {
-            return false;
-        }
 
-        // --- branch geometry derived directly from how the gate/y operands
-        // broadcast: gate is [*, C, 1], y is [*, 1, D]. -------------------------
+        // branch geometry derived directly from how the gate/y operands
+        // broadcast: gate is [*, C, 1], y is [*, 1, D].
         const auto& gate_ps = pm.at(gate_3d).get_partial_shape();
         const auto& y_ps = pm.at(y_3d).get_partial_shape();
         if (gate_ps.rank().is_dynamic() || y_ps.rank().is_dynamic() || gate_ps.size() < 2 || y_ps.size() < 2) {
