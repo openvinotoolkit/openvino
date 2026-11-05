@@ -322,7 +322,9 @@ or
 .. note::
 
    ``ov::qos`` and ``ov::qos_info`` are available only if the NPU driver supports the
-   ``ZE_extension_command_queue_qos`` extension.
+   ``ZE_extension_command_queue_qos`` extension. They are not supported yet for models
+   compiled with dynamic shapes; for such models, a QoS level set at core level or at
+   compilation is ignored.
 
 .. note::
 

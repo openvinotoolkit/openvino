@@ -271,9 +271,13 @@ void CompiledModelPropertyManager::registerProperties() {
             _config.update(ov::cache_encryption_callbacks.name(), value);
         }
     );
+    // QoS is not supported yet for dynamic graphs
+    const auto isQosSupportedByGraph = [this] {
+        return _graph == nullptr || _graph->get_kind() != GraphKind::Dynamic;
+    };
     register_property(ov::qos.name(), true, ov::PropertyMutability::WO,
-        [this](const ov::AnyMap&) {
-            return _config.hasOpt(ov::qos.name());
+        [this, isQosSupportedByGraph](const ov::AnyMap&) {
+            return _config.hasOpt(ov::qos.name()) && isQosSupportedByGraph();
         },
         [](const ov::AnyMap&) {
             return ov::Any{};
@@ -287,9 +291,9 @@ void CompiledModelPropertyManager::registerProperties() {
     );
 
     register_property(ov::qos_info.name(), true, ov::PropertyMutability::RO,
-        [this](const ov::AnyMap&) {
+        [this, isQosSupportedByGraph](const ov::AnyMap&) {
             // The QOS option is registered only when the driver supports the command queue QoS extension
-            return _config.hasOpt(ov::qos.name()) && _device != nullptr && _graph != nullptr;
+            return _config.hasOpt(ov::qos.name()) && _device != nullptr && isQosSupportedByGraph();
         },
         [this](const ov::AnyMap&) -> ov::Any {
             OPENVINO_ASSERT(_graph != nullptr, "QOS info is not available because the graph was not created");

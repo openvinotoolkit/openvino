@@ -228,49 +228,6 @@ void DynamicGraph::set_workload_type(const ov::WorkloadType workloadType) {
     _commandQueueDesc.setWorkload(zeWorkloadType);
 }
 
-void DynamicGraph::set_qos(const ov::QoS qos) {
-    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
-
-    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
-    auto zeQos = zeroUtils::toZeQueueQos(qos);
-
-    // If the graph already holds a command queue, that queue is the one used for execution,
-    // so the QoS must be applied directly on it.
-    if (_commandQueue) {
-        // When shared common queue is disabled, QoS is set per command queue.
-        // Update the existing queue if it has already been created.
-        _commandQueue->setQos(zeQos);
-        return;
-    }
-
-    // Otherwise, the command queue is not created yet. Update the command queue descriptor,
-    // since it will be used to create the command queue later.
-    _commandQueueDesc.setQos(zeQos);
-}
-
-ov::QoSInfo DynamicGraph::get_qos_info(const CommandQueueParams& commandQueueParams) const {
-    OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
-
-    std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
-
-    std::shared_ptr<CommandQueue> commandQueue;
-    if (init_completed()) {
-        // If the graph already holds a command queue, that queue is the one used for execution, so query it directly.
-        // Otherwise, get the queue matching the current descriptor from the pool.
-        commandQueue = _commandQueue
-                           ? _commandQueue
-                           : ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
-    } else {
-        // The command queue descriptor is not built yet. Build it from the given parameters, the same way the graph
-        // initialization does, and get the matching queue from the pool (creating it if needed).
-        commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct,
-                                                                       create_command_queue_desc(commandQueueParams));
-    }
-
-    auto zeQosProperties = commandQueue->getQos();
-    return ov::QoSInfo{zeroUtils::toOVQos(zeQosProperties.qos), static_cast<bool>(zeQosProperties.isOverridden)};
-}
-
 void DynamicGraph::set_model_priority(const ov::hint::Priority modelPriority) {
     OPENVINO_ASSERT(_zeroInitStruct, "Driver is not initialized");
 
@@ -321,14 +278,15 @@ CommandQueueDesc DynamicGraph::create_command_queue_desc(const CommandQueueParam
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
+    if (commandQueueParams.qos.has_value()) {
+        _logger.warning("QOS is not supported yet for dynamic graphs, the value will be ignored");
+    }
 
     return CommandQueueDesc{zeroUtils::toZeQueuePriority(commandQueueParams.modelPriority),
                             commandQueueParams.workloadType.has_value()
                                 ? zeroUtils::toZeQueueWorkloadType(commandQueueParams.workloadType.value())
                                 : std::nullopt,
-                            commandQueueParams.qos.has_value()
-                                ? std::optional(zeroUtils::toZeQueueQos(commandQueueParams.qos.value()))
-                                : std::nullopt,
+                            std::nullopt,  // QoS is not supported yet for dynamic graphs
                             commandQueueOptions,
                             this,
                             commandQueueParams.sharedCommonQueue};
