@@ -563,9 +563,9 @@ TEST(cache_serialization, partial_buffer_rejects_mixed_consumers) {
     program prog(engine);
     auto& partial = prog.get_or_create(load_partial_otd_data(engine));
     add_partial_otd_consumer(prog, partial, 3);
+    EXPECT_NO_THROW(program_wrapper::validate_partial_buffers(prog));
     auto& ordinary = prog.get_or_create(std::make_shared<reorder>("ordinary", input_info("partial"), partial.get_output_layout()));
     program_wrapper::add_connection(prog, partial, ordinary);
-    const_cast<std::list<program_node*>&>(partial.get_users()).remove(&ordinary);
     EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
 }
 
