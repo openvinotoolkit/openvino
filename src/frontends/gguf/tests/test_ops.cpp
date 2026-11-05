@@ -12,6 +12,7 @@
 #include <cmath>
 #include <functional>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "op_table.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -448,6 +449,32 @@ TEST(GGUFOps, SoftMaxHonorsExplicitAxis) {
             expected[t * K + k] = std::exp(x[t * K + k]) / sum;
     }
     expect_near(out, expected, 1e-5f);
+}
+
+TEST(GGUFOps, SoftMaxRejectsOutOfRangeAxis) {
+    for (int64_t axis : {int64_t{4}, int64_t{-5}}) {
+        SCOPED_TRACE(axis);
+        OV_EXPECT_THROW(SingleOpBuilder()
+                            .op("GGML_OP_SOFT_MAX")
+                            .input("x", ov::element::f32, {1, 2, 3, 1})
+                            .output("out", ov::element::f32, {1, 2, 3, 1})
+                            .attr<int64_t>("softmax_axis", axis)
+                            .build(),
+                        ov::Exception,
+                        testing::HasSubstr("is out of range for input rank"));
+    }
+}
+
+TEST(GGUFOps, SoftMaxSinksRejectNonLastAxis) {
+    OV_EXPECT_THROW(SingleOpBuilder()
+                        .op("GGML_OP_SOFT_MAX")
+                        .input("x", ov::element::f32, {1, 2, 1, 3})
+                        .input("sinks", ov::element::f32, {1, 1, 1, 2})
+                        .output("out", ov::element::f32, {1, 2, 1, 3})
+                        .attr<int64_t>("softmax_axis", 2)
+                        .build(),
+                    ov::Exception,
+                    testing::HasSubstr("attention sinks supports only the last softmax_axis"));
 }
 
 // Softmax with ALiBi (max_bias > 0): per-head slope applied to the mask.

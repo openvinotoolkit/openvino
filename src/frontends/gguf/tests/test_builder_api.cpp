@@ -665,13 +665,14 @@ TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
 
 TEST(GGUFBuilderAPI, GptOssExpertMixUsesSoftmaxOverSelectedExperts) {
     constexpr size_t D = 8, F = 6, E = 4, K = 2, T = 3;
-    constexpr float alpha = 1.702f, limit = 7.f;
+    constexpr float alpha = 1.702f, limit = 7.f, weight_scale = 2.5f;
     Environment env;
     env.decoder();
     env.integer("test.block_count", 1);
     env.integer("test.embedding_length", D);
     env.integer("test.expert_count", E);
     env.integer("test.expert_used_count", K);
+    env.real("test.expert_weights_scale", weight_scale);
     size_t seed = 0;
     const auto filled = [&](const ov::Shape& shape) {
         ov::Tensor t(ov::element::f32, shape);
@@ -693,6 +694,7 @@ TEST(GGUFBuilderAPI, GptOssExpertMixUsesSoftmaxOverSelectedExperts) {
     ASSERT_TRUE(config.layer_is_moe(0));
     ASSERT_TRUE(config.moe_softmax_weight);
     ASSERT_TRUE(config.moe_swiglu_oai);
+    ASSERT_FLOAT_EQ(config.expert_weights_scale, weight_scale);
 
     GgufGraphContext graph(env.context);
     graph.configure_decoder(RopeMode::Neox);
@@ -731,7 +733,7 @@ TEST(GGUFBuilderAPI, GptOssExpertMixUsesSoftmaxOverSelectedExperts) {
         std::vector<float> expected(D, 0.f);
         for (size_t k = 0; k < K; ++k) {
             const size_t e = order[k];
-            const float gate_weight = std::exp(logits[e] - logits[order[0]]) / denom;
+            const float gate_weight = weight_scale * std::exp(logits[e] - logits[order[0]]) / denom;
             std::vector<float> act(F);
             for (size_t f = 0; f < F; ++f) {
                 float gate = w("ffn_gate_exps.bias")[e * F + f];
