@@ -291,8 +291,8 @@ It only matters where `DKS_FULL < DKS` and a scalar fallback is still taken.
 PA PREFILL on Xe2 at `d_max` 64, 128, 256 and 512 does not use the table row: `solve_pa_prefill_tiling()`
 gives it the workgroup of `sdpa_micro`'s PA prefill config for that head size, compiled with 256 GRF (one
 workgroup per Xe-core). MIXED has its own tiles at `d_max` 128, 256 and 512 ("Paged-attention MIXED tiling");
-plain SDPA, `d_max` 32 and xe_hpg keep the table. The PA query-block stride
-follows the stage, which is why `get_query_block_size()` takes it.
+plain SDPA (except f16 `d_max` 128, "Plain-SDPA PREFILL tiling" below), `d_max` 32 and xe_hpg keep the table. The
+PA query-block stride follows the stage, which is why `get_query_block_size()` takes it.
 
 | `d_max` | KQ subgroup tile, subgroups | Workgroup, keys x queries | `sdpa_micro` | Local memory |
 |---|---|---|---|---|
@@ -684,6 +684,59 @@ median of 6: llama-3.2-1b 1.006 / 0.999 / 0.989 / 0.961 at 1K / 2K / 8K / 32K (1
 18.46-19.05 ms before), gpt-oss-20b 1.001 / 0.997 / 0.986 at 1K / 8K / 32K, qwen3-8b 1.001 / 0.998 / 0.994, gemma-3-4b
 1.001 / 0.999 / 0.996, gemma-2-9b 0.998 / 0.998 / 0.989 at 1K / 2K / 8K, qwen3.5-9b 1.000 / 0.999 at 1K / 8K. Not
 covered: other Xe2 devices, and `d_max` 128 / 256 kernels with a sink input (no such model was at hand).
+
+### Plain-SDPA PREFILL tiling (`d_max` 128)
+
+Plain (non-PA) multi-token SDPA with f16 Q / K / V at `d_max` 128 on Xe2+ (`solve_plain_prefill_tiling()`): a static
+stage with at least 128 queries and 2K keys takes the PA PREFILL `d_max` 128 workgroup (16 x 64 subgroup tiles, 16 x 2
+subgroups = 256 keys x 128 queries, 256 GRF, `sdpa_micro`'s `xehpc_h128`) with `WIDE_READS` 1, `PREFETCH_V`,
+`SOFTMAX_BRANCHLESS` and `MAX_SPLIT_BARRIER`. Every other f16 `d_max` 128 multi-token stage, shape-agnostic ones
+included, keeps the 128 x 32 table tile with those same loop changes. `CAUSAL_MASK_LAST_ONLY` / `CAUSAL_TILE_SKIP`
+stay PA only (the first rejects lower-right causal and an attention mask by `#error`; on PTL-H the pair failed to
+build for the plain kernel); plain SDPA never emits `MICRO_MATH`. bf16 and compressed K/V keep the bare table: neither
+was measured with these paths.
+
+The loop changes do not change a result: with the table tile, all 42 bench cases (static, dynamic K, dynamic Q + K)
+gave bit-identical outputs with and without them. The 256 x 128 tile accumulates in another order (outputs differ; max
+|out - `sdpa_opt`| 1.1e-3, the same as the table tile's).
+
+**One tiling per compiled stage.** The dispatch re-derives the tiling from the runtime shape
+(`get_dispatch_data_func()` calls `make_problem()`), and the kernel has `reqd_work_group_size`. So a stage compiled
+for dynamic shapes must not choose by query / key count: `make_problem()` takes `shape_agnostic` (compile time
+`params.is_dynamic()`, dispatch `compiled_shape_agnostic(kd)`, the stage's SHAPE_INFO argument, which is saved with a
+blob) and leaves the counts unread for such a stage. The first version of this policy read them anyway. With a dynamic
+Q + K (a stateful LLM's SDPA) and 512 queries over 4K keys, or a static Q with a dynamic K and 1K runtime keys,
+compile time and dispatch disagreed, and every call failed with `CL_INVALID_WORK_GROUP_SIZE` (B70; the dynamic
+`sdpa_gpu_test_128_8_512_2048_1` rows and `sdpa_gpu_causal_mask.prefill_32q_8kv_512q_2048kv` fail that way).
+
+Measured on B70 (GPU.1, clock not pinned; one cliloader process per case, 100 warm-ups + 400 calls, min device time,
+sides interleaved per case, 3 rounds, median), lower-right causal, f16:
+
+| 16 chunks of 512 queries over 512..8192 keys (an 8K prompt), sum | before | this tiling | `sdpa_micro` (master) |
+|---|---|---|---|
+| 32 / 32 heads | 8.357 ms | 5.881 ms | 5.903 ms |
+| 28 / 4 heads | 5.839 ms | 5.330 ms | 5.358 ms |
+
+Per chunk from 2K keys this is 0.68-0.76x the bare table tile (32 / 32 heads; 28 / 4: 0.89-0.97x) and 0.81-0.94x the
+table tile with the loop changes; below 2K the loop changes alone give 0.90-0.97x (32 / 32) and 0.98-1.02x (28 / 4).
+The table tile stays faster than the large one at 1K keys (1.02-1.06x) and 512 (1.29x), and at fewer than 128 queries
+(64 queries over 4K keys: 1.15-1.32x), hence the threshold; at 1.5K the large tile would be 0.94-0.99x. The PTL-H B390
+measurement that introduced this policy (PR-39316 shapes) gave 0.994 / 0.995 of `sdpa_micro` with PR-39316, from 0.52
+/ 0.74. Remaining against `sdpa_micro` on B70: short static chunks (1.00-1.15x at 512-1.5K keys; 0.98x at 8K), static
+self-attention prompts (2K: 1.11x, 4K: 1.05x; `sdpa_micro` skips the causal tiles, `CAUSAL_TILE_SKIP` is PA only
+here), and decode (`sdpa_ocl_mixed`, unchanged: 1.07-1.15x).
+
+A shape-agnostic stage keeps the table tile because no single tile wins across shapes. With dynamic Q + K, the 256 x
+128 tile is 0.75-0.95x the table at 128+ queries over 2K+ keys and at 4K-8K-token prompts, but 1.16-1.47x at 16-64
+queries over 4K keys (a later chat turn, speculative decoding) and 1.13-1.29x at 512-1K-token prompts. The table's
+loop changes there: 32 / 32 heads 0.61-0.93x the bare table from 4K keys or 1K-token prompts; 28 / 4 heads 0.90-0.96x,
+except 1.02-1.07x for 512 queries over 2K-8K keys and 16 queries over 4K. Kernels under ~30 us vary 20-30% between
+processes and were left out of these ranges. Taking the large tile for long dynamic shapes needs a second
+shape-agnostic stage chosen in `execute()` ("Performance opportunities").
+
+`SDPA_OCL_PLAIN_MIRROR=0/1` forces the table / the 256 x 128 tile on every such stage, static and shape-agnostic (the
+f16 gate stays), `SDPA_OCL_PLAIN_TABLE_FLAGS=0` the bare table (both need a `SDPA_OCL_NO_GETENV=OFF` build). Bench:
+`test/xe3_test/b70_repro` (kit README), `sdpa_micro_prefill_config_bench` there is not part of the tree.
 
 ### Kernel flow
 
@@ -1438,6 +1491,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg; `SDPA_OCL_256GRF=0` turns it off for the PA PREFILL tiling) |
 | `SDPA_OCL_V_PREFETCH`, `_SM_BRANCHLESS`, `_MAX_SPLIT`, `_MASK_LAST` | PA PREFILL loop changes ("Paged-attention PREFILL tiling"): `0`/`1` forces each off/on |
 | `SDPA_OCL_V_PREFETCH_L3` | PA PREFILL V tile L3 prefetch (on at `d_max` 512): `0`/`1` forces it off/on; on replaces `PREFETCH_V` |
+| `SDPA_OCL_PLAIN_MIRROR`, `SDPA_OCL_PLAIN_TABLE_FLAGS` | Plain-SDPA f16 `d_max` 128 PREFILL ("Plain-SDPA PREFILL tiling"): `0`/`1` forces the table / the 256 x 128 tile; `0` drops the table tile's loop changes |
 | `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
 | `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
@@ -1882,6 +1936,10 @@ A writer change needs a byte comparison of the dumped caches ("The u4 token-majo
 
 Each needs its own measured change.
 
+- Plain-SDPA f16 `d_max` 128 PREFILL ("Plain-SDPA PREFILL tiling"): a second shape-agnostic `sdpa_ocl` stage with the
+  256 x 128 tile, chosen in `SDPAOptImpl::execute()` by the runtime counts, would give dynamic Q + K the 0.75-0.95x of
+  long shapes without the small-query loss; and the causal tile skip on the plain kernel (static self-attention prompts
+  are 1.05-1.11x `sdpa_micro`).
 - `sdpa_ocl_decode` checks pages with the strict `% 64` rule. The relaxed `% 16` page rule of the
   MIXED kernel would give block reads to i8 heads 80, 96, 112 and f16 heads 48, 80.
 - A model that `k_token_major_readable()` turns down on Xe2 (alibi, scores output, adaptive R-KV, f32
