@@ -105,7 +105,7 @@ def build_ov_lm_head(weight, nthreads=None):
             buf = staging[rows] = ov.Tensor(et, [rows, hidden_size])
         _copy_into(buf, inp)
         req.set_tensor(iport, buf)
-        req.infer()
+        req.infer(share_outputs=True)
 
         out = req.get_tensor(oport).data
         # .clone(): the next infer() overwrites this buffer in place, but

@@ -187,7 +187,7 @@ def infer_with_pa(req, compiled, call_kwargs):
         _fastinfer_out_cache.pop(id(req), None)
         return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
     try:
-        req.infer()
+        req.infer(share_outputs=True)
         # Cached output views pin the first call's shape; only reuse for
         # statically-shaped outputs, or a dynamic model hands back a stale one.
         _static_out = _fastinfer_out_static.get(_pc_key)

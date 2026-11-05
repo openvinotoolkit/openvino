@@ -40,6 +40,10 @@ def keep_paged_attention_partitioned(graph_module, partitions, supported_ops, op
     writes, so the call must run in OV. The partitioner drops single-node partitions outside testing, which
     leaves an attention call between two unsupported ops on that fallback. A call OV doesn't support at all
     raises. Appends to `partitions` and returns the number of partitions added.
+
+    A layer that shares another layer's KV cache is translated with its target's K/V, which the frontend
+    finds only when both are converted together; in different partitions (or graphs) it would write its raw
+    K/V into the shared cache. Such a split raises too.
     """
     if not owns_kv_cache_update(options):
         return 0
@@ -63,6 +67,17 @@ def keep_paged_attention_partitioned(graph_module, partitions, supported_ops, op
                 "an unwritten cache.")
         partitions.append(Partition(id=next_id + added, nodes=[node]))
         added += 1
+
+    owner = {node: partition for partition in partitions for node in partition.nodes}
+    attention = [n for n in graph_module.graph.nodes if n.op == "call_function" and n.target is paged_attention_op]
+    by_layer = {n.args[3]: n for n in attention}
+    for node in attention:
+        target_layer = node.args[5] if len(node.args) > 5 else ""
+        if target_layer and owner.get(by_layer.get(target_layer)) is not owner[node]:
+            raise RuntimeError(
+                f"OpenVINO vLLM backend: attention layer {node.args[3]} shares the KV cache of {target_layer}, "
+                "which is not in the same OpenVINO partition, so its own key/value would overwrite the shared "
+                "cache.")
     return added
 
 
