@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "signature": "openvino js api test setup fails downloading test model from media.githubusercontent.com: request timed out after 30000 ms|Network",
+  "signature_hash": "49e48b464b80bcb7",
+  "title": "OpenVINO JS API tests fail downloading test model from media.githubusercontent.com (30s timeout)",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-05T17:06:00Z",
+  "last_seen": "2026-11-05T17:06:00Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/42057395527"],
+  "affected_commits": ["ccad1b951347283ce211a66e6253967f6b57c07a"],
+  "recent_timestamps": ["2026-11-05T17:06:00Z"]
+}

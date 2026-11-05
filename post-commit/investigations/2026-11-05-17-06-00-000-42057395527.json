@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-17-06-00-000-42057395527",
+  "timestamp": "2026-11-05T17:06:00Z",
+  "run_id": "42057395527",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42057395527",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "ccad1b951347283ce211a66e6253967f6b57c07a",
+  "pr_number": "39407",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39407",
+  "author": "wgzintel",
+  "category": "Network",
+  "title": "OpenVINO JS API tests fail downloading test model from media.githubusercontent.com (30s timeout)",
+  "signature": "openvino js api test setup fails downloading test model from media.githubusercontent.com: request timed out after 30000 ms|Network",
+  "signature_hash": "49e48b464b80bcb7",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (26) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "tests/setup.js failed to download test_model_fp32.bin from media.githubusercontent.com (Git LFS media endpoint), causing an unhandled promise rejection and exit code 1"
+    },
+    {
+      "name": "OpenVINO JS API (24) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "Identical failure: tests/setup.js timed out downloading test_model_fp32.bin from media.githubusercontent.com"
+    }
+  ],
+  "key_errors": [
+    "Downloading file by link: https://media.githubusercontent.com/media/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.bin to /__w/openvino/openvino/src/bindings/js/node/tests/unit/test_models with filename: test_model_fp32.bin",
+    "Failed to download the model: Request was timed out after 30000 ms..",
+    "UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason \"Request was timed out after 30000 ms.\".",
+    "code: 'ERR_UNHANDLED_REJECTION'"
+  ],
+  "root_cause": "The JS API test setup script (src/bindings/js/node/tests/setup.js) downloads the test model's .xml (from raw.githubusercontent.com) and .bin (from media.githubusercontent.com, GitHub's Git LFS media CDN) at test time. In both failed jobs, the .xml download succeeded but the subsequent .bin download from media.githubusercontent.com exceeded the hardcoded 30-second timeout, most likely due to transient GitHub LFS/media CDN latency. The triggering commit (#39407, AUTO plugin model-cache-for-all-devices feature) does not touch the JS bindings or test setup code, confirming this is an unrelated, transient network failure rather than a regression. As in the earlier raw.githubusercontent.com variant of this failure (pattern 6519f63a719d4f66), the download promise's rejection is not wrapped in a try/catch or .catch handler, so Node.js treats it as an unhandled promise rejection and crashes the whole test run with exit code 1 instead of failing gracefully or retrying.",
+  "reproduction_steps": "cd src/bindings/js/node && npm run test_setup (repeatedly, or with a throttled/blocked network route to media.githubusercontent.com) to reproduce the timeout; the crash itself is reproducible with any rejected download promise since tests/setup.js has no retry/catch logic around either model-file download.",
+  "recommended_actions": [
+    "Wrap both model download calls (.xml via raw.githubusercontent.com and .bin via media.githubusercontent.com) in tests/setup.js in try/catch (or add .catch handlers) so a failed download produces a clear test failure instead of an unhandled promise rejection crash.",
+    "Add retry logic (2-3 attempts with backoff) around both downloads in tests/setup.js, since CDN timeouts on either raw or media GitHub content endpoints are expected to be transient.",
+    "Consider caching the test model artifacts (e.g., via actions/cache keyed on the model name) to avoid depending on live network access to GitHub's CDNs on every OpenVINO JS API run.",
+    "Re-run the OpenVINO JS API workflow; no code fix is required to unblock master given this is an unrelated-commit transient network failure."
+  ],
+  "prevention_strategies": "Add network-call resiliency (timeout + retry + explicit error handling) to any CI step that downloads external resources at test time, and prefer committing/caching small fixed test assets instead of fetching them from a remote CDN on every run.",
+  "historical_context": "A closely related pattern (hash 6519f63a719d4f66, count 2) already tracks the same test setup script timing out downloading test_model_fp32.xml from raw.githubusercontent.com. This investigation covers the .bin counterpart served from media.githubusercontent.com (GitHub's LFS media CDN) with an identical 30s-timeout/unhandled-rejection signature, so it is tracked as a distinct but sibling signature given the different CDN host named in the signature."
+}
