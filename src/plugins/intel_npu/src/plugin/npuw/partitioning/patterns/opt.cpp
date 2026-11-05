@@ -959,6 +959,143 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulGQ2iP"), std::move(callback));
 }
 
+// MoE expert MatMul (device router: Gather selected K of E experts; host router: dense, no Gather)
+//
+// FROM:
+//     ids ----------->
+//     Param(Wdict) -> (Gather) -> Convert(f16) -> Multiply -> Reshape -> MatMul
+//     Param(Sdict) -> (Gather) ------------------>
+//     Act -------------------------------------------------------------->
+//
+// WHERE (example, Gemma4 MoE):
+//     ids:   [K]                (device router only)
+//     Wdict: [E,OC,NSPLIT,G]    e.g. [128,704,44,64] i4
+//     Sdict: [E,OC,NSPLIT,1]    e.g. [128,704,44, 1] f16
+//     Act:   [K,T,hidden] (device router) or [E,T,hidden] (host router)
+//     MatMul: transpose_b=true in both cases
+//
+// TO:
+//     ids ----------->
+//     Param(Wdict*) -> (Gather) -> Convert(f16) -> Multiply -> Transpose(0,2,1,3) -> Reshape -> MatMul
+//     Param(Sdict*) -> (Gather) ------------------>
+//     Act -------------------------------------------------------------->
+//
+// WHERE:
+//     Wdict* : [E,NSPLIT,OC,G]   (was [E,OC,NSPLIT,G])
+//     Sdict* : [E,NSPLIT,OC,1]   (was [E,OC,NSPLIT,1])
+//
+// Host-router and device-router MoE subgraphs share the same underlying weights,
+// so this pass must match both variants (Gather absent/present) and apply the
+// same re-layout to each.
+DQMatMulGQ2iMoE::DQMatMulGQ2iMoE(Context::Ref ctx) {
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qids = opp::any_input();  // runtime expert indices (e.g. router TopK output), not a Parameter
+    // Gather is optional: present for the device router (K of E experts selected), absent
+    // for the host router (dense over ALL E experts).
+    auto qgthrw = opp::optional<ov::op::v8::Gather>({qweight, qids, opp::any_input()});
+    auto qgthrs = opp::optional<ov::op::v8::Gather>({qcoeff, qids, opp::any_input()});
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qgthrs});
+    auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
+    auto qcvtm = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
+    auto qmmi = opp::any_input();
+    auto qmm = opp::wrap_type<ov::op::v0::MatMul>({qmmi, qcvtm});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+
+        auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+        auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+        auto matched_node_qcvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
+        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
+        auto matched_node_qreshp = node_to_output.at(qreshp).get_node_shared_ptr();
+        auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
+
+        auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+        auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+        auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
+
+        const auto& qweight_shape = matched_qweight->output(0).get_shape();
+        const auto& qcoeff_shape = matched_qcoeff->output(0).get_shape();
+
+        const auto& qgthrw_shape = uat::_(node_to_output).at_or_at(qgthrw, qweight).get_shape();
+        const auto& act_shape = node_to_output.at(qmmi).get_shape();
+
+        const auto qweight_type = matched_qweight->get_element_type();
+        const bool qweight_type_ok = qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
+                                     qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
+                                     qweight_type == ov::element::f8e8m0;
+        // i4 is nibble-packed, so odd group sizes can't be physically relaid out - bail out here.
+        // TODO: extend permute_4d_0213 with a nibble-addressable path to support this.
+        const bool qweight_group_size_permutable = qweight_type != ov::element::i4 || qweight_shape[3] % 2 == 0;
+
+        // The physical relayout below is only safe if this matched chain is the sole consumer
+        // of each of its nodes - otherwise an unrelated reader could silently see stale data.
+        auto has_single_reader = [](const std::shared_ptr<ov::Node>& node) {
+            return node->output(0).get_target_inputs().size() == 1;
+        };
+        const bool dq_chain_exclusive_to_match =
+            has_single_reader(matched_node_qweight) && has_single_reader(matched_node_qcoeff) &&
+            has_single_reader(matched_node_qcvtw) && has_single_reader(matched_node_qmuls);
+
+        // Gather (if present) must select whole experts: axis 0, no batching, rank-1 indices,
+        // otherwise the relayout below may silently select the wrong data.
+        auto gather_is_plain_expert_select = [&](const std::shared_ptr<ov::Node>& pattern_node) {
+            auto it = node_to_output.find(pattern_node);
+            if (it == node_to_output.end()) {
+                return true;  // Gather absent (host router) - nothing to check
+            }
+            auto gather = ov::as_type_ptr<ov::op::v8::Gather>(it->second.get_node_shared_ptr());
+            if (!gather || !has_single_reader(gather) || gather->get_batch_dims() != 0) {
+                return false;
+            }
+            auto axis_const = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
+            if (!axis_const) {
+                return false;  // axis isn't a literal Constant - can't verify it's 0, reject
+            }
+            auto axis = axis_const->cast_vector<int64_t>().at(0);
+            const auto& data_rank = gather->get_input_partial_shape(0).rank();
+            if (axis < 0 && data_rank.is_static()) {
+                axis += data_rank.get_length();
+            }
+            if (axis != 0) {
+                return false;
+            }
+            const auto& indices_rank = gather->get_input_partial_shape(1).rank();
+            return indices_rank.is_static() && indices_rank.get_length() == 1;
+        };
+
+        // MoE expert shape: Wdict [E,OC,NSPLIT,G], Sdict [E,OC,NSPLIT,1]. Act's leading
+        // dim must match the number of experts the weight presents here: K (device
+        // router) or E (host router).
+        if (qweight_type_ok && qweight_group_size_permutable && qweight_shape.size() == 4 && qcoeff_shape.size() == 4 &&
+            qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] &&
+            qcoeff_shape[2] == qweight_shape[2] && qcoeff_shape[3] == 1 && act_shape.size() == 3 &&
+            act_shape[0] == qgthrw_shape[0] && !matched_matmul->get_transpose_a() &&
+            matched_matmul->get_transpose_b() && gather_is_plain_expert_select(qgthrw) &&
+            gather_is_plain_expert_select(qgthrs) && dq_chain_exclusive_to_match) {
+            // Re-layout Wdict/Sdict closures: [E,OC,NSPLIT,G] -> [E,NSPLIT,OC,G] (Sdict: last dim stays 1)
+            ctx.get().permute(matched_qweight, {0, 2, 1, 3});
+            ctx.get().permute(matched_qcoeff, {0, 2, 1, 3});
+
+            // Insert a Transpose after Multiply to restore the [*,OC,NSPLIT,G] order
+            // the existing Reshape still expects
+            std::vector<std::size_t> new_transpose_order = {0, 2, 1, 3};
+            auto new_transpose_order_c =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, new_transpose_order);
+            auto new_transpose = std::make_shared<ov::op::v1::Transpose>(matched_node_qmuls, new_transpose_order_c);
+            matched_node_qreshp->input(0).replace_source_output(new_transpose);
+            matched_node_qreshp->validate_and_infer_types();
+
+            return false;  // root (MatMul) hasn't changed - in-place re-layout only
+        }
+        return false;
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qmm, "OptDQMatMulGQ2iMoE"), std::move(callback));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Parallel matmuls
 // Identifies this pattern
@@ -1438,6 +1575,12 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+
+        // Only 2D/3D weight dicts are supported here
+        const auto w_rank = matched_qweight->get_shape().size();
+        if (w_rank != 2 && w_rank != 3) {
+            return false;
+        }
 
         // Strip down the DQ subgraph, replace the original Q-ed closure tensor with unpacked fp16
         auto new_wi = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
