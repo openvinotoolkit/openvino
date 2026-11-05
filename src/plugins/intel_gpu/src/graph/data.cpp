@@ -26,12 +26,7 @@ memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
     memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
     mem_lock<char, mem_lock_type::read> src(mem, network.get_stream());
     mem_lock<char, mem_lock_type::write> dst(result, network.get_stream());
-    const size_t data_size = src.size();
-    if (data_size >= ov::util::default_parallel_io_threshold) {
-        ov::intel_gpu::parallel_memcpy(dst.data(), src.data(), data_size);
-    } else {
-        std::copy(src.begin(), src.end(), dst.begin());
-    }
+    ov::intel_gpu::parallel_memcpy(dst.data(), src.data(), src.size());
     return result;
 }
 }  // namespace

@@ -43,11 +43,7 @@ std::streamsize PrefetchStreamBuf::xsgetn(char_type* dst, std::streamsize count)
         m_scheduler->advance(pos, pos + static_cast<size_t>(n));
     }
     // A single thread cannot saturate memory bandwidth when the pages are already cached.
-    if (static_cast<size_t>(n) >= ov::util::default_parallel_io_threshold) {
-        parallel_memcpy(dst, m_current, static_cast<size_t>(n));
-    } else {
-        std::memcpy(dst, m_current, static_cast<size_t>(n));
-    }
+    parallel_memcpy(dst, m_current, static_cast<size_t>(n));
     m_current += n;
     return n;
 }
