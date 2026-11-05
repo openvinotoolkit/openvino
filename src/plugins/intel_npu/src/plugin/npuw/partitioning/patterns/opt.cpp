@@ -2496,6 +2496,38 @@ void untangleConst(std::shared_ptr<ov::Model> model) {
     }
 }
 
+void untangleWeightConverts(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Convert>(node) ||
+            !ov::op::util::is_constant(node->input_value(0).get_node_shared_ptr())) {
+            continue;
+        }
+        const auto targets = node->output(0).get_target_inputs();
+        if (targets.size() <= 1) {
+            continue;
+        }
+        std::vector<std::pair<ov::Node*, std::size_t>> readers;
+        for (const auto& target : targets) {
+            readers.emplace_back(target.get_node(), target.get_index());
+        }
+        std::sort(readers.begin(), readers.end(), [](const auto& lhs, const auto& rhs) {
+            return std::make_pair(lhs.first->get_friendly_name(), lhs.second) <
+                   std::make_pair(rhs.first->get_friendly_name(), rhs.second);
+        });
+        // Function creation replaces the Constant input with a closure Parameter.
+        // Keep these mutable Converts private to their readers, not shared across submodels.
+        // Stable names also allow a dumped partitioning plan to be reused.
+        auto reader = readers.begin();
+        while (++reader != readers.end()) {
+            auto copy = node->clone_with_new_inputs(node->input_values());
+            copy->set_friendly_name(node->get_friendly_name() + "_npuw_reader_" + reader->first->get_friendly_name() +
+                                    "_" + std::to_string(reader->second));
+            ov::copy_runtime_info(node, copy);
+            reader->first->input(reader->second).replace_source_output(copy);
+        }
+    }
+}
+
 }  // namespace opt
 }  // namespace patterns
 }  // namespace npuw
