@@ -442,4 +442,12 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E#239359 -->
+    <skip_config>
+        <message>Command list destroyed in an unnexpected way, according to Driver</message>
+        <filters>
+            <filter>.*DontDestroyZeroCommand.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
