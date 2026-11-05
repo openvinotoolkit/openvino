@@ -39,7 +39,7 @@ public:
     using reference         = std::remove_pointer_t<_Ptr>&;
 
     checked_array_iterator() = default;
-    
+
     checked_array_iterator(const pointer data, const std::size_t size, const std::size_t index = 0) noexcept
         : _Myptr(data), _Mysize(size), _Myoff(index) {
         _STL_VERIFY(index <= size, "cldnn::checked_array_iterator out of range");
@@ -73,10 +73,10 @@ public:
         return *this;
     }
 
-    constexpr checked_array_iterator operator++(int) noexcept { 
-        auto tmp = *this; 
-        ++(*this); 
-        return tmp; 
+    constexpr checked_array_iterator operator++(int) noexcept {
+        auto tmp = *this;
+        ++(*this);
+        return tmp;
     }
 
     constexpr checked_array_iterator& operator--() noexcept {
@@ -86,10 +86,10 @@ public:
         return *this;
     }
 
-    constexpr checked_array_iterator operator--(int) noexcept { 
-        auto tmp = *this; 
-        --(*this); 
-        return tmp; 
+    constexpr checked_array_iterator operator--(int) noexcept {
+        auto tmp = *this;
+        --(*this);
+        return tmp;
     }
 
     constexpr checked_array_iterator& operator+=(difference_type n) noexcept {
@@ -98,21 +98,21 @@ public:
         return *this;
     }
 
-    _NODISCARD constexpr checked_array_iterator operator+(const difference_type n) const noexcept { 
+    _NODISCARD constexpr checked_array_iterator operator+(const difference_type n) const noexcept {
         auto _Tmp = *this;
         _Tmp += n;
         return _Tmp;
     }
 
-    _NODISCARD friend constexpr checked_array_iterator operator+(const difference_type n, const checked_array_iterator<_Ptr>& it) noexcept { 
-        return it + n; 
+    _NODISCARD friend constexpr checked_array_iterator operator+(const difference_type n, const checked_array_iterator<_Ptr>& it) noexcept {
+        return it + n;
     }
 
-    constexpr checked_array_iterator& operator-=(const difference_type n) noexcept { 
-        return *this += -n; 
+    constexpr checked_array_iterator& operator-=(const difference_type n) noexcept {
+        return *this += -n;
     }
 
-    _NODISCARD constexpr checked_array_iterator operator-(const difference_type n) const noexcept { 
+    _NODISCARD constexpr checked_array_iterator operator-(const difference_type n) const noexcept {
         auto _Tmp = *this;
         _Tmp -= n;
         return _Tmp;
@@ -138,7 +138,7 @@ public:
     }
     _NODISCARD constexpr bool operator<(const checked_array_iterator& a) const noexcept {
         _Compat(a);
-        return Myoff < a._Myoff;
+        return _Myoff < a._Myoff;
     }
     _NODISCARD constexpr bool operator>(const checked_array_iterator& a) const noexcept {
         _Compat(a);

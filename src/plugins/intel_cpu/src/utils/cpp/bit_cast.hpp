@@ -6,13 +6,21 @@
 
 #include <cstring>
 #include <type_traits>
-#if defined(OPENVINO_CPP_VER_AT_LEAST_20)
+#if defined(__has_include)
+#    if __has_include(<version>)
+#        include <version>
+#    endif
+#endif
+#if defined(__cpp_lib_bit_cast)
 #    include <bit>
 #endif
 
 namespace ov::intel_cpu {
 
-#if defined(OPENVINO_CPP_VER_AT_LEAST_20)
+// Gated on the library feature-test macro, not OPENVINO_CPP_VER_AT_LEAST_20: with
+// Clang using an older libstdc++ (e.g. from GCC 10), the language standard can be
+// C++20 while std::bit_cast is still missing from the linked standard library.
+#if defined(__cpp_lib_bit_cast)
 using std::bit_cast;
 #else
 template <typename To,

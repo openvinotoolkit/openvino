@@ -128,7 +128,7 @@ jobs:
           cmake -S "${GENAI_DIR}" -B "${BUILD_DIR}" \
             -DOpenVINODeveloperPackage_DIR="${INSTALL_DIR}/developer_package/cmake" \
             -DENABLE_PYTHON=ON -DENABLE_TESTS=OFF -DENABLE_SAMPLES=OFF -DENABLE_TOOLS=OFF \
-            -DBUILD_TOKENIZERS=OFF -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TOKENIZERS=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 \
             -DCMAKE_C_COMPILER_LAUNCHER= -DCMAKE_CXX_COMPILER_LAUNCHER=
           cmake --build "${BUILD_DIR}" --target py_openvino_genai --parallel 4
           python3 - <<'PY'

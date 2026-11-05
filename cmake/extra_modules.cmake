@@ -40,7 +40,7 @@ function(ov_generate_dev_package_config)
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-                   "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                   "${CMAKE_BINARY_DIR}/OpenVINODeveloperPackageConfig-version.cmake"
                    @ONLY)
 
     #
@@ -59,7 +59,7 @@ function(ov_generate_dev_package_config)
                                   NO_CHECK_REQUIRED_COMPONENTS_MACRO)
 
     configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake" 
+                   "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig-version.cmake"
                    @ONLY)
 
     install(FILES "${OpenVINO_BINARY_DIR}/share/OpenVINODeveloperPackageConfig.cmake"
@@ -121,7 +121,7 @@ endif()\n")
         endforeach()
 
         configure_file("${OpenVINO_SOURCE_DIR}/cmake/templates/OpenVINOConfig-version.cmake.in"
-                       "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake" 
+                       "${OpenVINODeveloperPackage_DIR}/OpenVINODeveloperPackageConfig-version.cmake"
                        @ONLY)
     endfunction()
 
@@ -133,8 +133,11 @@ endif()\n")
         get_filename_component(module_path "${module_path}" ABSOLUTE)
         if(EXISTS "${module_path}/CMakeLists.txt")
             list(APPEND extra_modules "${module_path}")
+            list(APPEND user_extra_modules "${module_path}")
         elseif(module_path)
-            file(GLOB extra_modules ${extra_modules} "${module_path}/*")
+            file(GLOB module_subdirs "${module_path}/*")
+            list(APPEND extra_modules ${module_subdirs})
+            list(APPEND user_extra_modules ${module_subdirs})
         endif()
     endforeach()
 
@@ -162,7 +165,14 @@ endif()\n")
             endif()
             if(BUILD_${module_name})
                 message(STATUS "Register ${module_name} to be built in build-modules/${module_name}")
+                set(_ov_saved_cxx_flags "${CMAKE_CXX_FLAGS}")
+                # External modules may still assign u8"" literals to std::string, which C++20 char8_t forbids
+                if(CMAKE_CXX_STANDARD GREATER_EQUAL 20 AND module_path IN_LIST user_extra_modules
+                   AND (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang"))
+                    string(APPEND CMAKE_CXX_FLAGS " -fno-char8_t")
+                endif()
                 add_subdirectory("${module_path}" "build-modules/${module_name}")
+                set(CMAKE_CXX_FLAGS "${_ov_saved_cxx_flags}")
             endif()
         endif()
     endforeach()
