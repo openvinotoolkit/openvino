@@ -42,7 +42,7 @@ GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
         if (ov::util::ends_with(gguf_name, ".weight")) {
             e.add_weight(gguf_name);
         } else {
-            e.add_named_weight(gguf_name);
+            e.add_weight(gguf_name);
         }
     }
     return GgufValue(gguf_name, e.value(gguf_name));

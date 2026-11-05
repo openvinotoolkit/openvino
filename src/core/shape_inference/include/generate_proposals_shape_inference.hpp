@@ -5,6 +5,7 @@
 #pragma once
 
 #include <openvino/op/generate_proposals.hpp>
+#include <tuple>
 
 #include "utils.hpp"
 
@@ -34,7 +35,8 @@ std::vector<TRShape> shape_infer(const GenerateProposals* op, const std::vector<
                                (im_info_shape[1].compatible(3) || im_info_shape[1].compatible(4)),
                                "The 'input_im_info' shape[1] is expected to be a compatible with [3] or [4]. Got: ",
                                im_info_shape);
-        Dimension::merge(num_batches, im_info_shape[0], num_batches);
+        // First merge into a dynamic dimension, so it cannot fail.
+        std::ignore = Dimension::merge(num_batches, im_info_shape[0], num_batches);
     }
 
     const auto anchors_shape_rank = anchors_shape.rank();
@@ -63,10 +65,20 @@ std::vector<TRShape> shape_infer(const GenerateProposals* op, const std::vector<
                            scores_shape_rank.compatible(4),
                            "The 'input_scores' input is expected to be a 4D. Got: ",
                            scores_shape);
-    if (deltas_shape_rank.is_static())
-        Dimension::merge(num_batches, deltas_shape[0], num_batches);
-    if (scores_shape_rank.is_static())
-        Dimension::merge(num_batches, scores_shape[0], num_batches);
+    if (deltas_shape_rank.is_static()) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               Dimension::merge(num_batches, deltas_shape[0], num_batches),
+                               "Batch size of 'input_deltas' is not compatible with other inputs. Got: ",
+                               deltas_shape[0]);
+    }
+    if (scores_shape_rank.is_static()) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               Dimension::merge(num_batches, scores_shape[0], num_batches),
+                               "Batch size of 'input_scores' is not compatible with other inputs. Got: ",
+                               scores_shape[0]);
+    }
 
     if (deltas_shape_rank.is_static() && scores_shape_rank.is_static()) {
         NODE_SHAPE_INFER_CHECK(op,

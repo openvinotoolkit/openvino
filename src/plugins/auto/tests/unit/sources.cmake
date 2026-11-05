@@ -9,6 +9,7 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/ctput_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/default_perf_hint_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/device_telemetry_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_device_selection_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/get_device_list.cpp
     ${CMAKE_CURRENT_LIST_DIR}/include/auto_unit_test.hpp

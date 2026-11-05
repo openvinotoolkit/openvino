@@ -76,10 +76,10 @@ void GroupedMatMulTestBase::validate() {
     SubgraphBaseTest::validate();
 
     // Confirm that the executed network contains the expected ov op type.
-
     if (expected_primitive_.empty()) {
         return;
     }
+
     const auto profiling = inferRequest.get_profiling_info();
     auto it = std::find_if(profiling.begin(), profiling.end(), [this](const ov::ProfilingInfo& pi) {
         return pi.node_type == expected_primitive_;

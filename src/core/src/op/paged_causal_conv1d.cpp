@@ -19,7 +19,8 @@ PagedCausalConv1D::PagedCausalConv1D(const Output<Node>& input_embeds,
                                      const Output<Node>& la_block_indices,
                                      const Output<Node>& la_block_indices_begins,
                                      const Output<Node>& processed_tokens,
-                                     const Output<Node>& cache_interval)
+                                     const Output<Node>& cache_interval,
+                                     size_t dilation)
     : Op({input_embeds,
           conv_state_table,
           conv_weight,
@@ -28,11 +29,14 @@ PagedCausalConv1D::PagedCausalConv1D(const Output<Node>& input_embeds,
           la_block_indices,
           la_block_indices_begins,
           processed_tokens,
-          cache_interval}) {
+          cache_interval}),
+      m_dilation(dilation) {
     constructor_validate_and_infer_types();
 }
 
-PagedCausalConv1D::PagedCausalConv1D(const ov::OutputVector& args) : ov::op::Op(args) {
+PagedCausalConv1D::PagedCausalConv1D(const ov::OutputVector& args, size_t dilation)
+    : ov::op::Op(args),
+      m_dilation(dilation) {
     constructor_validate_and_infer_types();
 }
 
@@ -41,6 +45,7 @@ void PagedCausalConv1D::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, get_input_size() == 9);
 
+    NODE_VALIDATION_CHECK(this, m_dilation >= 1, "PagedCausalConv1D expects dilation >= 1, got ", m_dilation);
     // input_embeds (0), conv_weight (2), conv_bias (3) participate in the convolution MAC and
     // therefore must share a common float element type; it also determines the output precision.
     // conv_state_table (1) is an in-place state cache and is allowed to use an independent float
@@ -75,13 +80,14 @@ void PagedCausalConv1D::validate_and_infer_types() {
 
 bool PagedCausalConv1D::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(PagedCausalConv1D_visit_attributes);
+    visitor.on_attribute("dilation", m_dilation);
     return true;
 }
 
 std::shared_ptr<ov::Node> PagedCausalConv1D::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     OV_OP_SCOPE(PagedCausalConv1D_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<PagedCausalConv1D>(new_args);
+    return std::make_shared<PagedCausalConv1D>(new_args, m_dilation);
 }
 
 }  // namespace ov::op::internal

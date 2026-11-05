@@ -18,6 +18,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "lora_inst.h"
+#include "program_helpers.h"
 #include "quantize_inst.h"
 #include "read_value_inst.h"
 
@@ -241,7 +242,8 @@ public:
 private:
     void run(program& p) override;
     std::list<std::tuple<primitive_id, memory::ptr, std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
-    calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor);
+    calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+              const std::map<primitive_type_id, bool>& onednn_impls);
     bool has_non_const_user(program_node& node) const;
     void handle_constant(program& prog, program_node& node);
     void add_constant(program& prog, program_node& node);
@@ -356,6 +358,12 @@ public:
         if (dep->is_type<lora>()) {
             node->add_memory_dependency(dep->get_dependency(0));
             dep->get_dependency(0).add_memory_dependency(*node);
+        }
+
+        // oneDNN in-place post-op (sum or binary_mul_inplace): dep's output aliases the buffer of its eltwise input
+        if (auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*dep); idx != -1) {
+            add_memory_dependency(node, &dep->get_dependency(idx));
+            add_memory_dependency(&dep->get_dependency(idx), node);
         }
 
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) &&

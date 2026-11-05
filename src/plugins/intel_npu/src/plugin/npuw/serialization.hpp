@@ -56,7 +56,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATO
 const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICATOR =
     {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.35";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.36";
 
 // Forward declaration
 namespace intel_npu {
@@ -128,6 +128,18 @@ public:
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
 using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
 using WeightsPtr = std::shared_ptr<Weights>;
+
+// Maps the weights a FileHandleProvider points at.
+//
+// The weights do not have to be a file of their own: they may be a region embedded in a larger
+// file, e.g. a runtime that keeps its weights pool inside the model file it already has open.
+// Such a provider seeks the handle it returns to the first byte of the pool, so the mapping runs
+// from that position to EOF and the pool start - not the file start - becomes the mapping base.
+// Weight offsets stored in the blob are relative to it either way. A handle at position 0 (the
+// usual case) maps the whole file, as before.
+//
+// Ownership of the handle follows the FileHandleProvider contract - it is consumed here.
+std::shared_ptr<ov::MappedMemory> mmap_weights(const ov::FileHandleProvider& handle_provider);
 
 struct CompiledContext {
     CompiledContext(bool _encrypted,

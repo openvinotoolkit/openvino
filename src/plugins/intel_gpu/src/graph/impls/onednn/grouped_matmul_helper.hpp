@@ -34,13 +34,15 @@ struct onednn_matmul {
     dnnl::primitive_attr attr;
     dnnl::post_ops postops;
 
+    // zp_dtype == undef means no weight zero-point
     onednn_matmul(dnnl::memory::data_type act_dtype,
                   dnnl::memory::data_type weight_dtype,
                   int batch_size,
                   int ic,
                   int oc,
                   int ic_group_size = -1,
-                  bool has_zp = true) {
+                  dnnl::memory::data_type zp_dtype = dnnl::memory::data_type::undef,
+                  bool common_zp = false) {
         m_a_type = act_dtype;
         m_w_type = weight_dtype;
         m_K_groups = 0;
@@ -53,8 +55,8 @@ struct onednn_matmul {
         }
         if (ic_group_size >= 0) {
             w_scale(ic_group_size);
-            if (has_zp) {
-                w_zp(ic_group_size);
+            if (zp_dtype != dnnl::memory::data_type::undef) {
+                w_zp(ic_group_size, zp_dtype, common_zp);
             }
             fpmath_f16();
         }
@@ -74,14 +76,19 @@ struct onednn_matmul {
         return *this;
     }
 
-    onednn_matmul& w_zp(int k_group_size) {
+    onednn_matmul& w_zp(int k_group_size, dnnl::memory::data_type zp_dtype, bool common_zp = false) {
+        if (common_zp) {
+            // One zero point for the whole weights tensor, while the scales stay grouped
+            attr.set_zero_points(DNNL_ARG_WEIGHTS, 0, {}, zp_dtype);
+            return *this;
+        }
         if (k_group_size <= 0) {
             OPENVINO_ASSERT(m_K_groups == 1);
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, m_w_type);
+            attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, zp_dtype);
         } else {
             OPENVINO_ASSERT((m_K % k_group_size) == 0);
             m_K_groups = (m_K / k_group_size);
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, m_w_type);
+            attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, zp_dtype);
         }
         return *this;
     }
@@ -154,9 +161,10 @@ struct onednn_matmul {
                   int oc,
                   int ic_group_size,
                   type t,
-                  bool has_zp = true,
-                  dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish)
-        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, has_zp) {
+                  dnnl::memory::data_type zp_dtype = dnnl::memory::data_type::undef,
+                  dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish,
+                  bool common_zp = false)
+        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, zp_dtype, common_zp) {
         if (t == type::with_bin_mul) {
             bin_post_id = 0;
             post_op_bin_mul(true);
@@ -263,8 +271,10 @@ struct onednn_linear {
                                 dnnl::memory zp,
                                 dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
-        bool has_zp = static_cast<bool>(zp);
-        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp, activation_algo);
+        // The zp dtype may differ from the weight dtype (u3 weights have u8 zp)
+        const auto zp_dtype = zp ? zp.get_desc().get_data_type() : dnnl::memory::data_type::undef;
+        const bool common_zp = zp && zp.get_desc().get_dims() == dnnl::memory::dims{1};
+        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, zp_dtype, activation_algo, common_zp);
         onednn_linear linear;
         linear.mm = mm;
         linear.bin_post_id = mm->bin_post_id;

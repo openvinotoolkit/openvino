@@ -169,6 +169,21 @@ jobs:
           save_to: ${{ env.MANIFEST_PATH }}
           trigger_repo_branch: ${{ inputs.target-branch }}
 
+      - name: Verify compiler is GCC >= 10 (C++20)
+        run: |
+          # The pypa manylinux_2_28 base image puts gcc-toolset-N first in PATH, so no `scl enable` is needed;
+          # the system /usr/bin/gcc is GCC 8 (installed by the Dockerfile) and must not be picked up.
+          # CMake looks up `cc`/`c++` first, so check those along with `gcc`/`g++`.
+          for tool in gcc g++ cc c++; do
+            echo "${tool} -> $(command -v ${tool})"
+            ${tool} --version | head -n 1
+            major=$(${tool} -dumpversion | cut -d. -f1)
+            if [[ ${major} -lt 10 ]]; then
+              echo "::error::${tool} is GCC ${major}, GCC >= 10 is required for C++20"
+              exit 1
+            fi
+          done
+
       - name: Build OpenVINO
         run: |
           python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt

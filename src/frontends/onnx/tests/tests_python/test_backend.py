@@ -67,7 +67,6 @@ from tests import (
     xfail_issue_onnx122_flexattention,
     xfail_issue_onnx122_bitcast,
     xfail_issue_onnx122_cumprod,
-    xfail_issue_onnx122_tensorscatter,
     xfail_issue_onnx122_attention,
     xfail_issue_onnx122_newdtype,
     xfail_issue_onnx122_accuracy,
@@ -645,12 +644,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_cumprod_2d_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_int32_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_negative_axis_cpu",
-    ),
-    (
-        xfail_issue_onnx122_tensorscatter,
-        "OnnxBackendNodeModelTest.test_tensorscatter_3d_cpu",
-        "OnnxBackendNodeModelTest.test_tensorscatter_circular_cpu",
-        "OnnxBackendNodeModelTest.test_tensorscatter_cpu",
     ),
     (
         xfail_issue_onnx122_attention,

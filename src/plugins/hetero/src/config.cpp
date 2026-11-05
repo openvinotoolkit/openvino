@@ -35,6 +35,16 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             modelDistributionPolicy = value.as<std::set<ov::hint::ModelDistributionPolicy>>();
         } else if (ov::cache_encryption_callbacks == key) {
             encryption_callbacks = value.as<EncryptionCallbacks>();
+        } else if (ov::hetero::export_hsm_format == key) {
+            try {
+                export_hsm_format = value.as<bool>();
+            } catch (const ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               value.as<std::string>(),
+                               " for property key ",
+                               ov::hetero::export_hsm_format.name(),
+                               ". Expected only true/false.");
+            }
         } else {
             if (throwOnUnsupported)
                 OPENVINO_THROW("Property was not found: ", key);
@@ -48,6 +58,8 @@ ov::Any Configuration::get(const std::string& name) const {
         return {device_priorities};
     } else if (name == ov::hint::model_distribution_policy) {
         return {modelDistributionPolicy};
+    } else if (name == ov::hetero::export_hsm_format) {
+        return {export_hsm_format};
     } else {
         OPENVINO_THROW("Property was not found: ", name);
     }

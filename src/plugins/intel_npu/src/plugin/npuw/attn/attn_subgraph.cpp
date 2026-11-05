@@ -191,7 +191,16 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
     state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
     if (!state.hfa_selector) {
-        OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
+        // No position_ids: the host must report the history through the npuw_history_size state
+        // before every prefill chunk, starting with the first one.
+        state.hfa_selector = runtime::host_flash_attention::HistorySize::find(original_query_length, request);
+        if (state.hfa_selector) {
+            LOG_VERB("HFA: no position_ids input, taking the past length from the npuw_history_size state");
+        }
+    }
+    if (!state.hfa_selector) {
+        OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found: the model has no "
+                       "position_ids input and the npuw_history_size state was not set before the first infer().");
     }
 }
 

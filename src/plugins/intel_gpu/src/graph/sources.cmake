@@ -23,6 +23,8 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/kernel_generator_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/parallel_mem_streambuf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_utils/parallel_mem_streambuf.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_utils/prefetch_streambuf.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_utils/prefetch_streambuf.hpp
     ${CMAKE_CURRENT_LIST_DIR}/compilation_context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/concatenation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/condition.cpp

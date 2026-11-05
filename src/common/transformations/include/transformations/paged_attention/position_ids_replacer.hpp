@@ -23,6 +23,7 @@ class TRANSFORMATIONS_API PositionIDsReplacerLFM2;
 class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
 class TRANSFORMATIONS_API EliminateDropBatch;
 class TRANSFORMATIONS_API RoPEUnsqueezeAxisReplacer;
+class TRANSFORMATIONS_API PositionIDsReplacerGranite;
 
 }  // namespace pass
 }  // namespace ov
@@ -179,4 +180,10 @@ class ov::pass::RoPEUnsqueezeAxisReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEUnsqueezeAxisReplacer");
     RoPEUnsqueezeAxisReplacer();
+};
+
+class ov::pass::PositionIDsReplacerGranite : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerGranite");
+    explicit PositionIDsReplacerGranite(const Output<Node>& unsq_position_ids);
 };

@@ -171,8 +171,7 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     if (is_weightless) {
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (handle_provider) {
-            ov::FileHandle handle = handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            mapped_memory = mmap_weights(handle_provider);
         } else if (!weights_path.empty()) {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
         }
@@ -291,6 +290,8 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         // the excess tiny Const connections
         ov::npuw::patterns::opt::untangleConst(model);
     }
+
+    ov::npuw::patterns::opt::untangleWeightConverts(model);
 
     if (cfg_get<::intel_npu::NPUW_SLICE_OUT>(props)) {
         // Add Slice before last MatMul for the prefill model

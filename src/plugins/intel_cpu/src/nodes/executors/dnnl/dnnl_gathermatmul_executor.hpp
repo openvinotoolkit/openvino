@@ -45,7 +45,7 @@ private:
     MemoryPtr m_zpMemory;
 
     InnerProductPtr m_gemvImpl;
-    // Key of the GEMMs run for M > 1 in AMX bf16 mode, each sized to the rows routed to its gather index
+    // Key of the GEMMs run for M > 1 (experts with enough rows), each sized to the rows routed to its gather index
     // instead of the full input length. createGemm() sets the row count.
     std::shared_ptr<const InnerProductKey> m_gemmKey;
 
@@ -53,6 +53,7 @@ private:
     MemoryDescPtr m_tmpInputDesc;
     MemoryDescPtr m_tmpOutputDesc;
 
+    // Selects the row threshold below which an expert runs per-row GEMV instead of a GEMM.
     bool m_bf16AmxMode = false;
     impl_desc_type m_implType = impl_desc_type::unknown;
 };

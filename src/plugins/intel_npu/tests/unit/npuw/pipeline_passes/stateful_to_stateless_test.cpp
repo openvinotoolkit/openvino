@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -550,6 +551,107 @@ TEST(StatefulToStatelessTest, Qwen35_ConvertsToStateless) {
         EXPECT_TRUE(has_output_with_name(model, "cache_params.present.ssm." + idx));
 
         // Conv -> cache_params naming
+        EXPECT_TRUE(has_input_with_name(model, "cache_params.past.conv." + idx));
+        EXPECT_TRUE(has_output_with_name(model, "cache_params.present.conv." + idx));
+    }
+}
+
+// GGUF frontend variable ids (cache_k_lN, cache_v_lN, conv_state_lN, ssm_state_lN) are restored to optimum naming.
+TEST(StatefulToStatelessTest, GGUFFrontendNames_RestoredToOptimumNaming) {
+    auto stub_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 64});
+    stub_input->output(0).set_names({"stub_input"});
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    beam_idx->output(0).set_names({"beam_idx"});
+
+    ov::SinkVector sinks;
+    for (const size_t layer : {3u, 11u}) {
+        const auto idx = std::to_string(layer);
+        sinks.push_back(make_cache_state(beam_idx,
+                                         "ssm_state_l" + idx,
+                                         ov::element::f32,
+                                         ov::PartialShape{-1, 48, 128, 128},
+                                         {1, 48, 128, 128})
+                            .assign);
+        sinks.push_back(make_cache_state(beam_idx,
+                                         "conv_state_l" + idx,
+                                         ov::element::f32,
+                                         ov::PartialShape{-1, 10240, 4},
+                                         {1, 10240, 4})
+                            .assign);
+        sinks.push_back(make_cache_state(beam_idx,
+                                         "cache_v_l" + idx,
+                                         ov::element::f32,
+                                         ov::PartialShape{-1, 4, -1, 256},
+                                         {1, 4, 0, 256})
+                            .assign);
+        sinks.push_back(make_cache_state(beam_idx,
+                                         "cache_k_l" + idx,
+                                         ov::element::f32,
+                                         ov::PartialShape{-1, 4, -1, 256},
+                                         {1, 4, 0, 256})
+                            .assign);
+    }
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(stub_input)},
+                                             sinks,
+                                             ov::ParameterVector{stub_input, beam_idx},
+                                             "model_with_gguf_like_cache");
+
+    ASSERT_NO_THROW(ov::pass::StatefulToStateless().run_on_model(model));
+
+    for (const std::string idx : {"3", "11"}) {
+        EXPECT_TRUE(has_input_with_name(model, "past_key_values." + idx + ".key"));
+        EXPECT_TRUE(has_input_with_name(model, "past_key_values." + idx + ".value"));
+        EXPECT_TRUE(has_output_with_name(model, "present." + idx + ".key"));
+        EXPECT_TRUE(has_output_with_name(model, "present." + idx + ".value"));
+        EXPECT_TRUE(has_input_with_name(model, "cache_params.past.ssm." + idx));
+        EXPECT_TRUE(has_output_with_name(model, "cache_params.present.ssm." + idx));
+        EXPECT_TRUE(has_input_with_name(model, "cache_params.past.conv." + idx));
+        EXPECT_TRUE(has_output_with_name(model, "cache_params.present.conv." + idx));
+    }
+
+    const auto input_names = collect_input_names(model);
+    const auto position = [&](const std::string& name) {
+        return std::find(input_names.begin(), input_names.end(), name) - input_names.begin();
+    };
+    EXPECT_LT(position("past_key_values.3.key"), position("past_key_values.3.value"));
+    EXPECT_LT(position("past_key_values.3.value"), position("past_key_values.11.key"));
+    EXPECT_LT(position("past_key_values.11.value"), position("cache_params.past.ssm.3"));
+}
+
+// GGUF recurrent states that bypass the beam_idx Gather are converted as well.
+TEST(StatefulToStatelessTest, GGUFFrontendNames_StatesWithoutBeamGatherAreConverted) {
+    auto stub_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 64});
+    stub_input->output(0).set_names({"stub_input"});
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    beam_idx->output(0).set_names({"beam_idx"});
+
+    ov::SinkVector sinks;
+    sinks.push_back(make_cache_state(beam_idx,
+                                     "cache_k_l3",
+                                     ov::element::f32,
+                                     ov::PartialShape{-1, 4, -1, 256},
+                                     {1, 4, 0, 256})
+                        .assign);
+    for (const size_t layer : {0u, 1u}) {
+        const auto idx = std::to_string(layer);
+        sinks.push_back(
+            make_cache_state("ssm_state_l" + idx, ov::element::f32, {1, 48, 128, 128}, {1, 48, 128, 128}).assign);
+        sinks.push_back(
+            make_cache_state("conv_state_l" + idx, ov::element::f32, {1, 10240, 4}, {1, 10240, 4}).assign);
+    }
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(stub_input)},
+                                             sinks,
+                                             ov::ParameterVector{stub_input, beam_idx},
+                                             "model_with_gguf_states_without_beam_gather");
+
+    ASSERT_NO_THROW(ov::pass::StatefulToStateless().run_on_model(model));
+
+    EXPECT_TRUE(model->get_sinks().empty());
+    EXPECT_TRUE(model->get_variables().empty());
+    EXPECT_TRUE(has_input_with_name(model, "past_key_values.3.key"));
+    for (const std::string idx : {"0", "1"}) {
+        EXPECT_TRUE(has_input_with_name(model, "cache_params.past.ssm." + idx));
+        EXPECT_TRUE(has_output_with_name(model, "cache_params.present.ssm." + idx));
         EXPECT_TRUE(has_input_with_name(model, "cache_params.past.conv." + idx));
         EXPECT_TRUE(has_output_with_name(model, "cache_params.present.conv." + idx));
     }

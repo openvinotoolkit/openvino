@@ -105,7 +105,44 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
     set (CMAKE_CXX_EXTENSIONS OFF)
     set (CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
-####################################
+
+# ###################################
+
+# standalone copy of cmake/developer_package/compile_flags/cxx_standard.cmake: this file is
+# installed and built outside the main tree (no sibling cmake/ dir), so it can't include() it
+if(CMAKE_CXX_STANDARD GREATER_EQUAL 20)
+    if(NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
+        set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+    endif()
+
+    set(_ov_samples_cxx20_floor_GNU 10)
+    set(_ov_samples_cxx20_floor_Clang 14)
+    set(_ov_samples_cxx20_floor_AppleClang 13)
+    set(_ov_samples_cxx20_floor_MSVC 19.28)
+    set(_ov_samples_cxx20_floor_IntelLLVM 2024.2)
+
+    if(DEFINED _ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID})
+        set(_ov_samples_cxx20_floor "${_ov_samples_cxx20_floor_${CMAKE_CXX_COMPILER_ID}}")
+
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS _ov_samples_cxx20_floor)
+            message(FATAL_ERROR
+                "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION} does not fully support C++20. "
+                "Minimum: ${CMAKE_CXX_COMPILER_ID} ${_ov_samples_cxx20_floor}")
+        endif()
+
+        unset(_ov_samples_cxx20_floor)
+    else()
+        message(WARNING
+            "CMAKE_CXX_STANDARD=${CMAKE_CXX_STANDARD} was requested, but ${CMAKE_CXX_COMPILER_ID} "
+            "has no verified minimum version in cxx_standard.cmake. Proceeding unchecked.")
+    endif()
+
+    unset(_ov_samples_cxx20_floor_GNU)
+    unset(_ov_samples_cxx20_floor_Clang)
+    unset(_ov_samples_cxx20_floor_AppleClang)
+    unset(_ov_samples_cxx20_floor_MSVC)
+    unset(_ov_samples_cxx20_floor_IntelLLVM)
+endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     # gflags is used only in C++ samples

@@ -17,6 +17,7 @@ using ov::pass::operator|;
         };\
         \
         auto compressed_type = type_matches_any({ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4,\
+                                                 ov::element::u3,\
                                                  ov::element::u2, ov::element::f8e4m3, ov::element::f8e5m2,\
                                                  ov::element::f4e2m1});\
         auto weights_const_m = wrap_type<ov::op::v0::Constant>(compressed_type);\
@@ -51,6 +52,12 @@ using ov::pass::operator|;
         /* Transpose after decompression, with an optional preceding Reshape. */\
         auto transpose_const_m = wrap_type<ov::op::v0::Constant>();\
         auto transpose_input_m = reshape_m | mul_m;\
-        auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input_m, transpose_const_m});\
+        auto transpose_after_reshape_m = wrap_type<ov::op::v1::Transpose>({transpose_input_m, transpose_const_m});\
+\
+        /* Transpose before the final Reshape. */\
+        auto transpose_before_reshape_input_m = wrap_type<ov::op::v1::Transpose>({mul_m, transpose_const_m});\
+        auto transpose_before_reshape_const_m = wrap_type<ov::op::v0::Constant>();\
+        auto transpose_before_reshape_m = wrap_type<ov::op::v1::Reshape>({transpose_before_reshape_input_m, transpose_before_reshape_const_m}, reshape_squeeze);\
+        auto transpose_m = transpose_after_reshape_m | transpose_before_reshape_m;\
 \
         auto compressed_weights_input_m = mul_m | convert_reshape_m | mul2_m | transpose_m;

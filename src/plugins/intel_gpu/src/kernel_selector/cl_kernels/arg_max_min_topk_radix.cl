@@ -185,6 +185,7 @@ KERNEL(arg_max_min_topk_radix)(
 )
 {
     const uint lid = (uint)get_local_id(0);
+    const uint lws = (uint)get_local_size(0);
 #ifdef RADIX_CHUNK_STAGE
     const uint chunk_group_idx = (uint)get_group_id(0);
     const uint output_idx = chunk_group_idx / RADIX_CHUNKS;
@@ -226,7 +227,7 @@ KERNEL(arg_max_min_topk_radix)(
     // ============================================================
     // Phase 0: Read input ONCE, convert to sortable keys, cache in global buffer
     // ============================================================
-    for (uint i = lid; i < values_count; i += WG_SIZE) {
+    for (uint i = lid; i < values_count; i += lws) {
         base_indices[AXIS] = chunk_begin + i;
         INPUT0_TYPE val = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR
             base_indices[0], base_indices[1], 0, base_indices[2], base_indices[3], base_indices[4])];
@@ -252,7 +253,7 @@ KERNEL(arg_max_min_topk_radix)(
         }
         barrier(CLK_LOCAL_MEM_FENCE);
 
-        for (uint i = lid; i < values_count; i += WG_SIZE) {
+        for (uint i = lid; i < values_count; i += lws) {
             uint sortable = my_sortable[i];
             uint hi = (hi_shift >= SORTABLE_BITS) ? 0u : (sortable >> hi_shift);
             if (hi == prefix) {
@@ -320,7 +321,7 @@ KERNEL(arg_max_min_topk_radix)(
     // ============================================================
     // Initialize SLM sort buffers with fill values so unused slots sort to the end
     // ============================================================
-    for (uint i = lid; i < PADDED_K; i += WG_SIZE) {
+    for (uint i = lid; i < PADDED_K; i += lws) {
 #ifdef MAX_OUT
         sort_keys[i] = 0u;
 #else
@@ -334,7 +335,7 @@ KERNEL(arg_max_min_topk_radix)(
     // Phase 2a: Gather elements strictly ABOVE threshold into SLM
     // Read from cached sortable buffer
     // ============================================================
-    for (uint i = lid; i < values_count; i += WG_SIZE) {
+    for (uint i = lid; i < values_count; i += lws) {
         uint sortable = my_sortable[i];
         bool is_above;
 #ifdef MAX_OUT
@@ -373,7 +374,7 @@ KERNEL(arg_max_min_topk_radix)(
 
         if (at_count <= available_slots) {
             // Fast path: all at-threshold elements fit, parallel gather is safe
-            for (uint i = lid; i < values_count; i += WG_SIZE) {
+            for (uint i = lid; i < values_count; i += lws) {
                 uint sortable = my_sortable[i];
                 if (sortable == threshold) {
                     uint pos = atomic_add(&gather_count, 1);
@@ -432,7 +433,7 @@ KERNEL(arg_max_min_topk_radix)(
     // ============================================================
     for (uint bk = 2; bk <= PADDED_K; bk <<= 1) {
         for (uint bj = bk >> 1; bj > 0; bj >>= 1) {
-            for (uint i = lid; i < PADDED_K; i += WG_SIZE) {
+            for (uint i = lid; i < PADDED_K; i += lws) {
                 uint partner = i ^ bj;
                 if (partner > i) {
                     uint key_i = sort_keys[i];
@@ -461,7 +462,7 @@ KERNEL(arg_max_min_topk_radix)(
     // ============================================================
     // Phase 4: Store this chunk's sorted top-K as merge candidates
     // ============================================================
-    for (uint k = lid; k < TOP_K; k += WG_SIZE) {
+    for (uint k = lid; k < TOP_K; k += lws) {
         candidate_keys[chunk_group_idx * TOP_K + k] = sort_keys[k];
         candidate_idxs[chunk_group_idx * TOP_K + k] = chunk_begin + sort_idxs[k];
     }
@@ -471,7 +472,7 @@ KERNEL(arg_max_min_topk_radix)(
     // Zero and NaN values are reloaded from the input, because their keys drop the sign of zero
     // and the NaN payload.
     // ============================================================
-    for (uint k = lid; k < TOP_K; k += WG_SIZE) {
+    for (uint k = lid; k < TOP_K; k += lws) {
 #ifdef RADIX_MERGE_STAGE
         uint idx = candidate_idxs[output_idx * RADIX_CANDIDATES_NUM + sort_idxs[k]];
 #else

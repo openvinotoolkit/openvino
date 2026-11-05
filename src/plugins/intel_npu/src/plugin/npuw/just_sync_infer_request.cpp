@@ -76,7 +76,7 @@ bool ov::npuw::JustInferRequest::is_subrequest_pipelined(size_t idx) const {
     return is_pipelined(idx);
 }
 
-std::size_t ov::npuw::JustInferRequest::history_size() const {
+int64_t ov::npuw::JustInferRequest::history_size() const {
     return get_history_size();
 }
 

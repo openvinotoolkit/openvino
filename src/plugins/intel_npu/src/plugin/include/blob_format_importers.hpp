@@ -45,8 +45,6 @@ public:
      *
      * @param backend The current backend in use, required for creating and using a parser.
      * @param network_name The resulted graph object will use this network name.
-     * @param device_name The name of the device. Used to update the compiler type if "perf count" was enabled via the
-     * configuration.
      * @param core The OV core. The weights separation feature may depend on this object to extract the original
      * weights.
      * @return A graph object. The type of graph depends on the content of the blob. E.g. a "weightless" graph will be
@@ -54,7 +52,6 @@ public:
      */
     std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                          const std::string_view network_name,
-                                         const std::string_view device_name,
                                          const std::shared_ptr<ov::ICore>& core);
 
     /**

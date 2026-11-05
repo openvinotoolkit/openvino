@@ -14,6 +14,8 @@ namespace ov::npuw {
 // it as a separate one.
 // The cut point is the first input of the matched MatMul. The matched logits
 // Result is repurposed as the output-embeddings Result of the original model.
+// The returned model has independent nodes, including tied-weight dequantization
+// branches; constant data buffers remain shared.
 class CutLMHead : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::CutLMHead");

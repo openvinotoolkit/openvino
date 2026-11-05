@@ -23,7 +23,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ZERO_SHA = "0" * 40
-SET_PATTERN = re.compile(r"set\(([^)\s]+)\s+([^)]*)\)")
+SET_PATTERN = re.compile(r"^[ \t]*set\(([^)\s]+)\s+([^)]*)\)", re.MULTILINE)
 
 
 def append_step_summary(text: str) -> None:
@@ -62,16 +62,22 @@ def gh_api_json(path: str) -> object | None:
         return None
 
 
-def fetch_file(repo: str, file_path: str, ref: str) -> str:
+def try_fetch_file(repo: str, file_path: str, ref: str) -> str | None:
     payload = gh_api_json(f"repos/{repo}/contents/{file_path}?ref={ref}")
     if not isinstance(payload, dict) or "content" not in payload:
-        sys.exit(f"Failed to fetch {file_path} at ref {ref}")
+        return None
     raw = payload["content"].replace("\n", "")
     return base64.b64decode(raw).decode("utf-8")
 
 
+def fetch_file(repo: str, file_path: str, ref: str) -> str:
+    text = try_fetch_file(repo, file_path, ref)
+    if text is None:
+        sys.exit(f"Failed to fetch {file_path} at ref {ref}")
+    return text
+
+
 def get_val(cmake_text: str, variable: str) -> str:
-    prefix = f"set({variable}"
     for match in SET_PATTERN.finditer(cmake_text):
         if match.group(1) == variable:
             return re.sub(r"\s+", "", match.group(2))
@@ -83,6 +89,37 @@ def resolve_before_after() -> tuple[str, str]:
     if event_name == "workflow_dispatch":
         return os.environ.get("INPUT_BEFORE_SHA", ""), os.environ.get("INPUT_AFTER_SHA", "")
     return os.environ.get("PUSH_BEFORE_SHA", ""), os.environ.get("PUSH_AFTER_SHA", "")
+
+
+def find_bump_commit(repo: str, file_path: str, tracked_vars: list[str], before: str, after: str) -> str:
+    """Return the newest commit in (before, after] that changed a tracked value, or after if none is found.
+
+    A single push (e.g. a merge queue batch) may contain several PRs; the tip commit is not
+    necessarily the one that changed the checksums, and later edits to the same file
+    (comments, download logic) must not be credited for the bump.
+    """
+    history = gh_api_json(f"repos/{repo}/commits?sha={after}&path={file_path}&per_page=10")
+    if not isinstance(history, list):
+        return after
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        candidate = entry.get("sha") or ""
+        parents = entry.get("parents") or []
+        if not candidate or not parents or not isinstance(parents[0], dict):
+            continue
+        comparison = gh_api_json(f"repos/{repo}/compare/{before}...{candidate}")
+        if not isinstance(comparison, dict) or comparison.get("status") != "ahead":
+            continue
+        new_text = try_fetch_file(repo, file_path, candidate)
+        if new_text is None:
+            continue
+        old_text = try_fetch_file(repo, file_path, parents[0].get("sha") or "")
+        if old_text is None:
+            continue
+        if any(get_val(old_text, var) != get_val(new_text, var) for var in tracked_vars):
+            return candidate
+    return after
 
 
 def build_mentions(logins: str) -> str:
@@ -142,11 +179,13 @@ def main() -> None:
         return
 
     now = datetime.now(tz=ZoneInfo("Europe/Warsaw")).strftime("%H:%M %d/%m/%Y %Z")
-    commit_url = f"{server_url}/{repo}/commit/{after}"
+    bump_sha = find_bump_commit(repo, file_path, tracked_vars, before, after)
+    print(f"Attributing bump to commit {bump_sha}")
+    commit_url = f"{server_url}/{repo}/commit/{bump_sha}"
     branch = ref_name
 
     author = ""
-    commit_payload = gh_api_json(f"repos/{repo}/commits/{after}")
+    commit_payload = gh_api_json(f"repos/{repo}/commits/{bump_sha}")
     if isinstance(commit_payload, dict):
         commit = commit_payload.get("commit") or {}
         if isinstance(commit, dict):
@@ -156,7 +195,7 @@ def main() -> None:
 
     pr_info = ""
     pr_number = ""
-    pulls = gh_api_json(f"repos/{repo}/commits/{after}/pulls")
+    pulls = gh_api_json(f"repos/{repo}/commits/{bump_sha}/pulls")
     if isinstance(pulls, list) and pulls:
         first = pulls[0]
         if isinstance(first, dict) and first.get("number") is not None:

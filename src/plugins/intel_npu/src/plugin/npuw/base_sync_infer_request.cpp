@@ -203,6 +203,7 @@ std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::IBaseInferRequest::query_st
             variable_states.emplace_back(state);
         }
     }
+    variable_states.emplace_back(m_history_state, nullptr);
     return variable_states;
 }
 

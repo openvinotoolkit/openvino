@@ -8,6 +8,7 @@
 #include <ze_graph_ext.h>
 
 #include <climits>
+#include <exception>
 #include <map>
 
 #include "intel_npu/common/igraph.hpp"
@@ -21,6 +22,24 @@ namespace intel_npu {
 namespace zeroProfiling {
 
 using LayerStatistics = std::vector<ov::ProfilingInfo>;
+
+template <typename Query>
+LayerStatistics getModelLayerStatistics(const IGraph& graph, const Query& query) {
+    if (!graph.has_profiling_decoder()) {
+        return query.getLayerStatistics();
+    }
+
+    try {
+        // Level Zero provides raw profiling bytes; the graph's decoder converts them to layer statistics.
+        return graph.process_profiling_output(query.template getData<uint8_t>());
+    } catch (const std::exception& ex) {
+        Logger::global().warning(
+            "getModelLayerStatistics - graph profiling decoder failed, falling back to level-zero layer "
+            "statistics: %s",
+            ex.what());
+        return query.getLayerStatistics();
+    }
+}
 
 constexpr uint32_t POOL_SIZE = 1;
 

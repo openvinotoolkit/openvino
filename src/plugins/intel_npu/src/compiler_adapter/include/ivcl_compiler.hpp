@@ -14,7 +14,6 @@
 #include "intel_npu/config/config.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
-#include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
@@ -79,12 +78,6 @@ public:
      */
     virtual bool is_option_supported(const std::string& option,
                                      const std::optional<std::string>& optValue = std::nullopt) const = 0;
-
-    /**
-     * @brief Decodes raw profiling output produced by a run of the given network.
-     */
-    virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
-                                                                    const std::vector<uint8_t>& network) const = 0;
 };
 
 }  // namespace intel_npu

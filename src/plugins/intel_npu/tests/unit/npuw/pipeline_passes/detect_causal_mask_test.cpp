@@ -331,6 +331,51 @@ std::shared_ptr<ov::Model> build_gemma4_12b_triu_shared_causal(int64_t window) {
                                        ov::ParameterVector{seq, amask, q, k, v});
 }
 
+// Combines the causal/padding condition with a separately constructed
+// window mask: Select(invalid, fill, Select(beyond_window, fill, zero)).
+std::shared_ptr<ov::Model> build_lfm3_shared_causal(int64_t window,
+                                                    size_t window_unsqueezes = 2,
+                                                    bool invert_condition = false) {
+    using namespace ov::op;
+    auto seq = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    auto amask = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto one = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    auto seq_len = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(seq), one, zero);
+    auto total = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(amask), one, zero);
+    auto past = std::make_shared<v1::Subtract>(total, seq_len);
+    auto key = std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Range>(zero, total, one, ov::element::i64), zero);
+    auto query = std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Range>(past, total, one, ov::element::i64), one);
+    auto causal = std::make_shared<v1::LessEqual>(key, query);
+    auto axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
+    auto causal_4d = std::make_shared<v0::Unsqueeze>(causal, axes);
+    auto padding_axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 2});
+    auto padding =
+        std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Convert>(amask, ov::element::boolean), padding_axes);
+    auto allowed = std::make_shared<v13::BitwiseAnd>(causal_4d, padding);
+    auto invalid = std::make_shared<v13::BitwiseNot>(allowed);
+    auto fill = v0::Constant::create(ov::element::f32, ov::Shape{}, {-65504.0f});
+    auto zero_f = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+    auto full_mask = std::make_shared<v1::Select>(invalid, fill, zero_f);
+    auto window_const = v0::Constant::create(ov::element::i64, ov::Shape{1, 1}, {window});
+    std::shared_ptr<ov::Node> beyond_window =
+        std::make_shared<v1::GreaterEqual>(std::make_shared<v1::Subtract>(query, key), window_const);
+    for (size_t i = 0; i < window_unsqueezes; ++i) {
+        beyond_window = std::make_shared<v0::Unsqueeze>(beyond_window, zero);
+    }
+    auto window_mask = std::make_shared<v1::Select>(beyond_window, fill, zero_f);
+    auto sliding_mask = invert_condition ? std::make_shared<v1::Select>(allowed, window_mask, fill)
+                                         : std::make_shared<v1::Select>(invalid, fill, window_mask);
+
+    auto q = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto k = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto v = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+    auto full_sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, full_mask, false);
+    auto sliding_sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, sliding_mask, false);
+    return std::make_shared<ov::Model>(ov::OutputVector{full_sdpa, sliding_sdpa},
+                                       ov::ParameterVector{seq, amask, q, k, v});
+}
+
 // ---------------------------------------------------------------------------
 // Faithful reproduction of the MiniCPM causal-mask subgraph (uses aten::lt =>
 // Less instead of aten::le => LessEqual), as seen in real MiniCPM exports:
@@ -455,6 +500,55 @@ TEST(DetectAttentionMaskTest, RealPattern_Gemma4_12B_TriuSharedCausal_BothBranch
     const auto causal_count = std::count(all.begin(), all.end(), DetectedMaskType::Causal);
     EXPECT_EQ(sliding_count, 1);
     EXPECT_EQ(causal_count, 1);
+}
+
+TEST(DetectAttentionMaskTest, RealPattern_LFM3NestedSelect_BothBranchesDetected) {
+    for (const int64_t window : {256, 512}) {
+        for (const size_t unsqueezes : {0u, 1u, 2u}) {
+            for (const bool invert_condition : {false, true}) {
+                SCOPED_TRACE(testing::Message() << "window=" << window << ", unsqueezes=" << unsqueezes
+                                                << ", invert_condition=" << invert_condition);
+                auto model = build_lfm3_shared_causal(window, unsqueezes, invert_condition);
+                ASSERT_NO_THROW(DetectAttentionMask().run_on_model(model));
+                const auto full = decode_rt_info(model->get_results()[0]->get_input_node_shared_ptr(0)->get_rt_info());
+                const auto sliding =
+                    decode_rt_info(model->get_results()[1]->get_input_node_shared_ptr(0)->get_rt_info());
+                EXPECT_EQ(full.type, DetectedMaskType::Causal);
+                EXPECT_EQ(sliding.type, DetectedMaskType::SlidingWindow);
+                EXPECT_EQ(sliding.window_size, window);
+                EXPECT_NO_THROW(DetectAttentionMask().run_on_model(model));
+            }
+        }
+    }
+}
+
+TEST(DetectAttentionMaskTest, LFM3NestedSelect_ZeroWindowDoesNotSuppressCausalDetection) {
+    const auto all = detect_all(build_lfm3_shared_causal(0));
+    ASSERT_EQ(all.size(), 2u);
+    EXPECT_EQ(std::count(all.begin(), all.end(), DetectedMaskType::Causal), 2);
+}
+
+TEST(DetectAttentionMaskTest, LFM3NestedSelect_UnrelatedComparisonDoesNotSuppressCausalDetection) {
+    auto model = build_lfm3_shared_causal(256);
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto ge = ov::as_type_ptr<ov::op::v1::GreaterEqual>(node)) {
+            const auto query = ge->get_input_node_shared_ptr(0)->input_value(0);
+            ge->input(0).replace_source_output(query);
+        }
+    }
+    model->validate_nodes_and_infer_types();
+    const auto all = detect_all(model);
+    ASSERT_EQ(all.size(), 2u);
+    EXPECT_EQ(std::count(all.begin(), all.end(), DetectedMaskType::Causal), 2);
+}
+
+TEST(DetectAttentionMaskTest, LFM3NestedSelect_ConflictingCausalAttributeStillThrows) {
+    auto model = build_lfm3_shared_causal(256);
+    auto sdpa =
+        ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(model->get_results()[1]->get_input_node_shared_ptr(0));
+    ASSERT_NE(sdpa, nullptr);
+    sdpa->set_causal(true);
+    EXPECT_THROW(DetectAttentionMask().run_on_model(model), ov::Exception);
 }
 
 // Real pattern: MiniCPM uses Less (aten::lt) instead of LessEqual (aten::le).

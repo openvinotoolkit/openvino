@@ -18,7 +18,7 @@ namespace ov::frontend::gguf {
 struct GgufGraphContext::Impl {
     explicit Impl(const BuildContext& ctx)
         : build_ctx(ctx),
-          emitter(ctx.weights->weights, ctx.weights->qtypes, ctx.arch, ctx.weights->translators) {}
+          emitter(ctx.weights->weights, ctx.arch, ctx.weights->translators) {}
 
     BuildContext build_ctx;
     std::unique_ptr<DecoderConfig> decoder;

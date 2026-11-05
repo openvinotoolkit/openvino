@@ -87,7 +87,7 @@ class Code2CHeaders(object):
                         return self.process_includes(included_content, include_paths, processed_includes)
             return ''
 
-        content = re.sub(r'#include\s+"([^"]+)"(\s+\[\[no_opt\]\])?', replace_include, content)
+        content = re.sub(r'#\s*include\s+"([^"]+)"(\s+\[\[no_opt\]\])?', replace_include, content)
 
         return '\n'.join(batch_headers) + '\n' + content.strip()
 

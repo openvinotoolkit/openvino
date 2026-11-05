@@ -14,6 +14,7 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include <data_inst.h>
+#include <utility>
 
 namespace cldnn {
 namespace onednn {
@@ -32,6 +33,23 @@ dnnl::memory::format_tag convert_data_format(cldnn::format fmt);
 cldnn::format convert_data_format(dnnl::memory::format_tag fmt);
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l);
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target);
+
+// Group (IFM) axis is last for [N, groups] (transpose_b) and second-to-last for [groups, N].
+// Shared between implementation-selection (validate_impl) and primitive creation, so both agree
+// on which axis holds the per-group scale/zero-point count.
+int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank);
+
+// Rank of compressed weights, ignoring size-1 dims; at least 2.
+int64_t get_compressed_weights_rank(const layout& weights_layout);
+
+// Returns {ngroups, group_size} of the weight-decompression scale along IFM.
+std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
+                                             const layout& scale_layout,
+                                             bool weights_transposed,
+                                             bool transpose_b_scale);
+
+// oneDNN grouped weight scales need group_size == 1, a single group, or group_size % 16 == 0.
+bool is_supported_scale_group(int64_t ngroups, int64_t group_size);
 
 dnnl::memory::desc layout_to_memory_desc(
     const cldnn::layout& l,

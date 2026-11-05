@@ -92,7 +92,7 @@ public:
     ov::SoPtr<ov::IAsyncInferRequest> get_pipeline_subrequest(size_t idx) const;
     void set_pipeline_subrequest(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request);
     bool is_subrequest_pipelined(size_t idx) const;
-    std::size_t history_size() const;
+    int64_t history_size() const;
     bool subgraph_needs_copy(std::size_t idx) const;
     bool attention_no_copy() const;
     const ov::SoPtr<ov::ICompiledModel>& compiled_submodel(size_t idx) const;

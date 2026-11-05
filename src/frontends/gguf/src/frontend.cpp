@@ -110,6 +110,12 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         auto conversion_input = gguf_model;
         if (gguf_model->m_builder) {
             auto graph = gguf_model->m_builder(ops);
+            for (const auto& [output, adapter] : graph->model_adapters) {
+                if (adapter)
+                    adapter->lifetime.insert(adapter->lifetime.end(),
+                                             gguf_model->m_extensions.begin(),
+                                             gguf_model->m_extensions.end());
+            }
             conversion_input = std::make_shared<gguf::InputModel>(std::make_shared<GgufBuilderDecoder>(graph));
         }
         auto transformations = m_impl->transformation_extensions;

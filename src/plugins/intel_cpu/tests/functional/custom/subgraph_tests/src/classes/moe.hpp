@@ -67,8 +67,13 @@ class MoECompressedWeightsSubgraphTest : public testing::WithParamInterface<MoeC
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MoeCompressedWeightsTestParams>& obj);
 protected:
-    void SetUp() override;  
+    void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void check_results();
+};
+
+class MoECompressedWeightsU3SymmetricZpSubgraphTest : public MoECompressedWeightsSubgraphTest {
+protected:
+    void SetUp() override;
 };
 } // namespace ov::test

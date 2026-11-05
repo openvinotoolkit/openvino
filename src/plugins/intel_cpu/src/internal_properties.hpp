@@ -80,4 +80,11 @@ static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
 
+/**
+ * @brief Selects the export_model() blob format: true = HSM container, false = legacy layout (default).
+ * @note Transition switch; removed together with the legacy format. Set it on the plugin (not only per compile call)
+ * so that Core caching picks up the matching blob format.
+ */
+static constexpr Property<bool, PropertyMutability::RW> export_hsm_format{"CPU_EXPORT_HSM_FORMAT"};
+
 }  // namespace ov::intel_cpu

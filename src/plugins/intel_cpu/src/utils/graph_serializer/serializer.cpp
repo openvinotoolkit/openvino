@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <ios>
 #include <memory>
 #include <ostream>
 #include <sstream>
@@ -180,6 +181,46 @@ std::unique_ptr<util::XmlSerializer> ModelSerializer::make_serializer(pugi::xml_
                                            output_element_type,
                                            data_is_temporary,
                                            m_weightless_mode);
+}
+
+void serialize_model(std::shared_ptr<ov::Model> model,
+                     std::ostream& weights,
+                     std::ostream& xml,
+                     const ModelSerializer::CacheEncrypt& encrypt_fn,
+                     bool weightless_mode) {
+    auto version = static_cast<int64_t>(ov::pass::Serialize::Version::UNSPECIFIED);
+    if (const auto& rt_info = model->get_rt_info(); rt_info.count("version") != 0) {
+        version = rt_info.at("version").as<int64_t>();
+    }
+    if (version == static_cast<int64_t>(ov::pass::Serialize::Version::UNSPECIFIED)) {
+        version = static_cast<int64_t>(ov::pass::Serialize::Version::IR_V11);
+    }
+
+    const std::string name = "net";
+    pugi::xml_document xml_doc;
+    auto net_node = xml_doc.append_child(name.c_str());
+    util::ConstantWriter constant_writer(weights);
+    XmlSerializer visitor(net_node,
+                          name,
+                          constant_writer,
+                          version,
+                          /*deterministic=*/false,
+                          /*compress_to_fp16=*/false,
+                          /*output_element_type=*/ov::element::dynamic,
+                          /*data_is_temporary=*/false,
+                          weightless_mode);
+    visitor.on_attribute(name, model);
+
+    if (encrypt_fn) {
+        std::stringstream plain_xml;
+        xml_doc.save(plain_xml);
+        const auto encrypted_xml = encrypt_fn(plain_xml.str());
+        xml.write(encrypted_xml.data(), static_cast<std::streamsize>(encrypted_xml.size()));
+    } else {
+        xml_doc.save(xml);
+    }
+    weights.flush();
+    xml.flush();
 }
 
 std::string build_runtime_requirements() {

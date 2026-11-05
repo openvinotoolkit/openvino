@@ -142,7 +142,7 @@ bool DnnlFCPrimitive::useWeightsDecompressionImpl(const ov::element::Type inputT
                                                   const ov::element::Type weightsType,
                                                   const ov::intel_cpu::Config::ModelType modelType) {
     if (ov::with_cpu_x86_avx2()) {
-        if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1, u2)) {
+        if (any_of(inputType, f32, bf16) && any_of(weightsType, u8, i8, nf4, u4, i4, f4e2m1, u2, u3)) {
             return true;
         }
 
@@ -191,20 +191,36 @@ static bool useDynamicQuantizationImpl(size_t dqGroupSize,
     // For dynamic quantization, VNNI accumulation requires weight to be unsigned.
     // To support dynamic quantization with weights symmetrically quantized as i8/i4
     // w/o zero-point, we will transform weight to u8/u4 weight with zp 128/8.
-    if (none_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4, ov::element::u2) &&
+    if (none_of(weightsDesc->getPrecision(), ov::element::u8, ov::element::u4, ov::element::u2, ov::element::u3) &&
         !((any_of(weightsDesc->getPrecision(), ov::element::i8, ov::element::i4) && !zpPtr))) {
         return false;
     }
-    if (zpPtr && none_of(zpPtr->getDesc().getPrecision(),
-                         ov::element::u8,
-                         ov::element::u4,
-                         ov::element::u2,
-                         ov::element::dynamic)) {
-        return false;
+    if (zpPtr) {
+        const auto zpPrecision = zpPtr->getDesc().getPrecision();
+        // u3 weights come with i8 zero points. Dynamic quantization converts the zero points to u8,
+        // which is lossless only when none of them is negative.
+        const bool u3NonNegativeI8Zp = weightsDesc->getPrecision() == ov::element::u3 &&
+                                       zpPrecision == ov::element::i8 && utils::isNonNegativeI8(*zpPtr);
+        if (none_of(zpPrecision,
+                    ov::element::u8,
+                    ov::element::u4,
+                    ov::element::u2,
+                    ov::element::u3,
+                    ov::element::dynamic) &&
+            !u3NonNegativeI8Zp) {
+            return false;
+        }
     }
 
     const size_t simdWidth = 16;
     if (dqGroupSize % simdWidth) {
+        return false;
+    }
+    // U3 requires dqGroupSize to be a multiple of 32, because horizontally a 32-bit SIMD lane contains 4 u8,
+    // while vertically 3 u8 in the same horizontal position of the 3 vector registers work together to produce
+    // all the 8 elements in a u3 tight pack group. So we get 4 x 8 = 32 elements for vnni dot product that
+    // correspond to 32 elements in IC dimension.
+    if (weightsDesc->getPrecision() == ov::element::u3 && (dqGroupSize % 32) != 0U) {
         return false;
     }
 

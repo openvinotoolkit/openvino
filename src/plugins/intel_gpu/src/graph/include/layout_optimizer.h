@@ -212,6 +212,7 @@ public:
     impl_types get_forced_impl_type_by_config(program_node& node);
     bool is_primitive_implemented_for_onednn(program_node& node);
     bool is_format_supported(program_node& node, format::type fmt);
+    static bool is_byxf_onednn_conv_compatible(primitive_type_id type);
 
     // Returns whether reorder between "prev" with format fmt_prev and "next" with format fmt_next
     // can be fused into next.

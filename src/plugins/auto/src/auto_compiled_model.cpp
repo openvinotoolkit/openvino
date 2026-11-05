@@ -90,6 +90,10 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         auto value = m_context->m_model_priority;
         return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
     } else if (name == ov::optimal_number_of_infer_requests) {
+        if (m_context->m_dynamic_device_selection) {
+            // inference is serialized in dynamic mode, so more than one request cannot run at a time
+            return decltype(ov::optimal_number_of_infer_requests)::value_type{1u};
+        }
         const unsigned int default_num_for_tput = 4u;
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
@@ -204,6 +208,12 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
+        if (m_context->m_dynamic_device_selection) {
+            const auto active_device = m_scheduler->get_dynamic_active_device();
+            if (!active_device.empty()) {
+                return decltype(ov::execution_devices)::value_type{active_device};
+            }
+        }
         ov::Any execution_devices;
         auto get_execution_devices = [&execution_devices](std::string exe_devices_string) {
             std::vector<std::string> exe_devices = {};

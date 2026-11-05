@@ -16,7 +16,7 @@ namespace ov::frontend::gguf::pass {
 class GGUF_FRONTEND_API AdaptMmprojToGenAI : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::frontend::gguf::pass::AdaptMmprojToGenAI");
-    enum class Modality { VISION, AUDIO };
+    enum class Modality { VISION, AUDIO, AUDIO_GENERATION };
     /// EMBEDDINGS retains native encoder inputs and exposes [B,T,D] features.
     /// VISION_ENCODERS exposes the family-specific inputs used by GenAI vision encoders.
     /// Invalid layout requirements throw without changing the supplied model.
@@ -33,9 +33,15 @@ public:
         return m_vision_models;
     }
 
+    /// AUDIO_GENERATION returns independent depthformer, feedback and codec models.
+    const std::map<std::string, std::shared_ptr<ov::Model>>& get_audio_generation_models() const {
+        return m_audio_generation_models;
+    }
+
 private:
     Modality m_modality;
     Layout m_layout;
     std::map<std::string, std::shared_ptr<ov::Model>> m_vision_models;
+    std::map<std::string, std::shared_ptr<ov::Model>> m_audio_generation_models;
 };
 }  // namespace ov::frontend::gguf::pass

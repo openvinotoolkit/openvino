@@ -325,6 +325,8 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
 /**
  * @brief High-level OpenVINO model priority hint
  * Defines what model should be provided with more performant bounded resource first
+ * AUTO ignores this hint when it selects the target device for every inference (see
+ * ov::intel_auto::devices_utilization_threshold), since no device stays reserved for the model.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Priority> model_priority{"MODEL_PRIORITY"};

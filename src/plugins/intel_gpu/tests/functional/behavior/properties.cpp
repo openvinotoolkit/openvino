@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "common_test_utils/subgraph_builders/llm_builders.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -215,6 +216,26 @@ TEST_F(TestPropertiesGPU, RTInfoPropertiesWithUserValuesFromCompileModel) {
     ASSERT_EQ(type.as<ov::element::Type>(), ov::element::i8);
     ASSERT_EQ(size.as<uint64_t>(), 16);
     ASSERT_EQ(scale.as<float>(), 4.0f);
+}
+
+TEST(TestPropertiesGPULLM, RTInfoDefaultActivationsScaleFactorIgnoredForLLM) {
+    auto model = ov::test::utils::make_llm_kv_cache_pattern(1, 4, 64, ov::element::f16, 2, true);
+    model->set_rt_info("8.0", "runtime_options", ov::hint::activations_scale_factor.name());
+
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+    ASSERT_EQ(compiled_model.get_property(ov::hint::activations_scale_factor), -1.0f);
+}
+
+TEST(TestPropertiesGPULLM, RTInfoNonDefaultActivationsScaleFactorAppliedToLLM) {
+    auto model = ov::test::utils::make_llm_kv_cache_pattern(1, 4, 64, ov::element::f16, 2, true);
+    model->set_rt_info("4.0", "runtime_options", ov::hint::activations_scale_factor.name());
+
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+    ASSERT_EQ(compiled_model.get_property(ov::hint::activations_scale_factor), 4.0f);
 }
 
 // Test i4 -> u4 normalization in finalize_impl (no PA model required)

@@ -35,6 +35,7 @@ PagedCausalConv1D::PagedCausalConv1D(const std::shared_ptr<ov::Node>& op, const 
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
+    m_dilation = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(op)->get_dilation();
 }
 
 bool PagedCausalConv1D::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -86,17 +87,16 @@ void PagedCausalConv1D::initSupportedPrimitiveDescriptors() {
 
 void PagedCausalConv1D::createPrimitive() {
     // Allocate a per-worker-thread f32 scratch buffer holding one promoted conv_state block.
-    // Shape: [num_worker_threads, hidden_size * kernel_size]. Each parallel (sequence, channel-block)
+    // Shape: [num_worker_threads, hidden_size * window]. Each parallel (sequence, channel-block)
     // task picks its buffer row via parallel_get_thread_num() in the kernel.
-    // hidden_size (port 0 dim 1) and kernel_size (port 1 dim 2) are static by model convention.
+    // hidden_size (port 0 dim 1) and window (port 1 dim 2) are static by model convention.
     const auto& input_embeds_dims = getInputShapeAtPort(0).getDims();
     const auto& state_table_dims = getInputShapeAtPort(1).getDims();
     const size_t hidden_size = input_embeds_dims[1];
-    const size_t kernel_size = state_table_dims[2];
+    const size_t window = state_table_dims[2];
     const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
-    auto mem_desc =
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
-                                               ov::intel_cpu::Shape{num_threads, hidden_size * kernel_size});
+    auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32,
+                                                           ov::intel_cpu::Shape{num_threads, hidden_size * window});
     m_tmpLocalState = context->getScratchPad()->createScratchPadMem(mem_desc);
 }
 
@@ -108,7 +108,8 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const size_t batch_size_in_tokens = input_embeds_shape[0];
     const size_t hidden_size = input_embeds_shape[1];
-    const size_t kernel_size = state_table_shape[2];
+    const size_t num_taps = weight_shape[2];
+    const size_t window = state_table_shape[2];
 
     OPENVINO_ASSERT(state_table_shape[1] == hidden_size,
                     "PagedCausalConv1D: conv_state_table hidden_size (",
@@ -116,6 +117,17 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
                     ") != input_embeds hidden_size (",
                     hidden_size,
                     ").");
+
+    OPENVINO_ASSERT(window == (num_taps - 1) * m_dilation + 1,
+                    "PagedCausalConv1D: conv_state_table causal window (",
+                    window,
+                    ") != (num_taps-1)*dilation+1 (",
+                    (num_taps - 1) * m_dilation + 1,
+                    ") for num_taps=",
+                    num_taps,
+                    ", dilation=",
+                    m_dilation,
+                    ".");
 
     // Linear attention models use depthwise convolution where group_size == hidden_size,
     // i.e. conv_weight[1] (in_channels per group) must be 1.
@@ -164,7 +176,8 @@ void PagedCausalConv1D::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                          output_embeds_raw,
                                                          batch_size_in_tokens,
                                                          hidden_size,
-                                                         kernel_size,
+                                                         num_taps,
+                                                         m_dilation,
                                                          seq_count,
                                                          data_precision,
                                                          state_precision,

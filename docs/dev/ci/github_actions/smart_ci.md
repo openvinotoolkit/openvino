@@ -336,6 +336,20 @@ Build:
 This approach works because skipped checks are processed as successful by GitHub. They do not block
 the merge, unlike required workflows skipped by path filtering.
 
+Smart CI also has a shared file allowlist for agentic workflow and rerunner automation in
+[`smart_ci.py`](../../../../.github/actions/smart-ci/smart_ci.py). It covers gh-aw sources, generated
+locks, shared fragments, action configuration, CI Doctor schemas, safe-output scripts, the rerunner
+scripts/error database/tests, their compilation-check and rerunner workflows, and the agentic workflow
+skill. These paths are combined with each workflow's file skip patterns. A PR or merge-queue changeset
+containing only matching files skips expensive product validation even when `category: CI`,
+`github_actions`, or `no-match-files` would otherwise request full scope. Any nonmatching file preserves
+normal validation; post-commit runs are not skipped. Do not exempt `.github/**` generally: build/test
+workflows, shared actions and Smart CI configuration must still receive normal validation.
+
+The workflow runs themselves (including required status aggregation) still start; Smart CI skips
+their expensive jobs. Dedicated compilation, workflow scans and other independently triggered checks
+continue to run.
+
 ### Adding Smart CI for Components Outside the OpenVINO Repository
 
 Some components, like the NVIDIA plugin or ONNX Runtime, are stored in their own repositories.

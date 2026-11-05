@@ -945,7 +945,7 @@ TEST(HsmDeferredWriterTest, section_encoder_avoids_materializing_a_view_for_a_tr
     public:
         explicit ValueEncoder(int value) : m_value(value) {}
         void encode(const hsm::SectionSink& sink) const override {
-            sink({reinterpret_cast<const std::byte*>(&m_value), sizeof(m_value)});
+            sink(ov::util::as_memory_view(m_value));
         }
 
     private:
@@ -1044,7 +1044,7 @@ TEST(HsmDeferredWriterTest, handler_forwards_to_a_named_member_function_instead_
 
     private:
         void write_options(const hsm::SectionSink& sink) const {
-            sink({reinterpret_cast<const std::byte*>(&m_options), sizeof(m_options)});
+            sink(ov::util::as_memory_view(m_options));
         }
 
         CompiledOptions m_options;

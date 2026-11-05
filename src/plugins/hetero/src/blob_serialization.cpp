@@ -496,20 +496,21 @@ void write_ir_payload(std::ostream& model_stream, const std::shared_ptr<ov::Mode
         OPENVINO_THROW("OpenVINO Model is empty");
     }
 
-    std::stringstream xmlFile, binFile;
-    ov::pass::Serialize serializer(xmlFile, binFile);
+    std::stringstream xml_file, bin_file;
+    ov::pass::Serialize serializer(xml_file, bin_file);
     serializer.run_on_model(model);
 
-    auto constants = binFile.str();
-    auto model_str = xmlFile.str();
-
-    auto dataSize = static_cast<std::uint64_t>(model_str.size());
-    write_size(model_stream, dataSize, "IR XML size");
-    write_bytes(model_stream, model_str.data(), dataSize, "IR XML content");
-
-    dataSize = static_cast<std::uint64_t>(constants.size());
-    write_size(model_stream, dataSize, "IR weights size");
-    write_bytes(model_stream, constants.data(), dataSize, "IR weights content");
+    // The serialized parts are streamed out of their buffers instead of being copied into strings first.
+    const auto write_part = [&model_stream](std::stringstream& part, const char* size_name, const char* content_name) {
+        const auto data_size = static_cast<std::uint64_t>(part.tellp());
+        write_size(model_stream, data_size, size_name);
+        if (data_size > 0) {
+            model_stream << part.rdbuf();
+        }
+        OPENVINO_ASSERT(model_stream, "Failed to write HETERO compiled blob ", content_name);
+    };
+    write_part(xml_file, "IR XML size", "IR XML content");
+    write_part(bin_file, "IR weights size", "IR weights content");
 }
 
 }  // namespace ov::hetero

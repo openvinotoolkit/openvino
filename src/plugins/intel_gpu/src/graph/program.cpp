@@ -8,6 +8,7 @@
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -207,13 +209,15 @@ program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
+                 bool is_internal,
+                 std::optional<std::map<primitive_type_id, bool>> onednn_impls)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(std::move(task_executor)),
       processing_order(),
-      is_internal(is_internal) {
+      is_internal(is_internal),
+      _onednn_impls(std::move(onednn_impls)) {
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     init_primitives();
@@ -315,8 +319,9 @@ program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
                                     std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                    bool is_internal) {
-    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
+                                    bool is_internal,
+                                    std::optional<std::map<primitive_type_id, bool>> onednn_impls) {
+    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal, std::move(onednn_impls));
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -1512,35 +1517,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
     // Dynamic reorder and JIT pitch handling for this optimization support rank <= 4 only.
     bool has_rank_gt4_data_flow = false;
-
-    // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
-    // For dynamic batches, this approach is inefficient.
-    // We plan to switch to byxf for better flexibility across varying batch sizes.
-    // The whitelist below defines the initial target scope (CVS-176149).
-    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::activation::type_id(),
-                                                                              cldnn::arg_max_min::type_id(),
-                                                                              cldnn::broadcast::type_id(),
-                                                                              cldnn::concatenation::type_id(),
-                                                                              cldnn::convolution::type_id(),
-                                                                              cldnn::crop::type_id(),
-                                                                              cldnn::deconvolution::type_id(),
-                                                                              cldnn::eltwise::type_id(),
-                                                                              cldnn::fully_connected::type_id(),
-                                                                              cldnn::gather::type_id(),
-                                                                              cldnn::input_layout::type_id(),
-                                                                              cldnn::non_max_suppression::type_id(),
-                                                                              cldnn::non_max_suppression_gather::type_id(),
-                                                                              cldnn::permute::type_id(),
-                                                                              cldnn::pooling::type_id(),
-                                                                              cldnn::range::type_id(),
-                                                                              cldnn::reduce::type_id(),
-                                                                              cldnn::reorder::type_id(),
-                                                                              cldnn::reshape::type_id(),
-                                                                              cldnn::select::type_id(),
-                                                                              cldnn::shape_of::type_id(),
-                                                                              cldnn::softmax::type_id(),
-                                                                              cldnn::strided_slice::type_id(),
-                                                                              cldnn::tile::type_id()};
 #endif
     for (const auto& node : get_processing_order()) {
         auto &prim = *node;
@@ -1725,7 +1701,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             can_use_bs_fs_yx_bsv16_fsv16 = false;
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (prim.is_in_data_flow() && (byxf_onednn_conv_whitelist.count(prim.type()) == 0)) {
+        if (prim.is_in_data_flow() && !layout_optimizer::is_byxf_onednn_conv_compatible(prim.type())) {
             total_non_byxf_onednn_conv_whitelist_layers++;
         }
         if (prim.type() == cldnn::scaled_dot_product_attention::type_id()) {
@@ -1792,6 +1768,13 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 lo.enable_onednn_for<lstm_seq>();
                 lo.enable_onednn_for<gru_seq>();
             }
+        }
+    }
+
+    if (_onednn_impls.has_value()) {
+        lo.clear_onednn_impls_optimization_attribute();
+        for (const auto& [type_id, enabled] : *_onednn_impls) {
+            lo.set_value_onednn(type_id, enabled);
         }
     }
 
@@ -2053,6 +2036,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                                               ib.get_stream_size(),
                                               allocation_type::usm_host,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+        // Weights become sub-buffers of the blob, so its pages must stay resident.
+        if (auto* prefetch_buf = dynamic_cast<ov::intel_gpu::PrefetchStreamBuf*>(ib.get_streambuf())) {
+            prefetch_buf->keep_read_data();
+        }
     }
 
     size_t num_nodes;
