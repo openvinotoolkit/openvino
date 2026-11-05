@@ -34,6 +34,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/reference/convolution.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace testing;
@@ -280,9 +281,68 @@ protected:
         if (p.check_accuracy) {
             comparator.enable(FunctionsComparator::CONST_VALUES);
             comparator.enable(FunctionsComparator::ATTRIBUTES);
-            comparator.enable(FunctionsComparator::ACCURACY);
         }
         manager.register_pass<Deconv1DDecomposition>();
+    }
+
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        const auto& p = GetParam();
+        if (!p.check_accuracy || HasFailure()) {
+            return;
+        }
+
+        std::shared_ptr<ov::op::v1::Convolution> conv;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (const auto candidate = ov::as_type_ptr<ov::op::v1::Convolution>(op)) {
+                ASSERT_EQ(conv, nullptr);
+                conv = candidate;
+            }
+        }
+        ASSERT_NE(conv, nullptr);
+        auto inputs_model = std::make_shared<ov::Model>(ov::OutputVector{conv->input_value(0), conv->input_value(1)},
+                                                        model->get_parameters());
+        ov::Tensor input(ov::element::f32, p.input_shape.to_shape());
+        for (size_t i = 0; i < input.get_size(); ++i) {
+            input.data<float>()[i] = static_cast<float>(i + 1);
+        }
+        ov::TensorVector conv_inputs{ov::Tensor(ov::element::f32, conv->get_input_shape(0)),
+                                     ov::Tensor(ov::element::f32, conv->get_input_shape(1))};
+        ASSERT_TRUE(inputs_model->evaluate(conv_inputs, {input}));
+
+        const auto output_shape = model->get_output_shape(0);
+        const auto conv_shape = conv->get_output_shape(0);
+        ASSERT_EQ(conv_shape.size(), 4);
+        ASSERT_EQ(conv_shape.back(), 1);
+        ASSERT_EQ(ov::shape_size(output_shape), ov::shape_size(conv_shape));
+        ASSERT_EQ(p.weight_values.size(), ov::shape_size(p.weights_shape));
+        std::vector<float> actual(ov::shape_size(conv_shape));
+        std::vector<float> expected(ov::shape_size(output_shape));
+        ov::reference::convolution(conv_inputs[0].data<float>(),
+                                   conv_inputs[1].data<float>(),
+                                   actual.data(),
+                                   conv_inputs[0].get_shape(),
+                                   conv_inputs[1].get_shape(),
+                                   conv_shape,
+                                   conv->get_strides(),
+                                   conv->get_dilations(),
+                                   conv->get_pads_begin(),
+                                   conv->get_pads_end());
+        ov::reference::convolution_backprop_in(input.data<float>(),
+                                               p.weight_values.data(),
+                                               expected.data(),
+                                               input.get_shape(),
+                                               p.weights_shape,
+                                               output_shape,
+                                               ov::Strides{1},
+                                               ov::Strides{1},
+                                               ov::CoordinateDiff{0},
+                                               ov::CoordinateDiff{0},
+                                               ov::Strides{p.stride},
+                                               ov::CoordinateDiff{0});
+        for (size_t i = 0; i < expected.size(); ++i) {
+            EXPECT_NEAR(actual[i], expected[i], 1e-5f) << "output index " << i;
+        }
     }
 };
 

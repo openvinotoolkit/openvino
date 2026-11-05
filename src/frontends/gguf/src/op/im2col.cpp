@@ -4,6 +4,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -24,6 +26,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/util/math_util.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -59,6 +62,49 @@ ov::Output<Node> non_overlapping_patches(const ov::Output<Node>& image, size_t I
         grouped,
         Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(IC * KH * KW)}),
         true);
+}
+
+struct Im2col3dExtent {
+    size_t output;
+    size_t padded_input;
+    int64_t pad_end;
+};
+
+Im2col3dExtent im2col_3d_extent(size_t input, size_t kernel, int32_t stride, int32_t padding, int32_t dilation) {
+    constexpr auto max_i64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+    FRONT_END_OP_CONVERSION_CHECK(input <= max_i64 && kernel <= max_i64, "IM2COL_3D dimension overflow");
+    int64_t padded_input = 0;
+    int64_t effective_kernel = 0;
+    FRONT_END_OP_CONVERSION_CHECK(
+        !ov::util::add_overflow(static_cast<int64_t>(input), int64_t{2} * padding, padded_input) &&
+            !ov::util::mul_overflow(static_cast<int64_t>(kernel) - 1,
+                                    static_cast<int64_t>(dilation),
+                                    effective_kernel) &&
+            !ov::util::add_overflow(effective_kernel, int64_t{1}, effective_kernel),
+        "IM2COL_3D geometry overflow");
+    const int64_t numerator = padded_input - effective_kernel;
+    const int64_t output = numerator / stride + 1;
+    FRONT_END_OP_CONVERSION_CHECK(output >= 0, "IM2COL_3D output extent is negative");
+    // ggml's signed division can produce one partial window even when the kernel is larger than the input.
+    const int64_t extra_padding = output > 0 && numerator < 0 ? -numerator : 0;
+    const int64_t padded_with_extra = padded_input + extra_padding;
+    FRONT_END_OP_CONVERSION_CHECK(static_cast<uint64_t>(output) <= std::numeric_limits<size_t>::max() &&
+                                      static_cast<uint64_t>(padded_with_extra) <= std::numeric_limits<size_t>::max(),
+                                  "IM2COL_3D dimension overflow");
+    return {static_cast<size_t>(output), static_cast<size_t>(padded_with_extra), padding + extra_padding};
+}
+
+int64_t im2col_3d_product(std::initializer_list<size_t> factors) {
+    constexpr auto max_i64 = static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+    int64_t product = 1;
+    for (const auto factor : factors) {
+        FRONT_END_OP_CONVERSION_CHECK(
+            factor <= max_i64 && !ov::util::mul_overflow(product, static_cast<int64_t>(factor), product),
+            "IM2COL_3D shape overflow");
+    }
+    FRONT_END_OP_CONVERSION_CHECK(static_cast<uint64_t>(product) <= std::numeric_limits<size_t>::max(),
+                                  "IM2COL_3D shape overflow");
+    return product;
 }
 
 }  // namespace
@@ -205,32 +251,41 @@ OutputVector translate_im2col_3d(const NodeContext& context) {
     const size_t IH = image_shape[2];
     const size_t IW = image_shape[3];
 
-    const size_t OD = (ID + 2 * p2 - d2 * (KD - 1) - 1) / s2 + 1;
-    const size_t OH = (IH + 2 * p1 - d1 * (KH - 1) - 1) / s1 + 1;
-    const size_t OW = (IW + 2 * p0 - d0 * (KW - 1) - 1) / s0 + 1;
+    const auto depth = im2col_3d_extent(ID, KD, s2, p2, d2);
+    const auto height = im2col_3d_extent(IH, KH, s1, p1, d1);
+    const auto width = im2col_3d_extent(IW, KW, s0, p0, d0);
+    const size_t OD = depth.output, OH = height.output, OW = width.output;
+    const int64_t batch = im2col_3d_product({N});
+    const int64_t output_batch = im2col_3d_product({N, OD});
+    const int64_t spatial_kernel = im2col_3d_product({KH, KW});
+    const int64_t patch_elements = im2col_3d_product({static_cast<size_t>(IC), KD, KH, KW});
 
     if (N == 0 || OD == 0 || OH == 0 || OW == 0) {
-        ov::Output<Node> res =
-            ov::op::v0::Constant::create(output_type,
-                                         ov::Shape{N * OD, OH, OW, static_cast<size_t>(IC * KD * KH * KW)},
-                                         {});
+        ov::Output<Node> res = ov::op::v0::Constant::create(
+            output_type,
+            ov::Shape{static_cast<size_t>(output_batch), OH, OW, static_cast<size_t>(patch_elements)},
+            {});
         return rename_outputs_with_suffix({res}, context.get_name());
     }
 
-    const size_t IH_pad = IH + 2 * p1;
-    const size_t IW_pad = IW + 2 * p0;
-
     auto image_5d_shape = ov::op::v0::Constant::create(ov::element::i64,
                                                        ov::Shape{5},
-                                                       std::vector<int64_t>{static_cast<int64_t>(N),
+                                                       std::vector<int64_t>{batch,
                                                                             static_cast<int64_t>(IC),
                                                                             static_cast<int64_t>(ID),
                                                                             static_cast<int64_t>(IH),
                                                                             static_cast<int64_t>(IW)});
     auto image_5d = std::make_shared<ov::op::v1::Reshape>(image, image_5d_shape, false);
 
-    auto pads = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 0, p2, p1, p0});
-    auto pad_3d = std::make_shared<ov::op::v1::Pad>(image_5d, pads, pads, ov::op::PadMode::CONSTANT);
+    auto pads_begin =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 0, p2, p1, p0});
+    auto pads_end =
+        depth.pad_end == p2 && height.pad_end == p1 && width.pad_end == p0
+            ? pads_begin
+            : ov::op::v0::Constant::create(ov::element::i64,
+                                           ov::Shape{5},
+                                           std::vector<int64_t>{0, 0, depth.pad_end, height.pad_end, width.pad_end});
+    auto pad_3d = std::make_shared<ov::op::v1::Pad>(image_5d, pads_begin, pads_end, ov::op::PadMode::CONSTANT);
 
     const ov::Shape patch_sizes = {KH, KW};
     const ov::Strides strides = {static_cast<size_t>(s1), static_cast<size_t>(s0)};
@@ -240,36 +295,42 @@ OutputVector translate_im2col_3d(const NodeContext& context) {
     kd_slices.reserve(KD);
 
     auto perm_nod = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 2, 1, 3, 4});
-    auto reshape_4d_shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                         ov::Shape{4},
-                                                         std::vector<int64_t>{static_cast<int64_t>(N * OD),
-                                                                              static_cast<int64_t>(IC),
-                                                                              static_cast<int64_t>(IH_pad),
-                                                                              static_cast<int64_t>(IW_pad)});
+    auto reshape_4d_shape =
+        ov::op::v0::Constant::create(ov::element::i64,
+                                     ov::Shape{4},
+                                     std::vector<int64_t>{output_batch,
+                                                          static_cast<int64_t>(IC),
+                                                          static_cast<int64_t>(height.padded_input),
+                                                          static_cast<int64_t>(width.padded_input)});
     auto perm1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 3, 1});
     auto r1_shape = ov::op::v0::Constant::create(ov::element::i64,
                                                  ov::Shape{5},
-                                                 std::vector<int64_t>{static_cast<int64_t>(N * OD),
+                                                 std::vector<int64_t>{output_batch,
                                                                       static_cast<int64_t>(OH),
                                                                       static_cast<int64_t>(OW),
-                                                                      static_cast<int64_t>(KH * KW),
+                                                                      spatial_kernel,
                                                                       static_cast<int64_t>(IC)});
     auto perm2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
     auto r2_shape = ov::op::v0::Constant::create(ov::element::i64,
                                                  ov::Shape{6},
-                                                 std::vector<int64_t>{static_cast<int64_t>(N * OD),
+                                                 std::vector<int64_t>{output_batch,
                                                                       static_cast<int64_t>(OH),
                                                                       static_cast<int64_t>(OW),
                                                                       static_cast<int64_t>(IC),
                                                                       1,
-                                                                      static_cast<int64_t>(KH * KW)});
+                                                                      spatial_kernel});
     auto step_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(s2)});
     auto axes_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
     for (size_t ikd = 0; ikd < KD; ++ikd) {
-        auto start_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(ikd * d2)});
-        auto stop_c =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(ikd * d2 + OD * s2)});
+        const int64_t start = static_cast<int64_t>(ikd) * d2;
+        int64_t span = 0, stop = 0;
+        if (ov::util::mul_overflow(static_cast<int64_t>(OD), static_cast<int64_t>(s2), span) ||
+            ov::util::add_overflow(start, span, stop)) {
+            stop = static_cast<int64_t>(depth.padded_input);
+        }
+        auto start_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {start});
+        auto stop_c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {stop});
         auto depth_slice = std::make_shared<ov::op::v8::Slice>(pad_3d, start_c, stop_c, step_c, axes_c);
         auto depth_slice_trans = std::make_shared<ov::op::v1::Transpose>(depth_slice, perm_nod);
         auto depth_slice_4d = std::make_shared<ov::op::v1::Reshape>(depth_slice_trans, reshape_4d_shape, false);
@@ -293,12 +354,10 @@ OutputVector translate_im2col_3d(const NodeContext& context) {
         res = std::make_shared<ov::op::v0::Concat>(kd_slices, 4);
     }
 
-    auto final_shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                    ov::Shape{4},
-                                                    std::vector<int64_t>{static_cast<int64_t>(N * OD),
-                                                                         static_cast<int64_t>(OH),
-                                                                         static_cast<int64_t>(OW),
-                                                                         static_cast<int64_t>(IC * KD * KH * KW)});
+    auto final_shape = ov::op::v0::Constant::create(
+        ov::element::i64,
+        ov::Shape{4},
+        std::vector<int64_t>{output_batch, static_cast<int64_t>(OH), static_cast<int64_t>(OW), patch_elements});
     res = std::make_shared<ov::op::v1::Reshape>(res, final_shape, false);
 
     if (res.get_element_type() != output_type) {

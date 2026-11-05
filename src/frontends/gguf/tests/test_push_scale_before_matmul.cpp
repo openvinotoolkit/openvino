@@ -24,16 +24,13 @@
 
 using namespace ov_gguf_test;
 
-namespace {
-
-using ov::Output;
-using ov::op::v0::Constant;
+namespace ov_gguf_test {
 
 class CountingConvert : public ov::op::v0::Convert {
 public:
     OPENVINO_OP("CountingConvert", "test", ov::op::v0::Convert);
 
-    CountingConvert(const Output<ov::Node>& input, size_t& evaluations)
+    CountingConvert(const ov::Output<ov::Node>& input, size_t& evaluations)
         : ov::op::v0::Convert(input, ov::element::f32),
           m_evaluations(evaluations) {}
 
@@ -49,6 +46,13 @@ public:
 private:
     size_t& m_evaluations;
 };
+
+}  // namespace ov_gguf_test
+
+namespace {
+
+using ov::Output;
+using ov::op::v0::Constant;
 
 // Parameter a [1, 3, 8] and a constant weight [8, 6]; `build` wires the MatMul(a, w) into a result.
 std::shared_ptr<ov::Model> make_model(
@@ -200,6 +204,68 @@ TEST(PushScaleBeforeMatMul, GatedProductScalesTheNonSwishFactor) {
     EXPECT_TRUE(ov::is_type<ov::op::v4::Swish>(product->get_input_node_shared_ptr(swish_first ? 0 : 1)));
     EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(product->get_input_node_shared_ptr(swish_first ? 1 : 0)));
     expect_near(run(model), run_vector(reference), 1e-5f);
+}
+
+TEST(PushScaleBeforeMatMul, PreservesPdpdProductBroadcastAndInputOrder) {
+    auto a = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+    auto b = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+    const ov::op::AutoBroadcastSpec broadcast(ov::op::AutoBroadcastType::PDPD, 0);
+    auto product = std::make_shared<ov::op::v1::Multiply>(a, b, broadcast);
+    auto matmul =
+        std::make_shared<ov::op::v0::MatMul>(product, Constant::create(ov::element::f32, {3, 2}, {1, 0, 0, 1, 1, 1}));
+    auto output = std::make_shared<ov::op::v1::Multiply>(matmul, Constant::create(ov::element::f32, {}, {0.5f}));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{a, b});
+    ov::TensorVector inputs{make_f32_tensor({2, 3}, {1, 2, 3, 4, 5, 6}), make_f32_tensor({2}, {2, 3})};
+    ov::TensorVector outputs{ov::Tensor(ov::element::f32, {2, 2})};
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+    expect_near(outputs[0], {4, 5, 15, 16.5f}, 0.0f, 0.0f);
+
+    run_pass(model);
+    const auto new_matmul = ov::as_type_ptr<ov::op::v0::MatMul>(result_producer(model));
+    ASSERT_NE(new_matmul, nullptr);
+    const auto new_product = ov::as_type_ptr<ov::op::v1::Multiply>(new_matmul->get_input_node_shared_ptr(0));
+    ASSERT_NE(new_product, nullptr);
+    EXPECT_EQ(new_product->get_autob(), broadcast);
+    EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(new_product->get_input_node_shared_ptr(0)));
+    EXPECT_EQ(new_product->get_input_node_shared_ptr(1), b);
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+    expect_near(outputs[0], {4, 5, 15, 16.5f}, 0.0f, 0.0f);
+}
+
+TEST(PushScaleBeforeMatMul, CopiesScaleRuntimeInfo) {
+    for (const bool gated : {false, true}) {
+        SCOPED_TRACE(gated);
+        auto model = make_model([gated](const Output<ov::Node>& a, const Output<ov::Node>& matmul) -> Output<ov::Node> {
+            if (!gated) {
+                return std::make_shared<ov::op::v1::Multiply>(matmul, Constant::create(ov::element::f32, {}, {0.5f}));
+            }
+            auto gate = std::make_shared<ov::op::v4::Swish>(a);
+            auto up = std::make_shared<ov::op::v1::Multiply>(a, Constant::create(ov::element::f32, {}, {1.5f}));
+            auto product = std::make_shared<ov::op::v1::Multiply>(gate, up);
+            product->get_rt_info()["product_marker"] = 7;
+            auto gated_matmul =
+                std::make_shared<ov::op::v0::MatMul>(product, Constant::create(ov::element::f32, {8, 6}, {0.02f}));
+            return std::make_shared<ov::op::v1::Multiply>(gated_matmul, Constant::create(ov::element::f32, {}, {0.5f}));
+        });
+        result_producer(model)->get_rt_info()["scale_marker"] = 42;
+        run_pass(model);
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(result_producer(model));
+        ASSERT_NE(matmul, nullptr);
+        auto scaled = ov::as_type_ptr<ov::op::v1::Multiply>(matmul->get_input_node_shared_ptr(0));
+        ASSERT_NE(scaled, nullptr);
+        if (gated) {
+            ASSERT_EQ(scaled->get_rt_info().count("product_marker"), 1u);
+            ASSERT_EQ(scaled->get_rt_info().at("product_marker").as<int>(), 7);
+            scaled = ov::as_type_ptr<ov::op::v1::Multiply>(scaled->get_input_node_shared_ptr(1));
+            ASSERT_NE(scaled, nullptr);
+        }
+        ASSERT_EQ(scaled->get_rt_info().count("scale_marker"), 1u);
+        EXPECT_EQ(scaled->get_rt_info().at("scale_marker").as<int>(), 42);
+        const auto constant = ov::as_type_ptr<Constant>(scaled->get_input_node_shared_ptr(1));
+        ASSERT_NE(constant, nullptr);
+        ASSERT_EQ(constant->get_rt_info().count("scale_marker"), 1u);
+        EXPECT_EQ(constant->get_rt_info().at("scale_marker").as<int>(), 42);
+    }
 }
 
 TEST(PushScaleBeforeMatMul, ScalesOutsideTheRangeAreLeftAlone) {

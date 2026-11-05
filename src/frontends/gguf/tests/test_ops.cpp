@@ -37,6 +37,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
@@ -4668,6 +4669,59 @@ TEST(GGUFOps, ViewKvCacheRuntimeBounds) {
     }
 }
 
+TEST(GGUFOps, ViewKvCachePaddedFeatures) {
+    std::vector<float> cache(16);
+    std::iota(cache.begin(), cache.end(), 0.0f);
+    for (const int64_t row_width : {4, 8}) {
+        SCOPED_TRACE(row_width);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_VIEW")
+                         .input("cache", ov::element::f32, {1, -1, 2, 2})
+                         .input("length", ov::element::i64, {1})
+                         .output("out", ov::element::f32, {1, -1, 2, 2})
+                         .attr("kv_view", std::vector<int64_t>{1, row_width, 2, 2, 1, 0, 0, 0, 1, 2, 3, 2})
+                         .build();
+        const auto ops = model->get_ops();
+        EXPECT_EQ(std::any_of(ops.begin(),
+                              ops.end(),
+                              [](const auto& op) {
+                                  return ov::is_type<ov::op::v1::VariadicSplit>(op);
+                              }),
+                  row_width == 4);
+        auto out =
+            run_on_cpu(model, {{"cache", make_f32_tensor({1, 4, 2, 2}, cache)}, {"length", make_i64_tensor({1}, {2})}});
+        EXPECT_EQ(out.get_shape(), (ov::Shape{1, 2, 2, 2}));
+        expect_near(
+            out,
+            row_width == 4 ? std::vector<float>{0, 1, 2, 3, 4, 5, 6, 7} : std::vector<float>{0, 1, 2, 3, 8, 9, 10, 11},
+            0.0f,
+            0.0f);
+    }
+}
+
+TEST(GGUFOps, ViewKvCacheRejectsInvalidFeatureDimensions) {
+    const auto max = std::numeric_limits<int64_t>::max();
+    const std::vector<std::vector<int64_t>> descriptors{
+        {1, max, max, 2, 1, 0, 0, 0, 1, 2, 3, 1},
+        {1, 4, 2, 3, 1, 0, 0, 0, 1, 2, 3, 1},
+        {1, 4, 2, 0, 1, 0, 0, 0, 1, 2, 3, 1},
+    };
+    for (const auto& descriptor : descriptors) {
+        SCOPED_TRACE(descriptor[3]);
+        try {
+            SingleOpBuilder()
+                .op("GGML_OP_VIEW")
+                .input("cache", ov::element::f32, {1, 1, 1, 1})
+                .output("out", ov::element::f32, {1, 1, 1, 1})
+                .attr("kv_view", descriptor)
+                .build();
+            FAIL() << "Invalid kv_view descriptor was accepted";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("Invalid kv_view descriptor"), std::string::npos);
+        }
+    }
+}
+
 TEST(GGUFOps, ViewKvCacheFlatBufferRowBase) {
     std::vector<float> buffer(4 * 4);
     for (size_t i = 0; i < buffer.size(); ++i)
@@ -5932,6 +5986,109 @@ TEST(GGUFOps, Im2col3dSinglePatch) {
     auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 2, 2}, x)}});
     ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, 1, 8}));
     expect_near(out, x);
+}
+
+TEST(GGUFOps, Im2col3dPartialWindowsMatchGgml) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_IM2COL_3D")
+                     .input("w", ov::element::f32, {1, 3, 3, 3})
+                     .input("x", ov::element::f32, {1, 2, 2, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 27})
+                     .attr<std::vector<int32_t>>("im2col_params", {2, 2, 2, 0, 0, 0, 1, 1, 1, 1})
+                     .build();
+    const auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{1, 1, 1, 27}));
+    // mmproj_ops_oracle.cpp, ggml CPU at 476c01efe88aad7880a8132d5d3a415f2ca75139.
+    expect_near(out, {1, 2, 0, 3, 4, 0, 0, 0, 0, 5, 6, 0, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 0.0f, 0.0f);
+}
+
+TEST(GGUFOps, Im2col3dBatchedDilatedMatchesGgml) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_IM2COL_3D")
+                     .input("w", ov::element::f32, {2, 2, 2, 2})
+                     .input("x", ov::element::f32, {4, 2, 2, 3})
+                     .output("out", ov::element::f32, {2, 1, 2, 16})
+                     .attr<std::vector<int32_t>>("im2col_params", {2, 1, 1, 1, 0, 0, 2, 1, 1, 2})
+                     .build();
+    std::vector<float> values(48);
+    std::iota(values.begin(), values.end(), 1.0f);
+    const auto out = run_on_cpu(model, {{"x", make_f32_tensor({4, 2, 2, 3}, values)}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{2, 1, 2, 16}));
+    expect_near(out, load_npy<float>("mmproj_im2col_3d_mixed"), 0.0f, 0.0f);
+}
+
+TEST(GGUFOps, Im2col3dEmptyOutputExtents) {
+    for (size_t axis = 1; axis < 4; ++axis) {
+        SCOPED_TRACE(axis);
+        ov::Shape kernel{1, 1, 1, 1};
+        kernel[axis] = 4;
+        ov::Shape expected{1, 1, 1, 4};
+        expected[axis - 1] = 0;
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_IM2COL_3D")
+                         .input("w", ov::element::f32, kernel)
+                         .input("x", ov::element::f32, {1, 1, 1, 1})
+                         .output("out", ov::element::f32, expected)
+                         .attr<std::vector<int32_t>>("im2col_params", {3, 3, 3, 0, 0, 0, 1, 1, 1, 1})
+                         .build();
+        EXPECT_EQ(model->get_output_shape(0), expected);
+    }
+}
+
+TEST(GGUFOps, Im2col3dRejectsNegativeOutputExtents) {
+    for (size_t axis = 1; axis < 4; ++axis) {
+        SCOPED_TRACE(axis);
+        ov::Shape kernel{1, 1, 1, 1};
+        kernel[axis] = 8;
+        try {
+            SingleOpBuilder()
+                .op("GGML_OP_IM2COL_3D")
+                .input("w", ov::element::f32, kernel)
+                .input("x", ov::element::f32, {1, 1, 1, 1})
+                .output("out", ov::element::f32, {1, 1, 1, 1})
+                .attr<std::vector<int32_t>>("im2col_params", {3, 3, 3, 0, 0, 0, 1, 1, 1, 1})
+                .build();
+            FAIL() << "A negative output extent must be rejected";
+        } catch (const std::exception& error) {
+            EXPECT_NE(std::string(error.what()).find("output extent is negative"), std::string::npos) << error.what();
+        }
+    }
+}
+
+TEST(GGUFOps, Im2col3dRejectsGeometryOverflow) {
+    if (std::numeric_limits<size_t>::max() < static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+        GTEST_SKIP() << "Requires 64-bit shape dimensions";
+    }
+    for (const int scenario : {0, 1, 2, 3}) {
+        SCOPED_TRACE(scenario);
+        ov::Shape kernel{1, 1, 1, 1}, image{1, 1, 1, 1};
+        std::vector<int32_t> params{1, 1, 1, 0, 0, 0, 1, 1, 1, 1};
+        if (scenario == 0) {
+            image[3] = static_cast<size_t>(std::numeric_limits<int64_t>::max() - 1);
+            params[3] = 1;
+        } else if (scenario == 1) {
+            kernel[3] = static_cast<size_t>(std::numeric_limits<int64_t>::max() / 2 + 2);
+            params[6] = 3;
+        } else if (scenario == 2) {
+            const auto large = size_t{1} << 31;
+            kernel = {1, large, large, 2};
+            image = {0, large, large, 2};
+        } else {
+            image = {static_cast<size_t>(std::numeric_limits<int64_t>::max() / 2 + 1), 3, 1, 1};
+        }
+        try {
+            SingleOpBuilder()
+                .op("GGML_OP_IM2COL_3D")
+                .input("w", ov::element::f32, kernel)
+                .input("x", ov::element::f32, image)
+                .output("out", ov::element::f32, {1, 1, 1, 1})
+                .attr("im2col_params", params)
+                .build();
+            FAIL() << "Overflowing geometry must be rejected";
+        } catch (const std::exception& error) {
+            EXPECT_NE(std::string(error.what()).find("overflow"), std::string::npos) << error.what();
+        }
+    }
 }
 
 TEST(GGUFOps, Im2col3dRejectsInvalidDivisorsAndRanks) {

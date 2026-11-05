@@ -95,9 +95,10 @@ PushScaleBeforeMatMul::PushScaleBeforeMatMul() {
 
         const auto activations = matmul->input_value(0);
         const auto scaled = [&](const ov::Output<ov::Node>& value) -> ov::Output<ov::Node> {
-            return std::make_shared<ov::op::v1::Multiply>(
-                value,
-                ov::op::v0::Constant::create(value.get_element_type(), ov::Shape{}, {scale}));
+            auto constant = ov::op::v0::Constant::create(value.get_element_type(), ov::Shape{}, {scale});
+            auto result = std::make_shared<ov::op::v1::Multiply>(value, constant);
+            ov::copy_runtime_info(multiply, {constant, result});
+            return result;
         };
 
         ov::Output<ov::Node> new_activations;
@@ -107,9 +108,9 @@ PushScaleBeforeMatMul::PushScaleBeforeMatMul() {
             !ov::is_type<ov::op::v0::Constant>(product->get_input_node_shared_ptr(1))) {
             // Gated product: scale the factor that is not the activation function's output.
             const size_t scaled_input = ov::is_type<ov::op::v4::Swish>(product->get_input_node_shared_ptr(0)) ? 1 : 0;
-            const size_t other_input = 1 - scaled_input;
-            new_activations = std::make_shared<ov::op::v1::Multiply>(product->input_value(other_input),
-                                                                     scaled(product->input_value(scaled_input)));
+            auto inputs = product->input_values();
+            inputs[scaled_input] = scaled(inputs[scaled_input]);
+            new_activations = product->clone_with_new_inputs(inputs);
             ov::copy_runtime_info(product, new_activations.get_node_shared_ptr());
         } else {
             new_activations = scaled(activations);
