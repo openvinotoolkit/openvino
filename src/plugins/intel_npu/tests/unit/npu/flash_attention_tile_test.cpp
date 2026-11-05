@@ -504,10 +504,10 @@ TEST_F(FlashAttentionTileTest, AttentionSinkBroadcastMatchesReferenceWithVectorT
                                                                  std::vector<int64_t>{2, 3, 19, 1});
                 auto broadcast = std::make_shared<ov::op::v3::Broadcast>(converted, target_shape);
                 ov::Model reference(ov::OutputVector{broadcast}, ov::ParameterVector{sink_param});
-                ov::Tensor expected(state_type, state_shape);
-                ASSERT_TRUE(reference.evaluate(ov::TensorVector{expected}, ov::TensorVector{sink}));
+                ov::TensorVector expected{ov::Tensor(state_type, state_shape)};
+                ASSERT_TRUE(reference.evaluate(expected, ov::TensorVector{sink}));
                 const auto actual_float = tensor_to_f32(max);
-                const auto expected_float = tensor_to_f32(expected);
+                const auto expected_float = tensor_to_f32(expected.front());
                 for (size_t index = 0; index < state_size; ++index) {
                     EXPECT_FLOAT_EQ(actual_float.data<const float>()[index], expected_float.data<const float>()[index]);
                 }
