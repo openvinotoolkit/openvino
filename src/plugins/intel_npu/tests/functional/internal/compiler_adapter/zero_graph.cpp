@@ -479,9 +479,17 @@ protected:
         return params;
     }
 
-    static void expectRequestedQos(const ov::QoSInfo& qosInfo, ov::QoS expectedLevel) {
-        EXPECT_EQ(qosInfo.level, expectedLevel);
+    // The effective level may be adjusted by the driver/OS based on other properties, so only check that it is
+    // reported as requested by the user. The requested level itself is checked on the command queue descriptor.
+    static void expectRequestedQos(const ov::QoSInfo& qosInfo) {
+        EXPECT_NE(qosInfo.level, ov::QoS::DEFAULT) << "The effective level is never DEFAULT";
         EXPECT_TRUE(qosInfo.is_overridden);
+    }
+
+    static void expectDescriptorQos(const std::shared_ptr<Graph>& graph, ze_command_queue_qos_ext_t expectedQos) {
+        auto desc = graph->get_command_queue_desc();
+        ASSERT_TRUE(desc.qos().has_value());
+        EXPECT_EQ(desc.qos().value(), expectedQos);
     }
 
     static void expectDriverDefaultQos(const ov::QoSInfo& qosInfo) {
@@ -504,7 +512,7 @@ TEST_P(ZeroGraphQosTest, GetQosInfoBeforeInitializeUsesTheGivenParameters) {
 
         for (auto level : {ov::QoS::HIGH, ov::QoS::MEDIUM, ov::QoS::LOW, ov::QoS::UTILITY, ov::QoS::ECO}) {
             OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue, level)));
-            expectRequestedQos(qosInfo, level);
+            expectRequestedQos(qosInfo);
         }
 
         // Querying must not initialize the graph as a side effect.
@@ -534,15 +542,14 @@ TEST_P(ZeroGraphQosTest, InitializeAppliesTheConfiguredQos) {
         OV_ASSERT_NO_THROW(graph->initialize(createConfig(sharedCommonQueue, ov::QoS::HIGH)));
         ASSERT_TRUE(graph->init_completed());
 
-        auto desc = graph->get_command_queue_desc();
-        ASSERT_TRUE(desc.qos().has_value());
-        EXPECT_EQ(desc.qos().value(), ZE_COMMAND_QUEUE_QOS_EXT_HIGH);
-        EXPECT_EQ(desc.sharedCommonQueue(), sharedCommonQueue);
+        expectDescriptorQos(graph, ZE_COMMAND_QUEUE_QOS_EXT_HIGH);
+        EXPECT_EQ(graph->get_command_queue_desc().sharedCommonQueue(), sharedCommonQueue);
 
         // Once initialized, the queue used for execution is queried and the given parameters are ignored.
         ov::QoSInfo qosInfo{};
         OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue, ov::QoS::ECO)));
-        expectRequestedQos(qosInfo, ov::QoS::HIGH);
+        expectRequestedQos(qosInfo);
+        expectDescriptorQos(graph, ZE_COMMAND_QUEUE_QOS_EXT_HIGH);
     }
 }
 
@@ -569,7 +576,7 @@ TEST_P(ZeroGraphQosTest, SetQosAfterInitializeIsReportedByGetQosInfo) {
 
             ov::QoSInfo qosInfo{};
             OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue)));
-            expectRequestedQos(qosInfo, level);
+            expectRequestedQos(qosInfo);
         }
 
         OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::DEFAULT));
@@ -589,7 +596,8 @@ TEST_P(ZeroGraphQosTest, QosSetBeforeInitializeIsReplacedByTheInitializationConf
 
         ov::QoSInfo qosInfo{};
         OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue)));
-        expectRequestedQos(qosInfo, ov::QoS::UTILITY);
+        expectRequestedQos(qosInfo);
+        expectDescriptorQos(graph, ZE_COMMAND_QUEUE_QOS_EXT_UTILITY);
     }
 }
 
@@ -602,8 +610,41 @@ TEST_P(ZeroGraphQosTest, QosOfOneGraphDoesNotAffectAnother) {
 
         OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::ECO));
 
-        expectRequestedQos(graph->get_qos_info(createParams(sharedCommonQueue)), ov::QoS::ECO);
+        expectRequestedQos(graph->get_qos_info(createParams(sharedCommonQueue)));
         expectDriverDefaultQos(otherGraph->get_qos_info(createParams(sharedCommonQueue)));
+    }
+}
+
+TEST_P(ZeroGraphQosTest, ModelPriorityChangeAfterInitializeKeepsQos) {
+    // When shared common queue is disabled, set_qos applies the level directly on the existing queue. If the driver
+    // can't change the priority of an existing queue, set_model_priority recreates the queue from the descriptor,
+    // and that level is lost. The plugin assumes this path is never taken when QoS is supported.
+    ASSERT_TRUE(zeroInitStruct->isCommandQueueSetPrioritySupported())
+        << "QoS is supported, but changing the priority of an existing queue is not. Graph::set_model_priority "
+           "would recreate the queue and lose the QoS level.";
+
+    // The effective QoS level may be adjusted by the driver/OS based on other properties, so only check that the
+    // level requested by the user is still reported as overridden.
+    for (bool sharedCommonQueue : {true, false}) {
+        auto graph = createGraph();
+        OV_ASSERT_NO_THROW(graph->initialize(createConfig(sharedCommonQueue)));
+
+        // QoS first, then priority.
+        OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::ECO));
+        for (auto priority : {ov::hint::Priority::HIGH, ov::hint::Priority::LOW, ov::hint::Priority::MEDIUM}) {
+            OV_ASSERT_NO_THROW(graph->set_model_priority(priority));
+            EXPECT_TRUE(graph->get_qos_info(createParams(sharedCommonQueue)).is_overridden)
+                << "sharedCommonQueue=" << sharedCommonQueue << " priority=" << priority;
+        }
+
+        // Priority first, then QoS, then priority again.
+        OV_ASSERT_NO_THROW(graph->set_model_priority(ov::hint::Priority::HIGH));
+        OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::UTILITY));
+        EXPECT_TRUE(graph->get_qos_info(createParams(sharedCommonQueue)).is_overridden)
+            << "sharedCommonQueue=" << sharedCommonQueue;
+        OV_ASSERT_NO_THROW(graph->set_model_priority(ov::hint::Priority::LOW));
+        EXPECT_TRUE(graph->get_qos_info(createParams(sharedCommonQueue)).is_overridden)
+            << "sharedCommonQueue=" << sharedCommonQueue;
     }
 }
 
