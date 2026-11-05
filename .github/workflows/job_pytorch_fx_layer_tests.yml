@@ -46,7 +46,7 @@ jobs:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
+      USE_SYSTEM_CACHE: False # Reuse the local cache within this job
       HF_HUB_VERBOSITY: debug
       TRANSFORMERS_VERBOSITY: debug
     steps:
@@ -70,12 +70,6 @@ jobs:
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
-
-      - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
-          Add-Content -Path $env:GITHUB_ENV -Value "HUGGINGFACE_HUB_CACHE=C:\\mount\\caches\\huggingface"
 
       - name: Setup Variables
         run: |
@@ -102,6 +96,9 @@ jobs:
           use-pip-proxy: 'true'
           set-pip-install-path: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
+
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
 
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
