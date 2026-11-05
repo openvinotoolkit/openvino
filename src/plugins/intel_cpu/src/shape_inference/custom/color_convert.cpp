@@ -48,6 +48,9 @@ Result ColorConvertToNV12ShapeInfer::infer(
     [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& dims = input_shapes.front().get();
     OPENVINO_ASSERT(dims.size() == 4, "RGBtoNV12/BGRtoNV12 node expects 4 input dimensions");
+    OPENVINO_ASSERT(dims[ColorConvert::Converter::C_DIM] == 3, "RGB/BGR input number of channels should be equal to 3");
+    OPENVINO_ASSERT(dims[ColorConvert::Converter::H_DIM] % 2 == 0, "Image height must be even");
+    OPENVINO_ASSERT(dims[ColorConvert::Converter::W_DIM] % 2 == 0, "Image width must be even");
 
     if (m_singlePlane) {
         // Single-plane output: [N, H*3/2, W, 1]
