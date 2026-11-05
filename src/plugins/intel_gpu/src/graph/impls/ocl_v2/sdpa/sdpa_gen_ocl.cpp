@@ -206,13 +206,17 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
 
     if (arch == gpu_arch::xe_hpg) {
-        // DG2 (SG8, 256 GRF): the 16 x 16 KQ subgroup tile with 4 x 2 subgroups spilled nothing and was the fastest
-        // measured; larger tiles spill even at 256 GRF. The S*V split is derived (widest value split whose alpha[]
-        // nesting holds); config stays zero-split when none exists, which solve_tiling() then rejects.
+        // DG2 (SG8, 256 GRF): 16 x 16 KQ subgroup tiles, 2 subgroups along the queries and as many along the keys as
+        // keep the S*V accumulator at 64 GRF per thread (4 up to head 128, 8 at 256, 16 at 512): with 4 at head 256 /
+        // 512 it alone is 128 / 256 GRF and the kernel spilled 27 KB / 52 KB (ocloc, IGC 2.41). MICRO_MATH's second
+        // accumulator would double it, and it gives sdpa_micro's rounding only with the Xe2 table tiles. The KQ depth and
+        // S*V key loops are not unrolled on SG8 (add_tiling_jit()). The S*V split is derived (widest value split whose
+        // alpha[] nesting holds); config stays zero-split when none exists, which solve_tiling() then rejects.
         config.kq_sg_tile_keys = 16;
         config.kq_sg_tile_queries = 16;
-        config.kq_sg_per_wg_keys = 4;
+        config.kq_sg_per_wg_keys = d_max <= 128 ? 4 : (d_max <= 256 ? 8 : 16);
         config.kq_sg_per_wg_queries = 2;
+        config.micro_math = false;
         solve_sv_split(config, d_max);
         return config;
     }
@@ -1195,6 +1199,15 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
+        // Unroll of the generic kernel's KQ depth loop and S*V key loop (1 = not unrolled). Unrolled whole, IGC 2.41 loads
+        // K / V of every depth tile / key block ahead and the kernel spilled 4-33 KB at heads 64-256 on DG2; not unrolled
+        // it spills nothing (ocloc). SDPA_OCL_SG8_KQ_UNROLL / SDPA_OCL_SG8_SV_UNROLL change it, 0 = unrolled whole.
+        if (!t.hpg_pa_prefill) {
+            if (const int kq = env_int("SDPA_OCL_SG8_KQ_UNROLL", 1); kq > 0)
+                jit.make("SG8_KQ_UNROLL", kq);
+            if (const int sv = env_int("SDPA_OCL_SG8_SV_UNROLL", 1); sv > 0)
+                jit.make("SG8_SV_UNROLL", sv);
+        }
     }
     // sdpa_ocl.cl includes sdpa_ocl_hpg_pa_prefill.cl in place of its kernel. Absent otherwise, so no other jit changes.
     // HPG_PA_V_LEAD: key blocks of V loaded ahead (6 measured best on DG2 with IGC 2.41; SDPA_OCL_HPG_PA_V_LEAD for A/B).

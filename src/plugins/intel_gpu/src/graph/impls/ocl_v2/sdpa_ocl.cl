@@ -701,7 +701,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // last tile, where these keys are). Uniform per subgroup.
         if (key_base < min(k_tile_end, kq_sg_causal_k)) {
 #endif
+#if SG8 && defined(SG8_KQ_UNROLL)
+        // Unrolled whole, IGC 2.41 loads K for every depth tile ahead and spills on DG2 (the host's SG8_KQ_UNROLL).
+        __attribute__((opencl_unroll_hint(SG8_KQ_UNROLL)))
+#else
         #pragma unroll
+#endif
         for (int db = 0; db < DKS_ACTIVE; ++db) {
             int8 qB[kq_query_blocks];
             #pragma unroll
@@ -1157,7 +1162,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // The same for v_u4_read(), one read per value-block pair.
             uint vt[8 * ((sv_value_blocks + 1) / 2)];
         #endif
+#if SG8 && defined(SG8_SV_UNROLL)
+        // As the KQ depth loop: unrolled whole, V of every key block is loaded ahead (the host's SG8_SV_UNROLL).
+        __attribute__((opencl_unroll_hint(SG8_SV_UNROLL)))
+#else
         #pragma unroll
+#endif
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
 #if IS_PA_K_U4 && PA_CUR_KV_F16
             // Exact chunks can end before the fixed S*V tile: skip whole blocks past k_chunk (their
