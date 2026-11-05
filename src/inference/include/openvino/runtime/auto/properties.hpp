@@ -31,6 +31,27 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
 
 /**
+ * @brief auto device setting that enables compiling the model to the remaining candidate devices in the background,
+ * after the actual device is ready, to populate cache blobs for faster device switching.
+ * Enabling it disables ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback.
+ * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws on every host. Ignored in
+ * cumulative throughput mode, when there is no other candidate device, and when
+ * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
+ *
+ * When ov::device::priorities (or a device string such as "AUTO:GPU,NPU") is set, it determines the candidates;
+ * otherwise AUTO discovers its usual eligible devices. For example, to warm up the cache for GPU and NPU, so that
+ * the one not selected by AUTO is compiled in the background:
+ * @code
+ * core.compile_model(model,
+ *                    "AUTO",
+ *                    ov::device::priorities("GPU,NPU"),
+ *                    ov::cache_dir("model_cache"),
+ *                    ov::intel_auto::compile_for_all(true));
+ * @endcode
+ */
+static constexpr Property<bool> compile_for_all{"COMPILE_FOR_ALL"};
+
+/**
  * @brief Enum to define the policy of scheduling inference request to target device in cumulative throughput mode on
  * AUTO
  * @ingroup ov_runtime_cpp_prop_api
