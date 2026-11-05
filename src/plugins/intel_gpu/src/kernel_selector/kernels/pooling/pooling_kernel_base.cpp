@@ -49,7 +49,7 @@ Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) con
 }
 
 Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
-        //case when fused op is dequantize and values are big but are scaled down by fused multiply
+    //case when fused op is dequantize and values are big but are scaled down by fused multiply
     if (!params.fused_ops.empty() && params.inputs[0].GetDType() == Datatype::F32) {
         return Datatype::F32;
     }
