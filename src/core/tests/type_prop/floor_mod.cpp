@@ -22,10 +22,8 @@ TEST(type_prop_floormod, constant_bounds) {
     ASSERT_TRUE(lower);
     ASSERT_TRUE(upper);
     const std::vector<int64_t> expected{2, -2, -1, 1};
-    EXPECT_EQ(std::vector<int64_t>(lower.data<int64_t>(), lower.data<int64_t>() + 4),
-              expected);
-    EXPECT_EQ(std::vector<int64_t>(upper.data<int64_t>(), upper.data<int64_t>() + 4),
-              expected);
+    EXPECT_EQ(std::vector<int64_t>(lower.data<int64_t>(), lower.data<int64_t>() + 4), expected);
+    EXPECT_EQ(std::vector<int64_t>(upper.data<int64_t>(), upper.data<int64_t>() + 4), expected);
 }
 
 TEST(type_prop_floormod, static_shape_bounds) {
