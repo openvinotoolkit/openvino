@@ -24,16 +24,11 @@ inline size_t get_target_seq_len_block_size() {
     return block_size;
 }
 
-inline size_t get_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, size_t k_head_size) {
+inline size_t get_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type) {
     constexpr size_t subgroup_size = 16;
     const size_t optimal_scale_factor = 2;
     if (kernel_type == SDPAStage::MULTI_TOKENS) {
-        // The doubled-subgroup query-loading scheme (SG_SCALE_FACTOR == 2) in the multi-token
-        // kernel assumes the work-group is sized off a single head size. When K/V head sizes
-        // differ, the per-subgroup head-index/seq-half assignment logic is not guaranteed to
-        // produce correct coverage, so keep the safe (non-scaled) path in that case.
-        bool head_sizes_match = (k_head_size == 0) || (k_head_size == head_size);
-        if (head_sizes_match && head_size % subgroup_size == 0 && head_size * optimal_scale_factor <= info.max_work_group_size) {
+        if ((head_size % subgroup_size == 0) && (head_size * optimal_scale_factor <= info.max_work_group_size)) {
             return optimal_scale_factor;
         }
     } else if (kernel_type == SDPAStage::SINGLE_TOKEN) {
@@ -45,10 +40,10 @@ inline size_t get_sg_number_scale_factor(const device_info& info, size_t head_si
     return 1;
 }
 
-inline size_t get_seq_len_partition_size(const device_info& info, size_t head_size, size_t kernel_type, size_t k_head_size) {
+inline size_t get_seq_len_partition_size(const device_info& info, size_t head_size, size_t kernel_type) {
     size_t seq_len = 0;
     if (kernel_type == SDPAStage::MULTI_TOKENS) {
-        seq_len = align_to(head_size * get_sg_number_scale_factor(info, head_size, kernel_type, k_head_size), 16);
+        seq_len = align_to(head_size * get_sg_number_scale_factor(info, head_size, kernel_type), 16);
     } else {
         seq_len = 256;
     }
@@ -68,7 +63,7 @@ inline size_t get_partitions_num(const kernel_impl_params& params, size_t kernel
     const auto head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
     const auto source_seq_len = get_seq_length(params.get_input_layout(1), extended_input_k_transpose_order);
 
-    return ceil_div(source_seq_len, get_seq_len_partition_size(params.get_device_info(), head_size, kernel_type, 0));
+    return ceil_div(source_seq_len, get_seq_len_partition_size(params.get_device_info(), head_size, kernel_type));
 }
 
 class SDPAOptGeneratorBase : public SDPABase {

@@ -253,10 +253,19 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
         return False
 
     inputs = prepare_torch_inputs(example_inputs)
+    # SECURITY: torch.jit.load / torch.export.load unpickle, so a malicious
+    # archive can execute arbitrary code. Mitigations:
+    #   1. _is_pytorch_zip() above rejects anything that isn't a ZIP with
+    #      PyTorch-specific entries, shrinking the attack surface.
+    #   2. input_model comes from the OVC CLI / Python API; the trust
+    #      boundary is the caller, who already has code-exec on this host.
+    #   3. neither torch.jit.load nor torch.export.load supports a
+    #      weights_only / safe mode for TorchScript / older PT2 archives.
+    log.warning("Loading PyTorch model from '%s'. PyTorch archives are deserialized via pickle; only load model files you trust.", input_model)
 
     # attempt to load scripted model
     try:
-        model = torch.jit.load(input_model)
+        model = torch.jit.load(input_model) # nosec B614 - see note above
         model.eval()
         decoder = TorchScriptPythonDecoder(
             model,
@@ -271,7 +280,7 @@ def get_pytorch_decoder_for_model_on_disk(argv, args):
 
     # attempt to load exported model
     try:
-        exported_program = torch.export.load(input_model)
+        exported_program = torch.export.load(input_model) # nosec B614 - see note above
         if isinstance(exported_program, torch.export.ExportedProgram):
             argv.input_model = TorchFXPythonDecoder.from_exported_program(exported_program)
             argv.framework = 'pytorch'
@@ -334,6 +343,17 @@ def flatten_inputs(inputs, names=None):
     return flattened
 
 
+def _torchscript_input_aliases(model):
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    if not isinstance(model, TorchScriptPythonDecoder):
+        return {}
+    schema = getattr(getattr(model.pt_module, "forward", model.pt_module), "schema", None)
+    if schema is None or len(schema.arguments) != len(model.raw_inputs):
+        return {}
+    # TorchScript schema names and graph debug names identify the same inputs.
+    return {model.get_input_debug_name(i): argument.name for i, argument in enumerate(schema.arguments)}
+
+
 def extract_input_info_from_example(args, inputs):
     try:
         from openvino.frontend.pytorch.utils import pt_to_ov_type_map  # pylint: disable=no-name-in-module,import-error
@@ -372,11 +392,18 @@ def extract_input_info_from_example(args, inputs):
             input_arg.append(single_input_to_input_cut_info((shape, dtype)))
     if inputs is not None and len(inputs) != 0:
         if len(inputs) == len(input_arg):
-            # Pass 1: exact name matches. Pass 2: unmatched descriptors take leftover
-            # examples in order; a named descriptor may only take an unnamed example.
+            # Pass 1: exact name matches, then TorchScript alias matches for examples
+            # not taken yet. Pass 2: unmatched descriptors take leftover examples in
+            # order; a named descriptor may only take an unnamed example.
             by_name = {ex.name: ex for ex in input_arg if ex.name is not None}
             matched = [by_name.get(desc.name) for desc in args.input]
             used = {id(ex) for ex in matched if ex is not None}
+            aliases = _torchscript_input_aliases(args.input_model)
+            for i, desc in enumerate(args.input):
+                ex = by_name.get(aliases.get(desc.name))
+                if matched[i] is None and ex is not None and id(ex) not in used:
+                    matched[i] = ex
+                    used.add(id(ex))
             leftover = [ex for ex in input_arg if id(ex) not in used]
             new_input = []
             for desc, ex in zip(args.input, matched):

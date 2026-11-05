@@ -21,6 +21,8 @@ public:
     program_node& input(size_t idx = 0) const {
         return get_dependency(idx);
     }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using mlir_primitive_node = typed_program_node<mlir_primitive>;

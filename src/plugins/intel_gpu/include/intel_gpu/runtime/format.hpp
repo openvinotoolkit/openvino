@@ -250,6 +250,9 @@ struct format {
         gi_yxs_os_yxsv2_osv16,
         giy_xs_os_xsv2_osv8__ao32,
         giy_xs_os_xsv2_osv16__ao32,
+        is_os_yx_isv16_ternary,                       ///< u2 fully connected weights for the TernOCL int2 impl: K blocked by 16 into one
+                                                      ///< dword per (K/16, N), values re-encoded from codes {0,1,2} (zero point 1)
+                                                      ///< to 2-bit two's complement {-1,0,+1}
 
         format_num,  ///< number of format types
         custom,      ///< means that this format is created based on custom format traits and may have no corresponding label

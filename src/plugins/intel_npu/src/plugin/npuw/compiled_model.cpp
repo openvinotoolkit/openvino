@@ -171,8 +171,7 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     if (is_weightless) {
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (handle_provider) {
-            ov::FileHandle handle = handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            mapped_memory = mmap_weights(handle_provider);
         } else if (!weights_path.empty()) {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
         }
@@ -292,6 +291,8 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         ov::npuw::patterns::opt::untangleConst(model);
     }
 
+    ov::npuw::patterns::opt::untangleWeightConverts(model);
+
     if (cfg_get<::intel_npu::NPUW_SLICE_OUT>(props)) {
         // Add Slice before last MatMul for the prefill model
         ov::pass::GraphRewrite rewr;
@@ -324,13 +325,25 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
-    if (properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true) {
+    const bool flux2_requested = properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true;
+    const bool llm_requested = properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true;
+    const bool pa_requested = properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true;
+    const bool kokoro_requested = properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true;
+
+    const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
+    const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
+    const bool gqa_requested = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == true;
+    // Auto-detect GQA models unless NPUW_GQA=NO or another front-end was explicitly requested.
+    const bool gqa_detected = !gqa_explicitly_disabled && !flux2_requested && !llm_requested && !pa_requested &&
+                              !kokoro_requested && ov::npuw::GQACompiledModel::supports(model);
+
+    if (flux2_requested) {
         LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
-    } else if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
+    } else if (gqa_requested || gqa_detected) {
         LOG_INFO("ov::npuw::GQACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
-    } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
+    } else if (llm_requested) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         auto llm_compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
         const auto scoring_tags = ov::npuw::batched::scoring_tags(config);
@@ -345,10 +358,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         } else {
             compiled_model = llm_compiled_model;
         }
-    } else if (properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true) {
+    } else if (pa_requested) {
         LOG_INFO("ov::npuw::PACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::PACompiledModel>(model, plugin, config);
-    } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
+    } else if (kokoro_requested) {
         LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
     } else {
@@ -1672,7 +1685,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         root.expect_end();
 
         const auto decrypt_fn = decrypt ? decrypt : get_decrypt_callback_or_throw(properties);
-        std::istringstream decrypted_stream(std::move(decrypt_fn(encrypted_payload)));
+        std::istringstream decrypted_stream(decrypt_fn(encrypted_payload));
         while (decrypted_stream.peek() != std::char_traits<char>::eof() &&
                peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(decrypted_stream);
@@ -2437,6 +2450,12 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
     if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+
+    if (ov::npuw::util::starts_with(device, "NPU")) {
+        // Internal submodel recompilation; prevent re-entering NPUW auto-detect
+        // (e.g. on an un-decomposed GroupQueryAttention op).
+        device_config[ov::intel_npu::use_npuw.name()] = false;
     }
 
     const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();

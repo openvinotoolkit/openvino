@@ -10,17 +10,17 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <openvino/core/op_extension.hpp>
 #include <openvino/core/partial_shape.hpp>
+#include <openvino/op/group_query_attention.hpp>
 #include <openvino/openvino.hpp>
+#include <ov_ops/dynamic_quantize.hpp>
+#include <ov_ops/moe_compressed.hpp>
+#include <ov_ops/rms.hpp>
+#include <ov_ops/rotary_positional_embeddings.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include <openvino/core/op_extension.hpp>
-#include <openvino/op/group_query_attention.hpp>
-#include <ov_ops/dynamic_quantize.hpp>
-#include <ov_ops/rms.hpp>
-#include <ov_ops/rotary_positional_embeddings.hpp>
 
 #include "intel_npu/ops/flash_attention_tile.hpp"
 #include "tools_helpers.hpp"
@@ -477,6 +477,7 @@ int main(int argc, char* argv[]) {
             std::make_shared<ov::OpExtension<ov::op::internal::RoPE>>(),
             std::make_shared<ov::OpExtension<ov::op::internal::GroupQueryAttention>>(),
             std::make_shared<ov::OpExtension<ov::op::internal::DynamicQuantize>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::MOECompressed>>(),
             std::make_shared<ov::OpExtension<ov::intel_npu::op::FlashAttentionTile>>()});
 
         std::cout << "Reading model" << std::endl;
