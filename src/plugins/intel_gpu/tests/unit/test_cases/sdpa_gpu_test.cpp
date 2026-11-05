@@ -2,53 +2,161 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-#include "dpas_backend_test_helper.h"
-
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstddef>
+#include <cstdlib>
+#include <fstream>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/scaled_dot_product_attention.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
+#include <iostream>
+#include <limits>
+#include <numeric>
+#include <optional>
+#include <random>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <type_traits>
+#include <vector>
 
+#include "dpas_backend_test_helper.h"
 #include "impls/ocl_v2/sdpa/sdpa_gen_opt.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_ocl_utils.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_ref.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/reference/scaled_dot_product_attention.hpp"
 #include "openvino/util/file_util.hpp"
 #include "program_wrapper.h"
-#include <algorithm>
-#include <array>
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <numeric>
-#include <optional>
-#include <string>
-#include <tuple>
-#include <random>
-#include <iostream>
-#include <fstream>
-#include <cstdlib>
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/scaled_dot_product_attention.hpp>
+#include "random_generator.hpp"
 #include "scaled_dot_product_attention_inst.h"
-#include "intel_gpu/op/sdpa.hpp"
-#include "openvino/op/parameter.hpp"
-
-#include <cstddef>
-#include <type_traits>
-#include <vector>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 // #define ENABLE_ONEDNN_FOR_GPU
 namespace  {
 #ifdef ENABLE_ONEDNN_FOR_GPU
+// Host SDPA reference (ov::reference, f32) for the suites below. A network forced to "sdpa_ref" is no reference here:
+// force_implementations takes only the impl type for the ocl_v2 SDPA impls (the kernel name reaches kernel_selector impls
+// only), so it ran SDPAOpt like the network under test. Q / K / V / output are [batch, heads, seq, head]; K / V may have
+// fewer heads (GQA: head h reads kv head h / (heads / kv_heads)). The mask (empty: none, rank <= 4) is added with NumPy
+// broadcasting; is_causal is upper-left and ignores the mask, as in ov::reference. Each (batch, head) is computed
+// separately, spread over the host threads.
+std::vector<float> sdpa_host_reference(const std::vector<float>& q,
+                                       const ov::Shape& q_shape,
+                                       const std::vector<float>& k,
+                                       const ov::Shape& k_shape,
+                                       const std::vector<float>& v,
+                                       const ov::Shape& v_shape,
+                                       const std::vector<float>& mask,
+                                       ov::Shape mask_shape,
+                                       bool is_causal,
+                                       const float* scale) {
+    OPENVINO_ASSERT(q_shape.size() == 4 && k_shape.size() == 4 && v_shape.size() == 4, "sdpa_host_reference: rank-4 Q / K / V");
+    const size_t B = q_shape[0], H = q_shape[1], L = q_shape[2], D = q_shape[3];
+    const size_t KH = k_shape[1], S = k_shape[2], DV = v_shape[3];
+    OPENVINO_ASSERT(k_shape[0] == B && v_shape[0] == B && v_shape[1] == KH && v_shape[2] == S && k_shape[3] == D && H % KH == 0,
+                    "sdpa_host_reference: inconsistent shapes");
+    const bool has_mask = !mask.empty();
+    while (has_mask && mask_shape.size() < 4)
+        mask_shape.insert(mask_shape.begin(), 1);
+    std::vector<float> out(B * H * L * DV);
+    const size_t jobs = B * H;
+    auto work = [&](size_t job) {
+        const size_t b = job / H, h = job % H, kh = h / (H / KH);
+        const float* mask_ptr = nullptr;
+        ov::Shape head_mask_shape;
+        if (has_mask) {
+            const size_t mb = mask_shape[0] == 1 ? 0 : b;
+            const size_t mh = mask_shape[1] == 1 ? 0 : h;
+            mask_ptr = mask.data() + (mb * mask_shape[1] + mh) * mask_shape[2] * mask_shape[3];
+            head_mask_shape = {mask_shape[2], mask_shape[3]};
+        }
+        ov::reference::scaled_dot_product_attention<float, float>(q.data() + (b * H + h) * L * D,
+                                                                  k.data() + (b * KH + kh) * S * D,
+                                                                  v.data() + (b * KH + kh) * S * DV,
+                                                                  mask_ptr,
+                                                                  scale,
+                                                                  nullptr,
+                                                                  out.data() + (b * H + h) * L * DV,
+                                                                  is_causal,
+                                                                  ov::Shape{L, D},
+                                                                  ov::Shape{S, D},
+                                                                  ov::Shape{S, DV},
+                                                                  head_mask_shape,
+                                                                  {},
+                                                                  ov::Shape{L, DV});
+    };
+    const size_t threads = std::max<size_t>(1, std::min<size_t>(jobs, std::thread::hardware_concurrency()));
+    std::vector<std::thread> pool;
+    for (size_t t = 0; t < threads; ++t) {
+        pool.emplace_back([&, t] {
+            for (size_t j = t; j < jobs; j += threads)
+                work(j);
+        });
+    }
+    for (auto& th : pool)
+        th.join();
+    return out;
+}
+
+// [batch, seq, heads, head] in memory -> [batch, heads, seq, head].
+std::vector<float> sdpa_bshd_to_bhsd(const std::vector<float>& src, const ov::Shape& s) {
+    std::vector<float> dst(src.size());
+    for (size_t b = 0; b < s[0]; ++b)
+        for (size_t t = 0; t < s[1]; ++t)
+            for (size_t h = 0; h < s[2]; ++h)
+                for (size_t d = 0; d < s[3]; ++d)
+                    dst[((b * s[2] + h) * s[1] + t) * s[3] + d] = src[((b * s[1] + t) * s[2] + h) * s[3] + d];
+    return dst;
+}
+
+template <typename T>
+std::vector<float> sdpa_to_float(const std::vector<T>& src) {
+    return std::vector<float>(src.begin(), src.end());
+}
+
+template <typename T>
+std::vector<float> sdpa_to_float(const cldnn::memory::ptr& mem) {
+    cldnn::mem_lock<T, mem_lock_type::read> data(mem, get_test_stream());
+    return std::vector<float>(data.begin(), data.end());
+}
+
+struct sdpa_ref_diff {
+    float max_abs_err = 0.0f;
+    size_t max_abs_idx = 0;
+    double cosine = -1.0;
+    bool has_nan = false;
+};
+
+// Max |out - ref|, where it is, and the cosine of the two (recorded as the test property max_abs_err).
+sdpa_ref_diff sdpa_compare_with_reference(const std::vector<float>& ref, const std::vector<float>& out) {
+    OPENVINO_ASSERT(ref.size() == out.size(), "sdpa_compare_with_reference: size mismatch");
+    sdpa_ref_diff r;
+    double dot = 0.0, ref_norm = 0.0, out_norm = 0.0;
+    for (size_t i = 0; i < ref.size(); ++i) {
+        r.has_nan = r.has_nan || std::isnan(ref[i]) || std::isnan(out[i]);
+        const float err = std::abs(out[i] - ref[i]);
+        if (err > r.max_abs_err) {
+            r.max_abs_err = err;
+            r.max_abs_idx = i;
+        }
+        dot += static_cast<double>(ref[i]) * out[i];
+        ref_norm += static_cast<double>(ref[i]) * ref[i];
+        out_norm += static_cast<double>(out[i]) * out[i];
+    }
+    r.cosine = (ref_norm > 0.0 && out_norm > 0.0) ? dot / std::sqrt(ref_norm * out_norm) : -1.0;
+    ::testing::Test::RecordProperty("max_abs_err", std::to_string(r.max_abs_err));
+    return r;
+}
+
 struct sdpa_test_params {
     int head_size;
     int num_heads;
@@ -106,20 +214,54 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         }
     }
 
-    std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(bool is_caching_test, bool use_optimized_sdpa,
-            cldnn::layout input0_layout,
-            cldnn::layout input1_layout,
-            cldnn::layout input2_layout,
-            cldnn::layout input3_layout,
-            cldnn::memory::ptr input0,
-            cldnn::memory::ptr input1,
-            cldnn::memory::ptr input2,
-            cldnn::memory::ptr input3,
-            bool use_scalar_scale_val = false,
-            float scale_val = 1.0f,
-            bool use_scalar_attn_mask = false,
-            float attn_mask_val = 0.0f,
-            data_types dt = data_types::f16) {
+    // The device memory as float, in its own element order.
+    static std::vector<float> to_float(cldnn::memory::ptr mem, data_types dt) {
+        std::vector<float> out;
+        if (dt == data_types::bf16) {
+            cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> data(mem, get_test_stream());
+            out.assign(data.begin(), data.end());
+        } else {
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> data(mem, get_test_stream());
+            out.assign(data.begin(), data.end());
+        }
+        return out;
+    }
+
+    // Host reference of the network below: Q / K / V are [batch, seq, heads, head] in memory and read with order
+    // {0, 2, 1, 3}; the output is [batch, heads, seq_q, head]. A scalar attn_mask_val replaces the mask input, as in the
+    // kernels.
+    static std::vector<float> host_reference(cldnn::memory::ptr q,
+                                             cldnn::memory::ptr k,
+                                             cldnn::memory::ptr v,
+                                             cldnn::memory::ptr mask,
+                                             const sdpa_test_params& p) {
+        auto bhsd = [&](cldnn::memory::ptr mem) {
+            const auto s = mem->get_layout().get_shape();
+            return std::make_pair(sdpa_bshd_to_bhsd(to_float(mem, p.dt), s), ov::Shape{s[0], s[2], s[1], s[3]});
+        };
+        const auto [qf, q_shape] = bhsd(q);
+        const auto [kf, k_shape] = bhsd(k);
+        const auto [vf, v_shape] = bhsd(v);
+        const auto maskf = p.use_scalar_attn_mask ? std::vector<float>{p.attn_mask_val} : to_float(mask, p.dt);
+        const auto mask_shape = p.use_scalar_attn_mask ? ov::Shape{1} : mask->get_layout().get_shape();
+        const float scale = p.scale_val;
+        return sdpa_host_reference(qf, q_shape, kf, k_shape, vf, v_shape, maskf, mask_shape, false, p.use_scalar_scale_val ? &scale : nullptr);
+    }
+
+    std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(bool is_caching_test,
+                                                                    cldnn::layout input0_layout,
+                                                                    cldnn::layout input1_layout,
+                                                                    cldnn::layout input2_layout,
+                                                                    cldnn::layout input3_layout,
+                                                                    cldnn::memory::ptr input0,
+                                                                    cldnn::memory::ptr input1,
+                                                                    cldnn::memory::ptr input2,
+                                                                    cldnn::memory::ptr input3,
+                                                                    bool use_scalar_scale_val = false,
+                                                                    float scale_val = 1.0f,
+                                                                    bool use_scalar_attn_mask = false,
+                                                                    float attn_mask_val = 0.0f,
+                                                                    data_types dt = data_types::f16) {
         auto& engine = get_test_engine();
         topology topo;
         topo.add(input_layout("input0", input0_layout));
@@ -144,13 +286,8 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        if (use_optimized_sdpa) {
-            if (!is_caching_test) {
-                config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
-            }
-        } else {
-            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-                   {"sdpa", {format::type::bfyx, "sdpa_ref"}} }));
+        if (!is_caching_test) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
         }
 
         cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
@@ -227,14 +364,21 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         load_input(input2, 2, p.dt);
         load_input(input3, 3, input3_static_layout.data_type);
 
-        auto [mem_ref_ptr, net_ref_ptr] = run_network(is_caching_test, false,
-                                        input0_layout, input1_layout, input2_layout, input3_layout,
-                                        input0, input1, input2, input3,
-                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val, p.dt);
-        auto [mem_opt_ptr, net_opt_ptr] = run_network(is_caching_test, true,
-                                        input0_layout, input1_layout, input2_layout, input3_layout,
-                                        input0, input1, input2, input3,
-                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val, p.dt);
+        const auto ref_data = host_reference(input0, input1, input2, input3, p);
+        auto [mem_opt_ptr, net_opt_ptr] = run_network(is_caching_test,
+                                                      input0_layout,
+                                                      input1_layout,
+                                                      input2_layout,
+                                                      input3_layout,
+                                                      input0,
+                                                      input1,
+                                                      input2,
+                                                      input3,
+                                                      use_scalar_scale_val,
+                                                      scale_val,
+                                                      use_scalar_attn_mask,
+                                                      attn_mask_val,
+                                                      p.dt);
 
         if (is_caching_test) {
             auto inst = net_opt_ptr->get_primitive("sdpa");
@@ -251,23 +395,15 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             }
         }
 
-        if (p.dt == data_types::bf16) {
-            cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> ref_data(mem_ref_ptr, get_test_stream());
-            cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
-            for (size_t idx = 0; idx < ref_data.size(); idx++) {
-                ASSERT_FALSE(std::isnan(static_cast<float>(opt_data[idx])) || std::isnan(static_cast<float>(ref_data[idx]))) << "NaN found at index " << idx;
-            }
-            auto ret = cosineSimilarity(ref_data, opt_data);
-            ASSERT_GE(ret, 0.95f);
-        } else {
-            cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(mem_ref_ptr, get_test_stream());
-            cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
-            for (size_t idx = 0; idx < ref_data.size(); idx++) {
-                ASSERT_FALSE(std::isnan(opt_data[idx]) || std::isnan(ref_data[idx])) << "NaN found at index " << idx;
-            }
-            auto ret = cosineSimilarity(ref_data, opt_data);
-            ASSERT_GE(ret, 0.95f);
-        }
+        ASSERT_EQ(mem_opt_ptr->get_layout().get_shape(),
+                  (ov::Shape{static_cast<size_t>(batch), static_cast<size_t>(num_heads), static_cast<size_t>(seq_length_q), static_cast<size_t>(head_size)}));
+        const auto opt_data = to_float(mem_opt_ptr, p.dt);
+        const auto diff = sdpa_compare_with_reference(ref_data, opt_data);
+        ASSERT_FALSE(diff.has_nan) << "NaN in the output or the reference";
+        ASSERT_GE(diff.cosine, 0.95);
+        // B70 sdpa_ocl measured up to 1.6e-4 (f16) / 1.2e-3 (bf16) against the reference; a 25% scale error in the reference
+        // moved the long-K rows by 8.7e-3 and more, a dropped mask by 0.03 and more.
+        ASSERT_LE(diff.max_abs_err, p.dt == data_types::bf16 ? 1.5e-2f : 4e-3f) << "at index " << diff.max_abs_idx;
     }
 
     static std::string
@@ -334,15 +470,31 @@ TEST_P(sdpa_gpu_test, basic_caching) {
     execute(p, true);
 }
 
+struct sdpa_causal_mask_check {
+    // The is_causal side static too: with the reference it then shares the tiling the static policy picks, so the
+    // outputs match element-wise (the masked keys add exactly 0 on both sides).
+    bool static_causal = false;
+    // > 0: max |reference - is_causal| bound, on top of the cosine check.
+    float max_abs_tol = 0.0f;
+    // Q in [-q_range, q_range]: a wider range sharpens the softmax, so a score wrongly left at 0 or a dropped key
+    // shows up element-wise.
+    float q_range = 1.0f;
+};
+
 // Test that an explicit causal attention mask produces the same result as is_causal=true.
-static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
-                                 int seq_q, int seq_kv, int head_size, bool causal_lower_right = true) {
+static void run_sdpa_causal_mask(int batch,
+                                 int q_num_heads,
+                                 int kv_num_heads,
+                                 int seq_q,
+                                 int seq_kv,
+                                 int head_size,
+                                 bool causal_lower_right = true,
+                                 const sdpa_causal_mask_check& check = {}) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    auto q_data = rg.generate_random_1d<ov::float16>(
-        static_cast<size_t>(batch) * q_num_heads * seq_q * head_size, -1.0f, 1.0f);
+    auto q_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * q_num_heads * seq_q * head_size, -check.q_range, check.q_range);
     auto k_data = rg.generate_random_1d<ov::float16>(
         static_cast<size_t>(batch) * kv_num_heads * seq_kv * head_size, -1.0f, 1.0f);
     auto v_data = rg.generate_random_1d<ov::float16>(
@@ -406,12 +558,12 @@ static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
         return net->execute().at("result").get_memory();
     };
 
-    // --- Optimized path: is_causal=true, no mask input, dynamic shapes ---
+    // --- Optimized path: is_causal=true, no mask input, dynamic shapes (static with check.static_causal) ---
     auto make_opt_output = [&]() {
         topology topo;
-        topo.add(input_layout("q", q_dyn_layout));
-        topo.add(input_layout("k", kv_dyn_layout));
-        topo.add(input_layout("v", kv_dyn_layout));
+        topo.add(input_layout("q", check.static_causal ? q_layout : q_dyn_layout));
+        topo.add(input_layout("k", check.static_causal ? kv_layout : kv_dyn_layout));
+        topo.add(input_layout("v", check.static_causal ? kv_layout : kv_dyn_layout));
         auto prim = causal_lower_right
                         ? scaled_dot_product_attention("sdpa",
                                                        {input_info("q"), input_info("k"), input_info("v")},
@@ -461,6 +613,41 @@ static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
 
     const float sim = cosineSimilarity(ref_ptr, opt_ptr);
     ASSERT_GE(sim, 0.99f) << "explicit mask vs is_causal cosine similarity too low: " << sim;
+
+    float max_abs_err = 0.0f;
+    size_t max_abs_idx = 0;
+    for (size_t i = 0; i < ref_ptr.size(); ++i) {
+        const float err = std::abs(static_cast<float>(ref_ptr[i]) - static_cast<float>(opt_ptr[i]));
+        if (err > max_abs_err) {
+            max_abs_err = err;
+            max_abs_idx = i;
+        }
+    }
+    // Both outputs above come from the same GPU kernel; the is_causal one is also checked against the host reference
+    // (the explicit mask, which carries the alignment).
+    {
+        const ov::Shape q_shape{size_t(batch), size_t(q_num_heads), size_t(seq_q), size_t(head_size)};
+        const ov::Shape kv_shape{size_t(batch), size_t(kv_num_heads), size_t(seq_kv), size_t(head_size)};
+        const auto host = sdpa_host_reference(sdpa_to_float(q_data),
+                                              q_shape,
+                                              sdpa_to_float(k_data),
+                                              kv_shape,
+                                              sdpa_to_float(v_data),
+                                              kv_shape,
+                                              sdpa_to_float(mask_data),
+                                              mask_layout.get_shape(),
+                                              false,
+                                              nullptr);
+        const auto host_diff = sdpa_compare_with_reference(host, std::vector<float>(opt_ptr.begin(), opt_ptr.end()));
+        ::testing::Test::RecordProperty("host_max_abs_err", std::to_string(host_diff.max_abs_err));
+        ASSERT_FALSE(host_diff.has_nan) << "NaN in the host reference";
+        ASSERT_LE(host_diff.max_abs_err, 4e-3f) << "is_causal vs host reference: max abs error at index " << host_diff.max_abs_idx;
+    }
+    ::testing::Test::RecordProperty("max_abs_err", std::to_string(max_abs_err));  // explicit mask vs is_causal
+    if (check.max_abs_tol > 0.0f) {
+        ASSERT_LE(max_abs_err, check.max_abs_tol) << "explicit mask vs is_causal max abs error at index " << max_abs_idx << " (query "
+                                                  << (max_abs_idx / head_size) % seq_q << ")";
+    }
 }
 
 TEST(sdpa_gpu_causal_mask, prefill_40q_40kv_512seq) {
@@ -491,6 +678,127 @@ TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
 // the is_causal one a shape-agnostic stage dispatched with these runtime counts.
 TEST(sdpa_gpu_causal_mask, prefill_32q_8kv_512q_2048kv) {
     run_sdpa_causal_mask(1, 32, 8, 512, 2048, 128);
+}
+
+// Static is_causal stages, element-wise against the explicit-mask reference. On Xe2+ (f16, d_max 128) they take the
+// causal tile skip (CAUSAL_TILE_SKIP): the 256 x 128 tile at 128+ queries over 2K+ keys, the table tile below. Upper-left
+// q == k, lower-right with a tile-aligned offset (2048) and an unaligned one (2000, 900) where the diagonal cuts a
+// subgroup, and GQA. Both sides share the tiling, so they match exactly where the skipped keys add 0.
+TEST(sdpa_gpu_causal_mask, prefill_static_upper_left_32q_32kv_2048seq) {
+    run_sdpa_causal_mask(1, 32, 32, 2048, 2048, 128, false, {true, 2e-3f, 4.0f});
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_static_32q_32kv_512q_2560kv) {
+    run_sdpa_causal_mask(1, 32, 32, 512, 2560, 128, true, {true, 2e-3f, 4.0f});
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_static_32q_32kv_300q_2300kv) {
+    run_sdpa_causal_mask(1, 32, 32, 300, 2300, 128, true, {true, 2e-3f, 4.0f});
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_static_28q_4kv_200q_1100kv) {
+    run_sdpa_causal_mask(1, 28, 4, 200, 1100, 128, true, {true, 2e-3f, 4.0f});
+}
+
+// The shape-agnostic is_causal stage (table tile + skip) against the static reference (256 x 128 tile): another
+// accumulation order, so a looser bound.
+TEST(sdpa_gpu_causal_mask, prefill_32q_32kv_300q_2300kv) {
+    run_sdpa_causal_mask(1, 32, 32, 300, 2300, 128, true, {false, 5e-3f, 4.0f});
+}
+
+// Non-causal multi-token SDPA (the default kernel: on Xe2+ the f16 d_max 128 table tile, which takes CAUSAL_TILE_SKIP's
+// KQ branch) element-wise against the host reference. Key counts that end inside a key tile and inside a subgroup's 16 keys, where
+// the branch skips the subgroups past the last key; head sizes 72 / 80 (partial depth tiles) and a full 2D mask. Q in
+// [-4, 4] sharpens the softmax, so a key wrongly left out or a score wrongly left at 0 moves some outputs a lot.
+static void run_sdpa_noncausal_vs_ref(int q_num_heads, int kv_num_heads, int seq_q, int seq_kv, int head_size, bool dynamic, bool with_mask) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto q_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(q_num_heads) * seq_q * head_size, -4.0f, 4.0f);
+    auto k_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(kv_num_heads) * seq_kv * head_size, -1.0f, 1.0f);
+    auto v_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(kv_num_heads) * seq_kv * head_size, -1.0f, 1.0f);
+    auto mask_data = rg.generate_random_1d<ov::float16>(static_cast<size_t>(seq_q) * seq_kv, -2.0f, 0.0f);
+
+    const layout q_layout({1, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+    const layout kv_layout({1, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({1, 1, seq_q, seq_kv}, data_types::f16, format::bfyx);
+    const layout q_dyn_layout({1, q_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout kv_dyn_layout({1, kv_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout mask_dyn_layout({1, 1, -1, -1}, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    auto run = [&]() {
+        topology topo;
+        topo.add(input_layout("q", dynamic ? q_dyn_layout : q_layout));
+        topo.add(input_layout("k", dynamic ? kv_dyn_layout : kv_layout));
+        topo.add(input_layout("v", dynamic ? kv_dyn_layout : kv_layout));
+        std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v")};
+        if (with_mask) {
+            topo.add(input_layout("mask", dynamic ? mask_dyn_layout : mask_layout));
+            inputs.push_back(input_info("mask"));
+        }
+        topo.add(scaled_dot_product_attention("sdpa", inputs, false, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {}, false));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        if (with_mask) {
+            net->set_input_data("mask", mask_mem);
+        }
+        return net->execute().at("result").get_memory();
+    };
+
+    auto opt_mem = run();
+    const ov::Shape q_shape{1, size_t(q_num_heads), size_t(seq_q), size_t(head_size)};
+    const ov::Shape kv_shape{1, size_t(kv_num_heads), size_t(seq_kv), size_t(head_size)};
+    ASSERT_EQ(opt_mem->get_layout().get_shape(), q_shape);
+    const auto ref_data = sdpa_host_reference(sdpa_to_float(q_data),
+                                              q_shape,
+                                              sdpa_to_float(k_data),
+                                              kv_shape,
+                                              sdpa_to_float(v_data),
+                                              kv_shape,
+                                              with_mask ? sdpa_to_float(mask_data) : std::vector<float>{},
+                                              mask_layout.get_shape(),
+                                              false,
+                                              nullptr);
+    const auto diff = sdpa_compare_with_reference(ref_data, sdpa_to_float<ov::float16>(opt_mem));
+    ASSERT_FALSE(diff.has_nan) << "NaN in the output or the reference";
+    ASSERT_LE(diff.max_abs_err, 4e-3f) << "non-causal SDPA vs the host reference: max abs error at index " << diff.max_abs_idx << " (query "
+                                       << (diff.max_abs_idx / head_size) % seq_q << ")";
+}
+
+TEST(sdpa_gpu_noncausal_tail, static_32q_32kv_200q_1100kv) {
+    run_sdpa_noncausal_vs_ref(32, 32, 200, 1100, 128, false, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, static_28q_4kv_200q_1100kv) {
+    run_sdpa_noncausal_vs_ref(28, 4, 200, 1100, 128, false, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, dynamic_32q_32kv_300q_2300kv) {
+    run_sdpa_noncausal_vs_ref(32, 32, 300, 2300, 128, true, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, static_head72_16q_16kv_729seq) {
+    run_sdpa_noncausal_vs_ref(16, 16, 729, 729, 72, false, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, dynamic_head80_mask_16q_16kv_333q_1037kv) {
+    run_sdpa_noncausal_vs_ref(16, 16, 333, 1037, 80, true, true);
 }
 
 // Attention sink on the multi-token sdpa_opt kernel, with and without FlashAttention-v2 online softmax,
@@ -1985,7 +2293,6 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     // Q (and therefore the compute type) follows params.dt, or bf16 for the bf16 test bodies; the dequantized
     // KV reference stays in the compressed precision (f16, or bf16 for the bf16 bodies).
     const layout q_layout({batch, q_num_heads, seq_q, head_size}, is_bf16 ? data_types::bf16 : params.dt, format::bfyx);
-    const layout kv_deq_layout({batch, kv_num_heads, seq_kv, head_size}, dt, format::bfyx);
     // INT4 stores two adjacent head-dimension values in each byte: [B, H, S, D/2].
     const layout kv_packed_layout({batch, kv_num_heads, seq_kv, packed_head_size}, data_types::i8, format::bfyx);
     const ov::PartialShape comp_shape = granularity == kv_quant_granularity::per_channel
@@ -2009,39 +2316,20 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         set_values(q_mem, q_data);
     }
 
-    // --- Golden reference: uncompressed float attention on host-dequantized KV (sdpa_ref) ---
-    auto make_ref_output = [&]() {
-        auto k_mem = engine.allocate_memory(kv_deq_layout);
-        auto v_mem = engine.allocate_memory(kv_deq_layout);
-        set_values(k_mem, k_q.dequantized);
-        set_values(v_mem, v_q.dequantized);
-
-        topology topo;
-        topo.add(input_layout("q", q_layout));
-        topo.add(input_layout("k", kv_deq_layout));
-        topo.add(input_layout("v", kv_deq_layout));
-        auto prim = scaled_dot_product_attention("sdpa",
-                                                 {input_info("q"), input_info("k"), input_info("v")},
-                                                 causal,
-                                                 -1,
-                                                 {0, 1, 2, 3},
-                                                 {0, 1, 2, 3},
-                                                 {0, 1, 2, 3},
-                                                 {0, 1, 2, 3},
-                                                 {},
-                                                 false);
-        topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, dt));
-
-        ExecutionConfig cfg = get_test_default_config(engine);
-        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-
-        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
-        net->set_input_data("q", q_mem);
-        net->set_input_data("k", k_mem);
-        net->set_input_data("v", v_mem);
-        return net->execute().at("result").get_memory();
-    };
+    // --- Golden reference: float attention on the host-dequantized KV, on the host (the dequantized values stay in the
+    // compressed precision, f16 or bf16, as the kernels see them) ---
+    const ov::Shape q_ref_shape{size_t(batch), size_t(q_num_heads), size_t(seq_q), size_t(head_size)};
+    const ov::Shape kv_ref_shape{size_t(batch), size_t(kv_num_heads), size_t(seq_kv), size_t(head_size)};
+    const auto ref_data = sdpa_host_reference(sdpa_to_float(q_data),
+                                              q_ref_shape,
+                                              sdpa_to_float(k_q.dequantized),
+                                              kv_ref_shape,
+                                              sdpa_to_float(v_q.dequantized),
+                                              kv_ref_shape,
+                                              {},
+                                              {},
+                                              causal,
+                                              nullptr);
 
     // --- Compressed path: quantized KV + interleaved scale/zp on the optimized kernel (sdpa_opt) ---
     // dpas: the forced sdpa_opt impl (its sdpa_ocl stages on the lane); else the DPAS kernel off and no forcing, which
@@ -2142,18 +2430,19 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         return out;
     };
 
-    auto ref_mem = make_ref_output();
-    cldnn::mem_lock<T, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
     const auto check_output = [&](const cldnn::memory::ptr& opt_mem, const std::string& arm) {
-        cldnn::mem_lock<T, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
-        ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
-        for (size_t i = 0; i < opt_ptr.size(); ++i) {
-            ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << arm << ": NaN in compressed output at index " << i;
-        }
-        const float sim = cosineSimilarity(ref_ptr, opt_ptr);
+        ASSERT_EQ(opt_mem->get_layout().get_shape(), q_ref_shape) << arm;
+        const auto diff = sdpa_compare_with_reference(ref_data, sdpa_to_float<T>(opt_mem));
+        ASSERT_FALSE(diff.has_nan) << arm << ": NaN in the compressed output or the reference";
+        const double sim = diff.cosine;
         // bf16 has a shorter mantissa, so allow a slightly lower similarity for it.
         const float min_sim = is_bf16 ? 0.99f : 0.999f;
         ASSERT_GE(sim, min_sim) << arm << ": bit_width=" << bit_width << ", asymmetric=" << asymmetric << " cosine similarity too low: " << sim;
+        // B70 measured up to 1.9e-3 (per-token f16), 9.3e-3 (bf16) and 3.5e-2 (per-channel, Q in [-8, 8]); a 25% scale error in
+        // the reference moved the prefill rows by 0.11 and more (per-channel 0.24), which the cosine alone let through for bf16.
+        // The causal decode rows see key 0 only, so no scale error reaches them.
+        const float max_abs_tol = per_channel ? 1e-1f : (is_bf16 ? 3e-2f : 1e-2f);
+        ASSERT_LE(diff.max_abs_err, max_abs_tol) << arm << ": max abs error at index " << diff.max_abs_idx;
     };
 
     if (!per_channel) {
@@ -2380,10 +2669,9 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
 }
 
 // Which kernel plain SDPA dispatches: sdpa_ocl on its lane (Xe2+ XMX), the opt kernels elsewhere. Dispatch
-// only: this harness's "sdpa_ref" network also runs SDPAOptImpl (force_implementations keeps only the impl type), so
-// accuracy is left to the functional ScaledAttn tests. Static shapes; the second test rebuilds the impl through
-// program save/load (default ctor plus the saved stage order), so the dispatch must not depend on state only the
-// params ctor had.
+// only: accuracy is sdpa_gpu_test's (against its host reference) and the functional ScaledAttn tests'. Static shapes;
+// the second test rebuilds the impl through program save/load (default ctor plus the saved stage order), so the
+// dispatch must not depend on state only the params ctor had.
 class sdpa_dpas_backend_test : public sdpa_gpu_test {
 public:
     void check_dispatch(bool is_caching_test) {
@@ -2418,8 +2706,7 @@ public:
         load_input(v, 2, p.dt);
         load_input(mask, 3, p.dt);
 
-        auto [output, net] = run_network(is_caching_test, true, q_layout, kv_layout, kv_layout, mask_layout, q, k, v, mask,
-                                         false, 1.0f, false, 0.0f, p.dt);
+        auto [output, net] = run_network(is_caching_test, q_layout, kv_layout, kv_layout, mask_layout, q, k, v, mask, false, 1.0f, false, 0.0f, p.dt);
         std::shared_ptr<cldnn::primitive_inst> sdpa_inst;
         for (const auto& prim_info : net->get_primitives_info()) {
             if (prim_info.type_id == "scaled_dot_product_attention")
@@ -3482,37 +3769,50 @@ TEST(sdpa_gpu_custom, static_mismatched_kv_head_size_multi_token_uses_sg_scale_f
                                               false));
     topology.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
-    auto run_network = [&](bool force_ref) {
-        ExecutionConfig config = get_test_default_config(engine);
-        if (force_ref) {
-            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-                {"sdpa", {format::type::bfyx, "sdpa_ref"}}
-            }));
-        }
-        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
-        network->set_input_data("q", q_mem);
-        network->set_input_data("k", k_mem);
-        network->set_input_data("v", v_mem);
-        auto output = network->execute().at("result").get_memory();
-        return std::make_pair(network, output);
-    };
+    ExecutionConfig config = get_test_default_config(engine);
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+    auto output = network->execute().at("result").get_memory();
 
-    auto [network, output] = run_network(false);
-    auto [ref_network, ref_output] = run_network(true);
+    // Host reference (ov::reference, f32). A force_implementations "sdpa_ref" network is no reference: its kernel name
+    // only reaches kernel_selector impls, so it ran SDPAOpt as well.
+    auto to_float = [&](const memory::ptr& mem) {
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> data(mem, get_test_stream());
+        return std::vector<float>(data.begin(), data.end());
+    };
+    const auto q_ref = to_float(q_mem);
+    const auto k_ref = to_float(k_mem);
+    const auto v_ref = to_float(v_mem);
+    const ov::Shape out_shape{q_shape[0], q_shape[1], q_shape[2], v_shape[3]};
+    std::vector<float> expected(ov::shape_size(out_shape));
+    ov::reference::scaled_dot_product_attention<float, float>(q_ref.data(),
+                                                              k_ref.data(),
+                                                              v_ref.data(),
+                                                              nullptr,
+                                                              nullptr,
+                                                              nullptr,
+                                                              expected.data(),
+                                                              false,
+                                                              q_shape,
+                                                              k_shape,
+                                                              v_shape,
+                                                              {},
+                                                              {},
+                                                              out_shape);
 
     // With unforced implementation selection, this static, multi-token, mismatched K/V head-size
     // shape must still be handled by the optimized sdpa_opt kernel (not fall back to sdpa_ref).
     auto sdpa_inst = network->get_primitive("sdpa");
     ASSERT_EQ(sdpa_inst->get_impl()->m_manager->get_type_info(), ov::intel_gpu::ocl::SDPAOpt::get_type_info_static());
 
-    // Correctness: sdpa_opt output must match the sdpa_ref output.
-    ASSERT_EQ(output->get_layout().get_shape(), ref_output->get_layout().get_shape());
+    // Correctness: the sdpa_opt output must match the host reference.
+    ASSERT_EQ(output->get_layout().get_shape(), out_shape);
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_output_data(ref_output, get_test_stream());
-    ASSERT_EQ(output_data.size(), ref_output_data.size());
+    ASSERT_EQ(output_data.size(), expected.size());
     for (size_t i = 0; i < output_data.size(); ++i) {
-        ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-2f)
-            << "Mismatch at index " << i;
+        ASSERT_NEAR(static_cast<float>(output_data[i]), expected[i], 1e-2f) << "Mismatch at index " << i;
     }
 
     // Directly verify the restored dispatch logic: the multi-token kernel must still select
@@ -3876,8 +4176,8 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdp
         // Build mask: causal + sliding window. LOWER_RIGHT maps query q to absolute key position
         // q + (seq_kv - seq_q) (used whenever is_causal=true with seq_kv > seq_q, e.g. a prefill
         // chunk continuing on top of prior KV history); UPPER_LEFT keeps the offset at 0.
+        std::vector<ov::float16> mask(batch * num_heads * seq_q * seq_kv);
         {
-            std::vector<ov::float16> mask(batch * num_heads * seq_q * seq_kv);
             const ov::float16 neg_big = ov::float16(std::numeric_limits<ov::float16>::lowest());
             const int causal_offset = p.causal_lower_right ? (seq_kv - seq_q) : 0;
             for (int b = 0; b < batch; b++) {
@@ -3899,31 +4199,17 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdp
         ExecutionConfig config_common = get_test_default_config(engine);
         config_common.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        // Reference: mask-based, no causal flag, sdpa_ref
-        auto run_ref = [&]() {
-            topology topo;
-            topo.add(input_layout("q", q_layout));
-            topo.add(input_layout("k", k_layout));
-            topo.add(input_layout("v", v_layout));
-            topo.add(input_layout("mask", mask_layout));
-
-            auto prim = scaled_dot_product_attention("sdpa",
-                {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
-                false, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3});
-            topo.add(prim);
-            topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-
-            ExecutionConfig cfg = config_common;
-            cfg.set_property(ov::intel_gpu::force_implementations(
-                ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
-
-            auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
-            net->set_input_data("q", q_mem);
-            net->set_input_data("k", k_mem);
-            net->set_input_data("v", v_mem);
-            net->set_input_data("mask", mask_mem);
-            return net->execute().at("result").get_memory();
-        };
+        // Reference: the explicit causal + window mask, no causal flag, on the host.
+        const auto ref_data = sdpa_host_reference(sdpa_bshd_to_bhsd(sdpa_to_float(q_data), q_layout.get_shape()),
+                                                  {size_t(batch), size_t(num_heads), size_t(seq_q), size_t(head_size)},
+                                                  sdpa_bshd_to_bhsd(sdpa_to_float(k_data), k_layout.get_shape()),
+                                                  {size_t(batch), size_t(num_heads), size_t(seq_kv), size_t(head_size)},
+                                                  sdpa_bshd_to_bhsd(sdpa_to_float(v_data), v_layout.get_shape()),
+                                                  {size_t(batch), size_t(num_heads), size_t(seq_kv), size_t(head_size)},
+                                                  sdpa_to_float(mask),
+                                                  mask_layout.get_shape(),
+                                                  false,
+                                                  nullptr);
 
         // Optimized: causal + sliding_window attribute, sdpa_ocl (dpas) or the opt stage kernels
         auto run_opt = [&]() {
@@ -3968,26 +4254,27 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdp
             return net->execute().at("result").get_memory();
         };
 
-        auto ref_mem = run_ref();
         auto opt_mem = run_opt();
-
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(opt_mem, get_test_stream());
+        ASSERT_EQ(opt_mem->get_layout().get_shape(), (ov::Shape{size_t(batch), size_t(num_heads), size_t(seq_q), size_t(head_size)}));
+        const auto opt_data = sdpa_to_float<ov::float16>(opt_mem);
 
         ASSERT_GT(ref_data.size(), 0u);
 
         // Verify outputs contain actual non-zero values
         bool has_nonzero_ref = false, has_nonzero_opt = false;
         for (size_t idx = 0; idx < ref_data.size(); idx++) {
-            ASSERT_FALSE(std::isnan(opt_data[idx]) || std::isnan(ref_data[idx])) << "NaN at index " << idx;
-            if (static_cast<float>(ref_data[idx]) != 0.0f) has_nonzero_ref = true;
-            if (static_cast<float>(opt_data[idx]) != 0.0f) has_nonzero_opt = true;
+            if (ref_data[idx] != 0.0f)
+                has_nonzero_ref = true;
+            if (opt_data[idx] != 0.0f)
+                has_nonzero_opt = true;
         }
         ASSERT_TRUE(has_nonzero_ref) << "Reference output is all zeros";
         ASSERT_TRUE(has_nonzero_opt) << "Optimized output is all zeros";
 
-        auto similarity = cosineSimilarity(ref_data, opt_data);
-        ASSERT_GE(similarity, 0.95f) << "Cosine similarity too low: " << similarity;
+        const auto diff = sdpa_compare_with_reference(ref_data, opt_data);
+        ASSERT_FALSE(diff.has_nan) << "NaN in the output or the reference";
+        ASSERT_GE(diff.cosine, 0.95) << "Cosine similarity too low: " << diff.cosine;
+        ASSERT_LE(diff.max_abs_err, 4e-3f) << "at index " << diff.max_abs_idx;
     }
 };
 
@@ -4051,9 +4338,12 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
     auto v_mem = engine.allocate_memory(v_layout);
     auto mask_mem = engine.allocate_memory(mask_layout);
 
-    set_values(q_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f));
-    set_values(k_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f));
-    set_values(v_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(v_layout.get_shape()), -1.0f, 1.0f));
+    const auto q_data = rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f);
+    const auto k_data = rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f);
+    const auto v_data = rg.generate_random_1d<ov::float16>(ov::shape_size(v_layout.get_shape()), -1.0f, 1.0f);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
 
     const ov::float16 neg_big = ov::float16(std::numeric_limits<ov::float16>::lowest());
     const int causal_offset = seq_kv - seq_q;
@@ -4074,28 +4364,19 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
     ExecutionConfig config_common = get_test_default_config(engine);
     config_common.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    // Ground truth: is_causal=false, explicit mask (known-correct from the parameterized suite above)
-    auto run_mask_only = [&]() {
-        topology topo;
-        topo.add(input_layout("q", q_layout));
-        topo.add(input_layout("k", k_layout));
-        topo.add(input_layout("v", v_layout));
-        topo.add(input_layout("mask", mask_layout));
-        auto prim = scaled_dot_product_attention("sdpa",
-            {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
-            false, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3});
-        topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-        ExecutionConfig cfg = config_common;
-        cfg.set_property(ov::intel_gpu::force_implementations(
-            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
-        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
-        net->set_input_data("q", q_mem);
-        net->set_input_data("k", k_mem);
-        net->set_input_data("v", v_mem);
-        net->set_input_data("mask", mask_mem);
-        return net->execute().at("result").get_memory();
-    };
+    // Ground truth: is_causal=false with the explicit mask, on the host.
+    const ov::Shape q_bhsd{size_t(batch), size_t(num_heads), size_t(seq_q), size_t(head_size)};
+    const ov::Shape kv_bhsd{size_t(batch), size_t(num_heads), size_t(seq_kv), size_t(head_size)};
+    const auto ref_data = sdpa_host_reference(sdpa_bshd_to_bhsd(sdpa_to_float(q_data), q_layout.get_shape()),
+                                              q_bhsd,
+                                              sdpa_bshd_to_bhsd(sdpa_to_float(k_data), k_layout.get_shape()),
+                                              kv_bhsd,
+                                              sdpa_bshd_to_bhsd(sdpa_to_float(v_data), v_layout.get_shape()),
+                                              kv_bhsd,
+                                              sdpa_to_float(mask),
+                                              mask_layout.get_shape(),
+                                              false,
+                                              nullptr);
 
     // Under test: is_causal=true AND sliding_window set AND explicit mask input, all at once
     auto run_causal_and_mask = [&]() {
@@ -4121,14 +4402,12 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
         return net->execute().at("result").get_memory();
     };
 
-    auto ref_mem = run_mask_only();
     auto hybrid_mem = run_causal_and_mask();
-
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> hybrid_data(hybrid_mem, get_test_stream());
-
-    auto similarity = cosineSimilarity(ref_data, hybrid_data);
-    ASSERT_GE(similarity, 0.95f) << "Cosine similarity too low: " << similarity;
+    ASSERT_EQ(hybrid_mem->get_layout().get_shape(), q_bhsd);
+    const auto diff = sdpa_compare_with_reference(ref_data, sdpa_to_float<ov::float16>(hybrid_mem));
+    ASSERT_FALSE(diff.has_nan) << "NaN in the output or the reference";
+    ASSERT_GE(diff.cosine, 0.95) << "Cosine similarity too low: " << diff.cosine;
+    ASSERT_LE(diff.max_abs_err, 4e-3f) << "at index " << diff.max_abs_idx;
 }
 #endif
 
@@ -4160,15 +4439,18 @@ TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
     auto scalar_mask_mem = engine.allocate_memory(scalar_mask_layout);
     auto mask_mem = engine.allocate_memory(mask_layout);
 
-    set_values(q_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f));
-    set_values(k_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f));
-    set_values(v_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(v_layout.get_shape()), -1.0f, 1.0f));
+    const auto q_data = rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f);
+    const auto k_data = rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f);
+    const auto v_data = rg.generate_random_1d<ov::float16>(ov::shape_size(v_layout.get_shape()), -1.0f, 1.0f);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
     set_values(scalar_mask_mem, std::vector<ov::float16>{ov::float16(0.0f)});
 
     // Ground truth: explicit causal+window mask, is_causal=false (same construction as the
     // parameterized suite above; LOWER_RIGHT maps query q to absolute key position q + seq_kv - seq_q).
+    std::vector<ov::float16> mask(batch * num_heads * seq_q * seq_kv);
     {
-        std::vector<ov::float16> mask(batch * num_heads * seq_q * seq_kv);
         const ov::float16 neg_big = ov::float16(std::numeric_limits<ov::float16>::lowest());
         const int causal_offset = seq_kv - seq_q;
         for (int h = 0; h < num_heads; h++) {
@@ -4188,26 +4470,18 @@ TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
     ExecutionConfig config_common = get_test_default_config(engine);
     config_common.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    auto run_mask_reference = [&]() {
-        topology topo;
-        topo.add(input_layout("q", q_layout));
-        topo.add(input_layout("k", k_layout));
-        topo.add(input_layout("v", v_layout));
-        topo.add(input_layout("mask", mask_layout));
-        auto prim = scaled_dot_product_attention("sdpa",
-            {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
-            false, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3});
-        topo.add(prim);
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-        ExecutionConfig cfg = config_common;
-        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
-        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
-        net->set_input_data("q", q_mem);
-        net->set_input_data("k", k_mem);
-        net->set_input_data("v", v_mem);
-        net->set_input_data("mask", mask_mem);
-        return net->execute().at("result").get_memory();
-    };
+    const ov::Shape q_bhsd{size_t(batch), size_t(num_heads), size_t(seq_q), size_t(head_size)};
+    const ov::Shape kv_bhsd{size_t(batch), size_t(num_heads), size_t(seq_kv), size_t(head_size)};
+    const auto ref_data = sdpa_host_reference(sdpa_bshd_to_bhsd(sdpa_to_float(q_data), q_layout.get_shape()),
+                                              q_bhsd,
+                                              sdpa_bshd_to_bhsd(sdpa_to_float(k_data), k_layout.get_shape()),
+                                              kv_bhsd,
+                                              sdpa_bshd_to_bhsd(sdpa_to_float(v_data), v_layout.get_shape()),
+                                              kv_bhsd,
+                                              sdpa_to_float(mask),
+                                              mask_layout.get_shape(),
+                                              false,
+                                              nullptr);
 
     auto run_window_attribute = [&]() {
         topology topo;
@@ -4245,16 +4519,14 @@ TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
         return net->execute().at("result").get_memory();
     };
 
-    auto ref_mem = run_mask_reference();
     auto window_mem = run_window_attribute();
-
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> window_data(window_mem, get_test_stream());
-
-    auto similarity = cosineSimilarity(ref_data, window_data);
-    EXPECT_GE(similarity, 0.95f)
-        << "is_causal + sliding_window on the opt stage kernels does not match the explicit-mask "
-           "reference (cosine " << similarity << ")";
+    ASSERT_EQ(window_mem->get_layout().get_shape(), q_bhsd);
+    const auto diff = sdpa_compare_with_reference(ref_data, sdpa_to_float<ov::float16>(window_mem));
+    EXPECT_FALSE(diff.has_nan) << "NaN in the output or the reference";
+    EXPECT_GE(diff.cosine, 0.95) << "is_causal + sliding_window on the opt stage kernels does not match the explicit-mask "
+                                    "reference (cosine "
+                                 << diff.cosine << ")";
+    EXPECT_LE(diff.max_abs_err, 4e-3f) << "at index " << diff.max_abs_idx;
 }
 
 struct sdpa_ref_scratch_test : public ::testing::TestWithParam<std::tuple<data_types, int, bool>> {};
