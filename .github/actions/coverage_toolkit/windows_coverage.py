@@ -216,7 +216,7 @@ def collect(workspace: Path, install: Path, collector: Path, lane: str) -> None:
     output.unlink(missing_ok=True)
     identity = json.loads((install / "coverage-build.json").read_text(encoding="utf-8-sig"))
     commit = subprocess.check_output(["git", "-C", str(workspace), "rev-parse", "HEAD"], text=True).strip()
-    if identity["commit"] != commit or identity["build_type"] != "Release" or identity["toolchain"] != "vs2026":
+    if identity["commit"] != commit or identity["build_type"] != "Release" or identity["toolchain"] != "vs2022":
         raise ValueError(f"Coverage build does not match this checkout/configuration: {identity}")
     modules = []
     for name in MODULE_NAMES:

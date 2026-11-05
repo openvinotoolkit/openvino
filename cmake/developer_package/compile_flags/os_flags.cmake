@@ -125,7 +125,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # PDB related flags
     #
 
-    if(ENABLE_PDB_IN_RELEASE OR ENABLE_COVERAGE)
+    if(ENABLE_PDB_IN_RELEASE AND NOT ENABLE_COVERAGE)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
 
@@ -136,7 +136,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
     if(ENABLE_COVERAGE)
         # Native Microsoft coverage requires fixups and distinct functions for static instrumentation.
-        ov_add_compiler_flags(/Zi)
+        # Embed compiler symbols for ccache; the linker still generates a full PDB.
+        ov_add_compiler_flags(/Z7)
         foreach(target_type EXE SHARED MODULE)
             string(APPEND CMAKE_${target_type}_LINKER_FLAGS " /PROFILE")
             string(APPEND CMAKE_${target_type}_LINKER_FLAGS_RELEASE " /DEBUG:FULL /OPT:REF /OPT:NOICF /INCREMENTAL:NO")

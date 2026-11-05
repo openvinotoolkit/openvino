@@ -41,6 +41,11 @@ on:
         type: boolean
         required: false
         default: false
+      save-cache:
+        description: 'Save and clean the compiler cache on non-push runs as well'
+        type: boolean
+        required: false
+        default: false
       cmake-build-parallel-level:
         description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
         type: string
@@ -166,8 +171,8 @@ jobs:
         uses: ./openvino/.github/actions/cache
         if: ${{ inputs.build-type != 'Debug' }}
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: ${{ (github.event_name == 'push' || inputs.save-cache) && 'true' || 'false' }}
+          cleanup-always: ${{ (github.event_name == 'push' || inputs.save-cache) && 'true' || 'false' }}
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache${{ env.ARTIFACT_SUFFIX }}-${{ github.sha }}

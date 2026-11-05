@@ -18,7 +18,7 @@ on:
         required: false
         default: true
       run-npu-tests:
-        description: 'Build Windows VS2026 coverage and run NPU unit tests (hardware and offline)'
+        description: 'Build Windows VS2022 coverage and run NPU unit tests (hardware and offline)'
         type: boolean
         required: false
         default: true
@@ -118,13 +118,18 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-npu-tests }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb-vs2026-build'
+      runner: 'aks-win-16-cores-32gb-build'
       cmake-build-parallel-level: '15'
       affected-components: '{"JS_API":false}'
       build-type: 'Release'
       target-branch: ${{ github.base_ref || github.ref_name }}
-      build-variant: 'vs2026'
+      build-variant: 'vs2022'
+      build-additional-python-wheels: false
       enable-coverage: true
+      save-cache: >-
+        ${{ github.event_name == 'pull_request' ||
+            ((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+             github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
       cmake-options: >-
         -G 'Ninja Multi-Config'
         -DENABLE_PYTHON=ON

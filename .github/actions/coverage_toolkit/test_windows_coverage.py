@@ -130,12 +130,23 @@ class WindowsCoverageTests(unittest.TestCase):
         install = self.workspace / "install"
         install.mkdir()
         (install / "coverage-build.json").write_text(json.dumps({
-            "commit": "abc", "build_type": "Release", "toolchain": "vs2026",
+            "commit": "abc", "build_type": "Release", "toolchain": "vs2022",
         }))
         (install / windows.MODULE_NAMES[0]).touch()
         with patch.object(subprocess, "check_output", return_value="abc\n"), \
                 self.assertRaisesRegex(FileNotFoundError, "Missing linker PDB"):
             windows.collect(self.workspace, install, self.workspace / "collector.exe", "npu")
+
+    def test_reject_mismatched_build_identity(self):
+        install = self.workspace / "install"
+        install.mkdir()
+        identity = {"commit": "abc", "build_type": "Release", "toolchain": "vs2022"}
+        for key, value in (("commit", "other"), ("build_type", "Debug"), ("toolchain", "vs2026")):
+            with self.subTest(key=key):
+                (install / "coverage-build.json").write_text(json.dumps({**identity, key: value}))
+                with patch.object(subprocess, "check_output", return_value="abc\n"), \
+                        self.assertRaisesRegex(ValueError, "does not match"):
+                    windows.collect(self.workspace, install, self.workspace / "collector.exe", "npu")
 
     def test_windows_artifacts_and_uploads_are_isolated(self):
         output = self.workspace / "windows-coverage.xml"
@@ -161,7 +172,9 @@ class WindowsCoverageTests(unittest.TestCase):
         workflow = yaml.safe_load((REPO / ".github/workflows/coverage.yml").read_text())
         jobs = workflow["jobs"]
         build = jobs["BuildWindows"]["with"]
-        self.assertEqual(build["build-variant"], "vs2026")
+        self.assertEqual(build["build-variant"], "vs2022")
+        self.assertEqual(build["runner"], "aks-win-16-cores-32gb-build")
+        self.assertFalse(build["build-additional-python-wheels"])
         self.assertTrue(build["enable-coverage"])
         self.assertNotIn("needs", jobs["BuildWindows"])
         lanes = jobs["CoverageWindows"]["strategy"]["matrix"]["include"]
@@ -176,6 +189,50 @@ class WindowsCoverageTests(unittest.TestCase):
                              {"cpp-runtime-cpp-windows-npu", "cpp-runtime-cpp-windows-npu-offline"})
         self.assertFalse(codecov["flag_management"]["default_rules"]["carryforward"])
         self.assertEqual(validate_configs(CONFIG), [])
+
+    def test_windows_build_cache_and_python_contract(self):
+        import yaml
+
+        builder = yaml.safe_load((REPO / ".github/workflows/job_build_windows.yml").read_text())
+        coverage = yaml.safe_load((REPO / ".github/workflows/coverage.yml").read_text())
+        build_inputs = coverage["jobs"]["BuildWindows"]["with"]
+        declared_inputs = builder[True]["workflow_call"]["inputs"]
+        self.assertNotIn("cache-suffix", declared_inputs)
+        self.assertNotIn("cache-suffix", build_inputs)
+        self.assertFalse(declared_inputs["save-cache"]["default"])
+        job = builder["jobs"]["Build"]
+        expected_policy = (
+            "${{ github.event_name == 'pull_request' || "
+            "((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && "
+            "github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}"
+        )
+        self.assertEqual(" ".join(build_inputs["save-cache"].split()), expected_policy)
+        self.assertNotIn("CCACHE_SAVE", job["env"])
+        self.assertIn("inputs.enable-coverage && '_coverage'", job["env"]["CCACHE_REMOTE_DIR"])
+        self.assertNotIn("pull_request", job["env"]["CCACHE_REMOTE_DIR"])
+        self.assertEqual(
+            job["env"]["CCACHE_REMOTE_DIR"],
+            r"C:\mount\caches\ccache\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}"
+            r"${{ inputs.enable-coverage && '_coverage' || '' }}\${{ inputs.target-branch }}",
+        )
+        cache = next(step for step in job["steps"] if step["name"] == "Setup ccache")
+        for option in ("save-always", "cleanup-always"):
+            self.assertEqual(cache["with"][option],
+                             "${{ (github.event_name == 'push' || inputs.save-cache) && 'true' || 'false' }}")
+        self.assertIn("env.ARTIFACT_SUFFIX", cache["with"]["restore-keys"])
+        python_steps = [step for step in job["steps"]
+                        if step.get("uses") == "./openvino/.github/actions/setup_python"]
+        self.assertEqual(builder["env"]["PYTHON_VERSION"], "3.11")
+        self.assertNotIn("if", python_steps[0])
+        self.assertEqual(python_steps[0]["with"]["version"], "${{ env.PYTHON_VERSION }}")
+        self.assertNotIn("if", python_steps[-1])
+        self.assertEqual({step["with"]["version"] for step in python_steps[1:-1]},
+                         {"3.12", "3.13", "3.14", "3.14t"})
+        for step in python_steps[1:-1]:
+            self.assertEqual(step["if"], "${{ inputs.build-additional-python-wheels }}")
+        for step in job["steps"]:
+            if step["name"].startswith("Build additional Python wheels"):
+                self.assertEqual(step["if"], "${{ inputs.build-additional-python-wheels }}")
 
     @unittest.skipUnless(shutil.which("bash"), "bash is required to validate lane selection")
     def test_pull_request_and_dispatch_selection(self):
@@ -219,7 +276,7 @@ class WindowsCoverageTests(unittest.TestCase):
         install = self.workspace / "install"
         install.mkdir()
         (install / "coverage-build.json").write_text(json.dumps({
-            "commit": "abc", "build_type": "Release", "toolchain": "vs2026",
+            "commit": "abc", "build_type": "Release", "toolchain": "vs2022",
             "source_root": r"C:\build\openvino",
         }))
         for module in windows.MODULE_NAMES:
@@ -270,25 +327,30 @@ class WindowsCoverageTests(unittest.TestCase):
     def test_cmake_coverage_flags(self):
         if shutil.which("cmake") is None:
             self.skipTest("CMake is not installed")
-        for compiler, enabled in (("MSVC", "OFF"), ("MSVC", "ON"), ("GNU", "ON")):
-            with self.subTest(compiler=compiler, coverage=enabled):
-                source = self.workspace / f"cmake-{compiler}-{enabled}"
+        configurations = [("MSVC", coverage, pdb) for coverage, pdb in itertools.product(("OFF", "ON"), repeat=2)]
+        configurations.append(("GNU", "ON", "OFF"))
+        for compiler, enabled, pdb in configurations:
+            with self.subTest(compiler=compiler, coverage=enabled, pdb=pdb):
+                source = self.workspace / f"cmake-{compiler}-{enabled}-{pdb}"
                 source.mkdir()
                 (source / "CMakeLists.txt").write_text(f"""
 cmake_minimum_required(VERSION 3.20)
 project(CoverageFlags CXX)
 list(APPEND CMAKE_MODULE_PATH "{REPO.as_posix()}/cmake/developer_package")
 set(CMAKE_CXX_COMPILER_ID {compiler})
-set(CMAKE_CXX_COMPILER_VERSION 19.50)
+set(CMAKE_CXX_COMPILER_VERSION 19.42)
 set(CMAKE_COMPILER_IS_GNUCXX {'ON' if compiler == 'GNU' else 'OFF'})
 set(CMAKE_CL_64 {'ON' if compiler == 'MSVC' else 'OFF'})
 set(ENV{{GITHUB_ACTIONS}} true)
 set(ENABLE_COVERAGE {enabled})
+set(ENABLE_PDB_IN_RELEASE {pdb})
 set(SUGGEST_OVERRIDE_SUPPORTED OFF CACHE BOOL "")
 set(UNUSED_BUT_SET_VARIABLE_SUPPORTED OFF CACHE BOOL "")
 include(compile_flags/os_flags)
 file(WRITE "${{CMAKE_BINARY_DIR}}/flags.txt"
-    "${{CMAKE_CXX_FLAGS}}\\n${{CMAKE_EXE_LINKER_FLAGS}}\\n${{CMAKE_EXE_LINKER_FLAGS_RELEASE}}")
+    "${{CMAKE_C_FLAGS}}\\n${{CMAKE_C_FLAGS_RELEASE}}\\n"
+    "${{CMAKE_CXX_FLAGS}}\\n${{CMAKE_CXX_FLAGS_RELEASE}}\\n"
+    "${{CMAKE_EXE_LINKER_FLAGS}}\\n${{CMAKE_EXE_LINKER_FLAGS_RELEASE}}")
 """, encoding="utf-8")
                 result = subprocess.run(["cmake", "-S", str(source), "-B", str(source / "build")],
                                         capture_output=True, text=True, check=False)
@@ -298,13 +360,19 @@ file(WRITE "${{CMAKE_BINARY_DIR}}/flags.txt"
                     self.assertIn("--coverage", flags)
                     self.assertNotIn("/PROFILE", flags)
                 elif enabled == "ON":
-                    for flag in ("/Zi", "/PROFILE", "/DEBUG:FULL", "/OPT:NOICF", "/INCREMENTAL:NO"):
+                    for flag in ("/Z7", "/PROFILE", "/DEBUG:FULL", "/OPT:NOICF", "/INCREMENTAL:NO"):
                         self.assertIn(flag, flags)
+                    self.assertNotIn("/Zi", flags)
+                    self.assertNotIn("/ZI", flags)
                     self.assertNotIn("--coverage", flags)
                     self.assertNotIn("/OPT:ICF", flags)
                 else:
                     self.assertIn("/OPT:ICF", flags)
                     self.assertNotIn("/PROFILE", flags)
+                    self.assertNotIn("/Z7", flags)
+                    if pdb == "ON":
+                        self.assertIn("/Zi", flags)
+                        self.assertIn("/DEBUG", flags)
 
     def test_powershell_syntax(self):
         if shutil.which("pwsh") is None:
