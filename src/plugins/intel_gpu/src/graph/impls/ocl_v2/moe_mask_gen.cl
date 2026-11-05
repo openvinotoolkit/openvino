@@ -4,6 +4,94 @@
 
 #include "include/batch_headers/common.cl"
 
+#if EXPERT_SORT_HIST || EXPERT_SORT_SCATTER
+// Multi work-group expert sort for many (token, top-k slot) rows. Each work-group owns BLOCK_SIZE consecutive rows.
+// hist: per-block expert histogram. scatter: block base per expert + stable rank inside the block.
+
+#if EXPERT_SORT_HIST
+KERNEL(moe_mask_gen)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* topk_idx,
+    __global int* block_counts)
+{
+    const int rows = INPUT0_BATCH_NUM * NUM_EXPERTS_PER_TOKEN;
+    const int lid = get_local_id(0);
+    const int block = get_group_id(0);
+    const int s = block * BLOCK_SIZE + lid;
+
+    __local int hist[NUM_EXPERTS];
+    for (int e = lid; e < NUM_EXPERTS; e += BLOCK_SIZE) {
+        hist[e] = 0;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (s < rows) {
+        atomic_inc(&hist[(int)topk_idx[s]]);
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (int e = lid; e < NUM_EXPERTS; e += BLOCK_SIZE) {
+        block_counts[block * NUM_EXPERTS + e] = hist[e];
+    }
+}
+#else
+KERNEL(moe_mask_gen)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* topk_idx,
+    __global OUTPUT_TYPE* token_index,
+    __global OUTPUT1_TYPE* expert_end_offsets,
+    __global int* row_lut,
+    const __global int* block_counts)
+{
+    const int rows = INPUT0_BATCH_NUM * NUM_EXPERTS_PER_TOKEN;
+    const int lid = get_local_id(0);
+    const int block = get_group_id(0);
+    const int num_blocks = get_num_groups(0);
+    const int s = block * BLOCK_SIZE + lid;
+
+    __local int expert_base[NUM_EXPERTS];
+    __local int expert_total[NUM_EXPERTS];
+    __local int ids[BLOCK_SIZE];
+
+    for (int e = lid; e < NUM_EXPERTS; e += BLOCK_SIZE) {
+        int before = 0;
+        int total = 0;
+        for (int b = 0; b < num_blocks; ++b) {
+            const int c = block_counts[b * NUM_EXPERTS + e];
+            before += (b < block) ? c : 0;
+            total += c;
+        }
+        expert_base[e] = before;
+        expert_total[e] = total;
+    }
+    ids[lid] = (s < rows) ? (int)topk_idx[s] : -1;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (lid == 0) {
+        int start = 0;
+        for (int e = 0; e < NUM_EXPERTS; ++e) {
+            expert_base[e] += start;
+            start += expert_total[e];
+            if (block == 0) {
+                expert_end_offsets[e] = start;
+            }
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (s < rows) {
+        const int e = ids[lid];
+        int rank = 0;
+        for (int j = 0; j < lid; ++j) {
+            rank += (ids[j] == e) ? 1 : 0;
+        }
+        const int row = expert_base[e] + rank;
+        token_index[row] = s / NUM_EXPERTS_PER_TOKEN;
+        row_lut[s] = row;
+    }
+}
+#endif
+
+#else
+
 KERNEL(moe_mask_gen)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* topk_idx,
@@ -78,3 +166,4 @@ KERNEL(moe_mask_gen)(
         }
     }
 }
+#endif
