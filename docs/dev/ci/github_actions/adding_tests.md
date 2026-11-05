@@ -224,10 +224,14 @@ or are left out of `Overall_Status`. This is bad practice because:
 Instead:
 
 * Put work-in-progress checks (for example, a new compiler, language standard or platform that is
-  not fully supported yet) in a **nightly or scheduled workflow** with `workflow_dispatch`. If the
-  workflow should also run when its own definition changes, add a `pull_request` trigger with a
-  `paths:` filter limited to the workflow files. Do this only for non-required workflows (see
-  [Smart CI](./smart_ci.md)).
+  not fully supported yet) in a **nightly or scheduled run**, with `workflow_dispatch` when useful.
+  This can be a dedicated workflow, or a job in an existing workflow gated on a specific schedule
+  event (and optionally `workflow_dispatch`). When sharing a workflow, ensure the scheduled run
+  skips unrelated build and test jobs; otherwise the schedule just shifts the same runner cost to
+  another day. Use a distinct cron expression when the workflow already has other schedules so jobs
+  can distinguish the experimental run from normal nightly runs. If the check should also run when
+  its own definition changes, add a `pull_request` trigger with a `paths:` filter limited to the
+  workflow files. Do this only for non-required workflows (see [Smart CI](./smart_ci.md)).
 * Track failures from the scheduled run and fix them. Do not leave them to linger.
 * Move the check to the pre-commit scope only after it passes reliably. When you do, make it a
   **required** check that is included in `Overall_Status`.

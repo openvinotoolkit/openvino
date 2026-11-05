@@ -194,7 +194,8 @@ volumes/options (shared drive, sccache) consistent with sibling jobs. GPU → Do
 * **Missing `timeout-minutes`** — a hung job can occupy a runner indefinitely.
 * **Known-failing / non-blocking job in pre-commit** — `continue-on-error` or a job left out of
   `Overall_Status` still burns runners on every PR and trains people to ignore red checks. Run it
-  nightly/on `workflow_dispatch` until green, then promote it to a required pre-commit check
+  in a dedicated nightly workflow or gate it to a schedule/`workflow_dispatch` in an existing
+  workflow, skipping unrelated jobs, until green; then promote it to a required pre-commit check
   (see [adding_tests.md](../../../docs/dev/ci/github_actions/adding_tests.md#known-failing-and-non-blocking-checks)).
 * **GPU job without Docker** — required on persistent GPU runners.
 
