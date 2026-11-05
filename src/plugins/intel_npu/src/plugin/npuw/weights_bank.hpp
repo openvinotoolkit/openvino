@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <tuple>
@@ -57,12 +58,25 @@ private:
         LazyTensor lt;
         ov::Tensor tensor;
     };
+    // Constant data pointer -> uid of the allocation holding its bytes
+    using BufferOwners = std::unordered_map<const void*, int64_t>;
     // Bank for specified device and their allocated memory
     struct DeviceBank {
         std::unordered_map<int64_t, StoredTensor> storage;
         std::unordered_map<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
+        // The source buffer may be gone or its address reused, so a hit is only trusted after comparing the bytes
+        BufferOwners aliases;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
+
+    // uid -> tensor to evaluate, ordered by uid
+    using Candidates = std::map<int64_t, LazyTensor>;
+    // view uid -> uid of the allocation it shares
+    using Views = std::map<int64_t, int64_t>;
+
+    static Views find_earlier_owners(const DeviceBank& device_bank, const Candidates& candidates);
+    static BufferOwners split_owners_and_views(const Candidates& candidates, Views& views);
+    static void bind_views(DeviceBank& device_bank, const Views& views, const std::string& device);
 
     void evaluate_cpu(DeviceBank& device_bank, const std::vector<LazyTensor>& to_process);
     void evaluate_and_allocate_on_device(DeviceBank& device_bank,

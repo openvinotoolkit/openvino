@@ -76,6 +76,10 @@ public:
     };
     Meta eval_meta() const;
 
+    // Data pointer of the Constant behind a plain Constant-backed tensor. nullptr for tensors with
+    // transformations, detached tensors and imported (weightless) ones.
+    const void* const_data_ptr() const;
+
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     operator bool() const;
 
