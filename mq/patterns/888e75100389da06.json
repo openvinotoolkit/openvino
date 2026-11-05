@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "test_benchmark_app_sub_ms_console_output_only avg latency exceeds 1 0 ms sub millisecond threshold assertionerror|Flaky Test",
+  "signature_hash": "888e75100389da06",
+  "title": "smoke/benchmark_app_sub_ms_console_output_only fails when average latency exceeds 1.0ms threshold",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-05T14:03:59Z",
+  "last_seen": "2026-11-05T14:03:59Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42026335242"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39524"
+  ],
+  "recent_timestamps": [
+    "2026-11-05T14:03:59Z"
+  ],
+  "rerun_search_string": null
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-14-03-59-299-42026335242",
+  "timestamp": "2026-11-05T14:03:59Z",
+  "run_id": "42026335242",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42026335242",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39524",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39524",
+  "author": "byungilm",
+  "category": "Flaky Test",
+  "title": "smoke/benchmark_app_sub_ms_console_output_only fails when average latency exceeds 1.0ms threshold",
+  "signature": "test_benchmark_app_sub_ms_console_output_only avg latency exceeds 1 0 ms sub millisecond threshold assertionerror|Flaky Test",
+  "signature_hash": "888e75100389da06",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Samples",
+      "conclusion": "failure",
+      "symptom": "test_benchmark_app_sub_ms_console_output_only[True-C++] failed: assert 1.771125 < 1.0 (avg latency 1.77ms exceeded the sub-millisecond console-output threshold)"
+    },
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "GGUF frontend test_parser.cpp fails to build under -DCMAKE_CXX_STANDARD=20 due to char8_t/std::string concatenation mismatch in unicode path test code (known, already-tracked non-blocking Code Issue pattern 60c87e1ef4d6a044; this job is not in Overall_Status's needs list and did not itself block the merge)"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregator step exited 1 because the Samples job (a required dependency) reported failure"
+    }
+  ],
+  "key_errors": [
+    ">       assert get_avg_latency_from_report(report) < 1.0\nE       AssertionError: assert 1.771125 < 1.0\nE        +  where 1.771125 = get_avg_latency_from_report({'execution_time': 35.4411, 'first_inference_time': 25.6877, 'iterations_num': 20, 'latency_avg': 1.771125, ...})\ntests\\smoke_tests\\test_benchmark_app.py:526: AssertionError",
+    "FAILED tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_sub_ms_console_output_only[True-C++] - AssertionError: assert 1.771125 < 1.0",
+    "============ 1 failed, 204 passed, 3 skipped in 159.89s (0:02:39) =============",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2676: binary '+': 'std::string' does not define this operator or a conversion to a type acceptable to the predefined operator",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2737: 'unicode_prefix': const object must be initialized"
+  ],
+  "root_cause": "The merge-queue run was blocked by the Samples job, which runs tests/samples_tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_sub_ms_console_output_only[True-C++] on a shared Windows CI runner. This test asserts the average benchmark_app latency stays below a fixed 1.0ms threshold to validate sub-millisecond console/JSON output formatting, but the actual measured average latency was 1.771ms. Since the PR under test (#39524) only touches src/plugins/intel_gpu/src/plugin/transformations_pipeline.cpp (a GPU-plugin transformation unrelated to CPU benchmark_app timing), and the test is run under pytest-xdist with 4 parallel workers (gw0-gw3) competing for CPU resources on the same runner, the most likely cause is transient CPU contention/noise on the Windows build-and-test runner inflating the measured single-inference latency above the hard 1.0ms bound rather than a real performance regression. Separately, the non-blocking 'Build (C++20, non-blocking)' job failed with the already-known, already-tracked GGUF frontend C++20 unicode build issue (pattern 60c87e1ef4d6a044); this job is not listed in Overall_Status's needs dependency chain and therefore did not itself cause the merge-queue block, but it is recorded here as a secondary observed failure of this run.",
+  "reproduction_steps": "On a Windows runner with OpenVINO built and samples installed, run: python3 -bb -W error -X dev -X warn_default_encoding -m pytest ./tests/smoke_tests/test_benchmark_app.py::test_benchmark_app_sub_ms_console_output_only -k 'True and C++' --numprocesses auto. The failure is timing-dependent and may not reproduce on a quieter/faster machine; a tighter threshold or isolated (non-parallel) CPU affinity run is likely needed to reproduce reliably.",
+  "recommended_actions": [
+    "Re-run the failed Samples job; if CPU contention under pytest-xdist is the cause, a retry on a less-loaded runner should pass.",
+    "Consider loosening the 1.0ms threshold in test_benchmark_app_sub_ms_console_output_only or adding a retry/average-of-N-runs strategy to tolerate normal CI timing jitter (see tests/samples_tests/smoke_tests/test_benchmark_app.py:526).",
+    "Consider running this specific latency-sensitive test with reduced parallelism (e.g., pinned to a dedicated worker) instead of under pytest-xdist 'auto' parallel workers to avoid CPU contention.",
+    "Separately track/fix the non-blocking GGUF C++20 build failure (src/frontends/gguf/tests/test_parser.cpp:731) per existing pattern 60c87e1ef4d6a044 — unrelated to this PR and already non-blocking."
+  ],
+  "prevention_strategies": "For latency-threshold-based smoke tests running under parallel test execution, prefer wider tolerance margins, warm-up iterations, or statistical comparisons (e.g., median of multiple runs) instead of a single hard millisecond cutoff, since parallel pytest-xdist workers sharing CPU cores on a Windows CI runner can transiently inflate per-inference latency well above a tight threshold with no underlying code regression.",
+  "historical_context": "No prior occurrence of this exact sub-millisecond latency assertion (test_benchmark_app_sub_ms_console_output_only) was found in the pattern database; this is a new, first-time pattern (888e75100389da06). The co-occurring GGUF C++20 unicode build failure (pattern 60c87e1ef4d6a044) was first seen 2026-11-05T10:50:38Z on PR #39270 and recurs here as its second occurrence, unrelated to the current PR #39524."
+}
