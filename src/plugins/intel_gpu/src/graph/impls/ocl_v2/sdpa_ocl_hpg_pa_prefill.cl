@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// xe_hpg (DG2) PA PREFILL kernel, f16 head 128 without the PA features (HPG_PA_PREFILL, set by the host:
+// xe_hpg (DG2) PA PREFILL kernel, f16 head 128 with no PA feature but a sliding window (HPG_PA_PREFILL, set by the host:
 // SDPAOclGenerator's hpg_pa_prefill()). Included by sdpa_ocl.cl in place of its own kernel, after the config and loader
-// headers. The loop is sdpa_ocl.cl's (online softmax over 256-key workgroup tiles, causal bound, S_max_slm / S_sum_slm
-// exchange); what differs is built around the SG8 operand forms that keep DG2's DPAS fed:
+// headers. The loop is sdpa_ocl.cl's (online softmax over 256-key workgroup tiles, causal and window bounds, S_max_slm /
+// S_sum_slm exchange); what differs is built around the SG8 operand forms that keep DG2's DPAS fed:
 //  - KQ is DPAS(Q, K): A = Q from Q_slm (staged so one ulong4 SLM block read is the operand), B = K straight from the
 //    input (lane = key, 16 depth halves per lane: one 32 B read per key row, no repacking). The scores come out
 //    lane = key; a per-subgroup 8 x 8 SLM transpose turns them to lane = query for the mask and softmax.
@@ -14,7 +14,8 @@
 //  - V of the first HPG_PA_V_LEAD key blocks is loaded before the wait of the P barrier and kept HPG_PA_V_LEAD blocks
 //    ahead in the S*V loop: IGC 2.41 sinks loads that are not pinned that way toward their use, which left the V
 //    latency exposed (5% slower S*V on DG2).
-//  - A subgroup tile entirely below the diagonal (every key <= its first query, all keys < k) skips the mask.
+//  - A subgroup tile entirely below the diagonal and inside the window (every key <= its first query and in the window
+//    of its last query, all keys < k) skips the mask.
 // Out-of-range rows are clamped to the last valid key or query, so no read leaves the subsequence, and their scores are
 // masked to -INFINITY (P = 0 times a finite V). The design and its measurements: "xe_hpg PA PREFILL kernel" in
 // docs/sdpa_ocl.md.
@@ -25,12 +26,20 @@
 #  error "sdpa_ocl_hpg_pa_prefill.cl: the host gate (hpg_pa_prefill()) and this kernel disagree on the shape or the tiling"
 #endif
 #if WITH_ATTN_MASK || defined(HAS_SCALAR_ATTN_MASK) || defined(STATIC_SCALAR_ATTN_MASK_VALUE) || defined(HAS_SINK_INPUT) || \
-    HAS_TOKEN_TYPE_IDS || SLIDING_WINDOW_SIZE || WITH_SCALE || defined(KV_COMPRESSED) || MICRO_MATH || !IS_CAUSAL || \
+    HAS_TOKEN_TYPE_IDS || WITH_SCALE || defined(KV_COMPRESSED) || MICRO_MATH || !IS_CAUSAL || \
     INPUT0_IS_BF16
 #  error "sdpa_ocl_hpg_pa_prefill.cl: an op the host gate (hpg_pa_prefill()) should have sent to the generic kernel"
 #endif
 #if !defined(HPG_PA_V_LEAD) || HPG_PA_V_LEAD < 1 || HPG_PA_V_LEAD > sv_key_blocks
 #  error "sdpa_ocl_hpg_pa_prefill.cl: HPG_PA_V_LEAD must be 1..sv_key_blocks"
+#endif
+
+// The mask keeps the keys (query - HPG_PA_WINDOW, query]. SDPA_OCL_NEG_SG8=9 makes it one 16-key block short (empty for a
+// window of 16 or less), a negative control of the window tests (sdpa_ocl.cl has the same one).
+#if SLIDING_WINDOW_SIZE && defined(NEG_SG8) && NEG_SG8 == 9
+#  define HPG_PA_WINDOW max(SLIDING_WINDOW_SIZE - DPAS_K, 0)
+#else
+#  define HPG_PA_WINDOW SLIDING_WINDOW_SIZE
 #endif
 
 // P in S_slm: the 16-key block key_block of the workgroup tile for the 8 queries of query_block, one SG8 block-read
@@ -237,10 +246,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     // Causal bound: no query of the workgroup needs a key past its last query.
     const int causal_k = min(k, wg_j0 + kq_wg_tile_queries);
+#if SLIDING_WINDOW_SIZE
+    // Window bound: none needs a key before its first query's window, rounded down to a workgroup tile as in sdpa_ocl.cl.
+    const int window_k0_begin = (max(0, wg_j0 - SLIDING_WINDOW_SIZE + 1) / kq_wg_tile_keys) * kq_wg_tile_keys;
+#else
+    const int window_k0_begin = 0;
+#endif
 
-    for (int k0 = 0; k0 < causal_k; k0 += kq_wg_tile_keys) {
+    for (int k0 = window_k0_begin; k0 < causal_k; k0 += kq_wg_tile_keys) {
         const int key_base = k0 + sg_i0_kq;
-        const bool first = (k0 == 0);
+        const bool first = (k0 == window_k0_begin);
         const bool last = (k0 + kq_wg_tile_keys >= causal_k);
 
         float8 S_tile[kq_key_blocks][kq_query_blocks];
@@ -263,8 +278,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
         float alpha[kq_query_blocks];
         // Uniform per subgroup: a tile wholly below the diagonal (every key <= the subgroup's first query, and all keys
-        // < k) has nothing to mask.
-        if (key_base + kq_sg_tile_keys - 1 <= wg_j0 + sg_j0_kq && key_base + kq_sg_tile_keys <= k) {
+        // < k) and inside the window of the subgroup's last query has nothing to mask.
+        if (key_base + kq_sg_tile_keys - 1 <= wg_j0 + sg_j0_kq && key_base + kq_sg_tile_keys <= k
+#if SLIDING_WINDOW_SIZE
+            && key_base > wg_j0 + sg_j0_kq + kq_sg_tile_queries - 1 - HPG_PA_WINDOW
+#endif
+        ) {
             #pragma unroll
             for (int qb = 0; qb < kq_query_blocks; ++qb) {
                 float lmax = -INFINITY;
@@ -279,8 +298,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #pragma unroll
             for (int qb = 0; qb < kq_query_blocks; ++qb) {
                 const int query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + (int)lane;
-                // Every key of the tile <= the block's first query: only the k_mask term is left.
-                const bool causal_block_clear = key_base + kq_sg_tile_keys - 1 <= wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE;
+                // Every key of the tile <= the block's first query (and in the window of its last): only the k_mask term
+                // is left.
+                const int block_query0 = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE;
+                const bool causal_block_clear = key_base + kq_sg_tile_keys - 1 <= block_query0
+#if SLIDING_WINDOW_SIZE
+                                                && key_base > block_query0 + SUBGROUP_SIZE - 1 - HPG_PA_WINDOW
+#endif
+                    ;
                 float lmax = -INFINITY;
                 #pragma unroll
                 for (int mb = 0; mb < kq_key_blocks; ++mb) {
@@ -289,7 +314,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         const int key_rel = mb * DPAS_ROWS + mm;
                         float s = S_tile[mb][qb][mm] +
                                   sub_group_broadcast(k_mask[key_rel / SUBGROUP_SIZE], key_rel % SUBGROUP_SIZE);
+#if SLIDING_WINDOW_SIZE
+                        // 0 <= query - key < window as one unsigned compare: the two signed ones (key > query, key <=
+                        // query - window) spilled 2.5 KB on DG2 (IGC 2.41).
+                        if (!causal_block_clear && (uint)(query - key_base - key_rel) >= (uint)HPG_PA_WINDOW)
+#else
                         if (!causal_block_clear && key_base + key_rel > query)
+#endif
                             s = -INFINITY;
                         S_tile[mb][qb][mm] = s;
                         lmax = fmax(lmax, s);
@@ -373,5 +404,6 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 }
 
 #undef P_SLM_OFF
+#undef HPG_PA_WINDOW
 
 #define SDPA_OCL_HPG_PA_PREFILL_INL 1
