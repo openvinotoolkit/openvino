@@ -135,6 +135,11 @@ public:
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
             lm_head_model =
                 std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
+            // The Model constructor does not deep-copy graph nodes, so tied-weight dequantization nodes
+            // may remain shared with the original model. Any later pass modifying these nodes affects
+            // both models and can cause incorrect behavior. Clone to isolate the graph nodes while
+            // keeping constant data buffers shared.
+            lm_head_model = lm_head_model->clone();
 
             return true;
         };
