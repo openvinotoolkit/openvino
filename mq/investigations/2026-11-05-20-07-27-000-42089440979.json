@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-20-07-27-000-42089440979",
+  "timestamp": "2026-11-05T20:07:27Z",
+  "run_id": "42089440979",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42089440979",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38824",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38824",
+  "author": "akashchi",
+  "category": "Network",
+  "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
+  "signature": "request was timed out downloading test model from raw githubusercontent com|Network",
+  "signature_hash": "197368415f8ae13d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "npm test crashed with UnhandledPromiseRejection after test-model download timed out after 30000 ms"
+    },
+    {
+      "name": "OpenVINO JS API (26) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "npm test crashed with UnhandledPromiseRejection after test-model download timed out after 30000 ms"
+    }
+  ],
+  "key_errors": [
+    "Downloading file by link: https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml to /__w/openvino/openvino/src/bindings/js/node/tests/unit/test_models with filename: test_model_fp32.xml",
+    "Failed to download the model: Request was timed out after 30000 ms..",
+    "UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason \"Request was timed out after 30000 ms.\"."
+  ],
+  "root_cause": "The 'test_setup' npm script (src/bindings/js/node/tests/setup.js) downloads test_model_fp32.xml from raw.githubusercontent.com before running the JS API test suite. The download request did not complete within the 30-second client timeout, likely due to transient network latency/throttling reaching raw.githubusercontent.com from the ARM64 runner, and the rejection from the download promise was unhandled, crashing the Node.js test process with exit code 1. This is unrelated to the PR's sccache Dockerfile/workflow changes (PR #38824), which do not touch the JS bindings or test setup.",
+  "reproduction_steps": "cd src/bindings/js/node && npm run test_setup (requires network access to raw.githubusercontent.com); a transient network timeout cannot be reliably reproduced locally. N/A for deterministic repro.",
+  "recommended_actions": [
+    "Wrap the model download in tests/setup.js with a try/catch (or .catch()) to avoid an unhandled promise rejection and produce a clearer failure message",
+    "Increase the download timeout and/or add retry-with-backoff logic around the raw.githubusercontent.com fetch in tests/setup.js",
+    "Consider caching test_model_fp32.xml as a repository/workflow artifact or mirroring it to an internal/more reliable endpoint to reduce dependence on raw.githubusercontent.com availability",
+    "Merge the existing workflow-rerunner pattern entry (\"Failed to download the model\") if not already active, so transient occurrences are retried automatically"
+  ],
+  "prevention_strategies": "Add robust error handling (retry + timeout backoff) around all network-dependent test setup steps, and avoid unhandled promise rejections in async test bootstrap code so failures are diagnosable and retryable rather than crashing the whole process.",
+  "historical_context": "This exact signature has now recurred 4 times (first seen 2026-10-30, most recently before this run on 2026-11-05 16:35 UTC, run 42045188647), always presenting as OpenVINO JS API job failures downloading test_model_fp32.xml from raw.githubusercontent.com. The workflow rerunner already has an approved search string (\"Failed to download the model\") covering this signature."
+}

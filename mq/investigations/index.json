@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 338,
+  "total": 339,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3296,6 +3296,15 @@
       "title": "Docker image build fails - wget cannot resolve raw.githubusercontent.com (DNS failure)",
       "category": "Network",
       "signature_hash": "69728e8311b16d64",
+      "pr_number": "38824"
+    },
+    {
+      "investigation_id": "2026-11-05-20-07-27-000-42089440979",
+      "run_id": "42089440979",
+      "timestamp": "2026-11-05T20:07:27Z",
+      "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
+      "category": "Network",
+      "signature_hash": "197368415f8ae13d",
       "pr_number": "38824"
     }
   ]
