@@ -933,6 +933,12 @@ TEST_F(SubgraphBehaviorInferTest, DynAttnPrologueRejectsMaskIdxInClosureGap) {
             closure.closure.push_back(fake_closure_tensor);
             closure.closure_uid.push_back(-1);
             closure.is_remote.push_back(false);
+            // closure and lazy_closure must stay the same size (see CompiledModelDesc). Forgetting
+            // this is a latent race: finalize_weights_bank() validates that invariant on a background
+            // thread (std::async in finalize_weights_bank()), so whether a mismatch here is caught
+            // depends on scheduling - it was missed on this machine but surfaced on CI as an unrelated
+            // "Malformed ORC blob" failure instead of the mask_idx assertion this test targets.
+            desc.lazy_closure.emplace_back();
         }
     }
 
