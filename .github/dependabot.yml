@@ -189,7 +189,7 @@ updates:
     directories:
       - "/.github/**/*"
     schedule:
-      interval: "weekly"
+      interval: "daily"
       time: "09:00"
       timezone: "Asia/Dubai"
     assignees:
