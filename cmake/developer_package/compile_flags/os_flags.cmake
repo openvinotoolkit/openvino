@@ -12,9 +12,13 @@ if(NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
 
+# the only place to change the project default standard
+set(OV_CXX_STANDARD_DEFAULT 17)
+
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(OV_CXX_STANDARD_IS_DEFAULT ON)
+    set(CMAKE_CXX_STANDARD ${OV_CXX_STANDARD_DEFAULT})
 endif()
 
 if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
@@ -24,6 +28,9 @@ endif()
 if(NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
+
+# checks that the toolchain supports the requested CMAKE_CXX_STANDARD
+include(compile_flags/cxx_standard)
 
 if(ENABLE_COVERAGE)
     ov_add_compiler_flags(--coverage)

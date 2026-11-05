@@ -609,6 +609,69 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
     }
 }
 
+// OOB in quantize_gpu_scale_shift_opt kernel when the output layout is b_fs_yx_fsv32
+TEST(quantize_gpu, scale_shift_opt_b_fs_yx_fsv32_feature_not_aligned) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const int b = 1;
+    const int f = 16;   // deliberately NOT a multiple of 32 -> 16 padding feature work-items
+    const int y = 256;  // large spatial size so an unguarded padding work-item reads INPUT0 well past
+    const int x = 256;  // the end of the allocation (reproduces the GPU fault, not just a benign over-read)
+
+    auto input       = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, y, x } });
+    auto input_low   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, f, 1, 1 } });
+    auto input_high  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, f, 1, 1 } });
+    auto output_low  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, rg.generate_random_1d<float>(b * f * y * x, -10, 10));
+    set_values(input_low, rg.generate_random_1d<float>(f, -10, -1));
+    set_values(input_high, rg.generate_random_1d<float>(f, 1, 10));
+    set_values(output_low,  { 0.0f });
+    set_values(output_high, { 255.0f });
+
+    auto build_topology = [&]() {
+        topology topology;
+        topology.add(
+            input_layout("input", input->get_layout()),
+            data("input_low", input_low),
+            data("input_high", input_high),
+            data("output_low", output_low),
+            data("output_high", output_high),
+            quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"),
+                     input_info("output_low"), input_info("output_high"), 256, data_types::u8),
+            reorder("out", input_info("quantize"), format::bfyx, data_types::u8)
+        );
+        return topology;
+    };
+
+    // Both runs use the same quantize_gpu_scale_shift_opt kernel (so output values are identical)
+    auto run = [&](format::type out_format) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc quantize_impl = { out_format, "quantize_gpu_scale_shift_opt" };
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ { "quantize", quantize_impl } }));
+
+        network network(engine, build_topology(), config);
+        network.set_input_data("input", input);
+        return network.execute().at("out").get_memory();
+    };
+
+    auto ref_mem = run(format::bfyx);
+    auto opt_mem = run(format::b_fs_yx_fsv32);
+
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+
+    ASSERT_EQ(opt_mem->count(), ref_mem->count());
+    ASSERT_EQ(opt_mem->count(), static_cast<size_t>(b * f * y * x));
+    for (size_t i = 0; i < ref_mem->count(); ++i) {
+        ASSERT_EQ(opt_ptr[i], ref_ptr[i]) << " i=" << i;
+    }
+}
+
 TEST(quantize_gpu, eltwise_quantize_fs_b_yx_fsv32) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();

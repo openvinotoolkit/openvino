@@ -34,7 +34,7 @@ The operation is performed in the following steps:
    * Elements with ``x < lo``, ``x > hi``, and NaN elements are ignored.
    * Any other element goes to the bin with the index ``idx = floor((x - lo) * bins / (hi - lo))``, where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
 
-The output element ``output[i]`` is the number of elements assigned to the bin ``i``, converted to type *T*. As in ``torch.histc``, if *T* is an integer type and the count does not fit into it, the value wraps around modulo ``2^N``, where ``N`` is the bit width of *T*. For example, 300 elements in one bin give ``44`` for ``u8`` and ``i8``. To get exact counts for narrow integer types, convert the input to a wider type first.
+The output element ``output[i]`` is the number of elements assigned to the bin ``i``. The counts are accumulated in and returned as i32 or input element type, which is selected by the *preserve_input_type* attribute. If the count is not representable in the output element type (for example, more than 255 elements in one bin for ``u8``), the result is implementation defined. To avoid this for narrow integer input types, set *preserve_input_type* to ``false``.
 
 **Attributes**
 
@@ -62,13 +62,24 @@ The output element ``output[i]`` is the number of elements assigned to the bin `
   * **Default value**: ``0``
   * **Required**: *no*
 
+* *preserve_input_type*
+
+  * **Description**: selects the element type in which the counts are accumulated and returned.
+  * **Range of values**:
+
+    * *true* - the output element type is *T*, as in ``torch.histc``.
+    * *false* - the output element type is ``i32`` regardless of *T*.
+  * **Type**: ``boolean``
+  * **Default value**: true
+  * **Required**: *no*
+
 **Inputs**
 
 * **1**: ``data`` - a tensor of type *T* and arbitrary shape, including a scalar or an empty tensor. **Required.**
 
 **Outputs**
 
-* **1**: A 1D tensor of type *T* and shape ``[bins]``, containing the number of input elements in each bin.
+* **1**: A 1D tensor of shape ``[bins]``, containing the number of input elements in each bin. Its element type is *T* if *preserve_input_type* is ``true`` and ``i32`` otherwise.
 
 **Types**
 
