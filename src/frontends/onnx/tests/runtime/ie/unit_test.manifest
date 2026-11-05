@@ -418,9 +418,3 @@ IE_GPU.onnx_model_max_unpool
 # GPU: a fully static model cannot produce the runtime-sized (total_sequence_length) GQA output_qk
 IE_GPU.onnx_model_gqa_qk_output_static_cache
 IE_GPU.onnx_model_gqa_qk_output_static_cache_total_below_seqlens
-
-# GPU: a static-capacity GQA present_key/present_value consumed by a non-Result op fails at runtime
-IE_GPU.onnx_model_gqa_query_seqlens_static_cache
-IE_GPU.onnx_model_gqa_query_seqlens_single_token
-IE_GPU.onnx_model_gqa_query_seqlens_position_ids
-IE_GPU.onnx_model_gqa_query_seqlens_i8kv
