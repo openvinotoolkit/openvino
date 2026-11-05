@@ -76,12 +76,9 @@ CanonicalizeLMHeadDQLayout::CanonicalizeLMHeadDQLayout() {
         auto new_mul = std::make_shared<v1::Multiply>(new_sub, reshaped(qscale, {OC, 1}));
         auto new_matmul = std::make_shared<v0::MatMul>(matmul->input_value(0), new_mul, false, true);
 
-        new_matmul->set_friendly_name(matmul->get_friendly_name());
-        new_matmul->output(0).set_names(matmul->output(0).get_names());
-        ov::copy_runtime_info(matmul, new_matmul);
         ov::copy_runtime_info(ov::NodeVector{sub, mul}, ov::NodeVector{new_cvt_w, new_cvt_z, new_sub, new_mul});
-        ov::replace_node(matmul, new_matmul);
-        return true;
+        // Moves the tensor names and runtime info; also the friendly name when the MatMul feeds a Result.
+        return ov::replace_output_update_name(matmul->output(0), new_matmul->output(0));
     };
 
     register_matcher(std::make_shared<Matcher>(matmul_m, "CanonicalizeLMHeadDQLayout"), std::move(callback));
