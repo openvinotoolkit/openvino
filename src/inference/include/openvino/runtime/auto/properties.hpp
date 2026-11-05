@@ -31,20 +31,27 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
 
 /**
- * @brief auto device setting that enables compiling the model to the remaining candidate devices in the background,
- * after the actual device is ready, to populate cache blobs for faster device switching.
- * Enabling it disables ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback.
- * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws on every host. Ignored in
- * cumulative throughput mode, when there is no other candidate device, and when
- * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
+ * @brief Enables background cache warm-up for AUTO candidate devices other than the device AUTO is ready to serve on.
+ * The candidates come from ov::device::priorities or the device string; without either, AUTO uses its usual
+ * eligible devices. CPU is warmed up when it is an eligible candidate. Warm-up asks Core to validate or create each
+ * device's cache blob; compatible blobs are reused and invalid or incompatible blobs may be rebuilt.
  *
- * When ov::device::priorities (or a device string such as "AUTO:GPU,NPU") is set, it determines the candidates;
- * otherwise AUTO discovers its usual eligible devices. For example, to warm up the cache for GPU and NPU, so that
- * the one not selected by AUTO is compiled in the background:
+ * Requires ov::cache_dir or ov::cache_path. If neither is set, compiling the model throws unless this property is
+ * ignored because cumulative throughput mode or ov::cache_blob_id is configured for AUTO or a candidate device.
+ * A candidate with a single-file cache path (*.bin) is skipped with a warning; devices with caching disabled are skipped.
+ * If no candidate other than the initially selected device exists when AUTO initializes scheduling, this property is
+ * ignored after cache configuration is validated and fallback settings remain unchanged. Otherwise, it disables
+ * ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback for this compile, even if startup
+ * compilation retries later remove all remaining warm-up candidates. Warm-up failures are logged as warnings. The warm-up
+ * uses background work to populate cache blobs for a later compile_model call; it does not switch the current
+ * compiled model to another device. Warm-up starts after AUTO is ready to serve inference following startup
+ * compilation attempts.
+ *
+ * For example, to warm up other eligible candidates:
  * @code
  * core.compile_model(model,
  *                    "AUTO",
- *                    ov::device::priorities("GPU,NPU"),
+ *                    ov::device::priorities("GPU,CPU"),
  *                    ov::cache_dir("model_cache"),
  *                    ov::intel_auto::compile_for_all(true));
  * @endcode
