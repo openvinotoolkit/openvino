@@ -37,7 +37,20 @@
 // GR_RB_S (subgroups per branch row, divides GR_NCH), GR_GPF (gain chunks loaded before the norm
 // reduction; bounded by the register budget).
 // GR_RB_S subgroups per (branch, row): gws = [C * GR_RB_S * 16, rows, 1], lws = [C * GR_RB_S * 16, 1, 1].
+// GR_KPERM: Rbar is stored K-permuted for the 4-bit decode GEMMs (see GR_KP).
 // ---------------------------------------------------------------------------------------------------------------
+#if GR_KPERM
+#if GR_NV_CH != 8
+    #error "gr_read_pipeline.cl: the K-permuted RBAR needs 128-half chunks"
+#endif
+// lane l owns the halves 8 l .. 8 l + 7 of a chunk (not 16 v + l), so the K permutation (GR_KP) is a register swizzle
+#define GR_RB_LDU(P) as_ushort8(vload4(get_sub_group_local_id(), (const __global uint*)(P)))
+#define GR_RB_ST(P, O) vstore4(as_uint4(GR_F2U(8, O).s04152637), get_sub_group_local_id(), (__global uint*)(P))
+#else
+#define GR_RB_LDU(P) GR_BRU(GR_NV_CH, P)
+#define GR_RB_ST(P, O) GR_STF(GR_NV_CH, P, O)
+#endif
+#define GR_RB_LDF(P) GR_U2F(GR_NV_CH, GR_RB_LDU(P))
 REQD_SUB_GROUP_SIZE(16)
 KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_weight, __global ushort* rbar_out, uint num_rows) {
     const uint sg = get_sub_group_id();
@@ -57,7 +70,7 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
     float sq = 0.0f;
 #pragma unroll
     for (uint i = 0; i < GR_NCHP; i++) {
-        r[i] = GR_BRU(GR_NV_CH, residual + base + i * GR_CH);
+        r[i] = GR_RB_LDU(residual + base + i * GR_CH);
         const GR_FT(GR_NV_CH) f = GR_U2F(GR_NV_CH, r[i]);
         const GR_FT(GR_NV_CH) q = f * f;
         GR_ACC(GR_NV_CH, sq, q);
@@ -67,7 +80,7 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
     GR_UT(GR_NV_CH) gr_[GR_GPF];
 #pragma unroll
     for (uint i = 0; i < GR_GPF; i++) {
-        gr_[i] = GR_BRU(GR_NV_CH, norm_weight + gbase + i * GR_CH);
+        gr_[i] = GR_RB_LDU(norm_weight + gbase + i * GR_CH);
     }
 #endif
 #if GR_RB_S > 1
@@ -88,22 +101,22 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
 #pragma unroll
     for (uint i = 0; i < GR_NCHP; i++) {
 #if GR_GPF > 0
-        GR_FT(GR_NV_CH) gain = i < GR_GPF ? GR_U2F(GR_NV_CH, gr_[i]) : GR_LDF(GR_NV_CH, norm_weight + gbase + i * GR_CH);
+        GR_FT(GR_NV_CH) gain = i < GR_GPF ? GR_U2F(GR_NV_CH, gr_[i]) : GR_RB_LDF(norm_weight + gbase + i * GR_CH);
 #else
-        GR_FT(GR_NV_CH) gain = GR_LDF(GR_NV_CH, norm_weight + gbase + i * GR_CH);
+        GR_FT(GR_NV_CH) gain = GR_RB_LDF(norm_weight + gbase + i * GR_CH);
 #endif
 #if GR_NORM_GAIN_PLUS_ONE
         gain = gain + 1.0f;
 #endif
         const GR_FT(GR_NV_CH) f = GR_U2F(GR_NV_CH, r[i]);
         const GR_FT(GR_NV_CH) o = (f * inv_rms) * gain;
-        GR_STF(GR_NV_CH, rbar_out + base + i * GR_CH, o);
+        GR_RB_ST(rbar_out + base + i * GR_CH, o);
     }
 #else
     // Wide branches: two passes over the subgroup's part of the row, the second one re-reads it from cache.
     float sq = 0.0f;
     for (uint d = 0; d < GR_NCHP * GR_CH; d += GR_CH) {
-        const GR_FT(GR_NV_CH) f = GR_LDF(GR_NV_CH, residual + base + d);
+        const GR_FT(GR_NV_CH) f = GR_RB_LDF(residual + base + d);
         const GR_FT(GR_NV_CH) q = f * f;
         GR_ACC(GR_NV_CH, sq, q);
     }
@@ -123,13 +136,13 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
 #endif
     const float inv_rms = native_rsqrt(sq * (1.0f / (float)GR_HIDDEN) + GR_EPS);
     for (uint d = 0; d < GR_NCHP * GR_CH; d += GR_CH) {
-        const GR_FT(GR_NV_CH) f = GR_LDF(GR_NV_CH, residual + base + d);
-        GR_FT(GR_NV_CH) gain = GR_LDF(GR_NV_CH, norm_weight + gbase + d);
+        const GR_FT(GR_NV_CH) f = GR_RB_LDF(residual + base + d);
+        GR_FT(GR_NV_CH) gain = GR_RB_LDF(norm_weight + gbase + d);
 #if GR_NORM_GAIN_PLUS_ONE
         gain = gain + 1.0f;
 #endif
         const GR_FT(GR_NV_CH) o = (f * inv_rms) * gain;
-        GR_STF(GR_NV_CH, rbar_out + base + d, o);
+        GR_RB_ST(rbar_out + base + d, o);
     }
 #endif
 }
@@ -353,8 +366,8 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
 #define GR_DN_RS_TO(RS, AT)                                                                                     \
     {                                                                                                           \
         unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {                                                            \
-            (RS)[m_] = GR_MAD(as_short8(vload8(m_, (AT))), GR_WQ_ONES, (RS)[m_]);                               \
-            (RS)[m_] = GR_MAD(as_short8(vload8(GR_MT + m_, (AT))), GR_WQ_ONES, (RS)[m_]);                       \
+            (RS)[m_] = GR_MAD(as_short8(vload8(m_, (AT))), wq_ones, (RS)[m_]);                                  \
+            (RS)[m_] = GR_MAD(as_short8(vload8(GR_MT + m_, (AT))), wq_ones, (RS)[m_]);                          \
         }                                                                                                       \
     }
 #endif
@@ -469,6 +482,10 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
     for (uint i = 0; i < GR_NACC; i++) {
         acc[i] = (float8)(0.0f);
     }
+#if GR_W_TYPE != GR_WT_F16
+    // a per-lane value (not a uniform constant), so the 8 registers of the row-sum operand stay live instead of being rebuilt per slice
+    const int8 wq_ones = as_int8((uint8)(GR_WQ_ONES_U | ((num_tokens + lane) >> 31)));
+#endif
 
     const uint k_begin = kid * GR_KPT;
     const uint k_end = k_begin + GR_KPT;
@@ -495,6 +512,20 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
     uint zsh[GR_NT];
     unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
         zsh[j_] = GR_WQ_BITS == 4 ? (nrow[j_] & 1) * 4 : 0;  // qn is even, so the nibble of (g * qn + row) only depends on the row
+    }
+    // A . (bias + q) and the A row sums of the current group; scale / zp are applied once per group
+#if GR_PRODUCE_WRITE_GATE
+    const uint gs32 = is_wgate ? GR_WI_GS32 : GR_WD_GS32;
+#else
+    const uint gs32 = GR_WD_GS32;
+#endif
+    float8 tq[GR_NT * GR_MT];
+    float8 rs[GR_MT];
+    unroll_for (uint i_ = 0; i_ < GR_NT * GR_MT; i_++) {
+        tq[i_] = (float8)(0.0f);
+    }
+    unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+        rs[m_] = (float8)(0.0f);
     }
 #elif GR_W_TYPE != GR_WT_F16
     float sf[GR_NT];
@@ -543,6 +574,8 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
             unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
 #if GR_WQ_FOLD
                 b0[j_] = GR_WQ_U8B32(rw[j_], s_ * GR_WQ_RAW_PER_K32);
+#elif GR_KPERM
+                b0[j_] = GR_WQ_U4P32(rw[j_], s_ * GR_WQ_RAW_PER_K32);
 #else
                 b0[j_] = GR_WQ_GB32(rw[j_], s_ * GR_WQ_RAW_PER_K32);
 #endif
@@ -551,22 +584,21 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
             GR_DN_MMA(at0, b0);
             GR_DN_RS(at0);
 #else
-            // acc += scale * (A . (bias + q) - (bias + zp) * rowsum(A)) per group slice, no per-weight arithmetic
-            float8 tq[GR_NT * GR_MT];
-            float8 rs[GR_MT];
-            unroll_for (uint i_ = 0; i_ < GR_NT * GR_MT; i_++) {
-                tq[i_] = (float8)(0.0f);
-            }
-            unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
-                rs[m_] = (float8)(0.0f);
-            }
+            // acc += scale * (A . (bias + q) - (bias + zp) * rowsum(A)) per quantization group, no per-weight arithmetic
             GR_DN_MMA_TO(tq, at0, b0);
             GR_DN_RS_TO(rs, at0);
-            unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
-                const float sc = convert_float(as_half(scr[j_][s_]));
-                const float zz = GR_WQ_BIAS + (float)GR_WQ_ZPLD(zpr[j_][s_], zsh[j_]);
+            const uint sl_ = (k >> 5) + s_;
+            if ((sl_ + 1) % gs32 == 0 || sl_ + 1 == (k_end >> 5)) {
+                unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
+                    const float sc = convert_float(as_half(scr[j_][s_]));
+                    const float zz = GR_WQ_BIAS + (float)GR_WQ_ZPLD(zpr[j_][s_], zsh[j_]);
+                    unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+                        acc[j_ * GR_MT + m_] = fma((float8)(sc), fma((float8)(-zz), rs[m_], tq[j_ * GR_MT + m_]), acc[j_ * GR_MT + m_]);
+                        tq[j_ * GR_MT + m_] = (float8)(0.0f);
+                    }
+                }
                 unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
-                    acc[j_ * GR_MT + m_] = fma((float8)(sc), fma((float8)(-zz), rs[m_], tq[j_ * GR_MT + m_]), acc[j_ * GR_MT + m_]);
+                    rs[m_] = (float8)(0.0f);
                 }
             }
 #endif
@@ -655,7 +687,13 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
 #pragma unroll
         for (uint j = 0; j < GR_NT; j++) {
             const float8 x = acc[j * GR_MT + m] * inv_c;
+#if GR_KPERM
+            // T is stored K-permuted for the 4-bit decode UP_PROJ
+            const float8 xs = intel_sub_group_shuffle(x, GR_KP(lane));
+            const float8 t = xs * GR_SIGMOID(xs);
+#else
             const float8 t = x * GR_SIGMOID(x);
+#endif
             const ushort8 tu = as_ushort8(convert_half8_rte(t));
             ushort tmp[8];
             vstore8(tu, 0, tmp);
@@ -809,6 +847,128 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
 }
 
 #else  // GR_Q_SHARE == 0
+#if GR_UP_BSPLIT
+// ---------------------------------------------------------------------------------------------------------------
+// UP_PROJ of the 4-bit decode GEMMs (GR_KPERM): one subgroup per branch of a 16-channel tile walks the whole low rank (lane =
+// W_up row); the C read-gated branch partials of the mix meet in SLM. JIT: GR_LOWRANK, GR_UP_TM, GR_WU_*.
+// gws = [(D / 16) * C * 16, ceil(tokens / TM), 1], lws = [C * 16, 1, 1]
+// ---------------------------------------------------------------------------------------------------------------
+#define GR_MT (GR_UP_TM / 8)
+#if GR_W_TYPE != GR_WT_U4 || !GR_KPERM || GR_LOWRANK % GR_WU_KCH != 0
+    #error "gr_read_pipeline.cl: the branch-split UP_PROJ is the 4-bit decode kernel"
+#endif
+// scale / (bias + zp) of the groups of the chunk at KK (one entry per K32 slice) for the subgroup's branch
+#define GR_UPB_LDSZ(SC, ZZ, KK)                                                                                 \
+    unroll_for (uint s_ = 0; s_ < GR_WU_KCH / 32; s_++) {                                                       \
+        const uint zb_ = GR_WQ_G(((KK) >> 5) + s_, GR_WU_GS32) * GR_CD + cb * GR_HIDDEN + d0;                    \
+        SC[s_] = convert_float(as_half(intel_sub_group_block_read_us(w_scale + zb_)));                          \
+        ZZ[s_] = GR_WQ_BIAS + (float)GR_WQ_ZPAT(w_zp, zb_ + lane);                                              \
+    }
+
+REQD_SUB_GROUP_SIZE(16)
+KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
+                        const __global uchar* w_up,
+                        const __global ushort* w_scale,
+                        const __global uchar* w_zp,
+                        const __global ushort* rbar,
+                        __global ushort* mixed,
+                        uint num_tokens) {
+    __local float slm[GR_BRANCHES * GR_MT * 128] __attribute__((aligned(64)));
+    const uint lane = get_sub_group_local_id();
+    const uint cb = get_sub_group_id();
+    const uint d0 = get_group_id(0) * 16;
+    const uint t0 = get_group_id(1) * GR_UP_TM;
+    if (d0 >= GR_HIDDEN || t0 >= num_tokens) {
+        return;
+    }
+    const __global uchar* brow = w_up + (size_t)(cb * GR_HIDDEN + d0 + lane) * GR_WU_RB;
+    const int8 wq_ones = as_int8((uint8)(GR_WQ_ONES_U | ((num_tokens + lane) >> 31)));
+    // A . (bias + q) and the A row sums of the current group; scale / zp are applied once per group
+    float8 acc[GR_MT];
+    float8 tq[GR_MT];
+    float8 rs[GR_MT];
+    unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+        acc[m_] = (float8)(0.0f);
+        tq[m_] = (float8)(0.0f);
+        rs[m_] = (float8)(0.0f);
+    }
+
+    // the raw bytes and scale / zp of the next chunk are in flight while the current one is consumed
+    uint rw[GR_WU_NRAW];
+    GR_WQ_LOAD_RAW(rw, GR_WU_NRAW, brow, 0);
+    float scf[GR_WU_KCH / 32];
+    float zzf[GR_WU_KCH / 32];
+    GR_UPB_LDSZ(scf, zzf, 0);
+    for (uint k = 0; k < GR_LOWRANK; k += GR_WU_KCH) {
+#if GR_WU_KCH < GR_LOWRANK
+        uint rwn[GR_WU_NRAW];
+        const uint kn = min(k + GR_WU_KCH, (uint)(GR_LOWRANK - GR_WU_KCH));
+        GR_WQ_LOAD_RAW(rwn, GR_WU_NRAW, brow, kn);
+        float scn[GR_WU_KCH / 32];
+        float zzn[GR_WU_KCH / 32];
+        GR_UPB_LDSZ(scn, zzn, kn);
+#endif
+        unroll_for (uint s_ = 0; s_ < GR_WU_KCH / 32; s_++) {
+            ushort at0[2 * GR_UP_TM];
+            GR_RD2D(GR_UP_TM, t_in, GR_LOWRANK * 2, num_tokens, GR_LOWRANK * 2, k + 32 * s_, t0, at0);
+            const uint16 b = GR_WQ_U4P32(rw, s_ * GR_WQ_RAW_PER_K32);
+            unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+                const short8 alo = as_short8(vload8(m_, at0));
+                const short8 ahi = as_short8(vload8(GR_MT + m_, at0));
+                tq[m_] = GR_MAD(alo, as_int8(b.lo), tq[m_]);
+                tq[m_] = GR_MAD(ahi, as_int8(b.hi), tq[m_]);
+                rs[m_] = GR_MAD(alo, wq_ones, rs[m_]);
+                rs[m_] = GR_MAD(ahi, wq_ones, rs[m_]);
+            }
+            const uint sl_ = (k >> 5) + s_;
+            if ((sl_ + 1) % GR_WU_GS32 == 0 || sl_ + 1 == GR_LOWRANK / 32) {
+                unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+                    acc[m_] = fma((float8)(scf[s_]), fma((float8)(-zzf[s_]), rs[m_], tq[m_]), acc[m_]);
+                    tq[m_] = (float8)(0.0f);
+                    rs[m_] = (float8)(0.0f);
+                }
+            }
+        }
+#if GR_WU_KCH < GR_LOWRANK
+        unroll_for (uint i_ = 0; i_ < GR_WU_NRAW; i_++) {
+            rw[i_] = rwn[i_];
+        }
+        unroll_for (uint s_ = 0; s_ < GR_WU_KCH / 32; s_++) {
+            scf[s_] = scn[s_];
+            zzf[s_] = zzn[s_];
+        }
+#endif
+    }
+
+    // branch partial of the mix: sigmoid(read gate) * Rbar, Rbar stored K-permuted (channel d0 + lane at GR_KQ(lane))
+    unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+        ushort rt[8];
+        GR_RD2D1(8, rbar, GR_CD * 2, num_tokens, GR_CD * 2, cb * GR_HIDDEN + d0, t0 + m_ * 8, rt);
+        const float8 rv = intel_sub_group_shuffle(convert_float8(as_half8(vload8(0, rt))), GR_KQ(lane));
+        FUNC_CALL(gr_st8)(slm + (cb * GR_MT + m_) * 128, GR_SIGMOID(acc[m_]) * rv);
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (cb != 0) {
+        return;
+    }
+    unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+        float8 mix = FUNC_CALL(gr_ld8)(slm + m_ * 128);
+        unroll_for (uint c_ = 1; c_ < GR_BRANCHES; c_++) {
+            mix += FUNC_CALL(gr_ld8)(slm + (c_ * GR_MT + m_) * 128);
+        }
+        const ushort8 ou = as_ushort8(convert_half8_rte(mix * GR_INV_C));
+        ushort tmp[8];
+        vstore8(ou, 0, tmp);
+        unroll_for (uint i_ = 0; i_ < 8; i_++) {
+            const uint tok = t0 + m_ * 8 + i_;
+            if (tok < num_tokens) {
+                intel_sub_group_block_write_us(mixed + tok * GR_HIDDEN + d0, tmp[i_]);
+            }
+        }
+    }
+}
+
+#else  // GR_UP_BSPLIT == 0
 // ---------------------------------------------------------------------------------------------------------------
 // UP_PROJ. JIT: GR_LOWRANK, GR_UP_TM, GR_UP_KSPLIT. One subgroup owns TM tokens x 16 channels x all branches, so the
 // read gate never leaves registers.
@@ -853,8 +1013,8 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
 #define GR_UP_RS_TO(RS, AT)                                                                                     \
     {                                                                                                           \
         unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {                                                            \
-            (RS)[m_] = GR_MAD(as_short8(vload8(m_, (AT))), GR_WQ_ONES, (RS)[m_]);                               \
-            (RS)[m_] = GR_MAD(as_short8(vload8(GR_MT + m_, (AT))), GR_WQ_ONES, (RS)[m_]);                       \
+            (RS)[m_] = GR_MAD(as_short8(vload8(m_, (AT))), wq_ones, (RS)[m_]);                                  \
+            (RS)[m_] = GR_MAD(as_short8(vload8(GR_MT + m_, (AT))), wq_ones, (RS)[m_]);                          \
         }                                                                                                       \
     }
 #endif
@@ -906,6 +1066,9 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
     for (uint i = 0; i < GR_NACC; i++) {
         acc[i] = (float8)(0.0f);
     }
+#if GR_W_TYPE != GR_WT_F16
+    const int8 wq_ones = as_int8((uint8)(GR_WQ_ONES_U | ((num_tokens + lane) >> 31)));
+#endif
 
     // residual tiles of the mix (8 tokens per dpas tile, one 2D block read each); only the reducing subgroup needs them
     ushort rt[GR_BRANCHES][GR_MT][8];
@@ -955,6 +1118,15 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
     float scf[GR_BRANCHES][GR_WU_KCH / 32];
     float zzf[GR_BRANCHES][GR_WU_KCH / 32];
     GR_UP_LDSZ(scf, zzf, k_begin);
+    // A . (bias + q) and the A row sums of the current group; scale / zp are applied once per group
+    float8 tq[GR_BRANCHES * GR_MT];
+    float8 rs[GR_MT];
+    unroll_for (uint i_ = 0; i_ < GR_BRANCHES * GR_MT; i_++) {
+        tq[i_] = (float8)(0.0f);
+    }
+    unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+        rs[m_] = (float8)(0.0f);
+    }
 #endif
 #if GR_WQ_FOLD
     float sf[GR_BRANCHES];
@@ -1001,20 +1173,19 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
             GR_UP_MMA(at0, b0);
             GR_UP_RS(at0);
 #else
-            // acc += scale * (A . (bias + q) - (bias + zp) * rowsum(A)) per group slice, see DOWN_PROJ
-            float8 tq[GR_BRANCHES * GR_MT];
-            float8 rs[GR_MT];
-            unroll_for (uint i_ = 0; i_ < GR_BRANCHES * GR_MT; i_++) {
-                tq[i_] = (float8)(0.0f);
-            }
-            unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
-                rs[m_] = (float8)(0.0f);
-            }
+            // acc += scale * (A . (bias + q) - (bias + zp) * rowsum(A)) per quantization group, see DOWN_PROJ
             GR_UP_MMA_TO(tq, at0, b0);
             GR_UP_RS_TO(rs, at0);
-            unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {
+            const uint sl_ = (k >> 5) + s_;
+            if ((sl_ + 1) % GR_WU_GS32 == 0 || sl_ + 1 == (k_end >> 5)) {
+                unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {
+                    unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
+                        acc[c_ * GR_MT + m_] = fma((float8)(scf[c_][s_]), fma((float8)(-zzf[c_][s_]), rs[m_], tq[c_ * GR_MT + m_]), acc[c_ * GR_MT + m_]);
+                        tq[c_ * GR_MT + m_] = (float8)(0.0f);
+                    }
+                }
                 unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
-                    acc[c_ * GR_MT + m_] = fma((float8)(scf[c_][s_]), fma((float8)(-zzf[c_][s_]), rs[m_], tq[c_ * GR_MT + m_]), acc[c_ * GR_MT + m_]);
+                    rs[m_] = (float8)(0.0f);
                 }
             }
 #endif
@@ -1104,6 +1275,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
     }
 }
 
+#endif  // GR_UP_BSPLIT
 #endif  // GR_Q_SHARE
 
 #else

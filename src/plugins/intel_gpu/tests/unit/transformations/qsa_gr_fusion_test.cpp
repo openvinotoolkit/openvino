@@ -306,7 +306,7 @@ TEST(qsa_gr_fusion, gated_residual_read_rejects_unsupported_branch_count) {
 }
 
 TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
-    // Mirrors the graph shape actually emitted by the Qwen4-Exp checkpoint export:
+    // Mirrors the graph shape actually emitted by the model export:
     // decomposed RMSNorm (no fused ov::op::internal::RMS) and a ReduceMean-based
     // branch mix (no trailing 1/C Multiply).
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
@@ -677,7 +677,7 @@ TEST(qsa_gr_fusion, compressed_scale_is_transposed_to_group_major) {
 
 TEST(gated_residual_geometry, systolic_kernels_lift_the_scalar_limits) {
     using GR = op::GatedResidual;
-    // Qwen4-27B: D = 5120 (C*D = 20480), L = 640
+    // D = 5120 (C*D = 20480), L = 640
     EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, true));
     EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, false));
     EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 2560, 640, false)) << "L is kept in registers by the scalar kernel";

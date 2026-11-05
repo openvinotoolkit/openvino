@@ -127,20 +127,34 @@ GrTier gr_up_tier(size_t num_rows) {
 }
 
 struct GrGemmTiling {
-    size_t tm;      // tokens per subgroup
-    size_t ksplit;  // subgroups of a work-group splitting the K reduction
-    size_t lws_y;   // token tiles per work-group (ksplit == 1 only)
+    size_t tm;             // tokens per subgroup
+    size_t ksplit;         // subgroups of a work-group splitting the K reduction
+    size_t lws_y;          // token tiles per work-group (ksplit == 1 only)
+    size_t wq_bytes = 32;  // compressed per-subgroup kernels: per-lane weight bytes per load (see gr_wq_kch)
 };
 
-GrGemmTiling gr_down_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier, bool compressed = false) {
+GrGemmTiling gr_down_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier, GrWType wtype = GrWType::f16) {
     const size_t cd_steps = desc.hc_count * desc.hidden_size / gr_dpas_k_step;
+    const bool compressed = wtype != GrWType::f16;
     // Dequantizing makes every K step longer, so compressed weights want more subgroups splitting K.
     const size_t boost = compressed ? 2 : 1;
     switch (tier) {
     case GrTier::gemv:
-    case GrTier::decode:
+    case GrTier::decode: {
         // the compressed gemv tier uses one 8-token tile per subgroup, which halves the unpack / dpas work
-        return {compressed && tier == GrTier::gemv ? size_t{8} : size_t{16}, largest_divisor_up_to(cd_steps, 8 * boost), 1};
+        const size_t tm = compressed && tier == GrTier::gemv ? size_t{8} : size_t{16};
+        const size_t ksplit = largest_divisor_up_to(cd_steps, 8 * boost);
+        if (tier == GrTier::gemv && wtype == GrWType::u4) {
+            // Wide 4-bit DOWN_PROJs whose split fills more than 3/4 of the resident subgroups (4 per EU with 256 GRF) stream
+            // faster as fewer, longer K segments read 64 B per lane, filling at most 2/3 of them in one wave.
+            const size_t wgs = desc.lowrank / gr_dpas_n + (desc.produce_write_gate ? 1 : 0);
+            const size_t resident = 4 * static_cast<size_t>(info.execution_units_count);
+            if (4 * wgs * ksplit > 3 * resident) {
+                return {tm, largest_divisor_up_to(cd_steps, std::max<size_t>(1, 2 * resident / (3 * wgs))), 1, 64};
+            }
+        }
+        return {tm, ksplit, 1};
+    }
     case GrTier::mid:
         return {32, largest_divisor_up_to(cd_steps, (info.execution_units_count >= 128 ? 4 : 2) * boost), 1};
     default:
@@ -266,7 +280,6 @@ size_t gr_wq_kch(GrWType t, size_t segment, size_t row_k, size_t max_bytes) {
     return 32;
 }
 
-constexpr size_t gr_wq_down_load_bytes = 32;  // DOWN: per-lane weight bytes per step (64 costs too many registers)
 constexpr size_t gr_wq_up_load_bytes = 64;    // UP: a lane loads up to one cache line of its row per step
 constexpr size_t gr_wq_dpas_load_bytes = 32;  // gr_read_dpas is register bound
 
@@ -296,6 +309,11 @@ size_t gr_q_scratch_limit() {
 }
 
 bool use_single_read(const gated_residual& desc, const cldnn::device_info& info, size_t rows, bool compressed);
+
+/// 4-bit decode GEMMs unpack their weights in a permuted K order and read Rbar / T stored with the same permutation (GR_KP). The
+/// decode RBAR cannot know the row count of a dynamic shape, so this holds only when no decode row count can take the
+/// predequantized or single-kernel path.
+bool gr_kperm(const RuntimeParams& params, GrTier tier, bool q, bool pd);
 
 /// Compressed READ above this many rows dequantizes both matrices into f16 scratch buffers with a separate kernel and then runs
 /// the f16 kernels; below it the compute kernels dequantize on the fly. OV_GPU_GR_PD_MIN_ROWS overrides the threshold.
@@ -604,6 +622,7 @@ protected:
         jit.make("GR_RB_S", s);
         // Gain chunks are independent of the norm: preload up to 16 (64 GRFs) while the row is still being reduced.
         jit.make("GR_GPF", desc->hidden_size <= 2560 ? std::min<size_t>(nch / s, 16) : 0);
+        jit.make("GR_KPERM", m_decode && gr_kperm(params, GrTier::decode, true, false) ? 1 : 0);
         return jit;
     }
 
@@ -676,7 +695,7 @@ protected:
         const auto wtype = m_q ? gr_weight_type(params) : GrWType::f16;
         const bool share = m_q && !gr_decode_like(m_tier);
         const auto qs = gr_down_q_share(*desc, m_tier);
-        const auto tiling = share ? GrGemmTiling{32, qs.ks, 1} : gr_down_tiling(*desc, params.get_device_info(), m_tier, wtype != GrWType::f16);
+        const auto tiling = share ? GrGemmTiling{32, qs.ks, 1} : gr_down_tiling(*desc, params.get_device_info(), m_tier, wtype);
         jit.make("GR_PIPELINE_STAGE", 1);
         jit.make("GR_LOWRANK", desc->lowrank);
         jit.make("GR_DOWN_TM", tiling.tm);
@@ -691,6 +710,7 @@ protected:
             const size_t gs_inject = gate ? gr_group_size(params, layout.scale_inject, cd) : cd;
             add_wq_format_constants(jit, params);
             jit.make("GR_Q_SHARE", share ? 1 : 0);
+            jit.make("GR_KPERM", gr_kperm(params, m_tier, m_q, m_pd) ? 1 : 0);
             if (share) {
                 jit.make("GR_Q_ST", qs.st);
             }
@@ -699,7 +719,7 @@ protected:
             if (gate) {
                 jit.make("GR_WI_GS32", gs_inject / gr_dpas_k_step);
             }
-            add_wq_matrix_constants(jit, "GR_WD", wtype, share ? 32 : gr_wq_kch(wtype, cd / tiling.ksplit, cd, gr_wq_down_load_bytes), cd, gs_down);
+            add_wq_matrix_constants(jit, "GR_WD", wtype, share ? 32 : gr_wq_kch(wtype, cd / tiling.ksplit, cd, tiling.wq_bytes), cd, gs_down);
         }
         return jit;
     }
@@ -748,7 +768,7 @@ protected:
             const bool share = q && !gr_decode_like(tier);
             const auto qs = gr_down_q_share(*desc, tier);
             const auto tiling =
-                share ? GrGemmTiling{32, qs.ks, 1} : gr_down_tiling(*desc, params.get_device_info(), tier, q && gr_weight_type(params) != GrWType::f16);
+                share ? GrGemmTiling{32, qs.ks, 1} : gr_down_tiling(*desc, params.get_device_info(), tier, q ? gr_weight_type(params) : GrWType::f16);
             const size_t col_tiles = desc->lowrank / down_tn(*desc, tier, q, share) + (gate_tile(*desc, q, tier) ? 1 : 0);
             const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.tm - 1) / tiling.tm);
 
@@ -840,16 +860,22 @@ protected:
         auto jit = GrGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
         const bool share = m_q && !gr_decode_like(m_tier);
-        const auto tiling = share ? GrGemmTiling{16, 1, 1} : gr_up_tiling(*desc, params.get_device_info(), m_tier, m_q ? gr_weight_type(params) : GrWType::f16);
+        // the 4-bit decode (K-permuted) runs one subgroup per branch over the whole low rank
+        const bool bsplit = gr_kperm(params, m_tier, m_q, m_pd);
+        const auto tiling = share    ? GrGemmTiling{16, 1, 1}
+                            : bsplit ? GrGemmTiling{8, 1, 1}
+                                     : gr_up_tiling(*desc, params.get_device_info(), m_tier, m_q ? gr_weight_type(params) : GrWType::f16);
         jit.make("GR_PIPELINE_STAGE", 2);
         jit.make("GR_LOWRANK", desc->lowrank);
         jit.make("GR_UP_TM", tiling.tm);
         jit.make("GR_UP_KSPLIT", tiling.ksplit);
+        jit.make("GR_UP_BSPLIT", bsplit ? 1 : 0);
         if (m_q) {
             const auto wtype = gr_weight_type(params);
             const size_t gs_up = gr_group_size(params, GrOp::ReadInputIdx::SCALE_UP, desc->lowrank);
             add_wq_format_constants(jit, params);
             jit.make("GR_Q_SHARE", share ? 1 : 0);
+            jit.make("GR_KPERM", gr_kperm(params, m_tier, m_q, m_pd) ? 1 : 0);
             if (share) {
                 jit.make("GR_Q_ST", gr_up_q_st);
             }
@@ -884,19 +910,26 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[tier = m_tier, q = m_q](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[tier = m_tier, q = m_q, pd = m_pd](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             if (params.is_dynamic()) {
                 return;
             }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = rows_of(params, *desc);
             const bool share = q && !gr_decode_like(tier);
-            const auto tiling = share ? GrGemmTiling{16, 1, 1} : gr_up_tiling(*desc, params.get_device_info(), tier, q ? gr_weight_type(params) : GrWType::f16);
+            const bool bsplit = gr_kperm(params, tier, q, pd);
+            const auto tiling = share    ? GrGemmTiling{16, 1, 1}
+                                : bsplit ? GrGemmTiling{8, 1, 1}
+                                         : gr_up_tiling(*desc, params.get_device_info(), tier, q ? gr_weight_type(params) : GrWType::f16);
             const size_t col_tiles = desc->hidden_size / gr_dpas_n;
             const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.tm - 1) / tiling.tm);
 
             auto& wgs = kd.params.workGroups;
-            if (share) {
+            if (bsplit) {
+                // one subgroup per branch
+                wgs.global = {col_tiles * desc->hc_count * gr_sg, row_tiles, 1};
+                wgs.local = {desc->hc_count * gr_sg, 1, 1};
+            } else if (share) {
                 wgs.global = {col_tiles * gr_up_q_st * gr_sg, (row_tiles + gr_up_q_st - 1) / gr_up_q_st, 1};
                 wgs.local = {gr_up_q_st * gr_sg, 1, 1};
             } else if (tiling.ksplit > 1) {
@@ -1032,6 +1065,17 @@ bool use_predequant(const gated_residual& desc, GrWType t, size_t num_rows, cons
         return false;
     }
     return num_rows > gr_pd_min_rows(info) || (desc.produce_write_gate && use_single_read(desc, info, num_rows, /*compressed=*/true));
+}
+
+bool gr_kperm(const RuntimeParams& params, GrTier tier, bool q, bool pd) {
+    if (!q || pd || !gr_decode_like(tier) || gr_weight_type(params) != GrWType::u4) {
+        return false;
+    }
+    const auto desc = params.typed_desc<gated_residual>();
+    const auto& info = params.get_device_info();
+    // the decode RBAR permutes in registers: 128-half chunks, 8 halves per lane
+    return gr_best_tile(desc->hidden_size) == 128 && !use_predequant(*desc, GrWType::u4, gr_decode_rows, info) &&
+           !use_single_read(*desc, info, gr_decode_rows, /*compressed=*/true);
 }
 
 class GatedResidualImpl : public PrimitiveImplOCL {

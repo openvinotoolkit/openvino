@@ -197,9 +197,8 @@ struct CompressedWeight {
 /// else returns nullopt and the caller keeps feeding the decompressed f16 tensor (then a plain f16 GatedResidual).
 /// A scalar zero point of 0, or of 2^(bits - 1) on unsigned weights (older NNCF symmetric u4 / u8), is the symmetric form: the
 /// latter is converted to the equivalent signed weights without zero point by flipping the sign bit of every element.
-/// Rejected, with the TODO that would lift it (see the design doc, section 13):
-///   transposed [K, N] weights (T11), an extra scale multiply, non-Constant weights / scale / zp (T11), scalar scale (T8),
-///   other scalar zero points, group sizes other than 32 for 4-bit / per-channel for 8-bit (T6).
+/// Rejected: transposed [K, N] weights, an extra scale multiply, non-Constant weights / scale / zp, a scalar scale, other scalar
+/// zero points and group sizes that GatedResidual::is_group_size_supported() refuses.
 std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w, size_t N, size_t K) {
     using namespace ov::pass::pattern;
     FC_COMPRESSED_WEIGHT_PATTERN

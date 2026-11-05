@@ -76,6 +76,14 @@
 
 #define GR_SIGMOID(x) native_recip(1.0f + native_exp2(-(x) * GR_LOG2E))
 
+// K permutation of the 4-bit decode GEMMs (GR_KPERM), applied inside every 8 consecutive K values: storage position p holds
+// k = GR_KP(p), k sits at position GR_KQ(k)
+#define GR_KP(p) (((p) & ~7u) | (((p) & 7u) >> 1) | (((p) & 1u) << 2))
+#define GR_KQ(k) (((k) & ~7u) | (((k) & 3u) << 1) | (((k) >> 2) & 1u))
+#ifndef GR_KPERM
+#define GR_KPERM 0
+#endif
+
 #define GR_MAD intel_sub_group_f16_f16_matrix_mad_k16
 
 // 2D block reads of a row-major f16 matrix (surface: width/pitch in bytes, height in rows; rows past the height read 0).
@@ -227,7 +235,8 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 #define GR_WQ_ZP2(zp, g, N, nb, lane) ((half2)((half)1024.0h + convert_half(GR_WQ_ZPAT(zp, (size_t)(g) * (N) + (nb) + (lane)))))
 
 // 8-bit decode GEMMs (see GR_WQ_FOLD) feed half(q) as the B operand; q < 256 is exact in half
-#define GR_WQ_ONES ((int8)(0x3C003C00))
+#define GR_WQ_ONES_U 0x3C003C00u
+#define GR_WQ_ONES ((int8)(GR_WQ_ONES_U))
 #define GR_WQ_U8H16(q, o) as_uint8(convert_half16(as_uchar16((uint4)((q)[(o)], (q)[(o) + 1], (q)[(o) + 2], (q)[(o) + 3]))))
 #define GR_WQ_U8B32(q, o) ((uint16)(GR_WQ_U8H16(q, o), GR_WQ_U8H16(q, (o) + 4)))
 // B operand of the group-fold loops: half(bias + q) of one K32 slice, no arithmetic (GR_WQ_BIAS)
@@ -236,6 +245,10 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 #else
     #define GR_WQ_GB32(q, o) GR_WQ_U8B32(q, o)
 #endif
+// 4-bit B operand in the K-permuted order (GR_KPERM): dword j of a raw dword holds nibbles (j, j + 4), one shift and one mask
+// per B dword. The activations are stored with the same permutation: position p holds k = GR_KP(p).
+#define GR_U4P_4(a) (((a) & 0x000F000Fu) | GR_WQ_MAGIC), ((((a) >> 4) & 0x000F000Fu) | GR_WQ_MAGIC), ((((a) >> 8) & 0x000F000Fu) | GR_WQ_MAGIC), ((((a) >> 12) & 0x000F000Fu) | GR_WQ_MAGIC)
+#define GR_WQ_U4P32(q, o) ((uint16)(GR_U4P_4((q)[(o)]), GR_U4P_4((q)[(o) + 1]), GR_U4P_4((q)[(o) + 2]), GR_U4P_4((q)[(o) + 3])))
 #define GR_WQ_SCALEF(scale, nb) convert_float(as_half(intel_sub_group_block_read_us((scale) + (nb))))
 #define GR_WQ_ZPF(zp, nb, lane) convert_float(GR_WQ_ZPAT(zp, (nb) + (lane)))
 

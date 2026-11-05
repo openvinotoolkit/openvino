@@ -328,30 +328,30 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            // UP_PROJ[+branch mix] instead of gr_read.cl. Up to 32
                                            // rows the decode tiling is used, up to 4 rows per EU the mid
                                            // (split-K wide) tiling, above it the wide one.
-                                           gr_read_case{32, 64, 32, true},           // exact token-tile boundary
-                                           gr_read_case{37, 96, 32, false},          // partial last token tile, no write gate
-                                           gr_read_case{41, 48, 64, true},           // partial tile; D=48, split-K over 6 K steps
-                                           gr_read_case{16, 64, 32, true},           // exactly one N-tile
-                                           gr_read_case{48, 64, 32, false},          // three full N-tiles
-                                           gr_read_case{3, 32, 32, true},            // narrowest D
-                                           gr_read_case{5, 64, 16, true, true},      // scalar path, gain stored as w (1 + w)
-                                           gr_read_case{19, 64, 32, true, true},     // DPAS path, gain stored as w (1 + w)
-                                           gr_read_case{1, 640, 320, true},          // production width, decode
-                                           gr_read_case{17, 640, 320, true},         // production width, prefill with a partial tile
-                                           gr_read_case{193, 32, 32, true, true},    // mid tiling
-                                           gr_read_case{200, 64, 32, true},          // mid tiling, partial 32-token tile
-                                           gr_read_case{300, 48, 64, false},         // mid tiling, D=48 column tiles
-                                           gr_read_case{257, 640, 320, true},        // production-like width, mid tiling
-                                           gr_read_case{17, 2560, 320, true},        // real Qwen4-Exp width, decode tiling
-                                           gr_read_case{100, 2560, 320, true},       // real Qwen4-Exp width, mid tiling
-                                           gr_read_case{1, 5120, 640, true},         // Qwen4-27B width (C*D > 16384, L > 512), decode
-                                           gr_read_case{17, 5120, 640, true},        // Qwen4-27B width, prefill with a partial tile
-                                           gr_read_case{100, 5120, 640, true},       // Qwen4-27B width, mid tiling
-                                           gr_read_case{17, 5120, 640, false, false, true},  // Qwen4-27B width, FINAL_MIX
-                                           gr_read_case{1000, 64, 32, true},         // wide tiling / single kernel (> 4 rows per EU)
-                                           gr_read_case{777, 48, 64, false},         // wide tiling, partial tiles (D % 32 != 0)
-                                           gr_read_case{1111, 128, 64, true, true},  // single kernel, partial 32-row tile
-                                           gr_read_case{700, 640, 320, false},       // single kernel, production-like width
+                                           gr_read_case{32, 64, 32, true},                   // exact token-tile boundary
+                                           gr_read_case{37, 96, 32, false},                  // partial last token tile, no write gate
+                                           gr_read_case{41, 48, 64, true},                   // partial tile; D=48, split-K over 6 K steps
+                                           gr_read_case{16, 64, 32, true},                   // exactly one N-tile
+                                           gr_read_case{48, 64, 32, false},                  // three full N-tiles
+                                           gr_read_case{3, 32, 32, true},                    // narrowest D
+                                           gr_read_case{5, 64, 16, true, true},              // scalar path, gain stored as w (1 + w)
+                                           gr_read_case{19, 64, 32, true, true},             // DPAS path, gain stored as w (1 + w)
+                                           gr_read_case{1, 640, 320, true},                  // production width, decode
+                                           gr_read_case{17, 640, 320, true},                 // production width, prefill with a partial tile
+                                           gr_read_case{193, 32, 32, true, true},            // mid tiling
+                                           gr_read_case{200, 64, 32, true},                  // mid tiling, partial 32-token tile
+                                           gr_read_case{300, 48, 64, false},                 // mid tiling, D=48 column tiles
+                                           gr_read_case{257, 640, 320, true},                // production-like width, mid tiling
+                                           gr_read_case{17, 2560, 320, true},                // wide, decode tiling
+                                           gr_read_case{100, 2560, 320, true},               // wide, mid tiling
+                                           gr_read_case{1, 5120, 640, true},                 // wider (C*D > 16384, L > 512), decode
+                                           gr_read_case{17, 5120, 640, true},                // wider, prefill with a partial tile
+                                           gr_read_case{100, 5120, 640, true},               // wider, mid tiling
+                                           gr_read_case{17, 5120, 640, false, false, true},  // wider, FINAL_MIX
+                                           gr_read_case{1000, 64, 32, true},                 // wide tiling / single kernel (> 4 rows per EU)
+                                           gr_read_case{777, 48, 64, false},                 // wide tiling, partial tiles (D % 32 != 0)
+                                           gr_read_case{1111, 128, 64, true, true},          // single kernel, partial 32-row tile
+                                           gr_read_case{700, 640, 320, false},               // single kernel, production-like width
                                            // L=16 keeps these on gr_read.cl; above 32 rows one work-group owns
                                            // several rows, the last group only partially filled.
                                            gr_read_case{37, 64, 16, true},
@@ -734,7 +734,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_quant_case{1, 2560, 320, false, false, true},
                                            gr_quant_case{8, 2560, 320, true, false, true},
                                            gr_quant_case{8, 2560, 320, false, false, true},
-                                           // Qwen4-27B width: RBAR splits the 5120-wide branch rows across subgroups at decode
+                                           // RBAR splits the 5120-wide branch rows across subgroups at decode
                                            gr_quant_case{1, 5120, 640, true},
                                            gr_quant_case{1, 5120, 640, false},
                                            gr_quant_case{17, 5120, 640, true},
@@ -814,7 +814,7 @@ std::vector<gr_quant_case> group_size_cases() {
             cases.push_back({257, 640, 320, u4, false, true, false, false, group});
         }
     }
-    // L = 640 (Qwen4-27B) divides by 64 / 128, so W_up really uses the group size too instead of falling back to the default
+    // L = 640 divides by 64 / 128, so W_up really uses the group size too instead of falling back to the default
     for (const size_t group : {size_t{64}, size_t{128}}) {
         for (const bool u4 : {true, false}) {
             for (const size_t rows : {size_t{1}, size_t{17}, size_t{100}, size_t{257}, size_t{1000}}) {
@@ -902,9 +902,10 @@ TEST_P(gated_residual_write_test, combines_branches) {
 }
 
 // D=48 is a multiple of 16 but not of 32 or 64, so gr_best_tile() falls back to GR_WRITE_TILE=16; D=64 and 256 use the wide tile.
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         gated_residual_write_test,
-                         ::testing::Values(gr_write_case{5, 64}, gr_write_case{9, 48}, gr_write_case{37, 256}, gr_write_case{3, 5120}, gr_write_case{33, 5120}));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    gated_residual_write_test,
+    ::testing::Values(gr_write_case{5, 64}, gr_write_case{9, 48}, gr_write_case{37, 256}, gr_write_case{3, 5120}, gr_write_case{33, 5120}));
 
 // --- ov::Model / ov::Core level tests (plugin pipeline, dynamic rows) ----------
 //
@@ -1091,7 +1092,7 @@ TEST_P(gated_residual_dynamic_write_test, ov_model_reuses_dispatch_data) {
     }
 }
 
-// D=256 is the real Qwen4-Exp width (hidden_size / C).
+// D = 256 is hidden_size / C.
 INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_dynamic_write_test, ::testing::Values(gr_dynamic_write_case{64}, gr_dynamic_write_case{256}));
 
 // --- roofline perf harness (token_size sweep) ------------------------------
@@ -1147,8 +1148,8 @@ double time_primitive_ms(network& net,
         }
     }
     // Iterations are enqueued back-to-back and only synchronized at the end: a host wait per
-    // iteration leaves the GPU idle long enough for DVFS to drop the clock (650 vs 2900 MHz
-    // observed on B580), which made the per-kernel times drift by >2x within one run.
+    // iteration leaves the GPU idle long enough for DVFS to drop the clock, which makes the
+    // per-kernel times drift within one run.
     std::vector<std::vector<std::pair<std::string, event::ptr>>> iteration_events;
     iteration_events.reserve(static_cast<size_t>(iterations));
     for (int i = 0; i < iterations; i++) {
@@ -1378,7 +1379,7 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
         }
     }
     size_t L = 320;
-    if (const char* l_env = std::getenv("GR_AB_L")) {  // GR_AB_L=640 for the Qwen4-27B low rank
+    if (const char* l_env = std::getenv("GR_AB_L")) {  // GR_AB_L overrides the low rank
         L = std::stoull(l_env);
     }
     for (const auto& [rows, D] : points) {
@@ -1439,6 +1440,16 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
                     configs.push_back({std::string("u8") + (gate ? "g" : "") + "_G" + tok, 2, gate, {}, group});
                 }
             }
+        }
+        // GR_AB_ONLY=u4g_G128,u4_G128 keeps only these configurations
+        if (const char* only_env = std::getenv("GR_AB_ONLY")) {
+            const std::string only = std::string(",") + only_env + ",";
+            configs.erase(std::remove_if(configs.begin(),
+                                         configs.end(),
+                                         [&](const quant_ab::ab_config& c) {
+                                             return only.find("," + c.name + ",") == std::string::npos;
+                                         }),
+                          configs.end());
         }
         for (auto& cfg : configs) {
             const bool u4 = cfg.wtype == 1;
