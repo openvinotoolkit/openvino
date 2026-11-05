@@ -1403,16 +1403,18 @@ protected:
         jit.add(make_type_jit_constants("UNCOMPRESSED", original_cache_dt));
 
         const auto is_key_by_channel = desc->is_key_by_channel;
-        jit.make("IS_KEY_BY_CHANNEL", (is_kv_compressed && is_key_by_channel) ? 1 : 0);
+        const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+        // A 4-bit page is BY_CHANNEL whatever the descriptor says (its branch below lays it out per channel). Define it
+        // once: CodeBuilder asserts on a jit constant defined twice.
+        const bool is_int4 = is_kv_compressed && data_type_traits::is_i4_u4(kv_cache_dt);
+        jit.make("IS_KEY_BY_CHANNEL", (is_kv_compressed && (is_key_by_channel || is_int4)) ? 1 : 0);
         if (is_kv_compressed) {
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
-            const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            if (data_type_traits::is_i4_u4(kv_cache_dt)) {
+            if (is_int4) {
                 jit.add(make_uint4_kv_cache_jit_constants(params));
                 jit.make("U4_ELEMS_PER_BYTE", u4_elems_per_byte);
                 jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
                 // INT4 BY_CHANNEL: packed data plus one f16 scale/zp pair per channel.
-                jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte + scales_zp_size);
                 jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
