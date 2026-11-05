@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
 #include "intel_gpu/primitives/pa_kv_reorder.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
@@ -30,7 +32,8 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
             return false;
         }
 
-        return desc->has_xattention;
+        const auto& config = node.get_program().get_config();
+        return desc->has_xattention || cldnn::paged_attention::should_use_cm_kernel(config);
     }
 };
 

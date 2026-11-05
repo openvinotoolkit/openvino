@@ -117,6 +117,8 @@ struct PagedAttentionManager {
 
     // xattention related inputs
     bool has_xattention;
+    bool use_cm_kernel = false;
+    std::optional<float> attention_scale;
     std::vector<ov::float16> xattention_threshold;
     std::vector<int> xattention_block_size;
     std::vector<int> xattention_stride;
@@ -683,8 +685,9 @@ struct PagedAttentionManager {
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
                             // Per (block, head): data at block_base_i8 + t*head_size; scale/zp are fp16 arrays at scale_base_i8/zp_base_i8
                             // (fp16 element offsets: scale_base_i8/2 + t, zp_base_i8/2 + t).
-                            // has_xattention uses unsigned [0..255] quant; dequant x ≈ (q - zp) * scale, scale=(max-min)/255, zp=(-min)*255/(max-min).
-                            auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, has_xattention);
+                            // CM uses unsigned [0..255] quantization for XAttention and when PA_KERNEL_AUTO selects CM.
+                            const bool uses_cm_cache_format = has_xattention || use_cm_kernel;
+                            auto [qdata, scale, zp] = quantize_data(src_ptr, head_size, false, uses_cm_cache_format);
                             int8_t* qptr = reinterpret_cast<int8_t*>(qdata.data());
 
                             const size_t block_stride_i8 = static_cast<size_t>(adjusted_head_size) * static_cast<size_t>(block_size);
@@ -845,7 +848,7 @@ struct PagedAttentionManager {
     }
 
     float get_default_scale() {
-        return static_cast<float>(1.f / std::sqrt(k_head_size));
+        return attention_scale.value_or(static_cast<float>(1.f / std::sqrt(k_head_size)));
     }
 
 private:
@@ -1802,6 +1805,7 @@ public:
                     p.has_xattention,
                     p.rotation_config,
                     p.kv_cache_precision);
+                pam->use_cm_kernel = p.use_cm_kernel;
 
         if (p.zero_key_data) {
             for (auto& sequence_key_data : pam->key_data) {
@@ -1944,7 +1948,7 @@ public:
         auto key_mem = pam.get_key_memory();
         auto value_mem = pam.get_value_memory();
 
-        if (p.has_xattention) {
+        if (p.has_xattention || p.use_cm_kernel) {
             result.key_cache_mem = pam.get_key_cache_memory_cm();
         } else {
             result.key_cache_mem = pam.get_key_cache_memory();
@@ -2106,7 +2110,7 @@ public:
         pa_prim.v_head_size = p.v_head_size;
         pa_prim.kv_heads_num = p.num_kv_heads;
         pa_prim.heads_num = p.num_heads;
-        pa_prim.scale_val = pam.get_default_scale();
+        pa_prim.scale_val = p.runtime_scale ? std::nullopt : std::optional<float>{pam.get_default_scale()};
         pa_prim.has_alibi = false;
         pa_prim.has_token_type_ids = p.token_type_ids.has_value() || p.has_sink_input;
         pa_prim.has_sink_input = p.has_sink_input;
@@ -2125,6 +2129,7 @@ public:
         if (p.has_xattention) {
             pa_prim.has_xattention = true;
         }
+        pa_prim.use_cm_kernel = p.use_cm_kernel;
 
         pa_prim.has_qq_bias = p.has_qq_bias;
 
@@ -2184,6 +2189,10 @@ public:
         // FlashAttn v1 or v2?
         config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.force_flashattn_v2 ? true : !p.disable_flashattn_v2));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
+        if (p.use_cm_kernel) {
+            config.set_property(ov::intel_gpu::kernel_selection(
+                std::vector<ov::intel_gpu::KernelSelection>{ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO}));
+        }
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
         }
@@ -2233,6 +2242,7 @@ public:
     void execute(T& p, bool run_reference = true) {
         ASSERT_TRUE(this->pam.has_value());
         auto& pam = *this->pam;
+        pam.attention_scale = p.attention_scale;
 
         auto result = run_gpu_inference(pam, p);
 
@@ -2350,7 +2360,7 @@ public:
 private:
     // Helper: Verify CM PA KV cache was correctly written (CM path only)
     void verify_cm_kv_cache_write(const T& p) {
-        if (last_key_cache_mem == nullptr || !p.has_xattention)
+        if (last_key_cache_mem == nullptr || (!p.has_xattention && !p.use_cm_kernel))
             return;
 
         // Count total tokens for single-token BY_CHANNEL skip logic
@@ -3008,6 +3018,11 @@ struct paged_attention_test_params {
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
+
+    // Uses PA_KERNEL_AUTO with legacy block_size=16 on CM-capable devices, requiring the CM token-major key-cache layout.
+    bool use_cm_kernel = false;
+    std::optional<float> attention_scale;
+    bool runtime_scale = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
