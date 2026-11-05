@@ -1150,9 +1150,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // barriers stay outside.
             if (cp * DPAS_K >= k_chunk)
                 continue;
-#elif CAUSAL_TILE_SKIP
+#elif CAUSAL_TILE_SKIP && IS_CAUSAL
             // Every score of this block is exactly 0 (a masked key) for this subgroup's rows, so the block adds
-            // nothing: skip its S_slm / V reads and DPAS. Uniform; the barriers stay outside.
+            // nothing: skip its S_slm / V reads and DPAS. Uniform; the barriers stay outside. Causal only: a non-causal
+            // stage takes CAUSAL_TILE_SKIP for its KQ branch alone (add_prefill_pipeline_jit()); there this skip can only
+            // drop the last tile's blocks past k and measured -2..+10% against the KQ branch alone.
             if (k0 + cp * DPAS_K >= min(k_tile_end, sv_sg_causal_k))
                 continue;
 #endif
