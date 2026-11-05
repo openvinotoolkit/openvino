@@ -26,8 +26,8 @@ permissions: read-all
 env:
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
-  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
-  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-tertiary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-tertiary"
 
 jobs:
   TensorFlow_Layer_Tests:

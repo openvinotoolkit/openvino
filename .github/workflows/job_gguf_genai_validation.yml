@@ -25,7 +25,7 @@ env:
   GENAI_DIR: ${{ github.workspace }}/genai
   BUILD_DIR: ${{ github.workspace }}/genai-build
   HF_HOME: /mount/caches/huggingface/gguf-genai
-  HF_TOKEN_PATH: /secrets/huggingface/token-secondary
+  HF_TOKEN_PATH: /secrets/huggingface/token-tertiary
   OMP_NUM_THREADS: 4
   OPENBLAS_NUM_THREADS: 4
   PIP_CONSTRAINT: ${{ github.workspace }}/.github/workflows/requirements/gguf_genai.txt

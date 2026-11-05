@@ -124,6 +124,25 @@ path in the Docker container where the resources will be available.
 
 To add new resources, contact a member of the CI team for assistance.
 
+### Hugging Face Model Cache
+
+Model-test workflows set `HF_HUB_CACHE` to the shared drive:
+`/mount/caches/huggingface` on Linux AKS runners and
+`C:\mount\caches\huggingface` on Windows AKS runners, including the NPU model
+tests. Dedicated GPU jobs use `/mnt/caches/huggingface`, and GGUF GenAI
+validation uses an `HF_HOME` subdirectory of the shared cache.
+
+Downloads authenticate with the token file set in `HF_TOKEN_PATH`:
+`/secrets/huggingface/token-tertiary` in Linux containers and
+`C:\mount\secrets\huggingface\token-tertiary` on Windows. On AKS runners the
+file comes from the `huggingface-api-token-tertiary` Kubernetes Secret mounted by
+the runner scale set. Dedicated GPU runners need the file at
+`/opt/home/actions_runner/actions-runner/secrets/huggingface/token-tertiary`
+on the host. If the file is missing, Hugging Face downloads run unauthenticated.
+
+A warm shared cache avoids repeated model downloads, but tests still read the
+model files from the share, and Hugging Face metadata requests still occur.
+
 ### Remote Storage Compiler Cache
 
 Builds can share compiled objects through ccache's remote storage on the shared drive
