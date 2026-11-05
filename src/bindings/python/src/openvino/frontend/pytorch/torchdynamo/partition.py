@@ -150,6 +150,7 @@ class Partitioner:
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)
         partitions = partitioner.propose_partitions()
+        _vllm.keep_paged_attention_partitioned(graph_module, partitions, self.supported_ops, options)
         self.add_get_attr_inputs(partitions)
         fused_graph_module = partitioner.fuse_partitions(partitions)
         logger.debug(f"Graph module after partitioning {fused_graph_module}")

@@ -33,6 +33,39 @@ def owns_kv_cache_update(options) -> bool:
             and bool_opt(options, "pa_translate", False))
 
 
+def keep_paged_attention_partitioned(graph_module, partitions, supported_ops, options) -> int:
+    """Give each ov_ext.paged_attention call left outside the proposed partitions a partition of its own.
+
+    When OV owns the KV-cache write, the call's eager fallback (vLLM's attention op) reads a cache nobody
+    writes, so the call must run in OV. The partitioner drops single-node partitions outside testing, which
+    leaves an attention call between two unsupported ops on that fallback. A call OV doesn't support at all
+    raises. Appends to `partitions` and returns the number of partitions added.
+    """
+    if not owns_kv_cache_update(options):
+        return 0
+    import torch
+    from torch.fx.passes.infra.partitioner import Partition
+    from openvino.frontend.pytorch.torchdynamo.vllm.paged_attention import _register_custom_op
+
+    _register_custom_op()
+    paged_attention_op = torch.ops.ov_ext.paged_attention.default
+    assigned = {node for partition in partitions for node in partition.nodes}
+    next_id = max((p.id for p in partitions if p.id is not None), default=-1) + 1
+    submodules = dict(graph_module.named_modules())
+    added = 0
+    for node in graph_module.graph.nodes:
+        if node.op != "call_function" or node.target is not paged_attention_op or node in assigned:
+            continue
+        if not supported_ops.is_node_supported(submodules, node):
+            raise RuntimeError(
+                f"OpenVINO vLLM backend: attention call {node.name} is outside an OpenVINO partition. The "
+                "KV-cache write is owned by the attention op on this path, so vLLM's op would decode against "
+                "an unwritten cache.")
+        partitions.append(Partition(id=next_id + added, nodes=[node]))
+        added += 1
+    return added
+
+
 def maybe_rewrite_paged_attention(graph_module, options):
     """Rewrite vLLM's opaque attention, Gated DeltaNet and fused-MoE ops into OV-translatable ones.
 

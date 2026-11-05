@@ -3915,6 +3915,26 @@ class _Bf16ArangeThenInt(torch.nn.Module):
         return torch.arange(256, 266, dtype=torch.bfloat16).to(torch.int64) + x
 
 
+class _Bf16RoundWidenThenInt(torch.nn.Module):
+    """A widening cast passes the rounded value on: bf16 1.999 -> 2.0 -> f32 2.0 -> 2."""
+
+    def forward(self, x):
+        return x.to(torch.bfloat16).float().to(torch.int32)
+
+
+class _Bf16RoundReshapeThenInt(torch.nn.Module):
+    def forward(self, x):
+        return x.to(torch.bfloat16).reshape(-1)[1:].to(torch.int32)
+
+
+class _Bf16RoundTransposeWidenThenFloor(torch.nn.Module):
+    """The value-preserving op also feeds float math, which reads the rounded value too."""
+
+    def forward(self, x):
+        y = x.to(torch.bfloat16).t().float()
+        return y.floor(), y * 2
+
+
 _ROUNDING_CASES = {
     "int_source": (_IntRoundThenInt, torch.tensor([[257, 513, 1025, 7, -257, 2049, 255, 0]], dtype=torch.int32)),
     "f16_source": (_F16RoundThenInt,
@@ -3923,6 +3943,9 @@ _ROUNDING_CASES = {
     "compare": (_Bf16RoundThenCompare, torch.tensor([[1.999, 2.0, 1.9, 2.004]])),
     "argmax": (_Bf16RoundThenArgmax, torch.tensor([[1.999, 2.0, 0.5], [0.1, 0.2, 0.3]])),
     "arange": (_Bf16ArangeThenInt, torch.zeros(10, dtype=torch.int64)),
+    "widen_int": (_Bf16RoundWidenThenInt, torch.tensor([[1.999, 2.996, -0.001, 255.5]])),
+    "reshape_int": (_Bf16RoundReshapeThenInt, torch.tensor([[1.999, 2.996, -0.001, 255.5]])),
+    "transpose_widen_floor": (_Bf16RoundTransposeWidenThenFloor, torch.tensor([[1.999, 2.996, -0.001, 255.5]])),
 }
 
 
