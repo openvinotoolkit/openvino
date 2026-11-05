@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "TypeError: fetch failed during @electron/get FetchDownloader.download while npm install demo-electron-app-project runs 'npm start' E2E Electron dependency test; Electron binary failed to install correctly|Network",
+  "signature_hash": "52916b992a177470",
+  "title": "OpenVINO JS Electron E2E test fails: fetch failed downloading Electron binary via @electron/get",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-05T16:20:24Z",
+  "last_seen": "2026-11-05T16:20:24Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42056033667"
+  ],
+  "affected_commits": [
+    "5a9b6d52d2dc776357dc5a91b156485dc1bd559e"
+  ],
+  "recent_timestamps": [
+    "2026-11-05T16:20:24Z"
+  ]
+}

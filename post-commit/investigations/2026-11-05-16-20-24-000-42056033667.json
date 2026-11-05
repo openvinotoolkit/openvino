@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-16-20-24-000-42056033667",
+  "timestamp": "2026-11-05T16:20:24Z",
+  "run_id": "42056033667",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42056033667",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "5a9b6d52d2dc776357dc5a91b156485dc1bd559e",
+  "pr_number": "39469",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39469",
+  "author": "nshchego",
+  "category": "Network",
+  "title": "OpenVINO JS Electron E2E test fails: fetch failed downloading Electron binary via @electron/get",
+  "signature": "TypeError: fetch failed during @electron/get FetchDownloader.download while npm install demo-electron-app-project runs 'npm start' E2E Electron dependency test; Electron binary failed to install correctly|Network",
+  "signature_hash": "52916b992a177470",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "E2E of openvino-node package: 'should run electron package and verify output' fails because Electron binary could not be downloaded (fetch failed)"
+    }
+  ],
+  "key_errors": [
+    "TypeError: fetch failed\n    at node:internal/deps/undici/undici:15456:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async FetchDownloader.download (file:///__w/openvino/openvino/src/bindings/js/node/demo-electron-app-project/node_modules/@electron/get/dist/FetchDownloader.js:46:30)\n    at async file:///.../node_modules/@electron/get/dist/index.js:158:9\n    at async downloadArtifact (file:///.../node_modules/@electron/get/dist/index.js:154:12)",
+    "Error: Electron failed to install correctly. Please delete `node_modules/electron` and run \"npx install-electron --no\" manually.\n    at getElectronPath (demo-electron-app-project/node_modules/electron/index.js:43:13)",
+    "1) E2E testing for OpenVINO as an Electron dependency.\n       should run electron package and verify output:\n     Error: Command failed: cd demo-electron-app-project && npm start\n  1 passing (45s)\n  1 failing"
+  ],
+  "root_cause": "The 'OpenVINO JS API (22)' job (ARM64 shard) runs the demo-electron-app-project E2E test, which triggers 'npm install' followed by 'npm start'. During install, Electron's postinstall script (via @electron/get's FetchDownloader) attempts to download the prebuilt Electron binary over HTTPS from the GitHub releases CDN. This download raised 'TypeError: fetch failed' (an undici-level network error), leaving node_modules/electron without its downloaded binary. When 'npm start' subsequently tried to launch Electron, index.js's getElectronPath() detected the missing binary and threw 'Electron failed to install correctly'. The merged commit (PR #39469, by nshchego) only modifies GPU plugin C++ code (fully_connected_onednn.cpp/hpp) for oneDNN decompression-group handling and is completely unrelated to the JS bindings or Electron tooling, confirming this is an external network/CDN flake rather than a regression introduced by the commit.",
+  "reproduction_steps": "Not reliably reproducible locally; depends on transient network/CDN failures. To approximate: cd src/bindings/js/node, set up demo-electron-app-project, run 'npm install' repeatedly on a constrained/unstable network connection (or temporarily block access to the Electron binary download host) to observe the same 'fetch failed' / 'Electron failed to install correctly' error chain.",
+  "recommended_actions": [
+    "Add retry logic around the Electron binary download step (e.g., set the ELECTRON_GET_USE_PROXY / npm config electron_config_cache, or wrap 'npm install' with a retry wrapper) in the E2E Electron test setup.",
+    "Consider caching the downloaded Electron binary across CI runs (e.g., actions/cache keyed on Electron version) to avoid repeated cold downloads that are exposed to transient network failures.",
+    "Add a short automatic retry (2-3 attempts) specifically for the Electron E2E job before marking it failed, since this is a known external dependency flake class distinct from code regressions.",
+    "Optionally pin/vendor a mirror or internal artifact proxy for the Electron binary download to reduce dependency on the public CDN's availability from ARM64 runners."
+  ],
+  "prevention_strategies": "Treat Electron/@electron/get binary downloads as an external-service dependency prone to transient network failures; add retries and/or local caching for this download step, and ensure the E2E Electron test categorizes a download failure distinctly from an actual OpenVINO/Electron integration regression so reviewers are not misled about code health.",
+  "historical_context": "A related but distinct pattern was previously recorded: pattern 09126916fe54469f ('npm install timeout in electron e2e test due to npm registry audit endpoint 503') on 2026-10-22, where 'npm install' itself stalled on the npm registry's audit endpoint. The current failure is different: npm install completed, but the Electron binary download via @electron/get failed with a generic fetch error during the postinstall step. Both point to the same underlying fragility: the demo-electron-app-project E2E test has multiple external-network dependencies (npm registry, Electron binary CDN) with no caching or retry, making it the most network-flake-prone job in the JS API test suite."
+}
