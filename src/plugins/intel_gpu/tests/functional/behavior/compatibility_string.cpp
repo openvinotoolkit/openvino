@@ -38,6 +38,7 @@ TEST_F(CompatibilityStringGPU, RuntimeRequirementsIsSupportedAndNonEmpty) {
     std::string requirements;
     OV_ASSERT_NO_THROW(requirements = compiled_model.get_property(ov::runtime_requirements));
     ASSERT_FALSE(requirements.empty());
+    ASSERT_NE(requirements.find(";blob=3;"), std::string::npos);
     std::cout << "[ INFO     ] GPU ov::runtime_requirements = " << requirements << std::endl;
 }
 
@@ -77,6 +78,29 @@ TEST_F(CompatibilityStringGPU, GenerateAndCheckSupported) {
                                                   ov::compatibility_check,
                                                   {{ov::runtime_requirements.name(), requirements}}));
     ASSERT_EQ(result, ov::CompatibilityCheck::SUPPORTED);
+}
+
+TEST_F(CompatibilityStringGPU, RequirementsBeforePartialUploadMetadataAreUnsupported) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+
+    const auto requirements = compiled_model.get_property(ov::runtime_requirements);
+    const std::string blob_field = ";blob=3";
+    const auto blob_offset = requirements.find(blob_field);
+    ASSERT_NE(blob_offset, std::string::npos);
+
+    for (const std::string& old_blob_field : {std::string{}, std::string{";blob=2"}}) {
+        SCOPED_TRACE(old_blob_field);
+        auto outdated = requirements;
+        outdated.replace(blob_offset, blob_field.size(), old_blob_field);
+        ov::CompatibilityCheck result = ov::CompatibilityCheck::SUPPORTED;
+        OV_ASSERT_NO_THROW(result = core.get_property(ov::test::utils::DEVICE_GPU,
+                                                      ov::compatibility_check,
+                                                      {{ov::runtime_requirements.name(), outdated}}));
+        EXPECT_EQ(result, ov::CompatibilityCheck::UNSUPPORTED);
+    }
 }
 
 // A tampered descriptor is reported as UNSUPPORTED.
@@ -173,6 +197,9 @@ TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
     constexpr size_t magic_offset = sizeof(ov::CacheMode);
     constexpr size_t version_offset = magic_offset + sizeof(uint64_t);
     ASSERT_GE(original.size(), version_offset + sizeof(uint32_t));
+    uint32_t current_version = 0;
+    std::memcpy(&current_version, original.data() + version_offset, sizeof(current_version));
+    ASSERT_EQ(current_version, 3u);
 
     // Sanity: the untouched blob imports cleanly (guards the offsets used below).
     {
@@ -196,6 +223,34 @@ TEST_F(CompatibilityStringGPU, ImportRejectsCorruptedDescriptorHeader) {
         std::memcpy(&corrupted[version_offset], &bad_version, sizeof(bad_version));
         std::stringstream blob(corrupted);
         EXPECT_THROW((void)core.import_model(blob, ov::test::utils::DEVICE_GPU), ov::Exception);
+    }
+}
+
+TEST_F(CompatibilityStringGPU, ImportRejectsVersionsBeforePartialUploadMetadata) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+
+    std::stringstream good_blob;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(good_blob));
+    const std::string original = good_blob.str();
+    constexpr size_t version_offset = sizeof(ov::CacheMode) + sizeof(uint64_t);
+    ASSERT_GE(original.size(), version_offset + sizeof(uint32_t));
+
+    for (uint32_t old_version : {1u, 2u}) {
+        SCOPED_TRACE(old_version);
+        std::string outdated = original;
+        std::memcpy(&outdated[version_offset], &old_version, sizeof(old_version));
+        std::stringstream blob(outdated);
+        try {
+            (void)core.import_model(blob, ov::test::utils::DEVICE_GPU);
+            FAIL() << "Import accepted an outdated compiled blob";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("Unsupported compatibility descriptor version " +
+                                                    std::to_string(old_version)),
+                      std::string::npos);
+        }
     }
 }
 
