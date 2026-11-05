@@ -1026,8 +1026,9 @@ TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_s
         EXPECT_FLOAT_EQ(present_value[row * HEAD_SIZE], static_cast<float>(row))
             << "past prefix row " << row << " clobbered";
     }
-    // [kept_past, kept_past + S) must hold the new chunk, overwriting any stale past rows in the overlap.
-    for (int64_t row = 0; row < S; ++row) {
+    // [kept_past, total) must hold the valid rows of the new chunk, overwriting any stale past rows in the overlap
+    // (the padded rows beyond total are unspecified).
+    for (int64_t row = 0; row < query_seqlens_data[0]; ++row) {
         EXPECT_FLOAT_EQ(present_key[(kept_past + row) * HEAD_SIZE], 100.0f + static_cast<float>(row))
             << "new chunk row " << row << " not written at kept_past + row";
         EXPECT_FLOAT_EQ(present_value[(kept_past + row) * HEAD_SIZE], 200.0f + static_cast<float>(row))
@@ -1128,7 +1129,7 @@ TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_s
         EXPECT_FLOAT_EQ(present_value[row * HEAD_SIZE], static_cast<float>(row))
             << "past prefix row " << row << " clobbered";
     }
-    for (int64_t row = 0; row < S; ++row) {
+    for (int64_t row = 0; row < query_seqlens_data[0]; ++row) {
         EXPECT_FLOAT_EQ(present_key[(kept_past + row) * HEAD_SIZE], 100.0f + static_cast<float>(row))
             << "new chunk row " << row << " not written at kept_past + row";
         EXPECT_FLOAT_EQ(present_value[(kept_past + row) * HEAD_SIZE], 200.0f + static_cast<float>(row))

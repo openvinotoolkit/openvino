@@ -293,6 +293,29 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
         }
     }
+    // Zero padded K/V rows (s >= Q): masking alone lets NaN filler reach valid rows via the scores and 0 * V.
+    // A single-token step skips it: its padded entries are idle, so no valid query reads them.
+    const bool single_token_step = q_ps.rank().is_static() && q_ps[2].is_static() && q_ps[2].get_length() == 1;
+    if (has_query_seqlens && !single_token_step) {
+        const auto rows = register_new_node<v1::Reshape>(
+            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64),
+            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, -1, 1})),
+            false);
+        const auto valid_rows = register_new_node<v1::Less>(
+            rows,
+            register_new_node<v1::Reshape>(
+                query_seqlens_i64,
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {-1, 1, 1, 1})),
+                false));
+        K = register_new_node<v1::Select>(
+            valid_rows,
+            K,
+            register_new_node(v0::Constant::create(K.get_element_type(), ov::Shape{}, {0})));
+        V = register_new_node<v1::Select>(
+            valid_rows,
+            V,
+            register_new_node(v0::Constant::create(V.get_element_type(), ov::Shape{}, {0})));
+    }
     // Absent past inputs and zero-capacity caches both use current K/V as the complete cache.
     const bool empty_past =
         !has_past || (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0);
