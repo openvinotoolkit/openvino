@@ -127,6 +127,15 @@ ov::Output<ov::Node> GroupQueryAttentionDecomposition::make_qk_norm(const ov::Ou
     return register_new_node<ov::op::internal::RMS>(input, weight, epsilon, input.get_element_type());
 }
 
+namespace {
+// StatelessKV has nothing to append to for a 0-row past; a free predicate (vs. an inline shape probe) keeps the
+// fallback condition self-documenting and easy to narrow once StatelessKV can roll a 0-row past with query_seqlens.
+bool has_empty_past(const ov::Output<ov::Node>& past_key) {
+    const auto& past_ps = past_key.get_partial_shape();
+    return past_ps.rank().is_static() && past_ps[2].is_static() && past_ps[2].get_length() == 0;
+}
+}  // namespace
+
 GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecomposition::construct_kvcache(
     const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
     const ov::Output<ov::Node>& past_key,
@@ -152,9 +161,8 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
                                                                              past_seqlen, current_seqlen_scalar, metadata_);
     }
-    // An empty past (padded chunk only) has nothing for StatelessKV to append to; keep the generic present sizing.
-    const auto& past_ps = past_key.get_partial_shape();
-    if (query_seqlens && past_ps.rank().is_static() && past_ps[2].is_static() && past_ps[2].get_length() == 0) {
+    // A padded chunk with an empty past has nothing for StatelessKV to append to; keep the generic present sizing.
+    if (query_seqlens && has_empty_past(past_key)) {
         return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
                                                                              past_seqlen, current_seqlen_scalar, metadata_);
     }
