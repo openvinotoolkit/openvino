@@ -2191,10 +2191,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (original_it == original_constants.end())
                 continue;
             const auto& original = original_it->second.first;
+            const auto byte_size = constant->get_byte_size();
             if (constant->get_element_type() != original->get_element_type() ||
-                constant->get_byte_size() != original->get_byte_size() ||
-                (constant->get_byte_size() != 0 &&
-                 std::memcmp(constant->get_data_ptr(), original->get_data_ptr(), constant->get_byte_size()) != 0)) {
+                byte_size != original->get_byte_size() ||
+                (byte_size != 0 &&
+                 constant->get_data_ptr() != original->get_data_ptr() &&
+                 std::memcmp(constant->get_data_ptr(), original->get_data_ptr(), byte_size) != 0)) {
                 continue;
             }
             constant->get_rt_info()[weightless_attr] = original_it->second.second;
