@@ -23,7 +23,6 @@ struct VMExecutionContext {
     VMExecutionContext& operator=(VMExecutionContext&&) = delete;
     ~VMExecutionContext();
 
-    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime);
     npu_vm_runtime_execution_context_handle_t ensureV2(npu_vm_runtime_handle_t vmRuntime,
                                                        ze_context_handle_t ctx,
                                                        ze_device_handle_t device,
@@ -43,8 +42,8 @@ struct DynamicArguments {
     std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
     npu_vm_runtime_execute_params2_t _executeParams2 = {};
 
-    // True once the command lists have been recorded by a first npuVMRuntimeExecute call. Subsequent
-    // executions can be replayed without re-recording when no tensor changed (see execute_vm_runtime).
+    // True once the command lists have been recorded by the first npuVMRuntimeExecute2 call. Subsequent
+    // executions can be replayed without re-recording when no tensor changed.
     bool _commandListsRecorded = false;
 
     DynamicArguments() = default;
@@ -64,25 +63,9 @@ class DynamicPipeline final : public IPipeline {
     struct PipelinedCommandLists {
         std::shared_ptr<DynamicArguments> _arguments;
 
-        std::vector<std::unique_ptr<CommandList>> _commandLists;
-        // Store command list handles to pass it to ExecutionEngine
-        std::vector<ze_command_list_handle_t> _commandListHandles;
-
-        PipelinedCommandLists(size_t numCommandLists,
-                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
-                              bool useV2 = false) {
-            if (!useV2) {
-                // Only initialize command lists for v1, v2 handles command lists inside runtime
-                _commandLists.reserve(numCommandLists);
-                for (size_t i = 0; i < numCommandLists; i++) {
-                    _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));
-                }
-
-                for (size_t i = 0; i < numCommandLists; i++) {
-                    _commandListHandles.push_back(_commandLists[i]->handle());
-                }
-            }
-
+        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs) {
+            (void)numCommandLists;
+            (void)init_structs;
             _arguments = std::make_shared<DynamicArguments>();
         }
 
@@ -105,10 +88,6 @@ class DynamicPipeline final : public IPipeline {
                 outputs[i].setSize(shape);
                 outputs[i].updateStride();
             }
-        }
-
-        std::vector<ze_command_list_handle_t>& getHandles() {
-            return _commandListHandles;
         }
 
         DynamicArguments& getArguments() {
@@ -166,12 +145,6 @@ public:
                                                  const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
 private:
-    void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
-                            DynamicArguments& args,
-                            std::vector<ze_command_list_handle_t>& commandLists,
-                            ze_command_queue_handle_t commandQueue,
-                            ze_fence_handle_t fence,
-                            ze_event_handle_t event);
     void execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
                                DynamicArguments& args,
                                ze_command_queue_handle_t commandQueue,
@@ -184,7 +157,7 @@ private:
     std::vector<std::shared_ptr<CommandQueue>> _vm_referenced_command_queues;
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
-    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
+    npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_2_0;
     NpuVMRuntimeConfigChain _runtimeConfigChain;
     CommandQueueDesc _runtime_config_command_queue_desc;
     bool _runtime_config_command_queue_desc_valid = false;

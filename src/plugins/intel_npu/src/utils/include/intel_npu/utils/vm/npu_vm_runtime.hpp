@@ -71,8 +71,6 @@ extern "C" {
 ///     - VM runtime versions contain major and minor attributes, use
 ///       ::NPU_VM_RUNTIME_MAJOR_VERSION and ::NPU_VM_RUNTIME_MINOR_VERSION
 typedef enum _npu_vm_runtime_version_t {
-    NPU_VM_RUNTIME_VERSION_1_0 = ZE_MAKE_VERSION(1, 0),           ///< version 1.0
-    NPU_VM_RUNTIME_VERSION_1_1 = ZE_MAKE_VERSION(1, 1),           ///< version 1.1
     NPU_VM_RUNTIME_VERSION_2_0 = ZE_MAKE_VERSION(2, 0),           ///< version 2.0
     NPU_VM_RUNTIME_VERSION_CURRENT = NPU_VM_RUNTIME_VERSION_2_0,  ///< latest known version
     NPU_VM_RUNTIME_VERSION_FORCE_UINT32 = 0x7fffffff,
@@ -116,44 +114,9 @@ typedef struct _npu_vm_runtime_properties_t {
 } npu_vm_runtime_properties_t;
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Execute params
-typedef struct _npu_vm_runtime_execute_params_t {
-    npu_vm_runtime_mem_ref_handle_t* pInputs;
-    uint32_t numOfInputs;
-    npu_vm_runtime_mem_ref_handle_t* pOutputs;
-    uint32_t numOfOutputs;
-    ze_context_handle_t ctx;
-    ze_device_handle_t device;
-    ze_graph_dditable_ext_t* graphDdiTableExt;
-    ze_command_list_handle_t* commandLists;
-    uint64_t numCommandLists;
-    ze_command_queue_handle_t commandQueue;
-    ze_fence_handle_t inferenceFence;
-    ze_event_handle_t event;
-    npu_vm_runtime_execution_context_handle_t executionContext;
-} npu_vm_runtime_execute_params_t;
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Predict output shape params
-typedef struct _npu_vm_runtime_predict_output_shape_params_t {
-    npu_vm_runtime_mem_ref_handle_t* pInputs;
-    uint32_t numOfInputs;
-    npu_vm_runtime_mem_ref_handle_t* pOutputs;
-    uint32_t numOfOutputs;
-} npu_vm_runtime_predict_output_shape_params_t;
-
-///////////////////////////////////////////////////////////////////////////////
 /// @brief Returns the API version
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeGetAPIVersion(
     npu_vm_runtime_version_t* pVersion  ///< [out] pointer to version information
-);
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Init VM runtime instance and return handle
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(
-    const npu_vm_runtime_blob_desc_t* desc,   ///< [in] pointer to graph descriptor
-    npu_vm_runtime_handle_t* phRuntime,       ///< [out] pointer to handle of VM runtime object created
-    npu_vm_runtime_properties_t* pProperties  ///< [out] pointer to properties of the runtime
 );
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -170,20 +133,6 @@ NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRun
     ze_graph_argument_properties_3_t* pGraphArgumentProperties,  ///< [out] query result for graph argument properties
     ze_graph_argument_metadata_t* pGraphArgumentMetadata,        ///< [out] query result for graph argument metadata
     int64_t* upperBound);
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Execute VM runtime with params
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeExecute(
-    npu_vm_runtime_handle_t hRuntime,         ///< [in] handle of VM runtime object
-    npu_vm_runtime_execute_params_t* pParams  ///< [in] pointer to execution parameters
-);
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Predict output shape based on input shape
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimePredictOutputShape(
-    npu_vm_runtime_handle_t hRuntime,                      ///< [in] handle of VM runtime object
-    npu_vm_runtime_predict_output_shape_params_t* pParams  ///< [in] pointer to predict output shape parameters
-);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Create MemRef handle
@@ -219,50 +168,11 @@ npuVMRuntimeParseMemRef(npu_vm_runtime_mem_ref_handle_t hMemRef,  ///< [in] hand
                         int64_t* pDimsCount);                     ///< [out] value of tensor rank
 
 ///////////////////////////////////////////////////////////////////////////////
-/// @brief Init VM runtime instance and return handle
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecutionContext(
-    npu_vm_runtime_handle_t hRuntime,  ///< [in] handle of VM runtime object
-    npu_vm_runtime_execution_context_handle_t*
-        phExecutionHandle  ///< [out] pointer to handle of VM runtime execution context created
-);
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Destroy VM runtime instance
+/// @brief Destroy VM runtime execution context
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeDestroyExecutionContext(
     npu_vm_runtime_execution_context_handle_t
         phExecutionHandle  ///< [in][release] handle of execution context object to destroy
 );
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Update mutable command list used in execution and execute
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeUpdateMutableCommandList(
-    npu_vm_runtime_handle_t hRuntime,          ///< [in] handle of VM runtime object
-    npu_vm_runtime_execute_params_t* pParams,  ///< [in] pointer to execution parameters
-    uint64_t* argIndexArray,                   ///< [in] pointer to argument index list
-    uint64_t argIndexArraySize);               ///< [in] size of argument index list
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Version 1.1
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Predict output shape params 2
-typedef struct _npu_vm_runtime_predict_output_shape_params_t2 {
-    npu_vm_runtime_mem_ref_handle_t* pInputs;
-    uint32_t numOfInputs;
-    npu_vm_runtime_mem_ref_handle_t* pOutputs;
-    uint32_t numOfOutputs;
-    npu_vm_runtime_execution_context_handle_t executionContext;
-} npu_vm_runtime_predict_output_shape_params_t2;
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Predict output shape based on input shape
-NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimePredictOutputShape2(
-    npu_vm_runtime_handle_t hRuntime,                       ///< [in] handle of VM runtime object
-    npu_vm_runtime_predict_output_shape_params_t2* pParams  ///< [in] pointer to predict output shape parameters
-);
-
-///////////////////////////////////////////////////////////////////////////////
-/// @brief Version 2.0
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Runtime configuration descriptor type.
@@ -374,13 +284,27 @@ typedef struct _npu_vm_runtime_execute_params2_t {
 } npu_vm_runtime_execute_params2_t;
 
 ///////////////////////////////////////////////////////////////////////////////
+/// @brief Predict output shape params 2
+typedef struct _npu_vm_runtime_predict_output_shape_params_t2 {
+    npu_vm_runtime_mem_ref_handle_t* pInputs;
+    uint32_t numOfInputs;
+    npu_vm_runtime_mem_ref_handle_t* pOutputs;
+    uint32_t numOfOutputs;
+    npu_vm_runtime_execution_context_handle_t executionContext;
+} npu_vm_runtime_predict_output_shape_params_t2;
+
+///////////////////////////////////////////////////////////////////////////////
+/// @brief Predict output shape based on input shape
+NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimePredictOutputShape2(
+    npu_vm_runtime_handle_t hRuntime,                       ///< [in] handle of VM runtime object
+    npu_vm_runtime_predict_output_shape_params_t2* pParams  ///< [in] pointer to predict output shape parameters
+);
+
+///////////////////////////////////////////////////////////////////////////////
 /// @brief Execute VM runtime (v2.0)
-/// @details Replaces npuVMRuntimeExecute + npuVMRuntimeUpdateMutableCommandList.
-///          On the first call per executionContext, interpreter lazily creates
+/// @details On the first call per executionContext, interpreter lazily creates
 ///          its internal command list based on pConfig descriptors and stores it in
-///          executionContext.
-///
-///          In both paths, call npuVMRuntimeHostSync(hRuntime, pParams) to block
+///          executionContext. Call npuVMRuntimeHostSync(hRuntime, pParams) to block
 ///          until the inference completes. The interpreter uses pParams->executionContext
 ///          to access the underlying synchronization primitive.
 NPU_VM_RUNTIME_APIEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeExecute2(
