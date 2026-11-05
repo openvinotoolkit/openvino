@@ -87,6 +87,12 @@ ov::SoPtr<ov::IRemoteTensor> FakeNpuRemoteContext::create_tensor(const ov::eleme
     return {wrap_host_tensor(std::move(host)), nullptr};
 }
 
+ov::SoPtr<ov::ITensor> FakeNpuRemoteContext::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {
+    auto host = ov::make_tensor(type, shape);
+    increment_created_host_tensors();
+    return host;
+}
+
 const void* tensor_data_ptr(const ov::Tensor& tensor) {
     auto impl = ov::get_tensor_impl(tensor)._ptr;
     if (auto remote = std::dynamic_pointer_cast<FakeRemoteTensor>(impl)) {

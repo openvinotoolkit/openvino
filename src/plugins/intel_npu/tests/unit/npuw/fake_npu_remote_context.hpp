@@ -47,14 +47,17 @@ public:
 struct Statistics {
     std::atomic<size_t> allocated_remote_tensors{0};
     std::atomic<size_t> imported_remote_tensors{0};
+    std::atomic<size_t> created_host_tensors{0};
 };
 
 struct StatisticsSnapshot {
     StatisticsSnapshot(const Statistics& stats)
         : allocated_remote_tensors(stats.allocated_remote_tensors.load()),
-          imported_remote_tensors(stats.imported_remote_tensors.load()) {}
+          imported_remote_tensors(stats.imported_remote_tensors.load()),
+          created_host_tensors(stats.created_host_tensors.load()) {}
     size_t allocated_remote_tensors{0};
     size_t imported_remote_tensors{0};
+    size_t created_host_tensors{0};
 };
 
 // Wraps ov::intel_npu::mem_handle memory when provided, otherwise allocates host memory.
@@ -77,6 +80,9 @@ protected:
     void increment_imported_remote_tensors() {
         m_statistics.imported_remote_tensors++;
     }
+    void increment_created_host_tensors() {
+        m_statistics.created_host_tensors++;
+    }
 
 private:
     std::string m_device_name;
@@ -90,6 +96,7 @@ public:
     ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type& type,
                                                const ov::Shape& shape,
                                                const ov::AnyMap& params) override;
+    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override;
 
 protected:
     std::shared_ptr<FakeRemoteTensor> wrap_host_tensor(std::shared_ptr<ov::ITensor> host) const override;

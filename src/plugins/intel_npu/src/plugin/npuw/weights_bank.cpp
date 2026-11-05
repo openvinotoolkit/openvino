@@ -67,6 +67,22 @@ private:
     ov::Tensor m_tensor;
 };
 
+// TODO CVS-199040: Preserve the tensor descriptor until ov::Tensor supports IBufferDescriptor.
+// or
+// CVS-199039: In this case we woudln't need for SharedTensorDescriptor at all,
+// the HostTensor could be created directly from the staging buffer obtained by its source_id
+class SharedTensorBuffer final : public ov::SharedBuffer<ov::Tensor> {
+public:
+    using ov::SharedBuffer<ov::Tensor>::SharedBuffer;
+
+    std::shared_ptr<ov::IBufferDescriptor> get_descriptor() const override {
+        if (!m_descriptor) {
+            return {};
+        }
+        return SharedTensorDescriptor::create(m_descriptor->get_id(), m_descriptor->get_offset(), m_shared_object);
+    }
+};
+
 ov::Tensor tensor_factory(const ov::ICore& core,
                           const std::string& device,
                           const ov::element::Type& type,
@@ -134,10 +150,10 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
 ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::create_shared_buffer(
     int64_t source_id,
     const ov::Tensor& tensor) {
-    return std::make_shared<ov::SharedBuffer<ov::Tensor>>(const_cast<char*>(static_cast<const char*>(tensor.data())),
-                                                          tensor.get_byte_size(),
-                                                          tensor,
-                                                          SharedTensorDescriptor::create(source_id, 0, tensor));
+    return std::make_shared<SharedTensorBuffer>(const_cast<char*>(static_cast<const char*>(tensor.data())),
+                                                tensor.get_byte_size(),
+                                                tensor,
+                                                SharedTensorDescriptor::create(source_id, 0, tensor));
 }
 
 const ov::op::v0::Constant& ov::npuw::weights::WeightSharingContextAccessor::get_transformed_constant(
@@ -382,7 +398,7 @@ bool ov::npuw::weights::WeightSharingContextAccessor::deserialize_native_format_
                 }
 
                 ov::Tensor tensor = tensor_factory(core, device, type, shape, nullptr);
-                auto shared_source = this->register_tensor_as_shared_weight_source(uid, device, tensor, handle);
+                this->register_tensor_as_shared_weight_source(uid, device, tensor, handle);
                 return tensor;
             };
 
@@ -542,11 +558,12 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         // `WeightSharingContextAccessor` only introduces step 2, while encapsulating step 1 internally.
         // `WeightSharingContextAccessor` owns and manages access to the shared weight memory.
         // It also provides access to `ov::weight_sharing::Context`.
-        auto handle = this->get_handle();
-        auto shared_source =
-            this->request_shared_weight_source_buffer(uid, t.get_element_type(), t.get_shape(), "CPU", handle);
-        stored_tensor.tensor = tensor_factory(*m_core, "CPU", t.get_element_type(), t.get_shape(), shared_source);
-
+        {
+            auto handle = this->get_handle();
+            auto shared_source =
+                this->request_shared_weight_source_buffer(uid, t.get_element_type(), t.get_shape(), "CPU", handle);
+            stored_tensor.tensor = tensor_factory(*m_core, "CPU", t.get_element_type(), t.get_shape(), shared_source);
+        }
         // Get ownership of the weights, might be a mmaped object during import
         t.copy_to(stored_tensor.tensor);
         const_cast<LazyTensor&>(lt).detach();

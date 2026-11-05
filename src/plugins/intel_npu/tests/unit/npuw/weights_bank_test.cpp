@@ -134,10 +134,13 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     }
     auto statAfterFirstEvaluate = this->m_remote_context->get_statistics_snapshot();
     if (device != "CPU") {
-        // The number of imported remote tensors must increase by the number of registered UIDs after the first
+        // The number of imported remote tensors must stay the same as the implementation falls back to host tensors.
+        // That may be improved in later implementations to achieve the purpose of weight sharing across devices.
+        // See CVS-199076, and CVS-189489
+        ASSERT_EQ(statAfterFirstEvaluate.imported_remote_tensors, statBeforeEvaluate.imported_remote_tensors);
+        // The number of created host tensors must increase by the number of registered UIDs after the first
         // evaluation.
-        ASSERT_EQ(statAfterFirstEvaluate.imported_remote_tensors - statBeforeEvaluate.imported_remote_tensors,
-                  uids.size());
+        ASSERT_EQ(statAfterFirstEvaluate.created_host_tensors - statBeforeEvaluate.created_host_tensors, uids.size());
     }
 
     // Add one more "shared transformation" (aka constant) to the bank
@@ -167,10 +170,13 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     }
     auto statAfterSecondEvaluate = this->m_remote_context->get_statistics_snapshot();
     if (device != "CPU") {
-        // The number of imported remote tensors must increase by the number of registered UIDs after the second
+        // The number of imported remote tensors must stay the same as the implementation falls back to host tensors.
+        // That may be improved in later implementations to achieve the purpose of weight sharing across devices.
+        // See CVS-199076, and CVS-189489
+        ASSERT_EQ(statAfterSecondEvaluate.imported_remote_tensors, statBeforeEvaluate.imported_remote_tensors);
+        // The number of created host tensors must increase by the number of registered UIDs after the first
         // evaluation.
-        ASSERT_EQ(statAfterSecondEvaluate.imported_remote_tensors - statBeforeEvaluate.imported_remote_tensors,
-                  uids.size());
+        ASSERT_EQ(statAfterSecondEvaluate.created_host_tensors - statBeforeEvaluate.created_host_tensors, uids.size());
     }
 }
 
