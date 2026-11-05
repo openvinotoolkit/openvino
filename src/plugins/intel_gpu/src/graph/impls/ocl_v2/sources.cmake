@@ -55,6 +55,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_ref.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_row_lut.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_row_lut.hpp
     ${CMAKE_CURRENT_LIST_DIR}/msda_opt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/msda_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp

@@ -4,10 +4,24 @@
 
 #include "include/batch_headers/common.cl"
 
+#if VEC_BLK_SIZE == 1
+#define VLOAD(offset, ptr)         ((ptr)[offset])
+#define VSTORE(val, offset, ptr)   ((ptr)[offset] = (val))
+#else
 #define VLOAD  CAT(vload,  VEC_BLK_SIZE)
 #define VSTORE CAT(vstore, VEC_BLK_SIZE)
+#endif
 #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLK_SIZE)
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLK_SIZE)
+// The last work-items of a row can be past HIDDEN_SIZE when the vector blocks do not split evenly between them
+#ifndef HIDDEN_SIZE_TAIL
+#define HIDDEN_SIZE_TAIL 0
+#endif
+#if HIDDEN_SIZE_TAIL
+#define IN_HIDDEN(h) ((h) < HIDDEN_SIZE)
+#else
+#define IN_HIDDEN(h) 1
+#endif
 
 // Weighted reduction of the expert-major GEMM output back into token order.
 //
@@ -32,14 +46,27 @@ KERNEL(moe_scatter_reduction_row_lut)(
     }
 
     for (uint k = 0; k < ACTIVE_EXPERTS; k++) {
+#ifdef DATA_ROWS
+        // Gather-8 indices: negative ones count from the end, out-of-range ones read zeros
+        const long rows = DATA_ROWS;
+        long idx = row_lut[token * ACTIVE_EXPERTS + k];
+        if (idx < 0)
+            idx += rows;
+        if (idx < 0 || idx >= rows)
+            continue;
+        const uint row = (uint)idx;
+#else
         const int row = row_lut[token * ACTIVE_EXPERTS + k];
         if (row < 0)
             continue;
+#endif
 
         const INPUT1_TYPE expert_weight = expert_weights[token * ACTIVE_EXPERTS + k];
         const uint in_base = (uint)row * HIDDEN_SIZE + lane_base;
 
         for (uint j = 0; j < BATCHES_PER_THREAD; j++) {
+            if (!IN_HIDDEN(lane_base + j * VEC_BLK_SIZE))
+                break;
             INPUT_VEC_TYPE input_data = VLOAD(0, &input[in_base + j * VEC_BLK_SIZE]);
             input_data *= expert_weight;
             acc[j] += input_data;
@@ -48,6 +75,8 @@ KERNEL(moe_scatter_reduction_row_lut)(
 
     const uint out_base = token * HIDDEN_SIZE + lane_base;
     for (uint j = 0; j < BATCHES_PER_THREAD; j++) {
+        if (!IN_HIDDEN(lane_base + j * VEC_BLK_SIZE))
+            break;
         VSTORE(acc[j], 0, &output[out_base + j * VEC_BLK_SIZE]);
     }
 }
