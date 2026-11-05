@@ -726,7 +726,8 @@ The table tile stays faster than the large one at 1K keys (1.02-1.06x) and 512 (
 measurement that introduced this policy (PR-39316 shapes) gave 0.994 / 0.995 of `sdpa_micro` with PR-39316, from 0.52
 / 0.74. Remaining against `sdpa_micro` on B70 at that point: short static chunks (1.00-1.15x at 512-1.5K keys; 0.98x
 at 8K), static self-attention prompts (2K: 1.11x, 4K: 1.05x; `sdpa_micro` skips the causal tiles), and decode
-(`sdpa_ocl_mixed`, unchanged: 1.07-1.15x). The causal tile skip below closed the first two.
+(`sdpa_ocl_mixed`, unchanged: 1.07-1.15x). The causal tile skip below closed the first two, the decode tiling after it
+the third.
 
 A shape-agnostic stage keeps the table tile because no single tile wins across shapes. With dynamic Q + K, the 256 x
 128 tile is 0.75-0.95x the table at 128+ queries over 2K+ keys and at 4K-8K-token prompts, but 1.16-1.47x at 16-64
@@ -816,6 +817,80 @@ lower-right 512 / 2560 and 300 / 2300; table tile: 28 / 4 heads 200 / 1100) and 
 early all five fail (max |diff| 0.05-0.09; cosine 0.98 for the upper-left one), as do three older cosine-only rows.
 Not measured: plain `d_max` 64 / 256 (no loop changes there; PA `d_max` 64 lost with the skip), head sizes below 128
 within `d_max` 128, other devices (the ptl-h build is checked with ocloc only).
+
+### Plain-SDPA decode tiling
+
+Plain (non-PA) SDPA with one query (the `SDPAOptImpl` single-token stage, kernel `sdpa_ocl_mixed_*`; a stateful LLM's
+decode with `ATTENTION_BACKEND=SDPA`, optimum-intel, Whisper) with f16 Q / K / V on Xe2 (`solve_plain_decode_tiling()`):
+32-key x 16-query subgroup tiles in a single row of subgroups (`kq_sg_per_wg_queries` 1), 16 subgroups = 512 keys per
+workgroup at `d_max` 128 / 256 / 512 and 8 = 256 keys at `d_max` 64 (no S*V split of a 64-wide head over 16 subgroups
+keeps value tiles of 16 columns and score tiles of 8 rows), 256 GRF, with `PREFETCH_V`, `WIDE_READS` 1 (K), `SOFTMAX_BRANCHLESS` and `MAX_SPLIT_BARRIER`.
+`CAUSAL_TILE_SKIP` stays off (`add_prefill_pipeline_jit()`). `d_max` 32, bf16, compressed K / V and other devices keep
+the table tile (not measured). The tiling reads no query or key count, so the static and the shape-agnostic stage get the
+same one at compile time and dispatch, and a loaded blob re-derives it from the same params. The kernel is unchanged:
+the config flag `plain_decode` only lets the PREFILL loop flags reach this stage. The stage used to take the table tile
+(16 x 16 subgroup tiles, 8 x 2 subgroups = 128 keys x 32 queries, 64 at `d_max` 64; 128 GRF): with one query, 31 of its
+32 query rows are padding, and its second row of subgroups (three of four at `d_max` 64) reads the same K and V tiles
+again for padding rows. `sdpa_micro` puts every subgroup on keys (`xehpc_h64_2nd` 4 subgroups and `xehpc_h128_2nd` 8 at
+256 GRF, `xehpc_h256_2nd` 16 at 128 GRF), one workgroup per query head, like this tiling.
+
+**The bench data compresses.** The unit-test generator's default resolution (1/8: 17 distinct values in [-1, 1]) gives
+data the B70 reads at ~900 GB/s, against 576-600 GB/s for random bits (a read kernel over 134 MB and 1 GB; no gain left at
+resolution 1/64; `test/xe3_test/b70_repro/bw/bw.cpp`). Decode streams K and V once per call, so on that data it measured
+faster than a real cache allows, and the gap to `sdpa_micro` looked larger than it was: 32 / 32 heads, 8K keys, head 128,
+before this change, 240.1 against 192.0 us (1.25x) on the default data and 264.7 against 253.9 us (1.04x) at resolution
+1/1024 (`SDPA_BENCH_RES`), where reading the 134 MB of K and V takes 244 us. The numbers below use resolution 1/1024.
+
+Measured on B70 (GPU.1 pinned at 1800 MHz; one cliloader process per case and side, 100 warm-ups + 400 calls, mean device
+time of the SDPA kernel, sides interleaved per case, 3 rounds, median, spread <= 0.6%), static Q / K / V, lower-right
+causal, us per call:
+
+| Case | before | this tiling | `sdpa_micro` (master) |
+|---|---|---|---|
+| head 64, 32 / 8 heads, 1K / 4K / 16K keys | 30.8 / 110.0 / 740.5 | 10.1 / 33.6 / 159.6 | 26.7 / 97.7 / 475.3 |
+| head 64, 32 / 32 heads, 4K / 16K | 184.7 / 739.4 | 42.6 / 230.9 | 119.2 / 481.3 |
+| head 128, 32 / 8 heads, 1K / 4K / 8K / 16K / 32K | 21.1 / 73.8 / 227.4 / 474.3 / 967.9 | 11.5 / 38.4 / 82.3 / 166.5 / 350.0 | 19.4 / 68.6 / 167.1 / 349.0 / 704.1 |
+| head 128, 28 / 4 heads, 1K / 4K / 16K | 21.2 / 73.7 / 471.0 | 11.5 / 38.5 / 155.4 | 19.4 / 68.6 / 333.2 |
+| head 128, 32 / 32 heads, 1K / 4K / 16K | 21.1 / 133.9 / 529.3 | 11.5 / 128.4 / 453.7 | 19.4 / 128.0 / 501.7 |
+| head 128, 40 / 8 heads, 4K; head 96, 32 / 32, 4K | 107.7; 123.8 | 78.6; 89.1 | 85.5; 100.4 |
+| head 128, 32 / 8, 4K: mask (non-causal); dynamic Q + K; dynamic + mask | 76.8; 74.9; 78.4 | 39.0; 39.4; 40.7 | 68.6; 71.3; 71.3 |
+| head 256, 32 / 8 heads, 4K / 16K | 223.2 / 925.7 | 78.4 / 312.6 | 88.8 / 380.9 |
+| head 256, 16 / 8 heads, 4K / 16K | 221.1 / 914.3 | 77.9 / 318.5 | 90.5 / 396.8 |
+| head 256, 8 / 4 heads, 1K / 2K / 4K / 8K / 16K | 40.0 / 74.9 / 145.3 / 443.7 / 890.9 | 21.3 / 37.5 / 69.2 / 142.6 / 292.6 | 18.0 / 34.0 / 65.9 / 175.3 / 373.9 |
+| head 256, 32 / 32 heads, 4K | 255.6 | 234.2 | 247.3 |
+| head 512, 16 / 2 heads, 1K / 4K / 16K | 88.3 / 338.2 / 1,623 | 37.8 / 133.2 / 521.7 | 53.9 / 152.6 / 604.3 |
+
+Over these 38 cases the tiling is 0.22-0.96x the table tile (never slower) and 0.34-1.19x `sdpa_micro` (geomean 0.65).
+It trails `sdpa_micro` only with few heads at head 256 and up to 4K keys: 8 / 4 heads (8 workgroups on 32 Xe cores) at
+1K / 2K / 4K keys, 1.19x (a 21 us kernel) / 1.10x / 1.05x; from 8K it is 0.78-0.81x. At 32 / 32 heads, head 128, 4K both
+read at the DRAM rate (1.003x). On the original kit's compressible data (32 / 32 and 28 / 4 heads, 8K keys) it went from
+242.0 / 144.3 to 154.2 / 74.0 us, `sdpa_micro` 198.1 / 134.2. With `SDPA_OCL_PLAIN_DECODE=0` every case gave the same
+output bits as the build before this change. Against the tile it replaces the outputs differ (another key order per
+workgroup), by the same margin as before: max |out - `sdpa_opt`| unchanged on the bench cases, against the host
+reference 3.0e-5-2.5e-4 on the decode test rows (the table tile 3.2e-5-2.5e-4).
+
+How it was chosen (tiling first with the `SDPA_OCL_KQ_*` / `SDPA_OCL_256GRF` overrides, then the loop flags with
+`SDPA_OCL_*` on a build with the tiling; same protocol, 2 rounds, 10-20 shapes, heads 64-512):
+- One query block and every subgroup on keys is what removes the gap; with it, 32-key subgroup tiles beat or matched
+  16-key ones at 256 GRF, and at 128 GRF the 32-key tile was 1.3-1.8x slower at `d_max` 128 / 256 (equal at 64). 64-key
+  tiles do not build (`kq_sg_tile_keys` is 16 or 32).
+- `PREFETCH_V` is the largest of the loop changes: at head 256 / 32 / 8 heads the tiling alone was 1.51-1.56x
+  `sdpa_micro`, with `PREFETCH_V` 1.16-1.22x, with the branchless softmax and the split barrier as well 1.02-1.03x, with
+  16 subgroups and the wide K read 0.82-0.88x. It costs where the call is short: at head 512 and 4K keys 16 subgroups
+  without any loop change were 0.67x `sdpa_micro` and with them 0.87x (but 1.11x against 0.86x at 16K), and the few-head
+  head-256 cases above are the same trade.
+- 16 subgroups beat 8 at `d_max` 128-512 (head 128, 32 / 8 heads, 4K: 0.56x against 0.67x `sdpa_micro`; head 256,
+  8 / 4 heads, 4K: 1.05x against 1.07x).
+- `CAUSAL_TILE_SKIP` made the tiling 1.40-1.75x slower. A prefetch of the next key tile's K ahead of the S*V
+  (`sdpa_micro`'s `PREFETCH_K`, a kernel change) gave 1-5% at `d_max` 64 and cost 6-25% at 256 and 10-27% with 16
+  subgroups at 128, so it was dropped and the kernel left as it was.
+
+Tests: `sdpa_gpu_plain_decode` (key counts ending inside a workgroup tile and inside a subgroup, 17 keys, GQA ratios 4
+and 7, heads 64 / 72 / 80 / 128 / 256 / 512, static and dynamic, with and without a mask, and one dynamic network running
+a prompt and then decode steps) and four decode rows of `smoke_sdpa_gpu_test` (batch 2, per-head mask, also through a
+saved and loaded blob), all against the host reference with Q in [-4, 4] (bound 4e-3). A build that drops the last
+16-key S*V block of every decode workgroup tile failed exactly the 22 decode rows that have keys there (0.038-0.10), and
+passed the 17-key row and `sdpa_gpu_causal_mask.decode_40q_10kv_444seq`, which have none.
 
 ### Kernel flow
 
@@ -1572,6 +1647,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_V_PREFETCH`, `_SM_BRANCHLESS`, `_MAX_SPLIT`, `_MASK_LAST` | PA PREFILL loop changes ("Paged-attention PREFILL tiling"): `0`/`1` forces each off/on |
 | `SDPA_OCL_V_PREFETCH_L3` | PA PREFILL V tile L3 prefetch (on at `d_max` 512): `0`/`1` forces it off/on; on replaces `PREFETCH_V` |
 | `SDPA_OCL_PLAIN_MIRROR`, `SDPA_OCL_PLAIN_TABLE_FLAGS` | Plain-SDPA f16 `d_max` 128 PREFILL ("Plain-SDPA PREFILL tiling"): `0`/`1` forces the table / the 256 x 128 tile; `0` drops the table tile's loop changes |
+| `SDPA_OCL_PLAIN_DECODE` | Plain-SDPA decode ("Plain-SDPA decode tiling"): `0` keeps the table tile (the jit before that change) |
 | `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
 | `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
@@ -2037,6 +2113,11 @@ Each needs its own measured change.
   256 x 128 tile, chosen in `SDPAOptImpl::execute()` by the runtime counts, would give dynamic Q + K the 0.75-0.95x of
   long shapes without the small-query loss. The K-read order the non-causal KQ branch gets from IGC ("Plain-SDPA causal
   tile skip") might also be reachable without the branch for the masked stages and other tilings (not tried).
+- Plain-SDPA decode ("Plain-SDPA decode tiling"): with few heads at head 256 and up to 4K keys it still trails
+  `sdpa_micro` (8 / 4 heads: 1.05-1.19x). There `PREFETCH_V` costs what it gains on long contexts, so a runtime gate on
+  the key count (one stage serves every count) might keep both; a key split or one workgroup per KV head (each query
+  head's workgroup reads its whole KV head now, as in `sdpa_micro`) would go past `sdpa_micro` on GQA. bf16, compressed
+  K / V, `d_max` 32 and Xe3 keep the table tile, unmeasured with this one.
 - `sdpa_ocl_decode` checks pages with the strict `% 64` rule. The relaxed `% 16` page rule of the
   MIXED kernel would give block reads to i8 heads 80, 96, 112 and f16 heads 48, 80.
 - A model that `k_token_major_readable()` turns down on Xe2 (alibi, scores output, adaptive R-KV, f32
