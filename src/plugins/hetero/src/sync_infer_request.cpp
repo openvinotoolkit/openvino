@@ -128,9 +128,19 @@ std::vector<ov::SoPtr<ov::IVariableState>> ov::hetero::InferRequest::query_state
 }
 
 void ov::hetero::InferRequest::infer() {
-    for (auto&& request : m_subrequests) {
-        OPENVINO_ASSERT(request);
-        request->infer();
+    for (size_t i = 0; i < m_subrequests.size(); ++i) {
+        OPENVINO_ASSERT(m_subrequests[i]);
+        m_subrequests[i]->infer();
+
+        for (const auto& conn : m_submodel_connections) {
+            if (conn.out_submodel_idx == i) {
+                auto out_tensor = m_subrequests[conn.out_submodel_idx]->get_tensor(conn.out_port);
+                auto in_tensor = m_subrequests[conn.in_submodel_idx]->get_tensor(conn.in_port);
+                if (out_tensor->get_shape() != in_tensor->get_shape()) {
+                    in_tensor->set_shape(out_tensor->get_shape());
+                }
+            }
+        }
     }
 }
 
