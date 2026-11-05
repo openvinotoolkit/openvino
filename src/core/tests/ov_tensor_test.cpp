@@ -784,21 +784,26 @@ TEST_F(OVTensorTest, readRangeRoiBlobStringTensor) {
     }
 }
 
-TEST_F(OVTensorTest, copyEmptyRoi) {
-    ov::Tensor parent{ov::element::f32, {1, 4, 8, 16}};
-    // ROI shapes 1x4x0x16, 1x4x0x4 and 1x4x8x0
-    const std::vector<std::pair<ov::Coordinate, ov::Coordinate>> rois{{{0, 0, 2, 0}, {1, 4, 2, 16}},
-                                                                      {{0, 0, 2, 4}, {1, 4, 2, 8}},
-                                                                      {{0, 0, 0, 4}, {1, 4, 8, 4}}};
-    for (const auto& [begin, end] : rois) {
-        ov::Tensor roi{parent, begin, end};
-        ov::Tensor dense{ov::element::f32, {1}};
+using EmptyRoiParams = std::pair<ov::Coordinate, ov::Coordinate>;
 
-        OV_ASSERT_NO_THROW(roi.copy_to(dense));
-        EXPECT_EQ(dense.get_shape(), roi.get_shape());
-        OV_ASSERT_NO_THROW(dense.copy_to(roi));
-    }
+struct OVTensorTestCopyEmptyRoi : ::testing::TestWithParam<EmptyRoiParams> {};
+
+TEST_P(OVTensorTestCopyEmptyRoi, copy_to_and_from_dense) {
+    const auto& [begin, end] = GetParam();
+    ov::Tensor parent{ov::element::f32, {1, 4, 8, 16}};
+    ov::Tensor roi{parent, begin, end};
+    ov::Tensor dense{ov::element::f32, {1}};
+
+    OV_ASSERT_NO_THROW(roi.copy_to(dense));
+    EXPECT_EQ(dense.get_shape(), roi.get_shape());
+    OV_ASSERT_NO_THROW(dense.copy_to(roi));
 }
+
+INSTANTIATE_TEST_SUITE_P(copy_tests_empty_roi,
+                         OVTensorTestCopyEmptyRoi,
+                         ::testing::Values(EmptyRoiParams{{0, 0, 2, 0}, {1, 4, 2, 16}},   // 1x4x0x16
+                                           EmptyRoiParams{{0, 0, 2, 4}, {1, 4, 2, 8}},    // 1x4x0x4
+                                           EmptyRoiParams{{0, 0, 0, 4}, {1, 4, 8, 4}}));  // 1x4x8x0
 
 TEST_F(OVTensorTest, createTensorWithZeroDimsCheckStride) {
     ov::Shape shape = {0, 0, 0, 0};
