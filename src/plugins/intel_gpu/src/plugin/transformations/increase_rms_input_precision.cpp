@@ -57,7 +57,7 @@ IncreasePrecisionForQwenVLMerger::IncreasePrecisionForQwenVLMerger() {
     auto down_proj = wrap_type<v0::MatMul>({aten_mul, any_input()}, type_matches(ov::element::f16) && consumers_count(1));
     auto down_proj_add = wrap_type<ov::op::v1::Add>({down_proj, any_input()}, type_matches(element::f16));
     auto aten_add = wrap_type<v1::Add>({attn_add, down_proj_add}, type_matches(element::f16));
-    auto rms_m = wrap_type<internal::RMS>({aten_add, wrap_type<v0::Constant>()}, type_matches(element::f16));
+    auto rms_m = wrap_type<ov::op::internal::RMS>({aten_add, wrap_type<v0::Constant>()}, type_matches(element::f16));
     auto aten_view = wrap_type<v1::Reshape>({rms_m, any_input()}, type_matches(ov::element::f16) && consumers_count(1));
     auto merger_mlp0 = wrap_type<v0::MatMul>({aten_view, any_input()}, type_matches(ov::element::f16) && consumers_count(1));
     auto merger_mlp0_add = wrap_type<v1::Add>({merger_mlp0, any_input()}, type_matches(element::f16));
@@ -69,7 +69,7 @@ IncreasePrecisionForQwenVLMerger::IncreasePrecisionForQwenVLMerger() {
         auto matmul = ov::as_type_ptr<v0::MatMul>(pattern_map.at(down_proj).get_node_shared_ptr());
         auto add_1 = ov::as_type_ptr<v1::Add>(pattern_map.at(down_proj_add).get_node_shared_ptr());
         auto add_2 = ov::as_type_ptr<v1::Add>(pattern_map.at(aten_add).get_node_shared_ptr());
-        auto rms = ov::as_type_ptr<internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
+        auto rms = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms_m).get_node_shared_ptr());
 
         if (!rms || !add_1 || !add_2 || !matmul || transformation_callback(rms)) {
             return false;

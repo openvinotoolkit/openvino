@@ -10,7 +10,7 @@
 
 namespace ov::intel_gpu {
 
-static void CreateMSDAOp(ProgramBuilder& p, const std::shared_ptr<op::internal::MSDA>& op) {
+static void CreateMSDAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MSDA>& op) {
     validate_inputs_count(op, {5});
     auto inputs = p.GetInputInfo(op);
 

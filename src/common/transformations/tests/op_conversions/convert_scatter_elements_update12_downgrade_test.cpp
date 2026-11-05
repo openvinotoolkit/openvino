@@ -18,9 +18,10 @@ using namespace ov;
 using namespace testing;
 
 namespace {
-using Reduction = ov::opset12::ScatterElementsUpdate::Reduction;
+using ScatterElementsReduction = ov::opset12::ScatterElementsUpdate::Reduction;
 
-std::shared_ptr<ov::Model> create_v12_model(const Reduction reduction_type, const bool use_init_value) {
+std::shared_ptr<ov::Model> create_scatter_elements_update_v12_model(const ScatterElementsReduction reduction_type,
+                                                                    const bool use_init_value) {
     const auto input = std::make_shared<ov::opset12::Parameter>(ov::element::f32, ov::Shape{1, 3, 100, 100});
     const auto indices = std::make_shared<ov::opset12::Parameter>(ov::element::i32, ov::Shape{1, 1, 5, 5});
     const auto updates = std::make_shared<ov::opset12::Parameter>(ov::element::f32, ov::Shape{1, 1, 5, 5});
@@ -38,7 +39,7 @@ std::shared_ptr<ov::Model> create_v12_model(const Reduction reduction_type, cons
     return std::make_shared<ov::Model>(seu->outputs(), ov::ParameterVector{input, indices, updates, axis});
 }
 
-std::shared_ptr<ov::Model> create_v3_model() {
+std::shared_ptr<ov::Model> create_scatter_elements_update_v3_model() {
     const auto input = std::make_shared<ov::opset3::Parameter>(ov::element::f32, ov::Shape{1, 3, 100, 100});
     const auto indices = std::make_shared<ov::opset3::Parameter>(ov::element::i32, ov::Shape{1, 1, 5, 5});
     const auto updates = std::make_shared<ov::opset3::Parameter>(ov::element::f32, ov::Shape{1, 1, 5, 5});
@@ -55,26 +56,26 @@ std::shared_ptr<ov::Model> create_v3_model() {
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_no_reduction_use_init_value) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    model = create_v12_model(Reduction::NONE, true);
-    model_ref = create_v3_model();
+    model = create_scatter_elements_update_v12_model(ScatterElementsReduction::NONE, true);
+    model_ref = create_scatter_elements_update_v3_model();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_no_reduction) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    model = create_v12_model(Reduction::NONE, false);
-    model_ref = create_v3_model();
+    model = create_scatter_elements_update_v12_model(ScatterElementsReduction::NONE, false);
+    model_ref = create_scatter_elements_update_v3_model();
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_reduction_use_init_value) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    model = create_v12_model(Reduction::MEAN, true);
+    model = create_scatter_elements_update_v12_model(ScatterElementsReduction::MEAN, true);
 }
 
 TEST_F(TransformationTestsF, ConvertScatterElementsUpdate12ToScatterElementsUpdate3_reduction) {
     manager.register_pass<ov::pass::ConvertScatterElementsUpdate12ToScatterElementsUpdate3>();
-    model = create_v12_model(Reduction::PROD, false);
+    model = create_scatter_elements_update_v12_model(ScatterElementsReduction::PROD, false);
 }

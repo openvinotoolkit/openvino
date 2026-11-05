@@ -59,13 +59,13 @@ ov::OutputVector lp_pool(const ov::frontend::onnx::Node& node) {
     return pooling::PoolingFactory(node).make_lp_pool(p_norm);
 }
 
-static bool register_multiple_translators(void) {
+static bool register_lp_pool_translators(void) {
     ONNX_OP_M("GlobalLpPool", OPSET_SINCE(1), ai_onnx::opset_1::global_lp_pool);
     ONNX_OP_M("LpPool", OPSET_IN(1), ai_onnx::opset_1::lp_pool);
     return true;
 }
 
-static bool registered = register_multiple_translators();
+static bool lp_pool_registered = register_lp_pool_translators();
 }  // namespace opset_1
 
 namespace opset_2 {

@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/infer_request.hpp"
 
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <string>
@@ -36,9 +37,9 @@ namespace {
 
 inline bool getPort(ov::Output<const ov::Node>& res_port,
                     const std::string& name,
-                    const std::vector<std::vector<ov::Output<const ov::Node>>>& vector_ports) {
-    for (const auto& ports : vector_ports) {
-        for (const auto& port : ports) {
+                    std::initializer_list<const std::vector<ov::Output<const ov::Node>>*> vector_ports) {
+    for (const auto* ports : vector_ports) {
+        for (const auto& port : *ports) {
             const auto& names = port.get_names();
             if (names.find(name) != names.end()) {
                 res_port = port;
@@ -74,7 +75,7 @@ void InferRequest::set_tensor(const ov::Output<ov::Node>& port, const Tensor& te
 void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        OPENVINO_ASSERT(::getPort(port, name, {_impl->get_inputs(), _impl->get_outputs()}),
+        OPENVINO_ASSERT(::getPort(port, name, {&_impl->get_inputs(), &_impl->get_outputs()}),
                         "Port for tensor name " + name + " was not found.");
         set_tensor(port, tensor);
     });
@@ -83,7 +84,7 @@ void InferRequest::set_tensor(const std::string& name, const Tensor& tensor) {
 void InferRequest::set_tensors(const std::string& name, const std::vector<Tensor>& tensors) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        OPENVINO_ASSERT(::getPort(port, name, {_impl->get_inputs()}),
+        OPENVINO_ASSERT(::getPort(port, name, {&_impl->get_inputs()}),
                         "set_tensors error. Input port for tensor name ",
                         name,
                         " was not found.");
@@ -188,7 +189,7 @@ Tensor InferRequest::get_tensor(const ov::Output<ov::Node>& port) {
 Tensor InferRequest::get_tensor(const std::string& name) {
     OV_INFER_REQ_CALL_STATEMENT({
         ov::Output<const ov::Node> port;
-        OPENVINO_ASSERT(::getPort(port, name, {_impl->get_inputs(), _impl->get_outputs()}),
+        OPENVINO_ASSERT(::getPort(port, name, {&_impl->get_inputs(), &_impl->get_outputs()}),
                         "Port for tensor name " + name + " was not found.");
         return get_tensor(port);
     });

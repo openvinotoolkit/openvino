@@ -26,7 +26,7 @@ namespace cldnn {
 namespace ocl {
 
 namespace {
-kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
+kernel_selector::concat_axis convert_kv_cache_axis(int64_t axis, size_t rank) {
     auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
     if (cldnn_axis >= static_cast<int64_t>(rank)) {
         OPENVINO_THROW("kv_cache axis exceeds number of dimensions");
@@ -448,7 +448,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
             params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
         }
 
-        params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
+        params.axis = convert_kv_cache_axis(axis, impl_param.get_output_layout().get_rank());
         params.kernelPerInput = true;
 
         const auto& in_offsets_map = impl_param.in_port_to_shape_info_offset; // [kv_past, kv_new_token, [beam_idx, beam_table_past]
@@ -575,7 +575,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
 
         const auto concat_axis = 2;
-        params.axis = convert_axis(concat_axis, impl_param.get_output_layout().get_rank());
+        params.axis = convert_kv_cache_axis(concat_axis, impl_param.get_output_layout().get_rank());
 
         const auto inputs_count = 1;
         const auto input_idx = is_scale ? 3 : 4; // scale or zp

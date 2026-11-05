@@ -50,8 +50,8 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<reord
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_TERNOCL(ocl::TernoclInt2WeightsReorderImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::ReorderImplementationManager, shape_types::dynamic_shape,
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::ReorderImplementationManager, shape_types::static_shape, not_in_shape_flow())
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::ReorderImplementationManager, shape_types::dynamic_shape,
             [](const program_node& node) {
                 const auto& in_layout = node.get_input_layout(0);
                 const auto& out_layout = node.get_output_layout(0);

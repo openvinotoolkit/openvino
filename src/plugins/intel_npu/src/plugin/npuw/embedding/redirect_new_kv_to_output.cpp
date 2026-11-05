@@ -16,7 +16,7 @@ namespace opp = ov::pass::pattern;
 namespace {
 
 // specific function that match subgraph appeared as result of lpt transformations
-auto match_down_up_convert_subgraph_after_lpt = [](const ov::Output<ov::Node>& input) {
+auto match_new_kv_down_up_convert_after_lpt = [](const ov::Output<ov::Node>& input) {
     auto upconvert = opp::wrap_type<ov::op::v0::Convert>({input}, opp::type_matches(ov::element::f32));
 
     auto upscale = opp::wrap_type<ov::op::v0::Constant>(opp::rank_equals(0));
@@ -52,13 +52,13 @@ public:
         // TODO: this matcher logic better to cover with unit-tests
         auto input0 = opp::wrap_type<ov::op::v0::Parameter>();
         auto input0_or =
-            std::make_shared<opp::op::Or>(ov::OutputVector{input0, match_down_up_convert_subgraph_after_lpt(input0)});
+            std::make_shared<opp::op::Or>(ov::OutputVector{input0, match_new_kv_down_up_convert_after_lpt(input0)});
 
         auto input1 = opp::any_input();
 
         auto kv_concat = opp::wrap_type<ov::op::v0::Concat>({input0_or, input1});
         auto result1 = opp::wrap_type<ov::op::v0::Result>(kv_concat);
-        auto result2 = opp::wrap_type<ov::op::v0::Result>(match_down_up_convert_subgraph_after_lpt(kv_concat));
+        auto result2 = opp::wrap_type<ov::op::v0::Result>(match_new_kv_down_up_convert_after_lpt(kv_concat));
 
         auto result_or = std::make_shared<opp::op::Or>(ov::OutputVector{result1, result2});
 

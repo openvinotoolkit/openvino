@@ -6,6 +6,10 @@
 # ClientApiLib is linked statically into openvino_auto_plugin.
 # IPF requires the dynamic CRT (/MD); static CRT toolchains disable IPF.
 
+if(CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 24)
+endif()
+
 set(_ipf_ef_dir "${CMAKE_CURRENT_SOURCE_DIR}/ipf/IPF_EF")
 
 if(NOT ENABLE_IPF_CLIENT_API)

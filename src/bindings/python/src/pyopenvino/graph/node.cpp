@@ -38,8 +38,8 @@ namespace py = pybind11;
 
 using PyRTMap = ov::Node::RTMap;
 
-PYBIND11_MAKE_OPAQUE(PyRTMap);
-PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+#include "pyopenvino/utils/opaque_rt_map.hpp"
+#include "pyopenvino/utils/opaque_tensor_vector.hpp"
 
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());

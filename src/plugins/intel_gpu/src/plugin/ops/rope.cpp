@@ -19,7 +19,7 @@ using RoPE = ov::op::internal::RoPE;
 
 namespace ov::intel_gpu {
 
-static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<op::internal::RoPE>& op) {
+static void CreateRoPEOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::RoPE>& op) {
     validate_inputs_count(op, {3, 4});
     auto inputs = p.GetInputInfo(op);
     const auto& config = op->get_config();

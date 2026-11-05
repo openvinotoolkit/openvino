@@ -46,7 +46,7 @@ static std::vector<ov::element::Type_t> supported_out_types = {
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<softmax>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::SoftmaxImplementationManager, shape_types::static_shape,
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::SoftmaxImplementationManager, shape_types::static_shape,
             [](const program_node& node) {
                 const auto& in_layout = node.get_input_layout(0);
                 const auto& out_layout = node.get_output_layout(0);
@@ -58,7 +58,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<softm
 
                 return one_of(out_layout.data_type, supported_out_types);
         })
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::SoftmaxImplementationManager, shape_types::dynamic_shape,
+        OV_GPU_CREATE_INSTANCE_OCL(cldnn::ocl::SoftmaxImplementationManager, shape_types::dynamic_shape,
             [](const program_node& node) {
                 const auto& in_layout = node.get_input_layout(0);
                 const auto& out_layout = node.get_output_layout(0);

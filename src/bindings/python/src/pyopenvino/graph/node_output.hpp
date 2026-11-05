@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 using PyRTMap = ov::Node::RTMap;
 
-PYBIND11_MAKE_OPAQUE(PyRTMap);
+#include "pyopenvino/utils/opaque_rt_map.hpp"
 
 // \brief Pybind11 subclass of RTMap used as the return type of ConstOutput::get_rt_info().
 //

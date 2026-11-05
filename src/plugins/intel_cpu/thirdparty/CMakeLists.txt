@@ -4,6 +4,10 @@
 
 project(intel_cpu_thirdparty)
 
+if(CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 24)
+endif()
+
 if(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()

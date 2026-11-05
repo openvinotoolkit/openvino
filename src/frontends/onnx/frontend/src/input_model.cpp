@@ -235,11 +235,11 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
     return ov::element::dynamic;
 }
 
-std::shared_ptr<Model> InputModel::decode() {
+std::shared_ptr<ov::Model> InputModel::decode() {
     return m_editor->decode();
 }
 
-std::shared_ptr<Model> InputModel::convert() {
+std::shared_ptr<ov::Model> InputModel::convert() {
     auto converted_model = m_editor->get_function();
     add_tensor_names(converted_model);
     reshape_model_inputs(converted_model);
@@ -504,7 +504,7 @@ std::vector<OutputEdge> InputModel::convert_place_to_output_edge(const std::vect
     return onnx_outputs;
 }
 
-void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
+void InputModel::add_tensor_names(std::shared_ptr<ov::Model>& model) {
     FRONT_END_GENERAL_CHECK(model, __FUNCTION__, " expects a pointer to model.");
 
     auto model_inputs = model->inputs();
@@ -526,7 +526,7 @@ void InputModel::add_tensor_names(std::shared_ptr<Model>& model) {
     }
 }
 
-void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
+void InputModel::reshape_model_inputs(std::shared_ptr<ov::Model>& model) {
     FRONT_END_GENERAL_CHECK(model, __FUNCTION__, " expects a pointer to model.");
 
     const auto& inputs = model->inputs();

@@ -12,7 +12,7 @@
 
 namespace ov::intel_gpu {
 
-static void CreateVLSDPAOp(ProgramBuilder& p, const std::shared_ptr<op::internal::VLSDPA>& op) {
+static void CreateVLSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::VLSDPA>& op) {
     validate_inputs_count(op, {4});
 
     auto inputs = p.GetInputInfo(op);

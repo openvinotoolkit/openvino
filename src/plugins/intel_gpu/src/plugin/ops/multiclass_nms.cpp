@@ -13,7 +13,7 @@
 namespace ov::intel_gpu {
 
 
-static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared_ptr<op::internal::MulticlassNmsIEInternal>& op) {
+static void CreateMulticlassNmsIEInternalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::MulticlassNmsIEInternal>& op) {
     validate_inputs_count(op, {2, 3});
 
     auto inputs = p.GetInputInfo(op);

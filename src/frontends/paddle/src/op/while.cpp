@@ -9,9 +9,8 @@
 
 namespace ov::frontend::paddle::op {
 
-using namespace default_opset;
-
 NamedOutputs while_(const NodeContext& node) {
+    using namespace default_opset;
     const auto data = node.get_ng_inputs("X");
     const auto cond = node.get_input("Condition");
     const auto sub_block = node.get_attribute<int32_t>("sub_block");

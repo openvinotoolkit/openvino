@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "intel_gpu/graph/program.hpp"
 #include "program_node.h"
 #include "primitive_inst.h"

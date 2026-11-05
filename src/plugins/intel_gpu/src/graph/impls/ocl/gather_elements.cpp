@@ -11,7 +11,7 @@
 namespace cldnn {
 namespace ocl {
 
-static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, size_t rank) {
+static inline kernel_selector::gather_elements_axis convert_gather_elements_axis(int64_t axis, size_t rank) {
     if (axis < 0) {
         axis += rank;
     }
@@ -71,7 +71,7 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
         auto params = get_default_params<kernel_selector::gather_elements_params>(impl_param, is_shape_agnostic);
 
         size_t rank = impl_param.get_output_layout().get_rank();
-        params.axis = convert_axis(primitive->axis, rank);
+        params.axis = convert_gather_elements_axis(primitive->axis, rank);
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         return params;

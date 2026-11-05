@@ -8,7 +8,7 @@
 
 namespace ov::intel_gpu {
 
-static void CreateGroupNormalizationOp(ProgramBuilder& p, const std::shared_ptr<op::v12::GroupNormalization>& op) {
+static void CreateGroupNormalizationOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v12::GroupNormalization>& op) {
     validate_inputs_count(op, {3});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);

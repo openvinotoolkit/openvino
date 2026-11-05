@@ -15,7 +15,7 @@ namespace {
 
 #ifdef __linux__
 
-struct LinuxCpuMapTestCase {
+struct LinuxFreqMapTestCase {
     int _processors;
     int _numa_nodes;
     int _sockets;
@@ -27,7 +27,7 @@ struct LinuxCpuMapTestCase {
 };
 
 class LinuxCpuMapFreqParserTests : public ov::test::TestsCommon,
-                                   public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
+                                   public testing::WithParamInterface<std::tuple<LinuxFreqMapTestCase>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
@@ -57,7 +57,7 @@ public:
     }
 };
 
-LinuxCpuMapTestCase freq_2sockets_112cores_hyperthreading = {
+LinuxFreqMapTestCase freq_2sockets_112cores_hyperthreading = {
     224,  // param[expected out]: total 224 logcial processors on this simulated platform
     2,    // param[expected out]: total 2 numa nodes on this simulated platform
     2,    // param[expected out]: total 2 sockets on this simulated platform
@@ -258,7 +258,7 @@ LinuxCpuMapTestCase freq_2sockets_112cores_hyperthreading = {
     },  // param[in]: The CPU frequency information table of this simulated platform
     {{"0-55,112-167"}, {"56-111,168-223"}},  // param[in]: The numa node information table of this simulated platform
 };
-LinuxCpuMapTestCase freq_2sockets_56cores_hyperthreading = {
+LinuxFreqMapTestCase freq_2sockets_56cores_hyperthreading = {
     110,
     2,
     2,
@@ -440,7 +440,7 @@ LinuxCpuMapTestCase freq_2sockets_56cores_hyperthreading = {
         {"28-55,84-111"},
     },
 };
-LinuxCpuMapTestCase freq_2sockets_48cores_hyperthreading = {
+LinuxFreqMapTestCase freq_2sockets_48cores_hyperthreading = {
     96,
     2,
     2,
@@ -528,7 +528,7 @@ LinuxCpuMapTestCase freq_2sockets_48cores_hyperthreading = {
     },
 
 };
-LinuxCpuMapTestCase freq_2sockets_48cores_hyperthreading_1 = {
+LinuxFreqMapTestCase freq_2sockets_48cores_hyperthreading_1 = {
     96,
     4,
     2,
@@ -621,7 +621,7 @@ LinuxCpuMapTestCase freq_2sockets_48cores_hyperthreading_1 = {
         {"36-47,84-95"},
     },
 };
-LinuxCpuMapTestCase freq_2sockets_24cores_hyperthreading = {
+LinuxFreqMapTestCase freq_2sockets_24cores_hyperthreading = {
     48,
     2,
     2,
@@ -672,7 +672,7 @@ LinuxCpuMapTestCase freq_2sockets_24cores_hyperthreading = {
         {"1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47"},
     },
 };
-LinuxCpuMapTestCase freq_2sockets_24cores_hyperthreading_1 = {
+LinuxFreqMapTestCase freq_2sockets_24cores_hyperthreading_1 = {
     48,
     4,
     2,
@@ -729,7 +729,7 @@ LinuxCpuMapTestCase freq_2sockets_24cores_hyperthreading_1 = {
         {"13,15,17,19,21,23,37,39,41,43,45,47"},
     },
 };
-LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading = {
+LinuxFreqMapTestCase freq_2sockets_20cores_hyperthreading = {
     40,
     2,
     2,
@@ -771,7 +771,7 @@ LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading = {
     },
     {{"0-9,20-29"}, {"10-19,30-39"}},
 };
-LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading_1 = {
+LinuxFreqMapTestCase freq_2sockets_20cores_hyperthreading_1 = {
     40,
     2,
     2,
@@ -813,7 +813,7 @@ LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading_1 = {
     },
     {},
 };
-LinuxCpuMapTestCase freq_2sockets_20cores = {
+LinuxFreqMapTestCase freq_2sockets_20cores = {
     20,
     2,
     2,
@@ -840,7 +840,7 @@ LinuxCpuMapTestCase freq_2sockets_20cores = {
     },
     {{"0-9"}, {"10-19"}},
 };
-LinuxCpuMapTestCase freq_1sockets_32cores_hyperthreading = {
+LinuxFreqMapTestCase freq_1sockets_32cores_hyperthreading = {
     64,
     1,
     1,
@@ -900,7 +900,7 @@ LinuxCpuMapTestCase freq_1sockets_32cores_hyperthreading = {
     },
     {{"0-63"}},
 };
-LinuxCpuMapTestCase freq_1sockets_16cores_hyperthreading = {
+LinuxFreqMapTestCase freq_1sockets_16cores_hyperthreading = {
     24,
     1,
     1,
@@ -930,7 +930,7 @@ LinuxCpuMapTestCase freq_1sockets_16cores_hyperthreading = {
     },
     {},
 };
-LinuxCpuMapTestCase freq_1sockets_16cores = {
+LinuxFreqMapTestCase freq_1sockets_16cores = {
     16,
     1,
     1,
@@ -974,7 +974,7 @@ LinuxCpuMapTestCase freq_1sockets_16cores = {
     },
     {{"0-15"}},
 };
-LinuxCpuMapTestCase freq_1sockets_16cores_1_hyperthreading = {
+LinuxFreqMapTestCase freq_1sockets_16cores_1_hyperthreading = {
     22,
     1,
     1,
@@ -1003,7 +1003,7 @@ LinuxCpuMapTestCase freq_1sockets_16cores_1_hyperthreading = {
     },
     {},
 };
-LinuxCpuMapTestCase freq_1sockets_12cores_hyperthreading = {
+LinuxFreqMapTestCase freq_1sockets_12cores_hyperthreading = {
     14,
     1,
     1,
@@ -1043,7 +1043,7 @@ LinuxCpuMapTestCase freq_1sockets_12cores_hyperthreading = {
     },
     {{"0-13"}},
 };
-LinuxCpuMapTestCase freq_1sockets_8cores_hyperthreading = {
+LinuxFreqMapTestCase freq_1sockets_8cores_hyperthreading = {
     16,
     1,
     1,
@@ -1087,7 +1087,7 @@ LinuxCpuMapTestCase freq_1sockets_8cores_hyperthreading = {
     },
     {},
 };
-LinuxCpuMapTestCase freq_1sockets_8cores_hyperthreading_1 = {
+LinuxFreqMapTestCase freq_1sockets_8cores_hyperthreading_1 = {
     16,
     1,
     1,
@@ -1131,7 +1131,7 @@ LinuxCpuMapTestCase freq_1sockets_8cores_hyperthreading_1 = {
     },
     {{"0-15"}},
 };
-LinuxCpuMapTestCase freq_1sockets_4cores = {
+LinuxFreqMapTestCase freq_1sockets_4cores = {
     4,
     1,
     1,
@@ -1152,7 +1152,7 @@ LinuxCpuMapTestCase freq_1sockets_4cores = {
     {},
 };
 
-LinuxCpuMapTestCase freq_1sockets_4cores_2 = {
+LinuxFreqMapTestCase freq_1sockets_4cores_2 = {
     0,
     0,
     0,

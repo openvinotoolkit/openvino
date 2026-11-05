@@ -531,7 +531,7 @@ std::string ONNXModelEditor::model_string() const {
     return m_pimpl->m_model_proto->SerializeAsString();
 }
 
-std::shared_ptr<Model> ONNXModelEditor::get_function() const {
+std::shared_ptr<ov::Model> ONNXModelEditor::get_function() const {
     return ov::frontend::onnx::detail::import_onnx_model(m_pimpl->m_model_proto,
                                                          m_model_path,
                                                          m_mmap_cache,
@@ -728,7 +728,7 @@ std::vector<std::string> ONNXModelEditor::get_output_ports(const EditorNode& nod
     return m_pimpl->m_edge_mapper.get_output_ports(node);
 }
 
-std::shared_ptr<Model> ONNXModelEditor::decode() {
+std::shared_ptr<ov::Model> ONNXModelEditor::decode() {
     return ov::frontend::onnx::detail::decode_to_framework_nodes(m_pimpl->m_model_proto,
                                                                  m_model_path,
                                                                  m_mmap_cache,

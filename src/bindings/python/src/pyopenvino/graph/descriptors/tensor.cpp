@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 using PyRTMap = ov::RTMap;
 
-PYBIND11_MAKE_OPAQUE(PyRTMap);
+#include "pyopenvino/utils/opaque_rt_map.hpp"
 
 void regclass_graph_descriptor_Tensor(py::module m) {
     py::class_<ov::descriptor::Tensor, std::shared_ptr<ov::descriptor::Tensor>> tensor(m, "DescriptorTensor");

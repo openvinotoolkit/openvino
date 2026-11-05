@@ -101,7 +101,7 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     auto nplus1 = make_shared<Add>(n, one_const_scalar);
     auto unique_vs_x = make_shared<Equal>(unsqueeze_unique_elements, unsqueeze_x);
     auto unique_vs_x_01 = make_shared<Select>(unique_vs_x, one_const_scalar, nplus1);
-    auto range_1nplus1 = make_shared<Range>(one_const_scalar, nplus1, one_const_scalar, element::i32);
+    auto range_1nplus1 = make_shared<opset10::Range>(one_const_scalar, nplus1, one_const_scalar, element::i32);
     auto unsqueeze_range_1nplus1 = make_shared<Unsqueeze>(range_1nplus1, zero_const);
     // 2. compute a mask with indices counting from one
     auto unique_vs_x_ind = make_shared<Multiply>(unique_vs_x_01, unsqueeze_range_1nplus1);
@@ -124,7 +124,7 @@ shared_ptr<Model> gen_model_ref(PartialShape input_shape, element::Type out_idx)
     // 2. compute positions where each element from x is located in unique elements vector
     // the position counts from 1
     auto mplus1 = make_shared<Add>(m, one_const_scalar);
-    auto range_1mplus1 = make_shared<Range>(one_const_scalar, mplus1, one_const_scalar, out_idx);
+    auto range_1mplus1 = make_shared<opset10::Range>(one_const_scalar, mplus1, one_const_scalar, out_idx);
     auto unsqueeze_range_1mplus1 = make_shared<Unsqueeze>(range_1mplus1, one_const);
     auto unique_vs_x_ind_orig = make_shared<Multiply>(unique_vs_x_orig_01, unsqueeze_range_1mplus1);
     auto output_idx_plus1 = make_shared<ReduceMax>(unique_vs_x_ind_orig, zero_const);

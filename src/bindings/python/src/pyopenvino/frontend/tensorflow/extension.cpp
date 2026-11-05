@@ -16,24 +16,26 @@
 
 namespace py = pybind11;
 
-using namespace ov::frontend::tensorflow;
+using TFConversionExtension = ov::frontend::tensorflow::ConversionExtension;
+template <typename OVOpType>
+using TFOpExtension = ov::frontend::tensorflow::OpExtension<OVOpType>;
 
 
 void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
-    py::class_<ConversionExtension, ConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> _ext(
+    py::class_<TFConversionExtension, TFConversionExtension::Ptr, ov::frontend::ConversionExtensionBase> _ext(
         m,
         "_ConversionExtensionTensorflow",
         py::dynamic_attr());
-    class PyConversionExtension : public ConversionExtension {
+    class PyConversionExtension : public TFConversionExtension {
     public:
         using Ptr = std::shared_ptr<PyConversionExtension>;
         using PyCreatorFunction = std::function<ov::OutputVector(const ov::frontend::NodeContext*)>;
         PyConversionExtension(const std::string& op_type, const PyCreatorFunction& f)
-            : ConversionExtension(op_type, [f](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+            : TFConversionExtension(op_type, [f](const ov::frontend::NodeContext& node) -> ov::OutputVector {
                   return f(static_cast<const ov::frontend::NodeContext*>(&node));
               }) {}
     };
-    py::class_<PyConversionExtension, PyConversionExtension::Ptr, ConversionExtension> ext(
+    py::class_<PyConversionExtension, PyConversionExtension::Ptr, TFConversionExtension> ext(
         m,
         "ConversionExtensionTensorflow",
         py::dynamic_attr());
@@ -44,7 +46,7 @@ void regclass_frontend_tensorflow_ConversionExtension(py::module m) {
 }
 
 void regclass_frontend_tensorflow_OpExtension(py::module m) {
-    py::class_<OpExtension<void>, std::shared_ptr<OpExtension<void>>, ConversionExtension> ext(
+    py::class_<TFOpExtension<void>, std::shared_ptr<TFOpExtension<void>>, TFConversionExtension> ext(
             m,
             "OpExtensionTensorflow",
             py::dynamic_attr());
@@ -56,7 +58,7 @@ void regclass_frontend_tensorflow_OpExtension(py::module m) {
                 for (const auto& it : attr_values_map) {
                     any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
-                return std::make_shared<OpExtension<void>>(fw_type_name, attr_names_map, any_map);
+                return std::make_shared<TFOpExtension<void>>(fw_type_name, attr_names_map, any_map);
             }), py::arg("fw_type_name"),
             py::arg("attr_names_map") = std::map<std::string, std::string>(),
             py::arg("attr_values_map") = std::map<std::string, ov::Any>());
@@ -69,7 +71,7 @@ void regclass_frontend_tensorflow_OpExtension(py::module m) {
                 for (const auto& it : attr_values_map) {
                     any_map[it.first] = Common::utils::py_object_to_any(it.second);
                 }
-                return std::make_shared<OpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
+                return std::make_shared<TFOpExtension<void>>(ov_type_name, fw_type_name, attr_names_map, any_map);
             }),
             py::arg("ov_type_name"),
             py::arg("fw_type_name"),

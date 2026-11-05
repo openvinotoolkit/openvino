@@ -15,6 +15,7 @@ set(OV_AUTO_BATCH_FUNC_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/behavior/ov_plugin/life_time.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/ov_plugin/properties_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/behavior/ov_plugin/remote.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/core_config.cpp
     ${CMAKE_CURRENT_LIST_DIR}/set_device_name.cpp
     ${CMAKE_CURRENT_LIST_DIR}/skip_tests_config.cpp
 )

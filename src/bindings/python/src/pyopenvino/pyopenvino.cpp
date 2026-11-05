@@ -82,7 +82,7 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
-PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+#include "pyopenvino/utils/opaque_tensor_vector.hpp"
 
 #ifdef Py_GIL_DISABLED
 PYBIND11_MODULE(_pyopenvino, m, py::mod_gil_not_used()) {

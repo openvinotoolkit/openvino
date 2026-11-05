@@ -153,6 +153,16 @@ In this case OpenVINO CMake scripts take `TBBROOT` environment variable into acc
     * `ON` is default.
 * `ENABLE_FASTER_BUILD` enables [precompiled headers] and [unity build] using CMake:
     * `OFF` is default.
+* `CMAKE_UNITY_BUILD` enables [unity build] for the whole project:
+    * `OFF` is default.
+    * Third-party code is merged in batches of 24 sources, OpenVINO code in batches of 4.
+    * Validated on Linux x86_64 with GCC. Targets that are built without unity are listed in
+      [cmake/unity_build.cmake](../../cmake/unity_build.cmake). Other sources must be unity-safe:
+      when a new source breaks a unity batch, fix the name collision in code (unique names for
+      file-local helpers, qualified names instead of relying on file-scope `using namespace`,
+      include guards in headers).
+    * Reduces clean build time, but a change to one source recompiles its whole batch, which lowers
+      compiler cache (ccache / sccache) hit rates.
 * `ENABLE_INTEGRITYCHECK` builds DLLs with [/INTEGRITYCHECK] flag:
     * `OFF` is default.
     * Available on MSVC compiler only.

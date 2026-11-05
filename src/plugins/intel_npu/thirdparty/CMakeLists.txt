@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 24)
+endif()
+
 #
 # zeroApi
 #

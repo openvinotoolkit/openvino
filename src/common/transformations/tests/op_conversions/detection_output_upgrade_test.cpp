@@ -22,8 +22,8 @@ using namespace ov;
 using namespace testing;
 
 namespace {
-void create_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>& attrs_v1_vector,
-                               std::vector<opset8::DetectionOutput::Attributes>& attrs_v8_vector) {
+void create_upgrade_attributes_vectors(std::vector<opset1::DetectionOutput::Attributes>& attrs_v1_vector,
+                                       std::vector<opset8::DetectionOutput::Attributes>& attrs_v8_vector) {
     // initialize attributes affecting shape inference
     // others remain by default
     for (int keep_top_k : {10, -1}) {
@@ -58,7 +58,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
     Dimension priors_batch_size = N;
     Dimension num_classes = 23;
 
-    create_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
+    create_upgrade_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
     ASSERT_TRUE(attrs_v1_vector.size() == attrs_v8_vector.size()) << "Sizes of attribute test vectors must be equal";
     for (size_t ind = 0; ind < attrs_v1_vector.size(); ++ind) {
         std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
@@ -121,7 +121,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
     Dimension priors_batch_size = N;
     Dimension num_classes = 23;
 
-    create_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
+    create_upgrade_attributes_vectors(attrs_v1_vector, attrs_v8_vector);
     ASSERT_TRUE(attrs_v1_vector.size() == attrs_v8_vector.size()) << "Sizes of attribute test vectors must be equal";
     for (size_t ind = 0; ind < attrs_v1_vector.size(); ++ind) {
         std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);

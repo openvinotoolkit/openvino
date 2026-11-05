@@ -41,11 +41,11 @@ ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v12::ScatterElementsUpdate>(data, indices, updates, axis_node, reduction_ov)};
 }
 
-static bool register_multiple_translators(void) {
+static bool register_scatter_elements_translators(void) {
     ONNX_OP_M("ScatterElements", OPSET_SINCE(1), ai_onnx::opset_1::scatter_elements);
     ONNX_OP_M("Scatter", OPSET_SINCE(1), ai_onnx::opset_1::scatter_elements);
     return true;
 }
 
-static bool registered = register_multiple_translators();
+static bool scatter_elements_registered = register_scatter_elements_translators();
 }  // namespace ov::frontend::onnx::ai_onnx::opset_1

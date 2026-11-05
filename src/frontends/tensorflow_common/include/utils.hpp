@@ -53,7 +53,7 @@ ov::Output<ov::Node> create_same_type_const(const ov::Output<ov::Node>& same_typ
 }
 
 template <typename T>
-void get_const_input(const NodeContext& node, int input_index, std::vector<T>* vector) {
+void get_const_input(const frontend::NodeContext& node, int input_index, std::vector<T>* vector) {
     auto input_size = static_cast<int>(node.get_input_size());
     auto node_name = node.get_name();
     auto node_type = node.get_op_type();
@@ -70,18 +70,18 @@ void get_const_input(const NodeContext& node, int input_index, std::vector<T>* v
                     " cannot be folded to Constant for node " + node_name + " of type " + node_type);
 }
 
-ov::op::PadType convert_tf_padding(const NodeContext& node, const std::string& tf_padding);
+ov::op::PadType convert_tf_padding(const frontend::NodeContext& node, const std::string& tf_padding);
 
-ov::OutputVector translate_convolution_op(const NodeContext& node, size_t spatial_dims_num);
+ov::OutputVector translate_convolution_op(const frontend::NodeContext& node, size_t spatial_dims_num);
 
-void fill_explicit_pads_vectors(const NodeContext& node,
+void fill_explicit_pads_vectors(const frontend::NodeContext& node,
                                 bool is_nhwc,
                                 size_t spatial_dims_num,
                                 const std::vector<int64_t>& tf_explicit_paddings,
                                 ov::CoordinateDiff& pads_begin,
                                 ov::CoordinateDiff& pads_end);
 
-void default_op_checks(const NodeContext& node,
+void default_op_checks(const frontend::NodeContext& node,
                        size_t min_input_size,
                        const std::vector<std::string>& supported_ops,
                        bool supported_complex = false);
@@ -90,7 +90,7 @@ ov::Output<Node> get_elements_number_1d(const Output<Node>& output,
                                         ov::element::Type output_type,
                                         ov::pass::NodeRegistry& rg);
 
-ov::op::PadMode convert_padding_mode(const NodeContext& node, const std::string& padding_mode);
+ov::op::PadMode convert_padding_mode(const frontend::NodeContext& node, const std::string& padding_mode);
 
 Output<Node> compute_subgraph_scalar_rank(const Output<Node>& output,
                                           element::Type output_type,

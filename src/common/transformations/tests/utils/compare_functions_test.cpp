@@ -471,7 +471,7 @@ TEST(TransformationTests, ReadValueNegativeDifferentMax) {
         using namespace opset5;
 
         auto input1 = std::make_shared<Parameter>(element::f16, Shape{15, 20, 3});
-        auto node = std::make_shared<ReadValue>(input1, variable_id);
+        auto node = std::make_shared<opset5::ReadValue>(input1, variable_id);
 
         return std::make_shared<Model>(OutputVector{node}, ParameterVector{input1});
     };
@@ -631,7 +631,7 @@ TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
         using namespace opset5;
 
         auto input1 = std::make_shared<Parameter>(t, Shape{15, 20, 3});
-        auto node = std::make_shared<ReadValue>(input1, "1");
+        auto node = std::make_shared<opset5::ReadValue>(input1, "1");
 
         return std::make_shared<Model>(OutputVector{node}, ParameterVector{input1});
     };

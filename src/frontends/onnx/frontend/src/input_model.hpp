@@ -60,8 +60,8 @@ public:
     ov::frontend::Place::Ptr add_output(const ov::frontend::Place::Ptr& place) override;
     void remove_output(const ov::frontend::Place::Ptr& place) override;
 
-    std::shared_ptr<Model> decode();
-    std::shared_ptr<Model> convert();
+    std::shared_ptr<ov::Model> decode();
+    std::shared_ptr<ov::Model> convert();
 
     void cut_and_add_new_input(const ov::frontend::Place::Ptr& place,
                                const std::string& new_name_optional = "") override;
@@ -84,10 +84,10 @@ private:
     bool is_correct_place(const ov::frontend::Place::Ptr& place) const;
 
     std::unordered_map<std::string, std::unordered_set<std::string>> m_additional_tensor_names;
-    void add_tensor_names(std::shared_ptr<Model>& model);
+    void add_tensor_names(std::shared_ptr<ov::Model>& model);
 
     std::unordered_map<std::string, ov::PartialShape> m_inputs_to_reshape;
-    void reshape_model_inputs(std::shared_ptr<Model>& model);
+    void reshape_model_inputs(std::shared_ptr<ov::Model>& model);
 };
 
 // Forward declarations

@@ -11,7 +11,7 @@
 
 namespace ov::intel_gpu {
 
-static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_ptr<op::util::ScatterElementsUpdateBase>& op) {
+static void CreateScatterElementsUpdateOp(ProgramBuilder& p, const std::shared_ptr<ov::op::util::ScatterElementsUpdateBase>& op) {
     validate_inputs_count(op, {4});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
