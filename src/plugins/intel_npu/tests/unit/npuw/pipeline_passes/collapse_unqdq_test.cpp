@@ -57,6 +57,27 @@ std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type
                                        "unqdq_model");
 }
 
+// FakeQuantize -> Convert(u16) -> Convert(f32) -> Multiply(scale), i.e. the zero point is already dropped.
+// The quantizer is an identity (zp == 0) only when input_low == output_low * scale and
+// input_high == output_high * scale.
+std::shared_ptr<ov::Model> build_unqdq_model_without_zp(float input_low_value) {
+    constexpr float scale_value = 0.5f;
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto input_low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {input_low_value});
+    auto input_high = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {255.0f * scale_value});
+    auto output_low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+    auto output_high = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {255.0f});
+    auto fake_quantize =
+        std::make_shared<ov::op::v0::FakeQuantize>(input, input_low, input_high, output_low, output_high, 256);
+    auto quantized_convert = std::make_shared<ov::op::v0::Convert>(fake_quantize, ov::element::u16);
+    auto dequantized_convert = std::make_shared<ov::op::v0::Convert>(quantized_convert, ov::element::f32);
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {scale_value});
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(dequantized_convert, scale);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(multiply)},
+                                       ov::ParameterVector{input},
+                                       "unqdq_without_zp_model");
+}
+
 std::shared_ptr<ov::Model> build_zero_point_subtract_model(bool zero_point_is_zero) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
     auto zero_point = std::make_shared<ov::op::v0::Convert>(
@@ -187,6 +208,30 @@ TEST(CollapseUNQDQPassTest, DropsEntireUnqdqChainFromModel) {
 
     const auto output_node = model->get_results().front()->input_value(0).get_node_shared_ptr();
     EXPECT_TRUE(ov::is_type<ov::op::v0::Parameter>(output_node));
+}
+
+TEST(CollapseUNQDQPassTest, DropsUnqdqChainWithoutZeroPointSubtract) {
+    const auto model = build_unqdq_model_without_zp(0.0f);
+
+    ov::npuw::CollapseUNQDQ pass;
+    pass.run_on_model(model);
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(count_ops<ov::op::v0::FakeQuantize>(model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v1::Multiply>(model), 0u);
+    EXPECT_EQ(count_ops<ov::op::v0::Convert>(model), 0u);
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Parameter>(model->get_results().front()->input_value(0).get_node_shared_ptr()));
+}
+
+TEST(CollapseUNQDQPassTest, KeepsChainWithoutZeroPointSubtractWhenQuantizerIsNotIdentity) {
+    const auto model = build_unqdq_model_without_zp(-1.0f);
+
+    ov::npuw::CollapseUNQDQ pass;
+    pass.run_on_model(model);
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_EQ(count_ops<ov::op::v0::FakeQuantize>(model), 1u);
+    EXPECT_EQ(count_ops<ov::op::v1::Multiply>(model), 1u);
 }
 
 TEST(CollapseUNQDQPassTest, PreservesOriginalOutputElementType) {
