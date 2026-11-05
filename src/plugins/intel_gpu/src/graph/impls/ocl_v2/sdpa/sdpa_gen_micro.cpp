@@ -723,6 +723,11 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h128 : &xehpc_h128_pa;
         }
+        // On an integrated part a multi-token call whose key count is only known at run time is a
+        // prefill over a long context; do not size it as if it had no keys.
+        if (seq <= 0 && !thin_q && is_integrated) {
+            seq = std::numeric_limits<int>::max();
+        }
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
@@ -749,11 +754,8 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             }
             return &xehpc_q_h128;
         }
-        if (is_integrated) {
-            return &xehpc_q_h128_2nd_integrated;
-        }
         if (thin_q) {
-            return &xehpc_h128_2nd;
+            return is_integrated ? &xehpc_q_h128_2nd_integrated : &xehpc_h128_2nd;
         }
         if (seq <= 32) {
             return &xehpc_h128_s32;
@@ -1143,11 +1145,11 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     shim_options.useTileOps = true;
     shim_options.decorator = "kq";
 
-    kd.code->jit += generateShim(gemms[kq_id], micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(gemms[kq_id], micro::HostLanguage::OpenCL_C, shim_options);
 
     shim_options.microkernelID++;
     shim_options.decorator = "vs";
-    kd.code->jit += generateShim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
     bool need_256_grf = false;
     if (gemms[kq_id].grfMin > 128 || gemms[vs_id].grfMin > 128) {
@@ -1161,11 +1163,11 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     if (!m_is_prefill && !m_is_gqa_single_token) {
         shim_options.microkernelID++;
         shim_options.decorator = "kcq";
-        kd.code->jit += generateShim(gemms[kcq_id], micro::HostLanguage::OpenCL_C, shim_options);
+        kd.code->jit += micro::generate_shim(gemms[kcq_id], micro::HostLanguage::OpenCL_C, shim_options);
 
         shim_options.microkernelID++;
         shim_options.decorator = "vcs";
-        kd.code->jit += generateShim(gemms[vcs_id], micro::HostLanguage::OpenCL_C, shim_options);
+        kd.code->jit += micro::generate_shim(gemms[vcs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
         if (!need_256_grf && (gemms[kcq_id].grfMin > 128 || gemms[vcs_id].grfMin > 128)) {
             kd.code->options += " -cl-intel-256-GRF-per-thread";

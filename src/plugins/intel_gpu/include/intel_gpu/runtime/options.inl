@@ -144,3 +144,5 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, gr_force_scalar, false, "GatedResidual: us
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, gr_pd_min_rows, -1, "GatedResidual: a compressed READ dequantizes its weights into f16 scratch above this many rows; -1 keeps the default of 5 rows per EU")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, gr_q_scratch_limit_mb, 256, "GatedResidual: Rbar scratch limit in MB of the compressed 3-dispatch READ; above it the single READ kernel runs")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable level-zero command list through record and replay for all (static and dynamic) models. Feature is work in progress and may produce incorrect results.")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_types, std::vector<std::string>{}, "Space separated list of layer types to force FP32 precision; PASSTHROUGH_OPS selects data movement types (no automatic propagation)")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::string>{}, "Space separated list of layer name substrings to force FP32 precision (AND with layer_types if both set)")
