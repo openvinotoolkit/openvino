@@ -980,6 +980,15 @@ TEST(type_prop, group_query_attention_query_seqlens_invalid) {
     OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(mismatched_kv, 6, 2, 1.0f, false, false),
                     ov::NodeValidationFailure,
                     HasSubstr("query_seqlens requires key/value sequence_length to equal query's"));
+
+    // ORT's CheckQuerySeqlens: a non-windowed cache must hold the whole padded chunk (sequence_length=4 here).
+    auto undersized_capacity = make_gqa_query_seqlens_args();
+    undersized_capacity[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    undersized_capacity[4] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    undersized_capacity[6] = op::v0::Constant::create(element::i32, Shape{}, {2});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(undersized_capacity, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("requires the KV cache capacity"));
 }
 
 }  // namespace testing
