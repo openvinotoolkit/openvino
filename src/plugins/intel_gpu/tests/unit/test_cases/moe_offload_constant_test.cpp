@@ -213,8 +213,30 @@ TEST(moe_offload_constant, partial_upload_uses_preferred_allocation_type) {
                                                  layout);
 
     ASSERT_TRUE(desc.enabled);
+    ASSERT_FALSE(desc.upload_shape.empty());
+    EXPECT_EQ(desc.get_resident_expert_num(), desc.upload_shape[0]);
+    EXPECT_GT(desc.get_resident_expert_num(), 0U);
     EXPECT_LT(desc.upload_bytes, layout.bytes_count());
     EXPECT_EQ(desc.memory->get_allocation_type(), engine.get_preferred_memory_allocation_type());
+}
+
+TEST(moe_offload_constant, partial_upload_descriptor_validates_resident_expert_count) {
+    PartialUploadDesc desc;
+    EXPECT_EQ(desc.get_resident_expert_num(), 0U);
+
+    desc.enabled = true;
+    EXPECT_THROW(desc.get_resident_expert_num(), ov::AssertFailure);
+    desc.upload_shape = {0, 128};
+    EXPECT_THROW(desc.get_resident_expert_num(), ov::AssertFailure);
+    if (std::numeric_limits<size_t>::max() > std::numeric_limits<uint32_t>::max()) {
+        desc.upload_shape = {static_cast<size_t>(std::numeric_limits<uint32_t>::max()) + 1, 128};
+        EXPECT_THROW(desc.get_resident_expert_num(), ov::AssertFailure);
+    }
+
+    desc.upload_shape = {2, 128};
+    EXPECT_EQ(desc.get_resident_expert_num(), 2U);
+    desc.enabled = false;
+    EXPECT_EQ(desc.get_resident_expert_num(), 0U);
 }
 
 TEST(moe_offload_constant, gemm2_moe_is_not_otd_capable_and_not_discounted) {

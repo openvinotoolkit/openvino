@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 
@@ -43,6 +44,16 @@ struct PartialUploadDesc {
     cldnn::memory::ptr memory = nullptr;
     ov::Shape upload_shape;
     size_t upload_bytes = 0;
+
+    uint32_t get_resident_expert_num() const {
+        if (!enabled)
+            return 0;
+
+        OPENVINO_ASSERT(!upload_shape.empty() && upload_shape[0] > 0 &&
+                            upload_shape[0] <= std::numeric_limits<uint32_t>::max(),
+                        "Enabled partial upload requires a positive resident expert count representable as uint32_t");
+        return static_cast<uint32_t>(upload_shape[0]);
+    }
 };
 
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op);
