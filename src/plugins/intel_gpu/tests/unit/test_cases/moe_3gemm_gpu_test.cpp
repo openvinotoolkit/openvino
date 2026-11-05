@@ -61,7 +61,7 @@ TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
     weights_path = std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".bin");
     std::ofstream file(weights_path, std::ios::binary);
     ASSERT_TRUE(file.is_open());
-    std::vector<size_t> offsets(9);
+    std::vector<size_t> offsets(moe_3gemm_fused_compressed::serialized_weight_offset_count);
     size_t file_offset = 0;
     for (size_t part = 0; part < (shared ? 2U : 1U); ++part) {
         const bool routed = part == 0;
@@ -91,8 +91,9 @@ TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
                 stream.finish();
                 const std::string name = "weight_" + std::to_string(part) + "_" +
                                          std::to_string(projection) + "_" + std::to_string(kind);
-                if (routed) {
-                    offsets[kind * 3 + projection] = file_offset;
+                // Only the routed weights are streamed from the file; scales and zero points stay resident
+                if (routed && kind == 0) {
+                    offsets[projection] = file_offset;
                     mem_lock<uint8_t, mem_lock_type::read> bytes(full, stream);
                     file.write(reinterpret_cast<const char*>(bytes.data()), full_layout.bytes_count());
                     ASSERT_TRUE(file.good());

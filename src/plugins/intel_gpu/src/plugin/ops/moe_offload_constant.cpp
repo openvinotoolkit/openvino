@@ -5,11 +5,14 @@
 #include "moe_offload_constant.hpp"
 
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <limits>
 #include <unordered_set>
 #include <vector>
 
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
 namespace ov::intel_gpu {
@@ -76,6 +79,28 @@ MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant
     return MoEConstantRole::NotOffloadableMoE;
 }
 
+namespace {
+using moe_input_index = cldnn::moe_3gemm_fused_compressed::input_index;
+constexpr std::array<size_t, 3> routed_weight_inputs = {static_cast<size_t>(moe_input_index::weight_0),
+                                                        static_cast<size_t>(moe_input_index::weight_1),
+                                                        static_cast<size_t>(moe_input_index::weight_2)};
+
+bool is_routed_weight_input(size_t index) {
+    return std::find(routed_weight_inputs.begin(), routed_weight_inputs.end(), index) != routed_weight_inputs.end();
+}
+
+// Offloaded experts are streamed from the weights file as stored, so the graph must consume the file bytes unchanged:
+// a constant whose data was converted, transposed or otherwise recomputed by the transformations has no file descriptor
+bool is_weights_file_view(const ov::op::v0::Constant& constant, size_t num_expert) {
+    if (!ov::weight_sharing::Extension::get_constant_source_buffer(constant)) {
+        return false;
+    }
+    const auto& shape = constant.get_shape();
+    // Each expert slice must start on a byte boundary (sub-byte weights)
+    return !shape.empty() && shape[0] == num_expert && (ov::shape_size(shape) * constant.get_element_type().bitwidth()) % (8 * num_expert) == 0;
+}
+}  // namespace
+
 bool is_moe_otd_eligible(const ov::Node* node) {
     std::vector<const ov::Node*> pending{node};
     std::unordered_set<const ov::Node*> visited;
@@ -84,14 +109,18 @@ bool is_moe_otd_eligible(const ov::Node* node) {
         pending.pop_back();
         if (!visited.insert(current).second)
             continue;
-        if (!is_otd_capable_moe(current) || current->get_input_size() <= ROUTED_INPUT_END)
+        if (!is_otd_capable_moe(current) || current->get_input_size() <= routed_weight_inputs.back())
             return false;
-        for (size_t index = ROUTED_INPUT_START; index <= ROUTED_INPUT_END; ++index) {
+        const auto num_expert = static_cast<size_t>(ov::as_type<const ov::op::internal::MOECompressed>(current)->get_config().num_expert);
+        for (const auto index : routed_weight_inputs) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(current->input_value(index).get_node_shared_ptr());
-            if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert)
+            if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert ||
+                !is_weights_file_view(*constant, num_expert))
                 return false;
-            // Propagate resident fallback across MoEs sharing routed constants.
+            // Propagate resident fallback across MoEs sharing routed weights.
             for (const auto& consumer : constant->get_output_target_inputs(0)) {
+                if (!is_routed_weight_input(consumer.get_index()))
+                    return false;
                 pending.push_back(consumer.get_node());
             }
         }
@@ -104,12 +133,22 @@ bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op
         return false;
     const auto consumers = op->get_output_target_inputs(0);
     return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
-        return is_moe_otd_eligible(consumer.get_node());
+        return is_routed_weight_input(consumer.get_index()) && is_moe_otd_eligible(consumer.get_node());
     });
 }
 
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
     return get_moe_constant_role(op) != MoEConstantRole::NotMoE;
+}
+
+size_t get_moe_offload_slot_count(const ov::op::internal::MOECompressed& moe, const ExecutionConfig& config) {
+    const size_t otd_ratio = config.get_offload_ratio();
+    const auto num_expert = static_cast<size_t>(moe.get_config().num_expert);
+    if (otd_ratio == 0 || otd_ratio > 100 || num_expert == 0 || !is_moe_otd_eligible(&moe)) {
+        return 0;
+    }
+    // otd_ratio is the % on disk; GPU-resident experts = max(1, total * (100 - ratio) / 100)
+    return std::max<size_t>(1, num_expert * (100 - otd_ratio) / 100);
 }
 
 uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio) {
@@ -183,8 +222,8 @@ PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
     PartialUploadDesc desc;
 
     const size_t otd_ratio = config.get_offload_ratio();
-    // Only routed expert weights are partially uploaded; shared experts stay fully resident.
-    // ratio=0 keeps all experts resident; positive ratios enable partial upload.
+    // Only the routed expert weights of an offloaded layer are partially uploaded:
+    // scales, zero points and shared experts stay fully resident.
     const bool partial_moe_const_upload = otd_ratio > 0 && is_moe_constant_offloadable(op);
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;

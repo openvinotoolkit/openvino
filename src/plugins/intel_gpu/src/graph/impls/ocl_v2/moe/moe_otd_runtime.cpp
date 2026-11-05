@@ -7,8 +7,7 @@
 #include <array>
 #include <chrono>
 #include <cstdlib>
-#include <cstring>
-#include <limits>
+#include <utility>
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
@@ -21,7 +20,6 @@ void OtdPerfCounters::dump() const {
     const auto loads = tensor_load_count.load(std::memory_order_relaxed);
     GPU_DEBUG_INFO << "[OTD_PERF] gpu_hits=" << hits << ", gpu_misses=" << misses << ", gpu_hit_rate=" << (total > 0 ? 100.0 * hits / total : 0.0) << "%"
                    << ", tensor_loads=" << loads << ", avg_disk_io_us=" << (loads > 0 ? disk_io_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
-                   << ", avg_transpose_us=" << (loads > 0 ? transpose_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
                    << ", avg_gpu_copy_us=" << (loads > 0 ? gpu_copy_ns.load(std::memory_order_relaxed) / 1000 / loads : 0)
                    << ", total_disk_io_ms=" << disk_io_ns.load(std::memory_order_relaxed) / 1000000
                    << ", total_gpu_copy_ms=" << gpu_copy_ns.load(std::memory_order_relaxed) / 1000000
@@ -47,218 +45,79 @@ OtdPerfCounters* get_perf_counters() {
     return &counters;
 }
 
-void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
-                              size_t offset_pos,
-                              const cldnn::layout& layout,
-                              std::vector<uint8_t>& payload,
-                              size_t per_expert_size) {
-    // Offset positions: 0-2 = weights (no transpose), 3-5 = scales, 6-8 = zero points.
-    // Within each group of 3: index % 3 == 2 means "down" variant.
-    const bool is_scale = (offset_pos >= 3 && offset_pos <= 5);
-    const bool is_zp = (offset_pos >= 6 && offset_pos <= 8);
-    if (!is_scale && !is_zp) {
-        return;
-    }
-
-    const bool is_down = (offset_pos % 3 == 2);
-    size_t oc = 0;
-    size_t ic = 0;
-    if (is_down) {
-        oc = static_cast<size_t>(config.hidden_size);
-        ic = static_cast<size_t>(config.inter_size);
-    } else {
-        oc = static_cast<size_t>(config.inter_size);
-        ic = static_cast<size_t>(config.hidden_size);
-    }
-
-    const size_t group_size = static_cast<size_t>(config.group_size);
-    size_t group_count = 1;
-    if (group_size != 0 && group_size != std::numeric_limits<size_t>::max()) {
-        OPENVINO_ASSERT(ic % group_size == 0, "Invalid group_size for OTD transpose: offset_pos=", offset_pos, ", ic=", ic, ", group_size=", group_size);
-        group_count = ic / group_size;
-    }
-
-    OPENVINO_ASSERT(oc > 0 && group_count > 0, "Invalid dims for OTD transpose: offset_pos=", offset_pos, ", oc=", oc, ", group_count=", group_count);
-
-    const size_t elem_count = oc * group_count;
-    if (is_scale) {
-        const size_t elem_size = static_cast<size_t>(cldnn::data_type_traits::size_of(layout.data_type));
-        OPENVINO_ASSERT(elem_size > 0, "Invalid scale element size for offset_pos=", offset_pos);
-        OPENVINO_ASSERT(elem_count * elem_size == per_expert_size,
-                        "Unexpected scale payload size for offset_pos=",
-                        offset_pos,
-                        ", expected=",
-                        elem_count * elem_size,
-                        ", got=",
-                        per_expert_size);
-
-        std::vector<uint8_t> transposed(per_expert_size, 0);
-        for (size_t o = 0; o < oc; o++) {
-            for (size_t g = 0; g < group_count; g++) {
-                const size_t src_elem_idx = o * group_count + g;
-                const size_t dst_elem_idx = g * oc + o;
-                std::memcpy(transposed.data() + dst_elem_idx * elem_size, payload.data() + src_elem_idx * elem_size, elem_size);
-            }
-        }
-        payload.swap(transposed);
-        return;
-    }
-
-    // ZP handling: u4 (packed 4-bit) requires unpack/transpose/repack;
-    // u8 (INT8) is 1 byte per element, transposed like scales.
-    const auto zp_et = ov::element::Type(layout.data_type);
-    const size_t zp_bitwidth = zp_et.bitwidth();
-    if (zp_bitwidth >= 8) {
-        // u8 or larger: transpose like scale (1+ bytes per element)
-        const size_t byte_per_elem = zp_bitwidth / 8;
-        OPENVINO_ASSERT(elem_count * byte_per_elem == per_expert_size,
-                        "Unexpected zp payload size for offset_pos=",
-                        offset_pos,
-                        ", expected=",
-                        elem_count * byte_per_elem,
-                        ", got=",
-                        per_expert_size);
-
-        std::vector<uint8_t> transposed(per_expert_size, 0);
-        for (size_t o = 0; o < oc; o++) {
-            for (size_t g = 0; g < group_count; g++) {
-                const size_t src_idx = o * group_count + g;
-                const size_t dst_idx = g * oc + o;
-                std::memcpy(transposed.data() + dst_idx * byte_per_elem, payload.data() + src_idx * byte_per_elem, byte_per_elem);
-            }
-        }
-        payload.swap(transposed);
-        return;
-    }
-
-    // u4 packed: 2 elements per byte
-    OPENVINO_ASSERT(elem_count % 2 == 0, "Unexpected odd element count for packed zp offset_pos=", offset_pos, ", elem_count=", elem_count);
-    OPENVINO_ASSERT(elem_count / 2 == per_expert_size,
-                    "Unexpected zp payload size for offset_pos=",
-                    offset_pos,
-                    ", expected=",
-                    elem_count / 2,
-                    ", got=",
-                    per_expert_size);
-
-    std::vector<uint8_t> unpacked(elem_count, 0);
-    for (size_t i = 0; i < per_expert_size; i++) {
-        const uint8_t byte = payload[i];
-        unpacked[2 * i] = static_cast<uint8_t>(byte & 0x0F);
-        unpacked[2 * i + 1] = static_cast<uint8_t>((byte >> 4) & 0x0F);
-    }
-
-    std::vector<uint8_t> transposed_unpacked(elem_count, 0);
-    for (size_t o = 0; o < oc; o++) {
-        for (size_t g = 0; g < group_count; g++) {
-            const size_t src_idx = o * group_count + g;
-            const size_t dst_idx = g * oc + o;
-            transposed_unpacked[dst_idx] = unpacked[src_idx];
-        }
-    }
-
-    std::vector<uint8_t> repacked(per_expert_size, 0);
-    for (size_t i = 0; i < per_expert_size; i++) {
-        repacked[i] = static_cast<uint8_t>((transposed_unpacked[2 * i] & 0x0F) | ((transposed_unpacked[2 * i + 1] & 0x0F) << 4));
-    }
-    payload.swap(repacked);
-}
-
 void fill_weights_memory(cldnn::stream& exec_stream,
                          const cldnn::MOECompressed::Config& config,
                          const std::vector<size_t>& weight_bin_offsets,
                          ParallelWeightReader& weight_reader,
-                         cldnn::moe_weights& wei_mem,
+                         cldnn::moe_weights& slots,
+                         const cldnn::moe_weights& sources,
                          const std::vector<uint32_t>& experts_list,
                          const std::vector<size_t>& lru_experts) {
-    struct tensor_fill_plan {
-        size_t per_expert_size = 0;
-        size_t src_offset = 0;
-        size_t dst_offset = 0;
-    };
-
     const auto num_expert = static_cast<size_t>(config.num_expert);
-
+    OPENVINO_ASSERT(num_expert > 0, "Invalid expert count");
     OPENVINO_ASSERT(weight_bin_offsets.size() == cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count, "Unexpected number of MOE weight offsets");
+    OPENVINO_ASSERT(experts_list.size() == lru_experts.size(), "Each loaded expert needs a resident slot");
 
-    static const std::array<const char*, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensor_names = {
-        {"gate_w", "up_w", "down_w", "gate_s", "up_s", "down_s", "gate_z", "up_z", "down_z"}};
-    const std::array<cldnn::memory_ptr, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> tensors_by_offset = {
-        {wei_mem.gate_w, wei_mem.up_w, wei_mem.down_w, wei_mem.gate_s, wei_mem.up_s, wei_mem.down_s, wei_mem.gate_z, wei_mem.up_z, wei_mem.down_z}};
+    static const std::array<const char*, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> weight_names = {{"gate_w", "up_w", "down_w"}};
+    const std::array<cldnn::memory_ptr, cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count> weight_slots = {{slots.gate_w, slots.up_w, slots.down_w}};
+    // {resident tensor with every expert, slot buffer}; the source is null for an absent or shared by all the experts tensor
+    const std::array<std::pair<cldnn::memory_ptr, cldnn::memory_ptr>, 6> param_slots = {{{sources.gate_s, slots.gate_s},
+                                                                                         {sources.up_s, slots.up_s},
+                                                                                         {sources.down_s, slots.down_s},
+                                                                                         {sources.gate_z, slots.gate_z},
+                                                                                         {sources.up_z, slots.up_z},
+                                                                                         {sources.down_z, slots.down_z}}};
 
     auto* perf = get_perf_counters();
-
     const size_t weight_file_size = weight_reader.file_size();
+    std::vector<uint8_t> payload;
 
-    size_t index = 0;
-    for (uint32_t expert : experts_list) {
-        auto make_tensor_fill_plan = [&](size_t base_offset, cldnn::memory_ptr mem, size_t expert_no, size_t lru_expert_no, const char* tensor_name) {
-            tensor_fill_plan plan;
+    for (size_t i = 0; i < experts_list.size(); i++) {
+        const size_t expert = experts_list[i];
+        const size_t slot = lru_experts[i];
+
+        // The weights are consumed exactly as stored in the weights file (checked at compile time)
+        for (size_t w = 0; w < weight_slots.size(); w++) {
+            const auto& mem = weight_slots[w];
             if (!mem) {
-                return plan;
+                continue;
             }
-            const auto total_bytes = mem->get_layout().bytes_count();
-            OPENVINO_ASSERT(num_expert > 0, "Invalid expert count");
-            plan.per_expert_size = total_bytes / num_expert;
-            plan.src_offset = base_offset + expert_no * plan.per_expert_size;
-            plan.dst_offset = lru_expert_no * plan.per_expert_size;
-            OPENVINO_ASSERT(plan.src_offset <= weight_file_size, "Invalid src_offset out of file: ", plan.src_offset, ", file_size=", weight_file_size);
-            OPENVINO_ASSERT(plan.per_expert_size <= weight_file_size - plan.src_offset,
+            const size_t per_expert_size = mem->get_layout().bytes_count() / num_expert;
+            const size_t src_offset = weight_bin_offsets[w] + expert * per_expert_size;
+            OPENVINO_ASSERT(src_offset <= weight_file_size && per_expert_size <= weight_file_size - src_offset,
                             "Read range out of file for tensor ",
-                            tensor_name,
+                            weight_names[w],
                             ": src_offset=",
-                            plan.src_offset,
+                            src_offset,
                             ", per_expert_size=",
-                            plan.per_expert_size,
+                            per_expert_size,
                             ", file_size=",
                             weight_file_size,
-                            ", base_offset=",
-                            base_offset,
                             ", expert=",
-                            expert_no);
-            return plan;
-        };
-
-        for (size_t offset_pos = 0; offset_pos < static_cast<size_t>(cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count); offset_pos++) {
-            auto plan =
-                make_tensor_fill_plan(weight_bin_offsets[offset_pos], tensors_by_offset[offset_pos], expert, lru_experts[index], tensor_names[offset_pos]);
-            std::vector<uint8_t> payload;
-
-            if (plan.per_expert_size != 0) {
-                payload.resize(plan.per_expert_size);
-                if (perf) {
-                    auto t0 = std::chrono::steady_clock::now();
-                    weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
-                    auto t1 = std::chrono::steady_clock::now();
-                    perf->disk_io_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
-                                               std::memory_order_relaxed);
-                } else {
-                    weight_reader.read(reinterpret_cast<char*>(payload.data()), plan.per_expert_size, plan.src_offset);
-                }
-            }
-
-            // Transpose + GPU copy
-            auto mem = tensors_by_offset[offset_pos];
-            if (mem && plan.per_expert_size != 0) {
-                if (perf) {
-                    auto t0 = std::chrono::steady_clock::now();
-                    maybe_transpose_scale_zp(config, offset_pos, mem->get_layout(), payload, plan.per_expert_size);
-                    auto t1 = std::chrono::steady_clock::now();
-                    mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
-                    auto t2 = std::chrono::steady_clock::now();
-                    perf->transpose_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
-                                                 std::memory_order_relaxed);
-                    perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()),
-                                                std::memory_order_relaxed);
-                    perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
-                } else {
-                    maybe_transpose_scale_zp(config, offset_pos, mem->get_layout(), payload, plan.per_expert_size);
-                    mem->copy_from(exec_stream, payload.data(), 0, plan.dst_offset, plan.per_expert_size, true);
-                }
+                            expert);
+            payload.resize(per_expert_size);
+            const auto t0 = std::chrono::steady_clock::now();
+            weight_reader.read(reinterpret_cast<char*>(payload.data()), per_expert_size, src_offset);
+            const auto t1 = std::chrono::steady_clock::now();
+            mem->copy_from(exec_stream, payload.data(), 0, slot * per_expert_size, per_expert_size, true);
+            if (perf) {
+                const auto t2 = std::chrono::steady_clock::now();
+                perf->disk_io_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
+                                           std::memory_order_relaxed);
+                perf->gpu_copy_ns.fetch_add(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()),
+                                            std::memory_order_relaxed);
+                perf->tensor_load_count.fetch_add(1, std::memory_order_relaxed);
             }
         }
 
-        index++;
+        // Scales and zero points are already in their final form (converted and reordered by the regular pipeline)
+        for (const auto& [source, slot_mem] : param_slots) {
+            if (!source) {
+                continue;
+            }
+            const size_t per_expert_size = source->get_layout().bytes_count() / num_expert;
+            slot_mem->copy_from(exec_stream, *source, expert * per_expert_size, slot * per_expert_size, per_expert_size, true);
+        }
     }
 }
 

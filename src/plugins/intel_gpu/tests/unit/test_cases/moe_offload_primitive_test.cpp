@@ -17,7 +17,7 @@ TEST(moe_offload_primitive_test, default_offload_fields) {
 
 TEST(moe_offload_primitive_test, construct_with_offload_params) {
     MOECompressed::Config config{};
-    std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
+    std::vector<size_t> offsets = {0, 100, 800};
     std::string path = "/path/to/weights.bin";
     size_t lru_num = 16;
 
@@ -29,16 +29,16 @@ TEST(moe_offload_primitive_test, construct_with_offload_params) {
         path,
         lru_num);
 
-    ASSERT_EQ(prim._otd.weight_bin_offsets.size(), 9U);
+    ASSERT_EQ(prim._otd.weight_bin_offsets.size(), cldnn::moe_3gemm_fused_compressed::serialized_weight_offset_count);
     ASSERT_EQ(prim._otd.weight_bin_offsets[0], 0U);
-    ASSERT_EQ(prim._otd.weight_bin_offsets[8], 800U);
+    ASSERT_EQ(prim._otd.weight_bin_offsets[2], 800U);
     ASSERT_EQ(prim._otd.weights_path, path);
     ASSERT_EQ(prim._otd.lru_expert_num, lru_num);
 }
 
 TEST(moe_offload_primitive_test, equality_with_offload_fields) {
     MOECompressed::Config config{};
-    std::vector<size_t> offsets = {0, 100, 200, 300, 400, 500, 600, 700, 800};
+    std::vector<size_t> offsets = {0, 100, 200};
 
     cldnn::moe_3gemm_fused_compressed prim1(
         "test_moe",
@@ -79,7 +79,7 @@ TEST(moe_offload_primitive_test, equality_with_offload_fields) {
     ASSERT_FALSE(prim1 == prim4);
 
     // Different offsets -> not equal
-    std::vector<size_t> offsets2 = {0, 100, 200, 300, 400, 500, 600, 700, 999};
+    std::vector<size_t> offsets2 = {0, 100, 999};
     cldnn::moe_3gemm_fused_compressed prim5(
         "test_moe",
         {cldnn::input_info("input0")},
