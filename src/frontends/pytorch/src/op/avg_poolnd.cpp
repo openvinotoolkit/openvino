@@ -77,8 +77,8 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
 
     // PyTorch 1D/2D ceil-mode pooling clips a kernel larger than an unpadded axis to the input, while AvgPool
     // requires it to fit. Excluded end padding of min(kernel, stride) - 1 makes it fit exactly for the extents
-    // PyTorch accepts. It adds no window starting inside the input when stride >= kernel; otherwise a surplus
-    // last window is sliced off.
+    // PyTorch accepts. Surplus trailing windows are sliced off, so the result does not depend on CEIL_TORCH
+    // dropping windows that start in the padding (plugins may downgrade it to CEIL).
     bool exclude_pad = !count_include_pad;
     auto pads_begin = pads;
     auto pads_end = pads;
@@ -94,30 +94,30 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
             if (kernel[i] > 1 && strides[i] > 1 && pads[i] == 0 && may_be_short) {
                 pads_end[i] = std::min(kernel[i], strides[i]) - 1;
                 extended = true;
-                if (strides[i] < kernel[i]) {
-                    // PyTorch has ceil((L - k) / s) + 1 windows here.
-                    slice_axes.push_back(static_cast<int64_t>(i + 2));
-                    slice_offsets.push_back(static_cast<int64_t>(2 * strides[i]) - static_cast<int64_t>(kernel[i]) - 1);
-                    slice_steps.push_back(static_cast<int64_t>(strides[i]));
-                }
+                // PyTorch has ceil((L - k) / s) + 1 windows, less one starting past the input.
+                slice_axes.push_back(static_cast<int64_t>(i + 2));
+                slice_offsets.push_back(static_cast<int64_t>(pads_end[i] + strides[i]) -
+                                        static_cast<int64_t>(kernel[i]));
+                slice_steps.push_back(static_cast<int64_t>(strides[i]));
             }
         }
     }
     std::vector<int64_t> explicit_pads(kernel.size() + 2, 0);
     bool pad_explicitly = false;
-    if (extended && !exclude_pad) {
-        // Included padding becomes explicit zeros, since the extra end padding must stay out of the divisor.
-        for (size_t i = 0; i < kernel.size(); ++i) {
-            if (pads[i] > 0) {
-                explicit_pads[i + 2] = static_cast<int64_t>(pads[i]);
-                pads_begin[i] = pads_end[i] = 0;
-                pad_explicitly = true;
-                // PyTorch drops a last window starting in the right padding, which AvgPool now sees as data.
-                slice_axes.push_back(static_cast<int64_t>(i + 2));
-                slice_offsets.push_back(static_cast<int64_t>(pads[i] + strides[i] - 1));
-                slice_steps.push_back(static_cast<int64_t>(strides[i]));
-            }
+    for (size_t i = 0; i < kernel.size() && extended; ++i) {
+        if (pads[i] == 0) {
+            continue;
         }
+        if (!exclude_pad) {
+            // Included padding becomes explicit zeros, since the extra end padding must stay out of the divisor.
+            explicit_pads[i + 2] = static_cast<int64_t>(pads[i]);
+            pads_begin[i] = pads_end[i] = 0;
+            pad_explicitly = true;
+        }
+        // PyTorch drops a last window starting in the right padding.
+        slice_axes.push_back(static_cast<int64_t>(i + 2));
+        slice_offsets.push_back(static_cast<int64_t>(pads[i] + strides[i] - 1));
+        slice_steps.push_back(static_cast<int64_t>(strides[i]));
     }
     std::shared_ptr<v0::Constant> slice_axes_const;
     Output<Node> window_count;
