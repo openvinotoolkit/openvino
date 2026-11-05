@@ -190,10 +190,10 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
                                                                                       attention_sinks},
                                                                      sparse_node->get_key_block_size());
         paged_sparse->set_friendly_name(sparse_node->get_friendly_name() + "/PagedSparseAttention");
-        paged_sparse->get_rt_info()[NUM_K_HEADS] = key_shape[1].get_length();
-        paged_sparse->get_rt_info()[K_HEAD_SIZE] = key_shape[3].get_length();
-        paged_sparse->get_rt_info()[NUM_V_HEADS] = value_shape[1].get_length();
-        paged_sparse->get_rt_info()[V_HEAD_SIZE] = value_shape[3].get_length();
+        paged_sparse->get_rt_info()["num_k_heads"] = key_shape[1].get_length();
+        paged_sparse->get_rt_info()["k_head_size"] = key_shape[3].get_length();
+        paged_sparse->get_rt_info()["num_v_heads"] = value_shape[1].get_length();
+        paged_sparse->get_rt_info()["v_head_size"] = value_shape[3].get_length();
 
         // [B_token, H * Sv] -> [B_token, 1, H, Sv] -> [B_token, H, 1, Sv].
         auto output_shape =
