@@ -10,6 +10,11 @@ The reusable workflows are referenced as `jobs` in several validation workflows.
 They are structured and function like [regular jobs](./overview.md#single-job-overview)
 with their own environment, runner, and steps to execute.
 
+The [BOM test workflow](../../../../.github/workflows/job_bom_tests.yml) runs
+after successful builds to compare component manifests with reviewed package
+layouts. See [Package BOM Tests](./bom_tests.md) for its checks and baseline
+update procedure.
+
 This document describes the setup used in the OpenVINO GitHub Actions.
 
 ## Workflows Organisation

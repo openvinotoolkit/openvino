@@ -1,0 +1,14 @@
+{
+  "component": "tbb",
+  "files": [
+    "runtime/3rdparty/tbb/TBB-LICENSE",
+    "runtime/3rdparty/tbb/bin/tbb12.dll",
+    "runtime/3rdparty/tbb/bin/tbb12_debug.dll",
+    "runtime/3rdparty/tbb/bin/tbbbind_2_5.dll",
+    "runtime/3rdparty/tbb/bin/tbbbind_2_5_debug.dll",
+    "runtime/3rdparty/tbb/bin/tbbmalloc.dll",
+    "runtime/3rdparty/tbb/bin/tbbmalloc_debug.dll",
+    "runtime/3rdparty/tbb/bin/tbbmalloc_proxy.dll",
+    "runtime/3rdparty/tbb/bin/tbbmalloc_proxy_debug.dll"
+  ]
+}

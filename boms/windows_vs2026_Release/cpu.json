@@ -1,0 +1,6 @@
+{
+  "component": "cpu",
+  "files": [
+    "runtime/bin/intel64/Release/openvino_intel_cpu_plugin.dll"
+  ]
+}

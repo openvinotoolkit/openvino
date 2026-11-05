@@ -1,0 +1,6 @@
+{
+  "component": "hetero",
+  "files": [
+    "runtime/lib/aarch64/libopenvino_hetero_plugin.so"
+  ]
+}

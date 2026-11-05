@@ -1,0 +1,6 @@
+{
+  "component": "ir",
+  "files": [
+    "runtime/bin/intel64/Debug/openvino_ir_frontendd.dll"
+  ]
+}

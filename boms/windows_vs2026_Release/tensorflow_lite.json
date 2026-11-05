@@ -1,0 +1,6 @@
+{
+  "component": "tensorflow_lite",
+  "files": [
+    "runtime/bin/intel64/Release/openvino_tensorflow_lite_frontend.dll"
+  ]
+}

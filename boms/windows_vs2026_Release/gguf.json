@@ -1,0 +1,6 @@
+{
+  "component": "gguf",
+  "files": [
+    "runtime/bin/intel64/Release/openvino_gguf_frontend.dll"
+  ]
+}

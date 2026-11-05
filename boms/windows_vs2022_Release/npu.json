@@ -1,0 +1,10 @@
+{
+  "component": "npu",
+  "files": [
+    "runtime/bin/intel64/Release/openvino_intel_npu_compiler.dll",
+    "runtime/bin/intel64/Release/openvino_intel_npu_compiler_loader.dll",
+    "runtime/bin/intel64/Release/openvino_intel_npu_plugin.dll",
+    "runtime/bin/intel64/Release/openvino_intel_npu_vm_runtime.dll",
+    "runtime/npu_compiler_version.txt"
+  ]
+}

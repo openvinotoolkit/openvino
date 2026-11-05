@@ -1,0 +1,25 @@
+{
+  "component": "c_samples",
+  "files": [
+    "samples/c/CMakeLists.txt",
+    "samples/c/build_samples.ps1",
+    "samples/c/build_samples_msvc.bat",
+    "samples/c/common/CMakeLists.txt",
+    "samples/c/common/opencv_c_wrapper/CMakeLists.txt",
+    "samples/c/common/opencv_c_wrapper/include/opencv_c_wrapper.h",
+    "samples/c/common/opencv_c_wrapper/src/bmp_reader.c",
+    "samples/c/common/opencv_c_wrapper/src/bmp_reader.h",
+    "samples/c/common/opencv_c_wrapper/src/opencv_c_wrapper.cpp",
+    "samples/c/common/sample_util/CMakeLists.txt",
+    "samples/c/common/sample_util/include/samples_util/path_util.h",
+    "samples/c/common/sample_util/src/path_util.c",
+    "samples/c/hello_classification/CMakeLists.txt",
+    "samples/c/hello_classification/README.md",
+    "samples/c/hello_classification/infer_result_util.c",
+    "samples/c/hello_classification/infer_result_util.h",
+    "samples/c/hello_classification/main.c",
+    "samples/c/hello_nv12_input_classification/CMakeLists.txt",
+    "samples/c/hello_nv12_input_classification/README.md",
+    "samples/c/hello_nv12_input_classification/main.c"
+  ]
+}

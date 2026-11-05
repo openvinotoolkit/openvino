@@ -1,0 +1,6 @@
+{
+  "component": "cpu",
+  "files": [
+    "runtime/lib/intel64/libopenvino_intel_cpu_plugin.so"
+  ]
+}
