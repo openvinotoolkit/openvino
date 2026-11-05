@@ -52,7 +52,7 @@ on:
         required: false
         default: false
       build-additional-python-packages:
-        description: 'Whether to build additional, i.e., non-system Python packages. Should have Python 3.11-3.13 installed'
+        description: 'Whether to build additional, i.e., non-system Python packages. Should have Python 3.11-3.15t installed'
         type: boolean
         required: false
         default: false
@@ -300,7 +300,7 @@ jobs:
         id: build_python_wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
-          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t"
+          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t" "3.15" "3.15t"
           do
             echo "Building Python API and wheels for Python ${py_version}"
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
@@ -317,7 +317,7 @@ jobs:
               CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
             fi
 
-            if [[ $py_version == "3.14t" ]]; then
+            if [[ $py_version == *t ]]; then
               CMAKE_OPTIONS+=" -DENABLE_GIL_PYTHON_API=OFF"
             fi
 
