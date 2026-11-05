@@ -31,12 +31,23 @@ static bool useDynamicQuantizationImpl(const MemoryDescPtr& weightDesc) {
     if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
         return false;
     }
-    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4;
+    return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4 ||
+           weightDesc->getPrecision() == element::u4;
 }
 
-bool GatherMatMulKleidiAIExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
-    return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
-           useDynamicQuantizationImpl(config.descs.at(ARG_WEI));
+bool GatherMatMulKleidiAIExecutor::supports(const GatherMatmulConfig& config) {
+    const auto& weiDesc = config.descs.at(ARG_WEI);
+    if (weiDesc->getPrecision() == element::f32) {
+        return true;
+    }
+    if (!useDynamicQuantizationImpl(weiDesc)) {
+        return false;
+    }
+    // u4 weights are only meaningful with zero-points (asymmetric kernels);
+    // i4/i8 weights go to the symmetric kernels and must not carry any.
+    const auto zpIt = config.descs.find(ARG_SRC_4);
+    const bool hasZeroPoints = zpIt != config.descs.end() && zpIt->second && !zpIt->second->empty();
+    return (weiDesc->getPrecision() == element::u4) == hasZeroPoints;
 }
 
 GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] const GatherMatmulAttrs& attrs,
@@ -56,6 +67,9 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] cons
 
     MemoryPtr m_weightsMemory = memory.at(ARG_WEI);
     MemoryPtr m_scalesMemory = nullptr;
+    MemoryPtr m_zeroPointsMemory = nullptr;
+    MemoryDescPtr scalesDesc = nullptr;
+    MemoryDescPtr zeroPointsDesc = nullptr;
 
     OPENVINO_ASSERT(weiMemoryDesc->isDefined(), "Weights memory descriptor is not defined");
     OPENVINO_ASSERT(SrcPrec == ov::element::f32, "Activation currently supported only in f32");
@@ -64,16 +78,32 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] cons
     bool isCompressedOp = weiMemoryDesc->getPrecision().is_integral();
     if (isCompressedOp) {
         const auto& scales = memory.at(ARG_SRC_3);
-        if (scales && !scales->getDesc().empty()) {
-            const auto& fullScalesShape = scales->getDesc().getShape().getStaticDims();
-            if (1 == fullScalesShape.size()) {
-                OPENVINO_THROW(" broadcastable scales shape not supported ");
-            } else {
-                m_scalesMemory = scales;
-            }
-        } else {
-            OPENVINO_THROW(" Scales cannot be empty for GatherMatmulCompressed op ");
+        OPENVINO_ASSERT(scales && !scales->getDesc().empty(), "Scales cannot be empty for GatherMatmulCompressed op");
+        OPENVINO_ASSERT(scales->getPrecision() == ov::element::f32,
+                        "KleidiAI GatherMatmul expects f32 scales, got ",
+                        scales->getPrecision());
+        // Scales arrive as [E, N, 1] (channel-wise) or [E, N, G] (group-wise).
+        const auto& fullScalesShape = scales->getDesc().getShape().getStaticDims();
+        OPENVINO_ASSERT(
+            fullScalesShape.size() >= 2 && fullScalesShape[0] == gather_axis_size && fullScalesShape[1] == N,
+            "Unexpected scales shape for GatherMatmulCompressed op");
+        size_t numGroups = 1;
+        for (size_t d = 2; d < fullScalesShape.size(); ++d) {
+            numGroups *= fullScalesShape[d];
         }
+        m_scalesMemory = scales;
+        const Shape paramShape = numGroups > 1 ? Shape({N, numGroups}) : Shape({N});
+        scalesDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, paramShape);
+        const auto zpIt = memory.find(ARG_SRC_4);
+        if (zpIt != memory.end() && zpIt->second && !zpIt->second->getDesc().empty()) {
+            const auto& zeroPoints = zpIt->second;
+            OPENVINO_ASSERT(zeroPoints->getDesc().getShape().getStaticDims() == fullScalesShape,
+                            "Zero-points and scales must have the same shape for GatherMatmulCompressed op");
+            m_zeroPointsMemory = zeroPoints;
+            zeroPointsDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(zeroPoints->getPrecision(), paramShape);
+        }
+        OPENVINO_ASSERT((weiPrec == ov::element::u4) == (m_zeroPointsMemory != nullptr),
+                        "u4 weights require zero-points; i4/i8 weights must be symmetric");
     }
     MemoryDescArgs memDescArgs;
     memDescArgs[ARG_SRC] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(SrcPrec, Shape({1, K}));
@@ -89,8 +119,6 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] cons
     if (isCompressedOp) {
         // set as uint64_max to enable dynamic quantization by default
         fcArgs.dynamicQuantizationGroupSize = std::numeric_limits<uint64_t>::max();
-        memDescArgs[ARG_WEI | ARG_ATTR_SCALES] =
-            creatorsMap.at(LayoutType::ncsp)->createSharedDesc(ov::element::f32, Shape({N}));
     }
 
     // As we call executors sequentially, execution-context can be shared
@@ -110,7 +138,12 @@ GatherMatMulKleidiAIExecutor::GatherMatMulKleidiAIExecutor([[maybe_unused]] cons
         if (isCompressedOp) {
             mArgs[ARG_WEI | ARG_ATTR_SCALES] =
                 split_horizontal(context->getEngine(), m_scalesMemory, 0, i, gather_axis_size, true);
-            mArgs[ARG_WEI | ARG_ATTR_SCALES]->redefineDesc(memDescArgs[ARG_WEI | ARG_ATTR_SCALES]);
+            mArgs[ARG_WEI | ARG_ATTR_SCALES]->redefineDesc(scalesDesc);
+            if (m_zeroPointsMemory) {
+                mArgs[ARG_WEI | ARG_ATTR_ZERO_POINTS] =
+                    split_horizontal(context->getEngine(), m_zeroPointsMemory, 0, i, gather_axis_size, true);
+                mArgs[ARG_WEI | ARG_ATTR_ZERO_POINTS]->redefineDesc(zeroPointsDesc);
+            }
         }
         mArgs[ARG_SRC] = std::make_shared<Memory>(context->getEngine(), memDescArgs[ARG_SRC]);
         memArgs.emplace_back(mArgs);
