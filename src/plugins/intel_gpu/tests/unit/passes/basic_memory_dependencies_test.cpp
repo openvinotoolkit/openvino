@@ -398,15 +398,22 @@ TEST(basic_memory_dependencies, onednn_sum_root_stays_in_pool) {
     };
     for (size_t i = 0; i < blocks; i++) {
         const auto n = std::to_string(i);
+        ASSERT_TRUE(net.get_program()->get_node("root" + n).can_share_buffer()) << "root" << n << " is kept out of the pool";
         ASSERT_FALSE(engine.is_the_same_buffer(*mem("root" + n), *mem("p2" + n))) << "p2" << n << " overwrites root" << n;
-        if (i == 0)
-            continue;
-        const auto prev = std::to_string(i - 1);
-        ASSERT_FALSE(engine.is_the_same_buffer(*mem("root" + n), *mem("root" + prev))) << "root" << n << " overwrites its input";
+        if (i > 0) {
+            const auto prev = std::to_string(i - 1);
+            ASSERT_FALSE(engine.is_the_same_buffer(*mem("root" + n), *mem("root" + prev))) << "root" << n << " overwrites its input";
+        }
+        // "blk" and "tail" write into root's buffer, so only other primitives show that the pool reused it.
         bool pooled = false;
-        for (const auto* id : {"root", "mid", "p", "p2"})
-            pooled = pooled || engine.is_the_same_buffer(*mem("root" + n), *mem(id + prev));
-        ASSERT_TRUE(pooled) << "root" << n << " is expected to reuse a buffer of block " << prev;
+        for (size_t j = 0; j < blocks; j++) {
+            for (const auto* id : {"root", "mid", "blk", "p", "p2", "tail"}) {
+                const auto other = id + std::to_string(j);
+                if (other != "root" + n && other != "blk" + n && other != "tail" + n)
+                    pooled = pooled || engine.is_the_same_buffer(*mem("root" + n), *mem(other));
+            }
+        }
+        ASSERT_TRUE(pooled) << "root" << n << " shares no buffer with another primitive";
     }
 
     net_ref.set_input_data("input", input_mem);

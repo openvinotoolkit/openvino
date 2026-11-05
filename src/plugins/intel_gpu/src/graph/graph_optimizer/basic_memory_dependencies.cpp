@@ -40,7 +40,7 @@ void basic_memory_dependencies::run(program& p) {
         }
 
         if (inplace_kv) {
-            // As for the oneDNN sum post-op: keep both ends of the alias out of pool sharing.
+            // The KV cache is written in place into its past buffer: keep both ends of the alias out of pool sharing.
             node->can_share_buffer(false);
             auto* root = &node->get_dependency(0);
             while (root->can_be_optimized() && !root->get_dependencies().empty()) {
