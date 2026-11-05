@@ -135,7 +135,22 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             }
         }
 
+        if (get_shape_type() == shape_types::dynamic_shape && !supports_shape_agnostic_impl(node)) {
+            LOG_AND_RETURN_FALSE(node);
+        }
+
         return is_supported_post_ops(node);
+    }
+
+    // The shape-agnostic matmul is built once with runtime dims. oneDNN post-op attributes are not created for
+    // dynamic nodes, so fused ops would be dropped; compressed / >2D weights and padded tensors are not handled.
+    static bool supports_shape_agnostic_impl(const program_node& node) {
+        const auto& fc_node = node.as<fully_connected>();
+        const auto fc_prim = fc_node.get_primitive();
+        if (fc_prim->compressed_weights || fc_prim->weights_rank != 2 || !node.get_fused_primitives().empty()) {
+            return false;
+        }
+        return !static_cast<bool>(fc_node.get_input_layout(0).data_padding) && !static_cast<bool>(fc_node.get_output_layout(0).data_padding);
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {

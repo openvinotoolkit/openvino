@@ -49,6 +49,28 @@ get_matmul_formats(size_t prim_input_size, bool weights_transposed = true) {
             weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab};
 }
 
+// Flatten [d0, ..., dn-2, K] to [M, K] (M = d0 * ... * dn-2). Trailing dummy dims beyond logical_rank are dropped.
+// oneDNN cannot create a matmul with a runtime batch dim that has to be broadcast against [1, N, K] weights,
+// so the shape-agnostic primitive is always built as a 2D matmul.
+static layout flatten_layout_to_2d(const layout& l, size_t logical_rank) {
+    auto pshape = l.get_partial_shape();
+    if (logical_rank > 0 && pshape.size() > logical_rank)
+        pshape.resize(logical_rank);
+    if (pshape.size() == 1)
+        pshape = ov::PartialShape{1, pshape[0]};
+    ov::Dimension m = 1;
+    for (size_t i = 0; i + 1 < pshape.size(); i++)
+        m = m * pshape[i];
+    return layout(ov::PartialShape{m, pshape[pshape.size() - 1]}, l.data_type, format::bfyx);
+}
+
+static bool has_runtime_dims(const dnnl::memory::desc& md) {
+    const auto dims = md.get_dims();
+    return std::any_of(dims.begin(), dims.end(), [](dnnl::memory::dim d) {
+        return d == DNNL_RUNTIME_DIM_VAL;
+    });
+}
+
 static layout trim_matmul_output_layout(layout output_layout, size_t prim_input_size) {
     if (prim_input_size < 4) {
         auto output_pshape = output_layout.get_partial_shape();
@@ -108,23 +130,23 @@ protected:
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
         std::unordered_map<int, dnnl::memory> args;
 
-        bool is_dynamic = instance.get_node().is_dynamic();
+        // Only a primitive created with runtime dims needs memory descriptors built from the actual shapes.
+        // Static impls (also used for dynamic nodes) keep the descriptors of _pd.
+        const bool is_runtime_dims_impl = has_runtime_dims(_pd.dnnl::primitive_desc_base::src_desc(0)) ||
+                                          has_runtime_dims(_pd.dnnl::primitive_desc_base::dst_desc(0));
 
         auto input_layout = instance.get_input_layout(0);
         auto output_layout = instance.get_output_layout();
 
         dnnl::memory::desc in0_md, out_md;
 
-        if (is_dynamic) {
-            const auto& input_shape = input_layout.get_shape();
-
-            auto target_fmt = get_matmul_formats(input_shape.size()).first;
-            auto trimmed_output = trim_matmul_output_layout(output_layout, input_shape.size());
-
-            in0_md = onednn::layout_to_memory_desc_dynamic(input_layout, target_fmt);
-            out_md = onednn::layout_to_memory_desc_dynamic(trimmed_output, target_fmt);
+        if (is_runtime_dims_impl) {
+            const auto input_size = instance.get_impl_params()->typed_desc<fully_connected>()->input_size;
+            input_layout = flatten_layout_to_2d(input_layout, input_size);
+            output_layout = flatten_layout_to_2d(output_layout, input_size);
+            in0_md = onednn::layout_to_memory_desc(input_layout, dnnl::memory::format_tag::ab);
+            out_md = onednn::layout_to_memory_desc(output_layout, dnnl::memory::format_tag::ab);
         } else {
-            // Static impl path: use primitive descriptor's memory descriptors
             in0_md = _pd.dnnl::primitive_desc_base::src_desc(0);
             out_md = _pd.dnnl::primitive_desc_base::dst_desc(0);
         }
@@ -229,6 +251,11 @@ protected:
             if (prim_weights_rank != 2) {
                 OPENVINO_THROW("[GPU] oneDNN fully_connected dynamic shape path supports only 2D weights (weights_rank=",
                                prim_weights_rank, ")");
+            }
+            if (prim_input_size > 2) {
+                input_layout = flatten_layout_to_2d(input_layout, prim_input_size);
+                output_layout = flatten_layout_to_2d(output_layout, prim_input_size);
+                prim_input_size = 2;
             }
         }
 
@@ -535,6 +562,12 @@ public:
 
 std::unique_ptr<primitive_impl> FullyConnectedImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<fully_connected>());
+    // A dynamic_shape impl must be built from dynamic params (runtime dims). Building it from a concrete shape would
+    // produce a fixed-shape primitive that is then cached and reused for other shapes.
+    // The shape-agnostic check is repeated here because validate_impl() is skipped for forced implementations.
+    if (get_shape_type() == shape_types::dynamic_shape &&
+        (ImplementationManager::get_shape_type(params) != shape_types::dynamic_shape || !supports_shape_agnostic_impl(node)))
+        return nullptr;
     return onednn::fully_connected_onednn::create(static_cast<const fully_connected_node&>(node), params);
 }
 
