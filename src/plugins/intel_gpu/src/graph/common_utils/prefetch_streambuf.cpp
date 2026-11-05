@@ -5,10 +5,10 @@
 #include "prefetch_streambuf.hpp"
 
 #include <algorithm>
-#include <execution>
+#include <cstring>
 
 #include "openvino/runtime/make_tensor.hpp"
-#include "openvino/util/parallel_io.hpp"
+#include "parallel_memcpy.hpp"
 
 namespace ov::intel_gpu {
 
@@ -42,10 +42,11 @@ std::streamsize PrefetchStreamBuf::xsgetn(char_type* dst, std::streamsize count)
     if (m_scheduler) {
         m_scheduler->advance(pos, pos + static_cast<size_t>(n));
     }
+    // A single thread cannot saturate memory bandwidth when the pages are already cached.
     if (static_cast<size_t>(n) >= ov::util::default_parallel_io_threshold) {
-        std::copy(std::execution::par, m_current, m_current + n, dst);
+        parallel_memcpy(dst, m_current, static_cast<size_t>(n));
     } else {
-        std::copy(m_current, m_current + n, dst);
+        std::memcpy(dst, m_current, static_cast<size_t>(n));
     }
     m_current += n;
     return n;
