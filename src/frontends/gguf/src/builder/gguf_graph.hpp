@@ -41,6 +41,7 @@ struct GgufOp {
 // a parsed GGUF file; consumed by GgufBuilderDecoder.
 struct GgufGraph {
     std::string architecture;
+    std::string component;
     ModelContract model_contract;
     ModelAdapters model_adapters;
     std::vector<GgufOp> nodes;

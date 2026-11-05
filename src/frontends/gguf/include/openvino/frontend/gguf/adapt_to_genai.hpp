@@ -55,7 +55,8 @@ public:
     /// token_type_ids [B,T] for bidirectional attention within each image. M-RoPE models
     /// receive position_ids [4,B,T], containing GenAI's sequence/time/height/width sections;
     /// callers supply all sections.
-    enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS };
+    /// EMBEDS_TO_LOGITS_TEXT uses scalar text position_ids [B,T], including for M-RoPE models.
+    enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS, EMBEDS_TO_LOGITS_TEXT };
 
     explicit AdaptToGenAI(InputMode mode = InputMode::IDS_TO_LOGITS) : m_mode(mode) {}
 

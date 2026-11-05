@@ -15,6 +15,7 @@
 
 #include "builder/arch/decoder_builder.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include "builder/api/metadata_store.hpp"
@@ -28,6 +29,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -38,13 +40,57 @@ using ov::element::i64;
 namespace {
 // Dynamic token length, used for model-input Parameters only.
 constexpr int64_t D = -1;
+
+DecoderParameters component_parameters(const BuildContext& context, DecoderParameters parameters) {
+    OPENVINO_ASSERT(context.component.empty() || context.component == "mtp",
+                    "[GGUF] unknown decoder component: ",
+                    context.component);
+    if (context.component.empty())
+        return parameters;
+    OPENVINO_ASSERT(
+        parameters.architecture == "qwen35" && parameters.hybrid.nextn_layers == 1 && parameters.dimensions.layers > 1,
+        "[GGUF] MTP requires a qwen35 checkpoint with exactly one NextN block and at least one target layer");
+    const auto embedding = "blk." + std::to_string(parameters.dimensions.layers - 1) + ".nextn.embed_tokens.weight";
+    OPENVINO_ASSERT(!context.weights->weights.count(embedding),
+                    "[GGUF] MTP requires shared token embeddings; a separate NextN embedding table is not supported");
+    parameters.hybrid.nextn_layers = 0;
+    parameters.layers.resize(parameters.dimensions.layers);
+    parameters.layers.back().recurrent = false;
+    parameters.model_contract.sequence_inputs = {"hidden_states"};
+    return parameters;
+}
 }  // namespace
 
 DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
-    : m_cfg(parameters, context.weights->weights),
+    : m_cfg(component_parameters(context, parameters), context.weights->weights),
       m_emit(context.weights->weights, context.arch, context.weights->translators),
-      m_kv(blocks::KvCachePlan::build(m_cfg)) {
-    m_cfg.configure_graph(m_emit, context.metadata);
+      m_kv(blocks::KvCachePlan::build(m_cfg)),
+      m_mtp(context.component == "mtp"),
+      m_export_hidden(parameters.architecture == "qwen35" && parameters.hybrid.nextn_layers > 0) {
+    if (m_mtp) {
+        auto metadata = detail::MetadataAccess::get(context.metadata).map;
+        const auto prefix = "blk." + std::to_string(m_cfg.n_layer - 1) + ".";
+        for (const auto& key : {"prism.hadamard.weight_names", "prism.hadamard.inverse_weight_names"}) {
+            const auto it = metadata.find(key);
+            if (it == metadata.end())
+                continue;
+            auto& names = std::get<std::vector<std::string>>(it->second);
+            names.erase(std::remove_if(names.begin(),
+                                       names.end(),
+                                       [&](const auto& name) {
+                                           return name != "token_embd.weight" && name != "output.weight" &&
+                                                  name.rfind(prefix, 0) != 0;
+                                       }),
+                        names.end());
+        }
+        const detail::MetadataStore store{metadata};
+        m_cfg.configure_graph(m_emit, GgufMetadata(store));
+    } else {
+        m_cfg.configure_graph(m_emit, context.metadata);
+    }
+    if (m_export_hidden)
+        m_emit.graph()->model_contract.sequence_outputs.push_back("last_hidden_state");
+    m_emit.graph()->component = context.component;
 }
 
 void DecoderBuilder::build_inputs() {
@@ -321,7 +367,16 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 std::string DecoderBuilder::build_head(const std::string& in) {
     // final norm + lm_head
     const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
-    std::string cur = norm(m_emit, in, "output_norm.weight", "result_norm", m_cfg.rms_eps);
+    const auto mtp_prefix = "blk." + std::to_string(m_cfg.n_layer - 1) + ".";
+    const auto norm_weight = m_mtp && m_emit.has_weight(mtp_prefix + "nextn.shared_head_norm.weight")
+                                 ? mtp_prefix + "nextn.shared_head_norm.weight"
+                                 : std::string("output_norm.weight");
+    std::string cur = norm(m_emit, in, norm_weight, "result_norm", m_cfg.rms_eps);
+    if (m_export_hidden) {
+        (*m_emit.graph()->values)["last_hidden_state"] = m_emit.value(cur);
+        m_emit.graph()->model_output_names.push_back("last_hidden_state");
+        cur = m_emit.add_op("GGML_OP_GET_ROWS", "result_norm_selected", {cur, "inp_out_ids"});
+    }
     if (m_cfg.embedding_model) {
         using namespace ov::op;
         auto embeddings = m_emit.value(cur);
@@ -345,7 +400,10 @@ std::string DecoderBuilder::build_head(const std::string& in) {
         return "embeddings";
     }
 
-    const std::string lm_head_w = m_emit.has_weight("output.weight") ? "output.weight" : "token_embd.weight";
+    const std::string lm_head_w = m_mtp && m_emit.has_weight(mtp_prefix + "nextn.shared_head_head.weight")
+                                      ? mtp_prefix + "nextn.shared_head_head.weight"
+                                  : m_emit.has_weight("output.weight") ? "output.weight"
+                                                                       : "token_embd.weight";
     m_emit.add_weight(lm_head_w);
     auto logits = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {lm_head_w, cur});
     // MiniCPM scales the logits (1/(n_embd/dim_model_base)).
@@ -379,7 +437,18 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         build_per_layer_embeddings(cur);
     }
 
-    for (int il = 0; il < m_cfg.n_layer; ++il) {
+    if (m_mtp) {
+        const auto prefix = "blk." + std::to_string(m_cfg.n_layer - 1) + ".";
+        auto hidden = m_emit.add_input("hidden_states", f32, ps({D, D, m_cfg.n_embd}));
+        auto lifted = std::make_shared<ov::op::v0::Unsqueeze>(hidden, ov::op::v0::Constant::create(i64, {1}, {1}));
+        (*m_emit.graph()->values)["mtp_hidden"] = lifted;
+        auto h = blocks::rms_norm(m_emit, "mtp_hidden", prefix + "nextn.hnorm.weight", "mtp_hnorm", m_cfg.rms_eps);
+        auto e = blocks::rms_norm(m_emit, cur, prefix + "nextn.enorm.weight", "mtp_enorm", m_cfg.rms_eps);
+        cur = m_emit.add_op("GGML_OP_CONCAT", "mtp_concat", {e, h}, 0, {{"concat_axis", 0}});
+        m_emit.add_weight(prefix + "nextn.eh_proj.weight");
+        cur = m_emit.add_op("GGML_OP_MUL_MAT", "mtp_eh_proj", {prefix + "nextn.eh_proj.weight", cur});
+    }
+    for (int il = m_mtp ? m_cfg.n_layer - 1 : 0; il < m_cfg.n_layer; ++il) {
         cur = build_layer(il, cur);
     }
 

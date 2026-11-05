@@ -146,14 +146,16 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, zero_scales=False):
+def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, zero_scales=False, nextn=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
     inner, conv = state * vheads, state * (2 * groups + vheads)
     w.add_context_length(128)
     w.add_embedding_length(d)
-    w.add_block_count(4)
+    w.add_block_count(5 if nextn else 4)
+    if nextn:
+        w.add_nextn_predict_layers(1)
     w.add_feed_forward_length(ff)
     w.add_head_count(heads)
     w.add_head_count_kv(kv)
@@ -174,7 +176,7 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
         w.add_residual_scale(0.0)
     if hadamard:
         names = ["output.weight"]
-        for layer in range(4):
+        for layer in range(5 if nextn else 4):
             p = f"blk.{layer}."
             kinds = ("attn_qkv", "attn_gate", "ssm_out") if layer < 3 else ("attn_q", "attn_k", "attn_v", "attn_output")
             names.extend(p + kind + ".weight" for kind in (*kinds, "ffn_gate", "ffn_up", "ffn_down"))
@@ -200,7 +202,7 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
     tensor("output.weight", (vocab, d))
-    for layer in range(4):
+    for layer in range(5 if nextn else 4):
         p = f"blk.{layer}."
         tensor(p + "attn_norm.weight", (d,), True)
         tensor(p + "post_attention_norm.weight", (d,), True)
@@ -231,6 +233,11 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
             tensor(p + "ffn_gate_inp_shexp.weight", (d,))
         for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
             tensor(p + f"ffn_{name}" + ("_shexp" if moe else "") + ".weight", shape)
+        if nextn and layer == 4:
+            tensor(p + "nextn.eh_proj.weight", (d, 2 * d))
+            for name in ("enorm", "hnorm", "shared_head_norm"):
+                tensor(p + "nextn." + name + ".weight", (d,), True)
+            tensor(p + "nextn.shared_head_head.weight", (vocab, d))
     finish(w)
 
 
