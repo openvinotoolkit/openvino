@@ -65,6 +65,7 @@ struct ProjectorTopology {
     const char* name;
     EncoderTopology topology;
     unsigned traits = 0;
+    ProjectorLayout genai_layout = ProjectorLayout::Unsupported;
 };
 
 // Entries describe implemented graph topologies, independently of language DecoderConfig.
@@ -73,16 +74,16 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "deepseekocr2", EncoderTopology::OCR2, RMS_NORM},
     {"vision", "pixtral", EncoderTopology::PIXTRAL, RMS_NORM},
     {"vision", "phi4", EncoderTopology::PHI4},
-    {"vision", "lfm2", EncoderTopology::LFM2},
-    {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER},
-    {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM},
-    {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION},
+    {"vision", "lfm2", EncoderTopology::LFM2, 0, ProjectorLayout::Image},
+    {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER, 0, ProjectorLayout::WindowedPatches},
+    {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM, ProjectorLayout::PaddedPatches},
+    {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION, 0, ProjectorLayout::PaddedPatches},
     {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO},
     {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
-    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46},
-    {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
+    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46, 0, ProjectorLayout::PackedPatches},
+    {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN, ProjectorLayout::Image},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
     {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN},
@@ -90,7 +91,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "resampler", EncoderTopology::RESAMPLER},
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
-    {"vision", "qwen3vl_merger", EncoderTopology::QWEN},
+    {"vision", "qwen3vl_merger", EncoderTopology::QWEN, 0, ProjectorLayout::SplitMerger},
     {"audio", "qwen2a", EncoderTopology::WHISPER, POOL_2},
     {"audio", "ultravox", EncoderTopology::WHISPER},
     {"audio", "voxtral", EncoderTopology::WHISPER, POOL_2},
@@ -1330,6 +1331,14 @@ private:
 };
 
 }  // namespace
+
+ProjectorLayout builtin_projector_layout(const std::string& projector_type) {
+    for (const auto& entry : projector_catalog) {
+        if (std::string(entry.modality) == "vision" && projector_type == entry.name)
+            return entry.genai_layout;
+    }
+    return ProjectorLayout::Unsupported;
+}
 
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
