@@ -722,14 +722,47 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
         // An out-of-range past_seqlen is ScatterUpdate's own bounds-check responsibility, not something to
         // guard against here via a graph-level clamp; the decomposition assumes the caller-supplied
         // seqlens_k stays within the declared cache capacity.
+        // query_seqlens can need more rows than the declared capacity (ORT: max(past_rows, total_sequence_length)).
+        // Grow with zero filler first so the scatter stays in bounds; a no-op Slice when capacity already covers it.
+        ov::Output<ov::Node> base_key = past_key;
+        ov::Output<ov::Node> base_value = past_value;
+        const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
+        const bool has_total_sequence_length = node->has_query_seqlens() && total_seqlen_pos < node->get_input_size() &&
+                                               !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
+        ov::Output<ov::Node> total_sequence_length;
+        if (has_total_sequence_length) {
+            total_sequence_length = register_new_node<v1::Reshape>(
+                register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
+                one,
+                false);
+            const auto past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2});
+            base_key = resize_kv_to_capacity(past_rows, past_key, total_sequence_length);
+            base_value = resize_kv_to_capacity(past_rows, past_value, total_sequence_length);
+        }
         std::shared_ptr<ov::Node> scatter_idx = register_new_node<v4::Range>(zero_without_shape,
                                                                              current_seqlen_scalar,
                                                                              one_without_shape,
                                                                              ov::element::i64);
         scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-        outputs.present_key = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, key, scatter_axis);
-        outputs.present_value = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, value, scatter_axis);
+        outputs.present_key = register_new_node<v3::ScatterUpdate>(base_key, scatter_idx, key, scatter_axis);
+        outputs.present_value = register_new_node<v3::ScatterUpdate>(base_value, scatter_idx, value, scatter_axis);
+        if (node->has_query_seqlens()) {
+            // Positions >= the valid total may hold never-written filler. Masking alone can't neutralize NaN
+            // there (NaN + mask bias is still NaN), so zero it directly, mirroring the new-chunk padding above.
+            const auto capacity = get_dimensions(register_new_node<v3::ShapeOf>(outputs.present_key), {2});
+            const auto rows = register_new_node<v1::Reshape>(
+                register_new_node<v4::Range>(zero_without_shape,
+                                             register_new_node<v0::Squeeze>(capacity),
+                                             one_without_shape,
+                                             ov::element::i64),
+                register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, -1, 1})),
+                false);
+            const auto valid_cols = register_new_node<v1::Less>(rows, seqlens_1d);
+            const auto zero_fill = register_new_node(v0::Constant::create(kv_cache_type, ov::Shape{}, {0}));
+            outputs.present_key = register_new_node<v1::Select>(valid_cols, outputs.present_key, zero_fill);
+            outputs.present_value = register_new_node<v1::Select>(valid_cols, outputs.present_value, zero_fill);
+        }
         outputs.sdpa_key = outputs.present_key;
         outputs.sdpa_value = outputs.present_value;
     } else {
@@ -839,8 +872,17 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
                   ->output(0)
             : ov::Output<ov::Node>();
     const auto write = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-        const ov::Output<ov::Node> buffer =
-            is_static_input ? past : register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2)->output(0);
+        // Same capacity grow-before-scatter as the non-batched writer above.
+        ov::Output<ov::Node> buffer;
+        if (is_static_input) {
+            buffer = has_total_sequence_length
+                         ? resize_kv_to_capacity(get_dimensions(register_new_node<v3::ShapeOf>(past), {2}),
+                                                 past,
+                                                 total_sequence_length)
+                         : past;
+        } else {
+            buffer = register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2)->output(0);
+        }
         const auto buffer_shape = register_new_node<v3::ShapeOf>(buffer);
         const auto rows_per_head = get_dimensions(buffer_shape, {2});
         const auto flat_idx = register_new_node<v1::Reshape>(

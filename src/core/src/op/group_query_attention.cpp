@@ -500,7 +500,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     // A key/value of dynamic length cannot be written in place, so present grows by its own length.
     const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
     const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
-    if ((!m_sliding_window_cache || empty_past) && !is_shared_kv() && !has_fixed_kv_capacity()) {
+    // A fixed capacity still grows for query_seqlens if total_sequence_length exceeds it.
+    if ((!m_sliding_window_cache || empty_past) && !is_shared_kv() &&
+        (!has_fixed_kv_capacity() || (!m_sliding_window_cache && has_query_seqlens()))) {
         if (!m_sliding_window_cache && has_query_seqlens()) {
             // present capacity is max(past_rows, total_sequence_length) for a padded chunk (CheckInputs in
             // onnxruntime/contrib_ops/cpu/bert/group_query_attention_helper.h), including an empty (0-row) past --

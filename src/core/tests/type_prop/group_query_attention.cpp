@@ -878,9 +878,11 @@ TEST(type_prop, group_query_attention_query_seqlens) {
     const auto op =
         std::make_shared<op::internal::GroupQueryAttention>(make_gqa_query_seqlens_args(), 6, 2, 1.0f, false, false);
     EXPECT_TRUE(op->has_query_seqlens());
-    // The padded chunk is still written as S rows, so the shapes do not depend on query_seqlens.
+    // The padded chunk is still written as S rows, so output 0's shape does not depend on query_seqlens.
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+    // Fixed capacity (5) can't be promised once query_seqlens is present and total_sequence_length is a
+    // runtime Parameter, not a known constant (ORT: max(past_rows, total_sequence_length)).
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, Dimension::dynamic(), 8}));
 
     const auto plain =
         std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
@@ -905,6 +907,25 @@ TEST(type_prop, group_query_attention_query_seqlens) {
     const auto batched_op = std::make_shared<op::internal::GroupQueryAttention>(batched, 6, 2, 1.0f, false, false);
     EXPECT_TRUE(batched_op->has_query_seqlens());
     EXPECT_EQ(batched_op->get_output_partial_shape(0), (PartialShape{2, 4, 48}));
+}
+
+// A static past capacity must still grow to a constant total_sequence_length that exceeds it (ORT:
+// max(past_rows, total_sequence_length)); common cache writers must allocate before scattering into it.
+TEST(type_prop, group_query_attention_query_seqlens_fixed_capacity_grows_to_total_sequence_length) {
+    using op::v0::Constant;
+    using op::v0::Parameter;
+    auto grows = make_gqa_query_seqlens_args();
+    grows[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 8, 8});
+    grows[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 8, 8});
+    grows[6] = Constant::create(element::i32, Shape{}, {12});
+    const auto grown = std::make_shared<op::internal::GroupQueryAttention>(grows, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(grown->has_fixed_kv_capacity());
+    EXPECT_EQ(grown->get_output_partial_shape(1), (PartialShape{1, 2, 12, 8}));
+
+    auto fits = grows;
+    fits[6] = Constant::create(element::i32, Shape{}, {6});
+    const auto unchanged = std::make_shared<op::internal::GroupQueryAttention>(fits, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(unchanged->get_output_partial_shape(1), (PartialShape{1, 2, 8, 8}));
 }
 
 TEST(type_prop, group_query_attention_query_seqlens_invalid) {
