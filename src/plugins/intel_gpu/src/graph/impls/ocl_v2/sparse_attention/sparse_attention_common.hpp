@@ -177,7 +177,7 @@ protected:
             jit.make("QSA_SPLIT_PARTITIONS", split_partitions);
             break;
         case AttKind::Reduce:
-            jit.make("QSA_SPLIT_PARTITIONS", decode_split_partitions(*desc, page, params.get_device_info()));
+            jit.make("QSA_SPLIT_PARTITIONS", decode_split_partitions(*desc, page, params.get_device_info(), params.get_program().get_config()));
             jit.make("QSA_REDUCE_COLS", split_reduce_cols(desc->v_head_size));
             break;
         default:

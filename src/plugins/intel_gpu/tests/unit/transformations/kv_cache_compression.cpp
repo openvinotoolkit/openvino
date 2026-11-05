@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/ov_test_utils.hpp"
+#include "plugin/transformations/kv_cache_compression.hpp"
 
+#include "common_test_utils/ov_test_utils.hpp"
+#include "intel_gpu/op/indirect_sdpa.hpp"
+#include "intel_gpu/op/kv_cache.hpp"
+#include "intel_gpu/op/kv_cache_compressed.hpp"
+#include "intel_gpu/op/read_value.hpp"
+#include "intel_gpu/op/read_values.hpp"
+#include "intel_gpu/op/sparse_sdpa.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
-
-#include "intel_gpu/op/read_value.hpp"
-#include "intel_gpu/op/read_values.hpp"
-#include "intel_gpu/op/kv_cache.hpp"
-#include "intel_gpu/op/kv_cache_compressed.hpp"
-#include "intel_gpu/op/indirect_sdpa.hpp"
-
-#include "plugin/transformations/kv_cache_compression.hpp"
+#include "openvino/pass/manager.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -779,6 +780,210 @@ TEST_F(TransformationTestsF, KVCacheCompressionPlanar) {
         ov::ResultVector results{ result };
 
         model_ref = std::make_shared<ov::Model>(results, params);
+    }
+}
+
+namespace {
+
+// SparseSDPA over two plain KVCache nodes, optionally behind a beam_idx Gather, with a static batch of 1 unless `dynamic_batch`.
+std::shared_ptr<ov::Model> make_sparse_sdpa_model(bool with_gather, bool with_scale, bool dynamic_batch = false) {
+    using In = ov::intel_gpu::op::SparseSDPA::InputIdx;
+    const ov::Dimension batch = dynamic_batch ? ov::Dimension::dynamic() : ov::Dimension(1);
+    const ov::PartialShape cache_shape{batch, 2, -1, 64};
+    auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{batch, 4, -1, 64});
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{batch});
+    ov::ParameterVector params{query, beam_idx};
+
+    auto make_cache = [&](const std::string& name) {
+        auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{cache_shape, ov::element::f16, name});
+        auto current = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, cache_shape);
+        params.push_back(current);
+        auto past = std::make_shared<ov::intel_gpu::op::ReadValue>(variable);
+        ov::Output<ov::Node> past_out = past->output(0);
+        if (with_gather) {
+            past_out = std::make_shared<ov::op::v8::Gather>(past, beam_idx, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+        }
+        return std::make_shared<ov::intel_gpu::op::KVCache>(past_out, current, variable, 2, ov::element::f16);
+    };
+    auto key_cache = make_cache("k");
+    auto value_cache = make_cache("v");
+
+    auto selected = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{batch, 1, -1, 8});
+    auto count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{batch, 1, -1});
+    auto key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{batch});
+    params.push_back(selected);
+    params.push_back(count);
+    params.push_back(key_length);
+
+    ov::OutputVector args(In::COUNT_CORE);
+    args[In::QUERY] = query;
+    args[In::KEY] = key_cache->output(0);
+    args[In::VALUE] = value_cache->output(0);
+    args[In::SELECTED_BLOCK_INDICES] = selected;
+    args[In::SELECTED_BLOCK_COUNT] = count;
+    args[In::KEY_LENGTH] = key_length;
+    if (with_scale) {
+        args.push_back(ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.125f}));
+    }
+    ov::intel_gpu::op::SparseSDPA::Config config;
+    config.num_heads = 4;
+    config.num_kv_heads = 2;
+    config.k_head_size = 64;
+    config.v_head_size = 64;
+    config.key_block_size = 4;
+    auto sdpa = std::make_shared<ov::intel_gpu::op::SparseSDPA>(args, config);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(sdpa)}, params);
+}
+
+std::shared_ptr<ov::intel_gpu::op::SparseSDPA> find_sparse_sdpa(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SparseSDPA>(op)) {
+            return sdpa;
+        }
+    }
+    return nullptr;
+}
+
+void run_kv_cache_compression(const std::shared_ptr<ov::Model>& model,
+                              ov::element::Type dt,
+                              bool supports_immad,
+                              const ov::intel_gpu::op::KVQuant& key_quant = {},
+                              const ov::intel_gpu::op::KVQuant& value_quant = {}) {
+    ov::pass::Manager manager;
+    manager.register_pass<KVCacheCompression>(dt, supports_immad, key_quant, value_quant);
+    manager.run_passes(model);
+}
+
+}  // namespace
+
+TEST(KVCacheCompressionSparseSDPA, CompressesGatheredCaches) {
+    using In = ov::intel_gpu::op::SparseSDPA::InputIdx;
+    for (bool with_scale : {false, true}) {
+        auto model = make_sparse_sdpa_model(true, with_scale, true);
+        run_kv_cache_compression(model, ov::element::i8, true);
+        auto sdpa = find_sparse_sdpa(model);
+        ASSERT_NE(sdpa, nullptr);
+        ASSERT_TRUE(sdpa->get_config().kv_compressed());
+        ASSERT_EQ(sdpa->get_input_size(), sdpa->get_config().scale_input_idx() + (with_scale ? 1 : 0));
+        EXPECT_EQ(sdpa->has_scale_input(), with_scale);
+        EXPECT_EQ(sdpa->get_input_element_type(In::KEY), ov::element::i8);
+        EXPECT_EQ(sdpa->get_input_element_type(In::VALUE), ov::element::i8);
+        EXPECT_EQ(sdpa->get_input_element_type(In::KEY_SCALE), ov::element::f16);
+        EXPECT_EQ(sdpa->get_input_element_type(In::KEY_ZP), ov::element::i8);
+        if (with_scale) {
+            EXPECT_TRUE(ov::is_type<ov::op::v0::Constant>(sdpa->get_input_node_shared_ptr(sdpa->get_config().scale_input_idx())));
+        }
+        for (size_t data : {In::KEY, In::VALUE}) {
+            auto cache = ov::as_type_ptr<ov::intel_gpu::op::KVCacheCompressed>(sdpa->get_input_node_shared_ptr(data));
+            ASSERT_NE(cache, nullptr);
+            EXPECT_TRUE(cache->get_indirect());
+            // The Gather is replaced by the beam table machinery: beam_idx feeds the cache directly.
+            EXPECT_TRUE(ov::is_type<ov::op::v0::Parameter>(cache->get_input_node_shared_ptr(2)));
+            EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::ReadValues>(cache->get_input_node_shared_ptr(0)));
+        }
+        EXPECT_EQ(sdpa->get_input_node_shared_ptr(In::KEY_SCALE), sdpa->get_input_node_shared_ptr(In::KEY));
+        EXPECT_EQ(sdpa->input_value(In::KEY_SCALE).get_index(), 2u);
+        EXPECT_EQ(sdpa->input_value(In::KEY_ZP).get_index(), 3u);
+        EXPECT_EQ(sdpa->input_value(In::VALUE_ZP).get_index(), 3u);
+    }
+}
+
+TEST(KVCacheCompressionSparseSDPA, CompressesSingleSequenceCachesWithoutGather) {
+    using In = ov::intel_gpu::op::SparseSDPA::InputIdx;
+    auto model = make_sparse_sdpa_model(false, true);
+    run_kv_cache_compression(model, ov::element::u8, true);
+    auto sdpa = find_sparse_sdpa(model);
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_TRUE(sdpa->get_config().kv_compressed());
+    auto cache = ov::as_type_ptr<ov::intel_gpu::op::KVCacheCompressed>(sdpa->get_input_node_shared_ptr(In::KEY));
+    ASSERT_NE(cache, nullptr);
+    // No Gather: a constant identity beam index of the single sequence.
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Constant>(cache->get_input_node_shared_ptr(2)));
+}
+
+TEST(KVCacheCompressionSparseSDPA, KeepsF16CachesWhenCompressionIsNotApplicable) {
+    auto expect_f16 = [](const std::shared_ptr<ov::Model>& model) {
+        auto sdpa = find_sparse_sdpa(model);
+        ASSERT_NE(sdpa, nullptr);
+        EXPECT_FALSE(sdpa->get_config().kv_compressed());
+        EXPECT_EQ(sdpa->get_input_element_type(ov::intel_gpu::op::SparseSDPA::InputIdx::KEY), ov::element::f16);
+    };
+    {  // f16 precision: the caches stay uncompressed
+        auto model = make_sparse_sdpa_model(true, true);
+        run_kv_cache_compression(model, ov::element::f16, true);
+        expect_f16(model);
+    }
+    {  // no systolic platform: planar i8 zero points are an immad layout
+        auto model = make_sparse_sdpa_model(true, true);
+        run_kv_cache_compression(model, ov::element::i8, false);
+        expect_f16(model);
+    }
+    {  // several sequences without a gather cannot be expressed by a constant beam index
+        auto model = make_sparse_sdpa_model(false, true, true);
+        run_kv_cache_compression(model, ov::element::i8, true);
+        expect_f16(model);
+    }
+    {  // the caches follow the global precision: an 8-bit precision cannot hold a 4-bit quantization
+        auto model = make_sparse_sdpa_model(true, true);
+        using ov::intel_gpu::op::KVQuant;
+        run_kv_cache_compression(model, ov::element::i8, true, KVQuant{KVQuant::Mode::BY_TOKEN, 4, false, 0}, KVQuant{KVQuant::Mode::BY_TOKEN, 4, false, 0});
+        expect_f16(model);
+    }
+}
+
+TEST(KVCacheCompressionSparseSDPA, FollowsTheKvCachePrecisionWithoutQsaQuantization) {
+    using ov::intel_gpu::op::KVQuant;
+    for (auto [dt, bits] : {std::pair{ov::element::i8, 8}, std::pair{ov::element::u8, 8}, std::pair{ov::element::u4, 4}}) {
+        auto model = make_sparse_sdpa_model(true, true, true);
+        run_kv_cache_compression(model, dt, true);
+        auto sdpa = find_sparse_sdpa(model);
+        ASSERT_NE(sdpa, nullptr);
+        ASSERT_TRUE(sdpa->get_config().kv_compressed());
+        const KVQuant expected{KVQuant::Mode::BY_TOKEN, static_cast<uint8_t>(bits), false, 0};
+        EXPECT_TRUE(sdpa->get_config().key_quant == expected);
+        EXPECT_TRUE(sdpa->get_config().value_quant == expected);
+    }
+}
+
+TEST(KVCacheCompressionSparseSDPA, FollowsTheQsaQuantization) {
+    using In = ov::intel_gpu::op::SparseSDPA::InputIdx;
+    using ov::intel_gpu::op::KVQuant;
+    using Mode = KVQuant::Mode;
+    struct config {
+        ov::element::Type dt;
+        KVQuant key, value;
+        bool zp_f16_key, zp_f16_value;
+    };
+    const std::vector<config> configs = {
+        {ov::element::i8, {Mode::BY_TOKEN, 8, false, 0}, {Mode::BY_TOKEN, 8, false, 0}, false, false},
+        {ov::element::i8, {Mode::BY_CHANNEL, 8, false, 16}, {Mode::BY_TOKEN, 8, false, 0}, false, false},
+        {ov::element::u4, {Mode::BY_CHANNEL, 4, false, 32}, {Mode::BY_TOKEN, 4, false, 0}, true, true},
+        {ov::element::u4, {Mode::BY_TOKEN, 4, false, 0}, {Mode::BY_TOKEN, 4, false, 0}, true, true},
+        {ov::element::i8, {Mode::BY_CHANNEL, 8, true, 16}, {Mode::BY_TOKEN, 8, true, 0}, false, false},
+        {ov::element::u4, {Mode::BY_TOKEN, 4, true, 0}, {Mode::BY_TOKEN, 4, true, 0}, true, true},
+    };
+    for (const auto& c : configs) {
+        auto model = make_sparse_sdpa_model(true, true, true);
+        run_kv_cache_compression(model, c.dt, true, c.key, c.value);
+        auto sdpa = find_sparse_sdpa(model);
+        ASSERT_NE(sdpa, nullptr);
+        ASSERT_TRUE(sdpa->get_config().kv_compressed());
+        // The dense caches are quantized per token: a BY_CHANNEL key request falls back to BY_TOKEN.
+        const KVQuant expected_key{Mode::BY_TOKEN, c.key.bits, c.key.symmetric, 0};
+        EXPECT_TRUE(sdpa->get_config().key_quant == expected_key);
+        EXPECT_TRUE(sdpa->get_config().value_quant == c.value);
+        ASSERT_EQ(sdpa->get_input_size(), sdpa->get_config().scale_input_idx() + 1);  // the model has a scale
+        EXPECT_EQ(sdpa->get_input_element_type(In::KEY), ov::element::i8);
+        EXPECT_EQ(sdpa->get_input_element_type(In::KEY_SCALE), ov::element::f16);
+        EXPECT_EQ(sdpa->get_input_partial_shape(In::KEY_SCALE)[3], ov::Dimension(1));
+        EXPECT_EQ(sdpa->get_input_partial_shape(In::VALUE_SCALE)[3], ov::Dimension(1));
+        if (!c.key.symmetric) {
+            EXPECT_EQ(sdpa->get_input_element_type(In::KEY_ZP), c.zp_f16_key ? ov::element::f16 : ov::element::i8);
+            EXPECT_EQ(sdpa->get_input_element_type(In::VALUE_ZP), c.zp_f16_value ? ov::element::f16 : ov::element::i8);
+        }
+        auto key_cache = ov::as_type_ptr<ov::intel_gpu::op::KVCacheCompressed>(sdpa->get_input_node_shared_ptr(In::KEY));
+        ASSERT_NE(key_cache, nullptr);
+        EXPECT_EQ(key_cache->get_quantization_attrs().quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric, c.key.symmetric);
     }
 }
 

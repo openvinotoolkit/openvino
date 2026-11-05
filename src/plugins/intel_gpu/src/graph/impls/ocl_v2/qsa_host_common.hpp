@@ -10,16 +10,16 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <limits>
 #include <optional>
 #include <string>
-#include <string_view>
 
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/op/sparse_kv_quant.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -42,10 +42,9 @@ inline void force_stages_refresh(PrimitiveImplOCL& impl) {
     }
 }
 
-/// OV_GPU_QSA_OCL_DISABLE_XMX=1 routes every stage to the scalar kernels (for testing them on XMX hardware).
-inline bool xmx_allowed(const cldnn::device_info& info) {
-    const char* v = std::getenv("OV_GPU_QSA_OCL_DISABLE_XMX");
-    if (v != nullptr && std::string_view(v) == "1") {
+/// The debug option QSA_OCL_DISABLE_XMX routes every stage to the scalar kernels (for testing them on XMX hardware).
+inline bool xmx_allowed(const cldnn::device_info& info, const ov::intel_gpu::ExecutionConfig& config) {
+    if (GPU_DEBUG_VALUE_OR(config.get_qsa_ocl_disable_xmx(), false)) {
         return false;
     }
     return info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad;
@@ -93,16 +92,11 @@ inline void add_dense_cache_jit(JitConstants& jit, const std::string& cache, con
     jit.make(prefix + "ZP_F16", quant.enabled() && ov::intel_gpu::op::dense_zp_is_f16(quant) ? 1 : 0);
 }
 
-/// Upper bound on the decode BLOCK_SCORES scratch. Debug builds can shrink it through OV_GPU_QSA_SCORE_BUDGET_BYTES
-/// to force the multi-chunk path with small shapes.
-inline size_t score_budget_bytes() {
-    if (const char* override_str = std::getenv("OV_GPU_QSA_SCORE_BUDGET_BYTES")) {
-        const auto value = std::strtoull(override_str, nullptr, 10);
-        if (value > 0) {
-            return static_cast<size_t>(value);
-        }
-    }
-    return 128 * 1024 * 1024;
+/// Upper bound on the decode BLOCK_SCORES scratch. The debug option QSA_SCORE_BUDGET_BYTES can shrink it to force the
+/// multi-chunk path with small shapes.
+inline size_t score_budget_bytes(const ov::intel_gpu::ExecutionConfig& config) {
+    const auto override_bytes = GPU_DEBUG_VALUE_OR(config.get_qsa_score_budget_bytes(), 0);
+    return override_bytes > 0 ? static_cast<size_t>(override_bytes) : size_t{128} * 1024 * 1024;
 }
 
 /// Row pitch (in floats) of BLOCK_SCORES: a multiple of 8 so the 8-wide score stores of the systolic scorer never
@@ -175,8 +169,8 @@ size_t dpas_attention_workers(const Desc& desc) {
 }
 
 template <class Desc>
-bool can_use_dpas_attention(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info) {
-    if (!xmx_allowed(info)) {
+bool can_use_dpas_attention(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info, const ov::intel_gpu::ExecutionConfig& config) {
+    if (!xmx_allowed(info, config)) {
         return false;
     }
     if (desc.k_head_size % dpas_k_step != 0 || desc.v_head_size % dpas_query_tile != 0) {
@@ -195,8 +189,11 @@ bool can_use_dpas_attention(const Desc& desc, std::optional<size_t> page_size, c
 }
 
 template <class Desc>
-bool can_use_gqa_dpas_attention(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info) {
-    if (!xmx_allowed(info)) {
+bool can_use_gqa_dpas_attention(const Desc& desc,
+                                std::optional<size_t> page_size,
+                                const cldnn::device_info& info,
+                                const ov::intel_gpu::ExecutionConfig& config) {
+    if (!xmx_allowed(info, config)) {
         return false;
     }
     if (desc.num_kv_heads == 0 || desc.num_heads % desc.num_kv_heads != 0) {
@@ -222,8 +219,11 @@ bool can_use_gqa_dpas_attention(const Desc& desc, std::optional<size_t> page_siz
 }
 
 template <class Desc>
-size_t decode_split_partitions(const Desc& desc, std::optional<size_t> page_size, const cldnn::device_info& info) {
-    return can_use_gqa_dpas_attention(desc, page_size, info) ? gqa_split_partitions : split_partitions;
+size_t decode_split_partitions(const Desc& desc,
+                               std::optional<size_t> page_size,
+                               const cldnn::device_info& info,
+                               const ov::intel_gpu::ExecutionConfig& config) {
+    return can_use_gqa_dpas_attention(desc, page_size, info, config) ? gqa_split_partitions : split_partitions;
 }
 
 /// Float as an OpenCL C literal with the full single precision.

@@ -82,8 +82,12 @@ bool may_prefill(const kernel_impl_params& params) {
 }
 
 /// Whether the systolic qsa_indexer_score_dpas kernel can be used (a property of the descriptor and the device).
-bool can_use_dpas_score(const paged_qsa_indexer& desc, size_t page_size, size_t h_iq, const cldnn::device_info& info) {
-    if (!qsa::xmx_allowed(info)) {
+bool can_use_dpas_score(const paged_qsa_indexer& desc,
+                        size_t page_size,
+                        size_t h_iq,
+                        const cldnn::device_info& info,
+                        const ov::intel_gpu::ExecutionConfig& config) {
+    if (!qsa::xmx_allowed(info, config)) {
         return false;
     }
     if (desc.indexer_head_dim % qsa::dpas_k_step != 0 || desc.indexer_head_dim * sizeof(ov::float16) < 64) {
@@ -100,7 +104,7 @@ bool can_use_dpas_score(const paged_qsa_indexer& desc, size_t page_size, size_t 
 bool use_dpas_score(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<paged_qsa_indexer>();
     const auto h_iq = index_heads(params.get_input_layout(QSAIn::INDEX_QUERY), desc->indexer_head_dim);
-    return can_use_dpas_score(*desc, page_size_of(params), h_iq, params.get_device_info());
+    return can_use_dpas_score(*desc, page_size_of(params), h_iq, params.get_device_info(), params.get_program().get_config());
 }
 
 /// Row pitch the scorer / finalizer agree on when the pool holds the most blocks it can ever list.
@@ -117,7 +121,7 @@ size_t score_scratch_elems(const kernel_impl_params& params, const paged_qsa_ind
     if (!is_decode_shape(params) && use_dpas_score(params)) {
         return tokens * pitch;
     }
-    const auto budget_rows = std::max<size_t>(1, qsa::score_budget_bytes() / (pitch * sizeof(float)));
+    const auto budget_rows = std::max<size_t>(1, qsa::score_budget_bytes(params.get_program().get_config()) / (pitch * sizeof(float)));
     return std::min(tokens, budget_rows) * pitch;
 }
 

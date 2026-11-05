@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/op/sparse_kv_quant.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::intel_gpu {
@@ -33,7 +34,12 @@ class KVCacheCompression : public ov::pass::GraphRewrite {
 public:
 
     OPENVINO_GRAPH_REWRITE_RTTI("KVCacheCompression");
-    KVCacheCompression(ov::element::Type compression_dt, bool supports_immad);
+    /// `sparse_sdpa_*_quant` is the QSA quantization of the SparseSDPA key / value histories; without one they follow
+    /// `compression_dt` as per-token asymmetric 8/4-bit caches (an f16 `compression_dt` keeps them uncompressed).
+    KVCacheCompression(ov::element::Type compression_dt,
+                       bool supports_immad,
+                       const ov::intel_gpu::op::KVQuant& sparse_sdpa_key_quant = {},
+                       const ov::intel_gpu::op::KVQuant& sparse_sdpa_value_quant = {});
 
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
