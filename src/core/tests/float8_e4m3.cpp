@@ -382,5 +382,21 @@ TEST(F8E4M3Test, fake_convert_reference_subnormal_sign_nan) {
     EXPECT_TRUE(std::signbit(out[3])) << "sign of negative zero must be kept";
     EXPECT_TRUE(std::isnan(out[4]));
 }
+
+TEST(F8E4M3Test, fake_convert_reference_f32_near_tie) {
+    // just above the tie 1.0625 in f32 must round up like Convert does, not go through a tie in f16
+    const std::vector<float> data{ov::util::u32_bits_to_f32(0x3F880008)};
+    const std::vector<float> scale{1.f}, shift{0.f};
+    std::vector<float> out(data.size());
+    ov::reference::fake_convert(data.data(),
+                                scale.data(),
+                                shift.data(),
+                                out.data(),
+                                ov::Shape{data.size()},
+                                ov::Shape{1},
+                                ov::Shape{1},
+                                ov::element::f8e4m3);
+    EXPECT_EQ(out[0], 1.125f);
+}
 }  // namespace test
 }  // namespace ov

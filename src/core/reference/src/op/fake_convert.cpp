@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "openvino/core/type/float8_e4m3.hpp"
+#include "openvino/core/type/float_util.hpp"
 
 namespace ov {
 namespace reference {
@@ -99,6 +100,12 @@ void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, 
 }  // namespace func
 
 namespace fake_convert_details {
+void round_to_odd_for_f8(float* data, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        data[i] = util::round_to_odd_for_f8(data[i]);
+    }
+}
+
 /**
  * @brief Call conversion of fp16 value to the desired destination type
  *

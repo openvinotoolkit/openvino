@@ -278,6 +278,22 @@ TEST(F8E5M2Test, fake_convert_reference_keeps_negative_zero) {
     EXPECT_TRUE(std::signbit(out[0])) << "sign of negative zero must be kept";
 }
 
+TEST(F8E5M2Test, fake_convert_reference_f32_near_tie) {
+    // just above the tie 1.125 in f32 must round up like Convert does, not go through a tie in f16
+    const std::vector<float> data{1.125f + 0x1p-19f};
+    const std::vector<float> scale{1.f}, shift{0.f};
+    std::vector<float> out(data.size());
+    reference::fake_convert(data.data(),
+                            scale.data(),
+                            shift.data(),
+                            out.data(),
+                            Shape{data.size()},
+                            Shape{1},
+                            Shape{1},
+                            element::f8e5m2);
+    EXPECT_EQ(out[0], 1.25f);
+}
+
 template <class TContainer>
 std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enumerate(const TContainer& values) {
     std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enum_values;
