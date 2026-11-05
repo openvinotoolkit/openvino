@@ -162,7 +162,11 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
                                                                              past_seqlen, current_seqlen_scalar, metadata_);
     }
     // A padded chunk with an empty past has nothing for StatelessKV to append to; keep the generic present sizing.
-    if (query_seqlens && has_empty_past(past_key)) {
+    // A declared fixed capacity has the same problem when total_sequence_length exceeds it: StatelessKV's own
+    // shape inference only grows past a static past_rows when its update offset folds to a constant (it almost
+    // never does for a runtime seqlens_k), so it would silently keep producing a past_rows-sized buffer while the
+    // op's own shape inference (fixed up for this case) declares max(past_rows, total_sequence_length).
+    if (query_seqlens && (has_empty_past(past_key) || node->has_fixed_kv_capacity())) {
         return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
                                                                              past_seqlen, current_seqlen_scalar, metadata_);
     }
