@@ -1,0 +1,47 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-05-10-50-38-725-41997458873",
+    "timestamp": "2026-11-05T10:50:38Z",
+    "run_id": "41997458873",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41997458873",
+    "workflow_name": "Build (C++20, non-blocking) / Build",
+    "pr_number": "39270",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39270",
+    "author": "sgbihu",
+    "category": "Code Issue",
+    "title": "GGUF frontend test_parser.cpp fails to build under C++20 mode (char8_t/std::string mismatch in unicode path concatenation)",
+    "signature": "error c2676 binary operator std string does not define operator conversion acceptable predefined operator make_path no matching overloaded function found char8_t const object must be initialized|Code Issue",
+    "signature_hash": "60c87e1ef4d6a044",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Build (C++20, non-blocking) / Build",
+            "conclusion": "failure",
+            "symptom": "MSVC C2676/C2672/C2737/C3536 compile errors in src/frontends/gguf/tests/test_parser.cpp(731) building with -DCMAKE_CXX_STANDARD=20"
+        },
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "test_keras_lstm_flags_float32 fails with small numerical mismatch vs TensorFlow reference output (known flaky pattern a284d27dfee44614)"
+        },
+        {
+            "name": "ci/gha_overall_status_windows",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check fails because upstream required jobs failed"
+        }
+    ],
+    "key_errors": [
+        "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2676: binary '+': 'std::string' does not define this operator or a conversion to a type acceptable to the predefined operator",
+        "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2672: 'ov::util::make_path': no matching overloaded function found",
+        "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2737: 'unicode_prefix': const object must be initialized\nC:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(733): error C3536: 'unicode_prefix': cannot be used before it is initialized\nninja: build stopped: subcommand failed."
+    ],
+    "root_cause": "Line 731 of test_parser.cpp writes `ov::util::make_path(m_base + u8\"_\\u6a21\\u578b_\\u017c\\u00f3\\u0142\\u0107\")`, concatenating a runtime `std::string` (`m_base`) with a `u8\"...\"` literal. Under the Build (C++20, non-blocking) job's `-DCMAKE_CXX_STANDARD=20` flag, `u8\"...\"` literals are typed as `const char8_t[]` (per C++20's P1423/char8_t rules) rather than `const char[]` as under C++17, so `std::string + const char8_t[]` no longer has a valid `operator+` overload and MSVC rejects the expression (C2676), which cascades into `make_path` overload resolution failure (C2672) and the subsequent uninitialized-const errors (C2737/C3536) for `unicode_prefix`. This file was newly added in commit 60d87a0f (#38986, merged earlier the same day) which introduced the C++20 non-blocking build lane itself, and the unicode-path test logic was not updated for char8_t string literal semantics, so the new lane immediately fails on its own test file. The PR under investigation (#39270) only modifies NPUW's `cut_lm_head.cpp/hpp` and its unit test, unrelated to the GGUF frontend, confirming the build break is pre-existing in `master` and surfaced by this merge-queue run rather than introduced by PR #39270.",
+    "reproduction_steps": "Configure with `cmake -DCMAKE_CXX_STANDARD=20 -DENABLE_TESTS=ON -DENABLE_OV_GGUF_FRONTEND=ON ...` on Windows/MSVC (or any C++20-mode compiler that types u8-literals as char8_t) and build target `ov_gguf_frontend_tests`; the failure reproduces at src/frontends/gguf/tests/test_parser.cpp:731 without needing the full CI pipeline.",
+    "recommended_actions": [
+        "In src/frontends/gguf/tests/test_parser.cpp:731, change `m_base + u8\"_\\u6a21\\u578b_\\u017c\\u00f3\\u0142\\u0107\"` to concatenate compatible types, e.g. build the u8 literal into a `std::u8string`/`std::filesystem::path` first and append separately, or use a plain narrow string literal (drop the `u8` prefix) if the test only needs the characters as whatever encoding `m_base` already uses.",
+        "Alternatively wrap the right-hand side as `std::filesystem::path(u8\"_\\u6a21\\u578b_\\u017c\\u00f3\\u0142\\u0107\")` and concatenate paths instead of strings, since `ov::util::make_path` ultimately expects a path-convertible source.",
+        "Because this is the 'Build (C++20, non-blocking)' lane (introduced by #38986 on the same day), verify no other newly-added test files use similar `std::string + u8\"...\"` concatenation patterns that would break identically under C++20 char8_t semantics."
+    ],
+    "prevention_strategies": "When adding new unicode-path test fixtures, avoid concatenating `std::string`/`const char*` with `u8\"...\"` literals directly; u8-literals became `char8_t`-typed in C++20, which silently breaks `operator+` overload resolution in codebases built under both C++17 and C++20. Build and smoke-test any new GGUF/unicode-path test code under the C++20 non-blocking lane (or locally with `-std=c++20`) before merging, especially right after that lane itself was introduced, since it has no prior history to catch this class of regression.",
+    "historical_context": "No prior pattern for this signature exists in the knowledge base; this is a new failure first observed immediately after the 'Build (C++20, non-blocking)' lane was introduced by commit 60d87a0f (#38986) earlier the same day. The co-occurring TensorFlow Keras LSTM failure matches the well-known recurring pattern a284d27dfee44614 (6 prior occurrences since 2026-08-27, most recently 2026-11-04), an unrelated dropout-induced numerical-tolerance flake in the TF frontend layer tests."
+}
