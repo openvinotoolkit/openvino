@@ -192,6 +192,10 @@ volumes/options (shared drive, sccache) consistent with sibling jobs. GPU → Do
 * **Editing a `job_*.yml` input contract** without updating every caller's `with:` block.
 * **Docker env change without `docker_tag` bump** — the image won't rebuild; handle_docker fails the check.
 * **Missing `timeout-minutes`** — a hung job can occupy a runner indefinitely.
+* **Known-failing / non-blocking job in pre-commit** — `continue-on-error` or a job left out of
+  `Overall_Status` still burns runners on every PR and trains people to ignore red checks. Run it
+  nightly/on `workflow_dispatch` until green, then promote it to a required pre-commit check
+  (see [adding_tests.md](../../../docs/dev/ci/github_actions/adding_tests.md#known-failing-and-non-blocking-checks)).
 * **GPU job without Docker** — required on persistent GPU runners.
 
 ## Skill self-improvement

@@ -18,6 +18,7 @@ This document explains how to create new workflows and add tests.
   * [Adding a Step](#adding-a-step)
   * [Adding a Job](#adding-a-job)
   * [Adding a Workflow](#adding-a-workflow)
+* [Known-Failing and Non-Blocking Checks](#known-failing-and-non-blocking-checks)
 
 ## Skill Validation
 
@@ -203,3 +204,30 @@ Refer to the [Overview of the OpenVINO GitHub Actions CI](./overview.md#workflow
 to learn more about triggers and schedules.
 Additionally, make sure [the right runners](./runners.md) are picked for each job to optimize
 execution time.
+
+## Known-Failing and Non-Blocking Checks
+
+Do not add builds or tests that are known to fail, or are expected to fail, to the pre-commit scope
+(`pull_request` and `merge_group` triggers), even as non-blocking checks that use `continue-on-error: true`
+or are left out of `Overall_Status`. This is bad practice because:
+
+* **It wastes limited runner capacity.** Every pull request, merge queue entry and post-commit run
+  uses self-hosted runners for a job whose result nobody acts on. This makes queues longer for
+  everyone else.
+* **It produces noise and makes people ignore red checks.** Contributors see failures that are not
+  related to their changes and learn to ignore them. Real regressions then get missed.
+* **It does not give useful signal.** A check that fails on every PR cannot show whether a specific
+  change made things better or worse. Its status is effectively always the same.
+* **It hides the real state of the feature.** A permanently red or skipped check suggests that
+  something is being validated when it is not.
+
+Instead:
+
+* Put work-in-progress checks (for example, a new compiler, language standard or platform that is
+  not fully supported yet) in a **nightly or scheduled workflow** with `workflow_dispatch`. If the
+  workflow should also run when its own definition changes, add a `pull_request` trigger with a
+  `paths:` filter limited to the workflow files. Do this only for non-required workflows (see
+  [Smart CI](./smart_ci.md)).
+* Track failures from the scheduled run and fix them. Do not leave them to linger.
+* Move the check to the pre-commit scope only after it passes reliably. When you do, make it a
+  **required** check that is included in `Overall_Status`.
