@@ -76,6 +76,7 @@ OP_CONVERTER(translate_convolution_mode);
 OP_CONVERTER(translate_constant_pad_nd);
 OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cross);
+OP_CONVERTER(translate_cumprod);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_diff);
 OP_CONVERTER(translate_deform_conv);
@@ -323,6 +324,7 @@ OP_CONVERTER(translate_batch_norm_legit_no_training_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_stats_fx);
 OP_CONVERTER(translate_cat_fx);
 OP_CONVERTER(translate_copy_fx);
+OP_CONVERTER(translate_cumprod_fx);
 OP_CONVERTER(translate_cumsum_fx);
 OP_CONVERTER(translate_list_unpack_fx);
 OP_CONVERTER(translate_list_view_fx);
@@ -506,6 +508,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::cosh", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cosh>, 1>},
         {"aten::cosh_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Cosh>>},
         {"aten::cross", op::translate_cross},
+        {"aten::cumprod", op::translate_cumprod},
         {"aten::cumsum", op::translate_cumsum},
         {"aten::diff", op::translate_diff},
         {"aten::det", op::translate_linalg_det},
@@ -916,6 +919,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.cat.default", op::translate_cat_fx},
         {"aten.chunk.default", op::translate_list_view_fx},
         {"aten.copy.default", op::translate_copy_fx},
+        {"aten.cumprod.default", op::translate_cumprod_fx},
         {"aten.cumsum.default", op::translate_cumsum_fx},
         {"aten.detach_.default", op::skip_node},
         {"aten.div.Scalar", op::translate_div_fx},
