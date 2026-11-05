@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "compiled_model.h"
@@ -132,6 +133,7 @@ private:
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_input_ports_map;
     std::unordered_map<std::size_t, ov::Output<const ov::Node>> m_output_ports_map;
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_outputs;
+    std::unordered_set<std::size_t> m_outputs_sharing_input_desc;
 };
 
 }  // namespace ov::intel_cpu
