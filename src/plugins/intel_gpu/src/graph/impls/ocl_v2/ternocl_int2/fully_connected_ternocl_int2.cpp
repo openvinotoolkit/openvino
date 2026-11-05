@@ -305,6 +305,10 @@ class TernoclStageGenerator : public KernelGenerator {
 public:
     TernoclStageGenerator(TernoclKernel kind, size_t cls) : KernelGenerator("ternocl_int2", suffix(kind, cls)), m_kind(kind), m_cls(cls) {}
 
+    void set_full_range() {
+        m_full_range = true;
+    }
+
     [[nodiscard]] KernelData get_kernel_data(const RuntimeParams& params) const override {
         const std::string name = kernel_name();
         std::string selector = name;
@@ -408,7 +412,7 @@ protected:
             } else {
                 opts += tile_options(mt_tile(s.K, s.N, m_cls, is_integrated(params)));
             }
-            return opts + epi;
+            return opts + epi + (m_full_range ? " -DU2_ZP1" : "");
         case TernoclKernel::quant:
             return opts + " -cl-fp32-correctly-rounded-divide-sqrt -DQMODE=1";
         case TernoclKernel::int8_gemm:
@@ -463,6 +467,7 @@ private:
 
     TernoclKernel m_kind;
     size_t m_cls;
+    bool m_full_range = false;
 };
 
 }  // namespace
@@ -488,7 +493,18 @@ public:
         auto packed_layout = wei_layout;
         packed_layout.format = format::is_os_yx_isv16_ternary;
         _weights_reorder_params = std::make_shared<WeightsReorderParams>(wei_layout, packed_layout);
-        const bool int8 = node.get_program().get_config().get_ternocl_int2_int8_prefill();
+        const auto mem = node.as<fully_connected>().weights().as<data>().get_attached_memory_ptr();
+        mem_lock<uint8_t, mem_lock_type::read> codes(mem, node.get_program().get_engine().get_service_stream());
+        const bool already_packed = mem->get_layout().format == format::is_os_yx_isv16_ternary;
+        const bool full_range = std::any_of(codes.data(), codes.data() + ov::shape_size(wei_layout.get_shape()) / 4, [already_packed](uint8_t v) {
+            return ((already_packed ? static_cast<uint8_t>(~v) : v) & (v >> 1) & 0x55) != 0;
+        });
+        if (full_range) {
+            for (const auto& stage : upcvt)
+                static_cast<TernoclStageGenerator*>(stage->codegen.get())->set_full_range();
+        }
+        // Native signed-int2 DPAS cannot represent +2; use the up-convert stages for these weights.
+        const bool int8 = node.get_program().get_config().get_ternocl_int2_int8_prefill() && !full_range;
         auto add = [&](Stage::Ptr& stage) {
             add_stage(stage, params);
             OPENVINO_ASSERT(has_stage(stage), "[GPU] ternocl int2: failed to generate a kernel for ", node.id());
