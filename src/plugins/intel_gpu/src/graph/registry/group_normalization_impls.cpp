@@ -20,7 +20,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<group
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_OCL(ocl::GroupNormalizationFsv16Opt, shape_types::any)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::GroupNormalizationBfyxOpt, shape_types::any)
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::GroupNormalizationRef, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::GroupNormalizationRef, shape_types::any)
     };
 
     return impls;
