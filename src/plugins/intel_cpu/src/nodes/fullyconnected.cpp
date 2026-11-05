@@ -183,6 +183,10 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
                 op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
                 return false;
             }
+            // oneDNN brgemm_matmul has no blocked B layouts for ndims > 3, which fp8 weights require.
+            if (op->get_input_partial_shape(DATA).rank().get_length() > 3) {
+                return false;
+            }
             // Weights must be a real 2D [OC, IC] constant, not broadcast by the scale multiply.
             const auto& weightsShape = op->get_input_shape(WEIGHTS);
             if (weightsShape.size() != 2 || weightsShape[0] != OC || weightsShape[1] != IC) {

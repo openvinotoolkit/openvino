@@ -1065,9 +1065,9 @@ public:
         return decode_impl == MoeGemmImpl::grouped_gemm || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
     }
 
-    // Single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
+    // Resident single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
     bool needs_gather_scratch(size_t token_num) const {
-        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm;
+        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm || (token_num == 1 && _weight_provider->is_offloaded());
     }
 
     static bool is_batched_gemv_supported(data_types weight_dt) {
@@ -1372,10 +1372,8 @@ public:
 
         auto up_mem_dnnl = convert2dnnl(scratch.up, {batch, _shared_intermediate_size}, dnnl::memory::format_tag::ab);
         auto gate_mem_dnnl = convert2dnnl(scratch.gate, {batch, _shared_intermediate_size}, dnnl::memory::format_tag::ab);
-        // Reuse routing weights or topk_weights buffer as temp for scalar gate [Batch, 1]
-        // This buffer is usually [Batch, MaxTopK]. Check if big enough. Batch=1 -> TopK. Batch>1 -> Batch*TopK.
-        // We only use [Batch, 1] part.
-        auto scalar_gate_mem = scratch.topk_weights;
+        // Routed computation is complete; reuse its scratch without modifying the routing input.
+        auto scalar_gate_mem = scratch.routing_weights;
         auto scalar_gate_dnnl = convert2dnnl(scalar_gate_mem, {batch, 1}, dnnl::memory::format_tag::ab);
 
         // 1. Up Proj
@@ -1520,7 +1518,7 @@ public:
         // Per-expert masks feed only the per-expert onednn loop, which the other paths fall back to only with offloaded
         // experts. Creating them costs two sub-buffers per expert in every layer (~0.4 ms per layer for 256 experts).
         const bool needs_expert_masks = select_impl(token_num) == MoeGemmImpl::per_expert_onednn || _weight_provider->is_offloaded();
-        if (token_num > 1 && needs_expert_masks) {
+        if (needs_gather_scratch(token_num) && needs_expert_masks) {
             const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
             int expert_num = static_cast<int>(config.num_expert);
             scratch.expert_masks.resize(expert_num);
@@ -1666,8 +1664,6 @@ public:
                                         typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                         scratch_buffers& scratch,
                                         size_t token_num) {
-        auto& cur_net = instance.get_network();
-        auto& stream = cur_net.get_stream();
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         int max_topk = static_cast<int>(cur_moe->_config.top_k);
 
@@ -1681,16 +1677,6 @@ public:
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
         const size_t max_work_group_size = instance.get_impl_params()->get_device_info().max_work_group_size;
 
-        {
-            const size_t topk_count = token_num * static_cast<size_t>(max_topk);
-            bool needs_fallback = false;
-            on_before_batched_gemv(stream, instance, scratch, topk_count, needs_fallback);
-            if (needs_fallback) {
-                // Cannot fit all experts simultaneously → fall back to per-expert onednn loop
-                instance.output_memory_ptr(0)->fill(stream, 0u);
-                return exec_per_expert_onednn_linear(events, stream, instance, scratch);
-            }
-        }
         // OTD hook may have remapped expert IDs into scratch._expert_index_buffer
         if (scratch._expert_index_buffer) {
             batch_mem_ptr = scratch._expert_index_buffer;
@@ -2800,8 +2786,12 @@ public:
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         const MoeGemmImpl impl = select_impl(token_num);
+        bool batched_fallback = false;
         if (impl == MoeGemmImpl::batched_gemv) {
-            return exec_batched_gemv(events, instance, scratch, token_num);
+            on_before_batched_gemv(stream, instance, scratch, token_num * config.top_k, batched_fallback);
+            if (!batched_fallback) {
+                return exec_batched_gemv(events, instance, scratch, token_num);
+            }
         }
 
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
@@ -2811,10 +2801,10 @@ public:
         // and does not require pre-zeroing — except in OTD mode where the
         // fallback to exec_per_expert_onednn_linear (when unique_experts > lru slots)
         // also accumulates via index_add.
-        if (impl != MoeGemmImpl::micro_gemm && should_pre_zero_output()) {
+        if (batched_fallback || (impl != MoeGemmImpl::micro_gemm && should_pre_zero_output())) {
             final_hidden_states_mem_ptr->fill(stream, 0u);
         }
-        const bool use_gpu_mask_gen = should_use_gpu_mask_gen(impl, token_num);
+        const bool use_gpu_mask_gen = !batched_fallback && should_use_gpu_mask_gen(impl, token_num);
         if (!use_gpu_mask_gen) {
             // Wait for input events (topk produced upstream by MoERouterFused)
             for (const auto& ev : events) {
@@ -2827,7 +2817,9 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "\nMoE3GemmFusedCompressed exec(): token_num=" << token_num << ", max_topk=" << static_cast<int>(config.top_k)
                                << ", impl=" << static_cast<int>(impl) << std::endl;
         update_rt_params(instance);
-        if (impl == MoeGemmImpl::micro_gemm) {
+        if (batched_fallback) {
+            ret_env = exec_per_expert_onednn_linear(events, stream, instance, scratch);
+        } else if (impl == MoeGemmImpl::micro_gemm) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
         } else if (impl == MoeGemmImpl::grouped_gemm) {
             ret_env = use_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch)
@@ -2861,6 +2853,10 @@ public:
                 ret_env->wait();
             }
             execute_shared_expert(stream.get_onednn_stream(), static_cast<int>(token_num), hidden_states_mem_ptr, final_hidden_states_mem_ptr, scratch);
+        }
+        if (batched_fallback) {
+            // Include the shared expert and all OneDNN work before returning the completion event.
+            on_after_exec_sync(stream);
         }
         return ret_env;
     }
