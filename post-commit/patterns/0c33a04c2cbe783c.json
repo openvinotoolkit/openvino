@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED|Network",
+    "signature_hash": "0c33a04c2cbe783c",
+    "title": "Upload OpenVINO tests package fails with FinalizeArtifact ECONNREFUSED after full upload",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-11-05T13:52:45Z",
+    "last_seen": "2026-11-05T13:52:45Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/42029379851"
+    ],
+    "affected_commits": [
+        "daea58a11fcc62dee9443fa01777b3491b1b2ecf"
+    ],
+    "recent_timestamps": [
+        "2026-11-05T13:52:45Z"
+    ]
+}

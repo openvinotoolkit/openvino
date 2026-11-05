@@ -1,0 +1,49 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-05-13-52-45-050-42029379851",
+    "timestamp": "2026-11-05T13:52:45Z",
+    "run_id": "42029379851",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42029379851",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "daea58a11fcc62dee9443fa01777b3491b1b2ecf",
+    "pr_number": "39315",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39315",
+    "author": "kpetukhova",
+    "category": "Network",
+    "title": "Upload OpenVINO tests package fails with FinalizeArtifact ECONNREFUSED after full upload",
+    "signature": "Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED|Network",
+    "signature_hash": "0c33a04c2cbe783c",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Build / Build",
+            "conclusion": "failure",
+            "symptom": "Upload OpenVINO tests package step fails after the full artifact content was uploaded to blob storage, when finalizing with the Actions artifact service"
+        },
+        {
+            "name": "Build (C++20, non-blocking) / Build",
+            "conclusion": "failure",
+            "symptom": "Cmake build fails with -Werror=deprecated for implicit 'this' capture under C++20 in two intel_gpu plugin transformation files; explicitly marked non-blocking (CVS-189849) and does not fail the overall workflow"
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Overall status check fails because the upstream Build / Build job failed"
+        }
+    ],
+    "key_errors": [
+        "2026-11-05T13:45:09.4037257Z Finished uploading artifact content to blob storage!\n2026-11-05T13:45:09.4038857Z SHA256 digest of uploaded artifact is 472872b0cb7ac38c810e4effb1602b51156d55df971b9e90d00bbe9465bce282\n2026-11-05T13:45:09.4040645Z Finalizing artifact upload\n2026-11-05T13:45:09.4263451Z ##[error]Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github",
+        "src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41:42: error: implicit capture of 'this' via '[=]' is deprecated in C++20 [-Werror=deprecated]\ncc1plus: all warnings being treated as errors",
+        "src/plugins/intel_gpu/src/plugin/transformations/increase_position_ids_precision.cpp:650:42: error: implicit capture of 'this' via '[=]' is deprecated in C++20 [-Werror=deprecated]\ncc1plus: all warnings being treated as errors",
+        "##[warning]C++20 build failed. This check is non-blocking (CVS-189849), the failure does not fail the workflow."
+    ],
+    "root_cause": "The 'Build / Build' job's compilation succeeded, and the 'openvino_tests' artifact was fully uploaded to Azure blob storage (332MB uploaded in full), but the subsequent FinalizeArtifact call to the GitHub Actions artifact service (internally used by the self-hosted/ARC-managed runner to register the completed upload) was rejected with ECONNREFUSED. This indicates a transient connectivity failure between the runner and the Actions artifact/results service endpoint at the moment of finalization, not a problem with the OpenVINO build or the uploaded content itself. The separate 'Build (C++20, non-blocking)' job failure is unrelated: it is a real, deterministic compiler error (-Werror=deprecated on implicit 'this' capture in a C++20 lambda) in two intel_gpu plugin transformation files, but this job is explicitly configured as non-blocking (tracked as CVS-189849) and its failure is only surfaced as a workflow warning, not a workflow failure. The 'ci/gha_overall_status' job failure is a pure downstream aggregation of the 'Build / Build' job's failure.",
+    "reproduction_steps": "N/A for the ECONNREFUSED FinalizeArtifact failure - it is a transient connectivity issue with the GitHub Actions artifact service infrastructure at upload-finalization time and cannot be reproduced by re-running the same build locally; re-running the workflow is the standard mitigation. For the separate C++20 deprecated-capture warnings (non-blocking), reproduce locally with: `cmake -DCMAKE_CXX_STANDARD=20 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON <other existing options> -S . -B build && cmake --build build --target openvino_intel_gpu_plugin`, which will fail compiling src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41 and src/plugins/intel_gpu/src/plugin/transformations/increase_position_ids_precision.cpp:650 due to lambdas using '[=]' that implicitly capture 'this'.",
+    "recommended_actions": [
+        "Re-run the 'Build / Build' job (or the full workflow) for run 42029379851; the FinalizeArtifact ECONNREFUSED error is a transient infrastructure issue and is expected to succeed on retry.",
+        "If ECONNREFUSED on artifact finalization recurs frequently, escalate to the CI infrastructure/runners team to check connectivity/health of the Actions artifact service endpoint from the affected runner pool around the time of these failures.",
+        "Separately (tracked under CVS-189849, non-blocking): update src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41 and src/plugins/intel_gpu/src/plugin/transformations/increase_position_ids_precision.cpp:650 to replace implicit '[=]' captures of 'this' with explicit '[this]' (or '[=, this]') to satisfy C++20's -Wdeprecated warning-as-error and keep the non-blocking C++20 check green."
+    ],
+    "prevention_strategies": "For the artifact-finalization ECONNREFUSED class of failures: consider adding automatic retry/backoff around the artifact upload finalization step (e.g., wrapping the upload-artifact action invocation with a retry action) to absorb transient Actions-service connectivity blips without failing the whole build job. For the C++20 lambda-capture class of failures: proactively run the non-blocking C++20 CI configuration (or a local lint pass with -Wdeprecated) when adding new lambdas in intel_gpu plugin transformation code that reference 'this' implicitly, and prefer explicit capture lists project-wide to avoid accumulating similar warnings as C++20 enforcement expands to blocking status.",
+    "historical_context": "This is the first recorded occurrence of a 'FinalizeArtifact: ... ECONNREFUSED' signature in this knowledge base; a related but distinct signature, 'Failed to CreateArtifact: Unable to make request: ECONNREFUSED' (pattern b6957c2b9e09de1c, first seen 2026-10-20, run 39398307178), was previously recorded for the artifact-creation phase rather than the finalization phase, confirming that transient ECONNREFUSED connectivity failures against the GitHub Actions artifact service recur at different stages of the upload lifecycle in this repository's CI."
+}
