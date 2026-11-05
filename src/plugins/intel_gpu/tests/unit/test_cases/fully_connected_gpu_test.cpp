@@ -5,6 +5,7 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/layout.hpp"
@@ -5411,6 +5412,55 @@ static void test_dynamic_shape_agnostic_onednn_fc(size_t input_rank, bool is_cac
                 ASSERT_NEAR(ref, static_cast<float>(output_ptr[r * ofm + o]), 2e-2f) << "shape " << in_shape << " row " << r << " ofm " << o;
             }
         }
+    }
+}
+
+// In-place crop + unsqueeze propagates a dynamic padding to the FC input. The shape-agnostic impl flattens the
+// tensors and drops the padding, so it must not be used for such a node.
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_dynamic_padding) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const int64_t ifm = 32, ofm = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(ofm * ifm, -1, 1));
+    auto axis_mem = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_length_mem = engine.allocate_memory({{2}, data_types::i64, format::bfyx});
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_length_mem, {ifm, ifm});
+
+    const auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    topology topology(
+        input_layout("input", layout{ov::PartialShape{ov::Dimension::dynamic(), 2 * ifm}, data_types::f16, format::bfyx}),
+        data("split_axis", axis_mem),
+        data("splits_length", splits_length_mem),
+        data("weights", weights_mem),
+        crop("split.out0", {input_info("input"), input_info("split_axis"), input_info("splits_length")}, tensor(1), tensor(0), op_mode, 0, 1),
+        crop("split.out1", {input_info("input"), input_info("split_axis"), input_info("splits_length")}, tensor(1), tensor(0), op_mode, 1, 1),
+        reshape("unsqueeze", input_info("split.out1"), false, std::vector<int64_t>{0}, ov::PartialShape{1, -1, ifm}, reshape::reshape_mode::unsqueeze),
+        fully_connected("fc", input_info("unsqueeze"), "weights", "", 3, 2),
+        reorder("output", input_info("split.out0"), format::bfyx, data_types::f32));
+
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl_types::onednn};
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl_desc}}));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->get_program()->get_compilation_context().cancel();
+
+    for (int64_t rows : {1, 7, 3}) {
+        auto input_mem = engine.allocate_memory({ov::PartialShape{rows, 2 * ifm}, data_types::f16, format::bfyx});
+        set_values(input_mem, rg.generate_random_1d<ov::float16>(rows * 2 * ifm, -1, 1));
+        network->set_input_data("input", input_mem);
+        network->execute();
+
+        auto fc_inst = network->get_primitive("fc");
+        ASSERT_TRUE(fc_inst->get_impl_params()->get_input_layout(0).data_padding.is_dynamic()) << "rows " << rows;
+        ASSERT_TRUE(fc_inst->get_impl()->is_onednn()) << "rows " << rows;
+        ASSERT_FALSE(fc_inst->get_impl()->is_dynamic()) << "rows " << rows;
     }
 }
 

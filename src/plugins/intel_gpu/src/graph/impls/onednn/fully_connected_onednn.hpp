@@ -150,7 +150,10 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
         if (fc_prim->compressed_weights || fc_prim->weights_rank != 2 || !node.get_fused_primitives().empty()) {
             return false;
         }
-        return !static_cast<bool>(fc_node.get_input_layout(0).data_padding) && !static_cast<bool>(fc_node.get_output_layout(0).data_padding);
+        // Dynamic padding (e.g. from runtime buffer fusing) is resolved only at execution time, so check it explicitly.
+        const auto& input_padding = fc_node.get_input_layout(0).data_padding;
+        const auto& output_padding = fc_node.get_output_layout(0).data_padding;
+        return !input_padding && !input_padding.is_dynamic() && !output_padding && !output_padding.is_dynamic();
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
