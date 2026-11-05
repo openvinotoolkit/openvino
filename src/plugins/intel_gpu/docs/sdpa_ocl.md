@@ -58,7 +58,7 @@ xe_hpg (SG8, no 2D block IO) can take the `sdpa_ocl` lane only with `TEST_USE_SD
 it nothing about xe_hpg changes. Only the kernel arms that exist are served: `supported()` requires the
 op's `HpgTier` bits (`sdpa_ocl_hpg.hpp`, `hpg_tier_required()`) to be set in `kHpgTiersReady`, which
 has `PLAIN_F16_STATIC` (plain f16 SDPA, static shape, more than one query, no mask / causal / sink / runtime
-scale), `PLAIN_I8`, `PA_PREFILL`, `PA_MIXED_F16` and `PLAIN_EXT` (the rest of uncompressed plain SDPA: bf16, a mask, causal, a sink, a runtime scale, a dynamic
+scale), `PLAIN_I8`, `PA_PREFILL`, `PA_MIXED_F16`, `PA_FEATURES` and `PLAIN_EXT` (the rest of uncompressed plain SDPA: bf16, a mask, causal, a sink, a runtime scale, a dynamic
 shape, one query; the mask, causal, sink and softmax code is lane = query and shared with SG16, only the 16-key
 `mask_full` vector of a full 2D mask is wider than the subgroup). Every other op is refused and runs the opt kernels,
 as every op does with the switch off (until 2026-11-02 a temporary routing sent both to `sdpa_micro`). The SG8 arm (`SG8` in
@@ -67,7 +67,9 @@ as every op does with the switch off (until 2026-11-02 a temporary routing sent 
 two-ushort fallback for an unaligned or tail tile) and the S*V A operand is one 8-row dword block read of
 `S_slm`; everything else (Q staging, softmax, V gather, output) is lane = query / value column and is shared with
 SG16. `SDPA_OCL_NEG_SG8=1..3` (SG8 only) breaks one of the three mappings on purpose for the sharp-softmax test,
-`=4` forces the unaligned-K fallback, `=5` / `=6` read the full / per-key mask with the wrong lane width / one lane off.
+`=4` forces the unaligned-K fallback, `=5` / `=6` read the full / per-key mask with the wrong lane width / one lane off,
+`=7` / `=8` / `=9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block
+short (the PA feature tests must fail each).
 `PA_PREFILL` and `PA_MIXED_F16` (every PA op needs both, since both stages compile) serve paged attention on an f16
 cache. PREFILL reads the K/V inputs like plain SDPA; at head 128 it runs its own kernel ("xe_hpg PA PREFILL kernel"
 below). MIXED reads the pages: the K page through the `int8` arm of `pa_k_tile_gather` (lane = channel pair, dword
@@ -80,8 +82,11 @@ The V page index of each 16-key block comes from one uniform load per block (`pa
 a per-lane load of page `lane` and `sub_group_broadcast`, loads the same entries but gave wrong pages on DG2 under
 some code shapes (MIXED with one KV head, heads 48 and 96), and which shapes failed moved with unrelated edits of the
 S*V loop. The PA features (`PA_FEATURES`: a sink, token_type_ids, qq_bias, a sliding window, k != v, a runtime scale)
-and the compressed caches (`PA_I8_TOKEN`, `PA_I8_CHANNEL`, `PA_U4`) are not ready: such an op stays on `sdpa_micro`,
-and `sdpa_ocl_config.cl` still `#error`s on the compressed-page and `PA_CUR_KV_F16` K readers, which fill a `ushort8`.
+are lane = query code shared with SG16 and needed no SG8 arm; `smoke_paged_attention_feature_*` checks each one on an
+f16 cache with a sharp softmax and asserts that `sdpa_ocl` ran the case where it serves the op (PREFILL; MIXED runs
+`pa_multi_token` while xe_hpg pages are d-major). The compressed caches (`PA_I8_TOKEN`, `PA_I8_CHANNEL`, `PA_U4`) are
+not ready: such an op runs the opt kernels, and `sdpa_ocl_config.cl` still `#error`s on the compressed-page and
+`PA_CUR_KV_F16` K readers, which fill a `ushort8`.
 The PA unit tests ask `tests::pa_hpg_tiers()` for the bits of their case, so their expected backend follows the mask.
 `PLAIN_I8` is plain SDPA on an i8 KV cache (always asymmetric, planar): the K tile comes from `k_tile_dword_i8`, which
 dequantizes `(q - zp) * scale` per element from the hoisted per-key scale/zp into the same dword A operand (byte
@@ -107,12 +112,13 @@ so the results of such a run mean nothing; only the dumped sources do.
 
 ### xe_hpg PA PREFILL kernel
 
-On xe_hpg, PA PREFILL at head 128 (f16, k == v, no sink / token_type_ids / alibi / sliding window / runtime scale, and
-Q / K / V rows the kernel can read in dwords) runs `sdpa_ocl_hpg_pa_prefill.cl` instead of the generic body:
+On xe_hpg, PA PREFILL at head 128 (f16, k == v, no sink / token_type_ids / alibi / runtime scale, with or without a
+sliding window, and Q / K / V rows the kernel can read in dwords) runs `sdpa_ocl_hpg_pa_prefill.cl` instead of the
+generic body:
 `SDPAOclGenerator`'s `hpg_pa_prefill_ok()` picks it, `hpg_pa_prefill_tiling()` gives it its tiling, and the jit
 constant `HPG_PA_PREFILL` makes `sdpa_ocl.cl` include it in place of its own kernel (the constant exists only then,
 so no other kernel's text changes). It keeps the generic loop (online softmax over 256-key workgroup tiles, the causal
-bound, the `S_max_slm` / `S_sum_slm` exchange) and changes what DG2 needed to keep its DPAS fed:
+and sliding-window bounds, the `S_max_slm` / `S_sum_slm` exchange) and changes what DG2 needed to keep its DPAS fed:
 
 | | Generic SG8 kernel | xe_hpg PA PREFILL kernel |
 |---|---|---|
@@ -120,8 +126,8 @@ bound, the `S_max_slm` / `S_sum_slm` exchange) and changes what DG2 needed to ke
 | KQ | DPAS(K, Q): K repacked to the `int8` A operand | DPAS(Q, K): Q staged so that one `ulong4` SLM block read is the A operand, K read straight from the input as the B operand (one 32 B read per key row); the scores are transposed to lane = query through 64 dwords of SLM per subgroup |
 | S*V | DPAS(P, V), V gathered per value | DPAS(V, P): V rows read as dwords and interleaved per key pair, the output tile is lane = query |
 | V latency | loads in the S*V loop | the first `HPG_PA_V_LEAD` (6) key blocks of V are loaded before the wait of the P barrier and the loop keeps that lead: IGC 2.41 sinks loads that nothing pins toward their use, which left the V latency exposed |
-| Mask | per element | skipped for a subgroup tile wholly below the diagonal |
-| Workgroup order | subsequence order | heaviest, lightest, second heaviest, ... query block by causal key count (`pair_query_blocks`, `prepare_internal_buffers()`) |
+| Mask | per element | skipped for a subgroup tile wholly below the diagonal and inside the window; with a window, causal and window are one unsigned compare (`0 <= query - key < window`): the two signed compares spilled 2.5 KB on IGC 2.41 |
+| Workgroup order | subsequence order | heaviest, lightest, second heaviest, ... query block by the keys it visits, causal and from its first query's window start (`pair_query_blocks`, `prepare_internal_buffers()`) |
 | Softmax rounding | `MICRO_MATH=1` | the default rounding (`MICRO_MATH=0`) |
 
 Rows past the subsequence are clamped to its last key or query, so no read leaves it, and their scores are masked to
@@ -139,8 +145,9 @@ the lead of 6 it passed 18 / 20 on the ordinary s360 lengths (2048 and 2049 toke
 product kernel itself has not been timed yet: that waits for a DG2 that is not shared.
 
 `smoke_paged_attention_prefill_h128` covers it: lengths around the 32-query and 256-key tiles, several subsequences per
-call, GQA and MQA, padded rows (one padding that sends the op to the generic kernel), and every case again with a sharp
-softmax.
+call, GQA and MQA, padded rows (one padding that sends the op to the generic kernel), sliding windows (1, 17, 100, 256,
+300 keys and one wider than the prompt), and every case again with a sharp softmax; `SDPA_OCL_NEG_SG8=9` must fail its
+window cases but the widest.
 
 ## Source layout
 
@@ -1866,7 +1873,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
 | `SDPA_OCL_HPG_PA_PREFILL` | `0`: xe_hpg PA PREFILL at head 128 takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
 | `SDPA_OCL_HPG_PA_V_LEAD` | key blocks of V the xe_hpg PA PREFILL kernel loads ahead (1..16, default 6) |
-| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback (must pass) |
+| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback (must pass); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests) |
 | `OV_GPU_ARCH_OVERRIDE` | Debug caps only: report another arch (`xe_hpg`, `xe2`, ...) so its host code runs on this device (dump only) |
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
@@ -2393,10 +2400,14 @@ is not shared (the harness numbers are from the 2026-10 study on an A770, driver
 - With gaps between calls the short and medium prompts pay a fixed cost `sdpa_micro` does not (768 tokens: +82 us
   against +59 us from queued to gapped), not explained (not the instruction cache: 40 KB of OCL code against 71 KB of
   `sdpa_micro`).
-- The xe_hpg PA PREFILL kernel is head 128 only; other heads take the generic SG8 kernel.
+- The xe_hpg PA PREFILL kernel is head 128 only; other heads take the generic SG8 kernel. At head 128 it serves a
+  sliding window but no other PA feature: a sink, token_type_ids or a runtime scale takes the generic SG8 kernel.
 - PA MIXED on SG8 (the generic kernel, 16 x 16 subgroup tiles) has never been timed against `sdpa_micro`.
-- Not ported to SG8 yet: the PA features (`PA_FEATURES`, plan S7c) and the compressed caches (`PA_I8_TOKEN`,
-  `PA_I8_CHANNEL`, `PA_U4`, plans S8a-c).
+- Not ported to SG8 yet: the compressed caches (`PA_I8_TOKEN`, `PA_I8_CHANNEL`, `PA_U4`, plans S8a-c).
+- Every qq_bias feature case is MIXED, which runs `pa_multi_token` on xe_hpg while its pages are d-major, so
+  `SDPA_OCL_NEG_SG8=8` has nothing to detect there yet. Where `sdpa_ocl` ran them (an earlier d-major SG8 MIXED reader)
+  the control failed them only just past the tolerance (first error about 0.003); a case with a short past, where the
+  speculative keys weigh more, would make it sharper.
 - On DG2, `SDPAWithKVCacheTest` bf16 `batch=2 causal=1 compressed=1` head 64 fails in a group run on both lanes and
   passes alone (order or state dependent, not investigated), and f32 PA (`smoke_PagedAttentionTokenType` `Prc=f32`,
   4 heads, 500 tokens) ends in `CL_OUT_OF_RESOURCES` on every lane.

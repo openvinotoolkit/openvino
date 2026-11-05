@@ -2488,19 +2488,23 @@ public:
             }
         }
 
-        // The xe_hpg PA PREFILL kernel: the query blocks go heaviest, lightest, second heaviest, ... by causal key count,
-        // so the last workgroups to start are short ones instead of the whole diagonal tail. Every workgroup reads its own
-        // (block start, subsequence) pair, so any order computes the same result.
+        // The xe_hpg PA PREFILL kernel: the query blocks go heaviest, lightest, second heaviest, ... by the keys they visit
+        // (causal, from the window start of their first query), so the last workgroups to start are short ones instead of
+        // the whole diagonal tail. Every workgroup reads its own (block start, subsequence) pair, so any order computes the
+        // same result.
         if (micro_sdpa_block_starts_and_gws_mapping_lock && pair_query_blocks) {
             auto& mapping = *micro_sdpa_block_starts_and_gws_mapping_lock;
             const auto block_size = static_cast<int32_t>(query_block_size);
+            const auto window = static_cast<int32_t>(desc->sliding_window);
             std::vector<std::pair<int32_t, int32_t>> blocks(micro_sdpa_index / 2);
             for (size_t b = 0; b < blocks.size(); b++) {
                 blocks[b] = {mapping[2 * b], mapping[2 * b + 1]};
             }
             const auto causal_keys = [&](const std::pair<int32_t, int32_t>& block) {
                 const auto begin = subsequence_begins_mem_lock[block.second];
-                return std::min(block.first - begin + block_size, subsequence_begins_mem_lock[block.second + 1] - begin);
+                const auto first_query = block.first - begin;
+                const auto end = std::min(first_query + block_size, subsequence_begins_mem_lock[block.second + 1] - begin);
+                return end - (window > 0 ? std::max(0, first_query - window + 1) : 0);
             };
             std::stable_sort(blocks.begin(), blocks.end(), [&](const auto& a, const auto& b) {
                 return causal_keys(a) < causal_keys(b);
