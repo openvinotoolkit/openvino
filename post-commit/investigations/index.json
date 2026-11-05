@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 73,
+  "total": 74,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -744,6 +744,17 @@
       "category": "Network",
       "signature_hash": "49e48b464b80bcb7",
       "commit_sha": "ccad1b951347283ce211a66e6253967f6b57c07a"
+    },
+    {
+      "investigation_id": "2026-11-05-18-51-18-000-42080105893",
+      "run_id": "42080105893",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42080105893",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-05T18:51:18Z",
+      "title": "smoke_ConvertCPULayerTest_4D_Dynamic fails on ACL primitive type check (unknown_I8 vs ref_i8)",
+      "category": "Flaky Test",
+      "signature_hash": "decbd93c2f5708ce",
+      "commit_sha": "152520467d0379f3a62558ef7defc57435344340"
     }
   ]
 }

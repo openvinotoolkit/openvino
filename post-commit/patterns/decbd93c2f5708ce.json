@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected : unknown_I8 Expected : ref_i8 (ConvertCPULayerTest 4D Dynamic ref primType i8)|Flaky Test",
+    "signature_hash": "decbd93c2f5708ce",
+    "title": "smoke_ConvertCPULayerTest_4D_Dynamic fails on ACL primitive type check (unknown_I8 vs ref_i8)",
+    "category": "Flaky Test",
+    "count": 1,
+    "first_seen": "2026-11-05T18:51:18Z",
+    "last_seen": "2026-11-05T18:51:18Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/42080105893"
+    ],
+    "affected_commits": [
+        "152520467d0379f3a62558ef7defc57435344340"
+    ],
+    "recent_timestamps": [
+        "2026-11-05T18:51:18Z"
+    ]
+}

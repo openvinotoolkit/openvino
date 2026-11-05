@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-05-18-51-18-000-42080105893",
+    "timestamp": "2026-11-05T18:51:18Z",
+    "run_id": "42080105893",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42080105893",
+    "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "152520467d0379f3a62558ef7defc57435344340",
+    "pr_number": "39540",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39540",
+    "author": "mryzhov",
+    "category": "Flaky Test",
+    "title": "smoke_ConvertCPULayerTest_4D_Dynamic fails on ACL primitive type check (unknown_I8 vs ref_i8)",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected : unknown_I8 Expected : ref_i8 (ConvertCPULayerTest 4D Dynamic ref primType i8)|Flaky Test",
+    "signature_hash": "decbd93c2f5708ce",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "smoke_ConvertCPULayerTest_4D_Dynamic fails: primTypeCheck assertion reports primType 'unknown_I8' instead of expected 'ref_i8'"
+        },
+        {
+            "name": "ci/gha_overall_status_linux_arm64",
+            "conclusion": "failure",
+            "symptom": "Overall status job fails because it aggregates the CPU functional tests job failure"
+        }
+    ],
+    "key_errors": [
+        "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : unknown_I8 Expected : ref_i8\n[  FAILED  ] smoke_ConvertCPULayerTest_4D_Dynamic/ConvertCPULayerTest.CompareWithRefs/IS=[1..5.2..22.2..9.1..4]_TS=(2.17.5.4)_(5.2.3.2)_(1.10.4.1)_inputPRC=u8_specialValue=none_targetPRC=i8__inFmts=nchw_outFmts=nchw_primitive=acl, where GetParam() = (({ 1..5, 2..22, 2..9, 1..4 }, { { 2, 17, 5, 4 }, { 5, 2, 3, 2 }, { 1, 10, 4, 1 } }), u8, i8,  (61 ms)"
+    ],
+    "root_cause": "The test asserts that a Convert node's selected implementation ('primType') matches the expected 'ref_i8' primitive, but the executed graph reports 'unknown_I8' instead. This is the same class of intermittent primType mismatch previously seen for other CPU layer tests (MvnLayerCPUTest, PoolingLayerCPUTest, ConvertCPULayerTest 7D) on this Linux ARM64 ACL-enabled runner, where the exec-graph RTInfo IMPL_TYPE attribute is not reliably populated/propagated for certain dynamic-shape or ACL-backed executors, producing a placeholder 'unknown_*' value instead of the real backend name. The triggering commit (#39540) only changes CI workflow scheduling for C++20 build checks and does not touch CPU plugin code, Convert implementation selection, or test utilities, so it is not the root cause; this is an independent, pre-existing flaky test surfacing in the same post-commit run.",
+    "reproduction_steps": "Build the Linux ARM64 CPU plugin and run: ov_cpu_func_tests --gtest_filter=*smoke_ConvertCPULayerTest_4D_Dynamic*ref*i8* repeatedly (several iterations); the failure is intermittent and may require multiple runs or the exact ARM64/ACL environment to reproduce.",
+    "recommended_actions": [
+        "Investigate why getExecValue(ov::exec_model_info::IMPL_TYPE) can return 'unknown_I8' instead of the real primitive name for Convert nodes with dynamic shapes on the ACL-enabled ARM64 CPU plugin build.",
+        "Check whether the RTInfo IMPL_TYPE attribute is being set before the test reads it, or if there's a race/ordering issue in exec-graph annotation for ACL executors.",
+        "Consider adding a retry/rerun marker or quarantining smoke_ConvertCPULayerTest_4D_Dynamic (and related ConvertCPULayerTest/MvnLayerCPUTest/PoolingLayerCPUTest ACL variants) if the root cause cannot be fixed quickly, given the recurring 'unknown_*' vs expected primType pattern across different test suites.",
+        "Link this investigation group to existing pattern hashes 56c268ac84902dce, 809d4bb416b7d3e9, d94563b07437b23b, 2640902748a867ec for cross-test correlation."
+    ],
+    "prevention_strategies": "Add CI-side flaky-test detection/quarantine for primType-check assertions on ACL-backed executors, and add diagnostic logging (already behind #ifndef NDEBUG) to capture IMPL_TYPE population timing in CI debug builds so transient 'unknown_*' states can be root-caused.",
+    "historical_context": "This is the fifth recorded occurrence of the 'primType is unexpected: unknown_*/undef_* vs expected' failure class on Linux ARM64 ACL builds, following MvnLayerCPUTest (2026-11-02), PoolingLayerCPUTest AvgPool (2026-09-30), PoolingLayerCPUTest MaxPool (2026-10-15), and ConvertCPULayerTest 7D Dynamic ref primType (2026-10-07). All prior occurrences were isolated single events (count=1) with no fix landed yet; this new signature (ConvertCPULayerTest 4D Dynamic ref primType i8) is a distinct but related pattern."
+}
