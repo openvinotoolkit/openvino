@@ -17,14 +17,14 @@ TEST(type_prop_floormod, constant_bounds) {
     const auto lhs = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {-7, 7, -7, 7});
     const auto rhs = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {3, -3, -3, 3});
     const auto mod = std::make_shared<ov::op::v1::FloorMod>(lhs, rhs);
-    const auto bounds = ov::util::evaluate_both_bounds(mod);
+    const auto& [lower, upper] = ov::util::evaluate_both_bounds(mod);
 
-    ASSERT_TRUE(bounds.first);
-    ASSERT_TRUE(bounds.second);
+    ASSERT_TRUE(lower);
+    ASSERT_TRUE(upper);
     const std::vector<int64_t> expected{2, -2, -1, 1};
-    EXPECT_EQ(std::vector<int64_t>(bounds.first.data<const int64_t>(), bounds.first.data<const int64_t>() + 4),
+    EXPECT_EQ(std::vector<int64_t>(lower.data<int64_t>(), lower.data<int64_t>() + 4),
               expected);
-    EXPECT_EQ(std::vector<int64_t>(bounds.second.data<const int64_t>(), bounds.second.data<const int64_t>() + 4),
+    EXPECT_EQ(std::vector<int64_t>(upper.data<int64_t>(), upper.data<int64_t>() + 4),
               expected);
 }
 
@@ -37,10 +37,10 @@ TEST(type_prop_floormod, static_shape_bounds) {
 
     ASSERT_TRUE(bounds.first);
     ASSERT_TRUE(bounds.second);
-    EXPECT_EQ(bounds.first.data<const int64_t>()[0], 1);
-    EXPECT_EQ(bounds.first.data<const int64_t>()[1], 1);
-    EXPECT_EQ(bounds.second.data<const int64_t>()[0], 1);
-    EXPECT_EQ(bounds.second.data<const int64_t>()[1], 1);
+    EXPECT_EQ(bounds.first.data<int64_t>()[0], 1);
+    EXPECT_EQ(bounds.first.data<int64_t>()[1], 1);
+    EXPECT_EQ(bounds.second.data<int64_t>()[0], 1);
+    EXPECT_EQ(bounds.second.data<int64_t>()[1], 1);
 }
 
 TEST(type_prop_floormod, interval_bounds_are_not_evaluated_at_endpoints) {
