@@ -40,10 +40,6 @@ namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
 namespace v15 = ov::op::v15;
 namespace pattern = ov::pass::pattern;
-constexpr const char* NUM_K_HEADS = "num_k_heads";
-constexpr const char* K_HEAD_SIZE = "k_head_size";
-constexpr const char* NUM_V_HEADS = "num_v_heads";
-constexpr const char* V_HEAD_SIZE = "v_head_size";
 
 ov::Output<ov::Node> pack_heads(const ov::Output<ov::Node>& input) {
     // Query:         [B_token, H, 1, S]   -> [B_token, 1, H, S]   -> [B_token, H * S].
