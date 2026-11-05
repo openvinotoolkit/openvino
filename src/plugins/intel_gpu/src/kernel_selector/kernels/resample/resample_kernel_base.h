@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ struct resample_params : public base_params {
     NearestMode nearestMode = NearestMode::ROUND_PREFER_FLOOR;
     ShapeCalculationMode shapeCalculationMode = ShapeCalculationMode::SIZES;
     uint32_t antialias = 0;
-    float cube_coeff = -0.75f;
+    float cube_coeff = -0.75F;
     using AxesAndScales = std::map<InterpolateAxis, float>;
     std::vector<InterpolateAxis> axes;
     std::vector<float> scales;
@@ -51,7 +51,7 @@ protected:
     virtual DispatchData SetDefault(const resample_params& arg) const;
     virtual JitConstants GetJitConstants(const resample_params& params, bool legacy_scale = false) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
-    size_t GetFeatureBlockSize(const resample_params& params) const;
+    static size_t GetFeatureBlockSize(const resample_params& params);
     virtual Datatype GetAccumulatorType(const resample_params& params) const;
 };
 }  // namespace kernel_selector

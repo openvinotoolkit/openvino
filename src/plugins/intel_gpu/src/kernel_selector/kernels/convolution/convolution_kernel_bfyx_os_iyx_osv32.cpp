@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,8 +64,9 @@ static size_t get_min_register_usage(const convolution_params& cp, size_t block_
 
 // Shrink only when the 1x1 block fits the register budget.
 static bool needs_smaller_block(const convolution_params& cp, size_t block_width, size_t block_height) {
-    if (get_min_register_usage(cp, block_width, block_height) < reg_threshold)
+    if (get_min_register_usage(cp, block_width, block_height) < reg_threshold) {
         return false;
+    }
 
     return get_min_register_usage(cp, 1, 1) < reg_threshold;
 }

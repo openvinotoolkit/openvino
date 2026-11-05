@@ -37,7 +37,9 @@ public:
         float end_x;
         float end_y;
 
-        anchor() { start_x = start_y = end_x = end_y = 0.0f; }
+        anchor() {
+            start_x = start_y = end_x = end_y = 0.0F;
+        }
 
         anchor(float s_x, float s_y, float e_x, float e_y) {
             start_x = s_x;
@@ -70,7 +72,7 @@ public:
     static layout calc_output_layout(proposal_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(proposal_node const& node);
 
-    typed_primitive_inst(network& network, proposal_node const& desc);
+    typed_primitive_inst(network& network, const proposal_node& node);
 
     const std::vector<anchor>& get_anchors() const { return _anchors; }
 

@@ -46,8 +46,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        const bool has_transpose_before_reshape = pattern_map.count(transpose_before_reshape_m) != 0u;
-        const bool has_transpose = pattern_map.count(transpose_m) != 0u;
+        const bool has_transpose_before_reshape = pattern_map.count(transpose_before_reshape_m) != 0U;
+        const bool has_transpose = pattern_map.count(transpose_m) != 0U;
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool sub_with_convert = pattern_map.count(sub_convert_const_m) > 0;
 

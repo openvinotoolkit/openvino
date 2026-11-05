@@ -44,11 +44,11 @@ public:
 
     const std::shared_ptr<primitive>& at(primitive_id id) const;
 
-    void change_input_layout(const primitive_id& id, const layout& new_layout);
+    void change_input_layout(const primitive_id& id, const layout& new_layout) const;
 
     const topology_map& get_primitives() const { return _primitives; }
 
-    const std::vector<primitive_id> get_primitives_ids() const;
+    std::vector<primitive_id> get_primitives_ids() const;
 
 private:
     topology_map _primitives;

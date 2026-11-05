@@ -53,7 +53,7 @@ public:
     static void save(BufferType& buffer, const std::shared_ptr<T>& ptr) {
         const std::string& type = ptr->get_type_info();
         buffer << type;
-        if (type.compare("NONE") != 0) {
+        if (type != "NONE") {
             const auto save_func = saver_storage<BufferType>::instance().get_save_function(type);
             save_func(buffer, ptr.get());
         }
@@ -66,7 +66,7 @@ public:
     static void load(BufferType& buffer, std::shared_ptr<T>& ptr, engine& engine) {
         std::string type;
         buffer >> type;
-        if (type.compare("NONE") != 0) {
+        if (type != "NONE") {
             const auto load_func = dif<BufferType>::instance().get_load_function(type);
             std::unique_ptr<void, void_deleter<void>> result;
             load_func(buffer, result, engine);
@@ -77,7 +77,7 @@ public:
     static void load(BufferType& buffer, std::shared_ptr<T>& ptr) {
         std::string type;
         buffer >> type;
-        if (type.compare("NONE") != 0) {
+        if (type != "NONE") {
             const auto load_func = def<BufferType>::instance().get_load_function(type);
             std::unique_ptr<void, void_deleter<void>> result;
             load_func(buffer, result);

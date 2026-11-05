@@ -4,6 +4,8 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // clang-format off
+#include <algorithm>
+
 #include "gathermatmul_batched_gemm_gen.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -16,12 +18,9 @@
 namespace ov::intel_gpu::ocl {
 
 static bool has_fused_swiglu(const kernel_impl_params& params) {
-    for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>()) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(params.fused_desc.begin(), params.fused_desc.end(), [](const auto& fd) {
+        return fd.template is_type<swiglu>();
+    });
 }
 
 static size_t get_subgroup_size(gpu_arch arch) {

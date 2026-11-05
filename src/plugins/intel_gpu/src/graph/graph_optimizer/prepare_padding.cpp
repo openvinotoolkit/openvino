@@ -162,8 +162,9 @@ void prepare_padding::run(program& p) {
 
                 auto in_layout = prim_node.get_input_layout();
                 const auto spatial_rank = in_layout.get_spatial_rank();
-                if (spatial_rank > 3 || spatial_rank < 1)
+                if (spatial_rank > 3 || spatial_rank < 1) {
                     continue;  // FIXME: should support spatial_rank > 3?
+                }
 
                 auto padding_begin = prim->padding_begin;
                 auto padding_end = prim->padding_end;

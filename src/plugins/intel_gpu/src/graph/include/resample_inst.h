@@ -45,8 +45,8 @@ public:
     static std::string to_string(resample_node const& node);
     void update_output_memory() override;
 
-public:
-    typed_primitive_inst(network& network, resample_node const& node);
+    typed_primitive_inst(network& network, const resample_node& node);
+
 private:
     void on_execute() override;
 };

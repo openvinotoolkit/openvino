@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ bool PoolingKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) const {
+Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) {
     const auto& input_dt = params.inputs[0].GetDType();
     const auto& pool_type = params.poolType;
 
@@ -48,7 +48,7 @@ Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) con
     }
 }
 
-Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
+Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) {
     if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
     }
@@ -94,7 +94,7 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
 }
 
 // Checks if we need boundary checking in kernel.
-bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
+bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) {
     const auto& input = pp.inputs[0];
     const auto& output = pp.outputs[0];
 
@@ -121,10 +121,10 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
     auto mod_y = (input.Y().v - pp.poolSize.y) % pp.poolStride.y;
     auto mod_z = (input.Z().v - pp.poolSize.z) % pp.poolStride.z;
 
-    return (mod_x != 0u) || (mod_y != 0u) || (mod_z != 0u);
+    return (mod_x != 0U) || (mod_y != 0U) || (mod_z != 0U);
 }
 
-bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& params) const {
+bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& params) {
     bool has_fused_quantize_to_int8 = false;
     for (const auto& op : params.fused_ops) {
         if (op.GetType() == FusedOpType::QUANTIZE &&

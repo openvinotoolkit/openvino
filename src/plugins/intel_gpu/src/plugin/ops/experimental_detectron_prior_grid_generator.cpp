@@ -9,9 +9,7 @@
 namespace ov::intel_gpu {
 namespace {
 
-static void CreateExperimentalDetectronPriorGridGeneratorOp(
-    ProgramBuilder& p,
-    const std::shared_ptr<ov::op::v6::ExperimentalDetectronPriorGridGenerator>& op) {
+void CreateExperimentalDetectronPriorGridGeneratorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v6::ExperimentalDetectronPriorGridGenerator>& op) {
     validate_inputs_count(op, {3});
     const auto& attrs = op->get_attrs();
     const auto& featmap_shape = op->get_input_shape(1);

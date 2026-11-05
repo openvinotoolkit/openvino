@@ -14,7 +14,7 @@ public:
     DepthToSpaceKernelBlock2Opt() : DepthToSpaceKernelBase("depth_to_space_block2_opt") {}
     ~DepthToSpaceKernelBlock2Opt() override = default;
 
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*p*/) const override;
     JitConstants GetJitConstants(const depth_to_space_params& params) const override;
     CommonDispatchData SetDefault(const depth_to_space_params& params) const override;
     KernelsData GetKernelsData(const Params& params) const override;

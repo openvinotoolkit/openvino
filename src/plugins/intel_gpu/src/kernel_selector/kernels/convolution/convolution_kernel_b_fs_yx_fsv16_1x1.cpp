@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionKernel_b_fs_yx_fsv16_1x1() : Con
 }
 
 ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16_1x1::GetAutoTuneOptions(const convolution_params& params,
-                                                                                                            int /*autoTuneIndex*/) const {
+                                                                                                            int /*autoTuneIndex*/) {
     if (!params.has_dynamic_outputs()) {
         auto x = params.outputs[0].X().v;
         auto y = params.outputs[0].Y().v;
@@ -47,7 +47,7 @@ ConvolutionKernel_b_fs_yx_fsv16_1x1::AutoTuneOption ConvolutionKernel_b_fs_yx_fs
     return {8, EXE_MODE_DEFAULT};
 }
 
-float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const {
+float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) {
     auto tuneOptions = GetAutoTuneOptions(params, 0);
     auto blockWidth = tuneOptions.blockWidth;
 
@@ -61,7 +61,7 @@ float ConvolutionKernel_b_fs_yx_fsv16_1x1::EstimateOccupancy(const convolution_p
     return static_cast<float>(threads) / static_cast<float>(params.engineInfo.maxThreadsPerDevice);
 }
 
-ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetTuningParams(const convolution_params& params) const {
+ConvolutionKernel_b_fs_yx_fsv16_1x1::ConvolutionTuningData ConvolutionKernel_b_fs_yx_fsv16_1x1::GetTuningParams(const convolution_params& params) {
     ConvolutionTuningData tuning_data;
 
     if (!params.is_shape_agnostic) {

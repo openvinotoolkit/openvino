@@ -65,8 +65,7 @@ public:
 
     static std::string to_string(custom_gpu_primitive_node const& node);
 
-public:
-    typed_primitive_inst(network& network, custom_gpu_primitive_node const& node);
+    typed_primitive_inst(network& network, const custom_gpu_primitive_node& node);
 
 private:
     static void update_output_shape(const kernel_impl_params& impl_param, std::vector<layout>& output_layouts) {

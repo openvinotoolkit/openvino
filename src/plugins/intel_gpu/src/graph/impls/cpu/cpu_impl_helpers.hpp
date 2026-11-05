@@ -28,13 +28,13 @@ struct bounding_box {
 
     bounding_box() : bounding_box(0, 0, 0, 0) {}
 
-    bounding_box(float centerx, float centery, float width, float height, center_point_construct_tag)
+    bounding_box(float centerx, float centery, float width, float height, center_point_construct_tag /*unused*/)
         : bounding_box(centerx - width / 2, centery - height / 2, centerx + width / 2, centery + height / 2) {}
 
-    bounding_box(float ax, float ay, float bx, float by, two_corners_construct_tag)
+    bounding_box(float ax, float ay, float bx, float by, two_corners_construct_tag /*unused*/)
         : bounding_box(std::min(ax, bx), std::min(ay, by), std::max(ax, bx), std::max(ay, by)) {}
 
-    bounding_box(float xmin, float ymin, float width, float height, corner_size_construct_tag)
+    bounding_box(float xmin, float ymin, float width, float height, corner_size_construct_tag /*unused*/)
         : bounding_box(xmin, ymin, xmin + width, ymin + height) {}
 
     // Computes the area of a bounding box.
@@ -54,14 +54,14 @@ inline float iou(const bounding_box& box1, const bounding_box& box2) {
     float intersection_y = (inter_ymax - inter_ymin);
 
     if (intersection_x <= 0 || intersection_y <= 0) {
-        return 0.f;
+        return 0.F;
     }
 
     float intersection = intersection_x * intersection_y;
     float union_ = (area1 + area2 - intersection);
 
     if (union_ <= 0) {
-        return 0.f;
+        return 0.F;
     }
 
     return intersection / union_;

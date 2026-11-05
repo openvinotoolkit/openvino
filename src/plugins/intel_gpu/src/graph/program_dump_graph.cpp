@@ -17,7 +17,7 @@
 
 namespace cldnn {
 namespace {
-static const std::vector<std::string> colors = {
+const std::vector<std::string> colors = {
     "chartreuse",
     "aquamarine",
     "gold",
@@ -241,10 +241,11 @@ void dump_graph_init(std::ofstream& graph,
 #endif
         std::string node_type_name = node->get_primitive()->type_string();
         const auto& inst = get_primitive_inst ? get_primitive_inst(node->id()) : nullptr;
+        const bool optimized_out = inst ? inst->can_be_optimized() : node->can_be_optimized();
         graph << "    " << get_node_id(node) << "[label=\"" << node->id() << ":" << "\\ntype: " << node_type_name
               << "\\nprocessing number: " << program.get_processing_order().get_processing_number(node)
               << "\\n color:" << (node->is_reusing_memory() ? std::to_string(node->get_reused_memory_color()) : "none")
-              << ((inst ? inst->can_be_optimized() : node->can_be_optimized()) ? "\\n optimized out" : "");
+              << (optimized_out ? "\\n optimized out" : "");
 
         if (!node->is_type<data>()) {
             graph << "\\n Selected kernel: ";

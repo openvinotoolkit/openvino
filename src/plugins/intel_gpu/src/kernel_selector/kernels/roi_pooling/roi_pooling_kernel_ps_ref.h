@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,6 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    JitConstants GetJitConstants(const roi_pooling_params& params) const override;
+    JitConstants GetJitConstants(const roi_pooling_params& rp) const override;
 };
 }  // namespace kernel_selector

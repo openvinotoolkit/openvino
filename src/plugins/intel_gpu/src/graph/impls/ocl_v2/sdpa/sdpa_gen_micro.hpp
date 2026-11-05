@@ -23,11 +23,7 @@ namespace ov::intel_gpu::ocl {
 class SDPAMicroGenerator : public SDPABase {
 public:
     explicit SDPAMicroGenerator(bool prefill, bool gqa_single_token = false)
-        : SDPABase("sdpa_micro",
-                   prefill            ? "_prefill"
-                   : gqa_single_token ? "_gqa_single_token"
-                                      : "_generate",
-                   false),
+        : SDPABase("sdpa_micro", get_kernel_suffix(prefill, gqa_single_token), false),
           m_is_prefill(prefill),
           m_is_gqa_single_token(gqa_single_token) {
         if (gqa_single_token) {
@@ -39,9 +35,16 @@ public:
     [[nodiscard]] KernelData get_kernel_data(const kernel_impl_params& params) const override;
 
     static void update_pa_sdpa_configuration(const sdpa_configuration& sdpa_config);
-    size_t get_tile_qsize(const KernelData& kernel_data);
+    static size_t get_tile_qsize(const KernelData& kernel_data);
 
 private:
+    static const char* get_kernel_suffix(bool prefill, bool gqa_single_token) {
+        if (prefill) {
+            return "_prefill";
+        }
+        return gqa_single_token ? "_gqa_single_token" : "_generate";
+    }
+
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         OPENVINO_THROW("Use overloaded version instead");
     }
@@ -51,14 +54,14 @@ private:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
     static void init_microkernels(const kernel_impl_params& params,
-                                  const sdpa_configuration& sdpa_config,
+                                  const sdpa_configuration& configuration,
                                   micro::Package& gemm_kq,
                                   micro::Package& gemm_vs,
                                   micro::Package& gemm_kcq,
                                   micro::Package& gemm_vcs,
                                   bool is_prefill,
                                   bool is_gqa_single_token);
-    static void init_sdpa_configuration(const kernel_impl_params& params, sdpa_configuration& config);
+    static void init_sdpa_configuration(const kernel_impl_params& impl_param, sdpa_configuration& config);
 
     bool m_is_prefill;
     bool m_is_gqa_single_token;

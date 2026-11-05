@@ -52,7 +52,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
 
             _scratchpad_md = _pd.scratchpad_desc();
 
-            GPU_DEBUG_IF(config.get_verbose() >= 4) {
+            GPU_DEBUG_IF(ov::intel_gpu::ExecutionConfig::get_verbose() >= 4) {
                 if (_scratchpad_md.get_size() > 0) {
                     static std::atomic_llong total{0};
                     int64_t size = _scratchpad_md.get_size() / 1048576;
@@ -411,7 +411,9 @@ protected:
         return PrimType(_pd, cache_blob);
     }
 
-    virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
+    virtual bool optimized_out(typed_primitive_inst<PType>& /*unused*/) const {
+        return false;
+    }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {
         auto& engine = instance.get_network().get_engine();
@@ -551,7 +553,7 @@ protected:
         return args;
     }
 
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
+    void init_kernels(const kernels_cache& /*unused*/, const kernel_impl_params& /*unused*/) override {}
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
         if (instance.can_be_optimized()) {
@@ -638,7 +640,7 @@ protected:
         return event;
     }
 
-    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& /*unused*/) const override {
         if (_scratchpad_md.get_size() == 0) {
             return {};
         }

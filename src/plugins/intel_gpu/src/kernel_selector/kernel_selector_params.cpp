@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -652,7 +652,7 @@ std::string base_params::to_string() const {
     }
 
     if (!found_fused_activation) {
-        s << "m" << 0.f << "_n" << 0.f << "_" << toString(ActivationFunction::NONE) << "_";
+        s << "m" << 0.F << "_n" << 0.F << "_" << toString(ActivationFunction::NONE) << "_";
     }
 
     for (auto input : inputs) {

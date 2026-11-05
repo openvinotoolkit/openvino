@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -107,7 +107,9 @@ protected:
     virtual JitConstants GetJitConstants(const reorder_params& params) const;
     virtual DispatchData SetDefault(const reorder_weights_params& params) const;
     virtual DispatchData SetDefault(const reorder_params& params) const;
-    bool Validate(const Params&) const override { return true; }
+    bool Validate(const Params& /*unused*/) const override {
+        return true;
+    }
     KernelsData GetCommonKernelsData(const reorder_weights_params& params) const;
     KernelsData GetCommonKernelsData(const reorder_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

@@ -7,6 +7,7 @@
 #include <json_object.h>
 #include <slice_scatter_inst.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include "primitive_type_base.h"
@@ -43,12 +44,9 @@ SliceScatterKernelRefNeededInputs SliceScatterKernelRefNeededInputs::Create(cons
 }
 
 bool SliceScatterKernelRefNeededInputs::IsInputNeededInRuntime(InputIndices type) const {
-    for (const auto& idx : neededIndexes) {
-        if (idx == static_cast<size_t>(type)) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(neededIndexes.begin(), neededIndexes.end(), [type](const auto& idx) {
+        return idx == static_cast<size_t>(type);
+    });
 }
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(slice_scatter)
@@ -94,7 +92,7 @@ layout slice_scatter_inst::calc_output_layout(const slice_scatter_node& node, co
 }
 
 template <typename ShapeType>
-inline std::vector<layout> slice_scatter_inst::calc_output_layouts(const slice_scatter_node&, const kernel_impl_params& impl_param) {
+inline std::vector<layout> slice_scatter_inst::calc_output_layouts(const slice_scatter_node& /*unused*/, const kernel_impl_params& impl_param) {
     std::vector<ShapeType> input_shapes;
     std::unordered_map<size_t, ov::Tensor> const_data;
 

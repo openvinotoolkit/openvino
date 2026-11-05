@@ -36,7 +36,7 @@ class typed_primitive_inst<ISTFT> : public typed_primitive_inst_base<ISTFT> {
     using parent::parent;
 
 public:
-    typed_primitive_inst(network& network, const ISTFT_node& desc);
+    typed_primitive_inst(network& network, const ISTFT_node& node);
     template <typename ShapeType>
     static std::vector<layout> calc_output_layouts(const ISTFT_node& node, const kernel_impl_params& impl_param);
     static layout calc_output_layout(const ISTFT_node& node, const kernel_impl_params& impl_param);

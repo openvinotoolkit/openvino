@@ -4,6 +4,8 @@
 
 #include "program_node.h"
 
+#include <algorithm>
+
 #include "activation_inst.h"
 #include "dynamic_quantize_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -98,7 +100,7 @@ void program_node::replace_dependency(size_t idx, std::pair<program_node*, int32
     new_dep.first->users.push_back(this);
 }
 
-const std::vector<layout> program_node::get_input_layouts() const {
+std::vector<layout> program_node::get_input_layouts() const {
     std::vector<layout> layouts;
     for (size_t i = 0; i < dependencies.size(); i++) {
         auto input_layout = get_input_layout(i);
@@ -180,19 +182,20 @@ size_t program_node::get_total_shape_info_size() const {
 }
 
 void program_node::replace_dependency(size_t idx, program_node& new_dep, bool remove_if_dangling) {
-    return replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
+    replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
 
 void program_node::replace_dependency(const program_node& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i) {
         if (dependencies[i].first == &old_dep) {
-            return replace_dependency(i, new_dep, remove_if_dangling);
+            replace_dependency(i, new_dep, remove_if_dangling);
+            return;
         }
     }
 }
 
 void program_node::replace_dependency(const program_node& old_dep, program_node& new_dep, bool remove_if_dangling) {
-    return replace_dependency(old_dep, std::make_pair(&new_dep, 0), remove_if_dangling);
+    replace_dependency(old_dep, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
@@ -556,12 +559,6 @@ bool program_node::is_dynamic_output_layout(size_t idx) {
     return output_layouts[idx].is_dynamic();
 }
 
-bool program_node::has_padded_dependency() {
-    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
-        return dep.first->is_padded();
-    });
-}
-
 bool program_node::has_padded_dependency() const {
     return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
         return dep.first->is_padded();
@@ -569,13 +566,10 @@ bool program_node::has_padded_dependency() const {
 }
 
 bool program_node::is_fused_dep(size_t dep_idx) const {
-    for (auto fused : get_fused_primitives()) {
-        if (fused.has_outer_dep() && static_cast<int32_t>(dep_idx) >= fused.outer_dep_start_idx) {
-            return true;
-        }
-    }
-
-    return false;
+    const auto& fused_primitives = get_fused_primitives();
+    return std::any_of(fused_primitives.begin(), fused_primitives.end(), [dep_idx](auto fused) {
+        return fused.has_outer_dep() && static_cast<int32_t>(dep_idx) >= fused.outer_dep_start_idx;
+    });
 }
 
 std::set<size_t> program_node::get_lockable_input_ids() const {
@@ -651,20 +645,16 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     }
 
     auto block_sizes_dims = format::per_axis_block_size(fmt);
-    for (const auto& block : block_sizes_dims) {
+    return std::all_of(block_sizes_dims.begin(), block_sizes_dims.end(), [axis, padding](const auto& block) {
         size_t block_axis = block.first;
         int block_size = block.second;
 
         if (axis != static_cast<int>(block_axis)) {
-            continue;
+            return true;
         }
 
-        if (padding % block_size != 0) {
-            return false;
-        }
-    }
-
-    return true;
+        return padding % block_size == 0;
+    });
 }
 
 bool program_node::is_padded_spatial(size_t idx) const {
@@ -1475,7 +1465,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 auto& stream = mem_ptr->get_engine()->get_service_stream();
                 if (mem_ptr->get_allocation_type() != allocation_type::usm_device) {
                     mem_lock<float, mem_lock_type::read_write> lock(mem_ptr, stream);
-                    fn(&lock[0], elem_count);
+                    fn(lock.data(), elem_count);
                 } else {
                     std::vector<float> host(elem_count);
                     mem_ptr->copy_to(stream, host.data(), true);
@@ -1532,8 +1522,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 auto bin_ops_can_be_optimized =
                     cur_node.is_type<data>() && cur_node.is_constant() && cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
 
-                auto bin_add_and_eltw = alpha == 1.0f && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
-                auto bin_mul_and_eltw = beta == 0.f && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
+                auto bin_add_and_eltw = alpha == 1.0F && type_is_binary_add(cur_type) && bin_ops_can_be_optimized;
+                auto bin_mul_and_eltw = beta == 0.F && type_is_binary_mul(cur_type) && bin_ops_can_be_optimized;
 
                 if (bin_add_and_eltw || bin_mul_and_eltw) {
                     memory::ptr cur_bin_mem_ptr = cur_node.as<data>().get_attached_memory_ptr();
@@ -1577,8 +1567,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 auto bin_ops_can_be_optimized =
                     prev_node.is_type<data>() && prev_node.is_constant() && prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
 
-                auto eltw_and_bin_add = alpha == 1.0f && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
-                auto eltw_and_bin_mul = beta == 0.f && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
+                auto eltw_and_bin_add = alpha == 1.0F && type_is_binary_add(prev_type) && bin_ops_can_be_optimized;
+                auto eltw_and_bin_mul = beta == 0.F && type_is_binary_mul(prev_type) && bin_ops_can_be_optimized;
 
                 if (eltw_and_bin_add || eltw_and_bin_mul) {
                     memory::ptr prev_bin_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
@@ -1617,7 +1607,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
 
                 // Eltwise can be inserted into the output_scale if cur_beta is equal to 0.f
-                if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
+                if (beta == 0.F && prev_node.get_output_layout().data_type == data_types::f32) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr) {
                         throw std::runtime_error("OneDNN post-ops optimization error: nonexistent "
@@ -1749,7 +1739,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
                 // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
                 // hsigmoid(x) = clamp(val+3, 0, 6) / 6 = clamp(val/6+0.5, 0, 1) = hard_sigmoid(val, 1/6, 1/2)
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1.f / 6, 1.f / 2);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, 1.F / 6, 1.F / 2);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::negative) {
                 post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, -1, 0);
@@ -1763,12 +1753,12 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                 }
                 // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow) {
-                    post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
+                    post_ops.append_eltwise(alg, 1.0F, fused_desc->additional_params.a);
                 } else if (alg == dnnl::algorithm::eltwise_hardswish) {  // mapping val * min(max(0,
                                                                          // val + 3), 6) / 6 to val *
                                                                          // max(min(1, alpha * val +
                                                                          // beta), 0)
-                    post_ops.append_eltwise(alg, 1 / 6.f, 0.5f);
+                    post_ops.append_eltwise(alg, 1 / 6.F, 0.5F);
                 } else {
                     post_ops.append_eltwise(alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
                 }
@@ -1784,13 +1774,13 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                     size_t rank = cldnn::format::dimension(in.format);
                     auto in_pshape = in.get_partial_shape();
                     auto out_pshape = get_output_layout().get_partial_shape();
-                    size_t ones_to_add = std::max(out_pshape.size(), static_cast<size_t>(rank)) - in_pshape.size();
+                    size_t ones_to_add = std::max(out_pshape.size(), rank) - in_pshape.size();
                     if (ones_to_add > 0) {
                         layout new_layout = in;
                         ov::PartialShape new_input_pshape;
                         std::vector<ov::Dimension> dims(in_pshape.begin(), in_pshape.begin() + in_pshape.size());
                         new_input_pshape = ov::PartialShape(dims);
-                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1ul);
+                        new_input_pshape.insert(new_input_pshape.begin(), ones_to_add, 1UL);
                         new_layout.set_partial_shape(new_input_pshape);
                         in = new_layout;
                     }
@@ -1828,9 +1818,9 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                 auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_inplace_post_ops == 0) {
                     if (is_type<convolution>()) {
-                        post_ops.append_sum(1.0f, 0 /*zero-point*/, onednn::convert_data_type(in.data_type));
+                        post_ops.append_sum(1.0F, 0 /*zero-point*/, onednn::convert_data_type(in.data_type));
                     } else {
-                        post_ops.append_sum(1.0f);
+                        post_ops.append_sum(1.0F);
                     }
                     update_onednn_post_op_list(onednn_post_op_type::sum, dep_idx);
                     num_inplace_post_ops++;
@@ -1869,7 +1859,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->_per_tensor_input_scale) {
-                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, 0.0f);
+                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, 0.0F);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_input_layout(dep_idx++);
@@ -1887,7 +1877,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
 
                         if (q_param->_need_pre_shift) {
                             if (q_param->_per_tensor_input_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_in_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0F, q_param->_in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_input_layout(dep_idx++);
@@ -1911,7 +1901,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                 {
                     bool output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
                     if (!output_type_is_int8) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_round, 0.0f, 0.0f);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_round, 0.0F, 0.0F);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_round, empty_mem);
                     }
                 }
@@ -1924,7 +1914,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                     } else {
                         if (q_param->_need_post_scale) {
                             if (q_param->_per_tensor_output_scale) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, 0.0f);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, 0.0F);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_input_layout(dep_idx++);
@@ -1943,7 +1933,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
 
                         if (q_param->_need_post_shift) {
                             if (q_param->_per_tensor_output_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_out_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0F, q_param->_out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_input_layout(dep_idx++);
@@ -2008,7 +1998,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->_per_tensor_input_scale) {
-                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, 0.0f);
+                            post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, 0.0F);
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_input_layout(dep_idx++);
@@ -2025,7 +2015,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
 
                         if (q_param->_need_pre_shift) {
                             if (q_param->_per_tensor_input_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_in_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0F, q_param->_in_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_input_layout(dep_idx++);
@@ -2045,7 +2035,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
 
                 // 3. round
                 {
-                    post_ops.append_eltwise(dnnl::algorithm::eltwise_round, 0.0f, 0.0f);
+                    post_ops.append_eltwise(dnnl::algorithm::eltwise_round, 0.0F, 0.0F);
                     update_onednn_post_op_list(onednn_post_op_type::eltwise_round, empty_mem);
                 }
 
@@ -2057,7 +2047,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                     } else {
                         if (q_param->_need_post_scale) {
                             if (q_param->_per_tensor_output_scale) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, 0.0f);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, 0.0F);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_input_layout(dep_idx++);
@@ -2075,7 +2065,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
 
                         if (q_param->_need_post_shift) {
                             if (q_param->_per_tensor_output_shift) {
-                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, q_param->_out_shift);
+                                post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0F, q_param->_out_shift);
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_input_layout(dep_idx++);

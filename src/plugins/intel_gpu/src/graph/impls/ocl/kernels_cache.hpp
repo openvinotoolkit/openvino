@@ -109,7 +109,7 @@ private:
     std::unordered_map<std::string, kernel::ptr> _cached_kernels;
     std::map<std::string, std::string> batch_headers;
     std::unordered_map<kernel_impl_params, size_t, impl_hasher> _kernel_batch_hash;
-    void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
+    void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>* /*all_batches*/) const;
     void build_batch(const batch_program& batch, compiled_kernels& compiled_kernels);
 
     std::string get_cache_path() const;

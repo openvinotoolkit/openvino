@@ -27,8 +27,9 @@ std::shared_ptr<ov::op::v0::Constant> constant_behind(const ov::Output<ov::Node>
     auto node = out.get_node_shared_ptr();
     // ConvertMatMulToFullyConnected leaves Convert(Transpose(H)); H is symmetric.
     for (int i = 0; i < 3; ++i) {
-        if (ov::as_type_ptr<ov::op::v0::Convert>(node) || ov::as_type_ptr<ov::op::v1::Transpose>(node))
+        if (ov::as_type_ptr<ov::op::v0::Convert>(node) || ov::as_type_ptr<ov::op::v1::Transpose>(node)) {
             node = node->get_input_node_shared_ptr(0);
+        }
     }
     return ov::as_type_ptr<ov::op::v0::Constant>(node);
 }
@@ -37,18 +38,21 @@ std::shared_ptr<ov::op::v0::Constant> constant_behind(const ov::Output<ov::Node>
 // H[i][j] = (-1)^popcount(i & j) / 32. Checking a stride of rows is enough to
 // tell it from any other 1024x1024 constant.
 bool is_hadamard_1024(const std::shared_ptr<ov::op::v0::Constant>& c) {
-    if (!c)
+    if (!c) {
         return false;
+    }
     const auto& s = c->get_shape();
-    if (s.size() != 2 || s[0] != kBlock || s[1] != kBlock)
+    if (s.size() != 2 || s[0] != kBlock || s[1] != kBlock) {
         return false;
+    }
     const auto v = c->cast_vector<float>();
-    const float want = 1.0f / 32.0f;
+    const float want = 1.0F / 32.0F;
     for (size_t i = 0; i < kBlock; i += 37) {
         for (size_t j = 0; j < kBlock; j += 41) {
-            const float sign = (std::bitset<32>(i & j).count() & 1) ? -1.0f : 1.0f;
-            if (std::fabs(v[i * kBlock + j] - sign * want) > 1e-4f)
+            const float sign = (std::bitset<32>(i & j).count() & 1) ? -1.0F : 1.0F;
+            if (std::fabs(v[i * kBlock + j] - sign * want) > 1e-4F) {
                 return false;
+            }
         }
     }
     return true;
@@ -60,14 +64,17 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
     size_t fused = 0;
     for (const auto& node : model->get_ordered_ops()) {
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(node);
-        if (!fc)
+        if (!fc) {
             continue;
+        }
         const auto& wshape = fc->get_input_partial_shape(1);
-        if (wshape.rank().is_dynamic() || wshape.rank().get_length() < 2 || !wshape[1].is_static())
+        if (wshape.rank().is_dynamic() || wshape.rank().get_length() < 2 || !wshape[1].is_static()) {
             continue;
+        }
         const size_t K = static_cast<size_t>(wshape[1].get_length());
-        if (K % kBlock != 0)
+        if (K % kBlock != 0) {
             continue;
+        }
 
         // Reshape back to [..., K]
         auto back = ov::as_type_ptr<ov::op::v1::Reshape>(fc->get_input_node_shared_ptr(0));
@@ -79,16 +86,18 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // MatMul / FullyConnected with the H constant
         auto mm = back->get_input_node_shared_ptr(0);
         std::shared_ptr<ov::op::v0::Constant> h;
-        if (ov::as_type_ptr<ov::op::v0::MatMul>(mm) || ov::as_type_ptr<op::FullyConnected>(mm))
+        if (ov::as_type_ptr<ov::op::v0::MatMul>(mm) || ov::as_type_ptr<op::FullyConnected>(mm)) {
             h = constant_behind(mm->input_value(1));
+        }
         if (!is_hadamard_1024(h)) {
             GPU_DEBUG_TRACE_DETAIL << "[hadamard-fc] " << fc->get_friendly_name() << ": no H_1024 constant behind " << mm->get_type_name() << std::endl;
             continue;
         }
         // Reshape to [..., K/1024, 1024]
         auto fwd = ov::as_type_ptr<ov::op::v1::Reshape>(mm->get_input_node_shared_ptr(0));
-        if (!fwd)
+        if (!fwd) {
             continue;
+        }
         ov::Output<ov::Node> x = fwd->input_value(0);
         std::vector<int8_t> signs;
         if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(x.get_node_shared_ptr())) {
@@ -103,7 +112,7 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 bool ok = true;
                 signs.resize(K);
                 for (size_t i = 0; i < K && ok; ++i) {
-                    ok = std::fabs(std::fabs(vals[i]) - 1.0f) < 1e-6f;
+                    ok = std::fabs(std::fabs(vals[i]) - 1.0F) < 1e-6F;
                     signs[i] = vals[i] < 0 ? -1 : 1;
                 }
                 if (ok) {

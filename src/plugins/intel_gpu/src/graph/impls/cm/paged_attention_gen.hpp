@@ -206,8 +206,8 @@ size_t get_max_context_len(const kernel_impl_params& params);
 size_t get_batch_size_in_sequences(const std::vector<layout>& input_layouts);
 
 // XAttention policy helpers.
-float get_xattn_thresh(const kernel_impl_params& impl_param, const size_t seq_idx = 0);
-bool bypass_xattn(const kernel_impl_params& impl_param);
+float get_xattn_thresh(const kernel_impl_params& params, size_t seq_idx = 0);
+bool bypass_xattn(const kernel_impl_params& params);
 
 class PagedAttentionGeneratorBase : public KernelGenerator {
 public:
@@ -323,11 +323,11 @@ public:
         : KernelGenerator(kernel_name, "_cm_bs" + std::to_string(xattn_block_size)),
           _xattn_block_size(xattn_block_size) {}
     static uint32_t get_block_sg_m(const kernel_impl_params& params) {
-        return is_xe2_or_xe3(params) ? 64u : 32u;
+        return is_xe2_or_xe3(params) ? 64U : 32U;
     }
 
     static uint32_t get_block_sg_n(const kernel_impl_params& params) {
-        return is_xe2_or_xe3(params) ? 32u : 16u;
+        return is_xe2_or_xe3(params) ? 32U : 16U;
     }
 
     static uint32_t get_block_wg_m(const kernel_impl_params& params) {

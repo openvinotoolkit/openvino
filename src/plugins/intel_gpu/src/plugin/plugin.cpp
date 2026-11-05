@@ -70,7 +70,7 @@ namespace ov::intel_gpu {
 namespace {
 
 ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& config) {
-    const auto property_name = ov::internal::model_sharing_context.name();
+    const auto* const property_name = ov::internal::model_sharing_context.name();
     const auto property_it = config.find(property_name);
     if (property_it == config.end()) {
         return nullptr;
@@ -93,13 +93,13 @@ ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& con
 #include "intel_gpu/plugin/primitives_list.hpp"
 #undef REGISTER_FACTORY
 
-void Plugin::register_primitives() const {
-    #define REGISTER_FACTORY(op_version, op_name) FACTORY_CALL(op_version, op_name)
-    #include "intel_gpu/plugin/primitives_list.hpp"
-    #undef REGISTER_FACTORY
+void Plugin::register_primitives() {
+#define REGISTER_FACTORY(op_version, op_name) FACTORY_CALL(op_version, op_name)
+#include "intel_gpu/plugin/primitives_list.hpp"
+#undef REGISTER_FACTORY
 }
 
-std::string Plugin::get_device_id_from_config(const ov::AnyMap& config) const {
+std::string Plugin::get_device_id_from_config(const ov::AnyMap& config) {
     std::string id;
     if (config.find(ov::device::id.name()) != config.end()) {
         id = config.at(ov::device::id.name()).as<std::string>();
@@ -115,7 +115,7 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
     return id;
 }
 
-bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) const {
+bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) {
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
 
     for (const auto& node : model->get_ordered_ops()) {
@@ -132,7 +132,7 @@ bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::
     return false;
 }
 
-void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) const {
+void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) {
     uint32_t offset = 0;
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
 
@@ -146,7 +146,7 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
     }
 }
 
-void Plugin::create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
+void Plugin::create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) {
     uint32_t offset = 0;
 
     std::shared_ptr<GpuWeightlessCacheMap>cache_attr_map = std::make_shared<GpuWeightlessCacheMap>();
@@ -161,7 +161,7 @@ void Plugin::create_weightless_cache_attributes(const std::shared_ptr<const ov::
     config.set_property(ov::intel_gpu::weightless_attr(cache_attr_map));
 }
 
-void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const {
+void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     TransformationsPipeline transformations(config, context);
 
@@ -172,7 +172,7 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
 
 std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_ptr<const ov::Model>& model,
                                                              ExecutionConfig& config,
-                                                             const std::shared_ptr<RemoteContextImpl>& context) const {
+                                                             const std::shared_ptr<RemoteContextImpl>& context) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::clone_and_transform_model");
     GPU_DEBUG_DEFINE_MEM_LOGGER("Plugin::clone_and_transform_model");
 
@@ -447,8 +447,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 
     float query_model_ratio = config.get_query_model_ratio();
 
-    auto supported = ov::get_supported_nodes(model,
-        [&config,&ctx,this](std::shared_ptr<ov::Model>& model) {
+    auto supported = ov::get_supported_nodes(
+        model,
+        [&config, &ctx](std::shared_ptr<ov::Model>& model) {
             std::map<std::string, ov::PartialShape> shapes;
             std::map<std::string, std::pair<int64_t, int64_t>> batch_dim;
             transform_model(model, config, ctx);
@@ -682,7 +683,7 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
     return ret_str;
 };
 
-bool Plugin::is_metric(const std::string& name) const {
+bool Plugin::is_metric(const std::string& name) {
     auto all_properties = get_supported_properties();
     auto internal_properties = get_supported_internal_properties();
     auto caching_properties = get_caching_properties();
@@ -839,7 +840,7 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     OPENVINO_THROW("Unsupported metric key ", name);
 }
 
-std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
+std::vector<ov::PropertyName> Plugin::get_caching_properties() {
     static const std::vector<ov::PropertyName> caching_properties = {
         ov::PropertyName{ov::device::architecture.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
@@ -855,7 +856,7 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
     return caching_properties;
 }
 
-std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
+std::vector<ov::PropertyName> Plugin::get_supported_properties() {
     static const std::vector<ov::PropertyName> supported_properties = {
         // Metrics
         ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
@@ -916,7 +917,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
     return supported_properties;
 }
 
-std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
+std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
         ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
         ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
@@ -930,7 +931,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const 
     return supported_internal_properties;
 }
 
-std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_info& info) const {
+std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_info& info) {
     std::vector<std::string> capabilities;
 
     capabilities.emplace_back(ov::device::capability::FP32);
@@ -998,7 +999,7 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
     auto available_device_mem_it = options.find(ov::intel_gpu::hint::available_device_mem.name());
     if (available_device_mem_it != options.end()) {
         if (available_device_mem_it->second.is<int64_t>()) {
-            available_device_mem = std::min(static_cast<int64_t>(available_device_mem), available_device_mem_it->second.as<int64_t>());
+            available_device_mem = std::min(available_device_mem, available_device_mem_it->second.as<int64_t>());
             GPU_DEBUG_LOG << "[GPU_MAX_BATCH_SIZE] available memory is reset by user " << available_device_mem << std::endl;
         } else {
             OPENVINO_THROW("[GPU_MAX_BATCH_SIZE] bad casting: ov::intel_gpu::hint::available_device_mem should be int64_t type");
@@ -1156,7 +1157,7 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto max_batch_size = get_metric(ov::max_batch_size.name(), options_for_max_batch).as<uint32_t>();
     uint32_t closest = static_cast<uint32_t>(closest_pow_of_2(max_batch_size));
     batch = std::min(closest, batch);
-    batch = std::min(256u, batch); //batch 256 is a max
+    batch = std::min(256U, batch);  // batch 256 is a max
     GPU_DEBUG_INFO << memPressure.max_mem_tolerance << std::endl;
     GPU_DEBUG_INFO << "MAX_BATCH: " << max_batch_size << std::endl;
     GPU_DEBUG_INFO << "ACTUAL OPTIMAL BATCH: " << batch << std::endl;

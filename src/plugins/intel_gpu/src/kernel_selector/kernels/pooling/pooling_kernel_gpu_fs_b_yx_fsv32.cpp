@@ -70,7 +70,7 @@ bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p) const {
 
 JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
     auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
-    auto pp = static_cast<const pooling_params&>(params);
+    auto pp = params;
 
     // Heurestic needed for very big pool size.
     // ToDo Can it be changed to lower pool sizes?

@@ -93,10 +93,10 @@ SwooshFusion::SwooshFusion() {
         const auto shifted = pattern_map.at(shifted_m).get_node_shared_ptr();
         const auto data_type = direct_input.get_element_type();
 
-        float shift = 0.0f;
-        float slope = 0.0f;
-        float equal_constant = 0.0f;
-        float final_bias = 0.0f;
+        float shift = 0.0F;
+        float slope = 0.0F;
+        float equal_constant = 0.0F;
+        float final_bias = 0.0F;
         if (!get_scalar_constant(pattern_map.at(shift_constant_m), shift) ||
             !get_scalar_constant(pattern_map.at(slope_constant_m), slope) ||
             !get_scalar_constant(pattern_map.at(limit_constant_m), equal_constant) ||
@@ -109,7 +109,7 @@ SwooshFusion::SwooshFusion() {
             return false;
         }
 
-        const bool is_positive_limit = (std::isinf(equal_constant) && equal_constant > 0.0f) ||
+        const bool is_positive_limit = (std::isinf(equal_constant) && equal_constant > 0.0F) ||
                                        (data_type == ov::element::f16 &&
                                         equal_constant == static_cast<float>(std::numeric_limits<ov::float16>::max()));
         if (!is_positive_limit) {

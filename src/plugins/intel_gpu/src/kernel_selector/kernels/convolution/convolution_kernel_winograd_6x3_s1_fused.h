@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,6 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override;
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& /*unused*/) const override;
 };
 }  // namespace kernel_selector

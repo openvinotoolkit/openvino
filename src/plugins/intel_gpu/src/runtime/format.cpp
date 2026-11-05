@@ -332,7 +332,7 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
 }
 
 // First : block_idx, Second : block_size
-const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt) {
+std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt) {
     std::vector<std::pair<size_t, int>> sizes_for_dims;
     for (const auto& block : fmt.block_sizes()) {
         auto it = std::find_if(sizes_for_dims.begin(), sizes_for_dims.end(), [&block](const std::pair<size_t, int>& ele) {

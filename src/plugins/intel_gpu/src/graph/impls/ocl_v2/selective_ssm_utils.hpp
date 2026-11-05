@@ -21,8 +21,9 @@ inline size_t get_lws(const size_t state_size, const cldnn::device_info& info) {
     const size_t limit = std::min<size_t>(32, info.max_work_group_size);
     const size_t target = std::min(std::max<size_t>(state_size, 1), limit);
     size_t lws = 1;
-    while (lws * 2 <= target)
+    while (lws * 2 <= target) {
         lws *= 2;
+    }
     return lws;
 }
 
@@ -35,8 +36,9 @@ inline size_t get_head_dim_block(const size_t head_dim, const size_t state_size,
     const size_t local_capacity = info.max_local_mem_size / sizeof(float);
     const size_t state_and_reduction = state_size + lws;
     size_t block = std::min(std::max<size_t>(head_dim, 1), max_head_dim_block);
-    while (block > 1 && state_and_reduction > local_capacity / block)
+    while (block > 1 && state_and_reduction > local_capacity / block) {
         --block;
+    }
     return block;
 }
 

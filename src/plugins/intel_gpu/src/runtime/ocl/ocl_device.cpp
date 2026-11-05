@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -240,7 +240,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.max_alloc_mem_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>());
     info.max_global_cache_size = static_cast<uint64_t>(device.getInfo<CL_DEVICE_GLOBAL_MEM_CACHE_SIZE>());
 
-    info.supports_image = (static_cast<uint8_t>(device.getInfo<CL_DEVICE_IMAGE_SUPPORT>()) != 0u);
+    info.supports_image = (static_cast<uint8_t>(device.getInfo<CL_DEVICE_IMAGE_SUPPORT>()) != 0U);
     info.max_image2d_width = static_cast<uint64_t>(device.getInfo<CL_DEVICE_IMAGE2D_MAX_WIDTH>());
     info.max_image2d_height = static_cast<uint64_t>(device.getInfo<CL_DEVICE_IMAGE2D_MAX_HEIGHT>());
 
@@ -312,8 +312,8 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
         info.num_threads_per_eu = device.getInfo<CL_DEVICE_NUM_THREADS_PER_EU_INTEL>();
         auto features = device.getInfo<CL_DEVICE_FEATURE_CAPABILITIES_INTEL>();
 
-        info.supports_imad = info.supports_imad || ((features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL) != 0u);
-        info.supports_immad = info.supports_immad || ((features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL) != 0u);
+        info.supports_imad = info.supports_imad || ((features & CL_DEVICE_FEATURE_FLAG_DP4A_INTEL) != 0U);
+        info.supports_immad = info.supports_immad || ((features & CL_DEVICE_FEATURE_FLAG_DPAS_INTEL) != 0U);
         if (info.dev_type == device_type::discrete_gpu || info.gfx_ver.major > 12 || (info.gfx_ver.major == 12 && info.gfx_ver.minor >= 70)) {
             info.has_separate_cache = true;
         }
@@ -417,10 +417,11 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
 bool does_device_support(int32_t param, const cl::Device& device) {
     cl_device_unified_shared_memory_capabilities_intel capabilities;
     auto err = clGetDeviceInfo(device.get(), param, sizeof(cl_device_unified_shared_memory_capabilities_intel), &capabilities, nullptr);
-    if (err)
+    if (err) {
         throw std::runtime_error("[CLDNN ERROR]. clGetDeviceInfo error " + std::to_string(err));
+    }
 
-    return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0u);
+    return !((capabilities & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL) == 0U);
 }
 
 memory_capabilities init_memory_caps(const cl::Device& device, const device_info& info) {
@@ -495,8 +496,7 @@ void ocl_device::initialize() {
         return;
     }
 
-    ocl::ocl_device_detector detector;
-    auto device_map = detector.get_available_devices(nullptr, nullptr, 0, -1, false);
+    auto device_map = ocl::ocl_device_detector::get_available_devices(nullptr, nullptr, 0, -1, false);
 
     bool found = false;
     for (auto& device : device_map) {

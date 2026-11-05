@@ -111,13 +111,15 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
     };
     if (integrated) {
         for (const auto& e : igpu) {
-            if (e.k == K && e.n == N)
+            if (e.k == K && e.n == N) {
                 return e.t;
+            }
         }
     }
     for (const auto& e : discrete) {
-        if (e.k == K && e.n == N)
+        if (e.k == K && e.n == N) {
             return e.t;
+        }
     }
     return N <= 8192 ? GemvTile{32, 4, 1} : GemvTile{32, 2, 1};
 }
@@ -126,16 +128,34 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
     if (M < 64) {
         // Sweep at M = 12 / 20 / 32 / 48 over the 27B shapes; the winners group
         // by output width (narrow N <= 8192, head N >= 65536).
-        const int band = M <= 16 ? 0 : (M <= 32 ? 1 : 2);
+        int band = 2;
+        if (M <= 16) {
+            band = 0;
+        } else if (M <= 32) {
+            band = 1;
+        }
         static const MtTile narrow[3] = {{16, 16, 2, 2}, {32, 16, 2, 4}, {32, 16, 1, 4}};  // Arc Pro B70
         static const MtTile wide[3] = {{16, 16, 1, 8}, {32, 16, 1, 4}, {64, 16, 1, 8}};
         static const MtTile head[3] = {{16, 16, 1, 4}, {64, 32, 1, 8}, {64, 32, 1, 8}};
         static const MtTile i_narrow[3] = {{16, 32, 1, 4}, {32, 32, 1, 8}, {64, 32, 1, 8}};  // Arc 140V
         static const MtTile i_wide[3] = {{16, 16, 1, 8}, {64, 32, 1, 4}, {64, 32, 1, 4}};
         static const MtTile i_head[3] = {{16, 16, 1, 4}, {32, 16, 1, 8}, {64, 32, 1, 4}};
-        if (integrated)
-            return N <= 8192 ? i_narrow[band] : (N >= 65536 ? i_head[band] : i_wide[band]);
-        return N <= 8192 ? narrow[band] : (N >= 65536 ? head[band] : wide[band]);
+        if (integrated) {
+            if (N <= 8192) {
+                return i_narrow[band];
+            }
+            if (N >= 65536) {
+                return i_head[band];
+            }
+            return i_wide[band];
+        }
+        if (N <= 8192) {
+            return narrow[band];
+        }
+        if (N >= 65536) {
+            return head[band];
+        }
+        return wide[band];
     }
     struct Entry {
         size_t k, n;
@@ -166,21 +186,30 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
     };
     if (integrated) {
         for (const auto& e : igpu) {
-            if (e.k == K && e.n == N)
+            if (e.k == K && e.n == N) {
                 return e.t;
+            }
         }
         return MtTile{128, 16, 2, 4};
     }
     for (const auto& e : table) {
-        if (e.k == K && e.n == N)
+        if (e.k == K && e.n == N) {
             return e.t;
+        }
     }
     return MtTile{64, 32, 4, 4};
 }
 
 // Arc Pro B70 sweep of the 27B shapes, per M band (<= 16, <= 32, < 64, >= 64).
 MtTile int8_tile(size_t K, size_t N, size_t M) {
-    const int band = M <= 16 ? 0 : (M <= 32 ? 1 : (M < 64 ? 2 : 3));
+    int band = 3;
+    if (M <= 16) {
+        band = 0;
+    } else if (M <= 32) {
+        band = 1;
+    } else if (M < 64) {
+        band = 2;
+    }
     struct Entry {
         size_t k, n;
         MtTile t[4];
@@ -194,8 +223,9 @@ MtTile int8_tile(size_t K, size_t N, size_t M) {
         {5120, 248320, {{8, 128, 2, 4}, {8, 128, 4, 4}, {8, 128, 8, 2}, {8, 128, 16, 1}}},  // lm_head
     };
     for (const auto& e : table) {
-        if (e.k == K && e.n == N)
+        if (e.k == K && e.n == N) {
             return e.t[band];
+        }
     }
     static const MtTile fallback[4] = {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 8, 2}};
     return fallback[band];
@@ -228,8 +258,9 @@ public:
         const std::string key = std::to_string(reinterpret_cast<uintptr_t>(src)) + "|" + opts;
         std::lock_guard<std::mutex> lock(_m);
         auto it = _programs.find(key);
-        if (it != _programs.end())
+        if (it != _programs.end()) {
             return it->second;
+        }
         cl::Program prog(engine.get_cl_context(), std::string(src));
         try {
             prog.build(std::vector<cl::Device>{engine.get_cl_device()}, opts.c_str());
@@ -375,39 +406,56 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
     // and resized with M: [had] f16 [M, K] rotated activation, [int8] f16 [K/128, LDSA(M)] scales.
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
         const auto& out = params.output_layouts[0];
-        if (out.is_dynamic() || _N == 0)
+        if (out.is_dynamic() || _N == 0) {
             return {};
+        }
         const size_t M = ov::shape_size(out.get_shape()) / _N;
         std::vector<BufferDescriptor> descs;
-        if (_had_block != 0)
+        if (_had_block != 0) {
             descs.emplace_back(M * _K, ov::element::f16);
-        if (M > 8 && _int8_prefill)
+        }
+        if (M > 8 && _int8_prefill) {
             descs.emplace_back((_K / kTernoclGroupSize) * ((M + 31) & ~size_t{31}), ov::element::f16);
+        }
         return descs;
     }
 
 protected:
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
-    void set_arguments_impl(typed_primitive_inst<fully_connected>&) override {}
-    void set_arguments_impl(typed_primitive_inst<fully_connected>&, kernel_arguments_data&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*impl_params*/) override {}
+    void set_arguments_impl(typed_primitive_inst<fully_connected>& /*instance*/) override {}
+    void set_arguments_impl(typed_primitive_inst<fully_connected>& /*instance*/, kernel_arguments_data& /*args*/) override {}
 
     std::string epi_opts() const {
         return " -DPOSTOP=" + std::to_string(static_cast<int>(_postop)) + (_out_f32 ? " -DOUT_F32" : "");
     }
 
     static size_t launch_class(size_t M) {
-        if (M <= 8)
-            return M == 1 ? 0 : (M == 2 ? 1 : (M <= 4 ? 2 : 3));
-        return M <= 16 ? 4 : (M <= 32 ? 5 : (M < 64 ? 6 : 7));
+        if (M <= 8) {
+            if (M == 1) {
+                return 0;
+            }
+            if (M == 2) {
+                return 1;
+            }
+            return M <= 4 ? 2 : 3;
+        }
+        if (M <= 16) {
+            return 4;
+        }
+        if (M <= 32) {
+            return 5;
+        }
+        return M < 64 ? 6 : 7;
     }
 
     Launch& get_launch(size_t M) {
         auto& l = _launch[launch_class(M)];
-        if (l.k)
+        if (l.k) {
             return l;
+        }
         std::string opts = "-cl-std=CL3.0";
         if (M <= 8) {
-            const int sgm = M == 1 ? 1 : (M == 2 ? 2 : (M <= 4 ? 4 : 8));
+            const int sgm = 1 << launch_class(M);
             l.g = gemv_tile(_K, _N, _integrated);
             opts += " -DSGM=" + std::to_string(sgm) + " -DNSG_N=" + std::to_string(l.g.wgn / 16) + " -DLS=" + std::to_string(l.g.ls) +
                     " -DU=" + std::to_string(l.g.u) + " -DPF=0";
@@ -426,8 +474,9 @@ protected:
         const auto cls = launch_class(M);
         OPENVINO_ASSERT(cls >= 4, "[GPU] ternocl int2: int8 launch requires M > 8");
         auto& l = _int8_launch[cls - 4];
-        if (l.gemm)
+        if (l.gemm) {
             return l;
+        }
         l.t = int8_tile(_K, _N, M);
         const std::string opts = "-cl-std=CL3.0 -cl-fp32-correctly-rounded-divide-sqrt -DQMODE=1 -DMT_M=" + std::to_string(l.t.mt_m) +
                                  " -DMT_N=" + std::to_string(l.t.mt_n) + " -DWG_M=" + std::to_string(l.t.wg_m) + " -DWG_N=" + std::to_string(l.t.wg_n) +
@@ -483,8 +532,9 @@ protected:
                        {argument_desc::Types::SCALAR, 1},
                        {argument_desc::Types::SCALAR, 2}};
         scalars_desc sc(3);
-        for (auto& s : sc)
+        for (auto& s : sc) {
             s.t = scalar_desc::Types::INT32;
+        }
         sc[0].v.s32 = static_cast<int32_t>(M);
         sc[1].v.s32 = static_cast<int32_t>(_N);
         sc[2].v.s32 = static_cast<int32_t>(_K);
@@ -509,8 +559,9 @@ protected:
         if (_had_block != 0) {
             // Rotated-basis checkpoint: the GEMM consumes H_1024(s * x) / 32.
             const auto& rotated = instance.get_intermediates_memories().at(0);
-            if (!_fwht)
+            if (!_fwht) {
                 _fwht = make_kernel(*_engine, _programs->get_program(*_engine, kTernoclFwhtSource, "-cl-std=CL3.0"), "hadamard_fwht_1024");
+            }
             kernel_arguments_desc d;
             d.workGroups.global = {M * (_K / 1024) * 128, 1, 1};
             d.workGroups.local = {128, 1, 1};
@@ -532,13 +583,14 @@ protected:
             in = rotated;
         }
 
-        if (M > 8 && _int8_prefill)
+        if (M > 8 && _int8_prefill) {
             return execute_int8(instance, in, deps, M);
+        }
 
         auto& l = get_launch(M);
         kernel_arguments_desc d;
         if (M <= 8) {
-            const size_t sgm = M == 1 ? 1 : (M == 2 ? 2 : (M <= 4 ? 4 : 8));
+            const size_t sgm = size_t{1} << launch_class(M);
             const size_t wgn = static_cast<size_t>(l.g.wgn);
             d.workGroups.local = {wgn * static_cast<size_t>(l.g.ls), 1, 1};
             d.workGroups.global = {ceil_div(_N, wgn) * d.workGroups.local[0], ceil_div(M, sgm), 1};
@@ -558,8 +610,9 @@ protected:
                        {argument_desc::Types::SCALAR, 1},
                        {argument_desc::Types::SCALAR, 2}};
         scalars_desc sc(3);
-        for (auto& s : sc)
+        for (auto& s : sc) {
             s.t = scalar_desc::Types::INT32;
+        }
         sc[0].v.s32 = static_cast<int32_t>(M);
         sc[1].v.s32 = static_cast<int32_t>(_N);
         sc[2].v.s32 = static_cast<int32_t>(_K);
@@ -609,28 +662,32 @@ public:
 // so FCs this impl rejects are handed to the next OCL FC manager.
 static const ImplementationManager& stock_ocl_manager(const ImplementationManager& self, shape_types shape_type) {
     for (const auto& m : ov::intel_gpu::Registry<fully_connected>::get_implementations()) {
-        if (m->get_impl_type() == impl_types::ocl && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type)
+        if (m->get_impl_type() == impl_types::ocl && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type) {
             return *m;
+        }
     }
     OPENVINO_THROW("[GPU] ternocl int2: no OCL FullyConnected implementation to fall back to");
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<fully_connected>());
-    if (!validate_impl(node))
+    if (!validate_impl(node)) {
         return stock_ocl_manager(*this, get_shape_type(node)).create_impl(node, params);
+    }
     return fully_connected_ternocl_int2::create(static_cast<const fully_connected_node&>(node), params);
 }
 
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const kernel_impl_params& params) const {
-    if (params.input_layouts.size() < 2 || params.input_layouts[1].data_type != data_types::u2)
+    if (params.input_layouts.size() < 2 || params.input_layouts[1].data_type != data_types::u2) {
         return stock_ocl_manager(*this, get_shape_type(params)).create_impl(params);
+    }
     OPENVINO_NOT_IMPLEMENTED;
 }
 
 in_out_fmts_t TernoclInt2FCImplementationManager::query_formats(const program_node& node) const {
-    if (!validate_impl(node))
+    if (!validate_impl(node)) {
         return stock_ocl_manager(*this, get_shape_type(node)).query_formats(node);
+    }
     return ImplementationManager::query_formats(node);
 }
 

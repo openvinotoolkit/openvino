@@ -26,7 +26,7 @@ struct grn : public primitive_base<grn> {
     {}
 
     /// @brief Bias value for whole output tensor.
-    float bias = 0.0f;
+    float bias = 0.0F;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

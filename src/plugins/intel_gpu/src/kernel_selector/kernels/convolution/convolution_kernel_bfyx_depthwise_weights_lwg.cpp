@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,8 +48,7 @@ bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p) con
     return true;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(const convolution_params& params,
-                                                                                             int) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(const convolution_params& params, int /*autoTuneIndex*/) const {
     DispatchData dispatchData = Parent::SetDefault(params);
     const auto& out = params.outputs[0];
 

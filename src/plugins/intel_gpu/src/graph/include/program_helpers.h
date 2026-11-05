@@ -70,8 +70,7 @@ struct program_helpers {
     // helper function for selecting function basing on the type of the given primitive
     // this is the termination case for parameter pack recurrence, see overload below for logic
     template <class... T>
-    static void do_for_types(program_node&) {
-    }
+    static void do_for_types(program_node& /*unused*/) {}
 
     // helper function for selecting function basing on the type of the given primitive
     // this function should be explicitly given set of types and implicitly set of functions.
@@ -100,12 +99,12 @@ struct program_helpers {
     }
 
     // helper functions for deconvolution optimizations
-    static void reshape_deconvolution_weights(const std::vector<float> &deconv_weights,
-                                              const int channels,
-                                              const int kernel_width,
-                                              const int kernel_height,
-                                              const int scale_factor,
-                                              std::vector<std::vector<std::vector<float> > >& subpixel_weights);
+    static void reshape_deconvolution_weights(const std::vector<float>& deconv_weights,
+                                              int channels,
+                                              int kernel_width,
+                                              int kernel_height,
+                                              int scale_factor,
+                                              std::vector<std::vector<std::vector<float>>>& subpixel_weights);
     template <typename T>
     static void set_weights_values(T* mem, std::vector<std::vector<std::vector<float> > > args) {
         for (uint32_t x = 0; x < static_cast<uint32_t>(args.size()); ++x) {

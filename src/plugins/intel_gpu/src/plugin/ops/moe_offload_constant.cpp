@@ -82,14 +82,17 @@ bool is_moe_otd_eligible(const ov::Node* node) {
     while (!pending.empty()) {
         const auto* current = pending.back();
         pending.pop_back();
-        if (!visited.insert(current).second)
+        if (!visited.insert(current).second) {
             continue;
-        if (!is_otd_capable_moe(current) || current->get_input_size() <= ROUTED_INPUT_END)
+        }
+        if (!is_otd_capable_moe(current) || current->get_input_size() <= ROUTED_INPUT_END) {
             return false;
+        }
         for (size_t index = ROUTED_INPUT_START; index <= ROUTED_INPUT_END; ++index) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(current->input_value(index).get_node_shared_ptr());
-            if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert)
+            if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert) {
                 return false;
+            }
             // Propagate resident fallback across MoEs sharing routed constants.
             for (const auto& consumer : constant->get_output_target_inputs(0)) {
                 pending.push_back(consumer.get_node());
@@ -100,8 +103,9 @@ bool is_moe_otd_eligible(const ov::Node* node) {
 }
 
 bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op) {
-    if (get_moe_constant_role(op) != MoEConstantRole::OffloadableRoutedExpert)
+    if (get_moe_constant_role(op) != MoEConstantRole::OffloadableRoutedExpert) {
         return false;
+    }
     const auto consumers = op->get_output_target_inputs(0);
     return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
         return is_moe_otd_eligible(consumer.get_node());
@@ -122,23 +126,27 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
         for (const auto& node : current_model.get_ops()) {
             has_moe = has_moe || is_otd_capable_moe(node.get());
             if (auto subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-                for (const auto& subgraph : subgraph_op->get_functions())
+                for (const auto& subgraph : subgraph_op->get_functions()) {
                     collect_resident_bytes(*subgraph);
+                }
             }
 
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-            if (!constant || !visited.insert(constant.get()).second)
+            if (!constant || !visited.insert(constant.get()).second) {
                 continue;
+            }
 
             const auto role = get_moe_constant_role(constant);
-            if (role == MoEConstantRole::NotMoE)
+            if (role == MoEConstantRole::NotMoE) {
                 continue;
+            }
 
             uint64_t constant_resident_bytes = constant->get_byte_size();
             if (offload_ratio > 0 && is_moe_constant_offloadable(constant)) {
                 const auto& shape = constant->get_shape();
-                if (shape.empty() || shape[0] == 0)
+                if (shape.empty() || shape[0] == 0) {
                     continue;
+                }
 
                 const size_t resident_experts = std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
                 const uint64_t bytes_per_expert =
@@ -156,8 +164,9 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
 }
 
 void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes) {
-    if (offload_ratio == 0 || device_memory_bytes == 0)
+    if (offload_ratio == 0 || device_memory_bytes == 0) {
         return;
+    }
 
     const uint64_t resident_bytes = get_model_resident_constant_bytes(model, offload_ratio);
     OPENVINO_ASSERT(resident_bytes <= device_memory_bytes,

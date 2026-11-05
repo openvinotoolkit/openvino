@@ -34,12 +34,12 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
                 weights[f].push_back(deconv_weights[index]);
             }
             if (pad_zero_x == 1) {    // pad with zero on x axis
-                weights[f].push_back(0.f);
+                weights[f].push_back(0.F);
             }
         }
         if (pad_zero_y == 1) {    // pad a line on y axis with zero
             for (int kernel_x = 0; kernel_x < kernel_width + pad_zero_x; ++kernel_x) {
-                weights[f].push_back(0.f);
+                weights[f].push_back(0.F);
             }
         }
     }
@@ -54,8 +54,7 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     auto get_row_index = [](int index, const int kernel_sz)->int {
         bool isRowEven = (index / (kernel_sz)) % 2 == 0;
         bool isColEven = (index % 2) == 0;
-        int kernel_num = isRowEven ? (isColEven ? 0 : 1) : isColEven ? 2 : 3;
-        return kernel_num;
+        return (isRowEven ? 0 : 2) + (isColEven ? 0 : 1);
     };
 
     int feature_num = static_cast<int>(weights.size());
@@ -106,8 +105,9 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     //   ┌──┴──┴─┐
     //   │   C   │
     //   └───────┘
-    if (target.get_users().size() != 2)
+    if (target.get_users().size() != 2) {
         return false;
+    }
 
     // The walk follows dependency(0) only, so this bounds the length of the single-input chain
     // between the two nodes; the equality test precedes the hop, so a bound of N reaches a target
@@ -140,10 +140,12 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
 
     const auto* iter = &child;
     for (int i = 0; i < max_ancestor_walk_depth; i++) {
-        if (iter == &target)
+        if (iter == &target) {
             return true;
-        if (iter->get_dependencies().empty())
+        }
+        if (iter->get_dependencies().empty()) {
             break;
+        }
         iter = &iter->get_dependency(0);
     }
     return false;
@@ -181,8 +183,9 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
         // has_outer_dep() above rejects a negative index.
         const auto outer_dep_start_idx = static_cast<size_t>(desc.outer_dep_start_idx);
         for (size_t i = 0; i < outer_dep_start_idx; i++) {
-            if (&p_node.get_dependency(i) == &dep_node)
+            if (&p_node.get_dependency(i) == &dep_node) {
                 return true;
+            }
         }
         return false;
     };
@@ -249,10 +252,12 @@ int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node
                 auto mode = fused_op.typed_desc<eltwise>()->mode;
                 bool reuse_eligible = (mode == eltwise_mode::sum && get_add_fusing_type(node, fused_op) == add_fusing_type::sum) ||
                                       (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op));
-                if (!reuse_eligible)
+                if (!reuse_eligible) {
                     continue;
-                if (!fused_op.has_outer_dep())
+                }
+                if (!fused_op.has_outer_dep()) {
                     continue;
+                }
                 return fused_op.outer_dep_start_idx;
             }
         }

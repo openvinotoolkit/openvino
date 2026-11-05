@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ ReorderWeightsImageWinograd6x3Kernel::DispatchData ReorderWeightsImageWinograd6x
 
     dispatchData.gws[0] = 1;
     dispatchData.gws[1] = 3;
-    dispatchData.gws[2] = static_cast<size_t>(input.IFM().v * input.OFM().v);
+    dispatchData.gws[2] = (input.IFM().v * input.OFM().v);
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;

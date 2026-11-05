@@ -25,10 +25,9 @@ FuseAtan2Decomposed::FuseAtan2Decomposed() {
     // Atan(div) where div is Divide(lhs, rhs) (frontend form) or
     // Multiply(lhs, Power(rhs, -1)) (post-ConvertDivide form, Multiply is
     // commutative so cover both input orderings).
-    auto exp_neg1_m = wrap_type<ov::op::v0::Constant>(
-        ov::op::util::constant_predicate<float>([](const std::vector<float>& v) {
-            return v.size() == 1 && v[0] == -1.0f;
-        }));
+    auto exp_neg1_m = wrap_type<ov::op::v0::Constant>(ov::op::util::constant_predicate<float>([](const std::vector<float>& v) {
+        return v.size() == 1 && v[0] == -1.0F;
+    }));
     auto power_m = wrap_type<ov::op::v1::Power>({any_input(), exp_neg1_m});
     auto divide_m = wrap_type<ov::op::v1::Divide>({any_input(), any_input()});
     auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{

@@ -22,7 +22,7 @@ public:
     const ze_engine& get_engine() const { return m_engine; }
     bool is_profiling_enabled() const { return m_profiling_enabled; }
 
-    virtual ~ze_base_event_factory() {}
+    virtual ~ze_base_event_factory() = default;
     virtual std::shared_ptr<ze_base_event> create_event(uint64_t queue_stamp) = 0;
 protected:
     const ze_engine& m_engine;

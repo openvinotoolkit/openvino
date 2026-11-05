@@ -38,7 +38,7 @@ static void CreateCommonDetectionOutputOp(ProgramBuilder& p,
     float nms_threshold             = attrs.nms_threshold;
     int top_k                       = attrs.top_k;
     float confidence_threshold      = attrs.confidence_threshold;
-    float eta                       = 1.0f;
+    float eta = 1.0F;
     int keep_top_k                  = attrs.keep_top_k[0];
     bool variance_encoded_in_target = attrs.variance_encoded_in_target;
     int input_width                 = static_cast<int>(attrs.input_width);

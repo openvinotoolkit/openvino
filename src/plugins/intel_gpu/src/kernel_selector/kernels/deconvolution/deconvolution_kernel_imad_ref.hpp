@@ -31,7 +31,7 @@ protected:
         };
     }
 
-    size_t GetTileIFM(const deconvolution_params& params) const;
+    static size_t GetTileIFM(const deconvolution_params& params);
 };
 
 }  // namespace kernel_selector

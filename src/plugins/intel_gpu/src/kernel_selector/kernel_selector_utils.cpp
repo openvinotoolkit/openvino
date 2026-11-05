@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -361,13 +361,16 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                                              256, 227, 224, 192, 160, 128, 96, 64, 32, 16,
                                              15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
 
-    size_t first_lws_idx = lws_max == 1024 ? 0:
-                           lws_max == 512 ?  8:
-                                            16;
+    size_t first_lws_idx = 16;
+    if (lws_max == 1024) {
+        first_lws_idx = 0;
+    } else if (lws_max == 512) {
+        first_lws_idx = 8;
+    }
     // Reduces max local wgs for some cases on Gen12+ devices
     if (lws_max >= 512) {
-        auto two_dims_are_odd_and_equal = (((gws[0] % 2) != 0u) && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) ||
-                                          (((gws[1] % 2) != 0u) && gws[1] > 7 && gws[1] == gws[2]);
+        auto two_dims_are_odd_and_equal =
+            (((gws[0] % 2) != 0U) && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) || (((gws[1] % 2) != 0U) && gws[1] > 7 && gws[1] == gws[2]);
 
         // Known cases when lws_max = 256 works better than lws_max > 256
         auto max_wgs_exception1 = gws[priority_order[0]] == 1278 && gws[priority_order[1]] == 718 && gws[priority_order[2]] % 10 == 0;

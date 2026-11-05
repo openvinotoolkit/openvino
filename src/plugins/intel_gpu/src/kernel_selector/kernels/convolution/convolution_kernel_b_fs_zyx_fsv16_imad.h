@@ -37,11 +37,11 @@ protected:
                  FusedOpType::ACTIVATION };
     }
 
-    BlockParams GetBlockParams(const convolution_params& params) const;
-    float EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const;
-    float EstimateRegPressure(const convolution_params& params, const BlockParams& block) const;
-    float EstimateOccupancy(const convolution_params& params, const BlockParams& block) const;
-    float EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const;
-    DispatchData CalcDispatchDataWithBlockParams(const convolution_params& params, const BlockParams& block_params) const;
+    static BlockParams GetBlockParams(const convolution_params& params);
+    static float EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block);
+    static float EstimateRegPressure(const convolution_params& params, const BlockParams& block);
+    static float EstimateOccupancy(const convolution_params& params, const BlockParams& block);
+    static float EstimateSLMUsage(const convolution_params& params, const BlockParams& block);
+    static DispatchData CalcDispatchDataWithBlockParams(const convolution_params& params, const BlockParams& block_params);
 };
 }  // namespace kernel_selector

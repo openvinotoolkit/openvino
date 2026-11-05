@@ -27,7 +27,7 @@ template <typename DST_T>
 void convert_packed_bin_to_fp(const uint8_t* src_ptr, DST_T* dst_ptr, size_t size) {
     for (size_t i = 0; i < size; i++) {
         auto val = (src_ptr[i / 8] >> (i % 8)) & 0x01;
-        dst_ptr[i] = static_cast<DST_T>(val == 0 ? -1.0f : 1.0f);
+        dst_ptr[i] = static_cast<DST_T>(val == 0 ? -1.0F : 1.0F);
     }
 }
 }  // namespace
@@ -76,8 +76,8 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
 
         auto in_lo = pattern_map.at(in_lo_m);
         auto in_hi = pattern_map.at(in_hi_m);
-        auto out_lo = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{-1.0f});
-        auto out_hi = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{1.0f});
+        auto out_lo = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{-1.0F});
+        auto out_hi = std::make_shared<ov::op::v0::Constant>(fp_element_type, ov::Shape(rank, 1), std::vector<float>{1.0F});
 
         auto new_fq = std::make_shared<ov::op::v0::FakeQuantize>(activations, in_lo, in_hi, out_lo, out_hi, 2);
         std::vector<std::shared_ptr<ov::Node>> result_nodes = { new_fq };
@@ -85,7 +85,7 @@ ConvertBinaryConvolutionToConvolution::ConvertBinaryConvolutionToConvolution() {
         std::shared_ptr<ov::Node> conv_input = new_fq;
         auto pb = binary_conv->get_pads_begin();
         auto pe = binary_conv->get_pads_end();
-        if (binary_conv->get_pad_value() != 0.0f) {
+        if (binary_conv->get_pad_value() != 0.0F) {
             pb.insert(pb.begin(), rank - pb.size(), 0);
             pe.insert(pe.begin(), rank - pe.size(), 0);
             auto pad_b = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{pb.size()}, pb);

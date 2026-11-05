@@ -97,7 +97,7 @@ struct moe_mask_gen_impl : public typed_primitive_impl<moe_mask_gen> {
         return make_output_event(stream, instance.is_output());
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 
@@ -142,7 +142,7 @@ struct moe_mask_gen_reshape_impl : public typed_primitive_impl<moe_mask_gen_resh
         return stream.group_events(events);
     }
 
-    void init_kernels(const kernels_cache& , const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 
     void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
 

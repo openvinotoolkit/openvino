@@ -76,7 +76,7 @@ layout condition_inst::calc_output_layout(condition_node const& /* node */, kern
 template <class T>
 static bool convert_data(memory::ptr mem, stream& stream) {
     mem_lock<T, mem_lock_type::read> lock_data{mem, stream};
-    return (static_cast<float>(*lock_data.data()) != 0.f);
+    return (static_cast<float>(*lock_data.data()) != 0.F);
 }
 
 bool condition_inst::get_pred_from_memory(memory::ptr mem, stream& stream) {

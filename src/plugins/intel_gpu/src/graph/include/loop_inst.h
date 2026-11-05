@@ -163,8 +163,8 @@ public:
             concatenated_mem = mem;
         }
 
-        void slice_mem(const int64_t num_iteration) const;
-        void concat_mem(const int64_t curent_iterations) const;
+        void slice_mem(int64_t num_iteration) const;
+        void concat_mem(int64_t curent_iterations) const;
 
         // Get sliced mem for the iteration idx and copy data from external input to sliced mem
         // In the case of dynamic model, concatenated_mem is always non nullptr.
@@ -329,24 +329,21 @@ private:
 
     static std::string to_string(const loop_node& node);
 
-public:
     typed_primitive_inst(network& network, const loop_node& node);
     network::ptr get_body_network() const { return body_network; }
-    void preprocess_input_memory(const int64_t num_iteration);
-    void preprocess_output_memory(const int64_t num_iteration);
+    void preprocess_input_memory(int64_t num_iteration);
+    void preprocess_output_memory(int64_t num_iteration);
     void preprocess_backedge_memory();
     void update_mapped_memory();
     void update_input_mapped_memory();
     void update_output_mapped_memory();
     void update_backedge_mapped_memory();
     void postprocess_output_memory(bool is_dynamic, int64_t current_iteration);
-    concatenated_memory_mapping::ptr create_concat_memory_map(const cldnn::loop::io_primitive_map& io_prim_map,
-                                                                memory::ptr mem_ptr,
-                                                                const int64_t num_iteration);
+    concatenated_memory_mapping::ptr create_concat_memory_map(const cldnn::loop::io_primitive_map& io_prim_map, memory::ptr mem_ptr, int64_t num_iteration);
     event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     void reset_memory();
 
-    void validate_backedges(loop_node const & node) const;
+    static void validate_backedges(const loop_node& node);
 
     void update_shape() override { primitive_inst::update_shape(); }
     void update_output_layout();
@@ -370,11 +367,10 @@ private:
     layout get_external_output_layout(const primitive_id& external_id, size_t mem_idx = 0) const;
     std::pair<memory::ptr, layout> get_external_memory_and_layout(const input_info& external_id) const;
     std::shared_ptr<concatenated_memory_mapping> get_sliced_mem(const primitive_id& internal_id) const;
-    int64_t calculate_num_iterations(const cldnn::loop::io_primitive_map& io_prim_map, ov::PartialShape& pshape);
+    static int64_t calculate_num_iterations(const cldnn::loop::io_primitive_map& io_prim_map, ov::PartialShape& pshape);
     std::vector<event::ptr> handle_buffers_for_next_iteration(const backedge_memory_mapping& mapping,
                                                                 network::ptr body_network, int64_t iter);
-    void set_memory_in_body_network(cldnn::network::ptr body_network, const std::shared_ptr<cldnn::primitive_inst>& inst,
-                                        memory::ptr mem);
+    static void set_memory_in_body_network(cldnn::network::ptr body_network, const std::shared_ptr<cldnn::primitive_inst>& inst, memory::ptr mem);
 
     std::vector<loop::io_primitive_map> _input_primitive_maps;
     std::vector<loop::io_primitive_map> _output_primitive_maps;

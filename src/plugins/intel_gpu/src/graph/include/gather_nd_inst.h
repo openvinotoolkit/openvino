@@ -22,8 +22,7 @@ public:
     static layout calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param);
     static std::string to_string(gather_nd_node const& node);
 
-public:
-    typed_primitive_inst(network& network, gather_nd_node const& desc);
+    typed_primitive_inst(network& network, const gather_nd_node& node);
 };
 
 using gather_nd_inst = typed_primitive_inst<gather_nd>;

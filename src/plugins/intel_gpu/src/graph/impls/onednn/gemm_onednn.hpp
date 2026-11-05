@@ -51,7 +51,7 @@ struct GemmImplementationManager : public ImplementationManager {
             format::bfwzyx,
         };
 
-        if (gemm_prim->alpha != 1.0f || gemm_prim->beta != 0.0f) {
+        if (gemm_prim->alpha != 1.0F || gemm_prim->beta != 0.0F) {
             return false;
         }
 

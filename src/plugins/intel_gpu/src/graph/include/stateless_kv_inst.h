@@ -76,8 +76,9 @@ public:
 
     std::vector<layout> get_shape_info_input_layouts() const override {
         auto layouts = parent::get_shape_info_input_layouts();
-        if (get_primitive()->input.size() != 3)
+        if (get_primitive()->input.size() != 3) {
             return layouts;
+        }
 
         OPENVINO_ASSERT(layouts.size() == 3);
         const auto rank = layouts.front().get_rank();
@@ -133,7 +134,7 @@ public:
                                                                            const stateless_kv& desc);
     void update_shape_info_tensor(const kernel_impl_params& params) override;
 
-    typed_primitive_inst(network& network, const stateless_kv_node& desc);
+    typed_primitive_inst(network& network, const stateless_kv_node& node);
     typed_primitive_inst(network& network) : parent(network) {}
 
     // Kept across executions while present can't be written into the Result buffer in place.

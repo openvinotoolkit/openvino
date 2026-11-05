@@ -23,16 +23,17 @@ DecomposeOneHotNonConstValues::DecomposeOneHotNonConstValues() {
 
     ov::matcher_pass_callback callback = [this](Matcher& m) {
         auto one_hot = ov::as_type_ptr<ov::op::util::OneHotBase>(m.get_match_root());
-        if (!one_hot || transformation_callback(one_hot))
+        if (!one_hot || transformation_callback(one_hot)) {
             return false;
+        }
 
         const auto on_value = one_hot->input_value(2);
         const auto off_value = one_hot->input_value(3);
 
         // Compile time values are baked into the kernel by the one_hot primitive, leave them alone.
-        if (ov::is_type<ov::op::v0::Constant>(on_value.get_node()) &&
-            ov::is_type<ov::op::v0::Constant>(off_value.get_node()))
+        if (ov::is_type<ov::op::v0::Constant>(on_value.get_node()) && ov::is_type<ov::op::v0::Constant>(off_value.get_node())) {
             return false;
+        }
 
         auto mask_on = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, true);
         auto mask_off = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, false);

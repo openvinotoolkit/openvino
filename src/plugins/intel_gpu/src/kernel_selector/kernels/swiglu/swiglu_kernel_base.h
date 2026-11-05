@@ -21,9 +21,9 @@ struct swiglu_params : public base_params {
           gate_idx(0),
           clamp_min(std::numeric_limits<float>::lowest()),
           clamp_max(std::numeric_limits<float>::max()),
-          swish_beta(1.0f),
-          up_add_val(0.0f),
-          scale_factor(-1.0f) {}
+          swish_beta(1.0F),
+          up_add_val(0.0F),
+          scale_factor(-1.0F) {}
     int32_t axis;
     int32_t glu_stride;
     ov::op::internal::GLU::GluType glu_type;
@@ -36,8 +36,14 @@ struct swiglu_params : public base_params {
 };
 
 struct swiglu_fuse_params : fuse_params {
-    explicit swiglu_fuse_params(int32_t axis, size_t glu_stride, size_t gate_idx, float clamp_min, float clamp_max,
-                                float swish_beta, float up_add_val, float scale_factor = -1.0f)
+    explicit swiglu_fuse_params(int32_t axis,
+                                size_t glu_stride,
+                                size_t gate_idx,
+                                float clamp_min,
+                                float clamp_max,
+                                float swish_beta,
+                                float up_add_val,
+                                float scale_factor = -1.0F)
         : fuse_params(KernelType::SWIGLU),
           axis(axis),
           glu_stride(glu_stride),
@@ -65,10 +71,10 @@ public:
     virtual JitConstants GetJitConstants(const swiglu_params& params, const CommonDispatchData& dispatchData) const;
     virtual CommonDispatchData SetDefault(const swiglu_params& params) const;
     KernelsData GetKernelsData(const Params& params) const override;
-    Datatype GetAccumulatorType(const swiglu_params& params) const;
+    static Datatype GetAccumulatorType(const swiglu_params& params);
 
 protected:
-    bool Validate(const Params&) const override;
+    bool Validate(const Params& /*unused*/) const override;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;
 };
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,6 @@ public:
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reorder_params& params) const override;
-    DispatchData SetDefault(const reorder_params& arg) const override;
+    DispatchData SetDefault(const reorder_params& params) const override;
 };
 }  // namespace kernel_selector

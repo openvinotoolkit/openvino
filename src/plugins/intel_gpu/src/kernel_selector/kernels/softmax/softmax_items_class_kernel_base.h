@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
     static ParamsKey GetDefaultSupportedKey();
     static std::vector<size_t> GetSoftmaxDimGlobalSizes(SoftmaxDim dim, const DataTensor& output);
-    Datatype GetAccumulatorType(const softmax_params& params) const {
+    static Datatype GetAccumulatorType(const softmax_params& params) {
         if (params.inputs[0].GetDType() == Datatype::F16) {
             return Datatype::F16;
         }

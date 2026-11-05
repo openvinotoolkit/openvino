@@ -62,7 +62,7 @@ private:
 
 template <typename T>
 struct void_deleter {
-    void operator()(const T*) const { }
+    void operator()(const T* /*unused*/) const {}
 };
 
 template <typename BufferType, typename FuncT>

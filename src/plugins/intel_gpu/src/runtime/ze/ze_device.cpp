@@ -22,10 +22,11 @@
 #include <devguid.h>
 #include <cstring>
 #else
-#include <unistd.h>
-#include <limits.h>
-#include <link.h>
-#include <dlfcn.h>
+#    include <dlfcn.h>
+#    include <link.h>
+#    include <unistd.h>
+
+#    include <climits>
 #endif
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -71,15 +72,14 @@ gfx_version parse_version(uint32_t gmdid) {
     if (gmd_id.architecture > 0 && gmd_id.architecture < 100) {
         // New format
         return { static_cast<uint16_t>(gmd_id.architecture), static_cast<uint8_t>(gmd_id.release), static_cast<uint8_t>(gmd_id.revision)};
-    } else {
-        // Old format
-        uint32_t ver = gmdid;
-        uint16_t major = ver >> 16;
-        uint8_t minor = (ver >> 8) & 0xFF;
-        uint8_t revision = ver & 0xFF;
-
-        return {major, minor, revision};
     }
+    // Old format
+    uint32_t ver = gmdid;
+    uint16_t major = ver >> 16;
+    uint8_t minor = (ver >> 8) & 0xFF;
+    uint8_t revision = ver & 0xFF;
+
+    return {major, minor, revision};
 }
 
 bool supports_extension(const std::vector<ze_driver_extension_properties_t>& extensions, const std::string& ext_name, uint32_t ext_ver) {
@@ -95,7 +95,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     OV_ZE_EXPECT(ze::zeDriverGetExtensionProperties(driver, &num_ext, nullptr));
 
     std::vector<ze_driver_extension_properties_t> extensions(num_ext);
-    OV_ZE_EXPECT(ze::zeDriverGetExtensionProperties(driver, &num_ext, &extensions[0]));
+    OV_ZE_EXPECT(ze::zeDriverGetExtensionProperties(driver, &num_ext, extensions.data()));
 
     ze_driver_properties_t driver_properties{ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES};
     OV_ZE_EXPECT(ze::zeDriverGetProperties(driver, &driver_properties));
@@ -131,7 +131,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
         mp.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
     }
 
-    OV_ZE_EXPECT(ze::zeDeviceGetCommandQueueGroupProperties(device, &queue_properties_count, &queue_properties[0]));
+    OV_ZE_EXPECT(ze::zeDeviceGetCommandQueueGroupProperties(device, &queue_properties_count, queue_properties.data()));
 
     auto compute_queue_props = queue_properties.end();
     for (auto it = queue_properties.begin(); it != queue_properties.end(); it++) {
@@ -151,7 +151,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     for (auto& mp : device_memory_properties) {
         mp.stype = ZE_STRUCTURE_TYPE_DEVICE_MEMORY_PROPERTIES;
     }
-    OV_ZE_EXPECT(ze::zeDeviceGetMemoryProperties(device, &memory_properties_count, &device_memory_properties[0]));
+    OV_ZE_EXPECT(ze::zeDeviceGetMemoryProperties(device, &memory_properties_count, device_memory_properties.data()));
 
     ze_device_memory_access_properties_t device_memory_access_properties{ZE_STRUCTURE_TYPE_DEVICE_MEMORY_ACCESS_PROPERTIES};
     OV_ZE_EXPECT(ze::zeDeviceGetMemoryAccessProperties(device, &device_memory_access_properties));
@@ -227,7 +227,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_imad = (device_module_properties.flags & ZE_DEVICE_MODULE_FLAG_DP4A) != 0;
     info.supports_immad = supports_dp_properties && (dp_properties.flags & ZE_INTEL_DEVICE_MODULE_EXP_FLAG_DPAS) != 0;
 
-    info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
+    info.supports_usm = device_memory_access_properties.hostAllocCapabilities != 0 && device_memory_access_properties.deviceAllocCapabilities != 0;
     info.supports_leo = ze_ocl_interop::get_instance().check_support(device);
     info.supports_external_memmap_sysmem = supports_external_memmap_sysmem;
 
@@ -267,8 +267,9 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     if (supports_luid) {
         ze_device_luid_ext_properties_t luid_props{ZE_STRUCTURE_TYPE_DEVICE_LUID_EXT_PROPERTIES, nullptr};
         ze_device_properties_t device_properties{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, &luid_props};
-        if (ze::zeDeviceGetProperties(device, &device_properties) == ZE_RESULT_SUCCESS)
+        if (ze::zeDeviceGetProperties(device, &device_properties) == ZE_RESULT_SUCCESS) {
             std::copy_n(&luid_props.luid.id[0], ZE_MAX_DEVICE_LUID_SIZE_EXT, info.luid.luid.begin());
+        }
     }
 
     info.supports_mutable_command_list = false;
@@ -362,8 +363,9 @@ ze_device::ze_device(ze_driver_resource driver, ze_device_resource device, ze_co
 }
 
 void ze_device::initialize() {
-    if (is_initialized())
+    if (is_initialized()) {
         return;
+    }
 
     ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
     ze_context_handle_t ctx = nullptr;
@@ -372,13 +374,14 @@ void ze_device::initialize() {
 }
 
 bool ze_device::is_initialized() const {
-    return _context.is_empty() == false;
+    return !_context.is_empty();
 }
 
 bool ze_device::is_same(const device::ptr other) {
     auto casted = std::dynamic_pointer_cast<ze_device>(other);
-    if (!casted)
+    if (!casted) {
         return false;
+    }
 
     return _device.handle() == casted->get_device().handle()
         && _driver.handle() == casted->get_driver().handle();

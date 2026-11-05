@@ -4,15 +4,16 @@
 
 #include "lora_subgraph_horizontal_fusion.hpp"
 
+#include <algorithm>
+
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/lora_subgraph_fused.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/op/matmul.hpp"
-
 #include "ov_ops/lora_subgraph.hpp"
-#include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "intel_gpu/op/lora_subgraph_fused.hpp"
 
 namespace ov::intel_gpu {
 
@@ -20,12 +21,10 @@ LoRASubgraphHorizontalFusion::LoRASubgraphHorizontalFusion() {
     using namespace ov::pass::pattern;
 
     auto is_target_pattern = [](const std::shared_ptr<Node>& split_node) {
-        for (const auto& user : split_node->get_users()) {
-            if (!ov::is_type<ov::op::internal::LoraSubgraph>(user)) {
-                return false;
-            }
-        }
-        return true;
+        const auto users = split_node->get_users();
+        return std::all_of(users.begin(), users.end(), [](const auto& user) {
+            return ov::is_type<ov::op::internal::LoraSubgraph>(user);
+        });
     };
 
     auto lora_input = any_input();

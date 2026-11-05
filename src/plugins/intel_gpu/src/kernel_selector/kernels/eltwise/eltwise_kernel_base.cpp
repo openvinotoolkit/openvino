@@ -1,9 +1,10 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "eltwise_kernel_base.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -19,11 +20,13 @@ std::vector<size_t> GetLimitedOptimalLocalWorkGroupSizes(std::vector<size_t> gws
     for (size_t i = 0; i < gws.size(); ++i) {
         auto rest_lws = lws_max / total_lws;
         size_t lws_idx = 0;
-        while (rest_lws < optimal_lws_values[lws_idx] || optimal_lws_values[lws_idx] > limited_size_lws[i])
+        while (rest_lws < optimal_lws_values[lws_idx] || optimal_lws_values[lws_idx] > limited_size_lws[i]) {
             lws_idx++;
+        }
 
-        while (gws[i] % optimal_lws_values[lws_idx])
+        while (gws[i] % optimal_lws_values[lws_idx]) {
             lws_idx++;
+        }
 
         lws.push_back(optimal_lws_values[lws_idx]);
         total_lws *= optimal_lws_values[lws_idx];
@@ -125,7 +128,7 @@ static bool IsBitwiseMode(EltwiseMode mode) {
            mode == EltwiseMode::BITWISE_XOR;
 }
 
-Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params& params) const {
+Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params& params) {
     // NOTE: Workaround for not promoting shift operations. Not sure what should happen
     // if shift op is just one operation of other elementwise operations. My guess is that is should be promoted as
     // well, but in reality more robust solution will be needed or (better) - assumption that types are not promoted. So
@@ -197,16 +200,16 @@ bool EltwiseKernelBase::Validate(const Params& p) const {
     }
 
     const eltwise_params& orgParams = static_cast<const eltwise_params&>(p);
-    for (const auto& fused_op : orgParams.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(orgParams.fused_ops.begin(), orgParams.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
 }
 
-bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params) const {
+bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params) {
     // These modes are supposed to produce BOOL output type
     // but this kernel uses vector data types, and these operation will produce 0xFFFF / 0x0000 instead of 0 / 1 values
     // The value might be then converted to fp16/fp32 and used for some arithmetic, which will lead to invalid results, thus reject these modes
@@ -269,7 +272,7 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 const auto& input = ew.inputs[input_idx];
                 if (input.mode == EltwiseInputMode::INPUT_BUFFER && input.index < coefficients.size()) {
                     const float c = coefficients[input.index];
-                    if (c != 1.0f) {
+                    if (c != 1.0F) {
                         coeff_strings[input_idx] = cast_type + "(" + toCodeString(c) + ")*";
                     }
                 }
@@ -311,7 +314,12 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
         case EltwiseMode::MODULU:
         case EltwiseMode::MIN:
         case EltwiseMode::MAX: {
-            const auto* mode = (ew.mode == EltwiseMode::MODULU ? "mod" : (ew.mode == EltwiseMode::MIN ? "min" : "max"));
+            const char* mode = "max";
+            if (ew.mode == EltwiseMode::MODULU) {
+                mode = "mod";
+            } else if (ew.mode == EltwiseMode::MIN) {
+                mode = "min";
+            }
             auto input_0_type = params.inputs[0].GetDType();
             auto input_1_type = params.inputs[1].GetDType();
 
@@ -556,21 +564,25 @@ JitConstants EltwiseKernelBase::MakeInputDeclsJitConstants(const eltwise_params&
 }
 
 size_t EltwiseKernelBase::GetFeaturePadResetBlockSize(const eltwise_params& params) const {
-    if (!SupportsFeaturePadReset())
+    if (!SupportsFeaturePadReset()) {
         return 0;
+    }
 
     const auto& output = params.outputs[0];
     const auto feature_block_size = GetOutputFeatureBlockSize(output.GetLayout());
-    if (feature_block_size == 0)
+    if (feature_block_size == 0) {
         return 0;
+    }
 
     // The linear path has no per-dimension index order.
-    if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params))
+    if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params)) {
         return 0;
+    }
 
     const auto& feature = output.Feature();
-    if (feature.is_dynamic || feature.pad.is_dynamic)
+    if (feature.is_dynamic || feature.pad.is_dynamic) {
         return feature_block_size;
+    }
 
     return feature.LogicalDimPadded() % feature_block_size == 0 ? 0 : feature_block_size;
 }
@@ -578,8 +590,9 @@ size_t EltwiseKernelBase::GetFeaturePadResetBlockSize(const eltwise_params& para
 size_t EltwiseKernelBase::GetFeaturePadResetSize(const eltwise_params& params) const {
     const auto feature_block_size = GetFeaturePadResetBlockSize(params);
     const auto& feature = params.outputs[0].Feature();
-    if (feature_block_size == 0 || feature.is_dynamic || feature.pad.is_dynamic)
+    if (feature_block_size == 0 || feature.is_dynamic || feature.pad.is_dynamic) {
         return 0;
+    }
 
     return (feature_block_size - feature.LogicalDimPadded() % feature_block_size) % feature_block_size;
 }
@@ -760,8 +773,9 @@ JitConstants EltwiseKernelBase::GetJitConstantsCommon(const eltwise_params& para
 
     const auto feature_pad_reset_block_size = GetFeaturePadResetBlockSize(params);
     jit.AddConstant(MakeJitConstant("ZERO_OUTPUT_FEATURE_PADDING", feature_pad_reset_block_size != 0));
-    if (feature_pad_reset_block_size != 0)
+    if (feature_pad_reset_block_size != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_FEATURE_BLOCK_SIZE", feature_pad_reset_block_size));
+    }
 
     jit.Merge(MakeInputDeclsJitConstants(params, useVload8));
     jit.Merge(MakeIndexJitConstants(params, useVload8));

@@ -34,7 +34,7 @@ KernelsData ReorderWeightsKernel::GetKernelsData(const Params& params) const {
     return GetCommonKernelsData(orgParams);
 }
 
-bool ReorderWeightsKernel::NeedsImadIsv4Padding(const reorder_weights_params& params) const {
+bool ReorderWeightsKernel::NeedsImadIsv4Padding(const reorder_weights_params& params) {
     const auto output_layout = params.output.GetLayout();
     return (output_layout == WeightsLayout::os_is_yx_osv16_isv4 || output_layout == WeightsLayout::g_os_is_yx_osv16_isv4) &&
            params.output.IFM().v % 4 != 0;

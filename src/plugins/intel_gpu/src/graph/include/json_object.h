@@ -32,7 +32,9 @@ private:
 public:
     explicit json_leaf(const Type& val) : value(val) {}
     explicit json_leaf(Type&& val) : value(std::move(val)) {}
-    void dump(std::ostream& out, int) const override { out << value << ",\n"; }
+    void dump(std::ostream& out, int /*offset*/) const override {
+        out << value << ",\n";
+    }
 };
 
 template <class Type>
@@ -43,7 +45,7 @@ private:
 public:
     explicit json_basic_array(const std::vector<Type>& arr) : values(arr) {}
     explicit json_basic_array(std::vector<Type>&& arr) : values(std::move(arr)) {}
-    void dump(std::ostream& out, int) const override {
+    void dump(std::ostream& out, int /*offset*/) const override {
         const char* delim = "";
         for (size_t i = 0; i < values.size(); i++) {
             out << delim << values[i];

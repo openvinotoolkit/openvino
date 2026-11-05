@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/core/preprocess/input_tensor_info.hpp"
-#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/nv12_to_rgb.hpp"
-#include "openvino/op/nv12_to_bgr.hpp"
-#include "openvino/op/i420_to_rgb.hpp"
-#include "openvino/op/i420_to_bgr.hpp"
 
-#include "intel_gpu/plugin/program_builder.hpp"
+#include <algorithm>
+
 #include "intel_gpu/plugin/common_utils.hpp"
-
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/data.hpp"
-#include "intel_gpu/primitives/concatenation.hpp"
+#include "openvino/core/preprocess/input_tensor_info.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/i420_to_bgr.hpp"
+#include "openvino/op/i420_to_rgb.hpp"
+#include "openvino/op/nv12_to_bgr.hpp"
+#include "openvino/op/nv12_to_rgb.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace ov::intel_gpu {
 
@@ -63,7 +64,7 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     std::function<bool(const std::shared_ptr<ov::Node>&)> has_surface_input =
         [](const std::shared_ptr<ov::Node> &node) -> bool {
         bool surface_input_found = false;
-        if (node->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0u) {
+        if (node->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0U) {
             std::string mem_type = node->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
                                                                 .as<ov::preprocess::TensorInfoMemoryType>().value;
             if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {
@@ -73,14 +74,11 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
         return surface_input_found;
     };
 
-    std::function<bool(const std::shared_ptr<ov::Node>&)> connected_to_quantize =
-        [&](const std::shared_ptr<ov::Node> &node) -> bool {
-        for (auto& user : node->get_users()) {
-            if (ov::is_type<ov::op::v0::FakeQuantize>(user)) {
-                return true;
-            }
-        }
-        return false;
+    std::function<bool(const std::shared_ptr<ov::Node>&)> connected_to_quantize = [&](const std::shared_ptr<ov::Node>& node) -> bool {
+        const auto& users = node->get_users();
+        return std::any_of(users.begin(), users.end(), [](auto& user) {
+            return ov::is_type<ov::op::v0::FakeQuantize>(user);
+        });
     };
 
     size_t search_depth = 3;

@@ -39,8 +39,7 @@ device_query::device_query(engine_types engine_type,
 #if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT)
     case runtime_types::ocl: {
         OPENVINO_ASSERT(engine_type == engine_types::ocl || engine_type == engine_types::sycl);
-        ocl::ocl_device_detector ocl_detector;
-        _available_devices = ocl_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
+        _available_devices = ocl::ocl_device_detector::get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
 #ifdef OV_GPU_WITH_ZE_RT
         // If running with ZE runtime, convert found OCL devices to ZE devices
         std::map<std::string, device::ptr> ze_devices;
@@ -56,8 +55,7 @@ device_query::device_query(engine_types engine_type,
 #ifdef OV_GPU_WITH_ZE_RT
     case runtime_types::ze: {
         OPENVINO_ASSERT(engine_type == engine_types::ze);
-        ze::ze_device_detector ze_detector;
-        _available_devices = ze_detector.get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
+        _available_devices = ze::ze_device_detector::get_available_devices(user_context, user_device, ctx_device_id, target_tile_id, initialize_devices);
         break;
     }
 #endif

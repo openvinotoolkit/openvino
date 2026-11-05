@@ -50,7 +50,7 @@ public:
     /// @param ptr  The pointer to user allocated buffer.
     /// @note Size (in bytes) of the buffer should be equal to @p layout.bytes_count()
     /// User is responsible for buffer deallocation. Buffer lifetime should be bigger than lifetime of the memory object.
-    memory_ptr attach_memory(const layout& layout, void* ptr);
+    static memory_ptr attach_memory(const layout& layout, void* ptr);
 
     /// Allocate gpu memory using specified @p layout and alloation @p type
     virtual memory_ptr allocate_memory(const layout& layout, allocation_type type, bool reset = true) = 0;
@@ -66,13 +66,17 @@ public:
 
     /// Created memory object by wrapping a writable host-allocated layout region.
     /// Backends that support access flags should use read-write permissions.
-    virtual memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) = 0;
+    virtual memory_ptr create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, layout output_layout) = 0;
 
     /// Created memory object by wrapping a read-only host-allocated layout region.
     /// Backends that support access flags should use read-only permissions.
     /// @param host_read_only When true, additionally hints that the host side will never write this
     ///                       memory either (e.g. it originates from a read-only file mapping)
-    virtual memory_ptr create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool host_read_only = false) = 0;
+    virtual memory_ptr create_hostbuffer(const void* cpu_address,
+                                         size_t data_size,
+                                         allocation_type _allocation_type,
+                                         layout output_layout,
+                                         bool host_read_only = false) = 0;
 
     /// Created memory object from the other @p memory and reinterpred the data using specified @p new_layout
     virtual memory_ptr reinterpret_buffer(const memory& memory, const layout& new_layout) = 0;
@@ -100,7 +104,7 @@ public:
     /// Checks whether two memory objects represents the same physical memory
     virtual bool is_the_same_buffer(const memory& mem1, const memory& mem2) const = 0;
 
-    bool check_allocatable(const layout& layout, allocation_type type);
+    bool check_allocatable(const layout& layout, allocation_type type) const;
 
     /// Returns basic allocation type which will be used as a fallback when allocation type is not specified or device doesn't support some features.
     virtual allocation_type get_default_allocation_type() const = 0;
@@ -121,7 +125,7 @@ public:
     const device_info& get_device_info() const;
 
     /// Returns device object associated with the engine
-    const device::ptr get_device() const;
+    device::ptr get_device() const;
 
     /// Returns L0 or OpenCL user context handle which was used to create the engine.
     virtual void* get_user_context(runtime_types rt_type) const = 0;
@@ -152,7 +156,7 @@ public:
     uint64_t get_max_memory_size() const;
 
     /// Returns the size of CPU memory.
-    uint64_t get_host_memory_size() const;
+    static uint64_t get_host_memory_size();
 
     /// Create stream object for current engine
     virtual stream_ptr create_stream(const ExecutionConfig& config) const = 0;
@@ -183,7 +187,7 @@ public:
     /// @param engine_type requested engine type
     /// @param runtime_type requested execution runtime for the engine. @note some runtime/engine types configurations might be unsupported
     /// @param device specifies the device which the engine is created for
-    static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type, const device::ptr device);
+    static std::shared_ptr<cldnn::engine> create(engine_types engine_type, runtime_types runtime_type, device::ptr device);
 
     /// Factory method which creates engine object with impl configured by @p engine_type
     /// @param engine_type requested engine type
@@ -193,7 +197,7 @@ public:
 
 protected:
     /// Create engine for given @p device
-    engine(const device::ptr device);
+    engine(device::ptr device);
     const device::ptr _device;
     bool enable_large_allocations = false;
     std::unique_ptr<stream> _service_stream;

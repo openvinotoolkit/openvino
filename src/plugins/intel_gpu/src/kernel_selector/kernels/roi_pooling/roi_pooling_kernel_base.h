@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,8 +20,8 @@ struct roi_pooling_params : public base_params {
     int pooled_height = 0;
     int spatial_bins_x = 1;
     int spatial_bins_y = 1;
-    float spatial_scale = 1.f;
-    float trans_std = 1.f;
+    float spatial_scale = 1.F;
+    float trans_std = 1.F;
     bool no_trans = true;
     int part_size = 1;
     int group_size = 1;
@@ -50,6 +50,6 @@ public:
     KernelsData GetCommonKernelsData(const Params& params) const;
 
 protected:
-    virtual JitConstants GetJitConstants(const roi_pooling_params& params) const;
+    virtual JitConstants GetJitConstants(const roi_pooling_params& rp) const;
 };
 }  // namespace kernel_selector

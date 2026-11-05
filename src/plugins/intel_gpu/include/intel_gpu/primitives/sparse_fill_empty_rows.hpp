@@ -25,7 +25,7 @@ struct sparse_fill_empty_rows : public primitive_base<sparse_fill_empty_rows> {
     std::vector<float> values;
     std::vector<int64_t> dense_shape;
     std::vector<int64_t> indices;
-    float default_value = 0.0f;
+    float default_value = 0.0F;
 
     sparse_fill_empty_rows(const primitive_id& id,
                           const std::vector<input_info>& inputs,

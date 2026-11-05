@@ -1,9 +1,10 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "activation_kernel_base.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -41,7 +42,7 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     return dispatchData;
 }
 
-JitConstants ActivationKernelBase::GetJitConstants(const activation_params& params, DispatchData) const {
+JitConstants ActivationKernelBase::GetJitConstants(const activation_params& params, DispatchData /*unused*/) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& inputNlParams = params.inputActivationParams;
@@ -74,10 +75,10 @@ bool ActivationKernelBase::Validate(const Params& p) const {
     }
     const activation_params& orgParams = static_cast<const activation_params&>(p);
 
-    for (const auto& fused_op : orgParams.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op)) {
-            DO_NOT_USE_THIS_KERNEL(p.layerID);
-        }
+    if (std::any_of(orgParams.fused_ops.begin(), orgParams.fused_ops.end(), [this](const auto& fused_op) {
+            return !IsFusedPrimitiveSupported(fused_op);
+        })) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

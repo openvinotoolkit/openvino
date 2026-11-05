@@ -39,7 +39,7 @@ static inline bool should_use_dyn_b_kernel(size_t batch, size_t ifm, size_t ofm,
         return false;
     }
     uint64_t mask = (ifm < ofm) ? dyn_b_batches_ifm_lt_ofm : dyn_b_batches_ifm_gt_ofm;
-    return ((mask >> batch) & 1ULL) != 0u;
+    return ((mask >> batch) & 1ULL) != 0U;
 }
 
 namespace kernel_selector {
@@ -128,7 +128,7 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
             GPU_DEBUG_LOG << "FC dyn-quantize by per-token. Actual dyn_quan_group_size(" << dynamic_quantization_group_size << ") : From scale_group_size ("
                           << scale_group_size << ", zp_group_size(" << zp_group_size << "), zp_group_num(" << zp_group_num << "), ifm_size ("
                           << get_input_bf_size(params).second << ")" << std::endl;
-            return (size_t)dynamic_quantization_group_size;
+            return dynamic_quantization_group_size;
         }
     }
 
@@ -143,7 +143,7 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
                 dynamic_quantization_group_size = scale_group_size;
             }
 
-            return (size_t)dynamic_quantization_group_size;
+            return dynamic_quantization_group_size;
         }
     }
 
@@ -565,43 +565,43 @@ FullyConnected_bf_tiled::tune_params FullyConnected_bf_tiled::GetAutoTuneParams(
             if (params.engineInfo.supports_immad) {
                 selector.Case(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
             } else {
-                selector.Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
+                selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
             }
         } else if (dtype == Datatype::F32) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
             if (params.engineInfo.supports_immad) {
                 selector.Case(tune_params(8, 1, 1, 4, 1, 1, 1, EXE_MODE_AGE_BASED));
             } else {
-                selector.Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
+                selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
             }
         }
     } else {
         if (dtype == Datatype::F16) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
-            selector.Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1, 4, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 8, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1, 2, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 4, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(16, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
+            selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 16, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 8, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 2, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 4, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(16, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
         } else if (dtype == Datatype::F32) {
             // tune_params(tile_b, tile_ofm, tile_ifm, tile_k, outer_ofm, dispatch_bsv, dispatch_fsv, exec_options)
-            selector.Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 1, 1, 16, 2, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 1, 1, 16, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 1, 1, 8, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 1, 1, 4, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 1, 1, 2, 1, EXE_MODE_AGE_BASED))
-                .Case(tune_params(8, std::min(max_tile_ofm, 2u), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
+            selector.Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 16, 2, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 16, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 8, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 4, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 2, 1, EXE_MODE_AGE_BASED))
+                .Case(tune_params(8, std::min(max_tile_ofm, 2U), 1, 1, 1, 1, 1, EXE_MODE_AGE_BASED));
         }
 
         if (params.compressed && batch == 1) {
-            selector.Case(tune_params(1, std::min(max_tile_ofm, 2u), 4, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
+            selector.Case(tune_params(1, std::min(max_tile_ofm, 2U), 4, 2, 1, 1, 1, EXE_MODE_AGE_BASED));
         }
 
         selector.Case([&](const fully_connected_params&) -> tune_params {
-            tune_params result(8, std::min(max_tile_ofm, 2u), 1, 2, 1, 1, 1, EXE_MODE_DEFAULT);
+            tune_params result(8, std::min(max_tile_ofm, 2U), 1, 2, 1, 1, 1, EXE_MODE_DEFAULT);
 
             while (batch % result.tile_b != 0) {
                 result.tile_b--;
@@ -718,7 +718,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
     }
 
     if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16 && dispatchData.tile_n == 2) {
-        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 0.5f));
+        jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 0.5F));
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2 && dispatchData.tile_n == 1) {
         jit.AddConstant(MakeJitConstant("TILE_OFM_PER_OSV_SIZE", 2));
     } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2 && dispatchData.tile_n == 2) {
@@ -894,7 +894,15 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
         bool use_dyn_b = !use_slm && (idx.dyn_b >= 0) && (idx.quantize < 0) &&
                          should_use_dyn_b_kernel(output_batch, prim_params.weights.IFM().v, prim_params.weights.OFM().v, is_swiglu_fused(prim_params));
 
-        int execute = use_slm ? idx.slm : (use_dyn_b ? idx.dyn_b : idx.default_fc);
+        int execute = idx.default_fc;
+        const char* kernel_version = "Default";
+        if (use_slm) {
+            execute = idx.slm;
+            kernel_version = "SLM";
+        } else if (use_dyn_b) {
+            execute = idx.dyn_b;
+            kernel_version = "DynB";
+        }
 
         // Skip all FC kernels except the executing one
         int32_t total_kernels = static_cast<int32_t>(kd.kernels.size());
@@ -902,7 +910,7 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
             kd.kernels[i].skip_execution = (i != execute);
         }
 
-        GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << (use_slm ? "SLM" : (use_dyn_b ? "DynB" : "Default")) << " shape-agnostic kernel version "
+        GPU_DEBUG_TRACE_DETAIL << "FC bf tiled: " << kernel_version << " shape-agnostic kernel version "
                                << "will be used for batch size = " << output_batch << "\n";
 
         // Configure workgroups for the selected kernel
@@ -910,7 +918,7 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
             size_t effective_batch = std::max(output_batch, (size_t)1);
             size_t tile_b = FullyConnected_bf_tiled_dyn_b::SelectTileB(effective_batch);
             FullyConnected_bf_tiled_dyn_b dyn_b_impl;
-            auto dyn_b_tparams = dyn_b_impl.GetTuneParams(prim_params);
+            auto dyn_b_tparams = FullyConnected_bf_tiled_dyn_b::GetTuneParams(prim_params);
             auto threads = get_output_aligned_bf_size(prim_params, true, static_cast<uint32_t>(tile_b), static_cast<int32_t>(dyn_b_tparams.tile_ofm * simd));
             kd.kernels[execute].params.workGroups.global = {threads.second * threads.first * simd, 1, 1};
             kd.kernels[execute].params.workGroups.local = {simd, 1, 1};

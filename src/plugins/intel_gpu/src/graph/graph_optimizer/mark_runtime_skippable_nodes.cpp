@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
 #include "gather_inst.h"
@@ -38,12 +40,10 @@ void mark_runtime_skippable_nodes::run(program& p) {
             if (node.is_input() || node.is_output()) {
                 return false;
             }
-            for (const auto& u : node.get_users()) {
-                if (!u->is_type<shape_of>()) {
-                    return false;
-                }
-            }
-            return true;
+            const auto& users = node.get_users();
+            return std::all_of(users.begin(), users.end(), [](const auto& u) {
+                return u->template is_type<shape_of>();
+            });
         };
 
         if (all_users_are_shape_of(*node) &&

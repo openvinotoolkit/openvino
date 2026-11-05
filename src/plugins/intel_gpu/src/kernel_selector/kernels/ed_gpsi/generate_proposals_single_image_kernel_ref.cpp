@@ -23,7 +23,7 @@ ParamsKey ExperimentalDetectronGenerateProposalsSingleImageRef::GetSupportedKey(
     return k;
 }
 
-KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsPriority(const Params&) const {
+KernelsPriority ExperimentalDetectronGenerateProposalsSingleImageRef::GetKernelsPriority(const Params& /*unused*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
@@ -60,9 +60,9 @@ ExperimentalDetectronGenerateProposalsSingleImageRef::DispatchData SetDefault(
 }
 }  // namespace
 
-void ExperimentalDetectronGenerateProposalsSingleImageRef::SetKernelArguments(
-        const experimental_detectron_generate_proposals_single_image_params& params,
-        size_t idx, cldnn::arguments_desc& arguments) const {
+void ExperimentalDetectronGenerateProposalsSingleImageRef::SetKernelArguments(const experimental_detectron_generate_proposals_single_image_params& params,
+                                                                              size_t idx,
+                                                                              cldnn::arguments_desc& arguments) {
     switch (idx) {
         case 0: { // refine anchors
             arguments.push_back({ArgumentDescriptor::Types::INPUT, kImInfoInputIdx});

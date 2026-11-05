@@ -45,13 +45,15 @@ struct Scalar {
 
 size_t small_tensor_size(const Output<Node>& value) {
     const auto& shape = value.get_partial_shape();
-    if (shape.is_dynamic())
+    if (shape.is_dynamic()) {
         return 0;
+    }
     size_t count = 1;
     for (const auto& dim : shape) {
         const auto length = static_cast<size_t>(dim.get_length());
-        if (length == 0 || length > 64 / count)
+        if (length == 0 || length > 64 / count) {
             return 0;
+        }
         count *= length;
     }
     return count;
@@ -59,16 +61,19 @@ size_t small_tensor_size(const Output<Node>& value) {
 
 bool resolve(Scalar& scalar) {
     for (size_t depth = 0; depth < 64; ++depth) {
-        if (scalar.index >= small_tensor_size(scalar.value))
+        if (scalar.index >= small_tensor_size(scalar.value)) {
             return false;
+        }
         const auto node = scalar.value.get_node_shared_ptr();
         if (is_type<op::v1::Reshape>(node) || is_type<op::v0::Squeeze>(node) || is_type<op::v0::Unsqueeze>(node)) {
-            if (small_tensor_size(node->input_value(0)) != small_tensor_size(scalar.value))
+            if (small_tensor_size(node->input_value(0)) != small_tensor_size(scalar.value)) {
                 return false;
+            }
             scalar.value = node->input_value(0);
         } else if (const auto concat = as_type_ptr<op::v0::Concat>(node)) {
-            if (scalar.value.get_shape().size() != 1 || (concat->get_axis() != 0 && concat->get_axis() != -1))
+            if (scalar.value.get_shape().size() != 1 || (concat->get_axis() != 0 && concat->get_axis() != -1)) {
                 return false;
+            }
             bool found = false;
             for (const auto& input : concat->input_values()) {
                 const auto size = small_tensor_size(input);
@@ -79,38 +84,47 @@ bool resolve(Scalar& scalar) {
                 }
                 scalar.index -= size;
             }
-            if (!found)
+            if (!found) {
                 return false;
+            }
         } else if (const auto gather = as_type_ptr<op::util::GatherBase>(node)) {
             const auto indices = as_type_ptr<op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
             const auto axis = as_type_ptr<op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
             const auto& input = gather->input_value(0);
             const auto size = small_tensor_size(input);
-            if (!indices || !axis || shape_size(axis->get_shape()) != 1 || size == 0 || input.get_shape().size() != 1 || gather->get_batch_dims() != 0)
+            if (!indices || !axis || shape_size(axis->get_shape()) != 1 || size == 0 || input.get_shape().size() != 1 || gather->get_batch_dims() != 0) {
                 return false;
+            }
             const auto axis_value = axis->cast_vector<int64_t>()[0];
-            if (axis_value != 0 && axis_value != -1)
+            if (axis_value != 0 && axis_value != -1) {
                 return false;
+            }
             const auto values = indices->cast_vector<int64_t>();
-            if (scalar.index >= values.size())
+            if (scalar.index >= values.size()) {
                 return false;
+            }
             auto index = values[scalar.index];
-            if (index < 0)
+            if (index < 0) {
                 index += static_cast<int64_t>(size);
-            if (index < 0 || static_cast<size_t>(index) >= size)
+            }
+            if (index < 0 || static_cast<size_t>(index) >= size) {
                 return false;
+            }
             scalar = {input, static_cast<size_t>(index)};
         } else if (const auto split = as_type_ptr<op::v1::Split>(node)) {
             const auto axis = as_type_ptr<op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
             const auto& input = split->input_value(0);
-            if (!axis || shape_size(axis->get_shape()) != 1 || small_tensor_size(input) == 0)
+            if (!axis || shape_size(axis->get_shape()) != 1 || small_tensor_size(input) == 0) {
                 return false;
+            }
             const auto shape = input.get_shape();
             auto axis_value = axis->cast_vector<int64_t>()[0];
-            if (axis_value < 0)
+            if (axis_value < 0) {
                 axis_value += static_cast<int64_t>(shape.size());
-            if (axis_value < 0 || static_cast<size_t>(axis_value) >= shape.size())
+            }
+            if (axis_value < 0 || static_cast<size_t>(axis_value) >= shape.size()) {
                 return false;
+            }
             const auto inner = std::accumulate(shape.begin() + axis_value + 1, shape.end(), size_t{1}, std::multiplies<size_t>());
             const auto chunk = scalar.value.get_shape()[axis_value] * inner;
             scalar.index = scalar.index / chunk * shape[axis_value] * inner + scalar.value.get_index() * chunk + scalar.index % chunk;
@@ -123,11 +137,13 @@ bool resolve(Scalar& scalar) {
 }
 
 bool constant(Scalar scalar, double& value) {
-    if (!resolve(scalar))
+    if (!resolve(scalar)) {
         return false;
+    }
     const auto c = as_type_ptr<op::v0::Constant>(scalar.value.get_node_shared_ptr());
-    if (!c)
+    if (!c) {
         return false;
+    }
     value = c->cast_vector<double>()[scalar.index];
     return std::isfinite(value);
 }
@@ -140,8 +156,9 @@ bool constant_is(const Scalar& scalar, double expected) {
 bool input_scalar(const Scalar& scalar, size_t port, Scalar& input) {
     const auto& value = scalar.value.get_node_shared_ptr()->input_value(port);
     const auto size = small_tensor_size(value);
-    if (size == 0 || (size != 1 && value.get_shape() != scalar.value.get_shape()))
+    if (size == 0 || (size != 1 && value.get_shape() != scalar.value.get_shape())) {
         return false;
+    }
     input = {value, size == 1 ? 0 : scalar.index};
     return resolve(input);
 }
@@ -151,49 +168,58 @@ bool is_shape_float(const element::Type& type) {
 }
 
 bool unwrap_integer_convert(Scalar& scalar) {
-    if (!resolve(scalar))
+    if (!resolve(scalar)) {
         return false;
+    }
     if (const auto convert = as_type_ptr<op::v0::Convert>(scalar.value.get_node_shared_ptr())) {
         const auto type = convert->get_destination_type();
-        if ((type != element::i32 && type != element::i64) || !is_shape_float(convert->get_input_element_type(0)))
+        if ((type != element::i32 && type != element::i64) || !is_shape_float(convert->get_input_element_type(0))) {
             return false;
+        }
         return input_scalar(scalar, 0, scalar);
     }
     return true;
 }
 
 bool is_dimension(Scalar scalar, const Output<Node>& data, size_t axis) {
-    if (!resolve(scalar))
+    if (!resolve(scalar)) {
         return false;
+    }
     if (const auto convert = as_type_ptr<op::v0::Convert>(scalar.value.get_node_shared_ptr())) {
         if (!is_shape_float(convert->get_destination_type()) ||
-            (convert->get_input_element_type(0) != element::i32 && convert->get_input_element_type(0) != element::i64) || !input_scalar(scalar, 0, scalar))
+            (convert->get_input_element_type(0) != element::i32 && convert->get_input_element_type(0) != element::i64) || !input_scalar(scalar, 0, scalar)) {
             return false;
+        }
     }
     const auto shape = as_type_ptr<op::util::ShapeOfBase>(scalar.value.get_node_shared_ptr());
     return shape && shape->input_value(0) == data && scalar.index == axis;
 }
 
 bool divided_by(Scalar scalar, double divisor, Scalar& numerator) {
-    if (!resolve(scalar) || !is_shape_float(scalar.value.get_element_type()))
+    if (!resolve(scalar) || !is_shape_float(scalar.value.get_element_type())) {
         return false;
+    }
     Scalar a, b;
     const auto node = scalar.value.get_node_shared_ptr();
-    if ((!is_type<op::v1::Divide>(node) && !is_type<op::v1::Multiply>(node)) || !input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b))
+    if ((!is_type<op::v1::Divide>(node) && !is_type<op::v1::Multiply>(node)) || !input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b)) {
         return false;
+    }
     if (is_type<op::v1::Divide>(node)) {
-        if (!constant_is(b, divisor))
+        if (!constant_is(b, divisor)) {
             return false;
+        }
         numerator = a;
         return true;
     }
     // Only accept an exact reciprocal (in particular, division by two in the
     // padding split). Do not approximate a precision-sensitive shape division.
-    if (divisor == 0.0)
+    if (divisor == 0.0) {
         return false;
+    }
     int exponent;
-    if (std::frexp(divisor, &exponent) != 0.5)
+    if (std::frexp(divisor, &exponent) != 0.5) {
         return false;
+    }
     const auto reciprocal = 1.0 / divisor;
     if (constant_is(a, reciprocal)) {
         numerator = b;
@@ -215,8 +241,9 @@ bool binary_inputs(Scalar scalar, Scalar& a, Scalar& b) {
 template <typename Op>
 bool with_constant(Scalar scalar, double expected, Scalar& other) {
     Scalar a, b;
-    if (!binary_inputs<Op>(scalar, a, b))
+    if (!binary_inputs<Op>(scalar, a, b)) {
         return false;
+    }
     if (constant_is(a, expected)) {
         other = b;
         return true;
@@ -231,11 +258,13 @@ bool with_constant(Scalar scalar, double expected, Scalar& other) {
 // Match only subtraction and its exported Add(lhs, Multiply(rhs, -1)) form.
 // Do not cancel or reassociate float expressions: (x + C) - C can differ from x.
 bool subtraction(Scalar scalar, Scalar& lhs, Scalar& rhs) {
-    if (binary_inputs<op::v1::Subtract>(scalar, lhs, rhs))
+    if (binary_inputs<op::v1::Subtract>(scalar, lhs, rhs)) {
         return true;
+    }
     Scalar a, b;
-    if (!binary_inputs<op::v1::Add>(scalar, a, b))
+    if (!binary_inputs<op::v1::Add>(scalar, a, b)) {
         return false;
+    }
     if (with_constant<op::v1::Multiply>(b, -1, rhs)) {
         lhs = a;
         return true;
@@ -266,15 +295,19 @@ public:
 
 private:
     bool total(Scalar scalar) const {
-        if (!resolve(scalar) || !is_type<op::v1::Maximum>(scalar.value.get_node()))
+        if (!resolve(scalar) || !is_type<op::v1::Maximum>(scalar.value.get_node())) {
             return false;
+        }
         Scalar a, b;
-        if (!input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b))
+        if (!input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b)) {
             return false;
-        if (constant_is(a, 0))
+        }
+        if (constant_is(a, 0)) {
             std::swap(a, b);
-        if (!constant_is(b, 0))
+        }
+        if (!constant_is(b, 0)) {
             return false;
+        }
         Scalar extent, dimension;
         return subtraction(a, extent, dimension) && is_dimension(dimension, m_data, m_axis) && padded_extent(extent);
     }
@@ -289,14 +322,17 @@ private:
         Scalar product, size;
         // Constant-folded form: S * ceil(I / S) + (Keff - S).
         // NopElimination may have removed the Add when Keff equals S.
-        if (m_kernel == m_stride && with_constant<op::v1::Multiply>(scalar, m_stride, size) && output_size(size))
+        if (m_kernel == m_stride && with_constant<op::v1::Multiply>(scalar, m_stride, size) && output_size(size)) {
             return true;
-        if (with_constant<op::v1::Add>(scalar, m_kernel - m_stride, product) && with_constant<op::v1::Multiply>(product, m_stride, size) && output_size(size))
+        }
+        if (with_constant<op::v1::Add>(scalar, m_kernel - m_stride, product) && with_constant<op::v1::Multiply>(product, m_stride, size) && output_size(size)) {
             return true;
+        }
 
         // Expanded form: (ceil(I / S) - 1) * S + Keff.
-        if (!with_constant<op::v1::Add>(scalar, m_kernel, product) || !with_constant<op::v1::Multiply>(product, m_stride, size))
+        if (!with_constant<op::v1::Add>(scalar, m_kernel, product) || !with_constant<op::v1::Multiply>(product, m_stride, size)) {
             return false;
+        }
         Scalar ceil, one;
         return (subtraction(size, ceil, one) && constant_is(one, 1) && output_size(ceil)) || (with_constant<op::v1::Add>(size, -1, ceil) && output_size(ceil));
     }
@@ -319,49 +355,59 @@ ov::intel_gpu::DynamicSamePaddingFusion::DynamicSamePaddingFusion() {
     const auto root_pattern = pattern::wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>();
     matcher_pass_callback callback = [this](pattern::Matcher& matcher) {
         const auto conv = as_type_ptr<ov::op::util::ConvolutionFwdPropBase>(matcher.get_match_root());
-        if (transformation_callback(conv))
+        if (transformation_callback(conv)) {
             return false;
+        }
         const auto pad = as_type_ptr<ov::op::util::PadBase>(conv->input_value(0).get_node_shared_ptr());
-        if (!pad || pad->get_pad_mode() != ov::op::PadMode::CONSTANT || (pad->get_input_size() == 4 && !constant_is({pad->input_value(3)}, 0)))
+        if (!pad || pad->get_pad_mode() != ov::op::PadMode::CONSTANT || (pad->get_input_size() == 4 && !constant_is({pad->input_value(3)}, 0))) {
             return false;
-        if (conv->get_auto_pad() != ov::op::PadType::EXPLICIT && conv->get_auto_pad() != ov::op::PadType::VALID)
+        }
+        if (conv->get_auto_pad() != ov::op::PadType::EXPLICIT && conv->get_auto_pad() != ov::op::PadType::VALID) {
             return false;
+        }
         const auto is_zero = [](ptrdiff_t value) {
             return value == 0;
         };
         if (!std::all_of(conv->get_pads_begin().begin(), conv->get_pads_begin().end(), is_zero) ||
-            !std::all_of(conv->get_pads_end().begin(), conv->get_pads_end().end(), is_zero))
+            !std::all_of(conv->get_pads_end().begin(), conv->get_pads_end().end(), is_zero)) {
             return false;
+        }
         const auto& data = pad->input_value(0);
         const auto& shape = data.get_partial_shape();
         const auto& weights = conv->get_input_partial_shape(1);
-        if (shape.rank().is_dynamic() || weights.rank().is_dynamic())
+        if (shape.rank().is_dynamic() || weights.rank().is_dynamic()) {
             return false;
+        }
         const auto rank = static_cast<size_t>(shape.rank().get_length());
-        const auto offset = is_type<ov::op::v1::GroupConvolution>(conv) ? 3u : 2u;
+        const auto offset = is_type<ov::op::v1::GroupConvolution>(conv) ? 3U : 2U;
         if (rank < 3 || rank > 5 || weights.size() != rank + offset - 2 || conv->get_strides().size() != rank - 2 || conv->get_dilations().size() != rank - 2 ||
             pad->get_input_partial_shape(1) != PartialShape{static_cast<int64_t>(rank)} ||
-            pad->get_input_partial_shape(2) != PartialShape{static_cast<int64_t>(rank)})
+            pad->get_input_partial_shape(2) != PartialShape{static_cast<int64_t>(rank)}) {
             return false;
+        }
         for (size_t axis = 0; axis < rank; ++axis) {
             const Scalar begin{pad->input_value(1), axis};
             const Scalar end{pad->input_value(2), axis};
             if (axis < 2) {
-                if (!constant_is(begin, 0) || !constant_is(end, 0))
+                if (!constant_is(begin, 0) || !constant_is(end, 0)) {
                     return false;
+                }
                 continue;
             }
             const auto& kernel = weights[axis - 2 + offset];
-            if (kernel.is_dynamic() || kernel.get_length() <= 0)
+            if (kernel.is_dynamic() || kernel.get_length() <= 0) {
                 return false;
+            }
             const auto stride = conv->get_strides()[axis - 2];
             const auto dilation = conv->get_dilations()[axis - 2];
-            if (stride == 0 || dilation == 0 || static_cast<size_t>(kernel.get_length()) - 1 > (std::numeric_limits<size_t>::max() - 1) / dilation)
+            if (stride == 0 || dilation == 0 || static_cast<size_t>(kernel.get_length()) - 1 > (std::numeric_limits<size_t>::max() - 1) / dilation) {
                 return false;
+            }
             const auto effective_kernel = (static_cast<size_t>(kernel.get_length()) - 1) * dilation + 1;
             const SamePadding same(data, axis, stride, effective_kernel);
-            if (!same.begin(begin) || !same.end(end))
+            if (!same.begin(begin) || !same.end(end)) {
                 return false;
+            }
         }
         // Clone first, so Pad users with different convolution attributes or other
         // consumers of the shape arithmetic retain their original inputs.

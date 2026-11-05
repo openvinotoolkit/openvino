@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace kernel_selector {
 static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
 // Large conv threshold is heuristically set to 1B
-constexpr float large_conv_threshold = 1.0e9f;
+constexpr float large_conv_threshold = 1.0e9F;
 
 namespace {
 FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt, bool is_vector) {

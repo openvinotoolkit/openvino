@@ -55,7 +55,7 @@ static void ReshapeInput(ProgramBuilder& p, const std::shared_ptr<ov::op::Op>& o
                 auto input_rank = input_pshape.size();
 
                 auto input_shape = op->get_input_shape(idx);
-                input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
+                input_shape.insert(input_shape.begin(), output_rank - input_rank, 1UL);
 
                 auto target_input_shape = tensor_from_dims(input_shape);
                 auto input_reshape_name = layer_name + "_input_" + std::to_string(idx) + "_reshape";

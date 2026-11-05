@@ -41,7 +41,7 @@ struct resample : public primitive_base<resample> {
           operation_type(operation_type),
           shape_calc_mode(InterpolateOp::ShapeCalcMode::SIZES),
           antialias(0),
-          cube_coeff(0.0f),
+          cube_coeff(0.0F),
           coord_trans_mode(InterpolateOp::CoordinateTransformMode::ASYMMETRIC),
           round_mode(InterpolateOp::NearestMode::FLOOR) {
         if (scales.size() != axes.size()) {
@@ -61,7 +61,7 @@ struct resample : public primitive_base<resample> {
              const std::vector<size_t>& pads_begin = {},
              const std::vector<size_t>& pads_end = {},
              int32_t antialias = 0,
-             float cube_coeff = -0.75f,
+             float cube_coeff = -0.75F,
              InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
              InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
@@ -93,7 +93,7 @@ struct resample : public primitive_base<resample> {
              const std::vector<size_t>& pads_begin = {},
              const std::vector<size_t>& pads_end = {},
              int32_t antialias = 0,
-             float cube_coeff = -0.75f,
+             float cube_coeff = -0.75F,
              InterpolateOp::InterpolateMode operation_type = InterpolateOp::InterpolateMode::LINEAR,
              InterpolateOp::ShapeCalcMode shape_calc_mode = InterpolateOp::ShapeCalcMode::SIZES,
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
@@ -147,7 +147,7 @@ struct resample : public primitive_base<resample> {
     /// @param antialias is a flag that specifies whether to perform anti-aliasing.
     int32_t antialias = 0;
     /// @param cube_coeff specifies the parameter a for cubic interpolation. cube_coeff is used only when mode == cubic.
-    float cube_coeff = -0.75f;
+    float cube_coeff = -0.75F;
     /// @param coord_trans_mode specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor
     InterpolateOp::CoordinateTransformMode coord_trans_mode = InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
     /// @param round_mode specifies round mode when mode == nearest and is used only when mode == nearest.

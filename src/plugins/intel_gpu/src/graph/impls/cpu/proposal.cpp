@@ -88,18 +88,16 @@ roi_t gen_bbox(const proposal_inst::anchor& box,
     float y1 = box.end_y + anchor_shift_y;
 
     if (initial_clip) {
-        x0 = clamp(x0, 0.0f, static_cast<float>(img_w));
-        y0 = clamp(y0, 0.0f, static_cast<float>(img_h));
-        x1 = clamp(x1, 0.0f, static_cast<float>(img_w));
-        y1 = clamp(y1, 0.0f, static_cast<float>(img_h));
+        x0 = clamp(x0, 0.0F, static_cast<float>(img_w));
+        y0 = clamp(y0, 0.0F, static_cast<float>(img_h));
+        x1 = clamp(x1, 0.0F, static_cast<float>(img_w));
+        y1 = clamp(y1, 0.0F, static_cast<float>(img_h));
     }
 
     const float anchor_w = x1 - x0 + coordinates_offset;
     const float anchor_h = y1 - y0 + coordinates_offset;
-    const float center_x = for_deformable ? x0 + 0.5f * (anchor_w - 1) :
-                           x0 + 0.5f * anchor_w;
-    const float center_y = for_deformable ? y0 + 0.5f * (anchor_h - 1) :
-                           y0 + 0.5f * anchor_h;
+    const float center_x = for_deformable ? x0 + 0.5F * (anchor_w - 1) : x0 + 0.5F * anchor_w;
+    const float center_y = for_deformable ? y0 + 0.5F * (anchor_h - 1) : y0 + 0.5F * anchor_h;
 
     const float pred_center_x = delta.shift_x * anchor_w + center_x;
     const float pred_center_y = delta.shift_y * anchor_h + center_y;
@@ -114,10 +112,10 @@ roi_t gen_bbox(const proposal_inst::anchor& box,
     float new_y1 = pred_center_y + half_pred_h;
 
     if (clip_before_nms) {
-        new_x0 = clamp(new_x0, 0.f, img_w - coordinates_offset);
-        new_y0 = clamp(new_y0, 0.f, img_h - coordinates_offset);
-        new_x1 = clamp(new_x1, 0.f, img_w - coordinates_offset);
-        new_y1 = clamp(new_y1, 0.f, img_h - coordinates_offset);
+        new_x0 = clamp(new_x0, 0.F, img_w - coordinates_offset);
+        new_y0 = clamp(new_y0, 0.F, img_h - coordinates_offset);
+        new_x1 = clamp(new_x1, 0.F, img_w - coordinates_offset);
+        new_y1 = clamp(new_y1, 0.F, img_h - coordinates_offset);
     }
 
     return {new_x0, new_y0, new_x1, new_y1};
@@ -136,15 +134,15 @@ std::vector<roi_t> perform_nms(const std::vector<proposal_t>& proposals,
         bool overlaps = std::any_of(res.begin(), res.end(), [&](const roi_t& res_bbox) {
             bool intersecting =
                 (bbox.x0 < res_bbox.x1) && (res_bbox.x0 < bbox.x1) && (bbox.y0 < res_bbox.y1) && (res_bbox.y0 < bbox.y1);
-            float overlap = 0.0f;
+            float overlap = 0.0F;
             if (intersecting) {
                 const float x0 = std::max(bbox.x0, res_bbox.x0);
                 const float y0 = std::max(bbox.y0, res_bbox.y0);
                 const float x1 = std::min(bbox.x1, res_bbox.x1);
                 const float y1 = std::min(bbox.y1, res_bbox.y1);
 
-                const float intersect_width = std::max(0.0f, x1 - x0 + coordinates_offset);
-                const float intersect_height = std::max(0.0f, y1 - y0 + coordinates_offset);
+                const float intersect_width = std::max(0.0F, x1 - x0 + coordinates_offset);
+                const float intersect_height = std::max(0.0F, y1 - y0 + coordinates_offset);
                 const float intersect_size = intersect_width * intersect_height;
 
                 const float A_area =
@@ -360,30 +358,30 @@ struct proposal_impl : typed_primitive_impl<proposal> {
 
             for (size_t i = 0; i < res_num_rois; ++i) {
                 if (clip_after_nms) {
-                    res[i].x0 = clamp(res[i].x0, 0.0f, static_cast<float>(im_info.img_w));
-                    res[i].y0 = clamp(res[i].y0, 0.0f, static_cast<float>(im_info.img_h));
-                    res[i].x1 = clamp(res[i].x1, 0.0f, static_cast<float>(im_info.img_w));
-                    res[i].y1 = clamp(res[i].y1, 0.0f, static_cast<float>(im_info.img_h));
+                    res[i].x0 = clamp(res[i].x0, 0.0F, static_cast<float>(im_info.img_w));
+                    res[i].y0 = clamp(res[i].y0, 0.0F, static_cast<float>(im_info.img_h));
+                    res[i].x1 = clamp(res[i].x1, 0.0F, static_cast<float>(im_info.img_w));
+                    res[i].y1 = clamp(res[i].y1, 0.0F, static_cast<float>(im_info.img_h));
                 }
 
                 float_write_helper(top_data + 5 * i + 0, static_cast<float>(n));
-                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (primitive->normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (primitive->normalize ? im_info.img_h : 1.0f));
-                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (primitive->normalize ? im_info.img_w : 1.0f));
-                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (primitive->normalize ? im_info.img_h : 1.0f));
+                float_write_helper(top_data + 5 * i + 1, res[i].x0 / (primitive->normalize ? im_info.img_w : 1.0F));
+                float_write_helper(top_data + 5 * i + 2, res[i].y0 / (primitive->normalize ? im_info.img_h : 1.0F));
+                float_write_helper(top_data + 5 * i + 3, res[i].x1 / (primitive->normalize ? im_info.img_w : 1.0F));
+                float_write_helper(top_data + 5 * i + 4, res[i].y1 / (primitive->normalize ? im_info.img_h : 1.0F));
                 if (top_data_prob != nullptr && i < sorted_proposals_confidence.size()) {
                     float_write_helper(top_data_prob + i, sorted_proposals_confidence[i].confidence);
                 }
             }
 
             for (size_t i = res_num_rois; i < (size_t)primitive->post_nms_topn; i++) {
-                float_write_helper(top_data + 5 * i + 0, -1.0f);
-                float_write_helper(top_data + 5 * i + 1, 0.0f);
-                float_write_helper(top_data + 5 * i + 2, 0.0f);
-                float_write_helper(top_data + 5 * i + 3, 0.0f);
-                float_write_helper(top_data + 5 * i + 4, 0.0f);
+                float_write_helper(top_data + 5 * i + 0, -1.0F);
+                float_write_helper(top_data + 5 * i + 1, 0.0F);
+                float_write_helper(top_data + 5 * i + 2, 0.0F);
+                float_write_helper(top_data + 5 * i + 3, 0.0F);
+                float_write_helper(top_data + 5 * i + 4, 0.0F);
                 if (top_data_prob != nullptr) {
-                    float_write_helper(top_data_prob + i, 0.0f);
+                    float_write_helper(top_data_prob + i, 0.0F);
                 }
             }
         }
@@ -442,7 +440,7 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         return make_output_event(stream, instance.is_output());
     }
 
-    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache& /*kernels_cache*/, const kernel_impl_params& /*params*/) override {}
 
     static std::unique_ptr<primitive_impl> create(const proposal_node& arg, const kernel_impl_params& impl_param) {
         const layout& l = impl_param.input_layouts[2];

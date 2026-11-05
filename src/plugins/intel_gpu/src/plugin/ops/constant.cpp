@@ -160,7 +160,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             GPU_DEBUG_LOG << "[" << initialconstPrimID << ": import shared constant] imported shared constant: source ID: "
                           << weight_sharing::Extension::get_constant_source_id(*op)
                           << ", constant ID: " << weight_sharing::Extension::get_constant_id(*op)
-                          << ", ptr: " << static_cast<void*>(weight_sharing_constant_buffer_view->get_ptr())
+                          << ", ptr: " << weight_sharing_constant_buffer_view->get_ptr()
                           << ", size: " << weight_sharing_constant_buffer_view->size()
                           << ", layout: " << constLayout.to_short_string() << std::endl;
             return;

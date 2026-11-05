@@ -14,13 +14,13 @@ struct multiclass_nms_params : public base_params {
 
     SortResultType sort_result_type = SortResultType::CLASSID;
     bool sort_result_across_batch = false;
-    float iou_threshold = 0.0f;
-    float score_threshold = 0.0f;
+    float iou_threshold = 0.0F;
+    float score_threshold = 0.0F;
     int nms_top_k = 0;
     int keep_top_k = 0;
     int background_class = 0;
     bool normalized = false;
-    float nms_eta = 0.0f;
+    float nms_eta = 0.0F;
     bool has_roisnum = false;
 };
 
@@ -38,7 +38,7 @@ protected:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    void SetKernelArguments(const multiclass_nms_params& params, size_t idx, cldnn::arguments_desc& kernel) const;
+    static void SetKernelArguments(const multiclass_nms_params& params, size_t idx, cldnn::arguments_desc& arguments);
 
 private:
     JitConstants GetJitConstants(const multiclass_nms_params& params) const;

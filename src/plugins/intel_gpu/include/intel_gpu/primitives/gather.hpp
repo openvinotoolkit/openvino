@@ -102,7 +102,7 @@ struct gather : public primitive_base<gather> {
         seed = hash_combine(seed, decompression_scale.is_valid());
         seed = hash_combine(seed, decompression_zero_point.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
-        seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
+        seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0F));
         return seed;
     }
 
@@ -113,13 +113,10 @@ struct gather : public primitive_base<gather> {
 
         auto rhs_casted = downcast<const gather>(rhs);
 
-        return axis == rhs_casted.axis &&
-               batch_dim == rhs_casted.batch_dim &&
-               support_neg_ind == rhs_casted.support_neg_ind &&
-               compressed_weights == rhs_casted.compressed_weights &&
-               decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
+        return axis == rhs_casted.axis && batch_dim == rhs_casted.batch_dim && support_neg_ind == rhs_casted.support_neg_ind &&
+               compressed_weights == rhs_casted.compressed_weights && decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
                decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
-               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f);
+               decompression_zero_point_scalar.value_or(0.0F) == rhs_casted.decompression_zero_point_scalar.value_or(0.0F);
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -159,7 +156,7 @@ struct gather : public primitive_base<gather> {
         bool has_value;
         ib >> has_value;
         if (has_value) {
-            float decompression_zero_point_value = 0.f;
+            float decompression_zero_point_value = 0.F;
             ib >> make_data(&decompression_zero_point_value, sizeof(float));
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {

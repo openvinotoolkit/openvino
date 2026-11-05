@@ -214,7 +214,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, activation_zero_point.is_valid());
         seed = hash_combine(seed, activation_precomputed_reduction.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
-        seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0f));
+        seed = hash_combine(seed, decompression_zero_point_scalar.value_or(0.0F));
         seed = hash_combine(seed, hadamard_block);
         seed = hash_combine(seed, hadamard_signs.size());
         return seed;
@@ -239,7 +239,7 @@ struct fully_connected : public primitive_base<fully_connected> {
                activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
                activation_zero_point.is_valid() == rhs_casted.activation_zero_point.is_valid() &&
                activation_precomputed_reduction.is_valid() == rhs_casted.activation_precomputed_reduction.is_valid() &&
-               decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f) &&
+               decompression_zero_point_scalar.value_or(0.0F) == rhs_casted.decompression_zero_point_scalar.value_or(0.0F) &&
                hadamard_block == rhs_casted.hadamard_block && hadamard_signs == rhs_casted.hadamard_signs;
     }
 
@@ -295,7 +295,7 @@ struct fully_connected : public primitive_base<fully_connected> {
         bool has_value;
         ib >> has_value;
         if (has_value) {
-            float decompression_zero_point_value = 0.f;
+            float decompression_zero_point_value = 0.F;
             ib >> decompression_zero_point_value;
             decompression_zero_point_scalar = decompression_zero_point_value;
         } else {

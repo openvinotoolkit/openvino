@@ -618,7 +618,7 @@ std::shared_ptr<loop_inst::concatenated_memory_mapping> loop_inst::get_sliced_me
     return nullptr; // not found
 }
 
-void loop_inst::validate_backedges(loop_node const & node) const {
+void loop_inst::validate_backedges(const loop_node& node) {
     const auto& back_edges = node.get_back_edges();
     const auto& input_primitive_maps = node.get_input_primitive_maps();
 

@@ -42,7 +42,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     auto activation_zero_point_input = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
     auto activation_precomputed_reduction = op->get_input_size() > input_idx ? inputs[input_idx++] : cldnn::input_info();
 
-    float zp_value = 0.0f;
+    float zp_value = 0.0F;
     bool has_scalar_zp = false;
     if (!zp_name.empty()) {
         auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(W_ZP_IDX));
@@ -76,8 +76,9 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
     const auto& rt = op->get_rt_info();
     if (auto it = rt.find(int2_hadamard_block_key); it != rt.end()) {
         fc.hadamard_block = static_cast<size_t>(it->second.as<int64_t>());
-        if (auto st = rt.find(int2_hadamard_signs_key); st != rt.end())
+        if (auto st = rt.find(int2_hadamard_signs_key); st != rt.end()) {
             fc.hadamard_signs = st->second.as<std::vector<int8_t>>();
+        }
     }
 
     p.add_primitive(*op, fc);
