@@ -9,13 +9,18 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 
+#    include <array>
 #    include <memory>
 #    include <mutex>
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <tuple>
 #    include <unordered_map>
 
+#    include "impls/onednn/utils.hpp"
 #    include "intel_gpu/runtime/itt.hpp"
+#    include "intel_gpu/runtime/memory.hpp"
+#    include "intel_gpu/runtime/stream.hpp"
+#    include "intel_gpu/runtime/utils.hpp"
 #    include "openvino/core/except.hpp"
 
 namespace cldnn {
@@ -322,6 +327,186 @@ struct onednn_linear {
         m_prim.execute(stream, args);
     }
 };
+
+// Weights decompression of a grouped matmul [T, K] x W[G, K, N] -> [T, N], W stored as [G, N, K] (acb).
+// Scales and zero points are [G, K / group_size, N] (abc), or [G, N] (ab) without K groups.
+struct grouped_matmul_quant {
+    dnnl::memory::data_type scale_dt = dnnl::memory::data_type::undef;  // undef: uncompressed weights
+    dnnl::memory::data_type zp_dt = dnnl::memory::data_type::undef;     // undef: no zero point
+    dnnl::memory::dim group_size = 0;                                   // K group size; <= 0 or >= K: per output channel
+    bool host_zp = false;                                               // one zero point for all the experts, passed as a host scalar
+
+    bool compressed() const {
+        return scale_dt != dnnl::memory::data_type::undef;
+    }
+    bool has_zp() const {
+        return zp_dt != dnnl::memory::data_type::undef;
+    }
+    bool device_zp() const {
+        return has_zp() && !host_zp;
+    }
+    bool has_k_groups(dnnl::memory::dim K) const {
+        return group_size > 0 && group_size < K;
+    }
+};
+
+// Weights mask bits of the logical [G, K, N] grouped weights
+constexpr int grouped_wei_mask_g = 1 << 0;
+constexpr int grouped_wei_mask_k = 1 << 1;
+constexpr int grouped_wei_mask_n = 1 << 2;
+
+inline void set_grouped_matmul_quant_attr(dnnl::primitive_attr& attr, const grouped_matmul_quant& q, dnnl::memory::dim K) {
+    if (!q.compressed()) {
+        return;
+    }
+    const bool k_groups = q.has_k_groups(K);
+    const int mask = grouped_wei_mask_g | grouped_wei_mask_n | (k_groups ? grouped_wei_mask_k : 0);
+    const dnnl::memory::dims groups = k_groups ? dnnl::memory::dims{q.group_size, 1} : dnnl::memory::dims{};
+    if (k_groups) {
+        OPENVINO_ASSERT(K % q.group_size == 0, "[GPU] grouped matmul: group size ", q.group_size, " does not divide K=", K);
+    }
+    attr.set_scales(DNNL_ARG_WEIGHTS, mask, groups, q.scale_dt);
+    if (q.host_zp) {
+        attr.set_host_zero_point(DNNL_ARG_WEIGHTS, q.zp_dt);
+    } else if (q.has_zp()) {
+        attr.set_zero_points(DNNL_ARG_WEIGHTS, mask, groups, q.zp_dt);
+    }
+}
+
+inline dnnl::memory::desc make_grouped_matmul_quant_md(dnnl::memory::dim G,
+                                                       dnnl::memory::dim K,
+                                                       dnnl::memory::dim N,
+                                                       const grouped_matmul_quant& q,
+                                                       dnnl::memory::data_type dt) {
+    if (q.has_k_groups(K)) {
+        return dnnl::memory::desc({G, K / q.group_size, N}, dt, dnnl::memory::format_tag::abc);
+    }
+    return dnnl::memory::desc({G, N}, dt, dnnl::memory::format_tag::ab);
+}
+
+// src [T, K] and dst [T, N] are grouped along axis 0 by s32 end-offsets
+inline dnnl::matmul::primitive_desc make_grouped_matmul_pd(const dnnl::engine& engine,
+                                                           dnnl::memory::dim total_tokens,
+                                                           dnnl::memory::dim K,
+                                                           dnnl::memory::dim N,
+                                                           dnnl::memory::dim G,
+                                                           dnnl::memory::data_type src_dt,
+                                                           dnnl::memory::data_type wei_dt,
+                                                           dnnl::memory::data_type dst_dt,
+                                                           const dnnl::primitive_attr& attr) {
+    auto src_md = dnnl::memory::desc::grouped({total_tokens, K}, src_dt, 0, G, dnnl::memory::data_type::s32);
+    auto dst_md = dnnl::memory::desc::grouped({total_tokens, N}, dst_dt, 0, G, dnnl::memory::data_type::s32);
+    auto wei_md = dnnl::memory::desc({G, K, N}, wei_dt, dnnl::memory::format_tag::acb);
+    return dnnl::matmul::primitive_desc(engine, src_md, wei_md, dst_md, attr);
+}
+
+// One grouped matmul primitive with its decompression descriptors
+struct grouped_matmul_kernel {
+    dnnl::matmul::primitive_desc pd;
+    dnnl::matmul prim;
+    grouped_matmul_quant quant;
+    dnnl::memory::desc scale_md;
+    dnnl::memory::desc zp_md;
+    int bin_po_idx = -1;  // binary post-op index, its src_1 is grouped like dst
+
+    grouped_matmul_kernel() = default;
+    grouped_matmul_kernel(const dnnl::engine& engine,
+                          dnnl::memory::dim total_tokens,
+                          dnnl::memory::dim K,
+                          dnnl::memory::dim N,
+                          dnnl::memory::dim G,
+                          dnnl::memory::data_type act_dt,
+                          dnnl::memory::data_type wei_dt,
+                          const grouped_matmul_quant& q,
+                          const dnnl::post_ops& post_ops = dnnl::post_ops(),
+                          int binary_post_op_idx = -1)
+        : quant(q),
+          bin_po_idx(binary_post_op_idx) {
+        dnnl::primitive_attr attr;
+        if (q.compressed()) {
+            attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+        }
+        attr.set_post_ops(post_ops);
+        set_grouped_matmul_quant_attr(attr, q, K);
+        pd = make_grouped_matmul_pd(engine, total_tokens, K, N, G, act_dt, wei_dt, act_dt, attr);
+        prim = dnnl::matmul(pd);
+        if (q.compressed()) {
+            scale_md = make_grouped_matmul_quant_md(G, K, N, q, q.scale_dt);
+        }
+        if (q.device_zp()) {
+            zp_md = make_grouped_matmul_quant_md(G, K, N, q, q.zp_dt);
+        }
+    }
+};
+
+// Execute args of one grouped matmul. Building them costs several dnnl::memory objects (each one queries the USM
+// pointer type) per execute, so they are reused while all the buffer addresses they wrap stay the same.
+class grouped_matmul_args {
+public:
+    struct buffers {
+        const cldnn::memory* src = nullptr;
+        const cldnn::memory* dst = nullptr;
+        const cldnn::memory* offsets = nullptr;
+        const cldnn::memory* weights = nullptr;
+        const cldnn::memory* scale = nullptr;
+        const cldnn::memory* zp = nullptr;       // device zero point
+        const cldnn::memory* bin_src = nullptr;  // src_1 of the binary post-op
+    };
+
+    // host_zp and hint are host scalars, passed when non-empty
+    const std::unordered_map<int, dnnl::memory>& get(const grouped_matmul_kernel& k,
+                                                    const buffers& b,
+                                                    const dnnl::memory& host_zp = dnnl::memory(),
+                                                    const dnnl::memory& hint = dnnl::memory()) {
+        auto ptr = [](const cldnn::memory* m) -> const void* {
+            return m ? m->buffer_ptr() : nullptr;
+        };
+        const std::array<const void*, 7> key{ptr(b.src), ptr(b.dst), ptr(b.offsets), ptr(b.weights), ptr(b.scale), ptr(b.zp), ptr(b.bin_src)};
+        if (!m_args.empty() && key == m_key) {
+            return m_args;
+        }
+        m_args = {{DNNL_ARG_SRC, b.src->get_onednn_grouped_memory(k.pd.src_desc(), *b.offsets)},
+                  {DNNL_ARG_WEIGHTS, b.weights->get_onednn_memory(k.pd.weights_desc())},
+                  {DNNL_ARG_DST, b.dst->get_onednn_grouped_memory(k.pd.dst_desc(), *b.offsets)}};
+        if (k.quant.compressed()) {
+            m_args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, b.scale->get_onednn_memory(k.scale_md)});
+        }
+        if (k.quant.device_zp()) {
+            m_args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, b.zp->get_onednn_memory(k.zp_md)});
+        } else if (k.quant.host_zp) {
+            OPENVINO_ASSERT(host_zp, "[GPU] grouped matmul: host zero point is not set");
+            m_args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, host_zp});
+        }
+        if (b.bin_src) {
+            OPENVINO_ASSERT(k.bin_po_idx >= 0, "[GPU] grouped matmul: binary post-op index is not set");
+            m_args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(k.bin_po_idx) | DNNL_ARG_SRC_1, b.bin_src->get_onednn_grouped_memory(k.pd.dst_desc(), *b.offsets)});
+        }
+        if (hint) {
+            m_args.insert({DNNL_ARG_HINT_MAX_GROUP_SIZE, hint});
+        }
+        m_key = key;
+        return m_args;
+    }
+
+private:
+    std::array<const void*, 7> m_key{};
+    std::unordered_map<int, dnnl::memory> m_args;
+};
+
+// DNNL_ARG_HINT_MAX_GROUP_SIZE: max rows of one group. Read on the host at execute(), so it can be updated in place
+// with set_host_scalar_value() between executes.
+inline dnnl::memory make_grouped_matmul_hint(int32_t max_group_size = 0) {
+    return dnnl::memory(dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32), max_group_size);
+}
+
+// A single zero point shared by all the experts, as a OneDNN host scalar
+inline dnnl::memory make_host_scalar_zp(const cldnn::memory::ptr& zp_mem, cldnn::stream& stream) {
+    const auto dt = zp_mem->get_layout().data_type;
+    OPENVINO_ASSERT(cldnn::one_of(dt, {cldnn::data_types::u8, cldnn::data_types::i8}), "[GPU] unsupported host scalar zero point type ", dt);
+    cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> lock(zp_mem, stream);
+    const auto md = dnnl::memory::desc::host_scalar(convert_data_type(dt));
+    return dt == cldnn::data_types::u8 ? dnnl::memory(md, lock[0]) : dnnl::memory(md, static_cast<int8_t>(lock[0]));
+}
 
 }  // namespace onednn
 }  // namespace cldnn
