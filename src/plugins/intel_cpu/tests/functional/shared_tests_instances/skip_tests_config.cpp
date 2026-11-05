@@ -488,18 +488,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
-            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
-            // Accuracy problem in dynamic MHA tests
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.12\.64\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D/MHA.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_2D/MHA2D.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.12\.64\].*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
