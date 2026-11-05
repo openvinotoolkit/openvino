@@ -319,6 +319,14 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Absent past inputs and zero-capacity caches both use current K/V as the complete cache.
     const bool empty_past =
         !has_past || (past_key.get_partial_shape()[2].is_static() && past_key.get_partial_shape()[2].get_length() == 0);
+    // A padded growing cache sizes present to total_sequence_length even with an empty past, so it always goes
+    // through construct_kvcache (overridable by plugins). query_seqlens requires a rank-4 past, possibly a
+    // typed-empty Constant that has_input() reports as absent.
+    const bool padded_growing_cache = has_query_seqlens && !node->get_sliding_window_cache();
+    if (padded_growing_cache && !has_past) {
+        past_key = node->input_value(static_cast<size_t>(GQAInputs::PAST_KEY));
+        past_value = node->input_value(static_cast<size_t>(GQAInputs::PAST_VALUE));
+    }
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
@@ -345,29 +353,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = past_value;
         present_k = past_key;
         present_v = past_value;
-    } else if (empty_past) {
-        // With no past tokens, the current K/V are the complete present cache -- except total_sequence_length can
-        // still pre-allocate present-cache headroom beyond this chunk for a padded query (ORT's
-        // max(past_rows, total_sequence_length) contract applies to an empty past too). A windowed cache instead
-        // keeps the plain K/V, matching its own past_rows-only capacity rule.
+    } else if (empty_past && !padded_growing_cache) {
+        // With no past tokens, the current K/V are the complete present cache.
         present_k = K;
         present_v = V;
-        if (!node->get_sliding_window_cache() && node->has_query_seqlens()) {
-            const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
-            const bool has_total_sequence_length =
-                total_seqlen_pos < node->get_input_size() &&
-                !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
-            if (has_total_sequence_length) {
-                const auto total_sequence_length = register_new_node<v1::Reshape>(
-                    register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
-                    one,
-                    false);
-                // past_rows is 0 by construction (empty_past); past_key/past_value may be null when the input is
-                // fully absent (not just a typed-empty cache), so read capacity from total_sequence_length alone.
-                present_k = resize_kv_to_capacity(zero, present_k, total_sequence_length);
-                present_v = resize_kv_to_capacity(zero, present_v, total_sequence_length);
-            }
-        }
     } else {
         const auto cache = batched ? construct_batched_kvcache(node,
                                                                past_key,

@@ -152,6 +152,12 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
                                                                              past_seqlen, current_seqlen_scalar, metadata_);
     }
+    // An empty past (padded chunk only) has nothing for StatelessKV to append to; keep the generic present sizing.
+    const auto& past_ps = past_key.get_partial_shape();
+    if (query_seqlens && past_ps.rank().is_static() && past_ps[2].is_static() && past_ps[2].get_length() == 0) {
+        return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
+                                                                             past_seqlen, current_seqlen_scalar, metadata_);
+    }
 
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
