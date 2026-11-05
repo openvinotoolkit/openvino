@@ -86,7 +86,9 @@ void parse_section(
         OPENVINO_ASSERT(section_readers.count(section_type), MANDATORY_READER_MISSING_MESSAGE, debug_name);
 
         const std::optional<std::shared_ptr<ISection>> parsed_section =
-            base_reader.decode(manifest_entry.device, manifest_entry.tag.id(), section_readers.at(section_type));
+            base_reader.decode(manifest_entry.device,
+                               ov::runtime::hsm::SectionTagReserved{manifest_entry.tag, manifest_entry.tag_reserved},
+                               section_readers.at(section_type));
         OPENVINO_ASSERT(parsed_section.has_value(), PARSE_FAILURE_MESSAGE, debug_name);
         registry.register_section(parsed_section.value(), section_id);
         return;
@@ -100,7 +102,9 @@ void parse_section(
     }
 
     const std::optional<std::shared_ptr<ISection>> parsed_section =
-        base_reader.decode(manifest_entry.device, manifest_entry.tag.id(), section_readers.at(section_type));
+        base_reader.decode(manifest_entry.device,
+                           ov::runtime::hsm::SectionTagReserved{manifest_entry.tag, manifest_entry.tag_reserved},
+                           section_readers.at(section_type));
     if (parsed_section.has_value()) {
         registry.register_section(parsed_section.value(), section_id);
     } else {
