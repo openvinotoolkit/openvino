@@ -59,6 +59,7 @@ protected:
                                                      const ov::Output<ov::Node>& value,
                                                      const std::shared_ptr<ov::Node>& kv_past_b,
                                                      const std::shared_ptr<ov::Node>& kv_rows,
+                                                     const std::shared_ptr<ov::Node>& total_b,
                                                      KVCacheMetadata& metadata);
     virtual std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
                                                 const ov::Output<ov::Node>& key,
