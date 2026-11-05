@@ -270,7 +270,7 @@ TEST(qsa_gr_fusion, gated_residual_read_is_fused) {
         if (!gr) {
             continue;
         }
-        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::READ);
+        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::FINAL_MIX);
         EXPECT_EQ(gr->get_hc_count(), static_cast<size_t>(C));
         EXPECT_EQ(gr->get_hidden_size(), static_cast<size_t>(D));
         EXPECT_EQ(gr->get_lowrank(), static_cast<size_t>(L));
@@ -323,7 +323,7 @@ TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
         if (!gr) {
             continue;
         }
-        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::READ);
+        EXPECT_EQ(gr->get_mode(), op::GatedResidual::Mode::FINAL_MIX);
         EXPECT_EQ(gr->get_hc_count(), static_cast<size_t>(C));
         EXPECT_EQ(gr->get_hidden_size(), static_cast<size_t>(D));
         EXPECT_EQ(gr->get_lowrank(), static_cast<size_t>(L));
@@ -673,6 +673,19 @@ TEST(qsa_gr_fusion, compressed_scale_is_transposed_to_group_major) {
             ASSERT_EQ(v[i * LQ + n], scale_ng[n * g + i]);
         }
     }
+}
+
+TEST(gated_residual_geometry, systolic_kernels_lift_the_scalar_limits) {
+    using GR = op::GatedResidual;
+    // Qwen4-27B: D = 5120 (C*D = 20480), L = 640
+    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, true));
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 640, false));
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 2560, 640, false)) << "L is kept in registers by the scalar kernel";
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 5120, 512, false)) << "C*D is kept in SLM by the scalar kernel";
+    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::READ, 4, 64, 16, true)) << "the scalar kernel is still there";
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::READ, 4, 64, 8, true));
+    EXPECT_TRUE(GR::is_geometry_supported(GR::Mode::WRITE, 4, 5120, 0)) << "no SLM in WRITE";
+    EXPECT_FALSE(GR::is_geometry_supported(GR::Mode::WRITE, 3, 64, 0));
 }
 
 TEST(qsa_gr_fusion, compressed_weights_need_the_flag) {

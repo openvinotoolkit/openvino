@@ -401,7 +401,7 @@ std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node
 // ===========================================================================
 // GR READ / MIX
 // ===========================================================================
-GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) {
+GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
     using namespace ov::pass::pattern;
 
     auto residual = any_input();
@@ -504,15 +504,26 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
         size_t C = 0;
         size_t D = 0;
         if (!get_branch_split(pm.at(residual_3d), C, D)) {
-            return false;
+            // The paged attention transformation leaves the first residual without a static width, so the split has no
+            // static C either; W_down [L, C*D] proves it.
+            const auto& split_ps = pm.at(residual_3d).get_partial_shape();
+            const auto& w_down_shape = low_mm->get_input_partial_shape(1);
+            if (split_ps.rank().is_dynamic() || split_ps.size() < 3 || split_ps[split_ps.size() - 1].is_dynamic() || w_down_shape.rank().is_dynamic() ||
+                w_down_shape.size() != 2 || w_down_shape[1].is_dynamic()) {
+                return false;
+            }
+            D = static_cast<size_t>(split_ps[split_ps.size() - 1].get_length());
+            if (D == 0 || static_cast<size_t>(w_down_shape[1].get_length()) % D != 0) {
+                return false;
+            }
+            C = static_cast<size_t>(w_down_shape[1].get_length()) / D;
         }
         if (C != supported_branch_count || D == 0) {
             return false;
         }
 
         const auto& residual_ps = residual_out.get_partial_shape();
-        if (residual_ps.rank().is_dynamic() || residual_ps[residual_ps.size() - 1].is_dynamic() ||
-            static_cast<size_t>(residual_ps[residual_ps.size() - 1].get_length()) != C * D) {
+        if (residual_ps.rank().is_dynamic() || !residual_ps[residual_ps.size() - 1].compatible(static_cast<int64_t>(C * D))) {
             return false;
         }
 
@@ -575,15 +586,15 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
             static_cast<size_t>(w_up_ps[1].get_length()) != L) {
             return false;
         }
-        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, L)) {
+        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, L, systolic)) {
             return false;
         }
 
-        // i4 / u4 (group 32) and i8 / u8 (per-channel) weights, with or without zero points, are fed to the kernels as they are;
+        // i4 / u4 and i8 / u8 weights with a supported group size, with or without zero points, are fed to the kernels as they are;
         // W_down and W_up must be compressed the same way, otherwise the decompressed f16 tensors are used.
         ov::OutputVector weight_inputs = {w_down, w_up};
         std::optional<CompressedWeight> compressed_down;
-        if (allow_compressed_weights) {
+        if (systolic) {
             const auto cd = match_compressed_weight(w_down, L, C * D);
             const auto cu = match_compressed_weight(w_up, C * D, L);
             if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp() &&
@@ -691,13 +702,19 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
             }
         }
 
+        // Without a W_inject projection of the normalized residual this is the terminal mixer.
+        bool has_write_gate = false;
+        for (const auto& consumer : low_mm->input_value(0).get_target_inputs()) {
+            has_write_gate |= consumer.get_node() != low_mm.get() && ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
+        }
+
         auto make_gr = [&](bool with_gate) {
             ov::OutputVector inputs = gr_inputs;
             if (with_gate) {
                 inputs.insert(inputs.end(), gate_inputs.begin(), gate_inputs.end());
             }
             return std::make_shared<op::GatedResidual>(inputs,
-                                                       op::GatedResidual::Mode::READ,
+                                                       has_write_gate ? op::GatedResidual::Mode::READ : op::GatedResidual::Mode::FINAL_MIX,
                                                        C,
                                                        D,
                                                        L,
@@ -833,9 +850,9 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
             return false;
         }
 
+        // See GatedResidualReadFusion: a residual without a static width is proven by Y and the gate here.
         const auto& residual_ps = residual_out.get_partial_shape();
-        if (residual_ps.rank().is_dynamic() || residual_ps[residual_ps.size() - 1].is_dynamic() ||
-            static_cast<size_t>(residual_ps[residual_ps.size() - 1].get_length()) != C * D) {
+        if (residual_ps.rank().is_dynamic() || !residual_ps[residual_ps.size() - 1].compatible(static_cast<int64_t>(C * D))) {
             return false;
         }
 

@@ -611,7 +611,7 @@ protected:
     /// 4 chunks per subgroup; with more rows the SLM reduction only adds latency.
     static size_t rbar_split(const gated_residual& desc, bool decode) {
         const size_t nch = desc.hidden_size / gr_best_tile(desc.hidden_size);
-        if (!decode || desc.hidden_size > 4096) {
+        if (!decode) {
             return 1;
         }
         return largest_divisor_up_to(nch, std::min(std::max<size_t>(1, nch / 4), std::max<size_t>(1, 32 / desc.hc_count)));
@@ -1310,7 +1310,11 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
     }
 
     const auto desc = node.as<cldnn::gated_residual>().get_primitive();
-    if (!ov::intel_gpu::op::GatedResidual::is_geometry_supported(desc->mode, desc->hc_count, desc->hidden_size, desc->lowrank)) {
+    if (!ov::intel_gpu::op::GatedResidual::is_geometry_supported(desc->mode,
+                                                                 desc->hc_count,
+                                                                 desc->hidden_size,
+                                                                 desc->lowrank,
+                                                                 ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(info))) {
         return false;
     }
 

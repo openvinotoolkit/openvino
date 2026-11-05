@@ -34,7 +34,7 @@
 #if GR_PIPELINE_STAGE == 0
 // ---------------------------------------------------------------------------------------------------------------
 // RBAR. JIT: GR_EPS, GR_NORM_GAIN_PLUS_ONE, GR_CH (halves per chunk), GR_NV_CH (= GR_CH / 16), GR_NCH (= D / GR_CH),
-// GR_RB_S (subgroups per branch row, divides GR_NCH; 1 above D = 4096), GR_GPF (gain chunks loaded before the norm
+// GR_RB_S (subgroups per branch row, divides GR_NCH), GR_GPF (gain chunks loaded before the norm
 // reduction; bounded by the register budget).
 // GR_RB_S subgroups per (branch, row): gws = [C * GR_RB_S * 16, rows, 1], lws = [C * GR_RB_S * 16, 1, 1].
 // ---------------------------------------------------------------------------------------------------------------
@@ -100,15 +100,29 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
         GR_STF(GR_NV_CH, rbar_out + base + i * GR_CH, o);
     }
 #else
-    // Wide branches: two passes, the second one re-reads the row from cache.
+    // Wide branches: two passes over the subgroup's part of the row, the second one re-reads it from cache.
     float sq = 0.0f;
-    for (uint d = 0; d < GR_HIDDEN; d += GR_CH) {
+    for (uint d = 0; d < GR_NCHP * GR_CH; d += GR_CH) {
         const GR_FT(GR_NV_CH) f = GR_LDF(GR_NV_CH, residual + base + d);
         const GR_FT(GR_NV_CH) q = f * f;
         GR_ACC(GR_NV_CH, sq, q);
     }
-    const float inv_rms = native_rsqrt(sub_group_reduce_add(sq) * (1.0f / (float)GR_HIDDEN) + GR_EPS);
-    for (uint d = 0; d < GR_HIDDEN; d += GR_CH) {
+#if GR_RB_S > 1
+    __local float sq_part[GR_BRANCHES * GR_RB_S];
+    sq = sub_group_reduce_add(sq);
+    if (get_sub_group_local_id() == 0) {
+        sq_part[sg] = sq;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    sq = 0.0f;
+    unroll_for (uint p = 0; p < GR_RB_S; p++) {
+        sq += sq_part[c * GR_RB_S + p];
+    }
+#else
+    sq = sub_group_reduce_add(sq);
+#endif
+    const float inv_rms = native_rsqrt(sq * (1.0f / (float)GR_HIDDEN) + GR_EPS);
+    for (uint d = 0; d < GR_NCHP * GR_CH; d += GR_CH) {
         const GR_FT(GR_NV_CH) f = GR_LDF(GR_NV_CH, residual + base + d);
         GR_FT(GR_NV_CH) gain = GR_LDF(GR_NV_CH, norm_weight + gbase + d);
 #if GR_NORM_GAIN_PLUS_ONE
