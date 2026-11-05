@@ -152,9 +152,14 @@ protected:
         }
 
         {
-            auto& input0 = instance.input_memory(0);
-            auto offset0 = onednn::get_offset(input_layout, in0_md);
-            args.insert({DNNL_ARG_SRC, input0.get_onednn_memory(in0_md, offset0)});
+            // An empty input may be a simple_attached_memory, which cannot be converted to a oneDNN memory.
+            dnnl::memory input_mem;
+            if (input_layout.count() != 0) {
+                auto& input0 = instance.input_memory(0);
+                auto offset0 = onednn::get_offset(input_layout, in0_md);
+                input_mem = input0.get_onednn_memory(in0_md, offset0);
+            }
+            args.insert({DNNL_ARG_SRC, input_mem});
         }
         {
             auto weights = instance.weights_memory();
