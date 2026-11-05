@@ -216,9 +216,9 @@ std::string moe_ffn(GraphEmitter& e,
         up = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_up", {p + "ffn_up_exps.weight", ffn_norm, selected});
     }
     if (eb) {
-        e.add_named_weight(p + "ffn_up_exps.bias");
+        e.add_weight(p + "ffn_up_exps.bias");
         up = e.add_op("GGML_OP_ADD_ID", p + "moe_up_b", {up, p + "ffn_up_exps.bias", selected});
-        e.add_named_weight(p + "ffn_gate_exps.bias");
+        e.add_weight(p + "ffn_gate_exps.bias");
         gate = e.add_op("GGML_OP_ADD_ID", p + "moe_gate_b", {gate, p + "ffn_gate_exps.bias", selected});
     }
     std::string act;
@@ -238,12 +238,12 @@ std::string moe_ffn(GraphEmitter& e,
     }
     auto experts = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_down", {p + "ffn_down_exps.weight", act, selected});
     if (eb) {
-        e.add_named_weight(p + "ffn_down_exps.bias");
+        e.add_weight(p + "ffn_down_exps.bias");
         experts = e.add_op("GGML_OP_ADD_ID", p + "moe_down_b", {experts, p + "ffn_down_exps.bias", selected});
     }
 
     if (e.has_weight(p + "ffn_down_exps.scale")) {
-        e.add_named_weight(p + "ffn_down_exps.scale");
+        e.add_weight(p + "ffn_down_exps.scale");
         auto scales =
             e.add_op("GGML_OP_RESHAPE",
                      p + "moe_scale_row",
@@ -312,7 +312,7 @@ std::string gemma4_moe_ffn(GraphEmitter& e,
     auto routed_input = rms_norm(e, input, p + "pre_ffw_norm_2.weight", p + "expert_pre_norm", cfg.rms_eps);
     auto router = e.add_op("GGML_OP_RMS_NORM", p + "router_norm", {input}, 0, {{"eps", cfg.rms_eps}});
     router = scale(e, router, 1.f / std::sqrt(float(cfg.n_embd)), p + "router_scale");
-    e.add_named_weight(p + "ffn_gate_inp.scale");
+    e.add_weight(p + "ffn_gate_inp.scale");
     router = e.add_op("GGML_OP_MUL", p + "router_weighted", {router, p + "ffn_gate_inp.scale"});
     auto routed = moe_ffn(e, cfg, p, routed_input, router);
     routed = rms_norm(e, routed, p + "post_ffw_norm_2.weight", p + "expert_post_norm", cfg.rms_eps);
