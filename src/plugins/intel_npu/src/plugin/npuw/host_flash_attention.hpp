@@ -153,8 +153,9 @@ struct HostFlashAttention {
         return _tile_model != nullptr && _final_tile_model != nullptr && _past_tile_size > 0 && _final_tile_size > 0;
     }
 
-    // Factory method
-    // Creates a FlashAttention instance from an SDPA model
+    // Creates tiled attention from SDPA, preserving an optional scalar post-QK
+    // multiplier and attention sink. The scalar is applied to Q inside each tile;
+    // the sink initializes the running max/sum and is not a Q scale factor.
     // if fused_flash_attention is true, uses the FlashAttentionTile Op optimized on compiler side
     // if enable_mask_skipping is true, enables mask skipping optimization for regular tile
     static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,

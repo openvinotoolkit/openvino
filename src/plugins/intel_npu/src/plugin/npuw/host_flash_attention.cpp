@@ -26,7 +26,7 @@ namespace function {
 
 namespace opp = ov::pass::pattern;
 
-// Helper struct: Holds all input parameter nodes for HFA tile model creation
+// Helper struct: Holds input parameters and an optional embedded scale for HFA tile model creation
 // Contains the state, K/V, Q, optional mask, and optional post-QK scale parameters.
 struct HFATileInputs {
     std::shared_ptr<ov::op::v0::Parameter> past_acc;
@@ -36,7 +36,8 @@ struct HFATileInputs {
     std::shared_ptr<ov::op::v0::Parameter> v_tile;
     std::shared_ptr<ov::op::v0::Parameter> q;
     std::shared_ptr<ov::op::v0::Parameter> mask_tile;
-    std::shared_ptr<ov::Node> scale;
+    std::shared_ptr<ov::op::v0::Parameter> scale;
+    std::shared_ptr<ov::op::v0::Constant> scale_constant;
 };
 
 // Helper struct: Holds f32-converted nodes from input parameters for computation
@@ -158,11 +159,12 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
         if (auto scale_param = ov::as_type_ptr<ov::op::v0::Parameter>(scale_source)) {
             inputs.scale = std::make_shared<ov::op::v0::Parameter>(scale_param->get_output_element_type(0),
                                                                    scale_param->get_shape());
-            set_param_name(std::static_pointer_cast<ov::op::v0::Parameter>(inputs.scale), HFATileInputId::SCALE);
+            set_param_name(inputs.scale, HFATileInputId::SCALE);
         } else if (auto scale_constant = ov::as_type_ptr<ov::op::v0::Constant>(scale_source)) {
-            inputs.scale = std::make_shared<ov::op::v0::Constant>(scale_constant->get_element_type(),
-                                                                  scale_constant->get_shape(),
-                                                                  const_cast<void*>(scale_constant->get_data_ptr()));
+            inputs.scale_constant =
+                std::make_shared<ov::op::v0::Constant>(scale_constant->get_element_type(),
+                                                       scale_constant->get_shape(),
+                                                       const_cast<void*>(scale_constant->get_data_ptr()));
         } else {
             OPENVINO_THROW("HFA attention scale must originate from a Parameter or Constant");
         }
@@ -208,11 +210,15 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
         }
     }
 
-    if (inputs.scale) {
-        if (inputs.scale->get_output_element_type(0) == compute_dtype) {
-            f32_nodes.scale_f32 = inputs.scale;
+    std::shared_ptr<ov::Node> scale = inputs.scale;
+    if (!scale) {
+        scale = inputs.scale_constant;
+    }
+    if (scale) {
+        if (scale->get_output_element_type(0) == compute_dtype) {
+            f32_nodes.scale_f32 = scale;
         } else {
-            f32_nodes.scale_f32 = std::make_shared<ov::op::v0::Convert>(inputs.scale, compute_dtype);
+            f32_nodes.scale_f32 = std::make_shared<ov::op::v0::Convert>(scale, compute_dtype);
             f32_nodes.scale_f32->set_friendly_name("scale_f32");
         }
     }
@@ -815,8 +821,8 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     if (use_mask) {
         model_params.push_back(inputs.mask_tile);
     }
-    if (auto scale_param = ov::as_type_ptr<ov::op::v0::Parameter>(inputs.scale)) {
-        model_params.push_back(scale_param);
+    if (inputs.scale) {
+        model_params.push_back(inputs.scale);
     }
 
     // Create and return model
@@ -1669,72 +1675,6 @@ void HFARuntimeContext::clear_mask_cache() {
     m_mask_tile_cache.clear();
 }
 
-namespace {
-
-template <typename StateType, typename SinkType>
-void broadcast_attention_sink_to_state_max(ov::SoPtr<ov::ITensor>& max, const ov::SoPtr<ov::ITensor>& attention_sink) {
-    const auto state_shape = max->get_shape();
-    const auto sink_shape = attention_sink->get_shape();
-    OPENVINO_ASSERT(sink_shape.size() <= state_shape.size(),
-                    "HFA attention sink rank ",
-                    sink_shape.size(),
-                    " exceeds state rank ",
-                    state_shape.size());
-
-    const size_t rank_offset = state_shape.size() - sink_shape.size();
-    std::vector<size_t> state_strides(state_shape.size(), 1u);
-    std::vector<size_t> sink_strides(sink_shape.size(), 1u);
-    for (size_t index = state_shape.size(); index-- > 1u;) {
-        state_strides[index - 1u] = state_strides[index] * state_shape[index];
-    }
-    for (size_t index = sink_shape.size(); index-- > 1u;) {
-        sink_strides[index - 1u] = sink_strides[index] * sink_shape[index];
-    }
-    for (size_t sink_axis = 0u; sink_axis < sink_shape.size(); ++sink_axis) {
-        const size_t state_axis = rank_offset + sink_axis;
-        OPENVINO_ASSERT(sink_shape[sink_axis] == 1u || sink_shape[sink_axis] == state_shape[state_axis],
-                        "HFA attention sink shape is not broadcastable to the state max shape");
-    }
-
-    auto* state_data = max->data<StateType>();
-    const auto* sink_data = attention_sink->data<const SinkType>();
-
-    // Prefill normally uses [B, H, Q, 1] state max and [B, H, 1, 1] sinks.
-    // Fill one contiguous query slice per head instead of recomputing broadcast
-    // coordinates for every state element.
-    if (state_shape.size() == 4u && sink_shape.size() == 4u && state_shape[3] == 1u && sink_shape[2] == 1u &&
-        sink_shape[3] == 1u && (sink_shape[0] == 1u || sink_shape[0] == state_shape[0]) &&
-        (sink_shape[1] == 1u || sink_shape[1] == state_shape[1])) {
-        const size_t state_heads = state_shape[1];
-        const size_t state_query = state_shape[2];
-        for (size_t batch = 0u; batch < state_shape[0]; ++batch) {
-            const size_t sink_batch = sink_shape[0] == 1u ? 0u : batch;
-            for (size_t head = 0u; head < state_heads; ++head) {
-                const size_t sink_head = sink_shape[1] == 1u ? 0u : head;
-                const auto sink_index = sink_batch * sink_shape[1] + sink_head;
-                const auto state_index = (batch * state_heads + head) * state_query;
-                std::fill_n(state_data + state_index, state_query, static_cast<StateType>(sink_data[sink_index]));
-            }
-        }
-        return;
-    }
-
-    for (size_t state_index = 0u; state_index < max->get_size(); ++state_index) {
-        size_t sink_index = 0u;
-        for (size_t sink_axis = 0u; sink_axis < sink_shape.size(); ++sink_axis) {
-            if (sink_shape[sink_axis] == 1u) {
-                continue;
-            }
-            const size_t state_axis = rank_offset + sink_axis;
-            const size_t coordinate = (state_index / state_strides[state_axis]) % state_shape[state_axis];
-            sink_index += coordinate * sink_strides[sink_axis];
-        }
-        state_data[state_index] = static_cast<StateType>(sink_data[sink_index]);
-    }
-}
-
-}  // namespace
-
 void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
                                                  ov::SoPtr<ov::ITensor>& max,
                                                  ov::SoPtr<ov::ITensor>& sum,
@@ -1761,19 +1701,10 @@ void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
                     "HFA: Attention sink must have f16 or f32 element type");
     if (type == ov::element::f16) {
         std::fill_n(sum->data<ov::float16>(), sum->get_size(), ov::float16(1.0f));
-        if (attention_sink->get_element_type() == ov::element::f16) {
-            broadcast_attention_sink_to_state_max<ov::float16, ov::float16>(max, attention_sink);
-        } else {
-            broadcast_attention_sink_to_state_max<ov::float16, float>(max, attention_sink);
-        }
     } else {
         std::fill_n(sum->data<float>(), sum->get_size(), 1.0f);
-        if (attention_sink->get_element_type() == ov::element::f16) {
-            broadcast_attention_sink_to_state_max<float, ov::float16>(max, attention_sink);
-        } else {
-            broadcast_attention_sink_to_state_max<float, float>(max, attention_sink);
-        }
     }
+    ov::npuw::util::broadcast_tensor(attention_sink, max);
 }
 
 void HFARuntimeContext::prepare_next_state_buffers() {

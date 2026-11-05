@@ -311,44 +311,52 @@ TEST(HostFlashAttentionFromTest, ReturnsNulloptForNonSDPAModel) {
 }
 
 TEST(HostFlashAttentionFromTest, SupportsAttentionSinkWithPostQKScale) {
-    auto result = ov::npuw::function::HostFlashAttention::from(
-        build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true, true),
-        false);
+    for (const bool fused_flash_attention : {false, true}) {
+        SCOPED_TRACE(fused_flash_attention);
+        auto result = ov::npuw::function::HostFlashAttention::from(
+            build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true, true),
+            fused_flash_attention);
 
-    ASSERT_TRUE(result.has_value());
-    EXPECT_TRUE(result->_attention_scale_param_idx.has_value());
-    EXPECT_TRUE(result->_attention_sink_param_idx.has_value());
-    EXPECT_NE(result->_tile_param_index_map.find(ov::npuw::HFATileInputId::SCALE), result->_tile_param_index_map.end());
-    const auto tile_inputs = result->_tile_model->inputs();
-    const auto final_tile_inputs = result->_final_tile_model->inputs();
-    EXPECT_TRUE(std::any_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
-        return input.get_names().count("SCALE") != 0;
-    }));
-    EXPECT_TRUE(std::any_of(final_tile_inputs.begin(), final_tile_inputs.end(), [](const auto& input) {
-        return input.get_names().count("SCALE") != 0;
-    }));
+        ASSERT_TRUE(result.has_value());
+        EXPECT_TRUE(result->_attention_scale_param_idx.has_value());
+        EXPECT_TRUE(result->_attention_sink_param_idx.has_value());
+        EXPECT_NE(result->_tile_param_index_map.find(ov::npuw::HFATileInputId::SCALE),
+                  result->_tile_param_index_map.end());
+        const auto tile_inputs = result->_tile_model->inputs();
+        const auto final_tile_inputs = result->_final_tile_model->inputs();
+        EXPECT_TRUE(std::any_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
+            return input.get_names().count("SCALE") != 0;
+        }));
+        EXPECT_TRUE(std::any_of(final_tile_inputs.begin(), final_tile_inputs.end(), [](const auto& input) {
+            return input.get_names().count("SCALE") != 0;
+        }));
+    }
 }
 
 TEST(HostFlashAttentionFromTest, EmbedsConstantPostQKScale) {
-    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, false, true, true);
+    for (const bool fused_flash_attention : {false, true}) {
+        SCOPED_TRACE(fused_flash_attention);
+        auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, false, true, true);
+        auto result = ov::npuw::function::HostFlashAttention::from(model, fused_flash_attention);
 
-    auto result = ov::npuw::function::HostFlashAttention::from(model, true);
-
-    ASSERT_TRUE(result.has_value());
-    EXPECT_FALSE(result->_attention_scale_param_idx.has_value());
-    const auto tile_inputs = result->_tile_model->inputs();
-    const auto final_tile_inputs = result->_final_tile_model->inputs();
-    EXPECT_TRUE(std::none_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
-        return input.get_names().count("SCALE") != 0;
-    }));
-    EXPECT_TRUE(std::none_of(final_tile_inputs.begin(), final_tile_inputs.end(), [](const auto& input) {
-        return input.get_names().count("SCALE") != 0;
-    }));
-    const auto tile_ops = result->_tile_model->get_ops();
-    EXPECT_TRUE(std::any_of(tile_ops.begin(), tile_ops.end(), [](const auto& node) {
-        return node->get_friendly_name() == "q_scaled" &&
-               ov::is_type<ov::op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
-    }));
+        ASSERT_TRUE(result.has_value());
+        EXPECT_FALSE(result->_attention_scale_param_idx.has_value());
+        for (const auto& tile_model : {result->_tile_model, result->_final_tile_model}) {
+            const auto tile_inputs = tile_model->inputs();
+            EXPECT_TRUE(std::none_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
+                return input.get_names().count("SCALE") != 0;
+            }));
+            const auto tile_ops = tile_model->get_ops();
+            const auto scaled_query = std::find_if(tile_ops.begin(), tile_ops.end(), [](const auto& node) {
+                return node->get_friendly_name() == "q_scaled";
+            });
+            ASSERT_NE(scaled_query, tile_ops.end());
+            const auto scale_constant =
+                ov::as_type_ptr<ov::op::v0::Constant>((*scaled_query)->input_value(1).get_node_shared_ptr());
+            ASSERT_TRUE(scale_constant);
+            EXPECT_EQ(scale_constant->cast_vector<float>(), std::vector<float>{0.5f});
+        }
+    }
 }
 
 TEST(HostFlashAttentionFromTest, RejectsGenerateAttention) {

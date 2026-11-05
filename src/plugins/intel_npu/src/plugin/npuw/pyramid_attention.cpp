@@ -255,6 +255,8 @@ static bool concat_present_before_past(const std::shared_ptr<ov::Node>& concat_n
     return past_idx.has_value() && *past_idx > 0;
 }
 
+// Reuses the existing post-Softmax Slice: end=-1 removes the appended sink column
+// after KV reshaping, without retaining an absolute end from the original context.
 static void patch_attention_sink_slice_end(const std::shared_ptr<ov::Model>& model) {
     const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
     if (!pattern_nodes.attention_sink_node || !pattern_nodes.softmax_slice_node) {

@@ -13,6 +13,9 @@
 #include "host_flash_attention.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -466,6 +469,58 @@ TEST_F(FlashAttentionTileTest, AttentionSinkInitialStateMatchesSDPA) {
     const auto expected = run_sdpa_reference(Q, K, V, nullptr, {}, sink.data<const float>(), sink.get_shape());
 
     compare_vectors(actual, expected, 1e-5f, "AttentionSinkInitialStateMatchesSDPA");
+}
+
+TEST_F(FlashAttentionTileTest, AttentionSinkBroadcastMatchesReferenceWithVectorTail) {
+    const ov::Shape state_shape{2, 3, 19, 1};
+    const std::vector<ov::Shape>
+        sink_shapes{{2, 3, 1, 1}, {1, 3, 1, 1}, {2, 1, 1, 1}, {1, 1, 1, 1}, {3, 1, 1}, {1, 1, 19, 1}, {}};
+    for (const auto& state_type : {ov::element::f16, ov::element::f32}) {
+        for (const auto& sink_type : {ov::element::f16, ov::element::f32}) {
+            for (const auto& sink_shape : sink_shapes) {
+                SCOPED_TRACE(state_type.get_type_name());
+                SCOPED_TRACE(sink_type.get_type_name());
+                SCOPED_TRACE(ov::PartialShape(sink_shape));
+                auto sink = make_random_tensor(sink_type, sink_shape, 460);
+                auto acc = make_filled_tensor(state_type, {2, 3, 19, 4}, 2.0f);
+                auto sum = make_filled_tensor(state_type, state_shape, 2.0f);
+                const size_t state_size = ov::shape_size(state_shape);
+                auto guarded_max = make_filled_tensor(state_type, {state_size + 2}, -123.0f);
+                auto* max_data = static_cast<uint8_t*>(guarded_max.data()) + state_type.size();
+                ov::Tensor max(state_type, state_shape, max_data);
+                auto acc_impl = ov::get_tensor_impl(acc);
+                auto max_impl = ov::get_tensor_impl(max);
+                auto sum_impl = ov::get_tensor_impl(sum);
+                ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(
+                    acc_impl,
+                    max_impl,
+                    sum_impl,
+                    ov::get_tensor_impl(sink));
+
+                auto sink_param = std::make_shared<ov::op::v0::Parameter>(sink_type, sink_shape);
+                auto converted = std::make_shared<ov::op::v0::Convert>(sink_param, state_type);
+                auto target_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                                 ov::Shape{state_shape.size()},
+                                                                 std::vector<int64_t>{2, 3, 19, 1});
+                auto broadcast = std::make_shared<ov::op::v3::Broadcast>(converted, target_shape);
+                ov::Model reference(ov::OutputVector{broadcast}, ov::ParameterVector{sink_param});
+                ov::Tensor expected(state_type, state_shape);
+                ASSERT_TRUE(reference.evaluate(ov::TensorVector{expected}, ov::TensorVector{sink}));
+                const auto actual_float = tensor_to_f32(max);
+                const auto expected_float = tensor_to_f32(expected);
+                for (size_t index = 0; index < state_size; ++index) {
+                    EXPECT_FLOAT_EQ(actual_float.data<const float>()[index], expected_float.data<const float>()[index]);
+                }
+                const auto guards_float = tensor_to_f32(guarded_max);
+                EXPECT_FLOAT_EQ(guards_float.data<const float>()[0], -123.0f);
+                EXPECT_FLOAT_EQ(guards_float.data<const float>()[state_size + 1], -123.0f);
+                const auto sum_float = tensor_to_f32(sum);
+                EXPECT_FLOAT_EQ(sum_float.data<const float>()[state_size - 1], 1.0f);
+                const auto acc_float = tensor_to_f32(acc);
+                EXPECT_FLOAT_EQ(acc_float.data<const float>()[0], 0.0f);
+            }
+        }
+    }
 }
 
 TEST_F(FlashAttentionTileTest, NextStateBufferUsesFixedInitialStateWithoutSink) {

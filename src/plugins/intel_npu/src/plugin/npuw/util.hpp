@@ -360,6 +360,8 @@ void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) 
 
 void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val);
 
+void broadcast_tensor(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
+
 template <class T>
 typename std::underlying_type<T>::type _v(T&& t) {
     return static_cast<typename std::underlying_type<T>::type>(t);

@@ -56,6 +56,7 @@ struct AttentionModelConfig {
     size_t past_len = 63;
     size_t num_layers = 1;
     bool with_attention_sink = false;
+    ov::element::Type sink_slice_index_type = ov::element::i64;
 };
 
 std::shared_ptr<ov::Model> build_isolated_attention_model(const AttentionModelConfig& cfg) {
@@ -117,10 +118,10 @@ std::shared_ptr<ov::Model> build_isolated_attention_model(const AttentionModelCo
         if (sink) {
             probabilities = std::make_shared<op::v8::Slice>(
                 softmax,
-                op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(context_len)}),
-                op::v0::Constant::create(element::i64, Shape{1}, {1}),
-                op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+                op::v0::Constant::create(cfg.sink_slice_index_type, Shape{1}, {0}),
+                op::v0::Constant::create(cfg.sink_slice_index_type, Shape{1}, {static_cast<int64_t>(context_len)}),
+                op::v0::Constant::create(cfg.sink_slice_index_type, Shape{1}, {1}),
+                op::v0::Constant::create(cfg.sink_slice_index_type, Shape{1}, {-1}));
             probabilities->set_friendly_name("remove_sink_probability." + idx);
         }
 
@@ -354,21 +355,48 @@ TEST(PyramidAttentionTest, ValidateAttentionSinkUsesPostSliceContextLength) {
 }
 
 TEST(PyramidAttentionTest, AttentionSinkIsPreservedInPyramidVariants) {
-    AttentionModelConfig cfg;
-    cfg.query_len = 128;
-    cfg.past_len = 128;
-    cfg.with_attention_sink = true;
-    auto model = build_isolated_attention_model(cfg);
+    for (const auto& index_type : {ov::element::i32, ov::element::i64}) {
+        SCOPED_TRACE(index_type.get_type_name());
+        AttentionModelConfig cfg;
+        cfg.query_len = 128;
+        cfg.past_len = 128;
+        cfg.with_attention_sink = true;
+        cfg.sink_slice_index_type = index_type;
+        auto model = build_isolated_attention_model(cfg);
+        const auto original_pattern = ov::npuw::util::find_sdpa_pattern_nodes(model);
+        const auto original_slice = ov::as_type_ptr<ov::op::v8::Slice>(original_pattern.softmax_slice_node);
+        ASSERT_TRUE(original_slice);
 
-    auto pyramid = ov::npuw::function::PyramidAttention::from(model);
+        auto pyramid = ov::npuw::function::PyramidAttention::from(model);
 
-    ASSERT_TRUE(pyramid.has_value());
-    for (const auto& variant : pyramid->_models) {
-        const auto inputs = variant->inputs();
-        const auto sink_input = std::find_if(inputs.begin(), inputs.end(), [](const auto& input) {
-            return input.get_names().count("sink.0") != 0;
-        });
-        EXPECT_NE(sink_input, inputs.end());
+        ASSERT_TRUE(pyramid.has_value());
+        std::vector<size_t> context_lengths;
+        for (const auto& variant : pyramid->_models) {
+            const auto inputs = variant->inputs();
+            const auto sink_input = std::find_if(inputs.begin(), inputs.end(), [](const auto& input) {
+                return input.get_names().count("sink.0") != 0;
+            });
+            EXPECT_NE(sink_input, inputs.end());
+            const auto pattern = ov::npuw::util::find_sdpa_pattern_nodes(variant);
+            ASSERT_TRUE(pattern.is_valid());
+            const auto sink_slice = ov::as_type_ptr<ov::op::v8::Slice>(pattern.softmax_slice_node);
+            ASSERT_TRUE(sink_slice);
+            const auto end = ov::as_type_ptr<ov::op::v0::Constant>(sink_slice->input_value(2).get_node_shared_ptr());
+            ASSERT_TRUE(end);
+            EXPECT_EQ(end->get_element_type(), index_type);
+            const size_t context_length = sink_slice->get_output_shape(0).back();
+            const auto end_values = end->cast_vector<int64_t>();
+            ASSERT_EQ(end_values.size(), 1u);
+            EXPECT_TRUE(end_values.front() == -1 || end_values.front() == static_cast<int64_t>(context_length));
+            context_lengths.push_back(context_length);
+            EXPECT_EQ(pattern.softmax_node->get_output_shape(0).back(), context_length + 1);
+            EXPECT_EQ(pattern.matmul2_node->get_input_shape(1)[2], context_length);
+        }
+        EXPECT_EQ(context_lengths, (std::vector<size_t>{128, 256}));
+        const auto original_end =
+            ov::as_type_ptr<ov::op::v0::Constant>(original_slice->input_value(2).get_node_shared_ptr());
+        ASSERT_TRUE(original_end);
+        EXPECT_EQ(original_end->cast_vector<int64_t>(), std::vector<int64_t>{256});
     }
 }
 

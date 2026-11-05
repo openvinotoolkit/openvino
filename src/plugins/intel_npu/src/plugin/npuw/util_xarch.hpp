@@ -7,6 +7,7 @@
 #include <string>
 
 #include "logging.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -87,6 +88,9 @@ void unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
                      const ov::npuw::util::UnpackOptions& _options);
 
 void subtract_128(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
+
+void fill_f16(ov::float16* data, size_t count, ov::float16 value);
+void fill_f32(float* data, size_t count, float value);
 
 ov::Tensor to_f16(const ov::Tensor& t);
 

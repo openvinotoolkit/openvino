@@ -17,6 +17,7 @@
 #include <openvino/core/validation_util.hpp>
 #include <regex>
 #include <sstream>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -1230,6 +1231,94 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();
     std::memset(tensor_data, fill_val, byte_size);
+}
+
+namespace {
+
+template <typename StateType, typename SinkType>
+void broadcast_tensor_impl(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to) {
+    const auto& state_shape = to->get_shape();
+    const auto& sink_shape = from->get_shape();
+    OPENVINO_ASSERT(sink_shape.size() <= state_shape.size(), "Source tensor rank exceeds broadcast destination rank");
+    const size_t rank_offset = state_shape.size() - sink_shape.size();
+    std::vector<size_t> state_strides(state_shape.size(), 1u);
+    std::vector<size_t> sink_strides(sink_shape.size(), 1u);
+    for (size_t index = state_shape.size(); index-- > 1u;) {
+        state_strides[index - 1u] = state_strides[index] * state_shape[index];
+    }
+    for (size_t index = sink_shape.size(); index-- > 1u;) {
+        sink_strides[index - 1u] = sink_strides[index] * sink_shape[index];
+    }
+    for (size_t sink_axis = 0u; sink_axis < sink_shape.size(); ++sink_axis) {
+        const size_t state_axis = rank_offset + sink_axis;
+        OPENVINO_ASSERT(sink_shape[sink_axis] == 1u || sink_shape[sink_axis] == state_shape[state_axis],
+                        "Source tensor shape is not broadcastable to the destination shape");
+    }
+
+    auto* state_data = to->data<StateType>();
+    const auto* sink_data = from->data<const SinkType>();
+    const auto fill = [](StateType* destination, size_t count, StateType value) {
+        if constexpr (std::is_same_v<StateType, float>) {
+            ov::npuw::util::XARCH::fill_f32(destination, count, value);
+        } else {
+            ov::npuw::util::XARCH::fill_f16(destination, count, value);
+        }
+    };
+
+    if (from->get_size() == 1u) {
+        fill(state_data, to->get_size(), static_cast<StateType>(sink_data[0]));
+        return;
+    }
+
+    if (state_shape.size() == 4u && sink_shape.size() == 4u && state_shape[3] == 1u && sink_shape[2] == 1u &&
+        sink_shape[3] == 1u) {
+        const size_t state_heads = state_shape[1];
+        const size_t state_query = state_shape[2];
+        for (size_t batch = 0u; batch < state_shape[0]; ++batch) {
+            const size_t sink_batch = sink_shape[0] == 1u ? 0u : batch;
+            for (size_t head = 0u; head < state_heads; ++head) {
+                const size_t sink_head = sink_shape[1] == 1u ? 0u : head;
+                const auto sink_index = sink_batch * sink_shape[1] + sink_head;
+                const auto state_index = (batch * state_heads + head) * state_query;
+                fill(state_data + state_index, state_query, static_cast<StateType>(sink_data[sink_index]));
+            }
+        }
+        return;
+    }
+
+    for (size_t state_index = 0u; state_index < to->get_size(); ++state_index) {
+        size_t sink_index = 0u;
+        for (size_t sink_axis = 0u; sink_axis < sink_shape.size(); ++sink_axis) {
+            if (sink_shape[sink_axis] == 1u) {
+                continue;
+            }
+            const size_t state_axis = rank_offset + sink_axis;
+            const size_t coordinate = (state_index / state_strides[state_axis]) % state_shape[state_axis];
+            sink_index += coordinate * sink_strides[sink_axis];
+        }
+        state_data[state_index] = static_cast<StateType>(sink_data[sink_index]);
+    }
+}
+
+}  // namespace
+
+void ov::npuw::util::broadcast_tensor(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to) {
+    OPENVINO_ASSERT(from->is_continuous() && to->is_continuous(), "Broadcast tensors must be contiguous");
+    OPENVINO_ASSERT(from->get_element_type() == ov::element::f16 || from->get_element_type() == ov::element::f32,
+                    "Broadcast source must have f16 or f32 element type");
+    OPENVINO_ASSERT(to->get_element_type() == ov::element::f16 || to->get_element_type() == ov::element::f32,
+                    "Broadcast destination must have f16 or f32 element type");
+    if (to->get_element_type() == ov::element::f16) {
+        if (from->get_element_type() == ov::element::f16) {
+            broadcast_tensor_impl<ov::float16, ov::float16>(from, to);
+        } else {
+            broadcast_tensor_impl<ov::float16, float>(from, to);
+        }
+    } else if (from->get_element_type() == ov::element::f16) {
+        broadcast_tensor_impl<float, ov::float16>(from, to);
+    } else {
+        broadcast_tensor_impl<float, float>(from, to);
+    }
 }
 
 bool ov::npuw::util::isPastKeyParam(const std::string& str) {
