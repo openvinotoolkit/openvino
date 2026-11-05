@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-16-35-05-000-42045188647",
+  "timestamp": "2026-11-05T16:35:05Z",
+  "run_id": "42045188647",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42045188647",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39381",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39381",
+  "author": "aobolensk",
+  "category": "Network",
+  "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
+  "signature": "request was timed out downloading test model from raw githubusercontent com|Network",
+  "signature_hash": "197368415f8ae13d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (24) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "npm test_setup fails: download of test_model_fp32.xml from raw.githubusercontent.com times out after 30000ms, unhandled promise rejection crashes Node 24 process"
+    },
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "Same test-model download timeout from raw.githubusercontent.com as the Node 24 job, on Node 22 runtime"
+    },
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build - OpenVINO fails: GCC -Werror=deprecated on implicit 'this' capture via '[=]' in two intel_gpu plugin transformation lambdas (non-blocking lane, does not fail the overall workflow)"
+    }
+  ],
+  "key_errors": [
+    "Downloading file by link: https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml ...\nFailed to download the model: Request was timed out after 30000 ms..\nUnhandledPromiseRejection: ... reason \"Request was timed out after 30000 ms.\".\n    code: 'ERR_UNHANDLED_REJECTION'\n##[error]Process completed with exit code 1.",
+    "/home/runner/_work/openvino/openvino/openvino/src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41:42: error: implicit capture of 'this' via '[=]' is deprecated in C++20 [-Werror=deprecated]\n   41 |     ov::matcher_pass_callback callback = [=](Matcher& m) {\n      |                                          ^\ncc1plus: all warnings being treated as errors",
+    "/home/runner/_work/openvino/openvino/openvino/src/plugins/intel_gpu/src/plugin/transformations/increase_position_ids_precision.cpp:650:42: error: implicit capture of 'this' via '[=]' is deprecated in C++20 [-Werror=deprecated]\n  650 |     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {\n      |                                          ^\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The run fails because both OpenVINO JS API jobs (Node 22 and Node 24) fail their `test_setup` step: `tests/setup.js` downloads `test_model_fp32.xml` from `raw.githubusercontent.com` with a fixed 30-second timeout, and the request times out, throwing an unhandled promise rejection that crashes the Node process with exit code 1. This exact signature has now recurred 3 times since 2026-10-30 (pattern 197368415f8ae13d: 2026-10-30 twice, now 2026-11-05), indicating intermittent raw.githubusercontent.com slowness/unavailability reachable from GitHub-hosted/self-hosted runners rather than a code change in PR #39381 (which only touches CPU snippets test files, unrelated to the JS bindings). Separately, and non-blocking, the 'Build (C++20, non-blocking)' lane also failed to compile: two pre-existing lambdas in src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41 and increase_position_ids_precision.cpp:650 use `ov::matcher_pass_callback callback = [=](Matcher& m) {...}`, implicitly capturing `this` by value. C++20 deprecates implicit `this` capture via `[=]` (P0806), and GCC's `-Wdeprecated` promoted by `-Werror` turns this into a hard compile error on this lane; since the lane is explicitly non-blocking it does not affect the overall run conclusion, but it is a genuine, novel code issue worth fixing.",
+  "reproduction_steps": "For the Network failure: run `node ./tests/setup.js` from src/bindings/js/node under network conditions where raw.githubusercontent.com is slow/unreachable, or simply re-run the failed jobs - it is not deterministically reproducible locally since it depends on transient network conditions. For the C++20 build issue: configure with `cmake -DCMAKE_CXX_STANDARD=20 -DENABLE_INTEL_GPU=ON ...` and build target `openvino_intel_gpu_plugin`; the error reproduces at src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41 and increase_position_ids_precision.cpp:650 without the full CI pipeline.",
+  "recommended_actions": [
+    "Re-run the two failed 'OpenVINO JS API' jobs; this is a transient network issue affecting raw.githubusercontent.com reachability, not a code defect.",
+    "Consider mirroring test_model_fp32.xml to a more reliable host, or adding retry-with-backoff and a longer timeout around the download in src/bindings/js/node/tests/setup.js, and catching the rejection instead of letting it crash the Node process.",
+    "Separately (non-blocking): in src/plugins/intel_gpu/src/plugin/transformations/l2_norm_to_rms.cpp:41 and increase_position_ids_precision.cpp:650, change `[=](...)` to `[=, this](...)` or an explicit capture list to silence the C++20 '-Werror=deprecated' implicit-this-capture error."
+  ],
+  "prevention_strategies": "Add retry-with-backoff around the test-model download in tests/setup.js and/or catch the download promise rejection instead of letting it crash the whole Node test process, so a single transient network hiccup does not fail two separate Node-version jobs simultaneously. For the C++20 lane, periodically build the GPU plugin under '-std=c++20' locally to catch implicit-this-capture deprecation warnings before they accumulate; consider gating the lane as required once clean to prevent regressions from being silently ignored.",
+  "historical_context": "The JS API raw.githubusercontent.com download timeout is a known recurring pattern (signature_hash 197368415f8ae13d, 3 occurrences including this run: 2026-10-30 twice on PRs #39357/#39318, now 2026-11-05 on PR #39381), always previously resolved by a retry/rerun. The C++20 implicit-this-capture build failure in the GPU plugin is new (pattern ccd816b048b85b86, first occurrence), though a related but distinct C++20 build break on the same non-blocking lane (GGUF frontend char8_t/std::string concatenation, pattern 60c87e1ef4d6a044) occurred on 2026-10-26 and 2026-11-05, suggesting the non-blocking C++20 lane is accumulating a backlog of unaddressed C++20-only warnings-as-errors across different components."
+}
