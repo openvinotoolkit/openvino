@@ -365,6 +365,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                                                V,
                                                                kv_past_b,
                                                                independent_kv_len ? kv_seqlen : current_seqlen,
+                                                               total_b,
                                                                *metadata)
                                    : construct_kvcache(node,
                                                        past_key,
@@ -822,6 +823,7 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
     const ov::Output<ov::Node>& value,
     const std::shared_ptr<ov::Node>& kv_past_b,
     const std::shared_ptr<ov::Node>& kv_rows,
+    const std::shared_ptr<ov::Node>& total_b,
     [[maybe_unused]] KVCacheMetadata& metadata) {
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
@@ -908,6 +910,23 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
     };
     outputs.sdpa_key = write(past_key, key);
     outputs.sdpa_value = write(past_value, value);
+    if (is_static_input && node->has_query_seqlens()) {
+        // Same unwritten-capacity-tail NaN hazard as the non-batched writer (see construct_kvcache above), per
+        // batch: zero columns at or beyond that batch's running valid total (total_b).
+        const auto capacity = get_dimensions(register_new_node<v3::ShapeOf>(outputs.sdpa_key), {2});
+        const auto rows =
+            register_new_node<v1::Reshape>(register_new_node<v4::Range>(zero_without_shape,
+                                                                        register_new_node<v0::Squeeze>(capacity),
+                                                                        one_without_shape,
+                                                                        ov::element::i64),
+                                           as_shape({1, 1, -1, 1}),
+                                           false);
+        const auto valid_cols =
+            register_new_node<v1::Less>(rows, register_new_node<v1::Reshape>(total_b, as_shape({-1, 1, 1, 1}), false));
+        const auto zero_fill = register_new_node(v0::Constant::create(past_key.get_element_type(), ov::Shape{}, {0}));
+        outputs.sdpa_key = register_new_node<v1::Select>(valid_cols, outputs.sdpa_key, zero_fill);
+        outputs.sdpa_value = register_new_node<v1::Select>(valid_cols, outputs.sdpa_value, zero_fill);
+    }
     // Attention stays on the tight scatter-corrected buffer above; present is separately resized to capacity.
     if (!is_static_input && has_total_sequence_length) {
         outputs.present_key = resize_kv_to_capacity(get_dimensions(register_new_node<v3::ShapeOf>(past_key), {2}),
