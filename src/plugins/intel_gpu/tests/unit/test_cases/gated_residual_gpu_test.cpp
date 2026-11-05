@@ -224,6 +224,10 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
     }
 
     const auto tc = GetParam();
+    using GR = ov::intel_gpu::op::GatedResidual;
+    if (!GR::is_geometry_supported(GR::Mode::READ, 4, tc.D, tc.L, GR::is_compression_arch_supported(get_test_engine().get_device_info()))) {
+        GTEST_SKIP() << "the geometry needs the systolic READ kernels";
+    }
     gr_ref_params p;
     p.rows = tc.rows;
     p.D = tc.D;
