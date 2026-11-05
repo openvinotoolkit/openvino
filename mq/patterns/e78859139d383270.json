@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "sccache error timed out waiting for server startup maybe the remote service is unreachable cmake test c compiler check for working c compiler broken|External Service",
+  "signature_hash": "e78859139d383270",
+  "title": "ARM64 CMake configure fails because sccache times out waiting for server startup",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-11-05T12:59:21Z",
+  "last_seen": "2026-11-05T12:59:21Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42026334922"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39524"
+  ],
+  "recent_timestamps": [
+    "2026-11-05T12:59:21Z"
+  ],
+  "rerun_search_string": "Timed out waiting for server startup"
+}

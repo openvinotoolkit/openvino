@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-05-12-59-21-000-42026334922",
+  "timestamp": "2026-11-05T12:59:21Z",
+  "run_id": "42026334922",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42026334922",
+  "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+  "pr_number": "39524",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39524",
+  "author": "byungilm",
+  "category": "External Service",
+  "title": "ARM64 CMake configure fails because sccache times out waiting for server startup",
+  "signature": "sccache error timed out waiting for server startup maybe the remote service is unreachable cmake test c compiler check for working c compiler broken|External Service",
+  "signature_hash": "e78859139d383270",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build-aarch64 / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure step fails during the 'Check for working C compiler' test: sccache cannot be launched to wrap /usr/bin/cc, so the C compiler smoke test fails and CMake aborts configuration."
+    },
+    {
+      "name": "ci/gha_overall_status_clang_tidy",
+      "conclusion": "failure",
+      "symptom": "Downstream status-aggregation job fails because the upstream Build-aarch64 job failed."
+    }
+  ],
+  "key_errors": [
+    "CMake Error at /usr/local/share/cmake-3.26/Modules/CMakeTestCCompiler.cmake:67 (message): The C compiler \"/usr/bin/cc\" is not able to compile a simple test program.",
+    "sccache /usr/bin/cc    -o CMakeFiles/cmTC_bc2ae.dir/testCCompiler.c.o -c .../testCCompiler.c",
+    "sccache: error: Timed out waiting for server startup. Maybe the remote service is unreachable?",
+    "gmake: *** [Makefile:127: cmTC_bc2ae/fast] Error 2",
+    "-- Check for working C compiler: /usr/bin/cc - broken",
+    "-- Configuring incomplete, errors occurred!"
+  ],
+  "root_cause": "CMAKE_C_COMPILER_LAUNCHER/CMAKE_CXX_COMPILER_LAUNCHER are set to sccache with SCCACHE_AZURE_CONNECTION_STRING pointing at the Azure Blob remote cache. During CMake's compiler-identification try-compile step, the sccache client process could not start/connect its local coordinating server within its startup timeout (the error explicitly points at the remote Azure service being unreachable), causing the trivial test-compile invocation to fail and CMake to mark the C compiler as broken before any real GPU plugin source was touched. This is unrelated to the PR's actual change (a one-line null-cast guard in src/plugins/intel_gpu/src/plugin/transformations_pipeline.cpp); the automatic retry (run_attempt 2) proceeded past CMake configure successfully, confirming the failure was a transient sccache/Azure connectivity hiccup rather than a code defect.",
+  "reproduction_steps": "N/A - not reproducible outside CI; requires the CI runner's sccache client/Azure Blob remote-cache connectivity. Locally, a build without CMAKE_C_COMPILER_LAUNCHER=sccache (or with SCCACHE disabled) configures and builds normally.",
+  "recommended_actions": [
+    "No code change needed for PR #39524; the failure is infrastructure-related, not caused by the PR diff.",
+    "Re-run the failed Build-aarch64 job (already succeeded on run_attempt 2).",
+    "If this sccache startup timeout recurs frequently, consider raising SCCACHE_STARTUP_TIMEOUT or adding a short retry/backoff around the sccache server bootstrap in the build job, and monitor Azure Blob storage availability for the SCCACHE_AZURE_* backend."
+  ],
+  "prevention_strategies": "Add a lightweight pre-flight check in the build composite action that verifies sccache can start and reach the configured remote storage before invoking CMake, failing fast with a clearer diagnostic, or falling back to local-only caching (SCCACHE_IGNORE_SERVER_IO_ERROR is already set to 1, but the client never reaches the point where that matters if server startup itself times out). Track Azure Blob Storage health/latency for the sccache backend to catch recurring outages early.",
+  "historical_context": "No prior CI Doctor MQ pattern records this exact sccache 'Timed out waiting for server startup' signature; this is the first occurrence tracked. A related but distinct ARM64 cross-compilation PCH failure (signature_hash 5b4b1e6917a69856, category Infrastructure) has recurred multiple times since 2026-09-24 but is a different root cause (stale cmake_pch.hxx.gch reuse across differently-configured re-builds, not sccache connectivity)."
+}
