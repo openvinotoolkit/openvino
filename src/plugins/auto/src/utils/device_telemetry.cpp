@@ -273,7 +273,7 @@ private:
         LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
     }
 
-    using IpfQueryFn = ipf_err_t (*)(void*, const char*, char*, size_t*);
+    using IpfQueryFn = ipf_err_t (*)(ipf_handle_t, const char*, char*, size_t*);
 
     // Query IPF node/value data with the two-call buffer-size protocol.
     std::string query_ipf_string(IpfQueryFn query_fn, const char* path) {
@@ -385,7 +385,7 @@ private:
         on_gear_changed(*gear_str);
     }
 
-    void* m_handle = nullptr;
+    ipf_handle_t m_handle = nullptr;
     std::atomic<bool> m_gear_tracking_initialized{false};
     bool m_gear_event_registered = false;
     std::mutex m_low_power_init_mutex;
