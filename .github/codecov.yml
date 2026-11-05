@@ -1,0 +1,37 @@
+coverage:
+  status:
+    default_rules:
+      flag_coverage_not_uploaded_behavior: exclude
+    project:
+      default: false
+      linux:
+        flags: &linux_flags
+          - cpp-runtime-cpp-cpu
+          - cpp-runtime-cpp-igpu-unit
+          - cpp-runtime-cpp-igpu-func
+          - cpp-runtime-cpp-dgpu-unit
+          - cpp-runtime-cpp-dgpu-func
+          - cpp-runtime-python-cpu
+          - cpp-runtime-python-igpu
+          - cpp-runtime-python-dgpu
+          - python-api-frontend-layer-ovc-cpu
+          - python-api-frontend-layer-ovc-igpu
+          - python-api-frontend-layer-ovc-dgpu
+          - cpp-runtime-js-cpu
+          - nodejs-bindings-unit-e2e-cpu
+      windows:
+        informational: true
+        flags: &windows_flags
+          - cpp-runtime-cpp-windows-npu
+          - cpp-runtime-cpp-windows-npu-offline
+    patch:
+      default: false
+      linux:
+        flags: *linux_flags
+      windows:
+        informational: true
+        flags: *windows_flags
+
+flag_management:
+  default_rules:
+    carryforward: false

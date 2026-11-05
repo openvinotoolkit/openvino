@@ -40,7 +40,7 @@ ov_option (ENABLE_UB_SANITIZER "enable UndefinedBahavior sanitizer" OFF)
 
 ov_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
-ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG" OFF)
+ov_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR CMAKE_CXX_COMPILER_ID STREQUAL MSVC" OFF)
 
 ov_dependent_option (ENABLE_API_VALIDATOR "Enables API Validator usage" ON "WIN32" OFF)
 

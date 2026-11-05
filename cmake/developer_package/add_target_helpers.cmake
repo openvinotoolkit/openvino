@@ -571,6 +571,10 @@ function(ov_add_test_target)
             RUNTIME DESTINATION tests
             COMPONENT ${ARG_COMPONENT}
             EXCLUDE_FROM_ALL)
+    if(ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        install(FILES $<TARGET_PDB_FILE:${ARG_NAME}>
+                DESTINATION tests COMPONENT pdb EXCLUDE_FROM_ALL)
+    endif()
 endfunction()
 
 #[=[

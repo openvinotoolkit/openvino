@@ -438,6 +438,7 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
         "cpp": config_dir / "tests_cpp.yml",
         "python": config_dir / "tests_python.yml",
         "js": config_dir / "tests_js.yml",
+        "windows": config_dir / "tests_windows.yml",
     }
 
     suites = {suite: path for suite, path in known_suites.items() if path.is_file()}
@@ -450,6 +451,7 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
         return issues
 
     for suite, path in suites.items():
+        supported_profiles = {"npu", "npu-offline"} if suite == "windows" else SUPPORTED_PROFILES
         data = _load_yaml(path)
         reporting = data.get("reporting")
         if not isinstance(reporting, dict):
@@ -481,7 +483,7 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
                 issues.append(ConfigValidationIssue(suite, name, "'profiles' must be a non-empty list"))
             else:
                 for profile_name in expected_profiles:
-                    if profile_name not in SUPPORTED_PROFILES:
+                    if profile_name not in supported_profiles:
                         issues.append(ConfigValidationIssue(suite, name, f"unsupported profile '{profile_name}'"))
             for field in _profile_value_fields(suite):
                 value = test.get(field)
@@ -489,7 +491,7 @@ def validate_configs(config_dir: Path) -> list[ConfigValidationIssue]:
                     continue
                 mapped_profiles = {_as_text(profile).strip() for profile in value}
                 for profile_name in expected_profiles:
-                    if profile_name in SUPPORTED_PROFILES and profile_name not in mapped_profiles:
+                    if profile_name in supported_profiles and profile_name not in mapped_profiles:
                         issues.append(ConfigValidationIssue(suite, name, f"'{field}' missing '{profile_name}' value"))
             if suite == "cpp" and not _as_text(test.get("binary", "")).strip():
                 issues.append(ConfigValidationIssue(suite, name, "missing 'binary'"))
