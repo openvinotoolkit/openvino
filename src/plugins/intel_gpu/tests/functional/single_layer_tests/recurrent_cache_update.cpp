@@ -47,10 +47,11 @@ void run_update_case(bool conv,
                      int V,
                      int snapshots,
                      bool other_reader = false,
-                     bool unrelated_overlap = false,
+                     bool independent_input = false,
                      ov::element::Type cache_type = ov::element::f32,
                      bool cache_view = false,
-                     bool host_usm = false) {
+                     bool host_usm = false,
+                     bool static_shapes = false) {
     constexpr int S = 12, H = 2, C = 7, history = 3;
     const int F = conv ? C * history : H * K * V;
     const size_t cache_port = conv ? 0 : 3;
@@ -85,6 +86,18 @@ void run_update_case(bool conv,
         add(indices, {1, 1, 1, 2});
         add(indices, {1, 1, 1, 4});
     }
+    if (static_shapes) {
+        const std::vector<ov::Shape> shapes = conv
+            ? std::vector<ov::Shape>{{1, 1, S, size_t(F)}, {1, 1, 1, 2}, {1, 1, 1, 3},
+                                     {1, 1, 1, 1}, {1, 1, 1, 1}, {1, 1, 1, 2},
+                                     {1, 2, C, 3}, {1, 1, 3, 2}, {1, 1, C, history + 1}}
+            : std::vector<ov::Shape>{{2, 3, H, size_t(K)}, {2, 3, H, size_t(K)}, {2, 3, H, size_t(V)},
+                                     {1, 1, S, size_t(F)}, {2, 3, H}, {2, 3, H},
+                                     {1, 1, 1, 2}, {1, 1, 1, 3}, {1, 1, 1, 1}, {1, 1, 1, 1},
+                                     {1, 1, 1, 2}, {1, 1, 1, 4}};
+        for (size_t port = 0; port < shapes.size(); ++port)
+            params[port]->set_partial_shape(shapes[port]);
+    }
     if (cache_view) {
         auto pattern = ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, -1, F});
         args[cache_port] = std::make_shared<ov::op::v1::Reshape>(params[cache_port], pattern, false);
@@ -98,21 +111,34 @@ void run_update_case(bool conv,
     } else {
         update = std::make_shared<ov::op::internal::RecurrentGatedDeltaNetUpdate>(args, true, 1e-6f, 1e-6f, snapshots);
         auto state = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{-1, H, K, V});
+        ov::ParameterVector reference;
+        for (size_t port : {0, 1, 2, 4, 5}) {
+            auto shape = params[port]->get_partial_shape();
+            shape[1] = ov::Dimension::dynamic();
+            reference.push_back(std::make_shared<ov::op::v0::Parameter>(type, shape));
+        }
         auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(
-            ov::OutputVector{args[0], args[1], args[2], state, args[4], args[5]}, true, 1e-6f, 1e-6f);
+            ov::OutputVector{reference[0], reference[1], reference[2], state, reference[3], reference[4]}, true, 1e-6f, 1e-6f);
         ref = core.compile_model(std::make_shared<ov::Model>(gdn->outputs(),
-            ov::ParameterVector{params[0], params[1], params[2], state, params[4], params[5]}), "GPU", hint);
+            ov::ParameterVector{reference[0], reference[1], reference[2], state, reference[3], reference[4]}), "GPU", hint);
     }
-    ov::OutputVector outputs{update->output(0), update->output(1)};
+    ov::OutputVector outputs{update->output(0)};
     if (other_reader)
         outputs.push_back(params[cache_port]);
     std::shared_ptr<ov::op::v0::Parameter> unrelated;
-    if (unrelated_overlap) {
+    if (independent_input) {
         unrelated = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, F});
         params.push_back(unrelated);
         outputs.push_back(std::make_shared<ov::op::v1::Multiply>(unrelated, unrelated));
     }
-    auto compiled = core.compile_model(std::make_shared<ov::Model>(outputs, params), "GPU", hint);
+    auto model = std::make_shared<ov::Model>(outputs, params);
+    if (other_reader) {
+        EXPECT_THROW(core.compile_model(model, "GPU", hint), ov::Exception);
+        return;
+    }
+    auto compiled = core.compile_model(model, "GPU", hint);
+    ASSERT_EQ(update->get_output_size(), 1);
+    ASSERT_EQ(compiled.outputs().size(), outputs.size());
     std::stringstream blob;
     compiled.export_model(blob);
     auto imported = core.import_model(blob, "GPU", hint);
@@ -123,7 +149,8 @@ void run_update_case(bool conv,
         if (!conv)
             expected_req = ref.create_infer_request();
         for (int step = 0; step < 9; ++step) {
-            const size_t B = step % 4 + 1, T = step == 8 ? 17 : step % 4 + 1;
+            const size_t B = static_shapes ? 2 : step % 4 + 1;
+            const size_t T = static_shapes ? 3 : step == 8 ? 17 : step % 4 + 1;
             std::vector<ov::Tensor> inputs;
             auto data = [&](size_t port, ov::Shape shape) {
                 ov::Tensor t(params[port]->get_element_type(), shape);
@@ -157,7 +184,9 @@ void run_update_case(bool conv,
                 extra = {0, 1, 2, 3};
             if (step % 2)
                 extra.insert(extra.begin(), active.begin(), active.end());
-            const size_t suffix = step % 2 ? B : 0;
+            const size_t suffix = static_shapes ? 0 : step % 2 ? B : 0;
+            if (static_shapes)
+                extra = {1, 0, 1};
             if (conv) {
                 data(0, {1, 1, S, size_t(F)});
                 ints({1, 1, 1, B}, active);
@@ -167,7 +196,7 @@ void run_update_case(bool conv,
                 ints({1, 1, 1, 2}, {0, int(suffix)});
                 data(6, {1, B, C, T});
                 // Later windows overwrite earlier windows at overlapping destinations.
-                const std::vector<int> windows = step == 7 ? std::vector<int>{} : std::vector<int>{0, 0, int(T), 4, int(T), 2};
+                const std::vector<int> windows = step == 7 && !static_shapes ? std::vector<int>{} : std::vector<int>{0, 0, int(T), 4, int(T), 2};
                 ints({1, 1, windows.size() / 2, 2}, windows);
                 data(8, {1, 1, C, history + 1});
             } else {
@@ -273,16 +302,16 @@ void run_update_case(bool conv,
                                    : context.create_usm_device_tensor(cache_type, inputs[cache_port].get_shape());
             inputs[cache_port].copy_to(remote);
             req.set_input_tensor(cache_port, remote);
+            req.set_output_tensor(0, context.create_usm_device_tensor(type, expected[0].get_shape()));
             auto other = context.create_usm_device_tensor(cache_type, remote.get_shape());
-            if (unrelated_overlap) {
+            if (independent_input) {
                 inputs[cache_port].copy_to(other);
                 req.set_input_tensor(inputs.size(), other);
             }
-            // Alternate distinct and identical USM allocations on one request.
-            req.set_output_tensor(1, unrelated_overlap ? other : step % 3 == 2 ? context.create_usm_device_tensor(cache_type, remote.get_shape()) : remote);
             req.infer();
             for (size_t port = 0; port < 2; ++port) {
-                auto out = req.get_output_tensor(port), reference = expected[port];
+                auto out = port == 0 ? req.get_output_tensor(0) : remote;
+                auto reference = expected[port];
                 ov::Tensor actual(out.get_element_type(), out.get_shape());
                 out.copy_to(actual);
                 ASSERT_EQ(actual.get_shape(), reference.get_shape());
@@ -293,15 +322,8 @@ void run_update_case(bool conv,
                     ASSERT_NEAR(get(actual), get(reference), conv ? 1e-6f : type == ov::element::f16 ? 0.002f : 1e-6f) << "conv=" << conv << " step=" << step << " port=" << port << " element=" << i;
                 }
             }
-            if (other_reader) {
-                auto reader = req.get_output_tensor(2);
-                ov::Tensor host(ov::element::f32, reader.get_shape());
-                reader.copy_to(host);
-                for (size_t i = 0; i < host.get_size(); ++i)
-                    ASSERT_EQ(host.data<float>()[i], inputs[cache_port].data<float>()[i]);
-            }
-            if (unrelated_overlap) {
-                auto branch = req.get_output_tensor(2);
+            if (independent_input) {
+                auto branch = req.get_output_tensor(1);
                 ov::Tensor host(ov::element::f32, branch.get_shape());
                 branch.copy_to(host);
                 for (size_t i = 0; i < host.get_size(); ++i) {
@@ -309,13 +331,7 @@ void run_update_case(bool conv,
                     ASSERT_EQ(host.data<float>()[i], x * x);
                 }
             }
-            if (step % 3 == 2 || unrelated_overlap) {
-                ov::Tensor host(cache_type, remote.get_shape());
-                remote.copy_to(host);
-                for (size_t i = 0; i < host.get_size(); ++i)
-                    ASSERT_EQ(host.get_element_type() == ov::element::f16 ? float(host.data<ov::float16>()[i]) : host.data<float>()[i],
-                              cache_type == ov::element::f16 ? float(inputs[cache_port].data<ov::float16>()[i]) : inputs[cache_port].data<float>()[i]);
-            }
+
         }
     }
 }
@@ -338,7 +354,7 @@ TEST(RecurrentCacheUpdateNative, SharedCacheReaderForbidsMutation) {
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, true);
 }
 
-TEST(RecurrentCacheUpdateNative, UnrelatedInputOverlapForbidsMutation) {
+TEST(RecurrentCacheUpdateNative, IndependentInputIsUnchanged) {
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, false, true);
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, false, true);
 }
@@ -353,7 +369,7 @@ TEST(RecurrentCacheUpdateNative, F16CachePrecision) {
 TEST(RecurrentCacheUpdateNative, ExclusiveReshapeCacheAlias) {
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, false, false, ov::element::f32, true);
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, false, false, ov::element::f32, true);
-    // An independent root reader must still veto mutation through a view.
+    // Reject independent readers at the root of a Reshape alias.
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, true, false, ov::element::f32, true);
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, true, false, ov::element::f32, true);
 }
@@ -373,7 +389,7 @@ TEST(RecurrentCacheUpdateNative, Fp16InferencePreservesReshapedCachePrecision) {
     auto weights = op::v0::Constant::create(element::f16, Shape{1, 1, 7, 4}, {0.1f});
     auto update = std::make_shared<op::internal::RecurrentConvCacheUpdate>(
         OutputVector{view, rows, rows, zero, zero, offsets, data, windows, weights}, 3);
-    auto model = std::make_shared<Model>(OutputVector{update->output(0), update->output(1)},
+    auto model = std::make_shared<Model>(OutputVector{update->output(0)},
                                        ParameterVector{cache, rows, data});
     Core core;
     auto compiled = core.compile_model(model, "GPU", hint::inference_precision(element::f16));
@@ -385,58 +401,36 @@ TEST(RecurrentCacheUpdateNative, Fp16InferencePreservesReshapedCachePrecision) {
         if (type == info.end() || type->second.as<std::string>() != "recurrent_cache_update")
             continue;
         ASSERT_EQ(node->get_input_element_type(0), element::f32);
-        ASSERT_EQ(compiled.output(1).get_element_type(), element::f32);
         found = true;
     }
     ASSERT_TRUE(found);
 }
 
-// Standalone snapshots use a temporary bank, then ordinary scatter writeback.
-// Its precision must follow the surrounding computation under FP16 inference.
-TEST(RecurrentCacheUpdateNative, Fp16InferenceWithTemporarySnapshotBank) {
+TEST(RecurrentCacheUpdateNative, TemporaryCacheIsRejected) {
     using namespace ov;
-    ParameterVector params;
-    auto param = [&](PartialShape shape) {
-        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
-        params.push_back(p);
-        return p;
-    };
-    auto q = param({1, 2, 2, 8}), k = param({1, 2, 2, 8}), v = param({1, 2, 2, 8});
-    auto cache = param({1, 1, 3, 128});
-    auto gate = param({1, 2, 2}), beta = param({1, 2, 2});
-    auto index = [](Shape shape, std::vector<int32_t> values) {
-        return op::v0::Constant::create(element::i32, shape, values);
-    };
-    auto axis = index({1}, {2}), begin = index({1}, {0}), step = index({1}, {1});
-    auto initial = std::make_shared<op::v8::Slice>(cache, begin, step, step, axis);
-    auto bank = std::make_shared<op::v0::Concat>(
-        OutputVector{initial, op::v0::Constant::create(element::f32, Shape{1, 1, 2, 128}, {0})}, 2);
-    auto zero = index({1, 1, 1, 1}, {0});
-    auto update = std::make_shared<op::internal::RecurrentGatedDeltaNetUpdate>(
-        OutputVector{q, k, v, bank, gate, beta, index({1, 1, 1, 1}, {0}), index({1, 1, 1, 0}, {}),
-                     zero, zero, index({1, 1, 1, 2}, {0, 0}), index({1, 1, 1, 4}, {0, 1, 1, 0})},
-        false, 1e-6f, 1e-6f, 3);
-    auto states = std::make_shared<op::v8::Slice>(update->output(1), begin, index({1}, {2}), step, axis);
-    auto writeback = std::make_shared<op::v3::ScatterUpdate>(cache, index({2}, {0, 1}), states, axis);
+    auto cache = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1, 12, 21});
+    auto rows = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1, 1, 1, -1});
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, -1, 7, -1});
+    auto bank = std::make_shared<op::v0::Concat>(OutputVector{cache, cache}, 2);
+    auto zero = op::v0::Constant::create(element::i32, Shape{1, 1, 1, 1}, {0});
+    auto offsets = op::v0::Constant::create(element::i32, Shape{1, 1, 1, 2}, {0, 0});
+    auto windows = op::v0::Constant::create(element::i32, Shape{1, 1, 1, 2}, {0, 0});
+    auto weights = op::v0::Constant::create(element::f32, Shape{1, 1, 7, 4}, {0.1f});
+    auto update = std::make_shared<op::internal::RecurrentConvCacheUpdate>(
+        OutputVector{bank, rows, rows, zero, zero, offsets, data, windows, weights}, 3);
+    auto model = std::make_shared<Model>(OutputVector{update->output(0)}, ParameterVector{cache, rows, data});
     Core core;
-    auto model = std::make_shared<Model>(OutputVector{update->output(0), writeback}, params);
-    auto compiled = core.compile_model(model, "GPU", hint::inference_precision(element::f16));
-    bool found = false;
-    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
-        const auto& info = node->get_rt_info();
-        auto type = info.find("layerType");
-        if (type == info.end() || type->second.as<std::string>() != "recurrent_cache_update")
-            continue;
-        ASSERT_EQ(node->get_input_element_type(3), element::f16);
-        found = true;
-    }
-    ASSERT_TRUE(found);
-    ASSERT_EQ(compiled.output(1).get_element_type(), element::f32);
+    EXPECT_THROW(core.compile_model(model, "GPU"), ov::Exception);
 }
 
 // Integrated GPUs can expose caller cache storage as host USM. Apply the same
-// exclusive-alias contract without staging the full cache through device USM.
+// writable-input contract without staging the full cache through device USM.
 TEST(RecurrentCacheUpdateNative, HostUsmExclusiveCacheAlias) {
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, false, false, ov::element::f32, true, true);
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, false, false, ov::element::f32, true, true);
+}
+
+TEST(RecurrentCacheUpdateNative, StaticShapesAndExport) {
+    run_update_case(true, ov::element::f32, ov::element::i32, 0, 0, 1, false, false, ov::element::f32, false, false, true);
+    run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, false, false, ov::element::f32, false, false, true);
 }

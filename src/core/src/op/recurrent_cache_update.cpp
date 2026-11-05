@@ -68,7 +68,6 @@ void RecurrentConvCacheUpdate::validate_and_infer_types() {
                           get_input_partial_shape(8).compatible(PartialShape{1, 1, qkv[2], m_history + 1}),
                           "Depthwise weights require [1,1,C,history+1]");
     set_output_type(0, get_input_element_type(6), PartialShape{1, qkv[1], qkv[3], qkv[2]});
-    set_output_type(1, get_input_element_type(0), get_input_partial_shape(0));
 }
 bool RecurrentConvCacheUpdate::visit_attributes(AttributeVisitor& v) {
     v.on_attribute("history", m_history);
@@ -120,9 +119,8 @@ void RecurrentGatedDeltaNetUpdate::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(11) == element::i32 || get_input_element_type(11) == element::i64,
                           "State update control requires i32/i64");
-    set_output_size(2);
+    set_output_size(1);
     set_output_type(0, get_input_element_type(0), base.get_output_partial_shape(0));
-    set_output_type(1, get_input_element_type(3), get_input_partial_shape(3));
 }
 bool RecurrentGatedDeltaNetUpdate::visit_attributes(AttributeVisitor& v) {
     v.on_attribute("fuse_qk_l2norm", m_fuse_qk_l2norm);

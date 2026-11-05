@@ -21,7 +21,7 @@ struct recurrent_cache_update : primitive_base<recurrent_cache_update> {
           q_l2_norm_eps(qe),
           k_l2_norm_eps(ke),
           snapshot_count(count) {
-        num_outputs = 2;
+        num_outputs = 1;
     }
     size_t hash() const override {
         size_t s = primitive::hash();

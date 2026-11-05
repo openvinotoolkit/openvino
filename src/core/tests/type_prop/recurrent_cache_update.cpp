@@ -48,9 +48,8 @@ TEST(type_prop, recurrent_conv_cache_update) {
     auto args = conv_inputs();
     auto op = std::make_shared<op::internal::RecurrentConvCacheUpdate>(args, 3);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, -1, -1, 7}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 1, 12, 21}));
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
-    EXPECT_EQ(op->get_output_element_type(1), element::f32);
+    EXPECT_EQ(op->get_output_size(), 1);
     auto clone = as_type_ptr<op::internal::RecurrentConvCacheUpdate>(op->clone_with_new_inputs(args));
     ASSERT_NE(clone, nullptr);
     EXPECT_EQ(clone->get_history(), 3);
@@ -63,9 +62,8 @@ TEST(type_prop, recurrent_gdn_update) {
     auto args = gdn_inputs();
     auto op = std::make_shared<op::internal::RecurrentGatedDeltaNetUpdate>(args, true, 1e-5f, 2e-5f, 3);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, -1, 4, 8}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 1, 12, 4096}));
     EXPECT_EQ(op->get_output_element_type(0), element::f16);
-    EXPECT_EQ(op->get_output_element_type(1), element::f32);
+    EXPECT_EQ(op->get_output_size(), 1);
     auto clone = as_type_ptr<op::internal::RecurrentGatedDeltaNetUpdate>(op->clone_with_new_inputs(args));
     ASSERT_NE(clone, nullptr);
     EXPECT_TRUE(clone->get_fuse_qk_l2norm());

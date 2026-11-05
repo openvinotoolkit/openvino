@@ -36,7 +36,6 @@ maps, ranges, and destinations must be in bounds.
 **Outputs and semantics**
 
 * 0 attention: query precision, ``[B,T,H_v,V]``.
-* 1 complete updated cache: same shape and precision as input 3.
 
 Reset source rows logically before gather. Active states read the original
 source before reorder. The extra-row suffix resets/reorders retained cache rows.
@@ -52,14 +51,26 @@ Later source rows win overlaps, including zero snapshot stride. State reads,
 retained rows, and snapshot writes round through query precision, then cache
 precision, matching the former materialized computation path.
 
-**GPU allocation and ordering**
+**Writable cache input and GPU ordering**
 
-The allocation rules and gather-before-write ordering are those of
-:doc:`recurrent-conv-cache-update`, with cache input 3 rather than input 0.
-The first kernel stages active and nonidentity reorder sources. The second
-computes GDN, prepares retained rows, and writes snapshots. Recurrence owners
-write updated rows; retained-row work groups skip those destinations, avoiding
-races and redundant preparation. Cyclic maps, duplicate sources, inactive slots,
-overlapping snapshots, changing batches, and exported models remain supported.
-The eligible identical device-USM binding avoids a final cache Result copy.
-The immutable-source fallback and current command-replay limitation apply here too.
+Cache input 3 is updated in place. The caller binds a writable GPU RemoteTensor
+(device USM or host USM) and reads the updated cache after inference completes.
+The cache must originate from a Parameter, optionally through exclusive
+memory-preserving Reshapes. Other cache readers in the same inference and
+computed temporary cache banks are rejected during GPU compilation. Separate
+inputs and the computation output must not overlap the writable cache allocation. Ordinary host tensor
+inputs are copied to GPU storage and do not provide caller-visible writeback.
+The precision pass preserves the cache and its Reshape aliases in their original
+precision to avoid a full-cache conversion before the operation.
+
+Required active and nonidentity reorder sources are captured in private device
+scratch before the compute/writeback kernel starts. The explicit dependency
+between these stages protects cycles, duplicate sources and overlapping writes.
+Identity reorder rows need no scratch writes. Each cache element has one writer;
+already rounded retained values need no store. Runtime token/sequence counts
+remain shape-agnostic and compiled-model export/import remains supported.
+
+There is no cache Result, output binding, or immutable-input fallback within this
+operation. Callers requiring immutable cache inputs must use an ordinary
+functional decomposition instead. A failed inference can leave the cache partly
+updated; clear or restore it before retrying.

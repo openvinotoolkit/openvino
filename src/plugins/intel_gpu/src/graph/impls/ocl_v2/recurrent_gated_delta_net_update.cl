@@ -20,9 +20,7 @@ KERNEL(recurrent_cache_update_stage)(OPTIONAL_SHAPE_INFO_ARG const __global INPU
                                      const __global INPUT10_TYPE* offsets,
                                      const __global INPUT11_TYPE* control,
                                      __global OUTPUT_TYPE* output,
-                                     __global OUTPUT1_TYPE* cache,
-                                     __global float* staged,
-                                     int inplace) {
+                                     __global float* staged) {
     const size_t i = get_global_id(0);
     const int F = INPUT3_SIZE_X, S = INPUT3_SIZE_Y, B = INPUT0_BATCH_NUM;
     const int rb = reset_begin[INPUT8_OFFSET], re = rb + reset_length[INPUT9_OFFSET];
@@ -166,7 +164,7 @@ inline void FUNC(prepare_qk)(__global INPUT0_TYPE* q, __global INPUT1_TYPE* k, i
 #    endif
 
 // A single work item owns each cache element. Later source planes win overlapping writes.
-inline void FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_ARG __global OUTPUT1_TYPE* cache,
+inline void FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_ARG __global INPUT3_TYPE* cache,
                                     const __global INPUT11_TYPE* control,
                                     int b,
                                     int slot,
@@ -190,7 +188,7 @@ inline void FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_ARG __global OUTPUT1_TYP
             return;
     }
     // Match the former materialized state tensor's rounding, followed by cache precision.
-    cache[OUTPUT1_GET_INDEX(0, 0, dst, (h * V_HEAD_DIM + v) * K_HEAD_DIM + k)] = (OUTPUT1_TYPE)((INPUT0_TYPE)value);
+    cache[INPUT3_GET_INDEX(0, 0, dst, (h * V_HEAD_DIM + v) * K_HEAD_DIM + k)] = (INPUT3_TYPE)((INPUT0_TYPE)value);
 }
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
@@ -208,7 +206,6 @@ KERNEL(recurrent_gated_delta_net_update)
  const __global INPUT10_TYPE* extra_offsets,
  const __global INPUT11_TYPE* write_control,
  __global OUTPUT_TYPE* output,
- __global OUTPUT1_TYPE* updated_cache,
  int seq_len,
  int query_offset,
  int key_offset,
@@ -216,8 +213,7 @@ KERNEL(recurrent_gated_delta_net_update)
  int q_t_stride,
  int k_t_stride,
  int v_t_stride,
- __global float* staged,
- int inplace) {
+ __global float* staged) {
     const int T_len = seq_len;
     const int H_len = V_HEAD_NUM;
     const int HK_len = K_HEAD_NUM;
@@ -261,21 +257,16 @@ KERNEL(recurrent_gated_delta_net_update)
                 const int iv = start_iv + v_idx;
                 if (iv < V_len) {
                     const int f = (h * V_len + iv) * K_len + k_idx;
-                    float value = inplace && row != dst ? staged[(B + dst - eb) * INPUT3_SIZE_X + f]
+                    float value = row != dst ? staged[(B + dst - eb) * INPUT3_SIZE_X + f]
                                                         : (row >= rb && row < re ? 0.0f : convert_float(initial_state[INPUT3_GET_INDEX(0, 0, row, f)]));
                     value = convert_float((INPUT0_TYPE)value);
-                    if (!inplace || as_uint(value) != as_uint(convert_float(initial_state[INPUT3_GET_INDEX(0, 0, dst, f)])))
-                        updated_cache[OUTPUT1_GET_INDEX(0, 0, dst, f)] = (OUTPUT1_TYPE)value;
+                    if (as_uint(value) != as_uint(convert_float(initial_state[INPUT3_GET_INDEX(0, 0, dst, f)])))
+                        initial_state[INPUT3_GET_INDEX(0, 0, dst, f)] = (INPUT3_TYPE)value;
                 }
             }
         return;
     }
-    const int source_row = active_rows[INPUT6_GET_INDEX(0, 0, 0, b)];
-#    define LOAD_STATE(k, v)                                                          \
-        (source_row >= rb && source_row < re                                          \
-             ? 0.0f                                                                   \
-             : (inplace ? staged[b * INPUT3_SIZE_X + (h * V_len + (v)) * K_len + (k)] \
-                        : convert_float((INPUT0_TYPE)initial_state[INPUT3_GET_INDEX(0, 0, source_row, (h * V_len + (v)) * K_len + (k))])))
+#    define LOAD_STATE(k, v) staged[b * INPUT3_SIZE_X + (h * V_len + (v)) * K_len + (k)]
     const int STATE_BASE = (b * H_len + h) * (K_len * V_len);
     const int group_size = H_len / HK_len;
     const int hk = h / group_size;
@@ -373,7 +364,7 @@ KERNEL(recurrent_gated_delta_net_update)
                 h_state[v_idx][c] = s;
                 if (T_len - 1 - t < SNAPSHOT_COUNT) {
                     for (int j = 0; j < 8; ++j)
-                        FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_TENSOR updated_cache,
+                        FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_TENSOR initial_state,
                                                 write_control,
                                                 b,
                                                 T_len - 1 - t,
@@ -447,7 +438,7 @@ KERNEL(recurrent_gated_delta_net_update)
                 for (int k_idx = 0; k_idx < K_len; k_idx++) {
                     h_state_f[v_idx][k_idx] += k_norm[k_idx] * update_val;
                     if (T_len - 1 - t < SNAPSHOT_COUNT)
-                        FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_TENSOR updated_cache,
+                        FUNC(write_cache_state)(OPTIONAL_SHAPE_INFO_TENSOR initial_state,
                                                 write_control,
                                                 b,
                                                 T_len - 1 - t,

@@ -8,60 +8,45 @@ writeback for `cache_r` and `cache_s`. Cache row capacity depends on sequence
 slots and rollback snapshots, not attention context length. Runtime row maps,
 offsets and write controls remain tensor inputs.
 
-## Stable in-place allocations
+## Writable cache inputs
 
-llama.cpp binds its full cache as both Parameter and Result using one stable USM
-allocation. The GPU plugin accepts exact layout/storage matches with exclusive
-cache readers, including exclusive optimized Reshape chains. It protects FP32
-cache inputs from FP16 precision conversion. Host USM and device USM are both
-eligible. There are no rotation banks or pointer swaps.
+llama.cpp binds each full cache as a writable Parameter using a stable GPU USM
+allocation. Both ops update that input in place and return only their computation
+result. There are no cache Results, output alias bindings, rotation banks or pointer
+swaps. The primitive uses the ordinary output allocation path for its single output;
+no changes to primitive_inst or network output binding are needed.
 
-The recurrent GPU primitive owns its cache binding and alias state. A small
-`try_bind_output_memory` hook selects caller storage before ordinary output
-allocation, preserving the allocation-stage ordering used by StatelessKV. This
-avoids allocating a temporary full cache when the caller binding is usable.
-Rejected bindings return to the normal GPU allocation policy; recurrent outputs
-have no special device-USM allocation preference.
+The independent dynamic output-binding fix remains needed by llama.cpp cache-only
+MTP serving. Native cache-op tests pass without it, but imported Qwen3.6 MTP
+graphs still exercise that general runtime bug.
 
-The first kernel stages required active rows and nonidentity reorder sources in
-private device scratch, applying logical reset and computation-precision rounding.
-The second kernel computes convolution/GDN and performs ordered cache writes.
-The dependency between these launches protects cycles and duplicate sources.
-Identity reorder sources need no scratch writes. Preserved rows are still read
-for precision compatibility, so eliminating the spare bank does not eliminate
-all cache memory traffic. Scratch capacity is conservative.
+The GPU precision pass protects caller-owned cache Parameters and exclusive
+Reshape aliases. A cache with another graph reader or a computed temporary cache
+bank is rejected. The caller must bind a writable GPU RemoteTensor and ensure
+other inputs and the computation output do not overlap its allocation. Ordinary host inputs are copied to GPU
+storage and do not provide caller-visible cache updates.
 
-Shared original-cache readers, incompatible layouts, static models or unrelated
-input overlaps reject mutation. These cases retain immutable input semantics,
-private output and any required Result copy-back. Distinct caller allocations
-execute the compute stage without the gather stage. A failed aliased inference
-can partly update caller memory; clear or restore it before retrying. GPU replay
-is disabled because stage selection can change with runtime bindings.
+The first kernel stages active rows and nonidentity reorder sources in private
+device scratch, applying logical reset and computation-precision rounding. The
+second computes convolution/GDN and performs ordered cache writes. Their dependency
+protects cycles and duplicate sources. Identity reorder rows need no scratch copy.
+A failed inference can leave caller state partly updated; clear or restore it before
+retrying.
 
-## Fused convolution
+## Computation outputs
 
-`RecurrentConvCacheUpdate` takes nine required inputs, including depthwise weights
-as input 8. It produces convolution `[1,B,T,C]` and the full updated cache as
-output 1 without an intermediate history/QKV tensor. The history-only mode used
-to compare ordinary GroupConvolution is removed. Cache reset, reorder and snapshot
-precedence are unchanged.
+`RecurrentConvCacheUpdate` takes nine inputs, including depthwise weights, and
+returns convolution `[1,B,T,C]`. `RecurrentGatedDeltaNetUpdate` takes twelve inputs
+and returns attention `[B,T,H,V]`. GDN stores the newest `min(T,snapshot_count)`
+states in its cache input, newest first. Ordinary GDN is unchanged. Unmatched
+llama.cpp graphs obtain state snapshots with ordinary GDN token prefixes and
+functional writeback instead of mutating a temporary bank.
 
-GDN always emits attention as output 0 and the full updated state cache as output
-1. It retains the newest `min(T,snapshot_count)` states for MTP, newest first.
-Ordinary GDN is unchanged and returns only the final state. Unmatched and naive
-frontend graphs obtain snapshots through a temporary cache bank and the new GDN
-Update op. Snapshot/rollback execution (including speculative decoding) requires
-the patched OpenVINO runtime/GPU plugin; released packages support ordinary GDN.
-
-Specifications: `recurrent-conv-cache-update.rst` and
-`recurrent-gated-delta-net-update.rst` in the internal operation documentation.
-Native tests in `recurrent_cache_update.cpp` compare convolution against a host
-calculation and GDN against ordinary GDN token prefixes with independent host cache
-mapping. They cover reset, cycles, duplicates, overlapping writes, mixed
-precision, changing shapes, aliased/distinct allocations, exclusive Reshapes,
-shared readers, unrelated overlaps, host/device USM and export/import. Core shape
-and attribute tests cover the nine-input convolution contract, rejection of
-missing weights and GDN snapshots.
+Native tests compare convolution against a host calculation and GDN against
+ordinary GDN prefixes with independent host cache mapping. They cover reset,
+cycles, duplicates, overlapping writes, mixed precision, changing shapes, input
+rebinding, exclusive Reshapes, shared-reader rejection, host/device USM and
+compiled-model export/import. Core shape/attribute tests enforce one output.
 
 ## Companion frontend
 

@@ -27,7 +27,6 @@ It supports in-place execution without changing the existing convolution operati
 **Outputs**
 
 * 0 convolution ``[1,B,T,C]`` in QKV precision, accumulated in FP32.
-* 1 the complete updated cache: same shape and precision as input 0.
 
 **Semantics**
 
@@ -42,32 +41,29 @@ The caller supplies in-bounds maps, ranges, and windows. Runtime dimensions and
 metadata may change on one compiled model.
 
 Cache reads, retained rows, and history writes round through QKV precision,
-matching the prior materialized computation path. Output 1 is a full cache even
-when only a few rows change.
+matching the prior materialized computation path. Cache input 0 is updated in place;
+no cache output is allocated.
 
-**GPU allocation and ordering**
+**Writable cache input and GPU ordering**
 
-Distinct caller allocations retain immutable input semantics. For dynamic
-execution, identical input/output device-USM or host-USM allocations can be bound directly
-when the cache has an exclusive graph reader and no other input overlaps the
-output. Memory-identical optimized Reshapes/views may connect the cache Parameter
-to the operation; the entire alias chain must be exclusive, including the root
-Parameter. The precision pass also preserves FP32 cache Reshape aliases when
-compute uses FP16, avoiding full-cache precision reorders before the operation.
-An independent reader at any step disables direct alias execution.
-Required active and nonidentity reorder sources are first captured in
-private device scratch. Scratch capacity is conservatively bounded by the
-active-map plus full extra-map lengths; skipping identity rows avoids transfers
-but does not reduce that allocated capacity. A dependency boundary completes this gather before the
-compute/writeback kernel starts. Cycles and duplicate sources are therefore safe;
-identity suffixes need no scratch writes. Each destination element has one writer.
-Already rounded retained values need no store, but are still read for precision
-rounding. There is no full-cache Result copy on this eligible alias path.
+Cache input 0 is updated in place. The caller binds a writable GPU RemoteTensor
+(device USM or host USM) and reads the updated cache after inference completes.
+The cache must originate from a Parameter, optionally through exclusive
+memory-preserving Reshapes. Other cache readers in the same inference and
+computed temporary cache banks are rejected during GPU compilation. Separate
+inputs and the computation output must not overlap the writable cache allocation. Ordinary host tensor
+inputs are copied to GPU storage and do not provide caller-visible writeback.
+The precision pass preserves the cache and its Reshape aliases in their original
+precision to avoid a full-cache conversion before the operation.
 
-Other bindings, shared graph readers, incompatible layouts, static models, and
-partial or unrelated overlaps use immutable-source output storage and any needed
-Result copy. GPU command replay is currently disabled for this new operation
-because its stage selection depends on runtime input/output aliasing.
+Required active and nonidentity reorder sources are captured in private device
+scratch before the compute/writeback kernel starts. The explicit dependency
+between these stages protects cycles, duplicate sources and overlapping writes.
+Identity reorder rows need no scratch writes. Each cache element has one writer;
+already rounded retained values need no store. Runtime token/sequence counts
+remain shape-agnostic and compiled-model export/import remains supported.
 
-An inference failure on the direct alias path can leave the caller's cache partly
-updated. The caller must clear or restore the cache before retrying.
+There is no cache Result, output binding, or immutable-input fallback within this
+operation. Callers requiring immutable cache inputs must use an ordinary
+functional decomposition instead. A failed inference can leave the cache partly
+updated; clear or restore it before retrying.

@@ -48,14 +48,12 @@ protected:
             a.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         for (uint32_t i = 0; i < p.input_layouts.size(); ++i)
             a.push_back({ArgumentDescriptor::Types::INPUT, i});
-        for (uint32_t i = 0; i < 2; ++i)
-            a.push_back({ArgumentDescriptor::Types::OUTPUT, i});
+        a.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         bool gdn = p.typed_desc<recurrent_cache_update>()->history == 0;
         if (m_stage == 2 && gdn)
             for (uint32_t i = 0; i < 7; ++i)
                 a.push_back({ArgumentDescriptor::Types::SCALAR, i});
         a.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        a.push_back({ArgumentDescriptor::Types::SCALAR, m_stage == 2 && gdn ? 7u : 0u});
         return a;
     }
     DispatchDataFunc get_dispatch_data_func() const override {
@@ -75,7 +73,7 @@ protected:
             } else {
                 size_t count = stage == 0 ? (size_t(p.get_input_layout(conv ? 1 : 6).count()) + p.get_input_layout(conv ? 2 : 7).count()) *
                                                 size_t(cache.get_partial_shape()[3].get_length())
-                                          : std::max(p.output_layouts[0].count(), p.output_layouts[1].count());
+                                          : std::max(p.output_layouts[0].count(), cache.count());
                 wg.global = {((count + 255) / 256) * 256, 1, 1};
                 wg.local = {256, 1, 1};
             }
@@ -97,10 +95,6 @@ protected:
                     kd.params.scalars.push_back(x);
                 }
             }
-            scalar_desc x;
-            x.t = scalar_desc::Types::INT32;
-            x.v.s32 = 0;
-            kd.params.scalars.push_back(x);
         }};
     }
 };
@@ -124,9 +118,6 @@ public:
     std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<CacheUpdateImpl>(this);
     }
-    bool supports_replay() const override {
-        return false;
-    }  // Stage choice depends on caller memory aliasing.
     std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& p) const override {
         bool c = p.typed_desc<recurrent_cache_update>()->history > 0;
         size_t n = 1;
@@ -140,8 +131,6 @@ public:
         kernel_dump_info.clear_entries();
         update_rt_params(inst);
         bool conv = inst.get_impl_params()->typed_desc<recurrent_cache_update>()->history > 0;
-        auto& engine = inst.get_network().get_engine();
-        bool inplace = engine.is_the_same_buffer(inst.input_memory(conv ? 0 : 3), inst.output_memory(1));
         auto& gather = conv ? conv_gather : gdn_gather;
         auto& compute = conv ? conv_compute : gdn_compute;
         std::vector<event::ptr> deps = events;
@@ -151,18 +140,11 @@ public:
                 kd.update_dispatch_data_func(*inst.get_impl_params(), kd, m_rt_params.get());
                 kd.need_dispatch_data_update = false;
             }
-            // A binding can alternate between alias and distinct without a shape
-            // change. Update the scalar/arguments only when this mode changes.
-            const int32_t mode = inplace ? 1 : 0;
-            kd.need_args_update |= kd.params.scalars.back().v.s32 != mode;
-            kd.params.scalars.back().v.s32 = mode;
             auto e = execute_stage(deps, inst, stage);
             deps = {e};
             return e;
         };
-        if (inplace) {
-            run(gather);
-        }
+        run(gather);
         return run(compute);
     }
 };

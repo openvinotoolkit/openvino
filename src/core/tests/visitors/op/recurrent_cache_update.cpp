@@ -51,9 +51,10 @@ TEST(attributes, recurrent_conv_cache_update) {
     NodeBuilder builder(node, args);
     auto restored = as_type_ptr<op::internal::RecurrentConvCacheUpdate>(builder.create());
     ASSERT_NE(restored, nullptr);
+    EXPECT_EQ(restored->get_output_size(), 1);
+    EXPECT_EQ(restored->get_output_partial_shape(0), node->get_output_partial_shape(0));
     EXPECT_EQ(builder.get_value_map_size(), 1);
     EXPECT_EQ(restored->get_history(), 3);
-    EXPECT_EQ(restored->get_output_partial_shape(1), node->get_output_partial_shape(1));
 }
 TEST(attributes, recurrent_gdn_update) {
     NodeBuilder::opset().insert<op::internal::RecurrentGatedDeltaNetUpdate>();
@@ -62,11 +63,12 @@ TEST(attributes, recurrent_gdn_update) {
     NodeBuilder builder(node, args);
     auto restored = as_type_ptr<op::internal::RecurrentGatedDeltaNetUpdate>(builder.create());
     ASSERT_NE(restored, nullptr);
+    EXPECT_EQ(restored->get_output_size(), 1);
+    EXPECT_EQ(restored->get_output_partial_shape(0), node->get_output_partial_shape(0));
     EXPECT_EQ(builder.get_value_map_size(), 4);
     EXPECT_TRUE(restored->get_fuse_qk_l2norm());
     EXPECT_FLOAT_EQ(restored->get_q_l2_norm_eps(), 1e-5f);
     EXPECT_FLOAT_EQ(restored->get_k_l2_norm_eps(), 2e-5f);
     EXPECT_EQ(restored->get_snapshot_count(), 3);
-    EXPECT_EQ(restored->get_output_partial_shape(1), node->get_output_partial_shape(1));
 }
 }  // namespace ov::test

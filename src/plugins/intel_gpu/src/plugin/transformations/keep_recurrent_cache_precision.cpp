@@ -12,14 +12,18 @@ bool KeepRecurrentCachePrecision::run_on_model(const std::shared_ptr<ov::Model>&
     bool changed = false;
     auto protect_cache = [](const ov::Input<ov::Node>& input) {
         auto source = input.get_source_output().get_node_shared_ptr();
-        auto root = source;
-        while (ov::is_type<ov::op::v1::Reshape>(root))
-            root = root->input_value(0).get_node_shared_ptr();
-        // Protect aliases of caller-owned cache Parameters. Temporary snapshot
-        // banks are computation results: their precision must follow the graph,
-        // including ordinary scatter writeback into a compressed destination.
-        if (!ov::is_type<ov::op::v0::Parameter>(root))
-            return;
+        auto value = input.get_source_output();
+        while (true) {
+            OPENVINO_ASSERT(value.get_target_inputs().size() == 1,
+                            "Recurrent cache must have an exclusive reader");
+            auto node = value.get_node_shared_ptr();
+            if (!ov::is_type<ov::op::v1::Reshape>(node)) {
+                OPENVINO_ASSERT(ov::is_type<ov::op::v0::Parameter>(node),
+                                "Recurrent cache must be a writable Parameter or a Reshape alias");
+                break;
+            }
+            value = node->input_value(0);
+        }
         ov::mark_as_precision_sensitive(input);
         // llama.cpp flattens its FP32 cache through Reshapes. Protect those
         // aliases too; marking only the consumer permits full-cache FP16 reorders.
