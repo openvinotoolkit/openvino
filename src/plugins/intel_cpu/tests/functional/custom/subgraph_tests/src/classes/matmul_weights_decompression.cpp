@@ -4,8 +4,12 @@
 
 #include "matmul_weights_decompression.hpp"
 
+#include <cstdint>
+#include <limits>
+
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "u3_symmetric_zero_point.hpp"
 
 using namespace CPUTestUtils;
 
@@ -153,12 +157,35 @@ void MatmulWeightsDecompression::check_results() {
     }
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64) && defined(OV_CPU_WITH_KLEIDIAI)
+    // Integer weights kept compressed under dynamic quantization (group size UINT64_MAX) must run
+    // on the KleidiAI executor; the other ARM FC executors would take the decompressed weights.
+    const auto dyn_quant_it = configuration.find(ov::hint::dynamic_quantization_group_size.name());
+    const bool kleidiai_dyn_quant = dyn_quant_it != configuration.end() &&
+                                    dyn_quant_it->second.as<uint64_t>() == std::numeric_limits<uint64_t>::max();
+    if (use_matmul_decompression_impl && kleidiai_dyn_quant && compressed_weights_precision.is_integral()) {
+        const auto implType = fc->get_rt_info().at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+        EXPECT_NE(implType.find("kleidiai"), std::string::npos) << "unexpected impl type: " << implType;
+    }
+#endif
+
     const auto& expected_weights_precision =
         use_matmul_decompression_impl ? compressed_weights_precision : fc->get_input_element_type(0);
     EXPECT_EQ(fc->get_input_element_type(1), expected_weights_precision);
 }
 
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    check_results();
+}
+
+void MatmulWeightsDecompressionU3SymmetricZp::SetUp() {
+    MatmulWeightsDecompression::SetUp();
+    make_u3_symmetric_zero_points(function);
+}
+
+TEST_P(MatmulWeightsDecompressionU3SymmetricZp, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();

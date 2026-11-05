@@ -5,14 +5,17 @@
 #include "reshape_to_static_gqa.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <unordered_set>
 
 #include "../logging.hpp"
 #include "../util.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace {
 
@@ -100,25 +103,63 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
 }
 
 // `sliding_window_cache=true` layers physically evict/repack their KV-cache ring buffer,
-// so they need their own, smaller static capacity derived from `local_window_size`
-// instead of the model-wide max_seq_len.
-//
-// Round local_window_size up to the NPU's 16-token KV granularity plus one headroom
-// block, so evictions are amortized rather than rolling the buffer on every token.
-std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::GroupQueryAttention& gqa) {
+// so they need their own static capacity instead of the model-wide max_seq_len.
+// The capacity is align16(window size) + align16(headroom size), using user-provided or deduced values.
+
+std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::GroupQueryAttention& gqa,
+                                                     std::optional<size_t> sliding_window_size,
+                                                     std::optional<size_t> sliding_window_headroom) {
+    using ov::op::internal::GroupQueryAttentionInputs;
     if (!gqa.get_sliding_window_cache()) {
         return std::nullopt;
     }
-    constexpr int64_t kAlign = 16;
-    constexpr int64_t kHeadroom = 16;
-    const int64_t window = gqa.get_local_window_size();
-    OPENVINO_ASSERT(window >= 1,
-                    "GQA op '",
-                    gqa.get_friendly_name(),
-                    "' has sliding_window_cache=true but an invalid local_window_size=",
-                    window);
-    const int64_t aligned = ((window + kAlign - 1) / kAlign) * kAlign;
-    return static_cast<size_t>(aligned + kHeadroom);
+
+    // Decide window size
+    std::optional<int64_t> window = std::nullopt;
+    // Window P1. Use user-provided sliding_window_size if available
+    if (sliding_window_size.has_value()) {
+        window = static_cast<int64_t>(*sliding_window_size);
+        const int64_t op_window = gqa.get_local_window_size();
+        if (op_window != -1 && *window < op_window) {
+            LOG_WARN("GQA op '" << gqa.get_friendly_name() << "': configured sliding window length " << *window
+                                << " is smaller than the op's local_window_size " << op_window);
+        }
+    }
+    // Window P2. Use the local window size from the GQA op attribute if available
+    if (!window.has_value() && gqa.get_local_window_size() != -1) {
+        window = gqa.get_local_window_size();
+    }
+    // Window P3. No window source is available: return nullopt so the caller falls back to other capacity sources
+    if (!window.has_value()) {
+        return std::nullopt;
+    }
+
+    // Decide headroom size
+    std::optional<int64_t> headroom = std::nullopt;
+    // Headroom P1. Use user-provided sliding_window_headroom if available
+    if (sliding_window_headroom.has_value()) {
+        headroom = static_cast<int64_t>(*sliding_window_headroom);
+    }
+    // Headroom P2. Use the static query sequence length if available.
+    // Skip this in the Generate case (length 1) and for dynamic length.
+    if (!headroom.has_value()) {
+        const auto& query_shape = gqa.get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
+        if (query_shape.rank().is_static() && query_shape.size() > 2 && query_shape[2].is_static() &&
+            query_shape[2].get_length() > 1) {
+            headroom = query_shape[2].get_length();
+        }
+    }
+    // Headroom P3. Default to 512 tokens if neither a configured value nor a query length is available
+    if (!headroom.has_value()) {
+        headroom = ::intel_npu::NPUW_LLM_SWA_HEADROOM::defaultValue();
+    }
+
+    auto align_size = [](int64_t size, int64_t align) {
+        return ((size + align - 1) / align) * align;
+    };
+    const int64_t aligned_window = align_size(*window, 16);
+    const int64_t aligned_headroom = align_size(*headroom, 16);
+    return static_cast<size_t>(aligned_window + aligned_headroom);
 }
 
 // Finds the GQA op that directly reads `parameter` as PAST_KEY/PAST_VALUE/ATTENTION_BIAS,
@@ -139,7 +180,12 @@ std::shared_ptr<ov::op::internal::GroupQueryAttention> find_gqa_consuming_parame
             if (gqa->get_input_size() <= static_cast<size_t>(input_idx)) {
                 continue;
             }
-            if (gqa->input_value(static_cast<size_t>(input_idx)).get_node_shared_ptr() == parameter) {
+            auto source = gqa->input_value(static_cast<size_t>(input_idx)).get_node_shared_ptr();
+            // Some models may have transposed V
+            if (ov::is_type<ov::op::v1::Transpose>(source)) {
+                source = source->input_value(0).get_node_shared_ptr();
+            }
+            if (source == parameter) {
                 return gqa;
             }
         }
@@ -192,7 +238,7 @@ std::optional<RtInfoSlidingWindowMetadata> find_rt_info_sliding_window_metadata(
 // no index parsing needed.
 //
 // The actual capacity number isn't in the graph at all (pure host-side eviction), so it
-// can only come from the caller-supplied m_default_sliding_window_capacity; if unset,
+// can only come from the caller-supplied m_sliding_window_size; if unset,
 // every layer just keeps the model-wide max_seq_len.
 bool has_sliding_window_seqlens_name(const ov::op::internal::GroupQueryAttention& gqa) {
     using ov::op::internal::GroupQueryAttentionInputs;
@@ -210,9 +256,11 @@ bool has_sliding_window_seqlens_name(const ov::op::internal::GroupQueryAttention
 }  // namespace
 
 ov::npuw::ReshapeToStaticGQA::ReshapeToStaticGQA(size_t max_seq_len,
-                                                 std::optional<size_t> default_sliding_window_capacity)
+                                                 std::optional<size_t> sliding_window_size,
+                                                 std::optional<size_t> sliding_window_headroom)
     : m_max_seq_len(max_seq_len),
-      m_default_sliding_window_capacity(default_sliding_window_capacity) {}
+      m_sliding_window_size(sliding_window_size),
+      m_sliding_window_headroom(sliding_window_headroom) {}
 
 bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     m_dynamic_kv_cache_axes = find_dynamic_kv_cache_axes(model);
@@ -225,16 +273,15 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
     // seqlens-name fallback using the caller-configured default.
     auto rt_info_metadata = find_rt_info_sliding_window_metadata(model);
     auto gqa_layer_index = rt_info_metadata ? index_gqa_layers(model) : std::unordered_map<const ov::Node*, int64_t>{};
-    LOG_INFO(
-        "ReshapeToStaticGQA: resolving per-layer KV-cache capacity (model-wide max_seq_len="
-        << m_max_seq_len << "); rt_info sliding-window metadata " << (rt_info_metadata ? "FOUND" : "NOT found")
-        << (rt_info_metadata
-                ? (", " + std::to_string(rt_info_metadata->sliding_layers.size()) +
-                   " layer(s) declared sliding_window_size=" + std::to_string(rt_info_metadata->sliding_window_size))
-                : std::string())
-        << "; seqlens-name fallback default "
-        << (m_default_sliding_window_capacity ? ("configured=" + std::to_string(*m_default_sliding_window_capacity))
-                                              : std::string("not configured")));
+    LOG_INFO("ReshapeToStaticGQA: resolving per-layer KV-cache capacity (model-wide max_seq_len="
+             << m_max_seq_len << "); rt_info sliding-window metadata " << (rt_info_metadata ? "FOUND" : "NOT found")
+             << (rt_info_metadata ? (", " + std::to_string(rt_info_metadata->sliding_layers.size()) +
+                                     " layer(s) declared sliding_window_size=" +
+                                     std::to_string(rt_info_metadata->sliding_window_size))
+                                  : std::string())
+             << "; seqlens-name fallback default "
+             << (m_sliding_window_size ? ("configured=" + std::to_string(*m_sliding_window_size))
+                                       : std::string("not configured")));
 
     // End-of-pass summary counters -- which mechanism(s) fired for this model.
     size_t resolved_via_rt_info = 0;
@@ -270,7 +317,8 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
             }
         }
         if (!resolved && gqa) {
-            if (auto window_capacity = sliding_window_target_capacity(*gqa)) {
+            if (auto window_capacity =
+                    sliding_window_target_capacity(*gqa, m_sliding_window_size, m_sliding_window_headroom)) {
                 target_capacity = std::min(*window_capacity, m_max_seq_len);
                 resolved = true;  // also skip the seqlens-name fallback below
                 resolved_via_op_attribute++;
@@ -279,8 +327,8 @@ bool ov::npuw::ReshapeToStaticGQA::run_on_model(const std::shared_ptr<ov::Model>
                                     << " tokens instead of the model-wide " << m_max_seq_len);
             }
         }
-        if (!resolved && gqa && m_default_sliding_window_capacity && has_sliding_window_seqlens_name(*gqa)) {
-            target_capacity = std::min(*m_default_sliding_window_capacity, m_max_seq_len);
+        if (!resolved && gqa && m_sliding_window_size && has_sliding_window_seqlens_name(*gqa)) {
+            target_capacity = std::min(*m_sliding_window_size, m_max_seq_len);
             resolved = true;
             resolved_via_seqlens_name_fallback++;
             LOG_INFO("GQA op '" << gqa->get_friendly_name()
