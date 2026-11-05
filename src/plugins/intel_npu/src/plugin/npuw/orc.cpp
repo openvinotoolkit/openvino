@@ -126,7 +126,7 @@ ov::npuw::orc::Section read_section(ov::npuw::orc::Stream& stream) {
     section.flags = header.flags;
 
     const auto size = checked_size(header.size);
-    stream.ensure_bytes_available(size);
+    OPENVINO_ASSERT(size <= stream.remaining(), "ORC section size exceeds available stream data");
     if (!section.is_container()) {
         section.payload.resize(size);
         if (size != 0u) {
@@ -220,26 +220,6 @@ std::size_t ov::npuw::orc::Stream::remaining() const {
         OPENVINO_THROW("Failed to determine the remaining ORC input stream size");
     }
     return ::checked_size(static_cast<std::uint64_t>(end - pos));
-}
-
-void ov::npuw::orc::Stream::ensure_bytes_available(const std::size_t size) const {
-    if (memory()) {
-        if (size > remaining()) {
-            OPENVINO_THROW("ORC section size exceeds available stream data");
-        }
-        return;
-    }
-
-    const auto current = checked_tellg(*m_input, "section size validation");
-    m_input->seekg(0, std::ios::end);
-    const auto end = checked_tellg(*m_input, "section size validation");
-    m_input->seekg(current);
-    if (!m_input->good()) {
-        OPENVINO_THROW("Failed to restore ORC input position after section size validation");
-    }
-    if (end < current || static_cast<std::uint64_t>(end - current) < size) {
-        OPENVINO_THROW("ORC section size exceeds available stream data");
-    }
 }
 
 void ov::npuw::orc::Stream::bytes(void* data, const std::size_t size) {
@@ -415,7 +395,7 @@ ov::npuw::orc::ScopedReadSection::ScopedReadSection(std::istream& stream) : m_st
     auto reader = Stream::reader(stream);
     reader & m_header;
     const auto size = checked_size(m_header.size);
-    reader.ensure_bytes_available(size);
+    OPENVINO_ASSERT(size <= reader.remaining(), "ORC section size exceeds available stream data");
     m_end = checked_tellg(stream, "section bounds") + checked_streamoff(size);
 }
 
