@@ -42,6 +42,9 @@ private:
     template <typename T>
     void executeImpl();
 
+    template <typename T>
+    struct NgramHashExecute;
+
     std::shared_ptr<JitKernel> m_jit_kernel;
     size_t m_ngram_size = 0;
     std::vector<int64_t> m_heads_per_order;

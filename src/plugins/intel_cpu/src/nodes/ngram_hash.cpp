@@ -25,6 +25,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/reference/ngram_hash_function.hpp"
+#include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
@@ -224,12 +225,27 @@ void NgramHash::executeImpl() {
     });
 }
 
-void NgramHash::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (m_precision == ov::element::i64) {
-        executeImpl<int64_t>();
-    } else {
-        executeImpl<int32_t>();
+namespace {
+struct NgramHashContext {
+    NgramHash& node;
+};
+}  // namespace
+
+template <typename T>
+struct NgramHash::NgramHashExecute {
+    void operator()(NgramHashContext& ctx) {
+        ctx.node.executeImpl<T>();
     }
+};
+
+void NgramHash::execute([[maybe_unused]] const dnnl::stream& strm) {
+    NgramHashContext ctx = {*this};
+    OV_SWITCH(intel_cpu,
+              NgramHashExecute,
+              ctx,
+              m_precision,
+              OV_CASE(ov::element::i32, int32_t),
+              OV_CASE(ov::element::i64, int64_t))
 }
 
 void NgramHash::executeDynamicImpl(const dnnl::stream& strm) {
