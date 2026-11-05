@@ -25,7 +25,6 @@ from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
     to_ov_float_type, torch_tensor_to_ov_const)
-    torch_tensor_to_ov_const)
 from openvino.frontend.pytorch.vmap_lowering import lower_vmap_regions
 
 logger = logging.getLogger(__name__)
