@@ -62,13 +62,14 @@ bool is_identity_quantizer_without_zp(const ov::Output<ov::Node>& in_low_n,
         return false;
     }
 
-    const float rtol = 1e-5f * std::abs(*in_high - *in_low);
+    // Tolerance: one quantization step (|scale|)
+    const float tol = std::abs(*s);
     const auto scaled_out_low = *out_low * *s;
     const auto scaled_out_high = *out_high * *s;
     auto isclose = [](float a, float b, float tolerance) {
         return std::abs(a - b) <= tolerance;
     };
-    return isclose(*in_low, scaled_out_low, rtol) && isclose(*in_high, scaled_out_high, rtol);
+    return isclose(*in_low, scaled_out_low, tol) && isclose(*in_high, scaled_out_high, tol);
 }
 
 }  // namespace
