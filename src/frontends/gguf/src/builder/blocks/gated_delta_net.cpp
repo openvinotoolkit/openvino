@@ -67,19 +67,20 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // Packed projections that read the same input ([qkv | z] and [beta | alpha]) are split back
     // into the separate weights the rest of the block reorders and merges.
     const auto unpack = [&](const std::string& packed, const std::array<std::pair<std::string, int64_t>, 2>& parts) {
-        if (!e.has_weight(packed + ".weight") || e.has_weight(parts[0].first + ".weight"))
+        const auto source = packed + ".weight";
+        if (!e.has_weight(source) || e.has_weight(parts[0].first + ".weight"))
             return;
-        const auto whole = e.weight_parts(packed);
-        OPENVINO_ASSERT(whole.weight.get_shape().size() == 2 &&
-                            whole.weight.get_shape()[0] == static_cast<size_t>(parts[0].second + parts[1].second),
+        OPENVINO_ASSERT(e.weight_rows(source) == parts[0].second + parts[1].second,
                         "[GGUF] unexpected rows of packed Gated-DeltaNet weight ",
                         packed);
-        size_t first = 0;
+        int64_t first = 0;
         for (const auto& [base, rows] : parts) {
-            const auto sliced = slice_rows(whole, first, static_cast<size_t>(rows));
-            OPENVINO_ASSERT(sliced, "[GGUF] cannot split packed Gated-DeltaNet weight ", packed);
-            store_parts(e, base, *sliced, e.weight_qtype(packed));
-            first += static_cast<size_t>(rows);
+            e.derive_weight(base + ".weight",
+                            "GGML_OP_VIEW",
+                            {source},
+                            3,
+                            {{"view_slice", std::vector<int64_t>{0, first, rows}}});
+            first += rows;
         }
     };
     unpack(p + "attn_qkv_gate", {{{p + "attn_qkv", conv_dim}, {p + "attn_gate", value_dim}}});
