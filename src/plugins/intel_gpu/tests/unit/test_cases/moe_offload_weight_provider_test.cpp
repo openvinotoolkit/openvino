@@ -75,6 +75,27 @@ TEST(moe_expert_weight_provider, offload_bind_rejects_insufficient_physical_capa
     EXPECT_TRUE(provider.is_bound());
 }
 
+TEST(moe_expert_weight_provider, offload_bind_rejects_invalid_logical_sizes) {
+    auto& engine = get_test_engine();
+    MOECompressed::Config config{};
+    config.num_expert = 4;
+    const layout backing_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto backing_memory = engine.allocate_memory(backing_layout, true);
+
+    for (const size_t bytes_count : {0U, 2U, 10U}) {
+        SCOPED_TRACE(bytes_count);
+        OffloadExpertWeightProvider provider(/*capacity=*/2, config, {}, "/nonexistent");
+        const layout invalid_layout({1, 1, 1, static_cast<int64_t>(bytes_count)}, data_types::u8, format::bfyx);
+        ASSERT_EQ(invalid_layout.bytes_count(), bytes_count);
+        cldnn::moe_weights resident{};
+        resident.gate_w = engine.reinterpret_buffer(*backing_memory, invalid_layout);
+
+        EXPECT_THROW(provider.bind(resident), ov::AssertFailure);
+        EXPECT_FALSE(provider.is_bound());
+        EXPECT_FALSE(provider.cache().is_initialized());
+    }
+}
+
 TEST(moe_expert_weight_provider, resident_try_acquire_simultaneous_is_identity) {
     ResidentExpertWeightProvider provider;
     std::vector<uint32_t> experts = {3, 7, 3, 1, 7};

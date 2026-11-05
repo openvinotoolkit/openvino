@@ -23,10 +23,17 @@ void validate_resident_buffer_capacity(const cldnn::memory::ptr& memory, size_t 
     }
 
     OPENVINO_ASSERT(total_experts > 0, "Invalid expert count while binding OTD buffer ", tensor_name);
-    const auto expert_bytes = memory->get_layout().bytes_count() / total_experts;
-    if (expert_bytes == 0) {
-        return;
-    }
+    const auto bytes_count = memory->get_layout().bytes_count();
+    OPENVINO_ASSERT(bytes_count != 0, "Invalid (zero-sized) OTD buffer while binding ", tensor_name);
+    OPENVINO_ASSERT(bytes_count % total_experts == 0,
+                    "Invalid OTD buffer size while binding ",
+                    tensor_name,
+                    ": bytes_count=",
+                    bytes_count,
+                    " is not divisible by total_experts=",
+                    total_experts);
+    const auto expert_bytes = bytes_count / total_experts;
+    OPENVINO_ASSERT(expert_bytes > 0, "Invalid per-expert byte size while binding OTD buffer ", tensor_name);
 
     const auto mem_tracker = memory->get_mem_tracker();
     OPENVINO_ASSERT(mem_tracker != nullptr, "Missing allocation metadata for OTD buffer ", tensor_name);
