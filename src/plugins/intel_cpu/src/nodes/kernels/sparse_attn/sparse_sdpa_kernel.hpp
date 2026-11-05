@@ -41,17 +41,9 @@ struct SparseKVQuant {
 
 namespace ov::Extensions::Cpu::XARCH {
 
-// Single cross-compiled entry point for ov::intel_cpu::node::SparseSDPA (see sparse_sdpa.h for the
-// algorithm description). The node's execute() does nothing but marshal MemoryPtrs into
-// PlainTensors, resolve its own GraphContext-owned DnnlScratchPad allocation (scratch sizing/
-// allocation needs GraphContext, which kernels/ must never depend on), and call this once --
-// mirroring nodes/paged_gated_delta_net.cpp's recurrent_linear_attn_paged() entry point. Every
-// other compute step (the run-by-run SIMD online-softmax path, the legacy AMX matrix-vector QK^T
-// with vectorized P@V, the brgemm prefill over head packs of sparse_brgemm_kernel.hpp, row
-// precision conversion) lives entirely inside sparse_sdpa_kernel.cpp, so it is
-// genuinely vectorized by cross_compiled_file()'s per-ISA clones instead of silently falling back
-// to scalar code the way calling header-only HAVE_AVX512F/HAVE_AVX2-guarded templates directly
-// from a plain translation unit would.
+// Single cross-compiled entry point of SparseSDPA (see sparse_sdpa.h). The node marshals the MemoryPtrs and the
+// scratch, which needs GraphContext, then calls this once. The SIMD decode, the brgemm prefill and the row conversion
+// stay in sparse_sdpa_kernel.cpp so the per-ISA clones vectorize them.
 void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          const ov::intel_cpu::PlainTensor& key,
                          const ov::intel_cpu::PlainTensor& value,
@@ -68,12 +60,6 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          float scale,
                          float* scratch_floats,
                          size_t per_thread_floats,
-                         ov::element::Type amx_prec,
-                         void* gemv_qk1_ptr,
-                         void* gemv_qk4_ptr,
-                         size_t amx_unit_blocks,
-                         int64_t* kv_chunk_scratch,
-                         size_t kv_chunk_scratch_per_thread,
                          const SparseBrgemm& brgemm,
                          const PackStateLayout& pack_layout,
                          const SparseBrgemmLayout& brgemm_layout,

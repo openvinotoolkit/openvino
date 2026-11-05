@@ -14,7 +14,6 @@
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
-#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
 #include "nodes/kernels/sparse_attn/sparse_attn_kernel.hpp"
@@ -255,223 +254,6 @@ void attend_blocks(DecodeItem& it, size_t count, StartFn start) {
 }
 
 #ifdef OPENVINO_ARCH_X86_64
-// A row's selected blocks (any order) split into KV chunks plus leftovers, in caller scratch (>= nblocks per array).
-// A chunk's K rows feed an AMX QK^T and its V rows P@V; its blocks are adjacent (read in place) or gathered.
-struct KvChunks {
-    int64_t* block_starts = nullptr;  // KV-row start (pad + id * Bk) of each chunk block, chunk after chunk
-    size_t block_count = 0;
-    int64_t* chunk_units = nullptr;  // merge units (1 or 4) per chunk: selects gemv_qk1 / gemv_qk4
-    size_t chunk_count = 0;
-    int64_t* leftover_block_start = nullptr;  // blocks that fill no whole unit: attended with the SIMD kernels
-    size_t leftover_count = 0;
-};
-
-// Splits sel_ids (any order, distinct) into KV chunks. Pass 1: adjacent blocks form 4-unit, then 1-unit, chunks read
-// in place. Pass 2: the remaining blocks, in list order, form the same chunks gathered by id; the rest are leftovers.
-void split_into_kv_chunks(const int32_t* sel_ids,
-                          size_t nblocks,
-                          size_t Bk,
-                          size_t unit_blocks,
-                          int64_t pad,
-                          KvChunks& result) {
-    result.chunk_count = 0;
-    result.block_count = 0;
-    result.leftover_count = 0;
-    const auto start_of = [&](size_t i) {
-        return pad + static_cast<int64_t>(sel_ids[i]) * static_cast<int64_t>(Bk);
-    };
-    // Pass 1. Example with unit_blocks = 1, ids {9, 5,6,7,8, 30, 20, 31}: a run needs id[i+1] == id[i] + 1, so the
-    // runs are {9}, {5..8}, {30}, {20}, {31}. Only {5..8} makes a 4-unit chunk (read in place); 9, 30, 20, 31 stay
-    // pending. Any order works: fewer adjacent blocks only means more gathering.
-    size_t i = 0;
-    while (i < nblocks) {
-        // The run is the maximal stretch of consecutive ids starting at position i: ids i, i+1, ... differ by 1.
-        size_t run_len = 1;
-        while (i + run_len < nblocks && sel_ids[i + run_len] == sel_ids[i] + static_cast<int32_t>(run_len)) {
-            run_len++;
-        }
-        // Carve whole chunks off the run, biggest first (4 units, then 1); j counts the run blocks consumed.
-        size_t j = 0;
-        for (const size_t units : {size_t{4}, size_t{1}}) {
-            const size_t blocks = units * unit_blocks;
-            while (run_len - j >= blocks) {
-                for (size_t k = 0; k < blocks; k++) {
-                    result.block_starts[result.block_count++] = start_of(i + j + k);
-                }
-                result.chunk_units[result.chunk_count++] = static_cast<int64_t>(units);
-                j += blocks;
-            }
-        }
-        // What does not fill a unit is kept for pass 2.
-        for (; j < run_len; j++) {
-            result.leftover_block_start[result.leftover_count++] = start_of(i + j);  // pending, see below
-        }
-        i += run_len;
-    }
-    // Pass 2. The pending blocks, in selection order, are not adjacent: form the same chunks from them (above:
-    // {9, 30, 20, 31}); their K/V rows are gathered by id. `taken` counts the pending blocks consumed.
-    const size_t pending = result.leftover_count;
-    size_t taken = 0;
-    for (const size_t units : {size_t{4}, size_t{1}}) {
-        const size_t blocks = units * unit_blocks;
-        while (pending - taken >= blocks) {
-            std::copy_n(result.leftover_block_start + taken, blocks, result.block_starts + result.block_count);
-            result.block_count += blocks;
-            result.chunk_units[result.chunk_count++] = static_cast<int64_t>(units);
-            taken += blocks;
-        }
-    }
-    // Move the blocks that fit no chunk to the front of the leftover list.
-    if (taken > 0) {
-        std::copy(result.leftover_block_start + taken,
-                  result.leftover_block_start + pending,
-                  result.leftover_block_start);
-    }
-    result.leftover_count = pending - taken;
-}
-
-// Copies (or dequantizes) the key rows of a gathered chunk's blocks into contiguous scratch, as the AMX kernel needs.
-// Quantized values go to v_buf; plain values are read in place by the caller.
-template <typename AmxT>
-void gather_chunk_rows(const DecodeItem& it, const int64_t* starts, size_t n_blocks, AmxT* k_buf, AmxT* v_buf) {
-    for (size_t j = 0; j < n_blocks; j++) {
-        const auto pos = static_cast<size_t>(starts[j]);
-        AmxT* k_dst = k_buf + j * it.Bk * it.Dh;
-        if (it.key_quant.enabled()) {
-            dequant_rows<AmxT>(it.key, it.key_quant, it.b, it.kv, pos, it.Bk, it.Dh, k_dst);
-        } else {
-            std::memcpy(k_dst, it.key.ptr<AmxT>(it.b, it.kv, pos), it.Bk * it.Dh * sizeof(AmxT));
-        }
-        if (it.value_quant.enabled()) {
-            dequant_rows<AmxT>(it.value, it.value_quant, it.b, it.kv, pos, it.Bk, it.Dv, v_buf + j * it.Bk * it.Dv);
-        }
-    }
-}
-
-// Attends the KV chunks: QK^T of each head is an AMX matrix-vector product, P@V a vectorized FMA. Adjacent chunks are
-// read in place; others are gathered by id into k_dq_buf / v_dq_buf. Needs QUERY, KEY and VALUE at one 16-bit
-// precision.
-template <typename AmxT>
-void attend_amx_chunks(DecodeItem& it,
-                       ov::Extensions::Cpu::JitMatMulVecAMX& gemv1,
-                       ov::Extensions::Cpu::JitMatMulVecAMX& gemv4,
-                       size_t unit_rows,
-                       const KvChunks& chunks,
-                       AmxT* k_dq_buf,
-                       AmxT* v_dq_buf) {
-    if (chunks.chunk_count == 0) {
-        return;
-    }
-    constexpr auto prec = prec_of<AmxT>();
-    const size_t unit_blocks = unit_rows / it.Bk;
-    const auto Bk = static_cast<int64_t>(it.Bk);
-    // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one tile_config()/tile_release()
-    // bracket covers calls into either kernel below.
-    gemv1.tile_config();
-    size_t first_block = 0;  // of the chunk, in chunks.block_starts
-    for (size_t idx = 0; idx < chunks.chunk_count; idx++) {
-        const auto n_units = static_cast<size_t>(chunks.chunk_units[idx]);
-        const size_t n_blocks = n_units * unit_blocks;
-        const int64_t* starts = chunks.block_starts + first_block;
-        first_block += n_blocks;
-        const size_t chunk_len = n_units * unit_rows;
-        bool adjacent = true;
-        for (size_t j = 1; j < n_blocks; j++) {
-            adjacent = adjacent && starts[j] == starts[0] + static_cast<int64_t>(j) * Bk;
-        }
-
-        // the rows of the chunk the query attends (a prefix when adjacent); a chunk without any (only the last one can
-        // be, under causal) contributes nothing
-        size_t visible = chunk_len;
-        const AmxT* k_amx = nullptr;
-        AmxT* v_amx = nullptr;
-        if (adjacent) {
-            const int64_t block_start = starts[0];
-            visible = static_cast<size_t>(
-                std::clamp<int64_t>(it.valid_end - block_start, 0, static_cast<int64_t>(chunk_len)));
-            if (visible == 0) {
-                continue;
-            }
-            // a quantized cache is dequantized into the per-thread scratch first (contiguous rows, as the JIT kernel
-            // needs); the rows past the end of the cache are zeroed, they are masked out below
-            const size_t valid_rows = std::min(chunk_len, it.S - std::min(it.S, static_cast<size_t>(block_start)));
-            if (it.key_quant.enabled()) {
-                dequant_rows<AmxT>(it.key,
-                                   it.key_quant,
-                                   it.b,
-                                   it.kv,
-                                   static_cast<size_t>(block_start),
-                                   valid_rows,
-                                   it.Dh,
-                                   k_dq_buf);
-                std::fill(k_dq_buf + valid_rows * it.Dh, k_dq_buf + chunk_len * it.Dh, AmxT{});
-                k_amx = k_dq_buf;
-            } else {
-                k_amx = it.key.ptr<AmxT>(it.b, it.kv, static_cast<size_t>(block_start));
-            }
-        } else {
-            // Selected blocks are complete and, under causal, before the query, so all their rows are attended; a
-            // block that is not (a producer outside the contract) takes the generic path, which clamps to the visible
-            // rows.
-            bool attended = true;
-            for (size_t j = 0; j < n_blocks; j++) {
-                attended = attended && visible_rows(it, starts[j], Bk) == Bk;
-            }
-            if (!attended) {
-                for (size_t j = 0; j < n_blocks; j++) {
-                    attend_run(it, starts[j], Bk);
-                }
-                continue;
-            }
-            gather_chunk_rows<AmxT>(it, starts, n_blocks, k_dq_buf, v_dq_buf);
-            k_amx = k_dq_buf;
-            if (it.value_quant.enabled()) {
-                v_amx = v_dq_buf;
-            }
-        }
-
-        auto& kernel = n_units == 4 ? gemv4 : gemv1;
-        for (size_t head = 0; head < it.pack; head++) {
-            kernel(it.query.ptr<AmxT>(it.b, it.first_head + head, it.l), k_amx, it.scores + head * it.score_stride);
-        }
-        for (size_t head = 0; head < it.pack; head++) {
-            softmax_step(it, head, chunk_len, visible);
-        }
-        if (adjacent) {
-            if (it.value_quant.enabled()) {
-                const auto block_start = static_cast<size_t>(starts[0]);
-                const size_t valid_rows = std::min(chunk_len, it.S - std::min(it.S, block_start));
-                dequant_rows<AmxT>(it.value, it.value_quant, it.b, it.kv, block_start, valid_rows, it.Dv, v_dq_buf);
-                std::fill(v_dq_buf + valid_rows * it.Dv, v_dq_buf + chunk_len * it.Dv, AmxT{});
-                v_amx = v_dq_buf;
-            } else {
-                v_amx = it.value.ptr<AmxT>(it.b, it.kv, static_cast<size_t>(starts[0]));
-            }
-        }
-        for (size_t head = 0; head < it.pack; head++) {
-            if (v_amx == nullptr) {
-                // gathered blocks of a plain cache: P@V block by block, straight from the cache
-                for (size_t j = 0; j < n_blocks; j++) {
-                    attn_acc_value_block<AmxT, prec>(it.acc + head * it.Dv,
-                                                     it.scores + head * it.score_stride + j * it.Bk,
-                                                     it.value.ptr<AmxT>(it.b, it.kv, static_cast<size_t>(starts[j])),
-                                                     it.Dv,
-                                                     it.Bk,
-                                                     0);
-                }
-                continue;
-            }
-            attn_acc_value_block<AmxT, prec>(it.acc + head * it.Dv,
-                                             it.scores + head * it.score_stride,
-                                             v_amx,
-                                             it.Dv,
-                                             visible,
-                                             0);
-        }
-    }
-    gemv1.tile_release();
-}
-
 // ---- AMX prefill over a pack of query heads (sparse_brgemm_kernel.hpp) ----
 
 // The dense caches for the shared tile loop: the key/value rows of (batch b, kv head) are contiguous in positions; the
@@ -548,7 +330,7 @@ void attention_item_brgemm(const SdpaBrgemmArgs& a, size_t b, size_t l, size_t p
     const size_t kv = first_head / (a.Hq / a.Hkv);
     const size_t sh = first_head / (a.Hq / a.H_sel);
     const auto S = static_cast<int64_t>(a.key.size(2));
-    // Bottom-right-aligned logical position of the query, see the per-head loop of sparse_sdpa_compute().
+    // Bottom-right-aligned logical position of the query, see the decode loop of sparse_sdpa_compute().
     const int64_t token_pos = S - static_cast<int64_t>(a.query.size(2)) + static_cast<int64_t>(l);
     const int64_t pad = a.key_length ? S - static_cast<int64_t>(a.key_length[a.key_length_batch_stride * b]) : 0;
 
@@ -637,12 +419,6 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          float scale,
                          float* scratch_floats,
                          size_t per_thread_floats,
-                         ov::element::Type amx_prec,
-                         void* gemv_qk1_ptr,
-                         void* gemv_qk4_ptr,
-                         size_t amx_unit_blocks,
-                         int64_t* kv_chunk_scratch,
-                         size_t kv_chunk_scratch_per_thread,
                          const SparseBrgemm& brgemm,
                          const PackStateLayout& pack_layout,
                          const SparseBrgemmLayout& brgemm_layout,
@@ -653,10 +429,6 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          const SparseKVQuant& key_quant,
                          const SparseKVQuant& value_quant,
                          const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-#ifdef OPENVINO_ARCH_X86_64
-    auto* gemv_qk1 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk1_ptr);
-    auto* gemv_qk4 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk4_ptr);
-#endif
     const size_t q_per_sel = num_heads / h_sel;
     const size_t group = num_heads / num_kv_heads;
 
@@ -665,9 +437,13 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
     const size_t S = key.size(2);
 
 #ifdef OPENVINO_ARCH_X86_64
-    // Prefill (more than one query): the query heads that share a K head and a selection head are one work item (matrix
-    // products over the gathered rows), whatever the thread count. Decode (one query) keeps the per-head loop below.
-    if (brgemm.enabled() && causal && L > 1) {
+    // Prefill, or a decode whose selection holds enough K / V bytes (kBrgemmDecodeMinBytes): the query heads sharing a
+    // K head and a selection head are one item of matrix products over the gathered rows. Other decodes keep the loop
+    // below.
+    const bool decode_brgemm =
+        sel_indices.size(3) * sel_block_size * (k_head_size + v_head_size) * brgemm.prec.size() >=
+        kBrgemmDecodeMinBytes;
+    if (brgemm.enabled() && causal && (L > 1 || decode_brgemm)) {
         const SdpaBrgemmArgs args{query,
                                   key,
                                   value,
@@ -703,12 +479,10 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
     // Query heads sharing a K head and a selection head form one item: the rows are read once for all of them. With too
     // little work for the threads (a decode of few sequences) every head is its own item.
     const size_t max_pack = max_q_head_pack_size(num_heads, num_kv_heads, h_sel);
-    const bool amx = amx_prec != ov::element::dynamic;
     const SdpaDecodeScratch layout(k_head_size,
                                    v_head_size,
                                    max_pack,
                                    sel_block_size,
-                                   amx ? amx_unit_blocks : 0,
                                    key_quant.enabled() || value_quant.enabled());
     OPENVINO_ASSERT(layout.total <= per_thread_floats, "[CPU] sparse_sdpa: scratch is too small");
     // Items are (b, pack, l). A pack shares the chunk split and the K/V reads but divides the item count, so use packs
@@ -772,49 +546,7 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
         const auto block_start = [&](size_t i) {
             return pad + static_cast<int64_t>(block_ids[i]) * static_cast<int64_t>(sel_block_size);
         };
-#ifdef OPENVINO_ARCH_X86_64
-        if (amx && nblocks > 0) {
-            // Per-thread slice of the chunk scratch allocated by the caller, 3 arrays of K_max entries (nblocks > 0
-            // here implies kv_chunk_scratch is non-null, as nblocks <= K_max is asserted above).
-            const size_t K_max_per_thread = kv_chunk_scratch_per_thread / 3;
-            OPENVINO_ASSERT(nblocks <= K_max_per_thread, "[CPU] sparse_sdpa: kv chunk scratch is too small");
-            KvChunks kv_chunks;
-            kv_chunks.block_starts = kv_chunk_scratch + tid * kv_chunk_scratch_per_thread;
-            kv_chunks.chunk_units = kv_chunks.block_starts + K_max_per_thread;
-            kv_chunks.leftover_block_start = kv_chunks.chunk_units + K_max_per_thread;
-            split_into_kv_chunks(block_ids, nblocks, sel_block_size, amx_unit_blocks, pad, kv_chunks);
-            const auto unit_rows = amx_unit_blocks * sel_block_size;
-            // dequantized K / V rows of a quantized cache for one chunk (AmxT elements)
-            if (amx_prec == ov::element::bf16) {
-                auto* k_dq = reinterpret_cast<ov::bfloat16*>(it.dequant);
-                attend_amx_chunks<ov::bfloat16>(it,
-                                                *gemv_qk1,
-                                                *gemv_qk4,
-                                                unit_rows,
-                                                kv_chunks,
-                                                k_dq,
-                                                k_dq + 4 * unit_rows * k_head_size);
-            } else {
-                auto* k_dq = reinterpret_cast<ov::float16*>(it.dequant);
-                attend_amx_chunks<ov::float16>(it,
-                                               *gemv_qk1,
-                                               *gemv_qk4,
-                                               unit_rows,
-                                               kv_chunks,
-                                               k_dq,
-                                               k_dq + 4 * unit_rows * k_head_size);
-            }
-            // Blocks that couldn't be grouped into a complete 16-row-multiple AMX chunk (too short a run, or the
-            // remainder after merging as many whole units as fit) still need to contribute: attend them run by run.
-            attend_blocks(it, kv_chunks.leftover_count, [&](size_t i) {
-                return kv_chunks.leftover_block_start[i];
-            });
-        } else {
-            attend_blocks(it, nblocks, block_start);
-        }
-#else
         attend_blocks(it, nblocks, block_start);
-#endif
 
         // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never
         // encodes the current incomplete trailing block. When causal, this consumer must derive and

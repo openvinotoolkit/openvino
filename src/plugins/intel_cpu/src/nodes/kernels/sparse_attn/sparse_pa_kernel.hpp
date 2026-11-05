@@ -47,17 +47,11 @@ struct SparsePAScratchLayout {
     // Shared by every path: the state of the head pack (accumulators, running softmax maximum / sum).
     PackStateLayout pack;
 
-    // Scalar and legacy GEMV paths (run by run, matrix-vector AMX).
-    size_t q = 0;          ///< float[pack, k_head_size]: query rows of the pack, f32
-    size_t scores = 0;     ///< float[pack, max_run_rows]: scores, then weights, of a run of key rows
-    size_t raw = 0;        ///< float[pack, 4 * amx_unit_blocks * key_block_size]: GEMV chunk scores / weights
-    size_t kv_chunks = 0;  ///< 3 * int64[max_selected_blocks]: the QK chunks of the GEMV path (see KvChunks)
-    size_t k_run = 0;      ///< quantized caches: float[max_run_rows, k_head_size] dequantized key run
-    size_t v_run = 0;      ///< quantized caches, pack > 1: float[max_run_rows, v_head_size] dequantized value run
-    size_t k_dq = 0;  ///< AMX: data-type[4 * amx_unit_blocks * key_block_size, k_head_size]: dequantized key chunk, or
-                      ///< the keys of a chunk of blocks gathered by id
-    size_t v_dq = 0;  ///< AMX: data-type[4 * amx_unit_blocks * key_block_size, v_head_size]: dequantized value chunk
-                      ///< (quantized caches)
+    // SIMD path (run by run).
+    size_t q = 0;       ///< float[pack, k_head_size]: query rows of the pack, f32
+    size_t scores = 0;  ///< float[pack, max_run_rows]: scores, then weights, of a run of key rows
+    size_t k_run = 0;   ///< quantized caches: float[max_run_rows, k_head_size] dequantized key run
+    size_t v_run = 0;   ///< quantized caches, pack > 1: float[max_run_rows, v_head_size] dequantized value run
 
     // Brgemm path: the gather tile, the scores / weights and the brgemm scratch.
     SparseBrgemmLayout brgemm;
@@ -66,15 +60,12 @@ struct SparsePAScratchLayout {
 
     /// @param max_run_rows most key rows of one run: the page size when adjacent selected blocks are merged inside a
     /// page, key_block_size when they are not
-    /// @param amx_unit_blocks 0 when the legacy GEMV path is not used
     /// @param max_pack_size max_q_head_pack_size()
-    /// @param data_size size in bytes of the query/key/value data type (the AMX scratch holds that type)
+    /// @param data_size size in bytes of the query/key/value data type
     SparsePAScratchLayout(size_t k_head_size,
                           size_t v_head_size,
                           size_t key_block_size,
                           size_t max_run_rows,
-                          size_t max_selected_blocks,
-                          size_t amx_unit_blocks,
                           size_t max_pack_size,
                           size_t data_size,
                           const SparsePAQuant& quant,
@@ -82,13 +73,9 @@ struct SparsePAScratchLayout {
         : pack(0, k_head_size, v_head_size, max_pack_size, data_size, false),
           q(pack.total),
           scores(q + aligned(max_pack_size * k_head_size * sizeof(float))),
-          raw(scores + aligned(max_pack_size * max_run_rows * sizeof(float))),
-          kv_chunks(raw + aligned(max_pack_size * amx_rows(amx_unit_blocks, key_block_size) * sizeof(float))),
-          k_run(kv_chunks + aligned(amx_unit_blocks != 0 ? 3 * max_selected_blocks * sizeof(int64_t) : 0)),
+          k_run(scores + aligned(max_pack_size * max_run_rows * sizeof(float))),
           v_run(k_run + aligned(key_run_rows(quant, max_pack_size, max_run_rows) * k_head_size * sizeof(float))),
-          k_dq(v_run + aligned(value_run_rows(quant, max_pack_size, max_run_rows) * v_head_size * sizeof(float))),
-          v_dq(k_dq + aligned(amx_rows(amx_unit_blocks, key_block_size) * k_head_size * data_size)),
-          brgemm(v_dq + aligned(amx_rows(amx_unit_blocks, key_block_size) * v_head_size * data_size),
+          brgemm(v_run + aligned(value_run_rows(quant, max_pack_size, max_run_rows) * v_head_size * sizeof(float)),
                  k_head_size,
                  v_head_size,
                  max_pack_size,
@@ -97,10 +84,6 @@ struct SparsePAScratchLayout {
           total(brgemm.total) {}
 
 private:
-    // 0 when the legacy GEMV path is not used
-    static size_t amx_rows(size_t amx_unit_blocks, size_t key_block_size) {
-        return amx_unit_blocks * 4 * key_block_size;
-    }
     // Quantized keys are dequantized to f32 for by-channel keys and for packs; values for packs.
     static size_t key_run_rows(const SparsePAQuant& quant, size_t max_pack_size, size_t max_run_rows) {
         return quant.enabled() && (quant.key_bychannel || max_pack_size > 1) ? max_run_rows : 0;
@@ -139,10 +122,6 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                        bool causal,
                        float scale,
                        const SparsePAQuant& quant,
-                       ov::element::Type amx_prec,
-                       void* gemv_qk1,
-                       void* gemv_qk4,
-                       size_t amx_unit_blocks,
                        size_t max_run_rows,
                        const SparseBrgemm& brgemm,
                        uint8_t* scratch,

@@ -37,10 +37,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_HselEqualsHkv,
                                           testing::Values(SparseSDPAShape{})),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
-// AMX QK^T fast path: bf16 end-to-end, k_head_size % 32 == 0, sel_block_size == 4 -- the real
-// Qwen4 production shape (smaller than the JIT kernel's native 16-row granularity, so this also
-// exercises the m_amx_unit_blocks block-merging path). Falls back to the scalar kernel
-// transparently on non-AMX hardware -- same pass/fail bar either way.
+// AMX paths: bf16 end-to-end, k_head_size % 32 == 0, sel_block_size == 4 (the real Qwen4 production shape). Falls back
+// to the SIMD kernels on non-AMX hardware, with the same pass/fail bar.
 INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX,
                          SparseSDPALayerCPUTest,
                          testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
@@ -157,10 +155,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX_Packed,
                          testing::ValuesIn(packed_cases()),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
-// The selected blocks in random order instead of ascending (SparseAttention does not depend on the order): bf16 with
-// the AMX head sizes, where the adjacent runs of the ascending order are gone and the blocks of an AMX chunk are
-// gathered by id (the long shape selects 20 blocks, which a 4-unit chunk of 16 blocks gathers), the non-AMX precisions,
-// the non-adjacent step and padded batches.
+// The selected blocks in random order instead of ascending (SparseAttention does not depend on the order, no adjacent
+// runs remain): bf16 with the AMX head sizes, the non-AMX precisions, the non-adjacent step and padded batches.
 INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_Shuffled,
                          SparseSDPALayerCPUTest,
                          testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),

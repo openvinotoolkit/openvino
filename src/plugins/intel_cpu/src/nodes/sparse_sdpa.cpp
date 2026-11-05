@@ -52,7 +52,6 @@
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <numeric>
 
-#    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #    include "nodes/kernels/sparse_attn/sparse_kernel_cache.hpp"
 #endif
 
@@ -209,11 +208,8 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
 void SparseSDPA::createPrimitive() {
     [[maybe_unused]] const auto Dh = static_cast<size_t>(getInputShapeAtPort(InputIdx::QUERY).getDims()[3]);
 #ifdef OPENVINO_ARCH_X86_64
-    const auto Bk = m_key_block_size;
-    // The matrix type of the AMX paths: bf16 / f16 when QUERY, KEY and VALUE are natively that type end to end (the
-    // cache of the stateful form is always kept in the query's precision) and the CPU has the matching AMX. Both AMX
-    // paths read KEY / VALUE zero-copy at this precision, rather than through the precision-agnostic load_row_f32() of
-    // the run-by-run fallback.
+    // The matrix type of the AMX prefill: bf16 / f16 when QUERY, KEY and VALUE are natively that type end to end (the
+    // cache of the stateful form is always kept in the query's precision) and the CPU has the matching AMX.
     ov::element::Type amx_type = ov::element::dynamic;
     {
         const auto qprec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
@@ -227,24 +223,8 @@ void SparseSDPA::createPrimitive() {
             amx_type = ov::element::f16;
         }
     }
-    // Legacy matrix-vector AMX path (QK^T of one head): the JIT kernel limits are that head_size must be a whole number
-    // of 32-wide bf16/f16 B-tiles, up to kMaxHeadSize (sizes above 192 take the kernel's K-chunk loop). Its own
-    // block_size (rows per AMX call) must be a multiple of 16, but Bk itself need not be -- see m_amx_unit_blocks
-    // below, which merges adjacent selected blocks up to a valid 16-row-multiple chunk.
-    if (Dh % 32 == 0 && Dh <= ov::Extensions::Cpu::JitMatMulVecAMX::kMaxHeadSize && Bk > 0) {
-        m_amx_prec = amx_type;
-    }
-    if (m_amx_prec != ov::element::dynamic) {
-        // Smallest number of adjacent Bk-sized blocks whose combined row count is a multiple of 16
-        // (e.g. Bk=4 -> 4 blocks = 16 rows; Bk=16 -> 1 block = 16 rows; Bk=2 -> 8 blocks = 16 rows).
-        m_amx_unit_blocks = 16 / std::gcd(static_cast<size_t>(16), Bk);
-        const auto unit_rows = m_amx_unit_blocks * Bk;
-        const auto cache = context->getParamsCache();
-        m_gemv_qk1 = get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(unit_rows), m_amx_prec);
-        m_gemv_qk4 = get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(4 * unit_rows), m_amx_prec);
-    }
-    // Prefill over packs of query heads (brgemm products, whose M is the pack): independent of the limits of the JIT
-    // kernel above, it needs the AMX type, a causal op and static head counts.
+    // Prefill over packs of query heads (brgemm products, whose M is the pack): it needs the AMX type, a causal op and
+    // static head counts.
     const auto q_heads = getInputShapeAtPort(InputIdx::QUERY).getDims()[1];
     const auto k_heads = getInputShapeAtPort(InputIdx::KEY).getDims()[1];
     const auto sel_heads = getInputShapeAtPort(InputIdx::SEL_INDICES).getDims()[1];
@@ -360,33 +340,20 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
         key_length_batch_stride = key_length.size(0) == 1 ? 0 : 1;
     }
 
-    // Per-thread f32 scratch of the decode path (see SdpaDecodeScratch), then per-thread int64 KV-chunk scratch:
-    // block_starts[K_max] | chunk_units[K_max] | leftover_block_start[K_max], K_max being the last dimension of
-    // SEL_INDICES (known only at run time). The DnnlScratchPad is one shared, grow-only buffer: a second
-    // createScratchPadMem() that grows it frees the first one's memory, so ONE combined request is made and sliced by
-    // byte offset. It needs GraphContext, so it stays here, outside the cross-compiled sparse_sdpa_compute().
-    size_t amx_unit_blocks = 0;
-    size_t kv_chunk_scratch_per_thread = 0;
-#ifdef OPENVINO_ARCH_X86_64
-    if (m_amx_prec != ov::element::dynamic) {
-        amx_unit_blocks = m_amx_unit_blocks;
-        const size_t K_max = sel_indices.size(3);
-        kv_chunk_scratch_per_thread = 3 * K_max;
-    }
-#endif
+    // Per-thread decode scratch (see SdpaDecodeScratch), then the per-thread buffers of the brgemm prefill. The
+    // DnnlScratchPad is one shared, grow-only buffer: a second request that grows it frees the first, so ONE combined
+    // request is sliced by byte offset.
     const ov::Extensions::Cpu::SdpaDecodeScratch decode_scratch(
         Dh,
         Dv,
         ov::Extensions::Cpu::max_q_head_pack_size(Hq, Hkv, H_sel),
         Bk,
-        amx_unit_blocks,
         key_quant.enabled() || value_quant.enabled());
     const size_t per_thread_floats = decode_scratch.total;
     const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
     const size_t float_bytes = num_threads * per_thread_floats * sizeof(float);
-    const size_t float_bytes_aligned = rnd_up(float_bytes, alignof(int64_t));
-    const size_t kv_chunk_bytes = num_threads * kv_chunk_scratch_per_thread * sizeof(int64_t);
-    // Third region: the per-thread buffers of the brgemm prefill (64-byte aligned parts): the state of the head pack,
+    const size_t float_bytes_aligned = ov::Extensions::Cpu::aligned(float_bytes);
+    // Second region: the per-thread buffers of the brgemm prefill (64-byte aligned parts): the state of the head pack,
     // then the gather tile and the brgemm scratch (see PackStateLayout, SparseBrgemmLayout).
     ov::Extensions::Cpu::PackStateLayout pack_layout;
     ov::Extensions::Cpu::SparseBrgemmLayout brgemm_layout;
@@ -406,16 +373,13 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
         brgemm_bytes_per_thread = brgemm_layout.total;
     }
 #endif
-    const size_t brgemm_offset = ov::Extensions::Cpu::aligned(float_bytes_aligned + kv_chunk_bytes);
+    const size_t brgemm_offset = float_bytes_aligned;
     auto scratch_desc = std::make_shared<CpuBlockedMemoryDesc>(
         ov::element::u8,
         ov::intel_cpu::Shape{brgemm_offset + num_threads * brgemm_bytes_per_thread});
     const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(scratch_desc);
     auto* const scratch_base_bytes = scratch->getDataAs<uint8_t>();
     auto* const scratch_base = reinterpret_cast<float*>(scratch_base_bytes);
-    [[maybe_unused]] int64_t* const runs_base =
-        kv_chunk_scratch_per_thread > 0 ? reinterpret_cast<int64_t*>(scratch_base_bytes + float_bytes_aligned)
-                                        : nullptr;
     uint8_t* const brgemm_base = brgemm_bytes_per_thread > 0 ? scratch_base_bytes + brgemm_offset : nullptr;
 
     ov::Extensions::Cpu::XARCH::sparse_sdpa_compute(query,
@@ -435,20 +399,8 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                     scratch_base,
                                                     per_thread_floats,
 #ifdef OPENVINO_ARCH_X86_64
-                                                    m_amx_prec,
-                                                    m_gemv_qk1.get(),
-                                                    m_gemv_qk4.get(),
-                                                    m_amx_unit_blocks,
-                                                    runs_base,
-                                                    kv_chunk_scratch_per_thread,
                                                     m_brgemm.handle,
 #else
-                                                    ov::element::dynamic,
-                                                    nullptr,
-                                                    nullptr,
-                                                    0,
-                                                    nullptr,
-                                                    0,
                                                     ov::Extensions::Cpu::SparseBrgemm{},
 #endif
                                                     pack_layout,

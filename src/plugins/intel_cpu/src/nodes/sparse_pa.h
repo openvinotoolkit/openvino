@@ -12,7 +12,6 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
-#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "nodes/kernels/sparse_attn/sparse_pa_kernel.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -108,7 +107,7 @@ private:
     /// @brief Bytes of scratch writeKV() needs for `tokens` tokens and caches of `block_size` rows per page.
     [[nodiscard]] size_t writeKVScratchBytes(size_t tokens, size_t block_size) const;
     /// @brief Per-thread scratch layout of the kernel for a selected_block_indices width.
-    [[nodiscard]] ov::Extensions::Cpu::SparsePAScratchLayout scratchLayout(size_t max_selected_blocks) const;
+    [[nodiscard]] ov::Extensions::Cpu::SparsePAScratchLayout scratchLayout() const;
 
     Config m_config{};
     ov::Extensions::Cpu::SparsePAQuant m_quant{};
@@ -117,30 +116,6 @@ private:
     ov::Extensions::Cpu::SparseBrgemmKernels m_brgemm;
 #endif
     size_t m_max_run_rows = 0;  // most key rows of one run, see SparsePAScratchLayout
-
-    // AMX QK^T fast path: ov::element::dynamic means "not eligible" (decided once in
-    // createPrimitive(), never re-checked per call). Only activates when QUERY/KEY_CACHE are
-    // already natively bf16 (or natively f16) end-to-end -- no forced downcast of f32 data. The
-    // AMX path reads exclusively from KEY_CACHE/VALUE_CACHE (never the transient current-step
-    // KEY/VALUE inputs), so KEY_CACHE's negotiated precision -- not KEY's -- is what must match
-    // QUERY and the target ISA.
-    ov::element::Type m_amx_prec = ov::element::dynamic;
-#ifdef OPENVINO_ARCH_X86_64
-    // The JIT kernel requires its block_size (rows per AMX call) to be a multiple of 16, but real
-    // key_block_size values (e.g. 4 for Qwen4) are usually smaller than that -- so AMX calls merge
-    // m_amx_unit_blocks adjacent selected blocks (== 16 / gcd(16, key_block_size)) into one valid
-    // 16-row call. m_gemv_qk1 therefore has block_size = m_amx_unit_blocks * key_block_size, and
-    // m_gemv_qk4 has 4x that, to further amortize over longer runs of adjacent selected blocks --
-    // never built at all if the physical page (KEY_CACHE's dim 2, static only) can't even fit one full unit.
-    // Both kernels are safe to share read-only across worker threads: tile_config()/tile_release()
-    // only touch per-thread AMX hardware state, and operator() only reads immutable JIT code plus
-    // the pointers passed in. A run shorter than m_amx_unit_blocks (or the remainder after merging
-    // as many full units as fit, or one capped at a physical-page boundary) falls back to the
-    // scalar per-token path.
-    std::shared_ptr<ov::Extensions::Cpu::JitMatMulVecAMX> m_gemv_qk1;
-    std::shared_ptr<ov::Extensions::Cpu::JitMatMulVecAMX> m_gemv_qk4;
-    size_t m_amx_unit_blocks = 0;
-#endif
 };
 
 }  // namespace ov::intel_cpu::node

@@ -3,17 +3,12 @@
 //
 #pragma once
 
-// What the nodes and the sparse attention kernels (SparsePA with paged caches, SparseSDPA with dense caches) share of
-// the AMX prefill path: the query-head pack, the brgemm kernels and their scratch layout. The tile computation itself
-// is in sparse_brgemm_kernel.hpp.
-//
-// Vocabulary (the blocking levels of the sparse kernels; the names are used the same way in all the files)
-//   head pack         query heads that share both the K/V head and the selection head (the M of the brgemm products)
-//   selected run      logically consecutive selected blocks, gathered with one copy
-//   gather tile       up to kGatherTileRows selected key rows gathered for the brgemm products, the unit of the online
-//   softmax brgemm row block  the kBrgemmRowBlock key rows processed by one brgemm call (N of QK, K of P.V) GEMV row
-//   unit     (legacy matrix-vector AMX path) a 16-row multiple of adjacent blocks, `chunk` there is 1 or 4 units QK
-//   head-dim chunk (legacy QK JIT kernel) a slice of the head dimension when it does not fit the tile registers
+// Shared by the nodes and the sparse attention kernels (SparsePA, SparseSDPA): the head pack, the brgemm kernels and
+// their scratch layout. The tile computation is in sparse_brgemm_kernel.hpp.
+
+// Vocabulary: head pack = query heads sharing a K/V head and a selection head (the M of the products); selected run =
+// consecutive selected blocks, gathered by one copy; gather tile = up to kGatherTileRows key rows; brgemm row block =
+// kBrgemmRowBlock rows per brgemm call.
 
 #include <algorithm>
 #include <cstddef>
@@ -36,6 +31,10 @@ constexpr size_t kBrgemmRowBlock = 32;
 /// @brief Key rows of one gather tile: the most rows an item gathers before processing them (a multiple of
 /// kBrgemmRowBlock). Bounds the scratch of an item (and keeps it in cache) whatever the width of the selection.
 constexpr size_t kGatherTileRows = 128;
+
+/// @brief A decode uses the brgemm path of the head pack, not per-head SIMD items, when its selection holds at least
+/// this many K + V bytes (rows x (k + v head size) x element size): brgemm wins from about 2 MB, SIMD below 1 MB.
+constexpr size_t kBrgemmDecodeMinBytes = 3 * 512 * 1024;
 
 /// @brief Row stride of the attention weights in elements of the 16-bit data type. The weights overwrite the f32 scores
 /// in place (a row of `tile_rows` floats becomes `tile_rows` 16-bit values at the start of the same row), so the P.V
@@ -96,9 +95,8 @@ inline size_t aligned(size_t bytes) {
     return ov::intel_cpu::div_up(bytes, alignment) * alignment;
 }
 
-/// @brief Byte layout of the state of one head pack in the per-thread scratch, shared by every path of the sparse
-/// kernels (scalar, legacy GEMV and brgemm); every part is 64-byte aligned. `offset` is where it starts inside the
-/// thread's scratch, `total` the end of it.
+/// @brief Byte layout of the state of one head pack in the per-thread scratch, shared by the SIMD and brgemm paths;
+/// every part is 64-byte aligned. `offset` is where it starts inside the thread's scratch, `total` the end of it.
 struct PackStateLayout {
     size_t q_rows = 0;       ///< data-type[pack, k_head_size]: the pack's query rows, when they are not contiguous
     size_t acc = 0;          ///< float[pack, v_head_size]: attention accumulators of the pack

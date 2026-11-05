@@ -302,7 +302,7 @@ std::vector<SparsePALayerTestParams> quantized_cases() {
                                        /*group_size=*/0,
                                        /*sel_heads=*/2,
                                        /*selection=*/kRandom)),
-            // 16 selected blocks span two 32-token pages, so four adjacent blocks inside one page (an AMX chunk) occur.
+            // 16 selected blocks span two 32-token pages, so runs of four adjacent blocks inside one page occur.
             make_case(bf16,
                       /*head_size=*/256,
                       Batch::kMixed,
@@ -335,9 +335,8 @@ std::vector<SparsePALayerTestParams> quantized_cases() {
                                        /*max_blocks=*/128))};
 }
 
-// The same cases with the selected blocks of a row in random order instead of ascending: SparseAttention does not
-// depend on the order, so the adjacent blocks of the ascending order are gone and the AMX chunks gather the blocks by
-// id.
+// The same cases with the selected blocks of a row in random order instead of ascending (SparseAttention does not
+// depend on the order): no adjacent runs remain.
 std::vector<SparsePALayerTestParams> shuffled(std::vector<SparsePALayerTestParams> cases) {
     for (auto& test_case : cases) {
         std::get<2>(test_case).shuffle_blocks = true;

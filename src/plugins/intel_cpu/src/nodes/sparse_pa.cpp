@@ -41,7 +41,6 @@
 #    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <numeric>
 
-#    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #    include "nodes/kernels/sparse_attn/sparse_kernel_cache.hpp"
 #endif
 
@@ -245,53 +244,9 @@ void SparsePA::createPrimitive() {
     // every block is its own run.
     m_max_run_rows = page_size != Shape::UNDEFINED_DIM ? page_size : m_config.key_block_size;
 #ifdef OPENVINO_ARCH_X86_64
-    const auto Bk = m_config.key_block_size;
-    // JIT kernel limits: head_size must be a whole number of 32-wide bf16/f16 B-tiles, up to kMaxHeadSize (sizes
-    // above 192 take the kernel's K-chunk loop). The JIT kernel's own block_size (rows per AMX call) must be a multiple
-    // of 16, but Bk itself need not be -- see m_amx_unit_blocks below, which merges adjacent selected blocks up to a
-    // valid 16-row-multiple chunk.
-    if (Dh % 32 == 0 && Dh <= ov::Extensions::Cpu::JitMatMulVecAMX::kMaxHeadSize && Bk > 0 &&
-        page_size != Shape::UNDEFINED_DIM) {
-        const auto qprec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
-        // The AMX path reads exclusively from KEY_CACHE/VALUE_CACHE (never the transient
-        // current-step KEY/VALUE inputs), so those are the precisions that must match QUERY and
-        // the target ISA, not KEY/VALUE's.
-        const auto kprec = getOriginalInputPrecisionAtPort(InputIdx::KEY_CACHE);
-        const auto vprec = getOriginalInputPrecisionAtPort(InputIdx::VALUE_CACHE);
-        // Quantized caches are dequantized into AMX-typed scratch chunk by chunk, so only plain caches need to
-        // match the query precision.
-        const bool caches_match = m_quant.enabled() || (qprec == kprec && qprec == vprec);
-        if (caches_match && qprec == ov::element::bf16 &&
-            dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) {
-            m_amx_prec = ov::element::bf16;
-        } else if (caches_match && qprec == ov::element::f16 &&
-                   dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16)) {
-            m_amx_prec = ov::element::f16;
-        }
-    }
-    if (m_amx_prec != ov::element::dynamic) {
-        // Smallest number of adjacent Bk-sized blocks whose combined row count is a multiple of 16
-        // (e.g. Bk=4 -> 4 blocks = 16 rows; Bk=16 -> 1 block = 16 rows; Bk=2 -> 8 blocks = 16 rows).
-        m_amx_unit_blocks = 16 / std::gcd(static_cast<size_t>(16), Bk);
-        const auto unit_rows = m_amx_unit_blocks * Bk;
-        // Unlike sparse_sdpa's dense cache (where a merge run is only bounded by S), a merge unit
-        // here must also fit inside one physical page -- if the page itself can't host even one
-        // full unit, the AMX kernels would never be invocable, so skip building them entirely.
-        if (unit_rows <= page_size) {
-            const auto cache = context->getParamsCache();
-            m_gemv_qk1 = get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(unit_rows), m_amx_prec);
-            m_gemv_qk4 =
-                get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(4 * unit_rows), m_amx_prec);
-        } else {
-            m_amx_prec = ov::element::dynamic;
-            m_amx_unit_blocks = 0;
-        }
-    }
-#endif
-#ifdef OPENVINO_ARCH_X86_64
-    // Prefill with AMX matrix products over the selected rows of a work item (see sparse_brgemm_kernel.hpp): bf16 / f16
-    // data on hardware with the matching AMX, a pack of several query heads (the M of the products), and the causal
-    // selection.
+    // AMX matrix products over the selected rows of a work item (see sparse_brgemm_kernel.hpp), for the prefill and the
+    // decode of a large selection: bf16 / f16 data on hardware with the matching AMX, a pack of several query heads
+    // (the M of the products), and the causal selection.
     const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
     const bool amx =
         (query_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
@@ -310,20 +265,16 @@ void SparsePA::createPrimitive() {
 #endif
 }
 
-ov::Extensions::Cpu::SparsePAScratchLayout SparsePA::scratchLayout(size_t max_selected_blocks) const {
+ov::Extensions::Cpu::SparsePAScratchLayout SparsePA::scratchLayout() const {
 #ifdef OPENVINO_ARCH_X86_64
-    const size_t amx_unit_blocks = m_amx_prec != ov::element::dynamic ? m_amx_unit_blocks : 0;
     const auto brgemm_sizes = ov::Extensions::Cpu::sparse_brgemm_sizes(m_brgemm.handle);
 #else
-    const size_t amx_unit_blocks = 0;
     const ov::Extensions::Cpu::SparseBrgemmSizes brgemm_sizes{};
 #endif
     return {m_config.k_head_size,
             m_config.v_head_size,
             m_config.key_block_size,
             m_max_run_rows,
-            max_selected_blocks,
-            amx_unit_blocks,
             ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
                                                       m_config.num_kv_heads,
                                                       m_config.num_selection_heads),
@@ -383,7 +334,7 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     // The width of selected_block_indices is only needed by phase 2 (it sizes the AMX run decomposition), so it need
     // not be static.
-    const auto layout = scratchLayout(sel_indices.size(2));
+    const auto layout = scratchLayout();
     // Phase 2 scratch: one block per worker thread, then one token id per token for the kernel's work list (see
     // WorkList).
     const size_t thread_scratch_bytes =
@@ -422,17 +373,6 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
         c.causal,
         scale,
         m_quant,
-#ifdef OPENVINO_ARCH_X86_64
-        m_amx_prec,
-        m_gemv_qk1.get(),
-        m_gemv_qk4.get(),
-        m_amx_unit_blocks,
-#else
-        ov::element::dynamic,
-        nullptr,
-        nullptr,
-        0,
-#endif
         m_max_run_rows,
 #ifdef OPENVINO_ARCH_X86_64
         m_brgemm.handle,
