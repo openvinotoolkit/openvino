@@ -691,9 +691,11 @@ Plain (non-PA) multi-token SDPA with f16 Q / K / V at `d_max` 128 on Xe2+ (`solv
 stage with at least 128 queries and 2K keys takes the PA PREFILL `d_max` 128 workgroup (16 x 64 subgroup tiles, 16 x 2
 subgroups = 256 keys x 128 queries, 256 GRF, `sdpa_micro`'s `xehpc_h128`) with `WIDE_READS` 1, `PREFETCH_V`,
 `SOFTMAX_BRANCHLESS` and `MAX_SPLIT_BARRIER`. Every other f16 `d_max` 128 multi-token stage, shape-agnostic ones
-included, keeps the 128 x 32 table tile with those same loop changes. `CAUSAL_MASK_LAST_ONLY` / `CAUSAL_TILE_SKIP`
-stay PA only (the first rejects lower-right causal and an attention mask by `#error`; on PTL-H the pair failed to
-build for the plain kernel); plain SDPA never emits `MICRO_MATH`. bf16 and compressed K/V keep the bare table: neither
+included, keeps the 128 x 32 table tile with those same loop changes. An `is_causal` stage of either tile also takes
+`CAUSAL_TILE_SKIP`, and a non-causal table-tile stage without a mask its KQ branch ("Plain-SDPA causal tile skip" below). `CAUSAL_MASK_LAST_ONLY` stays PA only: it rejects lower-right
+causal and an attention mask by `#error`, which is how the pair failed to build for the plain kernel on PTL-H
+(`CL_BUILD_PROGRAM_FAILURE`; ocloc for ptl-h gives the same -11 with `CAUSAL_MASK_LAST_ONLY` 1 alone and builds the
+skip alone). Plain SDPA never emits `MICRO_MATH`. bf16 and compressed K/V keep the bare table: neither
 was measured with these paths.
 
 The loop changes do not change a result: with the table tile, all 42 bench cases (static, dynamic K, dynamic Q + K)
@@ -722,9 +724,9 @@ table tile with the loop changes; below 2K the loop changes alone give 0.90-0.97
 The table tile stays faster than the large one at 1K keys (1.02-1.06x) and 512 (1.29x), and at fewer than 128 queries
 (64 queries over 4K keys: 1.15-1.32x), hence the threshold; at 1.5K the large tile would be 0.94-0.99x. The PTL-H B390
 measurement that introduced this policy (PR-39316 shapes) gave 0.994 / 0.995 of `sdpa_micro` with PR-39316, from 0.52
-/ 0.74. Remaining against `sdpa_micro` on B70: short static chunks (1.00-1.15x at 512-1.5K keys; 0.98x at 8K), static
-self-attention prompts (2K: 1.11x, 4K: 1.05x; `sdpa_micro` skips the causal tiles, `CAUSAL_TILE_SKIP` is PA only
-here), and decode (`sdpa_ocl_mixed`, unchanged: 1.07-1.15x).
+/ 0.74. Remaining against `sdpa_micro` on B70 at that point: short static chunks (1.00-1.15x at 512-1.5K keys; 0.98x
+at 8K), static self-attention prompts (2K: 1.11x, 4K: 1.05x; `sdpa_micro` skips the causal tiles), and decode
+(`sdpa_ocl_mixed`, unchanged: 1.07-1.15x). The causal tile skip below closed the first two.
 
 A shape-agnostic stage keeps the table tile because no single tile wins across shapes. With dynamic Q + K, the 256 x
 128 tile is 0.75-0.95x the table at 128+ queries over 2K+ keys and at 4K-8K-token prompts, but 1.16-1.47x at 16-64
@@ -737,6 +739,83 @@ shape-agnostic stage chosen in `execute()` ("Performance opportunities").
 `SDPA_OCL_PLAIN_MIRROR=0/1` forces the table / the 256 x 128 tile on every such stage, static and shape-agnostic (the
 f16 gate stays), `SDPA_OCL_PLAIN_TABLE_FLAGS=0` the bare table (both need a `SDPA_OCL_NO_GETENV=OFF` build). Bench:
 `test/xe3_test/b70_repro` (kit README), `sdpa_micro_prefill_config_bench` there is not part of the tree.
+
+### Plain-SDPA causal tile skip
+
+`CAUSAL_TILE_SKIP` ("Paged-attention PREFILL: short prompts") is on for a plain-SDPA PREFILL stage with `is_causal`
+that takes the f16 `d_max` 128 loop changes above: the 256 x 128 tile and the table tile, static and shape-agnostic.
+`add_prefill_pipeline_jit()` gates it on `config.is_causal`, which PA always sets, so PA keeps its default (non-causal
+table-tile stages take its KQ branch for another reason, below).
+The kernel already bounded each subgroup by the lower-right `causal_offset = max(0, k - q)` its causal predicate uses
+(so with k < q the skip drops a subset of what the predicate masks). A skipped key's score is set to `-INFINITY` by the
+predicate, a select that an attention mask added under `is_causal` does not get past, and its V block adds 0, so no
+result changes with finite inputs: 75 bench cases (static and dynamic Q + K, q = k 512-8K at 32 / 32, 32 / 8 and 28 / 4
+heads; the 16 chunks of an 8K prompt and their dynamic cases; k < q; a diagonal at offset 2000) gave bit-identical
+outputs with the skip on and off.
+
+Measured on B70 (GPU.1 pinned at 1800 MHz; one cliloader process per case and side, 100 warm-ups + 400 calls, min
+device time, sides interleaved per case, 3 rounds, median, round-to-round spread <= 2.4%), lower-right causal, f16,
+head 128, us per call:
+
+| Case (32 / 32 heads unless noted) | skip off | skip on | `sdpa_micro` (master) |
+|---|---|---|---|
+| static q = k 512 | 69.5 | 54.5 | 67.4 |
+| static q = k 1K | 211.1 | 180.7 | 200.1 |
+| static q = k 2K | 713.9 | 638.9 | 642.5 |
+| static q = k 4K | 2,363 | 2,218 | 2,260 |
+| static q = k 8K | 8,447 | 8,184 | 8,410 |
+| dynamic Q + K, q = k 2K | 715.0 | 664.9 | 693.0 |
+| 16 chunks of 512 queries over 512..8192 keys, sum | 8,871 | 8,587 | 8,924 |
+| the same, 28 / 4 heads | 8,253 | 7,996 | 8,295 |
+
+On / off is 0.76-0.99 on every case, the gain shrinking with the share of diagonal tiles (q / k): 0.78 for 512 queries
+over 512 keys, 0.98 over 8K. Against `sdpa_micro` every case is 0.75-0.99x except the 512-query chunk over 1.5K keys
+(1.006-1.011x); static q = k 2K / 4K went from 1.11x / 1.05x to 0.99x / 0.98x. The table is the env A/B of one build
+(`SDPA_OCL_CAUSAL_SKIP=0/1`); the default builds before / after this change repeated every case within 0.9%, with the
+same outputs. The "Plain-SDPA PREFILL tiling" numbers were taken with the clock unpinned and are not comparable.
+
+**Non-causal stages: the KQ branch alone.** A non-causal stage of the table tile without an attention mask also takes
+`CAUSAL_TILE_SKIP` (`sdpa_ocl_config_t::noncausal_kq_branch`, set with the table tile's loop changes; the mask test is
+the one `add_mask_jit()` uses: no const scalar, runtime scalar or tensor mask). There it skips only the subgroups whose
+16 keys all lie past `k` (the last tile), yet it is faster: as a runtime branch, `if (key_base < min(k_tile_end,
+kq_sg_causal_k))` puts the KQ depth loop in a basic block of its own, and IGC then issues the first two K block reads
+ahead of the eight Q SLM reads instead of each right before its DPAS, so the DPAS no longer waits on the K latency.
+Evidence (q = k 512, 32 / 32 heads, static): the k0 loop has the same 32 DPAS / 14 block reads / 33 SLM reads either way
+and 55 more instructions with the branch (jumps, compares, `sync.allrd`), but the KQ phase reads `KK ssssssss DD ...`
+instead of `sKsDD ...`; kernel variants injected through cliloader (`CLI_InjectProgramSource`, same JIT text) gave
+skip off 92.7 us, KQ branch only 85.5, S*V skip only 93.6, both 86.5, and the KQ branch with a constant `if (1)` 92.8
+(IGC folds it, no block split, old schedule). Why IGC's scheduler picks the late order in the joined block is internal to
+IGC; the S*V skip stays causal-only in the kernel (`#elif CAUSAL_TILE_SKIP && IS_CAUSAL`).
+
+| Non-causal, us per call (3 rounds, median) | before | KQ branch | KQ branch + S*V skip |
+|---|---|---|---|
+| static q = k 512, 32 / 32 heads, head 128 | 92.7 | 85.6 | 86.7 |
+| static q 16 / k 1024 | 21.5 | 16.2 | 17.9 |
+| static q 1024 / k 1500 (cross-attention shape) | 490.6 | 437.9 | 439.7 |
+| shape-agnostic q = k 4K | 5,147 | 4,548 | 4,665 |
+| shape-agnostic q = k 2K, head 96 / 112 | 1,169 / 1,318 | 1,108 / 1,278 | 1,110 / 1,270 |
+| static q = k 729, 16 heads, head 72 (SigLIP) | 152.7 | 149.8 | 149.2 |
+| shape-agnostic q = k 1K / 4K, 16 heads, head 80 (Qwen2-VL vision) | 192.0 / 2,537 | 185.5 / 2,504 | 197.9 / 2,535 |
+| with a full 2D mask: static 512 / shape-agnostic 2K, head 128; 4K head 80 | 103.2 / 1,483 / 3,240 | 103.1 / 1,498 / 3,313 | - |
+
+Over 26 non-causal cases without a mask (static and shape-agnostic, 16-8K queries, head 72 / 80 / 96 / 112 / 128, GQA)
+the KQ branch was 0.76-0.97x at head 96-128 and 0.97-0.999x at head 72 / 80, never slower; with the S*V skip as well it
+was -2% to +10% against the branch alone (and slower than before at head 72 / 80). With a mask it was 0.997-1.022x, and on the
+256 x 128 tile 1.002-1.009x, so those keep the old code (their ISA is identical to before). Outputs were bit-identical
+with and without it in every case. `sdpa_gpu_noncausal_tail` checks the table tile element-wise against the host
+reference where `k` ends inside a key tile and inside a subgroup (max |diff| 1.2e-4-2.4e-4, bound 4e-3, Q in [-4, 4]);
+with the non-causal subgroup bound 16 keys early the four rows without a mask fail (0.06-0.21) and the masked one,
+which does not take the branch, passes unchanged.
+
+A NaN or Inf in V at a key the causal mask hides no longer reaches the output from inside the diagonal tile (keys past
+the workgroup's diagonal were never read). `sdpa_ref` multiplies every V row by its weight, 0 for a masked key, so a
+NaN there makes its output NaN. Tests: `sdpa_gpu_causal_mask.prefill_static_*` (256 x 128 tile: upper-left q = k 2K,
+lower-right 512 / 2560 and 300 / 2300; table tile: 28 / 4 heads 200 / 1100) and `prefill_32q_32kv_300q_2300kv`
+(shape-agnostic) compare element-wise with the explicit-mask reference, Q in [-4, 4]: max |diff| 0 for the static rows
+(same tiling on both sides), 1.2e-4 for the shape-agnostic one (bounds 2e-3 / 5e-3). With the skip bounds 16 keys
+early all five fail (max |diff| 0.05-0.09; cosine 0.98 for the upper-left one), as do three older cosine-only rows.
+Not measured: plain `d_max` 64 / 256 (no loop changes there; PA `d_max` 64 lost with the skip), head sizes below 128
+within `d_max` 128, other devices (the ptl-h build is checked with ocloc only).
 
 ### Kernel flow
 
@@ -778,8 +857,9 @@ The block-level causal skip (`causal_block_clear`) is the counterpart of `sdpa_m
 (key x query) blocks are entirely inside the causal region; without the skip every one of them
 still paid 32 selects and 8 compares per (qb, k0) iteration, 16% of the loop body.
 
-Within the diagonal tile, PA PREFILL also skips the KQ of a subgroup whose keys all follow its queries and the S*V
-blocks after a subgroup's score rows (`CAUSAL_TILE_SKIP`, "Paged-attention PREFILL: short prompts").
+Within the diagonal tile, PA PREFILL (and plain-SDPA causal PREFILL at f16 `d_max` 128) also skips the KQ of a subgroup
+whose keys all follow its queries and the S*V blocks after a subgroup's score rows (`CAUSAL_TILE_SKIP`, "Paged-attention
+PREFILL: short prompts", "Plain-SDPA causal tile skip").
 
 For `CAUSAL_MASK_LOWER_RIGHT` (plain SDPA) every query moves by `causal_offset = max(0, k - q)`,
 the shift `sdpa_micro` / reference / `sdpa_opt` apply. Without it a single new token (q == 1,
@@ -1504,7 +1584,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_PA_K_WIDE`, `SDPA_OCL_PA_K_WIDE_TILES` | MIXED f16 token-major K page: `0` reads one depth tile per message (default 1, two per message); depth tiles issued together, an even number (default 4) |
 | `SDPA_OCL_PA_CUR_F16` | MIXED current tokens from Kc/Vc (default for compressed caches only; `0` = from the cache) |
 | `SDPA_OCL_MIXED_PREFETCH_V`, `_K` | u4 / i8 MIXED page prefetches ("Paged-attention MIXED tiling", "... i8 and f16 caches"): `0`/`1` forces each off/on where the 8-bit page read is on |
-| `SDPA_OCL_CAUSAL_SKIP` | PA PREFILL causal tile skip ("Paged-attention PREFILL: short prompts"): `0`/`1` forces it off/on (default on at `d_max` 128 / 256 / 512) |
+| `SDPA_OCL_CAUSAL_SKIP` | PREFILL causal tile skip ("Paged-attention PREFILL: short prompts", "Plain-SDPA causal tile skip"): `0`/`1` forces it off/on (default on for PA at `d_max` 128 / 256 / 512, for plain `is_causal` f16 `d_max` 128, and as the KQ branch alone for plain non-causal table-tile stages without a mask) |
 | `SDPA_OCL_MICRO_MATH` | `0` / `1` forces `sdpa_micro` rounding off / on for PA prefill (default on except the `d_max` 512 tile) |
 | `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
 | `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths |
@@ -1632,7 +1712,7 @@ no window code at all, but it only gets an op `SDPAOpt` refuses, which the path 
 - Tests: `smoke/sdpa_sliding_window_test.basic` runs every case on `sdpa_ocl` (`_dpas`, skips off the lane or with the
   knob off) and on the opt stage kernels (`_opt`, `enable_sdpa_micro(false)`), and checks which kernel compiled;
   `opt_stage_kernels_apply_sliding_window` pins the opt stage kernels the same way (its single-element mask went to
-  `sdpa_ocl`) against `sdpa_ref`; `smoke_GQASlidingWindow` (`ov_gpu_func_tests`) runs the GQA end to end against the
+  `sdpa_ocl`); all three check against the host reference with the explicit causal + window mask ("Test coverage gaps"); `smoke_GQASlidingWindow` (`ov_gpu_func_tests`) runs the GQA end to end against the
   TEMPLATE plugin (native window, windowed cache with an explicit scale, full-length cache; head 64 / 128). On the B70:
   all pass; without the jit line the 6 `_dpas` cases whose window cuts a key fail (cosine 0.57 to 0.89) and the rest
   pass; with the bound one key tile too high 6 `_dpas` cases and `causal_true_with_explicit_mask` fail; the func test
@@ -1918,8 +1998,25 @@ BY_TOKEN cache, a compressed cache with token_type_ids, or the u4 scalar page ar
 112). `sdpa_ocl_decode`'s low-register layout at `Q_PER_WG = 8` is reached by
 `smoke_paged_attention` basic/186-189 (u4, kv group 8, heads 512 with `V_TWIN_PAIR` and 256), but only
 the `sharp_softmax` rows (187, 189) fail when the twin store or the zp-correction bias is broken; the
-plain rows pass either way. Lower-right causal masking is checked only by `sdpa_gpu_causal_mask` (cosine >= 0.99),
-and several suites check only finiteness, cache contents or cosine >= 0.95.
+plain rows pass either way. Lower-right causal masking is checked only by `sdpa_gpu_causal_mask` (element-wise on its
+`prefill_static_*` and 300 / 2300 rows, cosine >= 0.99 on the rest), and several suites check only finiteness, cache
+contents or cosine >= 0.95.
+
+`force_implementations` with a kernel name does not choose between the `ocl_v2` SDPA impls: only the impl type and the
+format are used (the name reaches kernel_selector impls only), so a network forced to `"sdpa_ref"` runs `SDPAOpt`
+(`sdpa_ocl` on its lane) unless `SDPAOpt` rejects the shape. Measured with cliloader per test
+(`test/xe3_test/b70_repro/logs/refaudit.txt`): `smoke_sdpa_gpu_test` and
+`sdpa_gpu_custom.static_mismatched_kv_head_size_multi_token_uses_sg_scale_factor_2` compared the kernel with itself; the
+sliding-window tests (`smoke/sdpa_sliding_window_test`, `causal_true_with_explicit_mask`,
+`opt_stage_kernels_apply_sliding_window`) and the dequantized-KV reference of `run_compressed_kv_sdpa_test()` ran the
+same kernel on another path (explicit mask; uncompressed KV), so the shared attention math went unchecked. All of them,
+and `sdpa_gpu_causal_mask` / `sdpa_gpu_noncausal_tail`, now check against `sdpa_host_reference()` (`ov::reference`, f32,
+per head on all host threads; GQA heads repeated). Bounds and B70 maxima: plain f16 4e-3 (1.2e-3), bf16 1.5e-2 (1.2e-3),
+compressed per-token f16 1e-2 (1.9e-3), bf16 3e-2 (9.3e-3), per-channel 0.1 (3.5e-2, Q in [-8, 8]). With the reference
+perturbed on purpose, the predicted rows failed: no mask 56 of 141 (every row whose mask matters), causal flipped 108,
+scale x1.25 every row whose output depends on the scale. The per-token / bf16 compressed decode rows are causal
+(upper-left) with one query, so they see key 0 only and check only that key's V. Broadcast, per-channel, GQA
+decomposition, transposed-V and the dynamic-V-head tests do run `sdpa_ref`.
 
 The paged-attention harness data (`generate_realistic_data`, N(0, 0.1)) makes a GENERATE output
 about 0.08 / sqrt(keys) in size, so the compressed-cache tolerances (0.025 i8, 0.075 u4) accept an
@@ -1938,8 +2035,8 @@ Each needs its own measured change.
 
 - Plain-SDPA f16 `d_max` 128 PREFILL ("Plain-SDPA PREFILL tiling"): a second shape-agnostic `sdpa_ocl` stage with the
   256 x 128 tile, chosen in `SDPAOptImpl::execute()` by the runtime counts, would give dynamic Q + K the 0.75-0.95x of
-  long shapes without the small-query loss; and the causal tile skip on the plain kernel (static self-attention prompts
-  are 1.05-1.11x `sdpa_micro`).
+  long shapes without the small-query loss. The K-read order the non-causal KQ branch gets from IGC ("Plain-SDPA causal
+  tile skip") might also be reachable without the branch for the masked stages and other tilings (not tried).
 - `sdpa_ocl_decode` checks pages with the strict `% 64` rule. The relaxed `% 16` page rule of the
   MIXED kernel would give block reads to i8 heads 80, 96, 112 and f16 heads 48, 80.
 - A model that `k_token_major_readable()` turns down on Xe2 (alibi, scores output, adaptive R-KV, f32
