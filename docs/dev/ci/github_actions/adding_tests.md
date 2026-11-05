@@ -207,9 +207,10 @@ execution time.
 
 ## Known-Failing and Non-Blocking Checks
 
-Do not add builds or tests that are known to fail, or are expected to fail, to the pre-commit scope
-(`pull_request` and `merge_group` triggers), even as non-blocking checks that use `continue-on-error: true`
-or are left out of `Overall_Status`. This is bad practice because:
+Do not automatically run builds or tests that are known to fail, or are expected to fail, on the
+first attempt of pre-commit workflows (`pull_request` and `merge_group` triggers), even as
+non-blocking checks that use `continue-on-error: true` or are left out of `Overall_Status`. This is
+bad practice because:
 
 * **It wastes limited runner capacity.** Every pull request, merge queue entry and post-commit run
   uses self-hosted runners for a job whose result nobody acts on. This makes queues longer for
@@ -232,6 +233,9 @@ Instead:
   can distinguish the experimental run from normal nightly runs. If the check should also run when
   its own definition changes, add a `pull_request` trigger with a `paths:` filter limited to the
   workflow files. Do this only for non-required workflows (see [Smart CI](./smart_ci.md)).
+* If PR validation is needed, allow it on a workflow re-run using `github.run_attempt > 1`, as with
+  [draft PR workflows](./smart_ci.md#disabling-workflow-run-in-draft-prs). Re-running all jobs also
+  re-runs the regular workflow; the condition matches automated re-runs too. Keep Smart CI skip rules.
 * Track failures from the scheduled run and fix them. Do not leave them to linger.
-* Move the check to the pre-commit scope only after it passes reliably. When you do, make it a
+* Enable the check automatically in pre-commit only after it passes reliably. When you do, make it a
   **required** check that is included in `Overall_Status`.
