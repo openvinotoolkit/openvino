@@ -7,8 +7,6 @@
 #include <optional>
 
 #include "openvino/core/shape.hpp"
-#include "openvino/core/strides.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
@@ -83,39 +81,5 @@ OPENVINO_API std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t ran
  * @return Shape size if there is no overflow, otherwise nullopt.
  */
 OPENVINO_API std::optional<size_t> shape_size_safe(const Shape& shape);
-
-/**
- * @brief Checks if byte strides can be computed for a shape of given element type.
- *
- * @param type  Element type.
- * @param shape Shape to check.
- * @return True if get_dense_byte_strides(type, shape) can be computed for this type/shape.
- */
-OPENVINO_API bool has_byte_strides(const element::Type& type, const Shape& shape);
-
-/**
- * @brief Gets the default, densely packed, row-major byte strides for a shape of given element type -
- *        the byte-granular counterpart of row_major_strides().
- *
- * @pre has_byte_strides(type, shape) is true.
- * @param type  Element type.
- * @param shape Shape to get strides for.
- * @return Byte strides, one per dimension of shape. The last entry is not used for addressing when
- *         the element type is sub-byte.
- */
-OPENVINO_API Strides get_dense_byte_strides(const element::Type& type, const Shape& shape);
-
-/**
- * @brief Gets the shape to use together with byte strides when addressing a tensor by bytes.
- *
- * For sub-byte element types the last dimension is expressed as its packed byte count instead
- * of its element count (the real per-element byte stride there is not addressable). Returns
- * shape unchanged for byte-granular types, where element count and byte count coincide.
- *
- * @param type  Element type.
- * @param shape Shape to convert.
- * @return Shape whose last dimension (if any) is expressed in bytes.
- */
-OPENVINO_API Shape get_shape_for_byte_strides(const element::Type& type, const Shape& shape);
 }  // namespace util
 }  // namespace ov
