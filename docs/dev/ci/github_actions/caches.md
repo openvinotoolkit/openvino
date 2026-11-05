@@ -128,10 +128,18 @@ To add new resources, contact a member of the CI team for assistance.
 
 Builds can share compiled objects through ccache's remote storage on the shared drive
 by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache)
-to `file:///mount/caches/ccache/shared`. The RISC-V GNU build in
-[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) is the pilot user.
-Old entries are evicted together with the rest of `/mount/caches/ccache` by the
-`Cleanup_ccache_lin` job in
+to `file:///mount/caches/ccache/shared` (`file:///C:/mount/caches/ccache/shared` on Windows).
+Users:
+* The RISC-V GNU build in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
+  (`/mount/caches/ccache/shared/ubuntu22/riscv64/gnu`).
+* The Windows Release and Debug builds in
+  [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml)
+  (`C:\mount\caches\ccache\shared\windows\<build-variant>\x86_64\<build-type>`).
+  ccache cannot cache MSVC `/Zi` compilations, so Debug builds pass
+  `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`).
+
+Old entries are evicted together with the rest of `/mount/caches/ccache` and
+`C:\mount\caches\ccache` by the `Cleanup_ccache_lin` and `Cleanup_ccache_win` jobs in
 [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
 
 ## Cloud Storage via Azure Blob Storage
@@ -160,14 +168,6 @@ The installation is done via the community-provided `mozilla-actions/sccache-act
 ```
 
 This step must be placed in the workflow **before** the build step.
-
-On Windows self-hosted runners, the pinned `sccache` release (`SCCACHE_VERSION`) is downloaded
-directly from the [sccache GitHub releases](https://github.com/mozilla/sccache/releases) and
-verified against its published SHA-256 checksum. Refer to the `Install sccache` step in
-[`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml).
-
->**NOTE**: `sccache` cannot cache MSVC compilations that use `/Zi` (a PDB shared between
-objects). Debug builds therefore pass `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`).
 
 ### Passing Credential Environment Variables
 
@@ -201,11 +201,6 @@ Build:
         echo "✓ Connection string loaded and masked"
   ...
 ```
-
-On Windows self-hosted runners (no container), `SCCACHE_AZURE_BLOB_CONTAINER` is provided by the
-runner environment and the connection string is read from
-`C:\mount\secrets\sccache\connection-string`. Refer to
-[`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml).
 
 ### Providing `sccache` Prefix
 
