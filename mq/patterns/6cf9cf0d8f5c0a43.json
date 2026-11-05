@@ -1,0 +1,20 @@
+{
+    "schema_version": "1.0",
+    "signature": "typeerror genai_gen_text got an unexpected keyword argument context|Dependencies",
+    "signature_hash": "6cf9cf0d8f5c0a43",
+    "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+    "category": "Dependencies",
+    "count": 1,
+    "first_seen": "2026-11-05T06:17:40Z",
+    "last_seen": "2026-11-05T06:17:40Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41968975027"
+    ],
+    "affected_prs": [
+        "https://github.com/openvinotoolkit/openvino/pull/39512"
+    ],
+    "recent_timestamps": [
+        "2026-11-05T06:17:40Z"
+    ],
+    "rerun_search_string": null
+}
