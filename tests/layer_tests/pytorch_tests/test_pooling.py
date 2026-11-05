@@ -162,10 +162,13 @@ class TestPooling(PytorchLayerTest):
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=is_dynamic_shapes)
 
     # EfficientNet-b0 uses nn.AvgPool2d(1280, ceil_mode=True) over a 7x7 feature map.
-    @pytest.mark.parametrize("op_type,input_shape,kernel_size", [
-        ("avg_pool1d", [1, 8, 7], 1280),
-        ("avg_pool2d", [1, 8, 7, 7], [1280, 1280]),
-        ("avg_pool2d", [8, 7, 7], [9, 2]),
+    @pytest.mark.parametrize("op_type,input_shape,kernel_size,padding", [
+        ("avg_pool1d", [1, 8, 7], 1280, 0),
+        ("avg_pool2d", [1, 8, 7, 7], [1280, 1280], 0),
+        ("avg_pool2d", [8, 7, 7], [9, 2], 0),
+        ("avg_pool2d", [1, 8, 7, 7], [9, 3], [0, 1]),
+        # PyTorch drops the last width window, which starts in the right padding.
+        ("avg_pool2d", [1, 8, 7, 5], [9, 2], [0, 1]),
     ])
     @pytest.mark.parametrize("count_include_pad", [True, False])
     @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
@@ -174,10 +177,10 @@ class TestPooling(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
-    def test_avg_pool_oversized_kernel(self, op_type, input_shape, kernel_size, count_include_pad, is_dynamic_shapes,
-                                       ie_device, precision, ir_version):
+    def test_avg_pool_oversized_kernel(self, op_type, input_shape, kernel_size, padding, count_include_pad,
+                                       is_dynamic_shapes, ie_device, precision, ir_version):
         self.input_tensor = self.random.randn(*input_shape)
-        self._test(*self.create_model(op_type, kernel_size=kernel_size, stride=None, padding=0,
+        self._test(*self.create_model(op_type, kernel_size=kernel_size, stride=None, padding=padding,
                                       ceil_mode=True, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False,
                    dynamic_shapes=is_dynamic_shapes)

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -77,25 +77,63 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     // requires it to fit. Excluded end padding of kernel - 1 makes it fit for any non-empty axis, and with
     // stride >= kernel it adds no window starting inside the input, so results are unchanged.
     bool exclude_pad = !count_include_pad;
+    auto pads_begin = pads;
     auto pads_end = pads;
-    const auto& shape = input.get_partial_shape();
-    const bool has_spatial_dims = shape.rank().is_static() && shape.size() == kernel.size() + 2;
-    const bool unpadded = std::all_of(pads.begin(), pads.end(), [](size_t pad) {
-        return pad == 0;
-    });
+    bool extended = false;
     if (dims < 3 && rounding_type == RoundingType::CEIL_TORCH && strides.size() == kernel.size() &&
-        pads.size() == kernel.size() && (exclude_pad || unpadded)) {
+        pads.size() == kernel.size()) {
+        const auto& shape = input.get_partial_shape();
+        const bool has_spatial_dims = shape.rank().is_static() && shape.size() == kernel.size() + 2;
         for (size_t i = 0; i < kernel.size(); ++i) {
             const bool may_be_short =
                 !has_spatial_dims || shape[i + 2].get_min_length() < static_cast<int64_t>(kernel[i]);
             if (kernel[i] > 1 && pads[i] == 0 && strides[i] >= kernel[i] && may_be_short) {
                 pads_end[i] = kernel[i] - 1;
-                exclude_pad = true;
+                extended = true;
             }
         }
     }
-    auto res = context.mark_node(
-        std::make_shared<v14::AvgPool>(input, strides, pads, pads_end, kernel, exclude_pad, rounding_type));
+    Output<Node> window_count;
+    std::shared_ptr<v0::Constant> padded_axes;
+    if (extended && !exclude_pad) {
+        // Included padding becomes explicit zeros, since the extra end padding must stay out of the divisor.
+        std::vector<int64_t> explicit_pads(kernel.size() + 2, 0), axes, offsets, steps;
+        for (size_t i = 0; i < kernel.size(); ++i) {
+            if (pads[i] > 0) {
+                explicit_pads[i + 2] = static_cast<int64_t>(pads[i]);
+                pads_begin[i] = pads_end[i] = 0;
+                axes.push_back(static_cast<int64_t>(i + 2));
+                offsets.push_back(static_cast<int64_t>(pads[i] + strides[i] - 1));
+                steps.push_back(static_cast<int64_t>(strides[i]));
+            }
+        }
+        if (!axes.empty()) {
+            padded_axes = v0::Constant::create(element::i64, Shape{axes.size()}, axes);
+            auto shape_of = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+            auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+            auto lengths = context.mark_node(std::make_shared<v8::Gather>(shape_of, padded_axes, zero));
+            // PyTorch drops a last window starting in the right padding, which AvgPool now sees as data.
+            auto offsets_const = v0::Constant::create(element::i64, Shape{offsets.size()}, offsets);
+            auto steps_const = v0::Constant::create(element::i64, Shape{steps.size()}, steps);
+            auto padded_lengths = context.mark_node(std::make_shared<v1::Add>(lengths, offsets_const));
+            window_count = context.mark_node(std::make_shared<v1::Divide>(padded_lengths, steps_const));
+            auto pads_const = v0::Constant::create(element::i64, Shape{explicit_pads.size()}, explicit_pads);
+            input = context.mark_node(std::make_shared<v12::Pad>(input, pads_const, pads_const, PadMode::CONSTANT));
+        }
+    }
+    Output<Node> res = context.mark_node(std::make_shared<v14::AvgPool>(input,
+                                                                        strides,
+                                                                        pads_begin,
+                                                                        pads_end,
+                                                                        kernel,
+                                                                        exclude_pad || extended,
+                                                                        rounding_type));
+    if (padded_axes) {
+        const auto& axes_shape = padded_axes->get_shape();
+        auto zeros = v0::Constant::create(element::i64, axes_shape, {0});
+        auto ones = v0::Constant::create(element::i64, axes_shape, {1});
+        res = context.mark_node(std::make_shared<v8::Slice>(res, zeros, window_count, ones, padded_axes));
+    }
 
     if (is_static) {
         if (no_batch_dim) {
