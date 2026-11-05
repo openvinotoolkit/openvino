@@ -26,7 +26,6 @@
 #include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -60,14 +59,13 @@ std::vector<int64_t> constant_values(const ov::Output<ov::Node>& output) {
     return ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr())->cast_vector<int64_t>();
 }
 
-// Unsqueeze(x, -1) or the equivalent Reshape produced by CommonOptimizations.
+// Unsqueeze(x, -1), or a Reshape doing the same, e.g. the one NopElimination makes from such an Unsqueeze.
 bool appends_unit_last_dim(const ov::Output<ov::Node>& output) {
     const auto node = output.get_node_shared_ptr();
     const auto& in_shape = node->get_input_partial_shape(0);
-    const auto& out_shape = node->get_output_partial_shape(0);
-    if (in_shape.rank().is_dynamic() || out_shape.rank().is_dynamic() || out_shape.size() != in_shape.size() + 1 ||
-        ov::op::util::get_unsqueeze_axes(in_shape, out_shape) !=
-            std::vector<int64_t>{static_cast<int64_t>(in_shape.size())}) {
+    const auto& out_shape = output.get_partial_shape();
+    if (in_shape.rank().is_dynamic() || out_shape.rank().is_dynamic() ||
+        ov::op::util::get_unsqueeze_axes(in_shape, out_shape) != std::vector<int64_t>{in_shape.rank().get_length()}) {
         return false;
     }
     auto expected_shape = in_shape;
@@ -75,47 +73,24 @@ bool appends_unit_last_dim(const ov::Output<ov::Node>& output) {
     if (!out_shape.same_scheme(expected_shape)) {
         return false;
     }
-    if (ov::as_type_ptr<ov::op::v0::Unsqueeze>(node)) {
-        return true;  // Unsqueeze passes every input dimension through, so the shapes are enough
+    const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node);
+    if (!reshape) {
+        return true;  // Unsqueeze passes every input dimension through
     }
-    // Shapes alone cannot tell whether a Reshape keeps dynamic dimensions, so its target shape must copy them.
-    if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
-        const auto pattern = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
-        if (pattern) {
-            const auto values = pattern->cast_vector<int64_t>();
-            if (values.size() != in_shape.size() + 1 || values.back() != 1) {
-                return false;
-            }
-            // A literal zero makes '-1' ambiguous: a zero-sized output cannot tell which input dimension it replaces.
-            const bool infers_dim = std::find(values.begin(), values.end(), -1) != values.end();
-            if (infers_dim && !reshape->get_special_zero() &&
-                std::find(values.begin(), values.end(), 0) != values.end()) {
-                return false;
-            }
-            for (size_t i = 0; i < in_shape.size(); ++i) {
-                if (values[i] == -1) {
-                    // The single inferred dimension is preserved if every other prefix dimension is copied.
-                    continue;
-                }
-                if (reshape->get_special_zero() && values[i] == 0) {
-                    continue;
-                }
-                if (in_shape[i].is_dynamic() || out_shape[i].is_dynamic() || in_shape[i] != out_shape[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node->get_input_node_shared_ptr(1));
-        if (!concat || concat->get_axis() != 0 || concat->get_input_size() != 2) {
-            return false;
-        }
-        const auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(concat->get_input_node_shared_ptr(0));
-        const auto one = ov::as_type_ptr<ov::op::v0::Constant>(concat->get_input_node_shared_ptr(1));
-        return shape_of && shape_of->input_value(0) == node->input_value(0) && one &&
-               one->get_shape() == ov::Shape{1} && one->cast_vector<int64_t>() == std::vector<int64_t>{1};
+    // With special_zero, Reshape(x, [0, ..., 0, 1]) copies every input dimension.
+    const auto target = ov::as_type_ptr<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1));
+    std::vector<int64_t> copy_all(in_shape.size(), 0);
+    copy_all.push_back(1);
+    if (reshape->get_special_zero() && target && target->cast_vector<int64_t>() == copy_all) {
+        return true;
     }
-    return false;
+    // Reshape keeps the element count, so it can't reinterpret a single dynamic dimension, but may reorder several.
+    // A static 0 makes the element count 0, so it no longer pins the dynamic dimension either.
+    const auto is_dynamic = [](const ov::Dimension& dim) {
+        return dim.is_dynamic();
+    };
+    return std::count_if(in_shape.begin(), in_shape.end(), is_dynamic) <= 1 &&
+           std::find(in_shape.begin(), in_shape.end(), ov::Dimension(0)) == in_shape.end();
 }
 
 bool is_last_axis(int64_t axis, const ov::Rank& rank) {
