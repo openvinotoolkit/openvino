@@ -144,9 +144,12 @@ component list comes from `ArchRegistry::projectors().supported_projectors()`. A
 than `clip` would also need its own whole-model coordinator.
 
 The builder selects GenAI layout explicitly with `genai_layout`. Recipes describe input
-semantics (`Image`, `PaddedPatches`, `WindowedPatches`, `SplitMerger`) and are serialized with the
-model; generic adaptation never selects them by projector name. `build_builtin_projector()`
-returns the recipe matching its graph. A result's explicit recipe overrides the definition.
+semantics (`Image`, `PaddedPatches`, `WindowedPatches`, `SplitMerger`, `PackedPatches`,
+`TemporalPackedPatches`) and are serialized with the model. `build_builtin_projector()` returns
+the recipe matching its graph. A result's explicit recipe overrides the definition. A new or
+replacement projector declaring neither gets `Unsupported`; it does not inherit a recipe from
+its projector name. Only legacy models without `vision.genai_layout` use a built-in recipe
+selected by `vision.projector`.
 
 A projector may declare its components with `configure_model_contract()`. For `lfm3vl`, `lfm3a`
 and `lfm3a_gen` models the coordinator reads that declaration through `model_contract()` and
