@@ -571,7 +571,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       run-real-models: ${{ github.event_name == 'schedule' }}
-      genai-ref: 2ccabebb8d5ab70673525a777a92f2bf62fce136
+      genai-ref: 4e134615701e483800fc321d9d9c558964e00c5f
 
   GGUF_LlamaCpp_Validation:
     name: GGUF Frontend x llama.cpp validation
