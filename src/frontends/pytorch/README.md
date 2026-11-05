@@ -181,6 +181,10 @@ python -m pytest tests/model_hub_tests/pytorch/test_timm.py -m precommit
 python -m pytest tests/model_hub_tests/pytorch/test_timm.py -m nightly -k "convnext_atto or vit_tiny"
 ```
 
+The torchvision precommit scope includes `swin3d_t` on non-ARM hosts to cover video
+attention with input-dependent window padding. Swin3D tests use short,
+64-by-64 clips to keep tracing and inference affordable.
+
 Model caches:
 - HuggingFace models (including timm weights) are stored in `HF_HUB_CACHE`, which
   defaults to a directory under the system temp directory. Set `HF_HUB_CACHE` (and `HF_HOME`)

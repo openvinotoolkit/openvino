@@ -26,7 +26,11 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
     def load_model(self, model_name, model_link):
         m = get_model(model_name, weights='DEFAULT')
         m.eval()
-        if model_name == "s3d" or any(m in model_name for m in ["swin3d", "r3d_18", "mc3_18", "r2plus1d_18"]):
+        if "swin3d" in model_name:
+            # Keep video attention affordable while exercising input-dependent window sizes.
+            self.example = (torch.randn([2, 3, 8, 64, 64]),)
+            self.inputs = (torch.randn([3, 3, 8, 64, 64]),)
+        elif model_name == "s3d" or any(m in model_name for m in ["r3d_18", "mc3_18", "r2plus1d_18"]):
             self.example = (torch.randn([2, 3, 224, 224, 224]),)
             self.inputs = (torch.randn([3, 3, 224, 224, 224]),)
         elif "mvit" in model_name:
@@ -93,6 +97,7 @@ class TestTorchHubConvertModel(TestTorchConvertModel):
             models.extend([
                 "raft_small",
                 "swin_v2_s",
+                "swin3d_t",
                 "quantized_mobilenet_v3_large",
             ])
         return models
