@@ -9,6 +9,7 @@
 #include <fstream>
 #include <functional>
 #include <initializer_list>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -348,5 +349,19 @@ FileHandle open_file(const std::filesystem::path& path, FileMode mode = FileMode
  * @param handle  The handle to close.
  */
 void close_file(FileHandle handle);
+
+/**
+ * @brief Read the current file position of an open file handle, without moving it.
+ *
+ * Maps to @c lseek(fd, 0, SEEK_CUR) on POSIX and @c SetFilePointerEx(h, 0, FILE_CURRENT) on Windows.
+ * Lets a handle carry "where the interesting data starts" to its consumer: the producer seeks the
+ * handle before handing it over (see @ref ov::FileHandleProvider) and the consumer maps/reads from
+ * that position on.
+ *
+ * @param handle  An open file handle.
+ * @return Byte offset of the current position from the start of the file, or @c std::nullopt when it
+ *         cannot be determined - an invalid handle, or a non-seekable object such as a pipe.
+ */
+std::optional<uint64_t> get_file_position(FileHandle handle);
 
 }  // namespace ov::util
