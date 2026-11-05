@@ -23,6 +23,8 @@ protected:
         auto prim = params.typed_desc<moe_mask_gen>();
         jit.make("NUM_EXPERTS_PER_TOKEN", prim->num_experts_per_token);
         jit.make("ONEDNN_GROUPED_GEMM_USED", prim->onednn_grouped_gemm_used);
+        jit.make("EXPERT_SORT", prim->expert_sort);
+        jit.make("ROW_LUT_ENABLE", prim->expert_sort);
 
         return jit;
     }
@@ -35,7 +37,7 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
 
-        const uint32_t num_of_outputs = 5;
+        const auto num_of_outputs = static_cast<uint32_t>(params.typed_desc<moe_mask_gen>()->output_size());
         for (uint32_t i = 0; i < num_of_outputs; i++) {
             args.push_back({ArgumentDescriptor::Types::OUTPUT, i});
         }

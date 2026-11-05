@@ -142,7 +142,6 @@ protected:
         if (m_use_grouped_gemm) {
             jit.make("ONEDNN_GROUPED_GEMM_USED", 1);
             jit.make("ROW_LUT_ENABLE", 1);
-            jit.make("OUTPUT5_TYPE", "int");  // row_lut
         }
 
         const auto& config = desc->_config;
