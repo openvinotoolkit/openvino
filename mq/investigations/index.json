@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 326,
+  "total": 327,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3185,6 +3185,15 @@
       "category": "Infrastructure",
       "signature_hash": "32d3435950a13f58",
       "pr_number": "39101"
+    },
+    {
+      "investigation_id": "2026-11-05-01-47-23-000-41939333537",
+      "run_id": "41939333537",
+      "timestamp": "2026-11-05T01:47:23Z",
+      "title": "NPU model hub tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
+      "category": "Dependencies",
+      "signature_hash": "90d42369fa7c1efb",
+      "pr_number": "39512"
     }
   ]
 }
