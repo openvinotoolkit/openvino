@@ -165,7 +165,8 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         const bool isChannelWise = numGroups == 1;
         // Same geometry the KleidiAI group kernels assert on (group size multiple of 32).
         const bool hasValidGroupGeometry = IC % G == 0 && IC / G >= 4 && OC != 1 && (IC / G) % 32 == 0;
-        const bool isGroupWise = !isChannelWise && hasValidGroupGeometry;
+        // The executor treats scales as [N, numGroups] contiguous groups along K, so the group count must match G.
+        const bool isGroupWise = !isChannelWise && numGroups == G && hasValidGroupGeometry;
         if (!isChannelWise && !isGroupWise) {
             return false;
         }
