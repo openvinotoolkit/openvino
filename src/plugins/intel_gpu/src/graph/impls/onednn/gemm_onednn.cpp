@@ -89,7 +89,7 @@ protected:
         {
             dnnl::memory input0_mem;
             auto& input0 = instance.input_memory(0);
-            auto offset0 = onednn::get_offset(instance.get_input_layout(0), in0_md);
+            auto offset0 = onednn::get_offset(instance.get_input_layout(0), dnnl::memory::desc(in0_md));
             if (instance.get_input_layout(0).count() != 0) {
                 input0_mem = input0.get_onednn_memory(in0_md, offset0);
             }
@@ -98,7 +98,7 @@ protected:
         {
             dnnl::memory input1_mem;
             auto& weights = instance.input_memory(1);
-            auto offset = onednn::get_offset(instance.get_input_layout(1), in1_md);
+            auto offset = onednn::get_offset(instance.get_input_layout(1), dnnl::memory::desc(in1_md));
             if (instance.get_input_layout(1).count() != 0) {
                 input1_mem = weights.get_onednn_memory(in1_md, offset);
             }
@@ -106,13 +106,13 @@ protected:
         }
         {
             auto& output = instance.output_memory();
-            auto offset = onednn::get_offset(instance.get_output_layout(), out_md);
+            auto offset = onednn::get_offset(instance.get_output_layout(), dnnl::memory::desc(out_md));
             args.insert({DNNL_ARG_DST, output.get_onednn_memory(out_md, offset)});
         }
 
         if (gemm_with_bias) {
             auto& weights = instance.input_memory(2);
-            auto offset = onednn::get_offset(instance.get_input_layout(2), bias_md);
+            auto offset = onednn::get_offset(instance.get_input_layout(2), dnnl::memory::desc(bias_md));
             args.insert({DNNL_ARG_BIAS, weights.get_onednn_memory(bias_md, offset)});
         }
 
