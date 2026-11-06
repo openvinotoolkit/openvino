@@ -492,6 +492,14 @@ public:
     void executeStatic(const dnnl::stream& strm, int numaId = -1);
     void updateShapes();
     void updateDynamicParams();
+
+    // Invalidate last input dimensions cache. Force re-run shape infer, execution parameters and memory allocation.
+    // This could happen when result of last run is changed externally, such as by set_state(), which directly set
+    // memory.
+    void invalidateShapeCache() {
+        lastInputDims.clear();
+    }
+
     void executeDynamic(const dnnl::stream& strm, int numaId = -1);
     virtual void redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes);
     void redefineOutputMemory(size_t port, const VectorDims& new_output_shape) const;
