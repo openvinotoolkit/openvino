@@ -289,27 +289,33 @@ namespace host_flash_attention {
 
 enum class HostMaskTileAction { Skip, NoMask, Mask };
 
-std::vector<HostMaskTileAction> build_host_mask_map(const ov::ITensor& row, size_t past_length, size_t tile_length);
+void validate_host_row(const ov::ITensor& row, size_t history, size_t past_length, size_t query_size);
+std::vector<HostMaskTileAction> build_host_mask_map(size_t history, size_t past_length, size_t tile_length);
 
 struct HostMaskTileKey {
-    std::vector<uint8_t> visibility;
     ov::element::Type dtype;
     size_t query_size = 0;
     size_t rows = 0;
+    size_t columns = 0;
     bool final = false;
+    size_t begin = 0;
+    size_t end = 0;
     bool past_has_visible_column = true;
 
     bool operator==(const HostMaskTileKey& other) const;
 };
 
-HostMaskTileKey make_host_mask_tile_key(const ov::ITensor& row,
+HostMaskTileKey make_host_mask_tile_key(size_t history,
                                         size_t offset,
                                         size_t tile_length,
                                         size_t query_size,
                                         size_t rows,
-                                        bool final,
+                                        const ov::element::Type& dtype);
+HostMaskTileKey make_host_mask_tile_key(const ov::ITensor& row,
+                                        size_t query_size,
+                                        size_t rows,
                                         const ov::element::Type& dtype,
-                                        bool past_has_visible_column = true);
+                                        bool past_has_visible_column);
 void fill_host_mask_tile(const HostMaskTileKey& key, const ov::SoPtr<ov::ITensor>& tile);
 
 // Key for HFA tiled attention mask cache

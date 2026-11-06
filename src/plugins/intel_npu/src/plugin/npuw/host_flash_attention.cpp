@@ -1663,92 +1663,126 @@ namespace runtime {
 namespace host_flash_attention {
 
 namespace {
+template <typename T>
+bool host_column_visible_typed(const ov::ITensor& row, size_t column) {
+    const auto value = row.data<const T>()[column];
+    OPENVINO_ASSERT(value == T(0) || value == T(1),
+                    "NPUW_ATTN_HFA_HOST_MASK requires a binary attention_mask row; disable the option with "
+                    "NPUW_ATTN_HFA_HOST_MASK=NO");
+    return value == T(1);
+}
+
 bool host_column_visible(const ov::ITensor& row, size_t column) {
     const auto dtype = row.get_element_type();
     if (dtype == ov::element::i64)
-        return row.data<const int64_t>()[column] != 0;
+        return host_column_visible_typed<int64_t>(row, column);
     if (dtype == ov::element::i32)
-        return row.data<const int32_t>()[column] != 0;
+        return host_column_visible_typed<int32_t>(row, column);
     if (dtype == ov::element::f16)
-        return row.data<const ov::float16>()[column] != ov::float16(0);
+        return host_column_visible_typed<ov::float16>(row, column);
     if (dtype == ov::element::bf16)
-        return row.data<const ov::bfloat16>()[column] != ov::bfloat16(0);
+        return host_column_visible_typed<ov::bfloat16>(row, column);
     if (dtype == ov::element::f32)
-        return row.data<const float>()[column] != 0;
+        return host_column_visible_typed<float>(row, column);
     if (dtype == ov::element::f64)
-        return row.data<const double>()[column] != 0;
-    OPENVINO_THROW("NPUW_ATTN_HFA_HOST_MASK: unsupported row dtype ", dtype);
+        return host_column_visible_typed<double>(row, column);
+    OPENVINO_THROW("NPUW_ATTN_HFA_HOST_MASK: unsupported row dtype ",
+                   dtype,
+                   "; disable the option with NPUW_ATTN_HFA_HOST_MASK=NO");
 }
 
-void validate_host_row(const ov::ITensor& row) {
+void validate_host_row_shape(const ov::ITensor& row) {
     const auto& shape = row.get_shape();
     OPENVINO_ASSERT(row.is_continuous() && (shape.size() == 2 || shape.size() == 4) && shape.back() == row.get_size(),
-                    "NPUW_ATTN_HFA_HOST_MASK requires a single contiguous attention_mask row");
+                    "NPUW_ATTN_HFA_HOST_MASK requires a single contiguous attention_mask row; disable the option with "
+                    "NPUW_ATTN_HFA_HOST_MASK=NO");
 }
 
 template <typename T>
 void fill_host_mask_tile_typed(const HostMaskTileKey& key, T* data) {
-    const size_t columns = key.visibility.size();
-    const size_t first_visible = static_cast<size_t>(
-        std::distance(key.visibility.begin(), std::find(key.visibility.begin(), key.visibility.end(), uint8_t{1})));
     for (size_t r = 0; r < key.rows; ++r) {
-        const bool unattended =
-            key.final && !key.past_has_visible_column && first_visible > key.query_size - key.rows + r;
-        for (size_t c = 0; c < columns; ++c) {
+        const bool unattended = key.final && !key.past_has_visible_column && key.begin > key.query_size - key.rows + r;
+        for (size_t c = 0; c < key.columns; ++c) {
             const bool visible =
-                unattended || (key.visibility[c] && (!key.final || c <= key.query_size - key.rows + r));
-            data[r * columns + c] = visible ? T(0) : std::numeric_limits<T>::lowest();
+                unattended || (key.begin <= c && c < key.end && (!key.final || c <= key.query_size - key.rows + r));
+            data[r * key.columns + c] = visible ? T(0) : std::numeric_limits<T>::lowest();
         }
     }
 }
 }  // namespace
 
-std::vector<HostMaskTileAction> build_host_mask_map(const ov::ITensor& row, size_t past_length, size_t tile_length) {
-    validate_host_row(row);
-    OPENVINO_ASSERT(tile_length > 0 && past_length <= row.get_size() && past_length % tile_length == 0,
+void validate_host_row(const ov::ITensor& row, size_t history, size_t past_length, size_t query_size) {
+    validate_host_row_shape(row);
+    OPENVINO_ASSERT(
+        history <= past_length && query_size <= row.get_size() && past_length <= row.get_size() - query_size,
+        "NPUW_ATTN_HFA_HOST_MASK: invalid history range; disable the option with "
+        "NPUW_ATTN_HFA_HOST_MASK=NO");
+    for (size_t c = 0; c < past_length; ++c) {
+        OPENVINO_ASSERT(
+            host_column_visible(row, c) == (c < history),
+            "NPUW_ATTN_HFA_HOST_MASK: attention_mask row does not match history size; disable the option with "
+            "NPUW_ATTN_HFA_HOST_MASK=NO");
+    }
+}
+
+std::vector<HostMaskTileAction> build_host_mask_map(size_t history, size_t past_length, size_t tile_length) {
+    OPENVINO_ASSERT(tile_length > 0 && history <= past_length && past_length % tile_length == 0,
                     "NPUW_ATTN_HFA_HOST_MASK: invalid past tile range");
     std::vector<HostMaskTileAction> map;
     map.reserve(past_length / tile_length);
     for (size_t offset = 0; offset < past_length; offset += tile_length) {
-        size_t visible = 0;
-        for (size_t c = 0; c < tile_length; ++c) {
-            visible += host_column_visible(row, offset + c);
-        }
-        map.push_back(visible == 0             ? HostMaskTileAction::Skip
-                      : visible == tile_length ? HostMaskTileAction::NoMask
-                                               : HostMaskTileAction::Mask);
+        map.push_back(offset >= history                 ? HostMaskTileAction::Skip
+                      : tile_length <= history - offset ? HostMaskTileAction::NoMask
+                                                        : HostMaskTileAction::Mask);
     }
     return map;
 }
 
 bool HostMaskTileKey::operator==(const HostMaskTileKey& other) const {
-    return dtype == other.dtype && query_size == other.query_size && rows == other.rows && final == other.final &&
-           past_has_visible_column == other.past_has_visible_column && visibility == other.visibility;
+    return dtype == other.dtype && query_size == other.query_size && rows == other.rows && columns == other.columns &&
+           final == other.final && begin == other.begin && end == other.end &&
+           past_has_visible_column == other.past_has_visible_column;
 }
 
-HostMaskTileKey make_host_mask_tile_key(const ov::ITensor& row,
+HostMaskTileKey make_host_mask_tile_key(size_t history,
                                         size_t offset,
                                         size_t tile_length,
                                         size_t query_size,
                                         size_t rows,
-                                        bool final,
+                                        const ov::element::Type& dtype) {
+    OPENVINO_ASSERT(tile_length > 0 && rows > 0 && rows <= query_size,
+                    "NPUW_ATTN_HFA_HOST_MASK: invalid tile coordinates");
+    const size_t visible = offset < history ? std::min(tile_length, history - offset) : 0;
+    return {dtype, query_size, rows, tile_length, false, 0, visible, history > 0};
+}
+
+HostMaskTileKey make_host_mask_tile_key(const ov::ITensor& row,
+                                        size_t query_size,
+                                        size_t rows,
                                         const ov::element::Type& dtype,
                                         bool past_has_visible_column) {
-    validate_host_row(row);
-    OPENVINO_ASSERT(offset <= row.get_size() && tile_length <= row.get_size() - offset && rows > 0 &&
-                        rows <= query_size && (!final || tile_length == query_size),
-                    "NPUW_ATTN_HFA_HOST_MASK: invalid tile coordinates");
-    HostMaskTileKey key{{}, dtype, query_size, rows, final, !final || past_has_visible_column};
-    key.visibility.reserve(tile_length);
-    for (size_t c = 0; c < tile_length; ++c) {
-        key.visibility.push_back(host_column_visible(row, offset + c));
+    validate_host_row_shape(row);
+    OPENVINO_ASSERT(query_size <= row.get_size() && rows > 0 && rows <= query_size,
+                    "NPUW_ATTN_HFA_HOST_MASK: invalid final tile coordinates; disable the option with "
+                    "NPUW_ATTN_HFA_HOST_MASK=NO");
+    size_t padding = 0;
+    bool seen_visible = false;
+    for (size_t c = row.get_size() - query_size; c < row.get_size(); ++c) {
+        const bool visible = host_column_visible(row, c);
+        OPENVINO_ASSERT(!seen_visible || visible,
+                        "NPUW_ATTN_HFA_HOST_MASK requires left padding in the current chunk; disable the option with "
+                        "NPUW_ATTN_HFA_HOST_MASK=NO");
+        seen_visible |= visible;
+        padding += !visible;
     }
-    return key;
+    return {dtype, query_size, rows, query_size, true, padding, query_size, past_has_visible_column};
 }
 
 void fill_host_mask_tile(const HostMaskTileKey& key, const ov::SoPtr<ov::ITensor>& tile) {
-    OPENVINO_ASSERT(tile && tile->is_continuous() && tile->get_element_type() == key.dtype &&
-                        tile->get_shape() == ov::Shape({1, 1, key.rows, key.visibility.size()}),
+    OPENVINO_ASSERT(key.rows > 0 && key.rows <= key.query_size && key.begin <= key.end && key.end <= key.columns &&
+                        (!key.final || key.columns == key.query_size) && tile && tile->is_continuous() &&
+                        tile->get_element_type() == key.dtype &&
+                        tile->get_shape() == ov::Shape({1, 1, key.rows, key.columns}),
                     "NPUW_ATTN_HFA_HOST_MASK: invalid mask tile");
     if (key.dtype == ov::element::f16) {
         fill_host_mask_tile_typed(key, tile->data<ov::float16>());
@@ -1773,7 +1807,7 @@ ov::SoPtr<ov::ITensor> HFARuntimeContext::get_host_mask_tile(const HostMaskTileK
             return tile;
         }
     }
-    const ov::Shape shape{1, 1, key.rows, key.visibility.size()};
+    const ov::Shape shape{1, 1, key.rows, key.columns};
     ov::SoPtr<ov::ITensor> tile;
     if (m_host_mask_pool.size() == kHostMaskPoolCapacity) {
         auto& oldest = m_host_mask_pool.front();

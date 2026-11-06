@@ -988,17 +988,13 @@ void check_host_tile_reference(size_t query_size,
     constexpr size_t context = 48;
     auto row = make_host_row(context, history);
     std::fill_n(row.data<int64_t>() + context - real_tokens, real_tokens, 1);
-    const size_t offset = final ? context - query_size : 8;
+    const size_t offset = final ? context - query_size : 16;
     const size_t columns = final ? query_size : 8;
     const auto dtype = ov::element::from<T>();
-    auto key = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row),
-                                            offset,
-                                            columns,
-                                            query_size,
-                                            physical_rows,
-                                            final,
-                                            dtype,
-                                            history != 0);
+    hfa::validate_host_row(*ov::get_tensor_impl(row), history, 32, query_size);
+    auto key =
+        final ? hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), query_size, physical_rows, dtype, history != 0)
+              : hfa::make_host_mask_tile_key(history, offset, columns, query_size, physical_rows, dtype);
     ov::Tensor tile(dtype, {1, 1, physical_rows, columns});
     hfa::fill_host_mask_tile(key, ov::get_tensor_impl(tile));
     // Build the full reference independently, then select the physical query suffix.
@@ -1006,7 +1002,7 @@ void check_host_tile_reference(size_t query_size,
     for (size_t r = 0; r < query_size; ++r) {
         bool row_visible = false;
         for (size_t c = 0; c < context; ++c) {
-            const bool in_past = c < 16;
+            const bool in_past = c < 32;
             const bool in_present = c >= context - query_size && c - (context - query_size) <= r;
             const bool visible = row.data<int64_t>()[c] != 0 && (in_past || in_present);
             row_visible |= visible;
@@ -1024,6 +1020,18 @@ void check_host_tile_reference(size_t query_size,
             EXPECT_EQ(value, reference[(query_size - physical_rows + r) * context + offset + c]);
             EXPECT_TRUE(std::isfinite(static_cast<float>(value)));
         }
+    }
+}
+
+template <typename Fn>
+void expect_host_mask_runtime_rejected(Fn&& run) {
+    try {
+        run();
+        FAIL() << "Invalid host-mask rows must reject execution";
+    } catch (const ov::Exception& error) {
+        const std::string message = error.what();
+        EXPECT_NE(message.find("NPUW_ATTN_HFA_HOST_MASK"), std::string::npos);
+        EXPECT_NE(message.find("disable the option with NPUW_ATTN_HFA_HOST_MASK=NO"), std::string::npos);
     }
 }
 
@@ -1218,42 +1226,114 @@ void expect_catalogue_mask_replaced(
 }
 }  // namespace
 
-TEST(HFAHostMaskTest, AlignedHistoryAndFirstChunkMap) {
-    auto row = make_host_row(64, 16);
-    EXPECT_EQ(hfa::build_host_mask_map(*ov::get_tensor_impl(row), 16, 8),
+TEST(HFAHostMaskTest, MapFromHistory) {
+    EXPECT_EQ(hfa::build_host_mask_map(16, 16, 8),
               (std::vector<hfa::HostMaskTileAction>{hfa::HostMaskTileAction::NoMask, hfa::HostMaskTileAction::NoMask}));
-    EXPECT_TRUE(hfa::build_host_mask_map(*ov::get_tensor_impl(row), 0, 8).empty());
+    EXPECT_EQ(hfa::build_host_mask_map(21, 32, 8),
+              (std::vector<hfa::HostMaskTileAction>{hfa::HostMaskTileAction::NoMask,
+                                                    hfa::HostMaskTileAction::NoMask,
+                                                    hfa::HostMaskTileAction::Mask,
+                                                    hfa::HostMaskTileAction::Skip}));
+    EXPECT_TRUE(hfa::build_host_mask_map(0, 0, 8).empty());
+    EXPECT_EQ(hfa::build_host_mask_map(0, 16, 8),
+              (std::vector<hfa::HostMaskTileAction>{hfa::HostMaskTileAction::Skip, hfa::HostMaskTileAction::Skip}));
+    EXPECT_EQ(hfa::build_host_mask_map(24, 32, 8),
+              (std::vector<hfa::HostMaskTileAction>{hfa::HostMaskTileAction::NoMask,
+                                                    hfa::HostMaskTileAction::NoMask,
+                                                    hfa::HostMaskTileAction::NoMask,
+                                                    hfa::HostMaskTileAction::Skip}));
+    EXPECT_THROW(hfa::build_host_mask_map(33, 32, 8), ov::Exception);
 }
 
 TEST(HFAHostMaskTest, UnalignedHistoryGapMap) {
     // h=2*T+5=21, Q=16, P=32: tile 2 is partial and tile 3 is wholly in the gap.
     auto row = make_host_row(64, 21);
-    EXPECT_EQ(hfa::build_host_mask_map(*ov::get_tensor_impl(row), 32, 8),
+    EXPECT_NO_THROW(hfa::validate_host_row(*ov::get_tensor_impl(row), 21, 32, 16));
+    EXPECT_EQ(hfa::build_host_mask_map(21, 32, 8),
               (std::vector<hfa::HostMaskTileAction>{hfa::HostMaskTileAction::NoMask,
                                                     hfa::HostMaskTileAction::NoMask,
                                                     hfa::HostMaskTileAction::Mask,
                                                     hfa::HostMaskTileAction::Skip}));
 }
 
-TEST(HFAHostMaskTest, HistoryHoleMap) {
+TEST(HFAHostMaskTest, RowValidationRejectsHoleInPast) {
     auto row = make_host_row(64, 24);
     row.data<int64_t>()[11] = 0;
-    EXPECT_EQ(hfa::build_host_mask_map(*ov::get_tensor_impl(row), 24, 8),
-              (std::vector<hfa::HostMaskTileAction>{hfa::HostMaskTileAction::NoMask,
-                                                    hfa::HostMaskTileAction::Mask,
-                                                    hfa::HostMaskTileAction::NoMask}));
+    expect_host_mask_runtime_rejected([&] {
+        hfa::validate_host_row(*ov::get_tensor_impl(row), 24, 32, 8);
+    });
+}
+
+TEST(HFAHostMaskTest, RowValidationRejectsVisibleGap) {
+    for (size_t column : {21u, 31u}) {
+        auto row = make_host_row(64, 21);
+        row.data<int64_t>()[column] = 1;
+        expect_host_mask_runtime_rejected([&] {
+            hfa::validate_host_row(*ov::get_tensor_impl(row), 21, 32, 8);
+        });
+    }
+}
+
+TEST(HFAHostMaskTest, RowValidationRejectsNonLeftPadding) {
+    for (size_t hole : {1u, 7u}) {
+        auto row = make_host_row(64, 24);
+        std::fill_n(row.data<int64_t>() + 56, 8, 1);
+        row.data<int64_t>()[56 + hole] = 0;
+        expect_host_mask_runtime_rejected([&] {
+            hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 8, 8, ov::element::f32, true);
+        });
+    }
+}
+
+TEST(HFAHostMaskTest, RowValidationRejectsNonBinaryValues) {
+    for (double value : {-1.0, 0.5, 2.0, std::numeric_limits<double>::quiet_NaN()}) {
+        ov::Tensor row(ov::element::f64, {1, 24});
+        std::fill_n(row.data<double>(), 24, 0);
+        std::fill_n(row.data<double>(), 13, 1);
+        row.data<double>()[12] = value;
+        expect_host_mask_runtime_rejected([&] {
+            hfa::validate_host_row(*ov::get_tensor_impl(row), 13, 16, 8);
+        });
+        row.data<double>()[12] = 1;
+        row.data<double>()[23] = value;
+        expect_host_mask_runtime_rejected([&] {
+            hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 8, 8, ov::element::f32, true);
+        });
+    }
+}
+
+TEST(HFAHostMaskTest, RowValidationChecksHistoryBounds) {
+    auto row = make_host_row(24, 16);
+    EXPECT_NO_THROW(hfa::validate_host_row(*ov::get_tensor_impl(row), 16, 16, 8));
+    expect_host_mask_runtime_rejected([&] {
+        hfa::validate_host_row(*ov::get_tensor_impl(row), 17, 16, 8);
+    });
+    expect_host_mask_runtime_rejected([&] {
+        hfa::validate_host_row(*ov::get_tensor_impl(row), 16, 24, 8);
+    });
+    expect_host_mask_runtime_rejected([&] {
+        hfa::validate_host_row(*ov::get_tensor_impl(row), 0, 0, 25);
+    });
 }
 
 TEST(HFAHostMaskTest, FinalTilesMatchFullReferenceF32) {
-    check_host_tile_reference<float>(8, 8, 8, true);
-    check_host_tile_reference<float>(8, 3, 8, true);
-    check_host_tile_reference<float>(8, 1, 8, true, 0);
+    for (size_t padding : {0u, 3u, 7u, 8u}) {
+        for (size_t history : {0u, 13u}) {
+            for (size_t rows : {8u, 2u, 1u}) {
+                check_host_tile_reference<float>(8, 8 - padding, rows, true, history);
+            }
+        }
+    }
 }
 
 TEST(HFAHostMaskTest, FinalTilesMatchFullReferenceF16) {
-    check_host_tile_reference<ov::float16>(8, 8, 8, true);
-    check_host_tile_reference<ov::float16>(8, 3, 8, true);
-    check_host_tile_reference<ov::float16>(8, 1, 8, true, 0);
+    for (size_t padding : {0u, 3u, 7u, 8u}) {
+        for (size_t history : {0u, 13u}) {
+            for (size_t rows : {8u, 2u, 1u}) {
+                check_host_tile_reference<ov::float16>(8, 8 - padding, rows, true, history);
+            }
+        }
+    }
 }
 
 TEST(HFAHostMaskTest, SlicedQueryUsesLastRows) {
@@ -1265,14 +1345,15 @@ TEST(HFAHostMaskTest, SlicedQueryUsesLastRows) {
     }
 }
 
-TEST(HFAHostMaskTest, RegularGapTileMatchesFullReference) {
-    check_host_tile_reference<float>(8, 3, 8, false);
-    check_host_tile_reference<ov::float16>(8, 3, 2, false);
+TEST(HFAHostMaskTest, RegularMaskedTileFromHistory) {
+    for (size_t rows : {8u, 2u}) {
+        check_host_tile_reference<float>(8, 3, rows, false, 21);
+        check_host_tile_reference<ov::float16>(8, 3, rows, false, 21);
+    }
 }
 
-TEST(HFAHostMaskTest, PoolReusesContentAndIsBoundedAcrossChunks) {
-    auto row = make_host_row(64, 13);
-    auto key = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 8, 8, 8, 8, false, ov::element::f32);
+TEST(HFAHostMaskTest, PoolReuse) {
+    auto key = hfa::make_host_mask_tile_key(13, 8, 8, 8, 8, ov::element::f32);
     hfa::HFARuntimeContext ctx;
     size_t allocations = 0;
     auto allocate = [&](const ov::element::Type& dtype, const ov::Shape& shape, const std::string&) {
@@ -1283,13 +1364,11 @@ TEST(HFAHostMaskTest, PoolReusesContentAndIsBoundedAcrossChunks) {
     ctx.clear_mask_cache();
     EXPECT_EQ(ctx.get_host_mask_tile(key, "CPU", allocate)._ptr, first._ptr);
     EXPECT_EQ(allocations, 1u);
-    key.visibility[0] = 0;
+    --key.end;
     EXPECT_NE(ctx.get_host_mask_tile(key, "CPU", allocate)._ptr, first._ptr);
     EXPECT_EQ(allocations, 2u);
-    for (size_t i = 0; i < 16; ++i) {
-        for (size_t c = 0; c < 4; ++c) {
-            key.visibility[c] = (i >> c) & 1;
-        }
+    for (size_t i = 0; i < 9; ++i) {
+        key.end = i;
         ctx.get_host_mask_tile(key, "CPU", allocate);
         EXPECT_LE(ctx.m_host_mask_pool.size(), ctx.kHostMaskPoolCapacity);
     }
@@ -2549,20 +2628,12 @@ TEST(HFAHostMaskTest, FinalTileUnmasksOnlyRowsWithoutPastOrPresent) {
         for (size_t n : {1u, 3u}) {
             for (size_t past : {0u, 16u}) {
                 for (bool visible_past : {false, true}) {
-                    auto row = make_host_row(context, visible_past ? 1 : 0);
+                    const size_t history = visible_past ? past : 0;
+                    auto row = make_host_row(context, history);
                     std::fill_n(row.data<int64_t>() + context - n, n, 1);
-                    const auto map = hfa::build_host_mask_map(*ov::get_tensor_impl(row), past, 8);
-                    const bool has_past = std::any_of(map.begin(), map.end(), [](auto action) {
-                        return action != hfa::HostMaskTileAction::Skip;
-                    });
-                    auto key = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row),
-                                                            context - query,
-                                                            query,
-                                                            query,
-                                                            query,
-                                                            true,
-                                                            dtype,
-                                                            has_past);
+                    hfa::validate_host_row(*ov::get_tensor_impl(row), history, past, query);
+                    const bool has_past = history > 0;
+                    auto key = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), query, query, dtype, has_past);
                     ov::Tensor tile(dtype, {1, 1, query, query});
                     hfa::fill_host_mask_tile(key, ov::get_tensor_impl(tile));
                     for (size_t r = 0; r < query; ++r) {
@@ -2584,10 +2655,9 @@ TEST(HFAHostMaskTest, FinalTileUnmasksOnlyRowsWithoutPastOrPresent) {
 TEST(HFAHostMaskTest, FinalTilePoolKeyIncludesPastVisibility) {
     auto row = make_host_row(24);
     row.data<int64_t>()[23] = 1;
-    const auto no_past =
-        hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 16, 8, 8, 8, true, ov::element::f32, false);
-    const auto with_past =
-        hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 16, 8, 8, 8, true, ov::element::f32, true);
+    const auto no_past = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 8, 8, ov::element::f32, false);
+    row.data<int64_t>()[0] = 1;
+    const auto with_past = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 8, 8, ov::element::f32, true);
     EXPECT_FALSE(no_past == with_past);
     hfa::HFARuntimeContext ctx;
     auto allocate = [](const ov::element::Type& dtype, const ov::Shape& shape, const std::string&) {
@@ -2649,10 +2719,12 @@ TEST(HFAHostMaskTest, LegacyPhiWindowAndImageOrKeepsGraphMask) {
 TEST(HFAHostMaskTest, CpuTileChainMatchesDoubleReference) {
     using namespace ov;
     constexpr size_t query = 8, past = 24, context = 32, heads = 2, dim = 4;
+    constexpr size_t history = 13;
     constexpr uint32_t seed = 20261023;
-    auto row = make_host_row(context, 13);
+    auto row = make_host_row(context, history);
     std::fill_n(row.data<int64_t>() + context - 3, 3, 1);
-    const auto map = hfa::build_host_mask_map(*ov::get_tensor_impl(row), past, query);
+    hfa::validate_host_row(*ov::get_tensor_impl(row), history, past, query);
+    const auto map = hfa::build_host_mask_map(history, past, query);
     ASSERT_EQ(map,
               (std::vector<hfa::HostMaskTileAction>{hfa::HostMaskTileAction::NoMask,
                                                     hfa::HostMaskTileAction::Mask,
@@ -2806,14 +2878,17 @@ TEST(HFAHostMaskTest, CpuTileChainMatchesDoubleReference) {
                         if (models[id].inputs().size() == 7) {
                             Tensor mask(element::f32, {1, 1, query, query});
                             if (host) {
-                                auto content = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row),
-                                                                            offset,
-                                                                            query,
-                                                                            query,
-                                                                            query,
-                                                                            final,
-                                                                            element::f32,
-                                                                            true);
+                                auto content = final ? hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row),
+                                                                                    query,
+                                                                                    query,
+                                                                                    element::f32,
+                                                                                    history > 0)
+                                                     : hfa::make_host_mask_tile_key(history,
+                                                                                    offset,
+                                                                                    query,
+                                                                                    query,
+                                                                                    query,
+                                                                                    element::f32);
                                 auto tile = pool.get_host_mask_tile(content, "CPU", allocate);
                                 mask = Tensor(element::f32, tile->get_shape(), tile->data());
                             } else {
@@ -2907,7 +2982,7 @@ TEST(HFAHostMaskTest, CpuFinalTileIsFiniteWithF16StateAndF32Mask) {
         }
         auto row = make_host_row(24);
         std::fill_n(row.data<int64_t>() + 24 - n, n, 1);
-        auto key = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 16, 8, 8, 8, true, element::f32, false);
+        auto key = hfa::make_host_mask_tile_key(*ov::get_tensor_impl(row), 8, 8, element::f32, false);
         Tensor tile(element::f32, {1, 1, 8, 8});
         hfa::fill_host_mask_tile(key, ov::get_tensor_impl(tile));
         request.set_tensor("MASK_TILE", tile);

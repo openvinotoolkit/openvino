@@ -1115,6 +1115,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
                         constexpr uint32_t MASK_KV_SEQ_DIM = 3;
                         size_t next_available_mask_buffer_idx = 0;
+                        size_t host_history = 0;
                         bool host_past_has_visible_column = false;
 
                         auto process_tile = [&](auto& request,
@@ -1176,15 +1177,19 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 OPENVINO_ASSERT(attention_mask_tensor && state.hfa_runtime_ctx,
                                                 "NPUW_ATTN_HFA_HOST_MASK: missing row or runtime context");
                                 const auto& port = model->inputs()[tile_in.mask];
-                                auto key = runtime::host_flash_attention::make_host_mask_tile_key(
-                                    *attention_mask_tensor,
-                                    static_cast<size_t>(mask_offset),
-                                    static_cast<size_t>(tile_length),
-                                    sdpa_info._query_size,
-                                    port.get_shape()[2],
-                                    is_final_tile,
-                                    port.get_element_type(),
-                                    host_past_has_visible_column);
+                                auto key = is_final_tile ? runtime::host_flash_attention::make_host_mask_tile_key(
+                                                               *attention_mask_tensor,
+                                                               sdpa_info._query_size,
+                                                               port.get_shape()[2],
+                                                               port.get_element_type(),
+                                                               host_past_has_visible_column)
+                                                         : runtime::host_flash_attention::make_host_mask_tile_key(
+                                                               host_history,
+                                                               static_cast<size_t>(mask_offset),
+                                                               static_cast<size_t>(tile_length),
+                                                               sdpa_info._query_size,
+                                                               port.get_shape()[2],
+                                                               port.get_element_type());
                                 // Capture the request explicitly: MSVC does not resolve `ctx` through
                                 // a default capture in a lambda nested in a generic lambda.
                                 auto& npuw_request = get_request(ctx);
@@ -1278,17 +1283,24 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         if (hfa_desc->_host_mask) {
                             OPENVINO_ASSERT(attention_mask_tensor && state.hfa_runtime_ctx,
                                             "NPUW_ATTN_HFA_HOST_MASK: missing row or runtime context");
+                            const auto past_len = get_request(ctx).history_size();
+                            OPENVINO_ASSERT(past_len >= 0 && past_len <= past_total_length,
+                                            "NPUW_ATTN_HFA_HOST_MASK: invalid history size; disable the option with "
+                                            "NPUW_ATTN_HFA_HOST_MASK=NO");
+                            host_history = static_cast<size_t>(past_len);
+                            host_past_has_visible_column = past_len > 0;
                             auto& map = state.hfa_runtime_ctx->m_host_mask_map;
                             if (!map) {
-                                map = runtime::host_flash_attention::build_host_mask_map(*attention_mask_tensor,
+                                runtime::host_flash_attention::validate_host_row(*attention_mask_tensor,
+                                                                                 host_history,
+                                                                                 past_total_length,
+                                                                                 sdpa_info._query_size);
+                                map = runtime::host_flash_attention::build_host_mask_map(host_history,
                                                                                          past_total_length,
                                                                                          past_tile_size);
                             }
                             OPENVINO_ASSERT(map->size() == static_cast<size_t>(past_full_tiles),
                                             "NPUW_ATTN_HFA_HOST_MASK: inconsistent past tile map");
-                            host_past_has_visible_column = std::any_of(map->begin(), map->end(), [](auto action) {
-                                return action != runtime::host_flash_attention::HostMaskTileAction::Skip;
-                            });
                         }
 
                         // Iterate through KV blocks; each block contributes block_size/past_tile_size
