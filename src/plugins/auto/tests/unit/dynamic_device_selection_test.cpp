@@ -1223,6 +1223,12 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactiv
     OV_ASSERT_NO_THROW(infer_request->get_profiling_info());
 }
 
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_kept) {
+    config.insert(ov::device::properties("CPU", ov::cache_dir("")));
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+}
+
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_never_released) {
     switch_between_devices(true);
     EXPECT_EQ(m_gpu0_compile_count.load(), 1);
