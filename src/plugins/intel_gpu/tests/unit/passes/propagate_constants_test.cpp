@@ -323,8 +323,8 @@ TEST(propagate_constants, multi_node_subgraph_becomes_one_constant) {
     }
 }
 
-// Verifies that a weight read by two separate constant subgraphs gives correct results in both and is removed once
-// both are folded, including the memory reference of its primitive in the topology.
+// Verifies that a weight read by two separate constant subgraphs gives correct results in both and that its memory is
+// released once both are folded, when the program owns the topology.
 //
 // Topology:
 //   data("w") --+--> eltwise("w_x", prod with data("k1")) --> eltwise("out1", sum with input)
@@ -344,24 +344,25 @@ TEST(propagate_constants, weight_shared_by_two_subgraphs) {
     set_values(k1, k1_values);
     set_values(k2, k2_values);
 
-    topology topology(input_layout("input", l),
-                      data("w", w),
-                      data("k1", k1),
-                      data("k2", k2),
-                      eltwise("w_x", input_info("w"), input_info("k1"), eltwise_mode::prod),
-                      eltwise("w_p", input_info("w"), input_info("k2"), eltwise_mode::sum),
-                      eltwise("out1", input_info("input"), input_info("w_x"), eltwise_mode::sum),
-                      eltwise("out2", input_info("input"), input_info("w_p"), eltwise_mode::sum));
+    auto topo = std::make_shared<topology>(input_layout("input", l),
+                                           data("w", w),
+                                           data("k1", k1),
+                                           data("k2", k2),
+                                           eltwise("w_x", input_info("w"), input_info("k1"), eltwise_mode::prod),
+                                           eltwise("w_p", input_info("w"), input_info("k2"), eltwise_mode::sum),
+                                           eltwise("out1", input_info("input"), input_info("w_x"), eltwise_mode::sum),
+                                           eltwise("out2", input_info("input"), input_info("w_p"), eltwise_mode::sum));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    network network(engine, topology, config);
+    auto prog = program::build_program(engine, std::move(topo), config, nullptr, nullptr, false, false, false);
 
-    auto prog = network.get_program();
     ASSERT_FALSE(prog->has_node("w"));
-    ASSERT_EQ(std::static_pointer_cast<const data>(topology.at("w"))->mem, nullptr);
+    ASSERT_EQ(w.use_count(), 1);
     ASSERT_TRUE(prog->get_node("w_x").is_type<data>());
     ASSERT_TRUE(prog->get_node("w_p").is_type<data>());
+
+    network network(prog);
 
     auto input = engine.allocate_memory(l);
     set_values(input, in_values);
