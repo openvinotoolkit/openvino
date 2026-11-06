@@ -10,6 +10,7 @@
 #include <tuple>
 
 #include "common_test_utils/float_util.hpp"
+#include "openvino/core/type/float_util.hpp"
 
 namespace ov {
 namespace test {
@@ -53,6 +54,19 @@ TEST(F8E8M0Test, f32_nan_quiet) {
 
 TEST(F8E8M0Test, f32_nan_signaling) {
     const auto f8 = ov::float8_e8m0(std::numeric_limits<float>::signaling_NaN());
+
+    EXPECT_EQ(f8.to_bits(), 0b11111111);
+}
+
+TEST(F8E8M0Test, f32_negative_nan_quiet) {
+    // default NaN on x86 has sign bit set
+    const auto f8 = ov::float8_e8m0(ov::util::u32_bits_to_f32(0xFFC00000));
+
+    EXPECT_EQ(f8.to_bits(), 0b11111111);
+}
+
+TEST(F8E8M0Test, f32_negative_nan_signaling) {
+    const auto f8 = ov::float8_e8m0(ov::util::u32_bits_to_f32(0xFF800001));
 
     EXPECT_EQ(f8.to_bits(), 0b11111111);
 }
