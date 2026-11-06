@@ -62,22 +62,16 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         wrap_type<v0::Concat>({wrap_type<v0::Unsqueeze>({read_state(p_block_keys_read), any_input()}), any_input()});
     const auto p_incomplete_raw_keys = wrap_type<v0::Unsqueeze>({read_state(p_raw_keys_read), any_input()});
 
-    // PagedQSAIndexer always normalizes and rotates the query.
-    const auto p_indexer = wrap_type<op_internal::QSAIndexer>(
-        {p_query,
-         p_raw_keys,
-         p_rope_cos,
-         p_rope_sin,
-         any_input(),
-         any_input(),
-         any_input(),
-         p_block_keys_cache,
-         p_incomplete_raw_keys,
-         read_state(p_rope_read)},
-        [](const ov::Output<ov::Node>& output) {
-            const auto& config = ov::as_type<op_internal::QSAIndexer>(output.get_node())->get_config();
-            return config.query_norm && config.query_rope;
-        });
+    const auto p_indexer = wrap_type<op_internal::QSAIndexer>({p_query,
+                                                               p_raw_keys,
+                                                               p_rope_cos,
+                                                               p_rope_sin,
+                                                               any_input(),
+                                                               any_input(),
+                                                               any_input(),
+                                                               p_block_keys_cache,
+                                                               p_incomplete_raw_keys,
+                                                               read_state(p_rope_read)});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](Matcher& m) {
         const auto indexer = ov::as_type_ptr<op_internal::QSAIndexer>(m.get_match_root());
@@ -147,6 +141,8 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
         paged_config.indexer_head_dim = config.indexer_head_dim;
         paged_config.epsilon = config.epsilon;
         paged_config.scale = config.scale;
+        paged_config.query_norm = config.query_norm;
+        paged_config.query_rope = config.query_rope;
         const auto paged = rg.make<op_internal::PagedQSAIndexer>(inputs, paged_config);
         paged->set_friendly_name(indexer->get_friendly_name());
 

@@ -201,7 +201,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     OPENVINO_ASSERT(!ov::op::util::has_op_with_type<ov::op::v17::SparseAttention>(model),
                     "SparseAttention cannot be converted to PagedSparseAttention: expected causal attention with "
                     "query_block_size = 1, supported stateful KV layouts and block selections from a convertible "
-                    "QSAIndexer with query_norm and query_rope enabled.");
+                    "stateful QSAIndexer.");
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,

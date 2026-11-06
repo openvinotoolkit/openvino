@@ -5,10 +5,16 @@
 #pragma once
 
 #include <memory>
+#include <type_traits>
 
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
+
+namespace ov::op::internal {
+class QSAIndexer;
+class PagedQSAIndexer;
+}  // namespace ov::op::internal
 
 namespace ov::pass {
 
@@ -46,24 +52,37 @@ namespace ov::pass {
  * key_block_size and key length, and SparseAttentionIndexer consumes QSAPrepare output 0, has no index weights
  * and selects with one head. The other requirements are validated by the source ops.
  */
-class TRANSFORMATIONS_API FuseQSAIndexerBase : public MatcherPass {
+class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexerBase");
+    OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexer");
 
-    FuseQSAIndexerBase();
+    FuseQSAIndexer();
 };
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Moves the query RoPE into a QSAIndexer created by FuseQSAIndexerBase, enabling query_rope.
+ * @brief Moves the query RoPE into a dense or paged QSA indexer, enabling query_rope.
  *
  *   x ─► RoPE(input_trans0213) ─► Transpose(0, 2, 1, 3) ─► QSAIndexer   ──►   x ─► QSAIndexer(query_rope)
  *
  * The RoPE is the plain rotate-half RoPE of the QSAIndexer rotary dimension, with Unsqueeze(axis=1) of the
- * QSAIndexer cos / sin (before their batch Broadcast). It must precede the query norm in QSAIndexer, so it
- * is fused only while query_norm and query_rope are disabled.
+ * QSAIndexer cos / sin (before their batch Broadcast). A Reshape with a constant target from [tokens, 1, D] to
+ * [tokens, 1, 1, D] is also supported when D is static and positive. It is fused while query_rope is disabled.
+ * QSAIndexer normalizes before it rotates, so it must run before FuseQSAIndexerQueryNorm, as FuseQSAIndexerQuery
+ * does; the query_norm of the matched indexer is not checked.
+ * The PagedQSAIndexer specialization requires the layout adapters produced by SDPAToPagedAttention's
+ * PagedQSAIndexerFusion: query [B, L, H, D] -> [B * L, H * D] and cos/sin [B, L, rotary_dim] -> [B * L, rotary_dim].
+ * It relies on that pipeline contract rather than revalidating the layouts. The patterns use optional rank-2
+ * Reshape adapters, which the dense path bypasses. The query Reshape must feed only the indexer; it is rewired
+ * to the unprocessed query.
+ * Both specializations share PassConfig disable settings and callbacks, which receive the concrete indexer node.
  */
+template <class Indexer>
 class TRANSFORMATIONS_API FuseQSAIndexerQueryRoPE : public MatcherPass {
+    static_assert(std::is_same_v<Indexer, ov::op::internal::QSAIndexer> ||
+                      std::is_same_v<Indexer, ov::op::internal::PagedQSAIndexer>,
+                  "FuseQSAIndexerQueryRoPE supports QSAIndexer and PagedQSAIndexer");
+
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexerQueryRoPE");
 
@@ -72,14 +91,25 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Moves the query RMSNorm into a QSAIndexer, enabling query_norm.
+ * @brief Moves the query RMSNorm into a dense or paged QSA indexer, enabling query_norm.
  *
  *   x ─► RMS ─► QSAIndexer   ──►   x ─► QSAIndexer(query_norm)
  *
  * The RMS is the non-affine RMS of the last axis that keeps the precision, and its epsilon equals the
- * QSAIndexer epsilon. It is fused only while query_norm is disabled.
+ * QSAIndexer epsilon. It is fused while query_norm is disabled, regardless of query_rope.
+ * The PagedQSAIndexer specialization requires the layout adapters produced by SDPAToPagedAttention's
+ * PagedQSAIndexerFusion. It matches RMS before the query's [B, L, H, D] -> [B * L, H * D] Reshape. The RMS axis
+ * must be static and equal to indexer_head_dim, so a norm across flattened heads remains outside the indexer.
+ * An optional rank-2 Reshape matches the paged layout adapter, which the dense path bypasses. It must feed only
+ * the indexer and is rewired to the unprocessed query.
+ * Both specializations share PassConfig disable settings and callbacks, which receive the concrete indexer node.
  */
+template <class Indexer>
 class TRANSFORMATIONS_API FuseQSAIndexerQueryNorm : public MatcherPass {
+    static_assert(std::is_same_v<Indexer, ov::op::internal::QSAIndexer> ||
+                      std::is_same_v<Indexer, ov::op::internal::PagedQSAIndexer>,
+                  "FuseQSAIndexerQueryNorm supports QSAIndexer and PagedQSAIndexer");
+
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexerQueryNorm");
 
@@ -88,19 +118,17 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Fuses QSAPrepare and SparseAttentionIndexer into QSAIndexer, then moves the query RoPE and the query
- * RMSNorm into it.
+ * @brief Absorbs canonical query RMS and RoPE into dense and paged QSA indexers during plugin compilation.
  *
- * If the model has SparseAttentionIndexer, RoPEFusion (with 2D RoPE support) and RMSFusion (without tail Convert,
- * with non-affine RMS) run model-wide first, so the query RoPE and RMSNorm are RoPE and RMS nodes. The nested
- * passes keep the caller's disabled passes and callbacks. In the GPU pipeline it runs before FuseRMSRoPE
- * combines RMS and RoPE.
- * The Qwen query (non-affine RMS on [B, L, H, D], then RoPE with input_trans0213) gives the GPU contract, a
- * QSAIndexer with query_norm and query_rope enabled.
+ * Register after the plugin's RMSFusion and RoPEFusion, before passes that combine or decompose RMS/RoPE.
+ * Does not run those model-wide canonicalization passes itself. Runs the dense and paged FuseQSAIndexerQueryRoPE
+ * over the whole model first and FuseQSAIndexerQueryNorm second, with the caller's PassConfig, since QSAIndexer
+ * normalizes before it rotates. Specializations share PassConfig callbacks and disable settings.
+ * Paged indexers must retain the layout adapters generated by SDPAToPagedAttention's PagedQSAIndexerFusion.
  */
-class TRANSFORMATIONS_API FuseQSAIndexer : public ModelPass {
+class TRANSFORMATIONS_API FuseQSAIndexerQuery : public ModelPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("FuseQSAIndexer");
+    OPENVINO_MODEL_PASS_RTTI("FuseQSAIndexerQuery");
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };

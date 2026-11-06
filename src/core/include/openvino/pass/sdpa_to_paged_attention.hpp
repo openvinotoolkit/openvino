@@ -147,14 +147,15 @@ struct PaResults : public NamedNodeStore<ov::op::v0::Result, ov::ResultVector> {
 }  // namespace paged_attention
 /**
  * @brief Replaces attention KV-cache processing with paged attention and fuses supported QSA indexers.
- * For SparseAttention models, the pass runs FuseQSAIndexer, including its query RoPE and RMSNorm fusion, before
- * the paged conversions. Nested passes share the caller's PassConfig, including disabled passes and callbacks.
+ * For SparseAttention models, the pass runs FuseQSAIndexer before the paged conversions, leaving query
+ * preprocessing outside the indexer for plugin compilation. Nested passes share the caller's PassConfig,
+ * including disabled passes and callbacks.
  * PagedQSAIndexerFusion converts its state, and PagedSparseAttentionFusion converts supported SparseAttention
  * consumers separately from the SDPA state-management pattern.
  * NOTE:
  * The transformation may throw an exception when some configuration of the model failed:
  * i.e. neither SDPA nor SparseAttention is present, or a SparseAttention cannot be converted (including when
- * required query RoPE or RMSNorm fusion is disabled). This means the graph cannot be processed for the PA
+ * required indexer or attention conversion is disabled). This means the graph cannot be processed for the PA
  * scenario, so the GenAI pipeline will fall back to SDPA inference.
  * \ingroup ov_pass_cpp_api
  */

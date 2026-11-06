@@ -1201,6 +1201,7 @@ void Transformations::PostLpt() {
                           enable_without_gamma);
     // Fuse while the query RMS and RoPE are still separate internal ops.
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::FuseQSAIndexer);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::FuseQSAIndexerQuery);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,
