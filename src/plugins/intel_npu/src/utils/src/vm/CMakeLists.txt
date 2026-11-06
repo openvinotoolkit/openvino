@@ -41,4 +41,4 @@ endif()
 # headers are copied into the build directory by prepare_ze_headers; without
 # this explicit dependency a parallel build may compile ${TARGET_NAME} before
 # the headers are copied, causing a missing-header error
-add_dependencies(${TARGET_NAME} prepare_ze_headers)
+add_dependencies(${TARGET_NAME} prepare_ze_headers openvino_intel_npu_vm_runtime)
