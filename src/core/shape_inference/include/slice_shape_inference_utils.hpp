@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <tuple>
+
 #include "dimension_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
@@ -226,7 +228,8 @@ inline void merge_symbol_if_size_preserved(ov::Dimension& sliced,
                                            const int64_t step) {
     if (sliced == dim && sliced != ov::Dimension::dynamic() &&
         (dim.is_static() || is_size_preserving_slice(dim, start, stop, step))) {
-        ov::Dimension::merge(sliced, sliced, dim);
+        // Equal, non-empty intervals always intersect, so the merge cannot fail.
+        std::ignore = ov::Dimension::merge(sliced, sliced, dim);
     }
 }
 

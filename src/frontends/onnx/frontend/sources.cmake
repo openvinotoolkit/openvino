@@ -77,6 +77,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/cosh.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/crop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/cum_sum.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/deform_conv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/dequantize_linear.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/dft.cpp
@@ -217,6 +218,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/swish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tanh.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/tensor_scatter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/thresholded_relu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/topk.cpp
