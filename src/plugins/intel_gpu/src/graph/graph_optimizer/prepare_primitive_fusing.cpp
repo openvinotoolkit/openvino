@@ -5,6 +5,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -57,6 +58,57 @@
 #endif
 
 using namespace cldnn;
+
+namespace {
+
+// Activations whose result changes if the f16 intermediate value they consume is not rounded to f16.
+bool is_rounding_activation(activation_func func) {
+    return func == activation_func::floor || func == activation_func::ceil || func == activation_func::round_half_to_even ||
+           func == activation_func::round_half_away_from_zero;
+}
+
+// Math activations that are computed in f32 inside a fused kernel, see
+// ov::pass::MarkMathBeforeDiscontinuousOpsToKeepF16Rounding for the same list of operations.
+bool is_f16_rounding_sensitive_math_activation(activation_func func) {
+    switch (func) {
+    case activation_func::cos:
+    case activation_func::cosh:
+    case activation_func::sin:
+    case activation_func::sinh:
+    case activation_func::acos:
+    case activation_func::acosh:
+    case activation_func::asin:
+    case activation_func::asinh:
+    case activation_func::atan:
+    case activation_func::atanh:
+    case activation_func::tan:
+    case activation_func::sign:
+    case activation_func::softplus:
+    case activation_func::softsign:
+    case activation_func::selu:
+    case activation_func::hard_sigmoid:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Activation function the node computes last: its own one or the one of the last fused activation.
+std::optional<activation_func> get_last_activation_func(const program_node& node) {
+    if (node.has_fused_primitives()) {
+        const auto& last_fused = node.get_fused_primitives().back();
+        if (last_fused.is_type<activation>()) {
+            return last_fused.typed_desc<activation>()->activation_function;
+        }
+        return std::nullopt;
+    }
+    if (node.is_type<activation>()) {
+        return node.as<activation>().get_primitive()->activation_function;
+    }
+    return std::nullopt;
+}
+
+}  // namespace
 
 void prepare_primitive_fusing::run(program& p) {
     GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
@@ -847,6 +899,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
+
+            // The fused kernel keeps the intermediate value in f32, so the f16 rounding of the math activation is lost
+            // and the rounding activation (e.g. floor(cos(x)) with cos(x) = 0.99991 -> 1.0 in f16) gives another result.
+            if (is_rounding_activation(activation_func) && input.get_output_layout().data_type == data_types::f16) {
+                const auto input_activation_func = get_last_activation_func(input);
+                if (input_activation_func && is_f16_rounding_sensitive_math_activation(*input_activation_func)) {
+                    return;
+                }
+            }
 
             if (!input_data_supports_fusings(input, activation_node.id()) || input.get_dependencies().empty())
                 return;
