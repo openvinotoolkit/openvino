@@ -230,7 +230,7 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         return;
     }
     dataPrecision = getOriginalInputPrecisionAtPort(0);
-    if (dataPrecision != ov::element::f32 && ov::with_cpu_x86_bfloat16()) {
+    if (dataPrecision.is_real() && dataPrecision != ov::element::f32 && ov::with_cpu_x86_bfloat16()) {
         dataPrecision = ov::element::bf16;
     } else {
         dataPrecision = ov::element::f32;

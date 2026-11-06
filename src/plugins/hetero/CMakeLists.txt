@@ -14,6 +14,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_debug_dump.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hsm_reader_handler.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hsm_writer_handler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/device_subgraph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
@@ -28,6 +30,9 @@ set(HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/config.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_debug_dump.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hsm_common.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hsm_reader_handler.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/hsm_writer_handler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/itt.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/device_subgraph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/perf_log.hpp

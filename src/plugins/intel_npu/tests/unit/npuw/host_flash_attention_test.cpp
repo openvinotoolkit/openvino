@@ -15,6 +15,8 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "host_mask_catalogue_models.hpp"
@@ -61,6 +63,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
+#include "variable_state.hpp"
 
 namespace {
 
@@ -798,19 +801,25 @@ public:
     }
 };
 
-// Minimal ISyncInferRequest with tensor binding for selector preparation.
+// Minimal ISyncInferRequest with tensor binding for selector preparation and variable states for find().
 class PosIdsFakeInferRequest final : public ov::ISyncInferRequest {
 public:
-    explicit PosIdsFakeInferRequest(const std::shared_ptr<const ov::ICompiledModel>& cm) : ov::ISyncInferRequest(cm) {}
+    explicit PosIdsFakeInferRequest(const std::shared_ptr<const ov::ICompiledModel>& cm,
+                                    std::vector<ov::SoPtr<ov::IVariableState>> states = {})
+        : ov::ISyncInferRequest(cm),
+          m_states(std::move(states)) {}
 
     void infer() override {}
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
     }
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
+        return m_states;
     }
     void check_tensors() const override {}
+
+private:
+    std::vector<ov::SoPtr<ov::IVariableState>> m_states;
 };
 
 // Builds a model with a single "position_ids" parameter of the given shape (plus a dummy
@@ -833,6 +842,26 @@ void bind_position_ids(const std::shared_ptr<ov::ISyncInferRequest>& request, st
     ASSERT_EQ(tensor.get_size(), values.size());
     std::copy(values.begin(), values.end(), tensor.data<int64_t>());
     request->set_tensor(port, ov::get_tensor_impl(tensor));
+}
+
+// A request for a model with no position_ids input (like a LiteRT prefill graph), exposing the
+// given variable states.
+std::shared_ptr<ov::ISyncInferRequest> make_no_position_ids_request(std::vector<ov::SoPtr<ov::IVariableState>> states) {
+    auto embeds = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 8});
+    embeds->set_friendly_name("embeddings");
+    embeds->output(0).get_tensor().set_names({"embeddings"});
+    auto result = std::make_shared<ov::op::v0::Result>(embeds);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{embeds});
+
+    auto plugin = std::make_shared<PosIdsNullPlugin>();
+    auto compiled = std::make_shared<PosIdsStubCompiledModel>(model, plugin);
+    return std::make_shared<PosIdsFakeInferRequest>(compiled, std::move(states));
+}
+
+ov::SoPtr<ov::IVariableState> make_history_state(int64_t value) {
+    auto state = std::make_shared<ov::npuw::HistorySizeState>();
+    state->set(value);
+    return {state, nullptr};
 }
 
 }  // namespace
@@ -2890,4 +2919,60 @@ TEST(HFAHostMaskTest, CpuFinalTileIsFiniteWithF16StateAndF32Mask) {
             EXPECT_NEAR(output.data<const float>()[i], 0.5f, 1e-3);
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// runtime::host_flash_attention::HistorySize
+// ---------------------------------------------------------------------------
+
+TEST(HostFlashAttentionHistorySizeTest, PrefillWithoutHistoryHasNoPast) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(1024);
+    selector.prepare(0);
+    EXPECT_EQ(selector.this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::PREFILL);
+    EXPECT_EQ(selector.context_length(), 1024);
+}
+
+TEST(HostFlashAttentionHistorySizeTest, PrefillRoundsHistoryUpToWholeChunks) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(1024);
+    selector.prepare(1024);
+    EXPECT_EQ(selector.context_length(), 1024 + 1024);
+    // A partly filled last chunk (e.g. LiteRT-LM's 1023-token first chunk) still needs its whole tile.
+    selector.prepare(1023);
+    EXPECT_EQ(selector.context_length(), 1024 + 1024);
+    selector.prepare(2100);
+    EXPECT_EQ(selector.context_length(), 3 * 1024 + 1024);
+}
+
+TEST(HostFlashAttentionHistorySizeTest, FollowsEveryPrepare) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(16);
+    selector.prepare(48);
+    EXPECT_EQ(selector.context_length(), 48 + 16);
+    selector.prepare(0);  // a new conversation
+    EXPECT_EQ(selector.context_length(), 16);
+}
+
+TEST(HostFlashAttentionHistorySizeFindTest, MatchesWhenHistoryIsSet) {
+    auto rq = make_no_position_ids_request({make_history_state(0)});
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+    auto selector = ov::npuw::runtime::host_flash_attention::HistorySize::find(16, *rq);
+    ASSERT_NE(selector, nullptr);
+    EXPECT_EQ(selector->this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::PREFILL);
+}
+
+// A host that never sets the history must get an error, not HFA silently running without the past.
+TEST(HostFlashAttentionHistorySizeFindTest, RejectsUnsetHistory) {
+    auto rq = make_no_position_ids_request({make_history_state(ov::npuw::HistorySizeState::kUnset)});
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::HistorySize::find(16, *rq), nullptr);
+}
+
+TEST(HostFlashAttentionHistorySizeFindTest, RejectsMissingHistoryState) {
+    auto rq = make_no_position_ids_request({});
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::HistorySize::find(16, *rq), nullptr);
+}
+
+TEST(HostFlashAttentionHistorySizeTest, GenerateTakesHistoryAsIs) {
+    ov::npuw::runtime::host_flash_attention::HistorySize selector(1);
+    selector.prepare(37);
+    EXPECT_EQ(selector.this_case(), ov::npuw::runtime::host_flash_attention::Selector::Case::GENERATE);
+    EXPECT_EQ(selector.context_length(), 37 + 1);
 }

@@ -25,6 +25,20 @@ bool immadSupported() {
     bool support_immad = std::find(properties.begin(), properties.end(), ov::intel_gpu::capability::HW_MATMUL) != properties.end();
     return support_immad;
 }
+
+// Xe2 (e.g. Battlemage) and newer (e.g. Xe3 Panther Lake) have IP version >= 20, reported as "arch=vMM.x.y"
+bool is_xe2_or_newer() {
+    ov::Core ie = ov::test::utils::create_core();
+    auto arch = ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::architecture);
+    auto pos = arch.find("arch=v");
+    if (pos == std::string::npos)
+        return false;
+    try {
+        return std::stoi(arch.substr(pos + 6)) >= 20;
+    } catch (...) {
+        return false;
+    }
+}
 } // namespace
 
 const std::vector<std::regex>& disabled_test_patterns() {
@@ -142,6 +156,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)"),
             // Use weight from model not from path hint
             std::regex(R"(.*compile_from_weightless_blob.*)"),
+            // u3 Transpose reference implementation is not upstreamed yet (non-transposed u3 weights fold a Transpose)
+            std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
+            // MoE expert offload does not support per-group u3 zero points: the weights file stores them packed, the graph has them as u8
+            std::regex(R"(.*smoke_MoE3GemmCompressedOffload.*WP=u3_DS=full.*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
@@ -187,10 +205,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=(f16|f32)_.*)"));
             patterns.push_back(std::regex(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)"));
             // oneDNN FC: grouped scales with group_size not aligned to 16 are rejected
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/.*group_size=4_weights_precision=(u8|u4|i4)_.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[16,32\]_group_size=2_weights_precision=(u8|u4|i4)_.*)"));
-            // 4-bit constant weights with odd K: no kernel for padding_reorder_for_constant
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[377,335\]_group_size=1111_weights_precision=(u4|i4)_.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/.*group_size=4_weights_precision=(u8|u4|i4|u3)_.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[16,32\]_group_size=2_weights_precision=(u8|u4|i4|u3)_.*)"));
+            // 3/4-bit constant weights with odd K: no kernel for padding_reorder_for_constant
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[377,335\]_group_size=1111_weights_precision=(u4|i4|u3)_.*)"));
             // Non-transposed u4 weights + per-token dynamic quantization: no kernel found
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan/.*transpose_weights=0_.*_dyn_quan_group_size=9223372036854775807_.*)"));
         } else {
@@ -198,10 +216,16 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));
             // MoE patterns are not supported on the platforms without immad (fusion transformation are disabled)
             patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
-            // Ticket 183099: enable after GroupedMatMul support on GPU
-            patterns.push_back(std::regex(R"(.*smoke_GroupedMatMul.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));
+        }
+
+        if (is_xe2_or_newer()) {
+            // MFDNN-15824. OOB read in oneDNN JIT GEMM
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight/.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_input_4d/.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_(no_slm|fp4|fp8|mxfp4|mxfp8|scalar_wzp|precomputed_reduction_with_gs16)/.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_gemm_output_coherency/.*weights_shape=\[4096,6144\]_group_size=128_weights_precision=(u3|u4)_activations_precision=f16_.*transpose_weights=1_.*param_weights=0_dyn_quan_group_size=0_.*)"));
         }
 
         return patterns;

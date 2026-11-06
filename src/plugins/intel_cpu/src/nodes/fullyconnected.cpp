@@ -82,6 +82,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
             Type_t::nf4,
             Type_t::f4e2m1,
             Type_t::u2,
+            Type_t::u3,
             Type_t::f8e4m3,
             Type_t::f8e5m2};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
@@ -180,6 +181,10 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             // The fp8 dequantization scheme is scale-only.
             if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
                 op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
+                return false;
+            }
+            // oneDNN brgemm_matmul has no blocked B layouts for ndims > 3, which fp8 weights require.
+            if (op->get_input_partial_shape(DATA).rank().get_length() > 3) {
                 return false;
             }
             // Weights must be a real 2D [OC, IC] constant, not broadcast by the scale multiply.

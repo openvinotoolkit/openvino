@@ -22,18 +22,31 @@ std::string gated_gate_up(GraphEmitter& e,
                           const std::string& up_name,
                           const std::string& glu_name,
                           bool has_bias) {
-    // Separate gate and up matmuls: a merged weight would copy both and keep the originals alive.
     e.add_weight(gate_w);
-    auto gate = e.add_op("GGML_OP_MUL_MAT", gate_name, {gate_w, ffn_norm});
+    e.add_weight(up_w);
+    const auto& shape = e.value(ffn_norm).get_partial_shape();
+    const bool rank3 = shape.rank() == 4 && shape[1] == 1 && shape[3].is_static() &&
+                       e.value(gate_w).get_partial_shape().rank() == 2 && e.value(up_w).get_partial_shape().rank() == 2;
+    const std::map<std::string, ov::Any> attributes{{"activation_rank", rank3 ? 3 : 4}};
+    auto gate = e.add_op("GGML_OP_MUL_MAT", gate_name, {gate_w, ffn_norm}, 0, attributes);
     if (has_bias) {
         gate = add_bias(e, gate, bias_weight_name(gate_w), gate_name + "_b");
     }
-    e.add_weight(up_w);
-    auto up = e.add_op("GGML_OP_MUL_MAT", up_name, {up_w, ffn_norm});
+    auto up = e.add_op("GGML_OP_MUL_MAT", up_name, {up_w, ffn_norm}, 0, attributes);
     if (has_bias) {
         up = add_bias(e, up, bias_weight_name(up_w), up_name + "_b");
     }
-    return e.add_op(glu_op, glu_name, {gate, up}, 0, {{"swapped", false}});
+    auto glu = e.add_op(glu_op, glu_name, {gate, up}, 0, {{"swapped", false}});
+    if (rank3) {
+        glu = e.add_op(
+            "GGML_OP_RESHAPE",
+            glu_name + "_4d",
+            {glu, ffn_norm},
+            6,
+            {{"reshape_target", std::vector<int64_t>{0, 0, 0, e.value(glu).get_partial_shape().rbegin()->get_length()}},
+             {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
+    }
+    return glu;
 }
 
 }  // namespace
@@ -203,9 +216,9 @@ std::string moe_ffn(GraphEmitter& e,
         up = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_up", {p + "ffn_up_exps.weight", ffn_norm, selected});
     }
     if (eb) {
-        e.add_named_weight(p + "ffn_up_exps.bias");
+        e.add_weight(p + "ffn_up_exps.bias");
         up = e.add_op("GGML_OP_ADD_ID", p + "moe_up_b", {up, p + "ffn_up_exps.bias", selected});
-        e.add_named_weight(p + "ffn_gate_exps.bias");
+        e.add_weight(p + "ffn_gate_exps.bias");
         gate = e.add_op("GGML_OP_ADD_ID", p + "moe_gate_b", {gate, p + "ffn_gate_exps.bias", selected});
     }
     std::string act;
@@ -225,12 +238,12 @@ std::string moe_ffn(GraphEmitter& e,
     }
     auto experts = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_down", {p + "ffn_down_exps.weight", act, selected});
     if (eb) {
-        e.add_named_weight(p + "ffn_down_exps.bias");
+        e.add_weight(p + "ffn_down_exps.bias");
         experts = e.add_op("GGML_OP_ADD_ID", p + "moe_down_b", {experts, p + "ffn_down_exps.bias", selected});
     }
 
     if (e.has_weight(p + "ffn_down_exps.scale")) {
-        e.add_named_weight(p + "ffn_down_exps.scale");
+        e.add_weight(p + "ffn_down_exps.scale");
         auto scales =
             e.add_op("GGML_OP_RESHAPE",
                      p + "moe_scale_row",
@@ -299,7 +312,7 @@ std::string gemma4_moe_ffn(GraphEmitter& e,
     auto routed_input = rms_norm(e, input, p + "pre_ffw_norm_2.weight", p + "expert_pre_norm", cfg.rms_eps);
     auto router = e.add_op("GGML_OP_RMS_NORM", p + "router_norm", {input}, 0, {{"eps", cfg.rms_eps}});
     router = scale(e, router, 1.f / std::sqrt(float(cfg.n_embd)), p + "router_scale");
-    e.add_named_weight(p + "ffn_gate_inp.scale");
+    e.add_weight(p + "ffn_gate_inp.scale");
     router = e.add_op("GGML_OP_MUL", p + "router_weighted", {router, p + "ffn_gate_inp.scale"});
     auto routed = moe_ffn(e, cfg, p, routed_input, router);
     routed = rms_norm(e, routed, p + "post_ffw_norm_2.weight", p + "expert_post_norm", cfg.rms_eps);
