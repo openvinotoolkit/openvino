@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-06-18-21-38-000-42251178965",
+    "timestamp": "2026-11-06T18:21:38Z",
+    "run_id": "42251178965",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42251178965",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+    "signature": "typeerror genai_gen_text got an unexpected keyword argument context|Dependencies",
+    "signature_hash": "6cf9cf0d8f5c0a43",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+            "conclusion": "failure",
+            "symptom": "All 4 parametrized accuracy_conformance tests (TinyLlama/Qwen2, INT8/INT4, CPU) fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'"
+        },
+        {
+            "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+            "conclusion": "failure",
+            "symptom": "Same 4 parametrized tests fail identically on GPU with TypeError: genai_gen_text() got an unexpected keyword argument 'context'"
+        }
+    ],
+    "key_errors": [
+        "File \"/__w/openvino/openvino/tests/llm/accuracy_conformance.py\", line 250, in test_accuracy_conformance\n    _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())\n  File \"/venv/lib/python3.12/site-packages/whowhatbench/text_evaluator.py\", line 145, in score\n    predictions = self._generate_data(\n  File \"/venv/lib/python3.12/site-packages/whowhatbench/text_evaluator.py\", line 236, in _generate_data\n    output = gen_answer_fn(\nTypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+        "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] - TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+        "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT4-CPU] - TypeError: genai_gen_text() got an unexpected keyword argument 'context'"
+    ],
+    "root_cause": "tests/llm/accuracy_conformance.py passes gen_answer_fn=genai_gen_text to wwb.Evaluator(...) and then calls evaluator.score(target_model, evaluator.get_generation_fn()). whowhatbench is installed unpinned from `git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark` (tests/llm/requirements.txt), so the version resolved at install time has a TextEvaluator._generate_data() that calls gen_answer_fn(..., context=...), while the installed genai_gen_text() signature does not accept a 'context' keyword argument. This is a cross-repo API mismatch between openvino's test harness and the current HEAD of openvino.genai's who_what_benchmark package, not a regression caused by PR #39512 (which only edits a benchmarks CSV data file unrelated to tests/llm). The identical signature was already recorded once before (run 41968975027, also against PR #39512) and has now recurred, confirming this is a persistent, unpinned-dependency drift issue rather something introduced by this specific PR.",
+    "reproduction_steps": "1. pip install -r tests/llm/requirements.txt (pulls whowhatbench at the current openvino.genai HEAD).\n2. cd tests/llm && python3 -m pytest accuracy_conformance.py -k CPU --tb native --log-cli-level ERROR\n3. Observe TypeError: genai_gen_text() got an unexpected keyword argument 'context' raised from whowhatbench/text_evaluator.py inside _generate_data().",
+    "recommended_actions": [
+        "Pin whowhatbench to a specific commit/tag of openvino.genai in tests/llm/requirements.txt that is known-compatible with the genai_gen_text(...) call signature used in accuracy_conformance.py, instead of tracking the unpinned git HEAD.",
+        "Update tests/llm/accuracy_conformance.py (or whowhatbench's genai_gen_text) so the 'context' keyword argument is accepted/forwarded consistently on both sides of the openvino / openvino.genai repo boundary.",
+        "Add a CI smoke check that imports whowhatbench and introspects genai_gen_text's signature right after installing tests/llm/requirements.txt, failing fast with a clear message before the full accuracy suite runs."
+    ],
+    "prevention_strategies": "Avoid installing cross-repo test dependencies (whowhatbench) from an unpinned git ref in CI; pin to a tagged/commit-pinned version and bump it deliberately in lockstep with any call-signature changes to gen_answer_fn/genai_gen_text. Add a contract/unit test that calls evaluator.get_generation_fn()/genai_gen_text with the exact kwargs accuracy_conformance.py uses, so signature drift is caught before the full LLM accuracy suite is invoked in the merge queue.",
+    "historical_context": "This is the 2nd recorded occurrence of this exact signature (signature_hash 6cf9cf0d8f5c0a43), first seen on run 41968975027 (2026-11-05T06:17:40Z), also associated with PR #39512. Both occurrences point to the same whowhatbench/openvino.genai version-drift root cause rather than anything introduced by the PR's CSV-only change."
+}
