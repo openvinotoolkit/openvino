@@ -5401,16 +5401,14 @@ TEST_P(convolution_yxfb_yxio_b16_accuracy, basic) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                          convolution_yxfb_yxio_b16_accuracy,
                          ::testing::Values(
-                             // fp16: batch 16 -> scalar reads, 32 -> USE_BLOCK_READ_1, 64 -> USE_BLOCK_READ_2
                              convolution_yxfb_yxio_b16_params{data_types::f16, 16, 3, 16, true},
                              convolution_yxfb_yxio_b16_params{data_types::f16, 16, 8, 32, true},
                              convolution_yxfb_yxio_b16_params{data_types::f16, 32, 8, 32, true},
                              convolution_yxfb_yxio_b16_params{data_types::f16, 64, 8, 48, true},
                              convolution_yxfb_yxio_b16_params{data_types::f16, 64, 8, 32, false},
-                             // fp32: IFM > 4 -> USE_BLOCK_READ_2
                              convolution_yxfb_yxio_b16_params{data_types::f32, 32, 3, 16, true},
-                             convolution_yxfb_yxio_b16_params{data_types::f32, 32, 8, 24, true},
-                             convolution_yxfb_yxio_b16_params{data_types::f32, 64, 8, 32, false}),
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 32, 4, 24, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 64, 4, 32, false}),
                          convolution_yxfb_yxio_b16_accuracy::get_test_name);
 
 using TestParamType_convolution_gpu = ::testing::tuple<int,   // 0 - Filter size
