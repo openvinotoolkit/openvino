@@ -65,6 +65,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/reference/fake_convert.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "sequence_generator.hpp"
 #include "utils/eval_utils.hpp"
@@ -3301,6 +3302,86 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift_default_type_ct
                                                 0.625f,      0.6875f,    0.8125f,   0.875f,    1.f,      -0.f,
                                                 -0.1015625f, -0.203125f, -0.3125f,  -0.40625f, -0.5f,    -0.625f,
                                                 -0.6875f,    -0.8125f,   -0.875f,   -1.f}));
+}
+
+namespace {
+// f8e4m3 subnormal step is 2^-9; rounding is to nearest, ties to even mantissa; finite overflow and inf saturate
+// to +-448; NaN stays NaN. All inputs are exactly representable in f32, f16 and bf16.
+template <element::Type_t ET>
+void check_fake_convert_f8e4m3_rounding() {
+    using T = fundamental_type_for<ET>;
+    constexpr auto inf = std::numeric_limits<float>::infinity();
+    constexpr auto nan = std::numeric_limits<float>::quiet_NaN();
+    // clang-format off
+    const std::vector<float> input{
+        0.001220703125f,   // 0.625 * 2^-9 -> 2^-9
+        0.0029296875f,     // 1.5 * 2^-9, tie -> 2 * 2^-9
+        0.0048828125f,     // 2.5 * 2^-9, tie -> 2 * 2^-9
+        0.0068359375f,     // 3.5 * 2^-9, tie -> 4 * 2^-9
+        0.0146484375f,     // 7.5 * 2^-9, tie -> 2^-6 (smallest normal)
+        0.0009765625f,     // 0.5 * 2^-9, tie -> 0
+        -0.001220703125f,  // -0.625 * 2^-9 -> -2^-9
+        0.f,
+        -0.f,
+        -0.00048828125f,   // -2^-11 -> -0
+        -0.0009765625f,    // -0.5 * 2^-9, tie -> -0
+        1.0625f,           // tie -> 1
+        1.1875f,           // tie -> 1.25
+        448.f,
+        464.f,             // tie between 448 and the NaN encoding -> 448
+        480.f,             // NaN encoding without saturation -> 448
+        -1000.f,
+        inf,
+        -inf,
+        nan,
+        -nan};
+    const std::vector<float> expected{
+        0.001953125f, 0.00390625f, 0.00390625f, 0.0078125f, 0.015625f, 0.f, -0.001953125f, 0.f, -0.f, -0.f, -0.f,
+        1.f, 1.25f, 448.f, 448.f, 448.f, -448.f, 448.f, -448.f, nan, nan};
+    // clang-format on
+
+    const auto data_shape = Shape{input.size()};
+    auto data = make_shared<ov::op::v0::Parameter>(ET, data_shape);
+    auto scale = op::v0::Constant::create(ET, Shape{1}, {1.f});
+    auto shift = op::v0::Constant::create(ET, Shape{1}, {0.f});
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, element::f8e4m3);
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto out_vector = ov::TensorVector{ov::Tensor()};
+    auto in_vector = ov::TensorVector{make_tensor<ET>(data_shape, std::vector<T>(input.begin(), input.end()))};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+
+    const auto result = read_vector<T>(out_vector.at(0));
+    EXPECT_THAT(std::vector<float>(result.begin(), result.end()), Pointwise(NanSensitiveFloatEq(), expected));
+    // FloatEq treats -0 and +0 as equal, so check the sign of zeros separately.
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (expected[i] == 0.f) {
+            EXPECT_EQ(std::signbit(static_cast<float>(result[i])), std::signbit(expected[i])) << "index " << i;
+        }
+    }
+}
+}  // namespace
+
+TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_rounding_edge_cases) {
+    check_fake_convert_f8e4m3_rounding<element::f32>();
+}
+
+TEST(eval, evaluate_fake_convert_f16_to_f8e4m3_rounding_edge_cases) {
+    check_fake_convert_f8e4m3_rounding<element::f16>();
+}
+
+TEST(eval, evaluate_fake_convert_bf16_to_f8e4m3_rounding_edge_cases) {
+    check_fake_convert_f8e4m3_rounding<element::bf16>();
+}
+
+TEST(eval, emulate_f8e4m3_on_fp16_without_clamp_overflows_to_nan) {
+    const std::vector<float16> input{464.f, 480.f, std::numeric_limits<float>::infinity(), -65504.f};
+    std::vector<float16> output(input.size());
+    ov::reference::func::emulate_f8e4m3_on_fp16(input.data(), output.data(), input.size(), false);
+    EXPECT_EQ(static_cast<float>(output[0]), 448.f);  // tie rounds to even, no overflow
+    for (size_t i = 1; i < output.size(); ++i) {
+        EXPECT_TRUE(std::isnan(static_cast<float>(output[i]))) << "index " << i;
+    }
 }
 
 ///////////////////////////////////// FakeConvert f8e5m2

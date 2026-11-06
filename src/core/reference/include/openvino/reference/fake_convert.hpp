@@ -31,10 +31,8 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
  * @param count       Number of elements in the data input.
  * @param use_clamp   If use clamp.
  *
- * Exponent denormal values 0 -7
- * Exponent normal values 1..15 -6..8 (7 - exponent)
- * Exponent NaN values 15 8
- *
+ * Rounds to nearest even via ov::float8_e4m3. With use_clamp, finite values and infinities saturate to +-448,
+ * otherwise they overflow to NaN (f8e4m3 has no infinity). NaN stays NaN.
  */
 void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, bool use_clamp = true);
 }  // namespace func
@@ -42,6 +40,10 @@ void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, 
 namespace fake_convert_details {
 template <bool INVERT, typename T>
 inline T scale_shift(T val, T scale, T shift) {
+    // Adding or subtracting a zero shift would turn -0 into +0, so skip it like FakeConvertDecomposition does.
+    if (shift == T{0}) {
+        return INVERT ? static_cast<T>(val / scale) : static_cast<T>(val * scale);
+    }
     return INVERT ? static_cast<T>((val + shift) / scale) : static_cast<T>(val * scale - shift);
 }
 /**
