@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-06-16-55-13-917-42242867193",
+  "timestamp": "2026-11-06T16:55:13Z",
+  "run_id": "42242867193",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42242867193",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39236",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39236",
+  "author": "aobolensk",
+  "category": "Dependencies",
+  "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.1.dev not yet available on pip",
+  "signature": "could not find a version that satisfies the requirement openvino dev tokenizers build dependencies failed|Dependencies",
+  "signature_hash": "8d60fd1266878935",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "Build tokenizers wheel (Windows) step fails because pip cannot find openvino~=2026.5.1.dev on the index."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the tokenizers wheel job failed."
+    }
+  ],
+  "key_errors": [
+    "ERROR: Could not find a version that satisfies the requirement openvino~=2026.5.1.dev (from versions: ... 2026.5.0.dev20261106)",
+    "ERROR: No matching distribution found for openvino~=2026.5.1.dev",
+    "ERROR: Failed to build 'file:///C:/actions-runner/_work/openvino/openvino/openvino_tokenizers' when installing build dependencies"
+  ],
+  "root_cause": "The 'Build tokenizers wheel (Windows)' step installs build dependencies for the openvino_tokenizers extension via pip, which resolves a version constraint declared in openvino_tokenizers' pyproject.toml as 'openvino~=2026.5.1.dev'. The just-built main OpenVINO wheel for this run is only 2026.5.0.dev20261106 (the nightly dev version has not yet been bumped to 2026.5.1 on the private pip index), so no matching distribution exists and pip aborts the build-dependency installation step. This is a cross-repo version-skew issue between openvino_tokenizers' declared minimum version and the openvino core version currently being built/published, not a bug introduced by this PR's CPU/snippets changes.",
+  "reproduction_steps": "N/A - depends on the private pip index state at build time, not locally reproducible without mirroring the proxy index contents for the exact day of the nightly build.",
+  "recommended_actions": [
+    "Check/align the openvino_tokenizers submodule pin or its pyproject.toml version constraint so it does not require a yet-unpublished openvino~=2026.5.1.dev version ahead of the core nightly bump.",
+    "Verify the nightly version-bump sequencing between the openvino core wheel build and the openvino_tokenizers extension build job so the tokenizers wheel step always resolves an already-published openvino dev version.",
+    "Re-run the failed merge-queue checks once the openvino_tokenizers pin is corrected or once the matching 2026.5.1.dev wheel is published."
+  ],
+  "prevention_strategies": "Add a CI guard that fails fast with a clear message when the openvino_tokenizers extension's declared openvino version requirement does not match any version already published to the internal pip index for the current nightly, instead of failing deep inside pip's build-isolation step. Coordinate version bumps between the core openvino package and openvino_tokenizers so the former is always published before the latter's pin is advanced.",
+  "historical_context": "This exact signature (openvino~=2026.5.x.dev not yet published when the tokenizers wheel build step runs) has recurred 4 times previously between 2026-08-27 22:06 and 23:02 UTC (pattern 8d60fd1266878935, PRs #37686 and #37690), all tied to the same root cause of version-pin skew between openvino_tokenizers and the just-built core wheel. This run is occurrence #5 of that recurring pattern, now several weeks later, indicating the underlying pin-sequencing issue has not been structurally fixed."
+}
