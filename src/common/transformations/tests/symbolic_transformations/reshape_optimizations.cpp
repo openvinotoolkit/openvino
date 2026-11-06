@@ -31,8 +31,8 @@ TEST(ReshapeOptimizations, PreserveBoundedDynamicShape) {
     auto batch = make_shared<v1::Gather>(input_shape, v0::Constant::create(element::i64, Shape{1}, {0}), axis);
     auto heads = v0::Constant::create(element::i64, Shape{1}, {16});
     auto batch_heads = make_shared<v1::Multiply>(batch, heads);
-    auto flatten_pattern = make_shared<v0::Concat>(
-        OutputVector{batch_heads, v0::Constant::create(element::i64, Shape{2}, {-1, 80})}, 0);
+    auto flatten_pattern =
+        make_shared<v0::Concat>(OutputVector{batch_heads, v0::Constant::create(element::i64, Shape{2}, {-1, 80})}, 0);
     auto flattened = make_shared<v1::Reshape>(input, flatten_pattern, false);
     auto restored = make_shared<v1::Reshape>(flattened, input_shape, false);
     auto model = make_shared<Model>(OutputVector{restored}, ParameterVector{input});
