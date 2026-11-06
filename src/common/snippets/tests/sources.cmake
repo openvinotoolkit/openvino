@@ -28,6 +28,7 @@ set(SNIPPETS_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gated_mlp_tokenization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gn_decomposition.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/gn_tokenization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/hash.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/mha_tokenization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/mlp_seq_tokenization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/pass/online_softmax_decomposition.cpp

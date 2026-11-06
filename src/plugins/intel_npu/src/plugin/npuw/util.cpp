@@ -911,10 +911,36 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         }
         return tnew;
     } else if (axes[0] == 1 && axes[1] == 0 && axes[2] == 2) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f16);
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::u2 ||
+                    t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
+        case ov::element::u2: {
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            if (shape[2] % 4 == 0) {
+                ov::parallel_for2d(shape[0], shape[1], [&](size_t p, size_t r) {
+                    std::copy_n(&src[(p * shape[1] + r) * shape[2] / 4],
+                                shape[2] / 4,
+                                &dst[(r * shape[0] + p) * shape[2] / 4]);
+                });
+            } else {
+                // Rows are not byte-aligned, so move the elements one by one (LSB-first packing)
+                std::fill_n(dst, tnew.get_byte_size(), uint8_t{0});
+                for (size_t p = 0; p < shape[0]; ++p) {
+                    for (size_t r = 0; r < shape[1]; ++r) {
+                        for (size_t k = 0; k < shape[2]; ++k) {
+                            const size_t src_idx = (p * shape[1] + r) * shape[2] + k;
+                            const size_t dst_idx = (r * shape[0] + p) * shape[2] + k;
+                            const uint8_t value = (src[src_idx / 4] >> (2 * (src_idx % 4))) & 0x3;
+                            dst[dst_idx / 4] |= static_cast<uint8_t>(value << (2 * (dst_idx % 4)));
+                        }
+                    }
+                }
+            }
+            break;
+        }
         case ov::element::i4: {
             NPUW_ASSERT(shape[2] % 2 == 0);
             const uint8_t* src = static_cast<const uint8_t*>(t.data());

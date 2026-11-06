@@ -98,6 +98,7 @@ set(OV_TEMPLATE_TESTS_OP_REFERENCE_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hsigmoid.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hswish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/identity.cpp

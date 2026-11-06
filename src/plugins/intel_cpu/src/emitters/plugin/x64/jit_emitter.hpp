@@ -53,6 +53,7 @@ public:
           exec_prc_(exec_prc),
           l_table(new Xbyak::Label()),
           in_out_type_(in_out_type) {
+        OV_CPU_JIT_EMITTER_ASSERT(h, "JIT Generator is missed");
         k_mask = Xbyak::Opmask(1);  // FIXME: in general case we need preserve k_mask state as well
     }
 

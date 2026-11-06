@@ -45,6 +45,7 @@
 #include "nodes/gathermatmul.h"
 #include "nodes/generate_proposals.h"
 #include "nodes/grn.h"
+#include "nodes/histc.h"
 #include "nodes/identity.hpp"
 #include "nodes/if.h"
 #include "nodes/input.h"
@@ -247,6 +248,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(PaKVReorder, Type::PaKVReorder);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);
+    INTEL_CPU_NODE(Histc, Type::Histc);
     INTEL_CPU_NODE(LoRA, Type::LoRA);
     INTEL_CPU_NODE(GatherMatmul, Type::GatherMatmul);
     INTEL_CPU_NODE(GatedDeltaNet, Type::GatedDeltaNet);
