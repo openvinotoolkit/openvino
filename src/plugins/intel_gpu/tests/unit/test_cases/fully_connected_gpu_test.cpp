@@ -7352,6 +7352,76 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
 
+namespace {
+// Counts the async compilation tasks queued by the implementations factory; the tasks still run on a real context.
+class counting_compilation_context : public ICompilationContext {
+public:
+    explicit counting_compilation_context(std::shared_ptr<ICompilationContext> context) : _context(std::move(context)) {}
+    void push_task(kernel_impl_params key, Task&& task) override {
+        pushed_tasks++;
+        _context->push_task(std::move(key), std::move(task));
+    }
+    void remove_keys(std::vector<kernel_impl_params>&& keys) override { _context->remove_keys(std::move(keys)); }
+    bool is_stopped() override { return _context->is_stopped(); }
+    void cancel() override { _context->cancel(); }
+    void wait_all() override { _context->wait_all(); }
+
+    size_t pushed_tasks = 0;
+
+private:
+    std::shared_ptr<ICompilationContext> _context;
+};
+
+// Runs a dynamic u8 compressed FC (scale + zero point) on several new shapes and returns the number of queued async compilation tasks.
+size_t count_async_compilation_tasks(impl_types fc_impl_type) {
+    auto& engine = get_test_engine();
+    const int64_t ifm_num = 64, ofm_num = 32;
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u8, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, 1}, data_types::f16, format::bfyx});
+    auto zp_mem = engine.allocate_memory({{ofm_num, 1}, data_types::u8, format::bfyx});
+    set_values(weights_mem, std::vector<uint8_t>(ofm_num * ifm_num, 3));
+    set_values(scale_mem, std::vector<ov::float16>(ofm_num, ov::float16(0.5f)));
+    set_values(zp_mem, std::vector<uint8_t>(ofm_num, 1));
+
+    topology topology(input_layout("input", layout{{-1, ifm_num}, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      data("scale", scale_mem),
+                      data("zp", zp_mem),
+                      fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, "", fc_impl_type}}}));
+
+    auto context = std::make_shared<counting_compilation_context>(program::make_compilation_context(config));
+    auto prog = program::build_program(engine, topology, config, program::make_task_executor(config), context);
+    auto net = network::allocate_network(engine, prog);
+    for (int64_t batch : {1, 3, 17, 40}) {
+        auto input_mem = engine.allocate_memory({{batch, ifm_num}, data_types::f16, format::bfyx});
+        set_values(input_mem, std::vector<ov::float16>(batch * ifm_num, ov::float16(1.0f)));
+        net->set_input_data("input", input_mem);
+        net->execute();
+        EXPECT_EQ(net->get_primitive("fc_prim")->get_impl()->is_onednn(), fc_impl_type == impl_types::onednn);
+    }
+    context->wait_all();
+    return context->pushed_tasks;
+}
+}  // namespace
+
+// The oneDNN FC has no shape-agnostic impl, so each new shape is compiled synchronously. An async compilation task for the same
+// shape would only duplicate that work and run create() concurrently on the same onednn attributes, which create() modifies.
+TEST(fully_connected_onednn_gpu, dynamic_compressed_no_async_compilation_without_shape_agnostic_impl) {
+    if (!get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP();
+    ASSERT_EQ(count_async_compilation_tasks(impl_types::onednn), size_t(0));
+}
+
+// Async compilation is kept when a shape-agnostic impl serves the new shapes meanwhile.
+TEST(fully_connected_gpu, dynamic_compressed_async_compilation_with_shape_agnostic_impl) {
+    ASSERT_GT(count_async_compilation_tasks(impl_types::ocl), size_t(0));
+}
+
 class fully_connected_gpu_u3_validation : public fully_connected_gpu_sub_byte_validation {};
 
 // Validates UINT3 decompression correctness in the reference kernel. u3 is a tightly packed LSB-first bit stream,
