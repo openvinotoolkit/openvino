@@ -22,36 +22,6 @@ namespace internal {
 static constexpr Property<int, PropertyMutability::RO> world_size{"ov_internal_tp_world_size"};
 }  // namespace internal
 
-/// What TP_PROFILING measures. Device-side numbers of the collectives are the device plugin's (GPU_TP_PROFILING).
-enum class ProfilingMode : uint8_t {
-    NONE = 0,  //!< No measurement at all.
-    HOST = 1,  //!< Host-side timings of the plugin's dispatch. Does not change the schedule.
-};
-
-inline std::ostream& operator<<(std::ostream& os, const ProfilingMode& mode) {
-    switch (mode) {
-    case ProfilingMode::NONE:
-        return os << "NONE";
-    case ProfilingMode::HOST:
-        return os << "HOST";
-    default:
-        OPENVINO_THROW("[TP] Unsupported profiling mode");
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, ProfilingMode& mode) {
-    std::string str;
-    is >> str;
-    if (str == "NONE") {
-        mode = ProfilingMode::NONE;
-    } else if (str == "HOST") {
-        mode = ProfilingMode::HOST;
-    } else {
-        OPENVINO_THROW("[TP] Unsupported profiling mode: ", str, "; supported: NONE, HOST");
-    }
-    return is;
-}
-
 // -----------------------------------------------------------------------------
 // Tuning knobs. Available in every build type but not settable through the
 // public API: they trade one performance profile for another. Reachable through
@@ -77,14 +47,8 @@ static constexpr Property<uint64_t> input_stage_max_bytes{"TP_INPUT_STAGE_MAX_BY
 /// Verbosity of the plugin's diagnostics.
 static constexpr Property<ov::log::Level> verbose{"TP_VERBOSE"};
 
-/// File the plugin's diagnostics and measurement reports go to instead of the standard output.
+/// File the plugin's diagnostics and reports go to instead of the standard output.
 static constexpr Property<std::string> log_to_file{"TP_LOG_TO_FILE"};
-
-/// Performance profiling configurable via ProfilingMode.
-static constexpr Property<ProfilingMode> profiling{"TP_PROFILING"};
-
-/// Rank-0 collectives between two measurement dumps.
-static constexpr Property<uint64_t> dump_period{"TP_DUMP_PERIOD"};
 
 /// Leave the vocabulary projection unsharded, so every rank computes the full
 /// lm_head and no gather is inserted. Numerically correct either way; it

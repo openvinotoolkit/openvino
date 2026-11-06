@@ -82,22 +82,6 @@ struct TPConfig : public ov::PluginConfig {
         return TP_DEBUG_GLOBAL_OPT(verbose, ov::log::Level::NO);
     }
 
-    ProfilingMode profiling_mode() const {
-        return TP_DEBUG_OPT(*this, profiling, ProfilingMode::NONE);
-    }
-
-    bool profiling_host() const {
-        return profiling_mode() == ProfilingMode::HOST;
-    }
-
-    std::size_t dump_period() const {
-        if (profiling_mode() == ProfilingMode::NONE) {
-            return 0;
-        }
-        const auto configured = static_cast<std::size_t>(TP_DEBUG_OPT(*this, dump_period, uint64_t{0}));
-        return configured != 0 ? configured : 1;
-    }
-
     bool disable_lm_head_sharding() const {
         return TP_DEBUG_OPT(*this, disable_lm_head_sharding, false);
     }

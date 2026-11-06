@@ -41,15 +41,11 @@ public:
     FanOutVariableState(const std::string& name,
                         std::vector<ov::SoPtr<ov::IVariableState>> per_rank,
                         bool sharded,
-                        size_t replicas,
-                        bool profiling,
-                        std::size_t dump_period)
+                        size_t replicas)
         : ov::IVariableState(name),
           m_per_rank(std::move(per_rank)),
           m_sharded(sharded),
-          m_replicas(replicas),
-          m_profiling(profiling),
-          m_period(dump_period) {}
+          m_replicas(replicas) {}
 
     void reset() override {
         OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::state_reset");
@@ -64,17 +60,8 @@ public:
                 }
             }
         }
-        {
-            ScopedTime timer(m_profiling, m_reset);
-            for (auto& s : m_per_rank)
-                s->reset();
-        }
-        // reset() runs for every layer's state back to back, so the timings
-        // are aggregated and printed once a period.
-        if (m_profiling && m_period.due()) {
-            TP_REPORT << "[TP][STATE] reset agg over " << m_period.calls()
-                      << " calls: total_ms=" << m_reset.ms() << std::endl;
-        }
+        for (auto& s : m_per_rank)
+            s->reset();
     }
 
     void set_state(const ov::SoPtr<ov::ITensor>& state) override {
@@ -222,9 +209,6 @@ private:
     std::vector<ov::SoPtr<ov::IVariableState>> m_per_rank;
     bool m_sharded;
     size_t m_replicas;
-    bool m_profiling;
-    NS m_reset;
-    DumpPeriod m_period;
     mutable std::vector<size_t> m_rank_heads;
 };
 
@@ -233,9 +217,7 @@ private:
 InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_compiled_model(compiled_model),
-      m_stage_limit(compiled_model->config().get_input_stage_max_bytes()),
-      m_profiling(compiled_model->config().profiling_host()),
-      m_dump_period(compiled_model->config().dump_period()) {
+      m_stage_limit(compiled_model->config().get_input_stage_max_bytes()) {
     const auto& rank_compiled = m_compiled_model->get_rank_compiled();
 
     m_rank_requests.reserve(rank_compiled.size());
@@ -302,9 +284,6 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
     m_input_stage.assign(m_rank_requests.size(), std::vector<ov::SoPtr<ov::ITensor>>(num_inputs));
     m_input_stage_capacity.assign(m_rank_requests.size(), std::vector<size_t>(num_inputs, 0));
     m_input_stage_refused.assign(m_rank_requests.size(), std::vector<uint8_t>(num_inputs, 0));
-
-    m_rank_time.resize(m_rank_requests.size());
-    m_rank_start.resize(m_rank_requests.size() > 1 ? m_rank_requests.size() : 0);
 
     if (const auto& controller = m_compiled_model->get_cache_controller())
         m_cache_registration = controller->register_request(m_rank_requests);
@@ -420,18 +399,12 @@ void InferRequest::set_rank_inputs() {
 void InferRequest::run_ranks() {
     OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::run_ranks");
     if (m_rank_requests.size() == 1) {
-        ScopedTime timer(m_profiling, m_rank_time[0]);
         m_rank_requests[0]->infer();
         return;
     }
 
-    const Stopwatch launch(m_profiling);
     m_compiled_model->rank_workers().run([&](std::size_t rank) {
-        if (m_profiling) {
-            m_rank_start[rank] = launch.elapsed();
-        }
         OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::rank_infer");
-        ScopedTime timer(m_profiling, m_rank_time[rank]);
         m_rank_requests[rank]->infer();
     });
 }
@@ -446,70 +419,16 @@ void InferRequest::collect_outputs() {
     }
 }
 
-void InferRequest::accumulate_dispatch_spread() {
-    const auto [lo, hi] = std::minmax_element(m_rank_start.begin(), m_rank_start.end(),
-                                              [](const NS& a, const NS& b) { return a.ns() < b.ns(); });
-    m_dispatch_spread.add(hi->ns() - lo->ns());
-    m_dispatch_first.add(lo->ns());
-}
-
-void InferRequest::report_dispatch_spread() {
-    const auto n = static_cast<double>(m_dump_period.calls());
-    TP_REPORT << "[TP][RANK|host] rank dispatch over " << m_dump_period.calls()
-              << " inferences: first rank starts after " << (m_dispatch_first.us() / n) << "us"
-              << ", spread between ranks " << (m_dispatch_spread.us() / n) << "us" << std::endl;
-}
-
-void InferRequest::report_breakdown(const Stages& stages) {
-    const double total_ms = stages.set_inputs.ms() + stages.infer.ms() + stages.collect.ms();
-    TP_REPORT << "[TP] Infer breakdown: set_inputs=" << stages.set_inputs.ms()
-              << "ms  infer=" << stages.infer.ms()
-              << "ms  collect=" << stages.collect.ms()
-              << "ms  total=" << total_ms << "ms";
-    for (size_t r = 0; r < m_rank_time.size(); ++r) {
-        TP_REPORT << "  r" << r << "=" << m_rank_time[r].ms() << "ms";
-    }
-    TP_REPORT << std::endl;
-}
-
 void InferRequest::infer() {
     OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::infer");
     // One TP request at a time on these devices, so two requests cannot mix
     // their ranks in one collective call.
     [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();
 
-    Stages stages;
-    if (m_profiling) {
-        std::fill(m_rank_time.begin(), m_rank_time.end(), NS{});
-    }
-
-    {
-        ScopedTime timer(m_profiling, stages.set_inputs);
-        set_rank_inputs();
-        bind_cache();
-    }
-    {
-        ScopedTime timer(m_profiling, stages.infer);
-        run_ranks();
-    }
-    {
-        ScopedTime timer(m_profiling, stages.collect);
-        collect_outputs();
-    }
-
-    if (!m_profiling) {
-        return;
-    }
-    // The spread is summed every inference and printed once a period.
-    if (!m_rank_start.empty()) {
-        accumulate_dispatch_spread();
-    }
-    if (m_dump_period.due()) {
-        if (!m_rank_start.empty()) {
-            report_dispatch_spread();
-        }
-        report_breakdown(stages);
-    }
+    set_rank_inputs();
+    bind_cache();
+    run_ranks();
+    collect_outputs();
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
@@ -551,8 +470,7 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
                         " of ", m_rank_requests.size(), " ranks");
         m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
             kv.first, std::move(kv.second), sharded.count(kv.first) != 0,
-            m_compiled_model->get_state_replicas(),
-            m_profiling, m_dump_period.period()));
+            m_compiled_model->get_state_replicas()));
     }
     return m_fanout_states;
 }

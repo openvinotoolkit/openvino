@@ -29,8 +29,6 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp, input_stage_max_bytes, uint64_t{4096},
 OV_CONFIG_TP_DEBUG_GLOBAL_OPTION(ov::tp, verbose, ov::log::Level::NO, "Verbosity of the plugin's diagnostics. Values: LOG_NONE, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG, LOG_TRACE")
 OV_CONFIG_TP_DEBUG_GLOBAL_OPTION(ov::tp, log_to_file, std::string{}, "File the plugin's diagnostics and measurement reports go to instead of the standard output")
 
-OV_CONFIG_TP_DEBUG_OPTION(ov::tp, profiling, ov::tp::ProfilingMode::NONE, "Host-side timings of the plugin's dispatch. Values: NONE, HOST")
-OV_CONFIG_TP_DEBUG_OPTION(ov::tp, dump_period, uint64_t{0}, "Inference calls between two measurement dumps. 0 means report every one")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp, disable_lm_head_sharding, false, "Leave the vocabulary projection unsharded. Changes the collective count baked into an exported blob")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp, dump_sharding_states, std::string{}, "Directory where compile_model writes the sharding verifier's state of every split or annotated node, also when the verification fails")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp, shard_only, false, "DANGEROUS: compile one rank's shard with every collective stripped. Output is wrong by construction")

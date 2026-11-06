@@ -82,8 +82,9 @@ Everything below is reachable through the environment or a config file only.
 The collectives are tuned in intel_gpu, which runs them: the `GPU_TP_*`
 options, environment `OV_GPU_TP_*`. They are read when a rank context is
 created. Each plugin reads only its own options: the TP plugin does not know
-which device plugin runs its ranks, so it passes none of them down. To see the
-whole picture, set both sides, e.g. `OV_TP_PROFILING=HOST OV_GPU_TP_PROFILING=HOST`.
+which device plugin runs its ranks, so it passes none of them down. The TP
+plugin's own timings (per-stage infer breakdown, per-rank time, dispatch) are
+ITT tasks, see below.
 
 ### Behaviour switches
 
@@ -108,14 +109,12 @@ so the guarded code folds away instead of costing a branch.
 | `OV_TP_VERBOSE=LOG_INFO`      | One-line summaries per compile: the analysis (blocks, geometry, collectives), rank contexts, and per rank its op count, MiB of constants and how its weights were cut (views into the original, copies and MiB copied, runtime slices). | First thing to reach for when something looks wrong. |
 | `OV_GPU_TP_VERBOSE=LOG_INFO`  | The collectives: group set-up, scratch growth, which queue the collective rides.                                                                            | Together with the above.                             |
 | `OV_GPU_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing.                                                                                                                   | Only when chasing a hang or a correctness crash.     |
-| `OV_TP_PROFILING=HOST`        | The plugin's dispatch: per-stage infer breakdown, per-rank dispatch time.                                                                                   | The default choice when measuring.                   |
 | `OV_GPU_TP_PROFILING=HOST`    | Host-side measurement of the collectives: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena, run-ahead depth.                    | The default choice when measuring.                   |
 |                               | Leaves the execution schedule alone.                                                                                                                        |                                                      |
 | `OV_GPU_TP_PROFILING=DEVICE`  | Device-side numbers: how long the collective owns the model queue, bytes moved, effective bandwidth, and what share of device time the collectives take.    | Only when the device-side numbers are the question.  |
 |                               | Adds a kernel-timestamp query per collective, so host figures from such a run are not comparable with a HOST run -- which is why it does not print them.    |                                                      |
 | `OV_GPU_TP_PROFILING=ALL`     | Both of the above.                                                                                                                                          |                                                      |
-| `OV_TP_DUMP_PERIOD=N`         | Inference calls between two dumps of the plugin's dispatch block.                                                                                           | Almost always worth setting to some small number:    |
-| `OV_GPU_TP_DUMP_PERIOD=N`     | Rank-0 collectives between two reports of the collectives. Unset means one report per collective.                                                           | by default, the output is overloaded with info       |
+| `OV_GPU_TP_DUMP_PERIOD=N`     | Rank-0 collectives between two reports of the collectives. Unset means one report per collective.                                                           | Almost always: by default the output is overloaded. |
 | `OV_GPU_TP_DUMP_PROFILING_DATA_PATH=<dir>` | With `OV_GPU_TP_PROFILING` set: `tp_collectives_<N>ranks_<k>.csv`, a row per AllReduce call and rank -- `host` rows (HOST): schedule, bytes, how late the rank arrived, rendezvous and hand-over time; `device` rows (DEVICE): the queue time of the call's splice and the model's device time since the previous collective, read when the recording is reused (the last call of each collective has none). `call` is the collective's call number, one per inference, so per-inference and per-rank sums are a group-by. | Stragglers, a step that is slower than the others, anything an average hides. HOST costs nothing measurable; ALL with the CSV +0.3 ms TPOT on TP4. |
 | `OV_TP_DUMP_SHARDING_STATES=<dir>` | `compile_model` writes `tp_sharding_states_<model>_<N>ranks.txt`: the blocks found, the linear layers left whole, then every node of the analyzed model that is split or annotated with its state (Split layout per rank, Partial, rank-dependent sizes), where the state comes from, and its `tp_role` / `tp_shard`. On a verification failure the states up to the failing node, then the error. | A model fails the verification, or a new block pass is being written. |
 

@@ -833,8 +833,8 @@ options in a separate block of intel_gpu's `options.inl`, compiled only with
 context is created, from the device configuration, the context parameters and
 the environment (`OV_GPU_TP_*`). `GPU_TP_HALVING_MAX_BYTES` and
 `GPU_TP_ENABLE_HALVING` are named under schedules, `GPU_TP_FORCE_SYNC_COLLECTIVE`
-under execution. `TP_VERBOSE`, `TP_PROFILING` and `TP_DUMP_PERIOD` cover this
-plugin only; the collectives have `GPU_TP_VERBOSE`, `GPU_TP_PROFILING` and
+under execution. `TP_VERBOSE` covers this plugin only (its timings are ITT
+tasks); the collectives have `GPU_TP_VERBOSE`, `GPU_TP_PROFILING` and
 `GPU_TP_DUMP_PERIOD`. The TP plugin passes no option of a device plugin down:
 it does not know which device plugin runs its ranks.
 

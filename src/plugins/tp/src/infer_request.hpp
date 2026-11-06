@@ -99,31 +99,6 @@ private:
     std::vector<std::vector<size_t>> m_input_stage_capacity;
     /// Ports whose staging was tried and failed; never retried.
     std::vector<std::vector<uint8_t>> m_input_stage_refused;
-
-    // ---- Profiling ------------------------------------------------------
-    //
-    // Everything below is dead weight unless TP_PROFILING is set: `m_profiling`
-    // gates every read and folds to a literal in a build without debug caps.
-
-    struct Stages {
-        NS set_inputs;
-        NS infer;
-        NS collect;
-    };
-
-    void accumulate_dispatch_spread();
-    void report_dispatch_spread();
-    void report_breakdown(const Stages& stages);
-
-    bool m_profiling = false;
-
-    std::vector<NS> m_rank_time;
-    std::vector<NS> m_rank_start;
-
-    NS m_dispatch_spread;
-    NS m_dispatch_first;
-
-    DumpPeriod m_dump_period;
 };
 
 }  // namespace tp
