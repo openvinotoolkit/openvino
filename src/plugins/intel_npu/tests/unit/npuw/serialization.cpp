@@ -1396,6 +1396,23 @@ TEST(SerializationTest, HostFlashAttention_MaskSkippingConfigurationAccepted) {
     EXPECT_FALSE(hfa.is_valid());
 }
 
+// A forged blob with K/V index == regular tile input count (still in range for the 7-input final
+// tile model) must be rejected, otherwise process_tile reads _compiled_tile_model->inputs()[k] OOB.
+TEST(SerializationTest, HostFlashAttention_KVIndexOutOfRangeForRegularTileRejected) {
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    auto make_hfa = [&](std::size_t k, std::size_t v) {
+        auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+        hfa._sdpa_attention_info._tile_input_indices = {/*q=*/5, k, v, /*mask=*/6, /*acc=*/0, /*max=*/1, /*d=*/2};
+        hfa._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
+        hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/7, /*num_outputs=*/3);
+        return hfa;
+    };
+
+    EXPECT_TRUE(make_hfa(/*k=*/3, /*v=*/4).is_valid());
+    EXPECT_FALSE(make_hfa(/*k=*/6, /*v=*/4).is_valid());
+    EXPECT_FALSE(make_hfa(/*k=*/3, /*v=*/6).is_valid());
+}
+
 // _context_size feeds the mask tile buffer allocation loop in
 // HFARuntimeContext::initialize_mask_cache (ceil(context_size / past_tile_size) device allocations),
 // so zero and absurdly large values must be rejected while a partial final interval remains valid.
