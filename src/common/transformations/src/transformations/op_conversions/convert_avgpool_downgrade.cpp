@@ -117,7 +117,7 @@ ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
                 const bool is_static = shape_in.rank().is_static() && shape_v14.rank().is_static() &&
                                        shape_in[axis].is_static() && shape_v14[axis].is_static() &&
                                        shape_v1[axis].is_static();
-                if (is_static && shape_v14[axis] != shape_v1[axis]) {
+                if (is_static && shape_v14[axis].get_length() < shape_v1[axis].get_length()) {
                     stops.push_back(shape_v14[axis].get_length());
                     // Makes the runtime bound below evaluate to the static extent.
                     offsets.push_back(stops.back() - shape_in[axis].get_length());
