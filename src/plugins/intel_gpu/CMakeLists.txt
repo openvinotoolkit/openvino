@@ -10,6 +10,17 @@ set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
+# Embedded debug info can push large GPU static libraries past MSVC's 4 GiB archive limit.
+if(MSVC AND CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
+    string(REPLACE "Embedded" "ProgramDatabase" OV_GPU_DEBUG_INFORMATION_FORMAT "${CMAKE_MSVC_DEBUG_INFORMATION_FORMAT}")
+endif()
+
+function(ov_gpu_set_debug_information_format target)
+    if(OV_GPU_DEBUG_INFORMATION_FORMAT)
+        set_target_properties(${target} PROPERTIES MSVC_DEBUG_INFORMATION_FORMAT "${OV_GPU_DEBUG_INFORMATION_FORMAT}")
+    endif()
+endfunction()
+
 # convert white-space separated string to list
 string(REPLACE " " ";" SYCL_EXTRA_FLAGS "${SYCL_EXTRA_FLAGS}")
 
@@ -169,7 +180,9 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 
     # Distinct binary dirs so the same source dirs can be added twice in a COMBINED build.
     add_subdirectory(src/runtime         runtime${SUFFIX})
+    ov_gpu_set_debug_information_format(openvino_intel_gpu_runtime${SUFFIX})
     add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})
+    ov_gpu_set_debug_information_format(openvino_intel_gpu_kernels${SUFFIX})
     add_subdirectory(src/graph           graph${SUFFIX})
 
     # One per stack: the objects link this stack's graph library, so a COMBINED build cannot
