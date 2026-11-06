@@ -1449,3 +1449,42 @@ TEST(GroupQueryAttentionValues, padded_query_batched_dynamic_capacity_sanitizes_
                                           "the unwritten tail so a garbage past Parameter can't leak NaN through "
                                           "softmax";
 }
+
+// resize_kv_to_capacity's no-op fold must trim an OVERSIZED buffer down to capacity, not just skip when the
+// buffer already covers it: batch 2 (triggers the batched writer) with a dynamic query sequence_length
+// (has_fixed_kv_capacity() is false even though K/V/past rows are all static) builds a 12-row Concat-grown
+// buffer (8 past + 4 current) against a constant total_sequence_length=8, so present must still come out at
+// exactly 8 rows, not the unsliced 12.
+TEST(GroupQueryAttentionValues, padded_query_batched_oversized_buffer_still_trims_to_capacity) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 8;
+    constexpr int64_t total_sequence_length = 8;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(f32, PartialShape{2, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_FALSE(gqa->has_fixed_kv_capacity());
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    EXPECT_EQ(model->get_results()[0]->get_input_partial_shape(0),
+              (PartialShape{2, KV_NUM_HEADS, total_sequence_length, HEAD_SIZE}))
+        << "an oversized Concat-grown buffer (12 rows) must still be trimmed to capacity (8), not returned as-is";
+}
