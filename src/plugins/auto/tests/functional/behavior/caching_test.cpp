@@ -177,13 +177,12 @@ TEST_F(AutoFuncTests, compile_for_all_populates_cache_reused_by_later_loads) {
     core.set_property("MOCK_GPU", ov::device::id("gpu"));
     core.set_property("MOCK_3", ov::device::id("3"));
     {
-        auto compiled_model =
-            core.compile_model(model_cannot_batch,
-                               "AUTO",
-                               {ov::device::priorities("MOCK_GPU", "MOCK_3", "MOCK_CPU"),
-                                ov::intel_auto::compile_for_all(true),
-                                ov::intel_auto::enable_startup_fallback(false),
-                                ov::intel_auto::enable_runtime_fallback(false)});
+        auto compiled_model = core.compile_model(model_cannot_batch,
+                                                 "AUTO",
+                                                 {ov::device::priorities("MOCK_GPU", "MOCK_3", "MOCK_CPU"),
+                                                  ov::intel_auto::compile_for_all(true),
+                                                  ov::intel_auto::enable_startup_fallback(false),
+                                                  ov::intel_auto::enable_runtime_fallback(false)});
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
         while (ov::test::utils::listFilesWithExt(cache_path, "blob").size() < 3 &&
                std::chrono::steady_clock::now() < deadline) {

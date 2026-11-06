@@ -38,13 +38,13 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
  *
  * Requires ov::cache_dir or ov::cache_path. If neither is set, compiling the model throws unless this property is
  * ignored because cumulative throughput mode or ov::cache_blob_id is configured for AUTO or a candidate device.
- * A candidate with a single-file cache path (*.bin) is skipped with a warning; devices with caching disabled are skipped.
- * If no candidate other than the initially selected device exists when AUTO initializes scheduling, this property is
- * ignored after cache configuration is validated and fallback settings remain unchanged. Otherwise, it disables
- * ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback for this compile, even if startup
- * compilation retries later remove all remaining warm-up candidates. Warm-up failures are logged as warnings. The warm-up
- * uses background work to populate cache blobs for a later compile_model call; it does not switch the current
- * compiled model to another device. Warm-up starts after AUTO is ready to serve inference following startup
+ * A candidate with a single-file cache path (*.bin) is skipped with a warning; devices with caching disabled are
+ * skipped. If no candidate other than the initially selected device exists when AUTO initializes scheduling, this
+ * property is ignored after cache configuration is validated and fallback settings remain unchanged. Otherwise, it
+ * disables ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback for this compile, even
+ * if startup compilation retries later remove all remaining warm-up candidates. Warm-up failures are logged as
+ * warnings. The warm-up uses background work to populate cache blobs for a later compile_model call; it does not switch
+ * the current compiled model to another device. Warm-up starts after AUTO is ready to serve inference following startup
  * compilation attempts.
  *
  * For example, to warm up other eligible candidates:
