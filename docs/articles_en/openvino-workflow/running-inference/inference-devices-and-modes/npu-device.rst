@@ -180,12 +180,14 @@ The NPU device is currently supported by AUTO inference modes
          ov::intel_npu::driver_version
          ov::intel_npu::compiler_version
          ov::intel_npu::max_tiles
+         ov::qos_info
 
    .. tab-item:: Write-only properties
 
       .. code-block::
 
          ov::cache_encryption_callbacks
+         ov::qos
 
 .. note::
 
@@ -267,6 +269,68 @@ or
 
    NPU_TURBO usage may cause higher compile time, memory footprint,
    affect workload latency and compatibility issues with older NPU drivers
+
+**ov::qos and ov::qos_info**
+
+``ov::qos`` is a write-only property that requests the Quality of Service (QoS) level
+of the command queue used for model execution. The QoS level expresses the desired
+power/energy characteristics of the workload.
+
+.. list-table::
+   :widths: 10 200
+   :header-rows: 1
+
+   * - **Value**
+     - **Description**
+   * - DEFAULT
+     - **Default.** Driver/OS-selected level.
+   * - HIGH
+     - Foreground, latency-sensitive workloads.
+   * - MEDIUM
+     - Nominal scheduling class.
+   * - LOW
+     - Reduced energy usage, with forward progress guaranteed.
+   * - UTILITY
+     - More energy efficient than LOW, while still guaranteeing forward progress.
+   * - ECO
+     - Maximum energy savings, with no forward progress guarantee.
+
+The level can be set at core level, at compilation, or changed on the compiled model at runtime.
+Setting ``ov::QoS::DEFAULT`` reverts to the driver/OS-selected level.
+
+.. code-block::
+
+   core.compile_model(ov_model, "NPU", {ov::qos(ov::QoS::LOW)});
+
+or
+
+.. code-block::
+
+   compiled_model.set_property(ov::qos(ov::QoS::ECO));
+
+``ov::qos_info`` is a read-only compiled model property that returns an ``ov::QoSInfo`` structure:
+
+- ``level`` - the effective QoS level. It is never ``ov::QoS::DEFAULT``: when no level was requested,
+  it reports the level the driver/OS default resolved to.
+- ``is_overridden`` - ``true`` if the level was requested by the application, ``false`` if it is
+  the driver/OS-selected default.
+
+.. code-block::
+
+   ov::QoSInfo info = compiled_model.get_property(ov::qos_info);
+
+.. note::
+
+   ``ov::qos`` and ``ov::qos_info`` are available only if the NPU driver supports the
+   ``ZE_extension_command_queue_qos`` extension. They are not supported yet for models
+   compiled with dynamic shapes; for such models, a QoS level set at core level or at
+   compilation is ignored.
+
+.. note::
+
+   Setting ``ov::qos`` through ``core.set_property("NPU", ...)`` applies only to the command
+   queues created from that point on. Models that are already compiled keep their current
+   QoS level; use ``compiled_model.set_property(ov::qos(...))`` to change it for them.
 
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 
