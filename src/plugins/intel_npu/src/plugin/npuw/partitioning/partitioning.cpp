@@ -4,6 +4,8 @@
 
 #include "partitioning.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <set>
@@ -18,6 +20,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/validate.hpp"
@@ -453,6 +456,7 @@ public:
     void spatial(const std::string& func_name);
     void attention(const std::string& func_name);
 
+    void rebalanceScalarClosures(const std::string& func_name);
     void optimize(const std::string& func_name);
     void decompressionCutOff(const std::string& func_name);
 
@@ -2498,6 +2502,78 @@ void Partitioner::optimize(const std::string& func_name) {
     LOG_VERB("Done");
 }
 
+// FOLD may lift a scalar scale into a closure while the scalar it multiplies stays
+// a body constant, e.g. Multiply(Convert(u16 65535), scale). The device converts
+// both to f16, where values above 65504 overflow and nonzero values below 6.1e-5
+// (the smallest normal f16) may be flushed to zero. If either side is affected,
+// move a power of two 2^k from the constant into the closures, preferring
+// k = floor(log2|c|) so the constant becomes [1, 2). Scaling by 2^k is exact, so
+// the product is unchanged. If no k brings the constant and every closure into
+// the normal f16 range, keep it as is.
+void Partitioner::rebalanceScalarClosures(const std::string& func_name) {
+    const auto is_normal_f16 = [](float v) {
+        const float a = std::fabs(v);
+        return a >= 6.103515625e-05f && a <= 65504.f;
+    };
+    auto& f = P.functions.at(func_name);
+    auto& refs = all_functions.at(func_name).refs;
+
+    for (auto&& node : f._model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v1::Multiply>(node) || node->get_output_element_type(0) != ov::element::f32) {
+            continue;
+        }
+        for (std::size_t side = 0; side < 2; side++) {
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(node->get_input_node_shared_ptr(side));
+            const int64_t idx = param ? f._model->get_parameter_index(param) : -1;
+            const auto other = node->input_value(1 - side);
+            if (idx < static_cast<int64_t>(f._param_offset) || ov::shape_size(param->get_shape()) != 1 ||
+                param->get_output_target_inputs(0).size() != 1 || other.get_partial_shape().is_dynamic() ||
+                ov::shape_size(other.get_shape()) != 1) {
+                continue;  // Not a single-use scalar closure times a scalar
+            }
+            auto cnst = ov::util::get_constant_from_source(other);
+            if (!cnst) {
+                continue;
+            }
+            const float c = cnst->cast_vector<float>()[0];
+            const std::size_t cidx = idx - f._param_offset;
+            std::vector<float> scales;
+            for (auto&& ref : refs) {
+                const auto& closure = ref.get()._lazy_closure;
+                scales.push_back(cidx < closure.size() && closure[cidx] ? closure[cidx].eval().data<float>()[0]
+                                                                        : std::numeric_limits<float>::quiet_NaN());
+            }
+            const auto fits = [&](int k) {
+                return is_normal_f16(std::ldexp(c, -k)) && std::all_of(scales.begin(), scales.end(), [&](float s) {
+                           return s == 0.f || is_normal_f16(std::ldexp(s, k));
+                       });
+            };
+            if (c == 0.f || !std::isfinite(c) || fits(0)) {
+                continue;
+            }
+            // Beyond 16 binades from k0 the constant itself leaves the normal f16 range
+            const int k0 = std::ilogb(c);
+            int k = 0;
+            for (int d = 0; d <= 16 && k == 0; d++) {
+                k = fits(k0 + d) ? k0 + d : fits(k0 - d) ? k0 - d : 0;
+            }
+            if (k == 0) {
+                LOG_VERB("Skip " << node->get_friendly_name() << " in " << func_name << ": no 2^k fits f16");
+                continue;
+            }
+
+            LOG_VERB("Rebalance " << node->get_friendly_name() << " in " << func_name << " by 2^" << k);
+            node->input(1 - side).replace_source_output(
+                ov::op::v0::Constant::create(ov::element::f32, cnst->get_shape(), {std::ldexp(c, -k)}));
+            for (std::size_t i = 0; i < refs.size(); i++) {
+                refs[i].get()._lazy_closure[cidx] = ov::npuw::weights::LazyTensor(
+                    ov::op::v0::Constant::create(ov::element::f32, param->get_shape(), {std::ldexp(scales[i], k)}));
+            }
+            break;
+        }
+    }
+}
+
 void Partitioner::decompressionCutOff(const std::string& func_name) {
     LOG_VERB("Decompression cut-off for function " << func_name << " in model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
@@ -2809,6 +2885,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
                 p.attention(func_group);
+                p.rebalanceScalarClosures(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
