@@ -5,12 +5,18 @@
 #pragma once
 
 #include <sstream>
+#include <functional>
+#include <memory>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
 #include "buffer.hpp"
 #include "helpers.hpp"
 #include "bind.hpp"
+
+namespace ov {
+class Model;
+}
 
 namespace cldnn {
 
@@ -136,12 +142,23 @@ public:
         return _is_encrypted;
     }
 
+    // Share the importing Core's IR reader with nested program deserialization.
+    void set_model_reader(std::function<std::shared_ptr<ov::Model>(const std::string&)> reader) {
+        _model_reader = std::move(reader);
+    }
+
+    std::shared_ptr<ov::Model> read_model(const std::string& xml) const {
+        OPENVINO_ASSERT(_model_reader, "[GPU] Shape inference model reader is not set");
+        return _model_reader(xml);
+    }
+
 private:
     std::istream& _stream;
     void* _impl_params;
     const size_t* _tensor_base_ptr;
     bool _is_encrypted;
     size_t _offset;
+    std::function<std::shared_ptr<ov::Model>(const std::string&)> _model_reader;
 };
 
 class EncryptedBinaryOutputBuffer : public BinaryOutputBuffer {

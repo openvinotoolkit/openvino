@@ -2,11 +2,13 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import io
 import os
 
 import numpy as np
 import pytest
 
+import openvino as ov
 import openvino.opset14 as ops
 from openvino import Core, DiscreteTypeInfo, Model, Op, Shape
 
@@ -170,3 +172,171 @@ def test_custom_layer_same_producer_on_two_ports(device, tmp_path):
     result = compiled(data)[0]
 
     assert np.array_equal(result, data * 2)
+
+
+class CacheConcat(ov.Op):
+    """Public test extension with a serialized shape-relevant attribute."""
+
+    class_type_info = ov.DiscreteTypeInfo("CacheConcat", "cache_test_extension")
+
+    def __init__(self, inputs=None, axis=1):
+        super().__init__(self)
+        self._attrs = {"axis": int(axis)}
+        if inputs is not None:
+            self.set_arguments(inputs)
+            self.constructor_validate_and_infer_types()
+
+    def get_type_info(self):
+        return self.class_type_info
+
+    def visit_attributes(self, visitor):
+        visitor.on_attributes(self._attrs)
+        return True
+
+    def clone_with_new_inputs(self, inputs):
+        return CacheConcat(inputs, self._attrs["axis"])
+
+    def validate_and_infer_types(self):
+        inferred = ops.concat(self.input_values(), self._attrs["axis"])
+        self.set_output_type(0, inferred.get_output_element_type(0), inferred.get_output_partial_shape(0))
+
+
+@gpu_only
+@pytest.mark.parametrize("mode", ["path", "precision", "axis", "nested", "loop", "loop_invariant", "extension"])
+def test_custom_layer_dynamic_cache_restoration(device, tmp_path, mode):
+    assets = tmp_path / "assets"
+    assets.mkdir()
+    concat = mode in ("axis", "extension")
+    half = mode == "precision"
+    name = "CacheConcat" if mode == "extension" else ("Concat" if concat else "Relu")
+    scalar = "half" if half else "float"
+    code = "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n" if half else ""
+    if concat:
+        code += (
+            "__kernel void custom(__global const float* x,__global const float* y,"
+            "__global float* z){size_t i=get_global_id(0),n=get_global_size(0)/2;"
+            "z[i]=i<n?x[i]:y[i-n];}\n"
+        )
+        buffers = (
+            '<Tensor arg-index="0" type="input" port-index="0" format="BFYX"/><'
+            'Tensor arg-index="1" type="input" port-index="1" format="BFYX"/><'
+            'Tensor arg-index="2" type="output" port-index="0" format="BFYX"/>'
+        )
+    else:
+        code += (
+            f"__kernel void custom(__global const {scalar}* x,"
+            f"__global {scalar}* y){{size_t i=get_global_id(0);y[i]=fmax(x[i],({scalar})0);}}\n"
+        )
+        buffers = (
+            '<Tensor arg-index="0" type="input" port-index="0" format="BFYX"/><'
+            'Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>'
+        )
+    (assets / "custom.cl").write_text(code)
+    xml = (
+        f'<CustomLayer name="{name}" type="SimpleGPU" version="1"><Kernel entry="custom"><'
+        f'Source filename="custom.cl"/></Kernel><Buffers>{buffers}</Buffers><'
+        f'WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/></CustomLayer>'
+    )
+    (assets / "custom.xml").write_text(xml)
+    p = ops.parameter(ov.PartialShape([-1, -1] if concat else [-1, 4]), ov.Type.f32, name="input")
+    params = [p]
+    if concat:
+        second = ops.parameter(ov.PartialShape([-1, -1]), ov.Type.f32, name="second")
+        params.append(second)
+        result = CacheConcat(params, 0) if mode == "extension" else ops.concat(params, 0)
+        result.set_friendly_name("custom_op")
+    elif mode == "nested":
+        condition = ops.parameter([], ov.Type.boolean, name="condition")
+        params.append(condition)
+        body_p = ops.parameter([-1, 4], ov.Type.f32, name="body_input")
+        yes = ov.Model([ops.relu(body_p, name="custom_op")], [body_p])
+        no_p = ops.parameter([-1, 4], ov.Type.f32, name="else_input")
+        no = ov.Model([ops.negative(no_p)], [no_p])
+        branch = ops.if_op(condition)
+        branch.set_then_body(yes)
+        branch.set_else_body(no)
+        branch.set_input(p.output(0), body_p, no_p)
+        branch.set_output(yes.get_results()[0], no.get_results()[0])
+        branch.validate_and_infer_types()
+        result = branch
+    elif mode in ("loop", "loop_invariant"):
+        trip = ops.parameter([], ov.Type.i64, name="trip_count")
+        params.append(trip)
+        body_p = ops.parameter([-1, 4], ov.Type.f32, name="body_input")
+        activation = ops.relu(body_p, name="custom_op")
+        condition = ops.constant(np.array(True))
+        body = ov.Model([condition, activation], [body_p])
+        loop = ops.loop(trip, ops.constant(np.array(True)))
+        loop.set_function(body)
+        if mode == "loop_invariant":
+            loop.set_invariant_input(body_p, p.output(0))
+        else:
+            loop.set_merged_input(body_p, p.output(0), activation.output(0))
+        loop.set_special_body_ports([-1, 0])
+        result = loop.get_iter_value(activation.output(0), -1)
+        loop.validate_and_infer_types()
+    else:
+        source = ops.add(p, ops.constant(np.float32(1))) if half else p
+        result = ops.relu(source, name="custom_op")
+        if half:
+            result = ops.multiply(result, ops.constant(np.float32(2)))
+    model = ov.Model([result], params, "CustomLayerCacheRestoration")
+    config = {
+        "CONFIG_FILE": str(assets / "custom.xml"),
+        "INFERENCE_PRECISION_HINT": ov.Type.f16 if half else ov.Type.f32,
+        "NUM_STREAMS": "1",
+        "CACHE_DIR": str(tmp_path / "cache"),
+    }
+    ov.serialize(model, assets / "model.xml", assets / "model.bin")
+
+    def compile_one():
+        core = Core()
+        if mode == "extension":
+            core.add_extension(ov.OpExtension(CacheConcat))
+        compiled = core.compile_model(
+            str(assets / "model.xml") if mode == "path" else model,
+            device,
+            config,
+        )
+        return core, compiled
+
+    core, cold = compile_one()
+    assert not cold.get_property("LOADED_FROM_CACHE")
+    exported = cold.export_model()
+    blob = exported.getvalue() if hasattr(exported, "getvalue") else bytes(exported)
+    del cold, core
+    core, warm = compile_one()
+    assert warm.get_property("LOADED_FROM_CACHE"), "warm load silently recompiled"
+    import_config = dict(config)
+    import_config.pop("CACHE_DIR")
+    if concat:
+        # A conflicting hint must not replace the serialized axis=0 operation.
+        wrong = CacheConcat(params, 1) if mode == "extension" else ops.concat(params, 1)
+        wrong.set_friendly_name("custom_op")
+        import_config["MODEL_PTR"] = Model([wrong], params)
+    imported = core.import_model(io.BytesIO(blob), device, import_config)
+    for batch in (1, 3, 2):
+        width = 3 if concat else 4
+        values = np.arange(batch * width, dtype=np.float32).reshape(batch, width) - 4
+        inputs = [values]
+        if concat:
+            inputs.append(values + 20)
+            expected = np.concatenate(inputs, axis=0)
+        else:
+            expected = np.maximum(values + (1 if half else 0), 0) * (2 if half else 1)
+        if mode == "nested":
+            inputs.append(np.array(True))
+        elif mode in ("loop", "loop_invariant"):
+            inputs.append(np.array(3, dtype=np.int64))
+        for compiled in (warm, imported):
+            outputs = compiled(inputs)
+            actual = np.array(outputs[compiled.output(0)], copy=True)
+            assert actual.shape == expected.shape
+            assert actual.dtype == expected.dtype
+            assert actual.tobytes() == expected.tobytes()
+        if mode == "nested":
+            for compiled in (warm, imported):
+                outputs = compiled([values, np.array(False)])
+                actual = np.array(outputs[compiled.output(0)], copy=True)
+                assert actual.shape == values.shape
+                assert actual.tobytes() == (-values).tobytes()
