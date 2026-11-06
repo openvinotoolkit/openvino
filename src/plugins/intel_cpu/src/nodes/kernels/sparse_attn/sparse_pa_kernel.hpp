@@ -64,7 +64,6 @@ struct SparsePAScratchLayout {
     /// @param data_size size in bytes of the query/key/value data type
     SparsePAScratchLayout(size_t k_head_size,
                           size_t v_head_size,
-                          size_t key_block_size,
                           size_t max_run_rows,
                           size_t max_pack_size,
                           size_t data_size,

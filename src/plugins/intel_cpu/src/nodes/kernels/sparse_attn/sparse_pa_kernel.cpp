@@ -583,7 +583,6 @@ template <typename T>
 void sparse_pa_impl(const SparsePAArgs& a, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const SparsePAScratchLayout layout(a.k_head_size,
                                        a.v_head_size,
-                                       a.key_block_size,
                                        a.max_run_rows,
                                        max_q_head_pack_size(a.q_head_num, a.k_head_num, a.sel_head_num),
                                        sizeof(T),

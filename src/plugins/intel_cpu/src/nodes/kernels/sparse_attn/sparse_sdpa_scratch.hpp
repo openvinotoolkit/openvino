@@ -28,9 +28,9 @@ struct SdpaDecodeScratch {
     size_t total = 0;  // floats per thread, a multiple of 16
 
     SdpaDecodeScratch() = default;
-    SdpaDecodeScratch(size_t Dh, size_t Dv, size_t max_pack, size_t Bk, bool quantized) {
-        max_run_rows = Bk * std::max<size_t>(kMaxRunRows / Bk, 1);
-        score_stride = max_run_rows;
+    SdpaDecodeScratch(size_t Dh, size_t Dv, size_t max_pack, size_t Bk, bool quantized)
+        : max_run_rows(Bk * std::max<size_t>(kMaxRunRows / Bk, 1)),
+          score_stride(max_run_rows) {
         size_t offset = 0;
         auto take = [&offset](size_t floats) {
             const size_t start = offset;

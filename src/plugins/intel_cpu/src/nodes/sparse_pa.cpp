@@ -39,7 +39,6 @@
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include <cpu/x64/cpu_isa_traits.hpp>
-#    include <numeric>
 
 #    include "nodes/kernels/sparse_attn/sparse_kernel_cache.hpp"
 #endif
@@ -273,7 +272,6 @@ ov::Extensions::Cpu::SparsePAScratchLayout SparsePA::scratchLayout() const {
 #endif
     return {m_config.k_head_size,
             m_config.v_head_size,
-            m_config.key_block_size,
             m_max_run_rows,
             ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
                                                       m_config.num_kv_heads,

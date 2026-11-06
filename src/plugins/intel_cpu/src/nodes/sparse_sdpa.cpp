@@ -50,7 +50,6 @@
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include <cpu/x64/cpu_isa_traits.hpp>
-#    include <numeric>
 
 #    include "nodes/kernels/sparse_attn/sparse_kernel_cache.hpp"
 #endif
