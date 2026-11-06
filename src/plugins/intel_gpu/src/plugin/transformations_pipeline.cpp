@@ -479,6 +479,64 @@ extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig&
 
 namespace ov::intel_gpu {
 
+class NormalizeMoEInputShape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("NormalizeMoEInputShape");
+
+    NormalizeMoEInputShape() {
+        auto pattern = ov::pass::pattern::wrap_type<ov::op::internal::MOE, ov::op::internal::MOECompressed>();
+        ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& matcher) {
+            const auto moe = ov::as_type_ptr<ov::op::internal::MOE>(matcher.get_match_root());
+            if (!moe || transformation_callback(moe)) {
+                return false;
+            }
+            const auto input = moe->input_value(0);
+            const auto& input_shape = input.get_partial_shape();
+            const auto compressed = ov::as_type_ptr<ov::op::internal::MOECompressed>(moe);
+            if (input_shape.rank() != 3 || moe->get_input_partial_shape(1).rank() != 2 ||
+                moe->get_input_partial_shape(2).rank() != 2 ||
+                !input_shape.same_scheme(moe->get_output_partial_shape(0)) ||
+                (input_shape[2].is_static() && input_shape[2].get_length() == 0)) {
+                return false;
+            }
+            if (input_shape[1].is_static() && input_shape[1].get_length() == 1 &&
+                (!compressed || !compressed->get_config().has_batch_dim)) {
+                return false;
+            }
+
+            auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+            auto feature_index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+            auto hidden_size = std::make_shared<ov::op::v8::Gather>(shape, feature_index, axis);
+            auto inferred_tokens = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+            auto singleton = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+            auto flat_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{inferred_tokens, singleton, hidden_size}, 0);
+            auto flattened = std::make_shared<ov::op::v1::Reshape>(input, flat_shape, false);
+            flattened->set_friendly_name(moe->get_friendly_name() + "/flattened_input");
+            auto inputs = moe->input_values();
+            inputs[0] = flattened;
+
+            std::shared_ptr<ov::Node> normalized;
+            if (compressed) {
+                auto config = compressed->get_config();
+                config.has_batch_dim = false;
+                normalized = std::make_shared<ov::op::internal::MOECompressed>(inputs, config);
+            } else {
+                normalized = moe->clone_with_new_inputs(inputs);
+            }
+            normalized->set_friendly_name(moe->get_friendly_name() + "/normalized");
+            auto restored = std::make_shared<ov::op::v1::Reshape>(normalized, shape, false);
+            restored->set_friendly_name(moe->get_friendly_name());
+            ov::copy_runtime_info(moe,
+                                  {shape, feature_index, axis, hidden_size, inferred_tokens, singleton, flat_shape, flattened, normalized, restored});
+            ov::replace_node(moe, restored);
+            register_new_node(normalized);
+            return true;
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pattern, "NormalizeMoEInputShape"), callback);
+    }
+};
+
 class NormalizeMoEOutputReshape : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("NormalizeMoEOutputReshape");
@@ -900,6 +958,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // queue stays out-of-order and the oneDNN stream creation may assert.
                 manager.register_pass<ov::intel_gpu::NormalizeMoEOutputReshape>();
                 manager.register_pass<ov::pass::MoeOpFusion>();
+                manager.register_pass<ov::intel_gpu::NormalizeMoEInputShape>();
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
