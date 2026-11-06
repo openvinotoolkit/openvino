@@ -9,6 +9,8 @@
 #include "sdpa_gen_micro.hpp"
 #include "paged_attention_opt.hpp"
 
+#include <algorithm>
+
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
@@ -1151,11 +1153,7 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
     shim_options.decorator = "vs";
     kd.code->jit += micro::generate_shim(gemms[vs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
-    bool need_256_grf = false;
-    if (gemms[kq_id].grfMin > 128 || gemms[vs_id].grfMin > 128) {
-        need_256_grf = true;
-        kd.code->options += " -cl-intel-256-GRF-per-thread";
-    }
+    int grf_min = std::max(gemms[kq_id].grfMin, gemms[vs_id].grfMin);
 
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[kq_id]));
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[vs_id]));
@@ -1169,13 +1167,13 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
         shim_options.decorator = "vcs";
         kd.code->jit += micro::generate_shim(gemms[vcs_id], micro::HostLanguage::OpenCL_C, shim_options);
 
-        if (!need_256_grf && (gemms[kcq_id].grfMin > 128 || gemms[vcs_id].grfMin > 128)) {
-            kd.code->options += " -cl-intel-256-GRF-per-thread";
-        }
+        grf_min = std::max({grf_min, gemms[kcq_id].grfMin, gemms[vcs_id].grfMin});
 
         kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[kcq_id]));
         kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(gemms[vcs_id]));
     }
+
+    kd.code->options += micro::get_grf_mode_build_option(grf_min, device_info.arch);
 
     return kd;
 }
