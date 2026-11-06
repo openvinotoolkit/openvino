@@ -167,7 +167,7 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> inPortConfigs{{LayoutType::ncsp, precision}};
     if (getOriginalInputsNumber() > 1) {
         // A bf16/f16 gain is consumed natively by the kernel (no f32 conversion on that edge). A single-element
-        // gain takes the kernel's scalar path, which reads f32, so it keeps the f32 port.
+        // gain is one value, so it keeps the f32 port: a conversion there saves nothing.
         auto scale_precision = getOriginalInputPrecisionAtPort(1);
         const auto& scale_shape = getInputShapeAtPort(1);
         const bool native_scale = any_of(scale_precision, ov::element::bf16, ov::element::f16) &&

@@ -198,6 +198,11 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             errorMessage = "Only GatedResidual operation is supported";
             return false;
         }
+#if !defined(OPENVINO_ARCH_X86_64)
+        // The only executor is the oneDNN/JIT one, which exists on x86-64 only.
+        errorMessage = "GatedResidual is only supported on x86-64.";
+        return false;
+#endif
 
         const auto mode = gr->get_mode();
         std::set<size_t> weight_ports;

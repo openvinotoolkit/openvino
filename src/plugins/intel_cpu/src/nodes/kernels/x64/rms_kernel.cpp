@@ -186,17 +186,21 @@ void jit_rms_kernel<isa>::generate() {
     vdivss(xmm_rsqrt, xmm_tmp, xmm_rsqrt);
 
     // x * rsqrt(mean(x^2)+eps)
-    if (m_jcp.scale_size == 1) {
-        // rsqrt(mean(x^2)+eps)
-        vmovd(xmm_tmp, ptr[reg_scale]);
-        vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
-    }
-    vbroadcastss(vmm_rsqrt, xmm_rsqrt);
-    if (m_jcp.scale_plus_one && m_jcp.scale_size != 1) {
+    if (m_jcp.scale_plus_one) {
         mov(reg_tmp.cvt32(), float2int(1.0F));
         vmovd(Xmm(vmm_one.getIdx()), reg_tmp.cvt32());
         vbroadcastss(vmm_one, Xmm(vmm_one.getIdx()));
     }
+    if (m_jcp.scale_size == 1) {
+        // A single scale folds into rsqrt(mean(x^2)+eps). It is read at its own precision and gets the same
+        // (scale + 1) as the per-element path.
+        load(vmm_tmp, reg_scale, m_jcp.scale_prc, 1, false);
+        if (m_jcp.scale_plus_one) {
+            vaddss(xmm_tmp, xmm_tmp, Xmm(vmm_one.getIdx()));
+        }
+        vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
+    }
+    vbroadcastss(vmm_rsqrt, xmm_rsqrt);
     mov(reg_size, m_jcp.data_size / vec_size);
     mov(reg_src, reg_src_org);
     if (m_jcp.data_size >= vec_size) {

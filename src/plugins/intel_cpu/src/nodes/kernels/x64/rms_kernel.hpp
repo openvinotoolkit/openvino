@@ -28,7 +28,7 @@ struct jit_rms_compile_params {
     float eps = 0.0F;
     size_t scale_size = 0UL;
     // Element type of the scale (gain) input; it is loaded and converted to f32 in the kernel. The scale pointer
-    // in jit_rms_call_args is then a raw pointer to elements of this type. Only meaningful for scale_size > 1.
+    // in jit_rms_call_args is then a raw pointer to elements of this type (scale_size == 1 reads one element).
     ov::element::Type scale_prc = ov::element::f32;
     // Apply (scale + 1) instead of scale (gain = 1 + weight), folded into the kernel so the caller never has to
     // materialize a biased copy of the scale.

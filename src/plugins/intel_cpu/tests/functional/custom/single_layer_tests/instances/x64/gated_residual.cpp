@@ -59,6 +59,11 @@ const std::vector<GatedResidualShapeParams> uncompressed_shapes{
     {4, 8, 16, ov::element::f16, kNoCompression},
     {3, 5, 7, ov::element::f32, kNoCompression},
     {3, 5, 7, ov::element::bf16, kNoCompression},
+    // D = 1: every branch is a single element, so the RMS kernel's scalar-scale path reads the gain at the port
+    // precision and applies norm_gain_plus_one.
+    {4, 1, 8, ov::element::f32, kNoCompression},
+    {4, 1, 8, ov::element::bf16, kNoCompression},
+    {4, 1, 8, ov::element::f16, kNoCompression},
 };
 
 // Compressed-weight shapes: u8/i8/u4/i4, per-channel and grouped, with and without zero points. Scales are [G, N]

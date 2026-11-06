@@ -549,17 +549,9 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
                 .first;
     }
 
-    // Row tiling with dynamic M. Every tile re-streams all projection weights (L*CD each), so small tiles
-    // are weight-bandwidth bound and pay many parallel-region barriers; measured at the production shape
-    // C=4,D=2560,L=320 (16384 rows, bf16): tile 32 -> 91 ms, 256 -> 54, 512 -> 47. The tile is bounded
-    // by a scratch budget (the f32 Rbar+T+Logit footprint, which keeps scratch O(tile) rather than O(rows)
-    // for 64K-128K-row prefills) and clamped to [kMinTileRows, kMaxTileRows]; the scratch is one block in
-    // the stream's shared scratchpad, so the budget is paid once, not per layer.
-    //
-    // M is dynamic, so the GEMM row count is never used raw: it is rounded to a bucket (normalize_rows) and
-    // the primitive for that M comes from the runtime cache. Full tiles run M = tile; the last, partial tile
-    // runs its own bucketed M instead of padding to a full tile. Rows beyond the real ones in a GEMM's M are
-    // zeroed scratch whose results are never stored. A short input (rows <= tile) is a single tile.
+    // Rows run in tiles; each tile re-streams the weights, so bigger tiles are faster. Tile size is capped by a
+    // scratch budget in the shared scratchpad. GEMM M is bucketed (normalize_rows); padded rows are zeroed and never
+    // stored.
     constexpr size_t kTileRowAlignment = 32;  // keeps every normalized remainder <= the tile
     constexpr size_t kMinTileRows = 32;
     constexpr size_t kMaxTileRows = 512;
@@ -912,7 +904,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
             g.down.prim.execute(strm, mem_ags);
         }
 
-        // Step 4: up-projection over the tile, Gate[M,CD] = sigmoid(T[M,L] @ w_up[CD,L]^T) (logistic post-op).
+        // Step 3: up-projection over the tile, Gate[M,CD] = sigmoid(T[M,L] @ w_up[CD,L]^T) (logistic post-op).
         {
             void* src_ptr = m_t;
             dnnl::memory src_mem(g.up.src_md, engine, src_ptr);
@@ -929,7 +921,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
             g.up.prim.execute(strm, mem_ags);
         }
 
-        // Step 5: mix over C, one JIT kernel call per row: out = (1/C) * sum_c gate_c * rbar_c (m_logit holds the
+        // Step 4: mix over C, one JIT kernel call per row: out = (1/C) * sum_c gate_c * rbar_c (m_logit holds the
         // gates, sigmoid fused into the up GEMM), converted to the output precision as it is stored. The real
         // output tensor is written at the global row `tile_start + row`.
         m_context->getCpuParallel()->parallel_for(cur_rows, [&](size_t row) {
@@ -939,7 +931,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
             (*m_mix_kernel)(&args);
         });
 
-        // Step 6: optional inject-projection over the tile, WriteGate[M,C] = 2 * sigmoid(Rbar[M,CD] @
+        // Step 5: optional inject-projection over the tile, WriteGate[M,C] = 2 * sigmoid(Rbar[M,CD] @
         // w_inject[C,CD]^T / C) (linear/logistic/linear post-ops), stored at the port precision.
         if (produce_write_gate) {
             void* src_ptr = gemm_lowp ? static_cast<void*>(m_rbar_gemm) : static_cast<void*>(m_rbar);
