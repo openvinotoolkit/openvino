@@ -22,13 +22,20 @@ from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
 from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
 from openvino import Core, Type, PartialShape
-from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_cache_dir, _get_device, _get_aot_autograd
+from openvino.frontend.pytorch.torchdynamo.backend_utils import (
+    _get_cache_dir, _get_device, _get_aot_autograd, _get_no_fallback)
 
 from typing import Optional, Any
 
 from torch.fx.experimental.proxy_tensor import make_fx, wrapper_and_args_for_make_fx
 
 import logging
+
+try:
+    from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh
+except ImportError:
+    _rh = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,6 +53,8 @@ partitioned_modules = {}
 # Cache keyed by structural hash, reusing a compiled model across dynamo
 # retraces where the graph is structurally identical (decode loops).
 structural_cache = {}
+# cache_key -> whether int args have no OV Parameter (see openvino_execute).
+skip_ints_cache = {}
 
 
 def _shape_agnostic_compile(gm, args, options):
@@ -318,10 +327,6 @@ def openvino_execute(
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
-    # Free the never-reused profile/dummy-run compile after use
-    # (OV_EVICT_PROFILE_COMPILE, default on) -- else its weight repack stays resident.
-    _evict_profile = os.environ.get("OV_EVICT_PROFILE_COMPILE", "1") != "0"
-
     use_cache = executor_parameters.get(
         "use_python_fusion_cache",
         DEFAULT_OPENVINO_PYTHON_CONFIG["use_python_fusion_cache"],
@@ -371,14 +376,20 @@ def openvino_execute(
     flat_args, _ = tree_flatten(args)
     # Skip int args only if their Parameter is gone, or remaining tensors
     # bind wrong ports; compare against positional (non-__pa__) ports only.
-    _n_compiled_inputs = len(compiled.inputs)
-    _n_flat = len(flat_args)
-    _n_tensor_args = sum(1 for a in flat_args if not isinstance(a, int))
-    _n_positional_ports = sum(
-        1 for inp in compiled.inputs
-        if not any(n.startswith("__pa__") for n in inp.get_names()))
-    _skip_ints = _n_tensor_args != _n_flat and (
-        _n_positional_ports == _n_tensor_args or _n_compiled_inputs < _n_flat)
+    # Fixed per cache entry, so the port walk runs once, not every step.
+    _skip_ints = skip_ints_cache.get(cache_key)
+    if _skip_ints is None:
+        _n_flat = len(flat_args)
+        _n_tensor_args = sum(1 for a in flat_args if not isinstance(a, int))
+        _skip_ints = False
+        if _n_tensor_args != _n_flat:
+            _ports = compiled.inputs
+            _n_positional_ports = sum(
+                1 for inp in _ports
+                if not any(n.startswith("__pa__") for n in inp.get_names()))
+            _skip_ints = _n_positional_ports == _n_tensor_args or len(_ports) < _n_flat
+        if use_cache:
+            skip_ints_cache[cache_key] = _skip_ints
     ov_inputs = []
     for arg in flat_args:
         if isinstance(arg, int):
@@ -394,20 +405,18 @@ def openvino_execute(
     # PagedAttention side-channel: None on non-PA graphs (positional infer),
     # PA_SKIP during profile/dummy_run (eager gm), or the raw output-dict.
     res = None
-    try:
-        from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh
-    except Exception:
-        _rh = None
     if _rh is not None:
         try:
             _pa_out = _rh.run_pa_infer(compiled, req, ov_inputs)
             if _pa_out is _rh.PA_SKIP:
                 _eager_out = gm(*args)
                 # Profile/dummy run: this compile is never reused for real infer.
-                # Drop its cache references so the repacked weights free on scope exit.
-                if _evict_profile and _fresh_compile:
+                # Drop its cache references so the repacked weights free on scope exit
+                # (OV_EVICT_PROFILE_COMPILE, default on).
+                if _fresh_compile and os.environ.get("OV_EVICT_PROFILE_COMPILE", "1") != "0":
                     compiled_cache.pop(cache_key, None)
                     req_cache.pop(cache_key, None)
+                    skip_ints_cache.pop(cache_key, None)
                     if struct_key is not None:
                         structural_cache.pop(struct_key, None)
                 if isinstance(_eager_out, (list, tuple)):
@@ -438,16 +447,10 @@ class OpenVINOGraphModule(torch.nn.Module):
                                     "model_hash_str": model_hash_str}
         self.perm_fallback = False
         self.options = options
+        self._no_fallback = _get_no_fallback(options)
 
     def __call__(self, *args):
-        # Resolve no_fallback through the vLLM preset (implicit True for
-        # vllm users); falls back to plain options[key] if vllm is absent.
-        try:
-            from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt as _bo_nf
-        except Exception:
-            def _bo_nf(opts, key, default):
-                return bool(opts and opts.get(key, default))
-        _no_fallback = _bo_nf(getattr(self, "options", None), "no_fallback", False)
+        _no_fallback = self._no_fallback
         if self.perm_fallback and not _no_fallback:
             return self.gm(*args)
 
@@ -539,8 +542,6 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 def clear_caches():
     global partitioned_modules  # noqa: F824
     global compiled_cache  # noqa: F824
-    global structural_cache  # noqa: F824
-    global req_cache  # noqa: F824
 
     compiled_cache.clear()
     partitioned_modules.clear()
@@ -548,14 +549,14 @@ def clear_caches():
     # retraces, and req_cache their InferRequests
     structural_cache.clear()
     req_cache.clear()
+    skip_ints_cache.clear()
     # The vLLM side-channel and fast-infer caches are keyed by id() of the
     # objects just dropped, so they must go too or a recycled id() would
     # hand a new model the old one's bindings.
     # The unpacked MoE expert copies are keyed by the packed weight's address.
-    try:
-        from openvino.frontend.pytorch.torchdynamo.vllm import fused_moe, runtime_hooks, side_channel
-    except ImportError:
+    if _rh is None:
         return
+    from openvino.frontend.pytorch.torchdynamo.vllm import fused_moe, side_channel
     side_channel.clear_caches()
-    runtime_hooks.clear_caches()
+    _rh.clear_caches()
     fused_moe.clear_weight_caches()

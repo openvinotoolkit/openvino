@@ -144,7 +144,6 @@ def _trace_expert_graph(act, x_dtype, weights, w_dtype, top_ids_val):
 
 def rewrite_cpu_fused_moe(gm) -> int:
     """Replace _C.cpu_fused_moe call sites with the tiled MoE formulation."""
-    import torch
     from torch.utils._python_dispatch import _disable_current_modes
 
     nodes = [n for n in gm.graph.nodes if is_auto_functionalized(n, _fused_moe_op)]

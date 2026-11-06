@@ -63,29 +63,17 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         auto neg0 = is_neg_multiply(sub_in0);
         auto neg1 = is_neg_multiply(sub_in1);
 
+        // Exactly one side of sub_branch is negated.
+        if (!neg0 == !neg1)
+            return false;
+        const auto& neg = neg0 ? neg0 : neg1;
+
         std::shared_ptr<ov::op::v1::Multiply> mul_a, mul_b, mul_c, mul_d;
         // mul_a = x1*cos (non-negated in sub_branch), mul_b = x2*sin (negated).
-        if (neg0 && !neg1) {
-            for (size_t i = 0; i < 2; ++i) {
-                auto inner = std::dynamic_pointer_cast<ov::op::v1::Multiply>(neg0->get_input_node_shared_ptr(i));
-                if (inner) {
-                    mul_b = inner;
-                    break;
-                }
-            }
-            mul_a = std::dynamic_pointer_cast<ov::op::v1::Multiply>(sub_in1);
-        } else if (neg1 && !neg0) {
-            for (size_t i = 0; i < 2; ++i) {
-                auto inner = std::dynamic_pointer_cast<ov::op::v1::Multiply>(neg1->get_input_node_shared_ptr(i));
-                if (inner) {
-                    mul_b = inner;
-                    break;
-                }
-            }
-            mul_a = std::dynamic_pointer_cast<ov::op::v1::Multiply>(sub_in0);
-        } else {
-            return false;
+        for (size_t i = 0; i < 2 && !mul_b; ++i) {
+            mul_b = std::dynamic_pointer_cast<ov::op::v1::Multiply>(neg->get_input_node_shared_ptr(i));
         }
+        mul_a = std::dynamic_pointer_cast<ov::op::v1::Multiply>(neg0 ? sub_in1 : sub_in0);
 
         mul_c = std::dynamic_pointer_cast<ov::op::v1::Multiply>(add_branch->get_input_node_shared_ptr(0));
         mul_d = std::dynamic_pointer_cast<ov::op::v1::Multiply>(add_branch->get_input_node_shared_ptr(1));

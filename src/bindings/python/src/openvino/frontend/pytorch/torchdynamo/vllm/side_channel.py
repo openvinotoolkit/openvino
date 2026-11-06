@@ -14,18 +14,18 @@ inputs.
 
 import logging
 import os
+import re
 
 import numpy as np
 import torch
+
+from openvino.frontend.pytorch.utils import pt_to_ov_type_map
 
 logger = logging.getLogger(__name__)
 
 # Per-layer KV-cache ov.Tensor wrappers, keyed by meta layer name so they
 # persist across torch-compile invocations.
 _pa_kv_ovt_cache = {}
-
-# torch dtype -> the OV element type an ov.Tensor over that buffer must declare.
-_TORCH_TO_OV_TYPE = {}
 
 
 def _ov_tensor_over_torch(tensor, param_dt, _ov):
@@ -35,15 +35,7 @@ def _ov_tensor_over_torch(tensor, param_dt, _ov):
     width) and the ov.Tensor is told its real type explicitly. None when
     non-contiguous or dtype-mismatched; caller falls back to a private copy.
     """
-    if not _TORCH_TO_OV_TYPE:
-        _TORCH_TO_OV_TYPE.update({
-            torch.bfloat16: _ov.Type.bf16,
-            torch.float16: _ov.Type.f16,
-            torch.float32: _ov.Type.f32,
-            torch.int8: _ov.Type.i8,
-            torch.uint8: _ov.Type.u8,
-        })
-    if not tensor.is_contiguous() or _TORCH_TO_OV_TYPE.get(tensor.dtype) != param_dt:
+    if not tensor.is_contiguous() or pt_to_ov_type_map.get(str(tensor.dtype)) != param_dt:
         return None
     npv = (tensor.view(torch.float16).numpy()
            if tensor.dtype == torch.bfloat16 else tensor.numpy())
@@ -75,9 +67,47 @@ def _zero_scalar_i32():
     return np.array(0, dtype=np.int32)
 
 
-# id(compiled) -> {"layer_to_fields": {layer_name: {field: parameter_name}}}.
+# id(compiled) -> {layer_name: {field: parameter_name}}.
 # Built on first bind so the regex walk doesn't rerun every decode step.
 _pa_layout_cache = {}
+
+_UNKNOWN_LAYER_RE = re.compile(r"unknown_layer(?:_(\d+))?$")
+_LAYER_INDEX_RE = re.compile(r"layers\.(\d+)")
+_PA_SUFFIX_RE = re.compile(r"_(\d+)$")
+
+
+def _unknown_layer_index(placeholder):
+    """'unknown_layer' -> 0, 'unknown_layer_3' -> 3; None for any other name."""
+    match = _UNKNOWN_LAYER_RE.match(placeholder)
+    if match is None:
+        return None
+    return int(match.group(1)) if match.group(1) else 0
+
+
+def _sorted_layer_names(ctx):
+    """Real vLLM layer names, in the order the translator emitted its placeholders (== model layer order)."""
+    try:
+        names = list(ctx.attn_metadata.keys()) if isinstance(ctx.attn_metadata, dict) else []
+    except Exception:
+        return []
+
+    # attn_metadata groups by KV-cache spec, not layer index; sort by
+    # ".layers.<N>." to match FX-graph order.
+    def _layer_idx(name):
+        match = _LAYER_INDEX_RE.search(name)
+        return int(match.group(1)) if match else -1
+    if all(_layer_idx(n) >= 0 for n in names):
+        names.sort(key=_layer_idx)
+    return names
+
+
+def _key_cache_type(compiled, fields, layer_name, default):
+    """Element type of this layer's key_cache Parameter: the plugin may have retyped it via KV_CACHE_PRECISION."""
+    target = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
+    for port in compiled.inputs:
+        if target in port.get_names():
+            return port.get_element_type()
+    return default
 
 
 def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
@@ -110,10 +140,8 @@ def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
     try:
         nc = ctx.no_compile_layers if ctx is not None else None
         if isinstance(nc, dict) and nc and placeholder_layer_name is not None:
-            import re as _re_ord
-            match = _re_ord.match(r"unknown_layer(?:_(\d+))?$", placeholder_layer_name)
-            if match is not None:
-                idx = int(match.group(1)) if match.group(1) else 0
+            idx = _unknown_layer_index(placeholder_layer_name)
+            if idx is not None:
                 keys = list(nc.keys())
                 if idx < len(keys):
                     got = _extract(nc.get(keys[idx]))
@@ -168,17 +196,15 @@ def _bind_paged_attention_side_channel(compiled):
         ctx = None
 
     result = {}
-    _layout = _pa_layout_cache.get(id(compiled))
-    if _layout is None:
+    layer_to_fields = _pa_layout_cache.get(id(compiled))
+    if layer_to_fields is None:
         layer_to_fields = {}
-        import re as _re_pa
-        _suffix_re = _re_pa.compile(r"_(\d+)$")
         for inp in compiled.inputs:
             for nm in inp.get_names():
                 if not nm.startswith("__pa__"):
                     continue
                 rest = nm[len("__pa__"):]
-                _sm = _suffix_re.search(rest)
+                _sm = _PA_SUFFIX_RE.search(rest)
                 rest_stripped = rest[:_sm.start()] if _sm else rest
                 layer_suffix = _sm.group(0) if _sm else ""
                 for field in _PA_FIELDS:
@@ -188,58 +214,39 @@ def _bind_paged_attention_side_channel(compiled):
                         layer_to_fields.setdefault(layer_name, {})[field] = nm
                         break
                 break
-        _layout = {"layer_to_fields": layer_to_fields}
-        _pa_layout_cache[id(compiled)] = _layout
-    layer_to_fields = _layout["layer_to_fields"]
+        _pa_layout_cache[id(compiled)] = layer_to_fields
 
     # A "shared" PA key (from get_or_make_shared_pa_param) can use any real
     # layer's attn_metadata: per-seq metadata is identical across layers.
     _first_real_layer = next(
         (ln for ln in layer_to_fields if ln != "shared"), None)
 
-    # Real vLLM layer names, in the order the translator emitted its
-    # placeholders (== model layer order).
-    _real_layer_names = []
-    if ctx is not None:
-        try:
-            _am = ctx.attn_metadata
-            if isinstance(_am, dict):
-                _real_layer_names = list(_am.keys())
-                # attn_metadata groups by KV-cache spec, not layer index; sort
-                # by ".layers.<N>." to match FX-graph order.
-                import re as _re_sort
+    # Only the slow path below needs the real layer names; built on first use.
+    _real_names = None
 
-                def _layer_idx(name):
-                    match = _re_sort.search(r"layers\.(\d+)", name)
-                    return int(match.group(1)) if match else -1
-                if all(_layer_idx(n) >= 0 for n in _real_layer_names):
-                    _real_layer_names = sorted(_real_layer_names, key=_layer_idx)
-        except Exception:
-            pass
+    def _real_layer_names():
+        nonlocal _real_names
+        if _real_names is None:
+            _real_names = _sorted_layer_names(ctx) if ctx is not None else []
+        return _real_names
 
     def _placeholder_to_real(placeholder):
         """Map 'unknown_layer' -> real[0], 'unknown_layer_1' -> real[1], etc.
 
         Modulo NUM_LAYERS: the translator's counter accumulates across compiles.
         """
-        if not _real_layer_names:
+        real = _real_layer_names()
+        idx = _unknown_layer_index(placeholder) if real else None
+        if idx is None:
             return None
-        import re as _re_map
-        match = _re_map.match(r"unknown_layer(?:_(\d+))?$", placeholder)
-        if match is None:
-            return None
-        idx = int(match.group(1)) if match.group(1) else 0
         # noqa S001: integer modulo, not a %-format string.
-        idx = idx % len(_real_layer_names)  # noqa: S001
-        return _real_layer_names[idx]
+        return real[idx % len(real)]  # noqa: S001
 
     # Per-seq metadata is identical across layers within a forward pass:
     # compute once from any real layer's attn_meta, reuse for all bindings.
     _shared_meta = {
         "past_lens_np": _zeros_1_i32(),
         "subseq_begins_np": _zeros_2_i32(),
-        "block_indices_np": _zeros_1_i32(),
-        "block_indices_begins_np": _zeros_2_i32(),
         "max_ctx_len_np": _zero_scalar_i32(),
         "seq_lens_np": _zeros_1_i32(),
         "qsl_np": _zeros_2_i32(),
@@ -269,7 +276,7 @@ def _bind_paged_attention_side_channel(compiled):
             if layer_name == "shared":
                 meta_layer_name = (
                     (_placeholder_to_real(_first_real_layer) if _first_real_layer else None)
-                    or (_real_layer_names[0] if _real_layer_names else None)
+                    or next(iter(_real_layer_names()), None)
                 )
             else:
                 meta_layer_name = _placeholder_to_real(layer_name) or layer_name
@@ -356,16 +363,7 @@ def _bind_paged_attention_side_channel(compiled):
                                         + (_PA_BLOCK_SIZE, _kv_shape[-1]))
                     else:
                         _param_shape = _kv_shape
-                    # Take the dtype from this layer's own key_cache Parameter:
-                    # the plugin may have retyped it via KV_CACHE_PRECISION.
-                    _param_dt = None
-                    _target_name = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
-                    for _pi in compiled.inputs:
-                        if _target_name in _pi.get_names():
-                            _param_dt = _pi.get_element_type()
-                            break
-                    if _param_dt is None:
-                        _param_dt = _ov.Type.f32
+                    _param_dt = _key_cache_type(compiled, fields, layer_name, _ov.Type.f32)
                     # Prefer aliasing vLLM's own buffer: OV is the only
                     # writer, so a private copy just doubles the cache.
                     key_cache_ovt = value_cache_ovt = None
@@ -384,17 +382,15 @@ def _bind_paged_attention_side_channel(compiled):
                         # non-contiguous split: fall back to a private buffer.
                         key_cache_ovt = _ov.Tensor(_param_dt, _param_shape)
                         value_cache_ovt = _ov.Tensor(_param_dt, _param_shape)
-                        key_cache_np = key_cache_ovt.data
-                        value_cache_np = value_cache_ovt.data
-                        key_cache_np.fill(0)
-                        value_cache_np.fill(0)
+                        key_cache_ovt.data.fill(0)
+                        value_cache_ovt.data.fill(0)
                     else:
                         # Aliased: vLLM already zeroed the pool and PA writes
                         # each block before reading it, so skip the fill.
-                        key_cache_np = key_cache_ovt.data
-                        value_cache_np = value_cache_ovt.data
                         logger.debug("[OV plugin] KV cache aliased for %s (%s)",
                                      cache_key, _param_dt)
+                    key_cache_np = key_cache_ovt.data
+                    value_cache_np = value_cache_ovt.data
                     _pa_kv_ovt_cache[cache_key] = (
                         key_cache_ovt, value_cache_ovt, key_cache_np, value_cache_np)
             except Exception:
@@ -411,15 +407,10 @@ def _bind_paged_attention_side_channel(compiled):
             # Fallback dummy: Hk/S must match real runtime, or CPU PA caches
             # Hk=1, S=1 and later asserts against the real K.
             import openvino as _ov_fb
-            _fb_dt_ov = _ov_fb.Type.f32
             _fb_kv_heads, _fb_head_size = _pa_auto_detect_kv_geom(
                 ctx, meta_layer_name, placeholder_layer_name=layer_name)
             _fb_block = _PA_BLOCK_SIZE  # CPU PA hard requirement
-            _target_fb = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
-            for _pi in compiled.inputs:
-                if _target_fb in _pi.get_names():
-                    _fb_dt_ov = _pi.get_element_type()
-                    break
+            _fb_dt_ov = _key_cache_type(compiled, fields, layer_name, _ov_fb.Type.f32)
             _fb_shape = (1, _fb_kv_heads, _fb_block, _fb_head_size)
             key_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
             value_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
@@ -520,27 +511,20 @@ def _bind_paged_attention_side_channel(compiled):
             _pa_sliding_window_cache[_sw_key] = sliding_window_np
 
         _sm = _shared_meta
+        values = {
+            "key_cache": key_cache_ovt if key_cache_ovt is not None else key_cache_np,
+            "value_cache": value_cache_ovt if value_cache_ovt is not None else value_cache_np,
+            "past_lens": _sm["past_lens_np"],
+            "subsequence_begins": _sm["subseq_begins_np"],
+            "block_indices": block_indices_np,
+            "block_indices_begins": block_indices_begins_np,
+            "max_context_len": _sm["max_ctx_len_np"],
+            "seq_lens": _sm["seq_lens_np"],
+            "query_start_loc": _sm["qsl_np"],
+            "sliding_window": sliding_window_np,
+        }
         for field, name in fields.items():
-            if field == "key_cache":
-                result[name] = key_cache_ovt if key_cache_ovt is not None else key_cache_np
-            elif field == "value_cache":
-                result[name] = value_cache_ovt if value_cache_ovt is not None else value_cache_np
-            elif field == "past_lens":
-                result[name] = _sm["past_lens_np"]
-            elif field == "subsequence_begins":
-                result[name] = _sm["subseq_begins_np"]
-            elif field == "block_indices":
-                result[name] = block_indices_np
-            elif field == "block_indices_begins":
-                result[name] = block_indices_begins_np
-            elif field == "max_context_len":
-                result[name] = _sm["max_ctx_len_np"]
-            elif field == "seq_lens":
-                result[name] = _sm["seq_lens_np"]
-            elif field == "query_start_loc":
-                result[name] = _sm["qsl_np"]
-            elif field == "sliding_window":
-                result[name] = sliding_window_np
+            result[name] = values[field]
 
     return result
 
@@ -624,8 +608,9 @@ def _bind_gdn_side_channel(compiled):
         conv[:, :, 0] = 0
         conv[:, :, 1:] = prev
         rec_name = fields["gdn_recurrent_state"]
-        # OV's table is [n, H, V, K].
-        rec = rec_src[idx].transpose(-1, -2).to(ov_to_torch[types[rec_name]]).contiguous()
+        # OV's table is [n, H, V, K]. index_select off the transposed view gathers straight into a
+        # contiguous result: one copy, not a gather plus a transposing copy.
+        rec = rec_src.transpose(-1, -2).index_select(0, idx).to(ov_to_torch[types[rec_name]]).contiguous()
         if fresh is not None:
             conv[fresh] = 0
             rec[fresh] = 0

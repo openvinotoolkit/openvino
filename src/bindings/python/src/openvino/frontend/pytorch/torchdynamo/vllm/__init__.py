@@ -103,16 +103,13 @@ def maybe_rewrite_paged_attention(graph_module, options):
         rewrite_unified_attention_to_paged_attention,
     )
     rewrites = 0
-    if owns_kv_cache_update(options):
+    if is_vllm_preset(options):
         rewrites += rewrite_unified_attention_to_paged_attention(graph_module)
-        left = count_unified_attention(graph_module)
-        if left:
+        if owns_kv_cache_update(options) and (left := count_unified_attention(graph_module)):
             raise RuntimeError(
                 f"OpenVINO vLLM backend: {left} attention call site(s) could not be rewritten to "
                 "ov_ext.paged_attention. The KV-cache write is owned by the attention op on this path, "
                 "so running them on vLLM's op would decode against an unwritten cache.")
-    elif is_vllm_preset(options):
-        rewrites += rewrite_unified_attention_to_paged_attention(graph_module)
     else:
         try:
             rewrites += rewrite_unified_attention_to_paged_attention(graph_module)

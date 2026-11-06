@@ -47,6 +47,8 @@ vLLM is imported only inside `register`, keeping it out of module import.
 
 import logging
 
+from .quantization import _unpack_uint4
+
 logger = logging.getLogger(__name__)
 
 LOAD_FORMAT = "nncf_hooks"
@@ -57,13 +59,6 @@ _registered = None
 def _hook_key(weight_name, field):
     """`model.layers.0.mlp.up_proj.weight` -> its hook-storage key."""
     return _HOOK.format(weight_name.replace(".", ":"), field)
-
-
-def _unpack_uint4(packed):
-    """uint4 pairs -> uint8 in [0, 15], low nibble first, as NNCF packs."""
-    import torch
-
-    return torch.stack((packed & 15, packed >> 4), dim=-1)
 
 
 def _dequantize(stored, scale, zero_point, out_dtype):

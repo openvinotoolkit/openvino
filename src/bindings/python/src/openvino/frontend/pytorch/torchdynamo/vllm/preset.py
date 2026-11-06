@@ -33,17 +33,15 @@ def bool_opt(options, key: str, default: bool) -> bool:
     """
     if options is not None and key in options:
         value = options[key]
+    elif key in _PRESET_FLAGS and is_vllm_preset(options):
+        value = _PRESET_FLAGS[key]
     else:
-        if is_vllm_preset(options) and has_preset_flag(key):
-            value = preset_flag(key)
-        else:
-            return default
+        return default
     return bool(value) and str(value).lower() not in ("false", "0")
 
 
 # Expanded from options["vllm"]=True; caller-supplied flags win (see bool_opt).
 _PRESET_FLAGS = {
-    "unbind_affinity": True,
     "paged_attention": True,
     "pa_translate": True,
     "no_fallback": True,
@@ -54,6 +52,8 @@ _PRESET_FLAGS = {
 # Model-independent OV CPU config defaults; caller-supplied keys win.
 # Float-precision keys are absent -- derived per-model by precision_config().
 _PRESET_CONFIG = {
+    # On-the-fly int8 FC activations: vnni int8 GEMM beats f32 GEMM by a lot.
+    # Matches OV GenAI CPU behavior.
     "DYNAMIC_QUANTIZATION_GROUP_SIZE": 32,
 }
 
@@ -107,30 +107,4 @@ def precision_config(model_precision: Optional[str] = None) -> dict:
 
 def is_vllm_preset(options) -> bool:
     """True iff options["vllm"] is set to a truthy value."""
-    if options is None or "vllm" not in options:
-        return False
-    value = options["vllm"]
-    return bool(value) and str(value).lower() not in ("false", "0")
-
-
-def preset_flag(key: str):
-    """Return the preset value for `key`, or None if `key` is not in the preset."""
-    return _PRESET_FLAGS.get(key)
-
-
-def has_preset_flag(key: str) -> bool:
-    return key in _PRESET_FLAGS
-
-
-def merge_preset_config(base: Optional[dict], model_precision: Optional[str] = None) -> dict:
-    """Fill in the preset OV-config defaults; entries in `base` take priority.
-
-    `model_precision` is the model's float dtype, used to derive the precision
-    pair — see precision_config().
-    """
-    out = dict(base or {})
-    for key, value in _PRESET_CONFIG.items():
-        out.setdefault(key, value)
-    for key, value in precision_config(model_precision).items():
-        out.setdefault(key, value)
-    return out
+    return bool_opt(options, "vllm", False)

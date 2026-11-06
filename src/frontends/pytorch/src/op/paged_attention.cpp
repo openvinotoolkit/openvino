@@ -7,7 +7,6 @@
 
 #include "openvino/op/paged_attention.hpp"
 
-#include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <functional>
@@ -32,6 +31,24 @@ namespace ov::frontend::pytorch::op::ext {
 
 using namespace ov::op;
 
+namespace {
+// A string argument as the FX decoder exposes it: a string Constant or a Python str value. Empty if neither.
+std::string optional_const_string(const NodeContext& context, size_t idx) {
+    try {
+        return context.const_input<std::string>(idx);
+    } catch (const std::exception&) {
+    }
+    try {
+        auto vals = context.get_values_from_const_input(idx);
+        if (vals.is<std::string>()) {
+            return vals.as<std::string>();
+        }
+    } catch (const std::exception&) {
+    }
+    return {};
+}
+}  // namespace
+
 OutputVector translate_paged_attention(const NodeContext& context) {
     // Args: (query, key, value, layer_name[, scale, kv_sharing_target]).
     // The trailing two are optional so graphs produced by an older
@@ -42,22 +59,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
     auto key = context.get_input(1);
     auto value = context.get_input(2);
 
-    // Extract layer_name string attribute. The FX decoder may expose it as a
-    // Constant string, a Python str value, or elsewhere.
-    std::string layer_name;
-    try {
-        layer_name = context.const_input<std::string>(3);
-    } catch (const std::exception&) {
-        // Try the input as a Constant of u8 bytes, or a string tensor
-        try {
-            auto vals = context.get_values_from_const_input(3);
-            if (vals.is<std::string>()) {
-                layer_name = vals.as<std::string>();
-            }
-        } catch (const std::exception&) {
-            // Fall through
-        }
-    }
+    std::string layer_name = optional_const_string(context, 3);
     if (layer_name.empty()) {
         // Give each occurrence a distinct tag (side_channel.py's
         // "unknown_layer"/"unknown_layer_N" convention): otherwise every
@@ -83,22 +85,8 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         }
     }
 
-    // Name of the layer whose KV cache this one reuses, or empty.
-    std::string kv_sharing_target;
-    if (context.get_input_size() >= 6) {
-        try {
-            kv_sharing_target = context.const_input<std::string>(5);
-        } catch (const std::exception&) {
-            try {
-                auto vals = context.get_values_from_const_input(5);
-                if (vals.is<std::string>()) {
-                    kv_sharing_target = vals.as<std::string>();
-                }
-            } catch (const std::exception&) {
-                // Leave empty: treat as not shared.
-            }
-        }
-    }
+    // Name of the layer whose KV cache this one reuses, or empty (not shared).
+    std::string kv_sharing_target = context.get_input_size() >= 6 ? optional_const_string(context, 5) : std::string{};
 
     // KV sharing. vLLM hands a sharing layer raw k/v -- no k_norm, no v_norm,
     // no RoPE -- because its own backends skip the cache write for such
