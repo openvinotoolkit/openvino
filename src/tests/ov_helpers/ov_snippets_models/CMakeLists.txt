@@ -4,18 +4,18 @@
 
 set(TARGET_NAME ov_snippets_models)
 
+include(sources.cmake)
+
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
-        ROOT ${PUBLIC_HEADERS_DIR}
+        SOURCES ${OV_SNIPPETS_MODELS_SOURCES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
                 "$<BUILD_INTERFACE:${COMMON_TEST_UTILS_INCLUDES}>"
-        ADDITIONAL_SOURCE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PUBLIC
                 openvino::runtime::dev
