@@ -1356,6 +1356,24 @@ def verify_model(model, example_input, expected_ops):
         np.testing.assert_allclose(res[0], ref.numpy(), rtol, atol)
 
 
+def test_bf16_tensor_example_input_keeps_type_and_values():
+    from openvino import Tensor, convert_model
+    from openvino.tools.ovc.moc_frontend.pytorch_frontend_utils import to_torch_tensor
+
+    class Double(torch.nn.Module):
+        def forward(self, x):
+            return x * 2
+
+    expected = torch.tensor([1.5, -2.0], dtype=torch.bfloat16)
+    tensor = Tensor(Type.bf16, [2])
+    tensor.data.view(np.int16)[:] = expected.view(torch.int16).numpy()
+
+    converted = to_torch_tensor(tensor)
+    assert converted.dtype == torch.bfloat16
+    assert torch.equal(converted, expected)
+    assert convert_model(Double(), example_input=tensor).inputs[0].element_type == Type.bf16
+
+
 def test_inlined_extension():
     from openvino.frontend.pytorch import inlined_extension
     rng = np.random.default_rng(42)

@@ -8,7 +8,7 @@ import sys
 import numpy as np
 
 # pylint: disable=no-name-in-module,import-error
-from openvino import Tensor, PartialShape
+from openvino import Tensor, PartialShape, Type
 from openvino.tools.ovc.cli_parser import input_to_input_cut_info, single_input_to_input_cut_info, _InputCutInfo
 from openvino.tools.ovc.error import Error
 
@@ -431,6 +431,9 @@ def to_torch_tensor(tensor):
     if isinstance(tensor, np.ndarray):
         return torch.tensor(tensor)
     if isinstance(tensor, Tensor):
+        if tensor.element_type == Type.bf16:
+            # Tensor.data shows bf16 bits as float16, so reinterpret them instead of converting the values
+            return torch.tensor(tensor.data.view(np.int16)).view(torch.bfloat16)
         return torch.tensor(tensor.data)
     if isinstance(tensor, (float, int, bool)):
         return tensor
