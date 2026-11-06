@@ -136,6 +136,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/broadcast_u2_zero_point.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/broadcast_u2_zero_point.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/right_align_mask_slice_for_conv.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/right_align_mask_slice_for_conv.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/kv_axes_position.hpp
