@@ -4,6 +4,7 @@
 
 #include "ze_graph_ext_wrappers.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <string_view>
 
@@ -38,7 +39,63 @@ std::string safeStringFromFixedBuffer(const char* buffer,
 }
 }  // namespace
 
+
 namespace intel_npu {
+
+/**
+ * @brief Builds an I/O descriptor using only the IR metadata of an argument.
+ * @details Used for the arguments whose rank exceeds "ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE": the driver can't
+ * describe them through "ze_graph_argument_properties_3_t", but the metadata structure holds up to
+ * "ZE_MAX_GRAPH_TENSOR_REF_DIMS" dimensions. The compiled shape is taken to be the IR one, which holds for static
+ * shapes when batching is not handled by the plugin. Strides are reported as unsupported.
+ */
+static IODescriptor createIODescriptorFromMetadata(const uint32_t indexUsedByDriver,
+                                                   const ze_graph_argument_metadata_t& metadata) {
+    OPENVINO_ASSERT(metadata.shape_size <= ZE_MAX_GRAPH_TENSOR_REF_DIMS &&
+                        metadata.tensor_names_count <= ZE_MAX_GRAPH_TENSOR_NAMES_SIZE,
+                    "Invalid Level Zero graph argument metadata for argument index ",
+                    indexUsedByDriver,
+                    ": shape_size ",
+                    metadata.shape_size,
+                    " or tensor_names_count ",
+                    metadata.tensor_names_count,
+                    " exceeds the ABI limits");
+
+    const uint64_t* const shapeEnd = metadata.shape + metadata.shape_size;
+    OPENVINO_ASSERT(std::find(metadata.shape, shapeEnd, std::numeric_limits<uint64_t>::max()) == shapeEnd,
+                    "Dynamic dimensions are not supported for arguments described only by metadata. Argument index: ",
+                    indexUsedByDriver);
+    const ov::PartialShape shape{ov::Shape(metadata.shape, shapeEnd)};
+
+    static const std::pair<ze_graph_metadata_type, ov::element::Type> typeMap[] = {
+        {ZE_GRAPH_METADATA_TYPE_BOOLEAN, ov::element::boolean}, {ZE_GRAPH_METADATA_TYPE_BF16, ov::element::bf16},
+        {ZE_GRAPH_METADATA_TYPE_F16, ov::element::f16},         {ZE_GRAPH_METADATA_TYPE_F32, ov::element::f32},
+        {ZE_GRAPH_METADATA_TYPE_F64, ov::element::f64},         {ZE_GRAPH_METADATA_TYPE_I4, ov::element::i4},
+        {ZE_GRAPH_METADATA_TYPE_I8, ov::element::i8},           {ZE_GRAPH_METADATA_TYPE_I16, ov::element::i16},
+        {ZE_GRAPH_METADATA_TYPE_I32, ov::element::i32},         {ZE_GRAPH_METADATA_TYPE_I64, ov::element::i64},
+        {ZE_GRAPH_METADATA_TYPE_U1, ov::element::u1},           {ZE_GRAPH_METADATA_TYPE_U4, ov::element::u4},
+        {ZE_GRAPH_METADATA_TYPE_U8, ov::element::u8},           {ZE_GRAPH_METADATA_TYPE_U16, ov::element::u16},
+        {ZE_GRAPH_METADATA_TYPE_U32, ov::element::u32},         {ZE_GRAPH_METADATA_TYPE_U64, ov::element::u64}};
+    const auto type = std::find_if(std::begin(typeMap), std::end(typeMap), [&](const auto& entry) {
+        return entry.first == metadata.data_type;
+    });
+
+    IODescriptor descriptor{};
+    descriptor.nameFromCompiler =
+        safeStringFromFixedBuffer(metadata.friendly_name, ZE_MAX_GRAPH_ARGUMENT_NAME, "friendly_name", indexUsedByDriver);
+    descriptor.nodeFriendlyName = descriptor.nameFromCompiler;
+    descriptor.precision = type != std::end(typeMap) ? type->second : ov::element::dynamic;
+    descriptor.shapeFromCompiler = shape;
+    descriptor.shapeFromIRModel = shape;
+    for (uint32_t id = 0; id < metadata.tensor_names_count; ++id) {
+        descriptor.outputTensorNames.insert(safeStringFromFixedBuffer(metadata.tensor_names[id],
+                                                                      ZE_MAX_GRAPH_ARGUMENT_NAME,
+                                                                      "tensor_names",
+                                                                      indexUsedByDriver));
+    }
+    descriptor.indexUsedByDriver = indexUsedByDriver;
+    return descriptor;
+}
 
 IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
                                              const ze_graph_argument_properties_3_t& arg,
@@ -636,6 +693,41 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         _logger.debug("getMetadata - perform pfnGetArgumentProperties3");
         auto result =
             _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(graphHandle, indexUsedByDriver, &arg);
+        if (result != ZE_RESULT_SUCCESS) {
+            // The properties describe an argument using at most "ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE" dimensions, so
+            // the query fails for arguments of a greater rank. The metadata structure can hold more dimensions, so it
+            // is used instead if it is able to describe the argument.
+            ze_graph_argument_metadata_t highRankMetadata = {};
+            highRankMetadata.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;
+            const ze_result_t metadataResult = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(
+                graphHandle,
+                indexUsedByDriver,
+                &highRankMetadata);
+            _logger.debug("getMetadata - pfnGetArgumentProperties3 failed with 0x%x for the argument %u; "
+                          "pfnGraphGetArgumentMetadata returned 0x%x, shape_size %u, type %d",
+                          static_cast<uint32_t>(result),
+                          indexUsedByDriver,
+                          static_cast<uint32_t>(metadataResult),
+                          metadataResult == ZE_RESULT_SUCCESS ? highRankMetadata.shape_size : 0u,
+                          metadataResult == ZE_RESULT_SUCCESS ? static_cast<int>(highRankMetadata.type) : -1);
+
+            if (metadataResult == ZE_RESULT_SUCCESS &&
+                highRankMetadata.shape_size > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE &&
+                (highRankMetadata.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT ||
+                 highRankMetadata.type == ZE_GRAPH_ARGUMENT_TYPE_OUTPUT)) {
+                _logger.warning("pfnGetArgumentProperties3 failed for the argument %u (0x%x), which has %u dimensions "
+                                "(more than %d). The descriptor is built using only the argument metadata.",
+                                indexUsedByDriver,
+                                static_cast<uint32_t>(result),
+                                highRankMetadata.shape_size,
+                                ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
+
+                IODescriptor descriptor = createIODescriptorFromMetadata(indexUsedByDriver, highRankMetadata);
+                (highRankMetadata.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT ? inputs : outputs)
+                    .push_back(std::move(descriptor));
+                return;
+            }
+        }
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
@@ -737,6 +829,83 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
     meta.numStreams = 1;
     meta.bindRelatedDescriptors();
     return meta;
+}
+
+namespace {
+
+bool exceedsArgumentRankLimit(const ov::PartialShape& shape) {
+    return shape.rank().is_static() &&
+           static_cast<size_t>(shape.rank().get_length()) > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE;
+}
+
+bool hasIOAboveArgumentRankLimit(const std::shared_ptr<const ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (exceedsArgumentRankLimit(parameter->get_partial_shape())) {
+            return true;
+        }
+    }
+    for (const auto& result : model->get_results()) {
+        if (exceedsArgumentRankLimit(result->get_input_partial_shape(0))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Builds the metadata using the I/O of the model.
+ * @details The driver indices are assigned like the compiler does: the inputs come first, followed by the outputs,
+ * each group following the order of the model.
+ */
+NetworkMetadata createNetworkMetadataFromModel(const std::shared_ptr<const ov::Model>& model) {
+    NetworkMetadata meta;
+    uint32_t indexUsedByDriver = 0;
+
+    for (const auto& parameter : model->get_parameters()) {
+        IODescriptor descriptor{};
+        descriptor.nameFromCompiler = parameter->get_friendly_name();
+        descriptor.nodeFriendlyName = parameter->get_friendly_name();
+        descriptor.precision = parameter->get_element_type();
+        descriptor.shapeFromCompiler = parameter->get_partial_shape();
+        descriptor.shapeFromIRModel = parameter->get_partial_shape();
+        descriptor.outputTensorNames = parameter->output(0).get_names();
+        descriptor.indexUsedByDriver = indexUsedByDriver++;
+        meta.inputs.push_back(std::move(descriptor));
+    }
+
+    for (const auto& result : model->get_results()) {
+        IODescriptor descriptor{};
+        descriptor.nameFromCompiler = result->get_input_node_ptr(0)->get_friendly_name();
+        descriptor.nodeFriendlyName = result->get_friendly_name();
+        descriptor.precision = result->get_input_element_type(0);
+        descriptor.shapeFromCompiler = result->get_input_partial_shape(0);
+        descriptor.shapeFromIRModel = result->get_input_partial_shape(0);
+        descriptor.outputTensorNames = result->output(0).get_names();
+        descriptor.indexUsedByDriver = indexUsedByDriver++;
+        meta.outputs.push_back(std::move(descriptor));
+    }
+
+    meta.numStreams = 1;
+    return meta;
+}
+
+}  // namespace
+
+NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescriptor,
+                                                   const std::shared_ptr<const ov::Model>& model) const {
+    try {
+        return getNetworkMeta(graphDescriptor);
+    } catch (const std::exception& ex) {
+        if (model == nullptr || !hasIOAboveArgumentRankLimit(model)) {
+            throw;
+        }
+
+        _logger.warning("The driver could not describe the graph arguments (%s). The model has inputs/outputs of a "
+                        "rank greater than %d, so their descriptors are built from the model instead.",
+                        ex.what(),
+                        ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
+        return createNetworkMetadataFromModel(model);
+    }
 }
 
 std::optional<std::string> ZeGraphExtWrappers::getCompilerSupportedOptions() const {
