@@ -250,26 +250,33 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         if (batched) {
             const auto minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
             const auto rows = register_new_node<v0::Concat>(ov::OutputVector{minus_one, current_seqlen}, 0);
+            const auto column = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {-1, 1}));
             if (has_input(GQAInputs::POSITION_IDS)) {
                 position_ids = register_new_node<v1::Reshape>(get_input(GQAInputs::POSITION_IDS), rows, false);
             } else {
-                const auto column = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {-1, 1}));
-                const auto rows = position_ids;
+                const auto prior_rows = position_ids;
                 position_ids =
-                    register_new_node<v1::Add>(register_new_node<v1::Reshape>(q_past_b, column, false), rows);
-                if (has_query_seqlens) {
-                    // Padded rows (P + s >= total) are capped at the last valid position, a valid rotary-cache row;
-                    // their outputs are unspecified (ORT) and valid rows are unchanged.
-                    position_ids =
-                        register_new_node<v1::Minimum>(position_ids,
-                                                       register_new_node<v1::Reshape>(seqlens_elemi64, column, false));
-                }
+                    register_new_node<v1::Add>(register_new_node<v1::Reshape>(q_past_b, column, false), prior_rows);
+            }
+            if (has_query_seqlens) {
+                // Padded rows (P + s >= total) are capped at the last valid position, a valid rotary-cache row;
+                // their outputs are unspecified (ORT) and valid rows are unchanged. Applies to explicit
+                // position_ids too: padded rows can carry out-of-range values that would Gather out of bounds.
+                position_ids =
+                    register_new_node<v1::Minimum>(position_ids,
+                                                   register_new_node<v1::Reshape>(seqlens_elemi64, column, false));
             }
         } else if (has_input(GQAInputs::POSITION_IDS)) {
             // Flatten position_ids to 1D so that Gather produces 2D [seqlen, head_size/2] output,
             // ensuring correct 4D shapes after Unsqueeze in rotaryEmbedding.
             const auto neg_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
             position_ids = register_new_node<v1::Reshape>(get_input(GQAInputs::POSITION_IDS), neg_one, false);
+            if (has_query_seqlens) {
+                // Padded rows can carry out-of-range explicit position_ids; cap them the same as the implicit path.
+                position_ids =
+                    register_new_node<v1::Minimum>(position_ids,
+                                                   register_new_node<v1::Reshape>(seqlens_elemi64, one, false));
+            }
         } else if (has_query_seqlens) {
             // Padded rows (P + s >= total) are capped at the last valid position, a valid rotary-cache row; their
             // outputs are unspecified (ORT) and valid rows are unchanged.
