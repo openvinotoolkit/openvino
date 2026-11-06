@@ -125,7 +125,7 @@ std::optional<QuantLayout> quant_layout(uint32_t type, const std::string& name) 
     case GGUF_TYPE_Q1_0:
         return QuantLayout{ov::element::u1, 1, ov::element::f16, 128, symmetric};
     case GGUF_TYPE_Q3_K:
-        return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
+        return QuantLayout{ov::element::u3, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q5_0:
     case GGUF_TYPE_Q8_0:
     case GGUF_TYPE_Q8_1:

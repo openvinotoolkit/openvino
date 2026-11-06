@@ -777,6 +777,52 @@ TEST(GGUFWeight, Q1_0PreservesFiniteScaleRange) {
     }
 }
 
+TEST(GGUFWeight, Q3_KKeepsThreeBitCodesForAllWeightNames) {
+    const auto bytes = load_npy<uint8_t>("q3_k_qbytes");
+    const auto reference = load_npy<float>("q3_k_deq");
+    for (const std::string name : {"blk.0.attn_q.weight", "token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        const auto node = make_weight_node(bytes_to_u8_tensor(bytes), "Q3_K", {kRows, kCols}, name);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        size_t packed_bytes = 0;
+        for (const auto& op : model->get_ordered_ops()) {
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
+                EXPECT_NE(constant->get_element_type(), ov::element::i4);
+                EXPECT_NE(constant->get_element_type(), ov::element::i8);
+                if (constant->get_element_type() == ov::element::u3)
+                    packed_bytes += constant->get_byte_size();
+            }
+        }
+        EXPECT_EQ(packed_bytes, kRows * kCols * 3 / 8);
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i)
+            EXPECT_NEAR(output.data<const float>()[i], reference[i], kTolFaithful);
+    }
+}
+
+TEST(GGUFWeight, Q3_KMatMulMatchesGgmlWeights) {
+    const auto bytes = load_npy<uint8_t>("q3_k_qbytes");
+    const auto reference = load_npy<float>("q3_k_deq");
+    const auto weights = make_weight_node(bytes_to_u8_tensor(bytes), "Q3_K", {kRows, kCols});
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, kCols});
+    input->output(0).set_names({"input"});
+    const auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weights, false, true);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+    ov::Tensor values(ov::element::f32, {2, kCols});
+    for (size_t i = 0; i < values.get_size(); ++i)
+        values.data<float>()[i] = static_cast<float>(static_cast<int>(i % 17) - 8) / 16;
+    const auto output = run_on_cpu(model, {{"input", values}});
+    for (size_t row = 0; row < 2; ++row) {
+        for (size_t col = 0; col < kRows; ++col) {
+            float expected = 0;
+            for (size_t k = 0; k < kCols; ++k)
+                expected += values.data<float>()[row * kCols + k] * reference[col * kCols + k];
+            EXPECT_NEAR(output.data<const float>()[row * kRows + col], expected, kTolFaithful);
+        }
+    }
+}
+
 // token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
 // as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
 TEST(GGUFWeightRequant, Q2_0AsTokenEmbdAndOutput) {
