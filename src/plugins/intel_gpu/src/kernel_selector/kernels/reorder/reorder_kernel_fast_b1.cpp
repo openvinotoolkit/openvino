@@ -78,6 +78,7 @@ JitConstants ReorderKernelFastBatch1::GetJitConstants(const reorder_params& para
 
     if (input.GetLayout() == output.GetLayout() && input.SameDimsSizes(output) &&
         !input.PitchesDifferFromLogicalDims() && !output.PitchesDifferFromLogicalDims() &&
+        input.GetFirstElementOffset() == 0 && output.GetFirstElementOffset() == 0 &&
         input.GetDType() != output.GetDType() && !params.has_padded_output &&
         params.mode == MeanSubtractMode::NONE) {
         jit.AddConstant(MakeJitConstant("CHANGE_DATA_TYPE_ONLY", 1));
