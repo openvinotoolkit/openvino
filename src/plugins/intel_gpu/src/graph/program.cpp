@@ -8,6 +8,7 @@
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
@@ -15,6 +16,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -207,13 +209,15 @@ program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
+                 bool is_internal,
+                 std::optional<std::map<primitive_type_id, bool>> onednn_impls)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(std::move(task_executor)),
       processing_order(),
-      is_internal(is_internal) {
+      is_internal(is_internal),
+      _onednn_impls(std::move(onednn_impls)) {
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     init_primitives();
@@ -315,8 +319,9 @@ program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
                                     std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                    bool is_internal) {
-    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
+                                    bool is_internal,
+                                    std::optional<std::map<primitive_type_id, bool>> onednn_impls) {
+    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal, std::move(onednn_impls));
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -1766,6 +1771,13 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         }
     }
 
+    if (_onednn_impls.has_value()) {
+        lo.clear_onednn_impls_optimization_attribute();
+        for (const auto& [type_id, enabled] : *_onednn_impls) {
+            lo.set_value_onednn(type_id, enabled);
+        }
+    }
+
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
     bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
@@ -2024,6 +2036,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                                               ib.get_stream_size(),
                                               allocation_type::usm_host,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+        // Weights become sub-buffers of the blob, so its pages must stay resident.
+        if (auto* prefetch_buf = dynamic_cast<ov::intel_gpu::PrefetchStreamBuf*>(ib.get_streambuf())) {
+            prefetch_buf->keep_read_data();
+        }
     }
 
     size_t num_nodes;
