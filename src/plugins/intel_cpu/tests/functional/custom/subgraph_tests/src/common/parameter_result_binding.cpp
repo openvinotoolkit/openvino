@@ -45,7 +45,8 @@ TEST_P(ParameterResultBindingTest, OutputWrittenInputUnchanged) {
     const auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{parameter});
 
     ov::Core core;
-    auto request = core.compile_model(model, "CPU").create_infer_request();
+    auto request =
+        core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
 
     for (size_t iter = 0; iter < 2; ++iter) {
         std::vector<float> input_values(ov::shape_size(shape));

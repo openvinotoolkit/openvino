@@ -346,12 +346,12 @@ void SyncInferRequest::throw_if_canceled() const {
 
 ov::SoPtr<ov::ITensor> SyncInferRequest::get_tensor(const ov::Output<const ov::Node>& in_port) const {
     auto port_find = find_port(in_port);
-    OPENVINO_ASSERT(port_find.found(), "Can not find port: ", in_port.get_any_name());
-    if (port_find.is_output()) {
-        // the base class tensor slot may be shared with an input, m_outputs holds the actual output tensors
+    if (port_find.found() && port_find.is_output() && m_bound_outputs_sharing_input_desc.count(port_find.idx)) {
+        // the shared slot holds the input tensor, the output tensor set by the user is kept in m_outputs
         return m_outputs.at(port_find.idx);
     }
-    return ov::ISyncInferRequest::get_tensor(m_input_ports_map.at(port_find.idx));
+    auto port = get_internal_port(in_port);
+    return ov::ISyncInferRequest::get_tensor(port);
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> SyncInferRequest::get_tensors(const ov::Output<const ov::Node>& in_port) const {
@@ -479,6 +479,7 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         if (m_outputs_sharing_input_desc.count(output_index)) {
             // don't overwrite the input tensor stored in the shared slot
             check_tensor(port, tensor);
+            m_bound_outputs_sharing_input_desc.insert(output_index);
             return;
         }
     }
