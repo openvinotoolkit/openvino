@@ -1212,7 +1212,7 @@ static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S,
 }
 #endif
 
-template <typename T, typename T2, typename T3>
+template <typename T, typename T2, typename T3, typename TV = T2>
 static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     const ov::intel_cpu::PlainTensor& present_key,
                                     const ov::intel_cpu::PlainTensor& present_value,
@@ -1482,7 +1482,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             memset(buf_attn_score.ptr<T3>(ithr), 0, q_len * h_each_group_len * SV * sizeof(T3));
             for (size_t pv = 0; pv < kv_len; pv++) {
                 auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
-                auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                auto* v = present_value.ptr<TV>(b_kv, h_group, pv);
                 auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len;
@@ -1526,7 +1526,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             if (intel_cpu::all_of(1U, q_len, h_each_group_len)) {
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
-                    auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                    auto* v = present_value.ptr<TV>(b_kv, h_group, pv);
                     auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                     attn_acc_value(buf_attn_score.ptr<T3>(ithr, b, 0, h_group),
                                    buf_attn_w.ptr<T3>(b, h_group, 0, pv)[0],
@@ -1540,7 +1540,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             } else {
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
-                    auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
+                    auto* v = present_value.ptr<TV>(b_kv, h_group, pv);
                     auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
@@ -1591,6 +1591,84 @@ void mha_single_token(const ov::intel_cpu::PlainTensor& query,
                       bool quant_key_by_channel,
                       const ov::intel_cpu::PlainTensor& sink_input,
                       const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    // KEY_CACHE_PRECISION and VALUE_CACHE_PRECISION may differ, e.g. a u8 key cache with an f16 value cache.
+    // The dispatch further down only looks at the key cache, so handle that case here: one of the caches is u8
+    // and the other one has the query precision.
+    if (present_key.get_precision() != present_value.get_precision()) {
+        const bool u8_key = present_key.get_precision() == ov::element::u8;
+        OPENVINO_ASSERT(present_key.get_precision() == (u8_key ? ov::element::u8 : query.get_precision()) &&
+                            present_value.get_precision() == (u8_key ? query.get_precision() : ov::element::u8),
+                        "Unsupported key/value cache precisions: ",
+                        present_key.get_precision(),
+                        "/",
+                        present_value.get_precision());
+        auto run = [&](auto q_type, auto acc_type) {
+            using T = decltype(q_type);
+            using T3 = decltype(acc_type);
+            if (u8_key) {
+                mha_single_token_kernel<T, uint8_t, T3, T>(query,
+                                                           present_key,
+                                                           present_value,
+                                                           alibi_mask,
+                                                           attention_mask,
+                                                           beams,
+                                                           output_emb,
+                                                           buf_attn_w,
+                                                           buf_attn_score,
+                                                           has_out_transpose,
+                                                           auto_causal,
+                                                           d_scale,
+                                                           past_k_scale_zp,
+                                                           past_v_scale_zp,
+                                                           head_sum,
+                                                           key_group_size,
+                                                           value_group_size,
+                                                           quant_key_by_channel,
+                                                           sink_input,
+                                                           cpu_parallel);
+            } else {
+                mha_single_token_kernel<T, T, T3, uint8_t>(query,
+                                                           present_key,
+                                                           present_value,
+                                                           alibi_mask,
+                                                           attention_mask,
+                                                           beams,
+                                                           output_emb,
+                                                           buf_attn_w,
+                                                           buf_attn_score,
+                                                           has_out_transpose,
+                                                           auto_causal,
+                                                           d_scale,
+                                                           past_k_scale_zp,
+                                                           past_v_scale_zp,
+                                                           head_sum,
+                                                           key_group_size,
+                                                           value_group_size,
+                                                           quant_key_by_channel,
+                                                           sink_input,
+                                                           cpu_parallel);
+            }
+        };
+        if (query.get_precision() == ov::element::f32) {
+            run(float{}, float{});
+        } else if (query.get_precision() == ov::element::f16) {
+#if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+            OPENVINO_ASSERT(!(u8_key && quant_key_by_channel),
+                            "Unsupported precision: u8 key cache quantized by channel");
+            run(ov::float16{}, ov::float16{});
+#else
+            run(ov::float16{}, float{});
+#endif
+#if !defined(OPENVINO_ARCH_ARM64)
+        } else if (query.get_precision() == ov::element::bf16) {
+            run(ov::bfloat16{}, float{});
+#endif
+        } else {
+            OPENVINO_THROW("Unsupported precision: ", query.get_precision());
+        }
+        return;
+    }
+
 #if !defined(OPENVINO_ARCH_ARM64)
     if (query.get_precision() == ov::element::bf16) {
         if (present_key.get_precision() == ov::element::u8) {
