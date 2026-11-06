@@ -15,6 +15,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
@@ -50,13 +51,6 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
     const auto two = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
 
-    const auto cos = std::make_shared<v8::Gather>(cos_cache,
-                                                  position_ids,
-                                                  zero);  // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
-    const auto sin = std::make_shared<v8::Gather>(sin_cache,
-                                                  position_ids,
-                                                  zero);  // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
-
     const auto cos_cache_shape = cos_cache.get_partial_shape();
     const auto cos_cache_rank = cos_cache_shape.rank();
     CHECK_VALID_NODE(node,
@@ -74,6 +68,30 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     const auto input_shape = std::make_shared<v3::ShapeOf>(input);
     const auto input_rank = input.get_partial_shape().rank();
     const bool input_is_3d = input_rank.is_static() && input_rank.get_length() == 3;
+
+    // ONNX Runtime interprets a one-element position_ids tensor as a starting
+    // offset, rather than repeating the same cache row for every token.
+    ov::Output<ov::Node> rotary_position_ids = position_ids;
+    const auto position_ids_shape = position_ids.get_partial_shape();
+    const bool position_ids_is_start_offset = position_ids_shape.rank().is_static() &&
+                                              position_ids_shape.rank().get_length() == 1 &&
+                                              position_ids_shape[0].compatible(1);
+    if (position_ids_is_start_offset) {
+        const auto sequence_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {input_is_3d ? 1 : 2});
+        const auto sequence_length = std::make_shared<v8::Gather>(input_shape, sequence_axis, zero);
+        const auto range_start = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        const auto range_step = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        const auto sequence_positions =
+            std::make_shared<v4::Range>(range_start, sequence_length, range_step, ov::element::i64);
+        rotary_position_ids = std::make_shared<v1::Add>(position_ids, sequence_positions);
+    }
+
+    const auto cos = std::make_shared<v8::Gather>(cos_cache,
+                                                  rotary_position_ids,
+                                                  zero);  // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
+    const auto sin = std::make_shared<v8::Gather>(sin_cache,
+                                                  rotary_position_ids,
+                                                  zero);  // [seqlen, head_size/2] or [bs, seqlen, head_size/2]
     const auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
 
     ov::Output<ov::Node> input_4d = input;
