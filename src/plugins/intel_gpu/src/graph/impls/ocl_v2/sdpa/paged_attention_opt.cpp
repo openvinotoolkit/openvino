@@ -1734,9 +1734,7 @@ public:
         // (k_cache_token_major()) -- and goes to pa_multi_token, which reads every layout. The refusal is here and only here: PREFILL reads the K input, not
         // the page, and the ctor add_stage()s PREFILL and MIXED together, so the MIXED kernel still COMPILES on a d-major page (as a token-major reader, see
         // classify_pa_cache()) -- it just must not dispatch.
-        if (stage == PagedAttentionStage::MIXED && !get_k_token_major(params))
-            return false;
-        return true;
+        return stage != PagedAttentionStage::MIXED || get_k_token_major(params);
     }
 
     // Which DPAS kernel serves PREFILL/MIXED of this op, decided once per impl from the descriptor, config,
