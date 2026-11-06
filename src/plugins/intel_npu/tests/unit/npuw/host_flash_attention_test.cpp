@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -14,14 +15,19 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "util.hpp"
 #include "variable_state.hpp"
 
 namespace {
@@ -36,7 +42,10 @@ static constexpr size_t PAST_LEN = 48;
 std::shared_ptr<ov::Model> build_sdpa_model(size_t query_size = QUERY_SIZE,
                                             size_t past_len = PAST_LEN,
                                             size_t num_heads = NUM_HEADS,
-                                            size_t head_dim = HEAD_DIM) {
+                                            size_t head_dim = HEAD_DIM,
+                                            bool with_attention_sink = false,
+                                            bool with_post_qk_scale = false,
+                                            bool post_qk_scale_is_constant = false) {
     using namespace ov;
 
     const size_t context_size = past_len + query_size;
@@ -46,14 +55,33 @@ std::shared_ptr<ov::Model> build_sdpa_model(size_t query_size = QUERY_SIZE,
 
     ResultVector results;
 
-    auto query = ov::test::utils::make_param(element::f32, new_shape, "query.0");
-    auto past_key = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.key");
-    auto past_val = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.value");
-    auto new_key = ov::test::utils::make_param(element::f32, new_shape, "new_key.0");
-    auto new_val = ov::test::utils::make_param(element::f32, new_shape, "new_value.0");
-    auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask.0");
-    ParameterVector params = {query, past_key, past_val, new_key, new_val, mask};
+    ParameterVector params;
+    auto make_param = [&](const std::string& name, const Shape& shape) {
+        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        p->set_friendly_name(name);
+        p->output(0).get_tensor().set_names({name});
+        params.push_back(p);
+        return p;
+    };
 
+    auto query = make_param("query.0", new_shape);
+    auto past_key = make_param("past_key_values.0.key", past_shape);
+    auto past_val = make_param("past_key_values.0.value", past_shape);
+    auto new_key = make_param("new_key.0", new_shape);
+    auto new_val = make_param("new_value.0", new_shape);
+    auto mask = make_param("mask.0", mask_shape);
+    std::shared_ptr<op::v0::Parameter> attention_sink;
+    if (with_attention_sink) {
+        attention_sink = make_param("attention_sink.0", Shape{BATCH, num_heads, 1, 1});
+    }
+    std::shared_ptr<ov::Node> attention_scale;
+    if (with_post_qk_scale) {
+        if (post_qk_scale_is_constant) {
+            attention_scale = op::v0::Constant::create(element::f32, Shape{}, {0.5f});
+        } else {
+            attention_scale = make_param("attention_scale.0", Shape{});
+        }
+    }
     auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
     key_concat->set_friendly_name("concat_key.0");
     auto val_concat = std::make_shared<op::v0::Concat>(OutputVector{past_val, new_val}, 2);
@@ -61,11 +89,35 @@ std::shared_ptr<ov::Model> build_sdpa_model(size_t query_size = QUERY_SIZE,
 
     auto qk = std::make_shared<op::v0::MatMul>(query, key_concat, false, true);
     qk->set_friendly_name("matmul1.0");
-    auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+    Output<Node> scores = qk;
+    if (attention_scale) {
+        scores = std::make_shared<op::v1::Multiply>(scores, attention_scale->output(0));
+    }
+    auto add = std::make_shared<op::v1::Add>(scores, mask->output(0));
     add->set_friendly_name("add.0");
-    auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+    Output<Node> softmax_input = add;
+    if (attention_sink) {
+        auto sink_shape = op::v0::Constant::create(element::i64,
+                                                   Shape{4},
+                                                   std::vector<int64_t>{static_cast<int64_t>(BATCH),
+                                                                        static_cast<int64_t>(num_heads),
+                                                                        static_cast<int64_t>(query_size),
+                                                                        1});
+        auto sink_broadcast = std::make_shared<op::v1::Broadcast>(attention_sink, sink_shape);
+        softmax_input = std::make_shared<op::v0::Concat>(OutputVector{add, sink_broadcast}, -1);
+    }
+    auto softmax = std::make_shared<op::v8::Softmax>(softmax_input, 3);
     softmax->set_friendly_name("softmax.0");
-    auto matmul2 = std::make_shared<op::v0::MatMul>(softmax->output(0), val_concat->output(0));
+    Output<Node> probabilities = softmax;
+    if (attention_sink) {
+        probabilities = std::make_shared<op::v8::Slice>(
+            softmax,
+            op::v0::Constant::create(element::i64, Shape{1}, {0}),
+            op::v0::Constant::create(element::i64, Shape{1}, {static_cast<int64_t>(context_size)}),
+            op::v0::Constant::create(element::i64, Shape{1}, {1}),
+            op::v0::Constant::create(element::i64, Shape{1}, {-1}));
+    }
+    auto matmul2 = std::make_shared<op::v0::MatMul>(probabilities, val_concat->output(0));
     matmul2->set_friendly_name("matmul2.0");
 
     auto make_result = [&](const Output<Node>& out, const std::string& name) {
@@ -258,6 +310,143 @@ TEST(HostFlashAttentionFromTest, ReturnsNulloptForNonSDPAModel) {
     EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
 }
 
+TEST(HostFlashAttentionFromTest, SupportsAttentionSinkWithPostQKScale) {
+    for (const bool fused_flash_attention : {false, true}) {
+        SCOPED_TRACE(fused_flash_attention);
+        auto result = ov::npuw::function::HostFlashAttention::from(
+            build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true, true),
+            fused_flash_attention);
+
+        ASSERT_TRUE(result.has_value());
+        EXPECT_TRUE(result->_attention_scale_param_idx.has_value());
+        EXPECT_TRUE(result->_attention_sink_param_idx.has_value());
+        EXPECT_NE(result->_tile_param_index_map.find(ov::npuw::HFATileInputId::SCALE),
+                  result->_tile_param_index_map.end());
+        const auto tile_inputs = result->_tile_model->inputs();
+        const auto final_tile_inputs = result->_final_tile_model->inputs();
+        EXPECT_TRUE(std::any_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
+            return input.get_names().count("SCALE") != 0;
+        }));
+        EXPECT_TRUE(std::any_of(final_tile_inputs.begin(), final_tile_inputs.end(), [](const auto& input) {
+            return input.get_names().count("SCALE") != 0;
+        }));
+    }
+}
+
+TEST(HostFlashAttentionFromTest, EmbedsConstantPostQKScale) {
+    for (const bool fused_flash_attention : {false, true}) {
+        SCOPED_TRACE(fused_flash_attention);
+        auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, false, true, true);
+        auto result = ov::npuw::function::HostFlashAttention::from(model, fused_flash_attention);
+
+        ASSERT_TRUE(result.has_value());
+        EXPECT_FALSE(result->_attention_scale_param_idx.has_value());
+        for (const auto& tile_model : {result->_tile_model, result->_final_tile_model}) {
+            const auto tile_inputs = tile_model->inputs();
+            EXPECT_TRUE(std::none_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
+                return input.get_names().count("SCALE") != 0;
+            }));
+            const auto tile_ops = tile_model->get_ops();
+            const auto scaled_query = std::find_if(tile_ops.begin(), tile_ops.end(), [](const auto& node) {
+                return node->get_friendly_name() == "q_scaled";
+            });
+            ASSERT_NE(scaled_query, tile_ops.end());
+            const auto scale_constant =
+                ov::as_type_ptr<ov::op::v0::Constant>((*scaled_query)->input_value(1).get_node_shared_ptr());
+            ASSERT_TRUE(scale_constant);
+            EXPECT_EQ(scale_constant->cast_vector<float>(), std::vector<float>{0.5f});
+        }
+    }
+}
+
+TEST(HostFlashAttentionFromTest, RejectsGenerateAttention) {
+    for (const bool with_sink : {false, true}) {
+        auto model = build_sdpa_model(1, PAST_LEN, NUM_HEADS, HEAD_DIM, with_sink);
+        ASSERT_TRUE(ov::npuw::util::find_sdpa_pattern_nodes(model).is_valid());
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+        EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
+    }
+}
+
+TEST(HostFlashAttentionFromTest, RejectsConstantAttentionSink) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
+    auto sink = model->get_parameters().back();
+    auto constant = ov::op::v0::Constant::create(ov::element::f32, sink->get_shape(), {1.0f});
+    for (auto input : sink->output(0).get_target_inputs()) {
+        input.replace_source_output(constant);
+    }
+    model->remove_parameter(sink);
+    model->validate_nodes_and_infer_types();
+
+    ASSERT_TRUE(ov::npuw::util::find_sdpa_pattern_nodes(model).is_valid());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
+}
+
+TEST(HostFlashAttentionFromTest, RejectsReshapedAttentionSink) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
+    auto sink = model->get_parameters().back();
+    const auto consumers = sink->output(0).get_target_inputs();
+    auto shape = ov::op::v0::Constant::create(
+        ov::element::i64,
+        ov::Shape{4},
+        std::vector<int64_t>{static_cast<int64_t>(BATCH), static_cast<int64_t>(NUM_HEADS), 1, 1});
+    auto reshaped = std::make_shared<ov::op::v1::Reshape>(sink, shape, false);
+    for (auto input : consumers) {
+        input.replace_source_output(reshaped);
+    }
+    model->validate_nodes_and_infer_types();
+
+    ASSERT_TRUE(ov::npuw::util::find_sdpa_pattern_nodes(model).is_valid());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
+}
+
+TEST(HostFlashAttentionFromTest, AcceptsConvertedParameterAttentionSink) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
+    auto sink = model->get_parameters().back();
+    const auto consumers = sink->output(0).get_target_inputs();
+    auto half = std::make_shared<ov::op::v0::Convert>(sink, ov::element::f16);
+    auto converted = std::make_shared<ov::op::v0::Convert>(half, ov::element::f32);
+    for (auto input : consumers) {
+        input.replace_source_output(converted);
+    }
+    model->validate_nodes_and_infer_types();
+
+    for (const bool fused : {false, true}) {
+        auto result = ov::npuw::function::HostFlashAttention::from(model, fused);
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(result->_attention_sink_param_idx,
+                  std::optional<std::size_t>{static_cast<std::size_t>(model->get_parameter_index(sink))});
+    }
+}
+
+TEST(HostFlashAttentionFromTest, FusedScaleAndSinkMaskSkippingKeepsScaleWithoutMask) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true, true);
+    annotate_mask_rt_info(model, ov::npuw::NPUW_SDPA_MASK_CAUSAL);
+
+    auto result = ov::npuw::function::HostFlashAttention::from(model, true, true);
+
+    ASSERT_TRUE(result.has_value());
+    const auto has_input = [](const std::shared_ptr<ov::Model>& tile_model, const std::string& name) {
+        const auto& inputs = tile_model->inputs();
+        return std::any_of(inputs.begin(), inputs.end(), [&](const auto& input) {
+            return input.get_names().count(name) != 0;
+        });
+    };
+    EXPECT_TRUE(has_input(result->_tile_model, "SCALE"));
+    EXPECT_FALSE(has_input(result->_tile_model, "MASK_TILE"));
+    EXPECT_TRUE(has_input(result->_final_tile_model, "SCALE"));
+    EXPECT_TRUE(has_input(result->_final_tile_model, "MASK_TILE"));
+    EXPECT_EQ(result->_tile_param_index_map.at(ov::npuw::HFATileInputId::SCALE), 6u);
+    EXPECT_EQ(result->_final_tile_param_index_map.at(ov::npuw::HFATileInputId::SCALE), 7u);
+
+    const ov::npuw::compiled::HostFlashAttention compiled_hfa(*result);
+    EXPECT_EQ(compiled_hfa._sdpa_attention_info._tile_input_indices.scale, std::optional<std::size_t>{6u});
+    EXPECT_EQ(compiled_hfa._sdpa_attention_info._final_tile_input_indices.scale, std::optional<std::size_t>{7u});
+    EXPECT_EQ(compiled_hfa._sdpa_attention_info._final_tile_input_indices.mask, 6u);
+}
+
 TEST(HostFlashAttentionFromTest, NonFused_FinalTileHasSevenInputs) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
@@ -392,13 +581,15 @@ TEST(HostFlashAttentionFromTest, Fused_PerSDPASlidingRtInfo_CoversWholeContext_S
 TEST(HostFlashAttentionFromTest, NonFused_ParamIndexMapHasAllSevenEntries) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->_tile_param_index_map.size(), static_cast<size_t>(ov::npuw::HFATileInputId::COUNT));
+    EXPECT_EQ(result->_tile_param_index_map.size(), static_cast<size_t>(ov::npuw::HFATileInputId::COUNT) - 1u);
+    EXPECT_EQ(result->_tile_param_index_map.count(ov::npuw::HFATileInputId::SCALE), 0u);
 }
 
 TEST(HostFlashAttentionFromTest, Fused_ParamIndexMapHasAllSevenEntries) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->_tile_param_index_map.size(), static_cast<size_t>(ov::npuw::HFATileInputId::COUNT));
+    EXPECT_EQ(result->_tile_param_index_map.size(), static_cast<size_t>(ov::npuw::HFATileInputId::COUNT) - 1u);
+    EXPECT_EQ(result->_tile_param_index_map.count(ov::npuw::HFATileInputId::SCALE), 0u);
 }
 
 TEST(HostFlashAttentionFromTest, Fused_MaskTileIndexInMapIsSix) {
