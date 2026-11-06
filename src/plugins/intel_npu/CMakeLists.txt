@@ -18,6 +18,13 @@ set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
 
+# All NPU targets must use the same variant, both define ov::ZeroApi
+if(ENABLE_NPU_STATIC_ZE_LOADER)
+    set(NPU_ZERO_LOADER_TARGET openvino::zero_loader_static)
+else()
+    set(NPU_ZERO_LOADER_TARGET openvino::zero_loader)
+endif()
+
 if(ENABLE_INTEL_NPU_COMPILER)
     if(BUILD_SHARED_LIBS)
         include(cmake/download_compiler_libs.cmake)
