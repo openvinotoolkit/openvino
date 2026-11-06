@@ -677,25 +677,25 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
             device = select_dynamic_device();
         }
         const bool is_pinned = !preferred_device.empty();
-        const auto pinned_device_name = device.device_name;
+        const auto requested_device_name = device.device_name;
         DeviceName previous_device;
         {
             std::lock_guard<std::mutex> lock(m_gate_mutex);
             previous_device = m_gate_current_device;
         }
-        // released before the compilation of the new device to keep the peak memory low
-        if (previous_device != pinned_device_name) {
-            release_inactive_device(previous_device);
-        }
+        // the previous device stays usable for fallback until the new one is ready
         OPENVINO_ASSERT(ensure_device_ready(device),
                         get_log_tag(),
                         ": failed to compile the model on the selected device ",
                         device.device_name);
         // reject if a pinned request ended up compiled on a different device
-        OPENVINO_ASSERT(!is_pinned || device.device_name == pinned_device_name,
+        OPENVINO_ASSERT(!is_pinned || device.device_name == requested_device_name,
                         get_log_tag(),
                         ": failed to compile the model on the device pinned by the remote tensor ",
-                        pinned_device_name);
+                        requested_device_name);
+        if (previous_device != device.device_name) {
+            release_inactive_device(previous_device);
+        }
         const auto& device_name = device.device_name;
         {
             std::lock_guard<std::mutex> lock(m_gate_mutex);
@@ -867,20 +867,15 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     }
     auto& workers = m_worker_requests[device_name];
     auto& idle_workers = m_idle_worker_requests[device_name];
-    std::vector<std::pair<int, WorkerInferRequest*>> popped;
+    // the dynamic selection runs one worker per device, so an empty idle queue means it is still running
     std::pair<int, WorkerInferRequest*> worker;
-    while (idle_workers.try_pop(worker)) {
-        popped.push_back(worker);
-    }
-    // a worker that is not idle is still running, keep the device
-    if (popped.size() != workers.size()) {
-        for (auto idle_worker : popped) {
-            idle_workers.try_push(std::move(idle_worker));
-        }
+    if (workers.size() != 1 || !idle_workers.try_pop(worker)) {
         return;
     }
     // the requests go first, they keep the compiled model alive
     workers.clear();
+    idle_workers.set_capacity(0);
+    m_infer_pipeline_tasks_device_specific[device_name] = nullptr;
     m_dynamic_compiled_models.erase(cached);
     LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device_name.c_str());
 }
