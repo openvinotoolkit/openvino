@@ -1270,8 +1270,10 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // must fail the smoke_sdpa_hpg_rows mask cases it can see), and 18 = head 72's last value subgroup stores its columns
     // unshifted (must fail every head-72 case of smoke_sdpa_hpg_rows). On a token-major page in MIXED: 36 = the two keys of a K
     // pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the odd V row of a pair read at/past k (each must fail
-    // smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases). Absent unless asked for, so the default jit (and
-    // every SG16 jit) is unchanged.
+    // smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases); on an i8 BY_TOKEN page 19 = the K comp of tokens
+    // 0..7 for both 8-key groups of a page, 20 = the V scales of a lane's two keys swapped, 21 = the V zps of the next key
+    // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm). Absent unless asked
+    // for, so the default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
@@ -1452,8 +1454,8 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
 void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
     int cur_f16 = 0;
     bool cur_aligned = false;
-    // SG8: Kc/Vc have only a block2d reader until the scalar one exists (S7b); 0 reads them from the cache, which
-    // is lossy for a compressed cache, so the tier mask (not this default) keeps such ops off SG8.
+    // SG8: Kc/Vc have only a block2d reader, so an SG8 compressed MIXED reads the current tokens from the cache (0); the
+    // cache round trip is lossy, which the Xe2 exact read avoids.
     if (in.is_pa && !in.is_prefill && block2d_io_allowed(static_cast<size_t>(in.problem.tiling.subgroup_size))) {
         const auto& kc = in.params.input_layouts[1];
         const auto& vc = in.params.input_layouts[2];
