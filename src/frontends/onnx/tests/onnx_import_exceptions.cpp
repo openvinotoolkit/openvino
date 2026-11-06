@@ -5,7 +5,9 @@
 #include <exception>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
+#include "core/tensor.hpp"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 
@@ -129,4 +131,28 @@ TEST(onnx_importer, exception_msg_softmax_axis_out_of_range) {
     } catch (...) {
         FAIL() << "The ONNX model importer failed for unexpected reason";
     }
+}
+
+TEST(onnx_importer, exception_msg_sparse_constant_int32_indices) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(convert_model("constant_sparse_tensor_int32_indices.onnx"),
+                                  ov::Exception,
+                                  "Sparse tensor indices must be of type INT64");
+}
+
+TEST(onnx_importer, exception_msg_sparse_constant_uint8_raw_indices) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(convert_model("constant_sparse_tensor_uint8_raw_indices.onnx"),
+                                  ov::Exception,
+                                  "Sparse tensor indices must be of type INT64");
+}
+
+TEST(onnx_importer, raw_data_is_read_with_the_declared_element_size) {
+    const std::string raw_data(16, static_cast<char>(1));
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::frontend::onnx::detail::__get_raw_data<int64_t>(raw_data, ONNX_NAMESPACE::TensorProto_DataType_UINT8),
+        ov::Exception,
+        "Raw data of type UINT8 cannot be read as 8-byte elements");
+
+    const auto values =
+        ov::frontend::onnx::detail::__get_raw_data<int32_t>(raw_data, ONNX_NAMESPACE::TensorProto_DataType_INT32);
+    EXPECT_EQ(values, std::vector<int32_t>(4, 0x01010101));
 }
