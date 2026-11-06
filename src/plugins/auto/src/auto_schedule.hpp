@@ -61,6 +61,8 @@ private:
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
+    // whether the device is the configured low_power_device selected while the platform is in low power mode
+    bool is_pinned_low_power_device(const std::string& device_name) const;
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;

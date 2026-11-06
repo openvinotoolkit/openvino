@@ -69,6 +69,8 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
+            const bool is_pinned_low_power =
+                is_pinned_low_power_device(m_compile_context[FALLBACKDEVICE].m_device_info.device_name);
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -83,6 +85,11 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                 m_compile_context[ACTUALDEVICE].m_is_already = false;
                 LOG_INFO_TAG("Select fallback device:%s", m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
                 return true;
+            } else if (is_pinned_low_power) {
+                LOG_ERROR_TAG("Compiling model on low power device:%s failed during runtime fallback, AUTO will not "
+                              "fall back to another candidate device",
+                              m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
+                return false;
             } else {
                 // load failed or generate works failed, so reselect other devices
                 return get_execution_devices(m_compile_context[FALLBACKDEVICE].m_device_info.device_name.c_str());
@@ -101,6 +108,13 @@ bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::strin
         return true;
     }
     return false;
+}
+
+bool AutoSchedule::is_pinned_low_power_device(const std::string& device_name) const {
+    // dynamic selection keeps its own fallback: a failed low power device is excluded and another one is selected
+    return !m_context->m_dynamic_device_selection && m_context->m_low_power_device &&
+           !m_context->m_low_power_device_unavailable && m_context->m_low_power_device->device_name == device_name &&
+           m_plugin->get_low_power_mode().value_or(false);
 }
 
 DeviceName AutoSchedule::get_dynamic_active_device() const {
@@ -133,6 +147,12 @@ void AutoSchedule::init() {
                                 m_context->m_model_priority,
                                 m_context->m_selection_policy,
                                 (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
+    if (is_pinned_low_power_device(m_compile_context[ACTUALDEVICE].m_device_info.device_name)) {
+        // A compile failure on the pinned low power device must not be masked by a startup fallback.
+        LOG_INFO_TAG("Disable startup fallback for low power device:%s",
+                     m_compile_context[ACTUALDEVICE].m_device_info.device_name.c_str());
+        m_context->m_startup_fallback = false;
+    }
     if (m_context->m_dynamic_device_selection) {
         // nothing was reserved by select_device() in this mode
         m_compile_context[ACTUALDEVICE].m_priority_released = true;
@@ -436,8 +456,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
     }
+    const bool pinned_low_power_failure = !context.m_is_load_success && is_pinned_low_power_device(device);
     const bool low_power_first_failure =
-        !context.m_is_load_success && check_and_disable_if_low_power_device_failed(device);
+        !context.m_is_load_success && !pinned_low_power_failure && check_and_disable_if_low_power_device_failed(device);
     // a failed low power CPU picked at startup must still cascade to the candidates
     const bool retry_actual_low_power_device =
         low_power_first_failure && &context == &m_compile_context[ACTUALDEVICE];
@@ -453,6 +474,13 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     if (!context.m_priority_released) {
         m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
         context.m_priority_released = true;
+    }
+    if (pinned_low_power_failure) {
+        context.m_err_message += " (low power device, no fallback attempted)";
+        LOG_ERROR_TAG("Compiling model on low power device:%s failed, AUTO will not fall back to another candidate "
+                      "device",
+                      device.c_str());
+        return;
     }
     // remove the current device from device_list
     auto erase_device = deviceChecker().check_and_return_if_device_in_list(device, device_list, true);
