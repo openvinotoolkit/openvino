@@ -38,6 +38,16 @@ GGUF_OP_CONVERTER(translate_l2_norm);
 // Matmul / attention.
 GGUF_OP_CONVERTER(translate_mulmat);
 GGUF_OP_CONVERTER(translate_flash_attn_ext);
+GGUF_OP_CONVERTER(translate_rope_cache);
+GGUF_OP_CONVERTER(translate_attention_key_length);
+GGUF_OP_CONVERTER(translate_qsa_prepare);
+GGUF_OP_CONVERTER(translate_sparse_attention_indexer);
+GGUF_OP_CONVERTER(translate_sparse_attention);
+GGUF_OP_CONVERTER(translate_ngram_hash);
+GGUF_OP_CONVERTER(translate_lightning_indexer);
+GGUF_OP_CONVERTER(translate_top_k_mask);
+GGUF_OP_CONVERTER(translate_dsv4_hc_pre);
+GGUF_OP_CONVERTER(translate_dsv4_hc_post);
 GGUF_OP_CONVERTER(translate_soft_max);
 GGUF_OP_CONVERTER(translate_rope);
 GGUF_OP_CONVERTER(translate_scale);

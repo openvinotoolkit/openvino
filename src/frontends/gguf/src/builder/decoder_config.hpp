@@ -28,6 +28,7 @@ struct DecoderConfig {
     std::string arch;
     ModelContract model_contract{};
     bool interleaved_q_gate = false;
+    DecoderSparseAttention sparse;
     std::optional<bool> qkv_bias_override;
     std::optional<bool> output_bias_override;
     std::optional<bool> fused_qkv_override;
@@ -77,6 +78,8 @@ struct DecoderConfig {
     int ssm_group_count = 0;  // num_k_heads
     int ssm_dt_rank = 0;      // num_v_heads
     int ssm_inner_size = 0;   // d_inner = num_v_heads * head_v_dim
+    bool ssm_sigmoid_gate = false;
+    bool ssm_l2_eps_under_sqrt = false;
 
     // Pre-norm key suffixes; GPT-OSS uses post_attention_norm for its pre-FFN norm.
     std::string attn_norm_key{"attn_norm.weight"};
@@ -143,6 +146,10 @@ struct DecoderConfig {
     float layer_kq_scale(int il) const {
         return m_layers.at(il).kq_scale;
     }
+    // True when attention layer `il` uses block-sparse attention.
+    bool layer_is_sparse(int il) const {
+        return m_layers.at(il).sparse;
+    }
     // RoPE config for layer `il` (e.g. gemma4 SWA layers use a different freq_base / n_dims).
     const RopeConfig& layer_rope_config(int il) const {
         return m_layers.at(il).rope;
@@ -153,6 +160,7 @@ private:
         bool swa = false;
         bool moe = false;
         bool recurrent = false;
+        bool sparse = false;
         int head_size = 0;
         int n_head = 0;
         int n_head_kv = 0;

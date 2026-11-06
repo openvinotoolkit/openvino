@@ -36,6 +36,8 @@ public:
     void configure_model_contract(const ModelContract& contract);
     // Contract declared so far, including declarations installed by projector callbacks.
     ModelContract model_contract() const;
+    // Declare the requested BuildContext::component as implemented.
+    void implement_component();
     DecoderDimensions configure_decoder(RopeMode rope, const DecoderOptions& options = {});
     DecoderLayerParameters decoder_layer_parameters(int layer) const;
     GgufValue decoder_attention(int layer, const GgufValue& normalized_input);
@@ -61,6 +63,12 @@ public:
                    const std::vector<GgufValue>& inputs,
                    int op_case = 0,
                    const std::map<std::string, ov::Any>& attrs = {});
+    // Invoke a converter with `outputs` outputs and return them in order.
+    std::vector<GgufValue> node_outputs(const std::string& op_type,
+                                        const std::vector<GgufValue>& inputs,
+                                        size_t outputs,
+                                        int op_case = 0,
+                                        const std::map<std::string, ov::Any>& attrs = {});
 
     // Declare the position contract before emitting nodes; config.per_op selects per-node tables.
     void configure_rope(const RopeConfig& config);

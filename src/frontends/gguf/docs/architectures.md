@@ -96,7 +96,9 @@ also lets the llama.cpp adapter supply resolved facts. Architecture names are di
 An explicit `batchable_recurrent` value overrides structural inference; leave it unset to infer
 batching from generic operation capabilities. All three states survive IR serialization.
 `sequence_outputs` names auxiliary decoder outputs that `AdaptToGenAI` reshapes to
-`[B,T,D]`. `component_groups` declares named groups of independently selectable models,
+`[B,T,D]`. `sequence_inputs` names auxiliary rank-3 `[B,T,D]` parameters that it
+preserves, such as a NextN draft's target hidden states.
+`component_groups` declares named groups of independently selectable models,
 the primary model of each group, its output names and its recurrent-state prefix.
 The contracts survive IR serialization; adaptation consumes them without family-name checks.
 `supports_genai_adaptation` lets a builder reject the standard decoder interface
@@ -149,7 +151,11 @@ Per-layer variation goes through `DecoderConfig` accessors, not inline ternaries
 The generic block is `norm -> QKV -> RoPE -> attention -> norm -> FFN/MoE -> residual`. Past
 extensions include MoE routing (`blocks::moe_ffn()`), gpt-oss sinks and OAI SwiGLU, jais2 biased
 LayerNorm and ReLU² FFN, gemma2/3 post-norms and soft-caps, gemma4 per-layer embeddings and shared KV,
-and qwen35 Gated DeltaNet layers that return the same sublayer output as attention. To add one:
+qwen35 Gated DeltaNet layers that return the same sublayer output as attention, and qwen4exp
+block-sparse attention (`DecoderAttention::sparse`) with its Gated DeltaNet output-gate and q/k
+normalization variants (`DecoderHybrid`). The qwen4exp
+[builder](../src/builder/arch/qwen4exp_builder.cpp) owns its hyper-connection layer order and calls
+`decoder_attention` / `decoder_ffn` for the shared sublayers. To add one:
 
 1. Describe the feature in `DecoderParameters`. Select architecture-specific values in the owning
    family helper or extension factory; retain only unambiguous structural detection in `DecoderConfig`.

@@ -54,8 +54,19 @@ inline std::shared_ptr<ov::op::v8::Gather> token_embedding_lookup(const std::sha
     auto indices = gather->input_value(1).get_node_shared_ptr();
     if (const auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(indices))
         indices = squeeze->input_value(0).get_node_shared_ptr();
+    // Rows derived from the tokens (e.g. hashed n-grams) share the token layout.
+    if (indices->get_rt_info().count("gguf.token_indices"))
+        return gather;
     const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(indices);
     return parameter && parameter->output(0).get_names().count("inp_tokens") ? gather : nullptr;
+}
+
+// A lookup whose rows are computed from the tokens rather than indexed by them.
+inline bool is_token_derived_lookup(const std::shared_ptr<ov::op::v8::Gather>& gather) {
+    auto indices = gather->input_value(1).get_node_shared_ptr();
+    if (const auto squeeze = ov::as_type_ptr<ov::op::v0::Squeeze>(indices))
+        indices = squeeze->input_value(0).get_node_shared_ptr();
+    return indices->get_rt_info().count("gguf.token_indices") != 0;
 }
 
 struct LegacyEmbeddingBoundaries {
@@ -100,7 +111,7 @@ inline LegacyEmbeddingBoundaries resolve_legacy_embedding_boundaries(const std::
         const std::string lookup_name = weight_name == "token_embd.weight" ? "embd" : "pe_tok_flat";
         for (const auto& node : operations) {
             const auto lookup = token_embedding_lookup(node);
-            if (!lookup)
+            if (!lookup || is_token_derived_lookup(lookup))
                 continue;
             auto table = lookup->get_input_node_shared_ptr(0);
             if (!has_legacy_embedding_name(*table, weight_name)) {

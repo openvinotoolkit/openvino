@@ -58,6 +58,13 @@ The default decoder graph mirrors the llama.cpp backend interface:
 | `inp_kv_idx`, `token_len_per_seq` | KV write slots and per-sequence length, when the graph consumes them |
 | `cache_k_*`, `cache_v_*`, recurrent states | Previous cache/state, returned as matching outputs |
 
+`qwen4exp` declares all of its caches as recurrent states: head-major `qsa_cache_k_l*` /
+`qsa_cache_v_l*` `[1,kv_heads,keys,head]` grown by concatenation, the QSAPrepare states
+`qsa_block_keys_l*` (one pooled key per complete block), `qsa_pending_keys_l*` and
+`qsa_pending_rope_l*`, the n-gram convolution `ple_conv_state_l*` and `ngram_history`, the previous
+`ngram_size - 1` tokens stored relative to the n-gram EOS token so that zero starts a sequence. A
+state with a dynamic axis starts empty. Valid key counts come from the last row of `self_kq_mask`.
+
 The output is `logits`. [`run_gguf_model`](../../../../tests/model_hub_tests/gguf/utils.py) is a
 working Python driver for two steps. This is the only route available from Python: the GGUF passes
 below have no Python bindings, and `DecoderTransformationExtension` cannot be constructed from Python.
@@ -91,6 +98,7 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 |---|---|---|
 | `IDS_TO_LOGITS` (default) | `input_ids [B,T]`, `attention_mask [B,KV]`, `position_ids [B,T]`, `beam_idx [B]` | `logits [B,T,vocab]` |
 | `EMBEDS_TO_LOGITS` | `inputs_embeds [B,T,D]` instead of `input_ids`; see [multimodal language models](mmproj.md#using-the-encoders-and-a-language-model) | `logits [B,T,vocab]` |
+| `EMBEDS_TO_LOGITS_TEXT` | Text embeddings `[B,T,D]`, with text `position_ids [B,T]` even for M-RoPE models | `logits [B,T,vocab]` |
 
 - The leading dimensions are derived from the live inputs, so one graph serves both SDPA and
   `ov::pass::SDPAToPagedAttention`.
@@ -99,9 +107,63 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states
   (`lfm2`, `lfm2moe`) get a dynamic batch, follow `beam_idx` and mask
-  left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
+  left padding. `qwen4exp` states follow `beam_idx` as well, and left-padded positions read as the
+  n-gram EOS token in the n-gram hash. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.
+- In `EMBEDS_TO_LOGITS` mode, hashed n-gram embeddings (`qwen4exp`) move to a separate lookup
+  model, `GenAIExtension::get_ngram_embedding_model()`, with the optimum-intel IO: `input_ids [B,T]`
+  and `ngram_history [B,n-1]` (absolute ids, EOS for a new sequence) produce
+  `ngram_embeddings [B,T,1,width]` and `new_ngram_history`. The language model takes
+  `ngram_embeddings`; the caller keeps the history, resets it per sequence and reorders it for beams.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.
+
+### Embedded Qwen3.5 MTP
+
+A `qwen35` GGUF with `qwen35.nextn_predict_layers=1` can supply both a target
+decoder and its single NextN draft block. The ordinary conversion excludes the
+NextN block from the target. Select `"mtp"` explicitly to convert only the draft:
+
+```cpp
+auto extension = std::make_shared<GenAIExtension>(
+    GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
+frontend->add_extension(extension);
+auto draft = frontend->convert(frontend->load("model-with-mtp.gguf"));
+auto text_embeddings = extension->get_embedding_model();
+```
+
+Use separate frontend/extension instances for the target and draft. Both return
+`last_hidden_state [B,T,D]` after final normalization, before any output-head
+Hadamard transform. The draft also takes `hidden_states [B,T,D]`; pair target
+hidden state at token `t` with the embedding of token `t+1`. The embedding,
+hidden-state normalization, EH projection, full-attention block and optional
+checkpoint-provided head belong to the draft. Target and draft caches are
+independent. Missing NextN metadata or an unsupported component fails conversion.
+The current MTP path requires shared target/draft token embeddings; a separate
+`nextn.embed_tokens.weight` table is rejected rather than ignored.
+
+The frontend supplies graphs, not an MTP sampler. OpenVINO GenAI's
+`speculative_type="mtp"` option (llama.cpp `--spec-type draft-mtp`) converts both
+components from the same file and connects them to its existing greedy MTP strategy. A plain
+Bonsai GGUF without the embedded NextN weights cannot be used as an MTP draft.
+
+### Qwen3.8-Flash-Next MTP
+
+`qwen4exp` uses the same `"mtp"` component. The draft reads and returns the hyper-connection
+residual before the output mixer, `hidden_states`/`last_hidden_state [B,T,hc*n]`. It runs one
+block-sparse NextN block with its own caches and mixes its streams through `nextn.hc_head_*`
+before the output projection. The source can be:
+
+- a model with embedded NextN blocks, or
+- a self-contained head such as Unsloth's `mtp-*.gguf`, which stores only the NextN block,
+  `token_embd` and `output`.
+
+Heads with `nextn_shared_target_tensors` borrow the target's embeddings and are rejected.
+
+The target exports `last_hidden_state` in two cases: when its file has NextN blocks, or when it is
+converted with `EMBEDS_TO_LOGITS_TEXT` and no component. The second case covers Unsloth's target
+files, which have no NextN metadata. The target keeps its n-gram lookup, so `input_ids` stays an
+input next to `inputs_embeds`. GenAI's MTP pipeline needs paged attention, which `qwen4exp` does
+not support yet, so the frontend currently supplies only the graphs.
 
 `GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
 for consumers that keep GGUF IO. The llama.cpp backend uses its own stateful lowering for its
@@ -131,6 +193,11 @@ These core `ov::op::internal` operations can remain in the converted model:
 
 See [`ssm_scan.cpp`](../src/op/ssm_scan.cpp), [`gated_delta_net.cpp`](../src/op/gated_delta_net.cpp)
 and [`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
+
+Block-sparse attention uses the public opset17 `QSAPrepare`, `SparseAttentionIndexer` and
+`SparseAttention` operations ([`sparse_attention.cpp`](../src/op/sparse_attention.cpp)). They are
+serializable, but compiling them needs plugin kernels, which the plugins provide by fusing the index
+query RMSNorm and RoPE with the first two operations; keep that form when changing the converters.
 
 Internal operations are outside the public IR opsets. Saving IR can succeed and still produce a file
 the IR frontend cannot read back, so test the save/read round trip. Compiled-model export, import
