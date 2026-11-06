@@ -458,5 +458,10 @@
         "error_text": "httpx.ConnectError: [Errno -2] Name or service not known",
         "ticket": 9999999,
         "category": "Network"
+    },
+    {
+        "error_text": "test_keras_lstm_flags_float32",
+        "ticket": 9999999,
+        "category": "Flaky Test"
     }
 ]
