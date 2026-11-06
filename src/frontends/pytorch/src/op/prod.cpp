@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "utils.hpp"
 
@@ -15,12 +16,13 @@ Output<Node> translate_prod_common(const NodeContext& context,
                                    const Output<Node>& dim,
                                    bool keepdim,
                                    bool skip_bool_check) {
-    // ReduceProd doesn't support boolean inputs
     auto input_tensor = input;
     if (!skip_bool_check) {
         auto data_dtype = simplified_type_interpret(context.get_input_type(0));
-        if (input_tensor.get_element_type() == element::boolean ||
-            (data_dtype.is<element::Type>() && data_dtype.as<element::Type>() == element::boolean)) {
+        // PyTorch prod converts any integer type or bool to i64 for preventing overflow
+        if ((input_tensor.get_element_type().is_static() && input_tensor.get_element_type().is_integral()) ||
+            (data_dtype.is<element::Type>() && data_dtype.as<element::Type>().is_static() &&
+             data_dtype.as<element::Type>().is_integral())) {
             input_tensor = context.mark_node(std::make_shared<ov::op::v0::Convert>(input_tensor, element::i64));
         }
     }
