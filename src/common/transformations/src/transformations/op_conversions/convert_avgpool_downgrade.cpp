@@ -103,10 +103,10 @@ ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             const auto& kernel = avg_pool_v14->get_kernel();
             const auto& strides = avg_pool_v14->get_strides();
             const auto& pads_begin_v14 = avg_pool_v14->get_pads_begin();
-            // The no-exclude-pad workaround above pads both ends with pads_begin.
-            const auto& applied_pads_end = exclude_pad ? avg_pool_v14->get_pads_end() : pads_begin_v14;
+            const auto& pads_end_v14 = avg_pool_v14->get_pads_end();
             const auto auto_pad = avg_pool_v14->get_auto_pad();
             const bool has_explicit_pads = auto_pad == ov::op::PadType::EXPLICIT || auto_pad == ov::op::PadType::NOTSET;
+            const auto& shape_in = input.get_partial_shape();
             const auto& shape_v14 = avg_pool_v14->get_output_partial_shape(0);
             const auto& shape_v1 = avg_pool_v1->get_output_partial_shape(0);
             const auto spatial = static_cast<int64_t>(kernel.size());
@@ -114,18 +114,25 @@ ConvertAvgPool14ToAvgPool1::ConvertAvgPool14ToAvgPool1() {
             bool static_stops = true;
             for (int64_t i = 0; i < spatial; ++i) {
                 const auto axis = i - spatial;
-                const bool is_static =
-                    shape_v14.rank().is_static() && shape_v14[axis].is_static() && shape_v1[axis].is_static();
+                const bool is_static = shape_in.rank().is_static() && shape_v14.rank().is_static() &&
+                                       shape_in[axis].is_static() && shape_v14[axis].is_static() &&
+                                       shape_v1[axis].is_static();
                 if (is_static && shape_v14[axis] != shape_v1[axis]) {
                     stops.push_back(shape_v14[axis].get_length());
-                } else if (!is_static && has_explicit_pads && applied_pads_end[i] + strides[i] > kernel[i]) {
+                    // Makes the runtime bound below evaluate to the static extent.
+                    offsets.push_back(stops.back() - shape_in[axis].get_length());
+                    steps.push_back(1);
+                } else if (!is_static && has_explicit_pads && pads_end_v14[i] + strides[i] > kernel[i] &&
+                           pads_end_v14[i] <= kernel[i] && (exclude_pad || pads_begin_v14[i] == pads_end_v14[i])) {
+                    // With pads_end <= kernel at most one CEIL window starts in the padding, and the workaround
+                    // above matches CEIL_TORCH only for symmetric padding.
                     static_stops = false;
+                    offsets.push_back(static_cast<int64_t>(pads_begin_v14[i] + strides[i] - 1));
+                    steps.push_back(static_cast<int64_t>(strides[i]));
                 } else {
                     continue;
                 }
                 axes.push_back(axis);
-                offsets.push_back(static_cast<int64_t>(pads_begin_v14[i] + strides[i] - 1));
-                steps.push_back(static_cast<int64_t>(strides[i]));
             }
             if (!axes.empty()) {
                 const auto axes_node = node_registry.make<Constant>(element::i64, Shape{axes.size()}, axes);

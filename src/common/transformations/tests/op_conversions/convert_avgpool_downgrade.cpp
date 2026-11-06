@@ -189,13 +189,19 @@ std::shared_ptr<ov::Model> create_v1_window_in_padding_model(const ov::PartialSh
     if (shape.is_static()) {
         stop = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
     } else {
+        // A static axis uses the runtime formula with its exact extent: (7 + (2 - 7)) / 1.
+        std::vector<int64_t> offsets, steps;
+        for (const auto& dim : {shape[2], shape[3]}) {
+            offsets.push_back(dim.is_static() ? 2 - dim.get_length() : 3);
+            steps.push_back(dim.is_static() ? 1 : 4);
+        }
         const auto shape_of = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
         const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
         const auto lengths = std::make_shared<ov::op::v8::Gather>(shape_of, axes, zero);
-        const auto offsets = v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, 3});
-        const auto shifted = std::make_shared<v1::Add>(lengths, offsets);
-        const auto steps = v0::Constant::create(ov::element::i64, ov::Shape{2}, {4, 4});
-        stop = std::make_shared<v1::Divide>(shifted, steps);
+        const auto offsets_node = v0::Constant::create(ov::element::i64, ov::Shape{2}, offsets);
+        const auto shifted = std::make_shared<v1::Add>(lengths, offsets_node);
+        const auto steps_node = v0::Constant::create(ov::element::i64, ov::Shape{2}, steps);
+        stop = std::make_shared<v1::Divide>(shifted, steps_node);
     }
     const auto start = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 0});
     const auto step = v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
@@ -217,6 +223,14 @@ TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_window_in_pad
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
     model = create_v14_window_in_padding_model(ov::PartialShape{1, 3, -1, -1});
     model_ref = create_v1_window_in_padding_model(ov::PartialShape{1, 3, -1, -1});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_window_in_padding_partially_dynamic) {
+    manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
+    model = create_v14_window_in_padding_model(ov::PartialShape{1, 3, 7, -1});
+    model_ref = create_v1_window_in_padding_model(ov::PartialShape{1, 3, 7, -1});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
@@ -328,6 +342,7 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                                                           CeilTorchCase{5, 2, 2, 1, 1, false, true},
                                                           CeilTorchCase{6, 3, 2, 1, 1, true, false},
                                                           CeilTorchCase{10, 8, 2, 0, 1, true, false},
-                                                          CeilTorchCase{3, 9, 9, 1, 8, true, true}),
+                                                          CeilTorchCase{3, 9, 9, 1, 8, true, true},
+                                                          CeilTorchCase{7, 3, 2, 3, 5, false, false}),
                                           testing::Bool()),
                          ConvertAvgPool14ToAvgPool1CeilTorch::getTestCaseName);
