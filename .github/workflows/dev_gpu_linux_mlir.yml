@@ -1,0 +1,348 @@
+name: Linux GPU MLIR / Graph Compiler ( Ubuntu 24.04 )
+
+# Validates the MLIR / Graph-Compiler path of the GPU plugin:
+#   * one build with -DENABLE_MLIR_FOR_GPU=ON (LLVM + Graph Compiler are built from source,
+#     LLVM install tree is cached on /mount, the cache is saved on push only)
+#   * all MLIR functional tests with MLIR enabled (OV_GPU_ENABLE_MLIR=1)
+#
+# `paths:` below narrows the trigger down to MLIR-related files.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+      graph-compiler-ref:
+        description: 'Graph Compiler branch/tag/SHA; GRAPH_COMPILER_TAG from graph-compiler.cmake by default'
+        type: string
+        required: false
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths: &mlir_paths
+      - '.github/workflows/dev_gpu_linux_mlir.yml'
+      - 'cmake/features.cmake'
+      - 'src/plugins/intel_gpu/CMakeLists.txt'
+      - 'src/plugins/intel_gpu/thirdparty/cmake/**'
+      - 'src/plugins/intel_gpu/include/intel_gpu/op/mlir_op.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/plugin/primitives_list.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/primitives/mlir_primitive.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/event.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/internal_properties.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/memory.hpp'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/options.inl'
+      - 'src/plugins/intel_gpu/include/intel_gpu/runtime/stream.hpp'
+      - 'src/plugins/intel_gpu/src/graph/impls/common/mlir_primitive.*'
+      - 'src/plugins/intel_gpu/src/graph/impls/common/register.*'
+      - 'src/plugins/intel_gpu/src/graph/include/mlir_primitive_inst.h'
+      - 'src/plugins/intel_gpu/src/graph/mlir_primitive.cpp'
+      - 'src/plugins/intel_gpu/src/graph/registry/mlir_primitive_impls.cpp'
+      - 'src/plugins/intel_gpu/src/graph/registry/registry.hpp'
+      - 'src/plugins/intel_gpu/src/plugin/ops/mlir_op.cpp'
+      - 'src/plugins/intel_gpu/src/plugin/transformations/mlir/**'
+      - 'src/plugins/intel_gpu/src/plugin/transformations/op/mlir_op.cpp'
+      - 'src/plugins/intel_gpu/src/plugin/transformations_pipeline.cpp'
+      - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_base_event.hpp'
+      - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_memory.hpp'
+      - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_stream.*'
+      - 'src/plugins/intel_gpu/tests/functional/CMakeLists.txt'
+      - 'src/plugins/intel_gpu/tests/functional/mlir_op/**'
+  push:
+    branches:
+      - master
+      - 'releases/**'
+    paths: *mlir_paths
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-linux-gpu-mlir-dev
+  cancel-in-progress: true
+
+permissions: read-all
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.run_attempt > 1
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*'
+
+      - name: Show affected components
+        env:
+          AFFECTED_COMPONENTS: ${{ toJSON(steps.smart_ci.outputs.affected_components) }}
+        run: echo "${AFFECTED_COMPONENTS}"
+        shell: bash
+
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
+    steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64_dgpu\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
+        id: handle_docker
+        with:
+          images: |
+            ov_build/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64_dgpu
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    name: Build (LLVM + Graph Compiler + OpenVINO)
+    needs: [ Docker, Smart_CI ]
+    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores-64gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      volumes:
+        - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: >-
+        -e SCCACHE_AZURE_BLOB_CONTAINER
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_GENERATOR: 'Ninja'
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
+      SCCACHE_LOG: warn
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu_24_04_x86_64_mlir_Release
+      # nproc does not respect Kubernetes pod CPU limits
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      BUILD_DIR: ${{ github.workspace }}/openvino_build
+      INSTALL_DIR: ${{ github.workspace }}/openvino_install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/openvino_tests
+      GC_REPO: ${{ github.workspace }}/graph-compiler
+      # Graph Compiler `scripts/build.sh` inputs. With GITHUB_ACTIONS=true and
+      # LLVM_BUILD_TARGET=install it skips the LLVM build when LLVM_INSTALL_DIR already
+      # contains lib/cmake/mlir/MLIRConfig.cmake (i.e. on a cache hit).
+      GC_BUILD_TYPE: 'Release'
+      LLVM_BUILD_TYPE: 'Release'
+      GC_DYLINK: 'OFF'
+      LLVM_CMAKE_ARGS: '-DMLIR_ENABLE_BINDINGS_PYTHON=OFF'
+      GC_CMAKE_ARGS: '-DGC_ENABLE_TEST=OFF -DGC_ENABLE_TOOLS=OFF -DGC_ENABLE_ZE=OFF'
+      LLVM_BUILD_TARGET: install
+      LLVM_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/externals/llvm/Release
+      GC_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/build/Release/install
+      # TODO: move to a dedicated shared mount once the runners provide one.
+      LLVM_CACHE_DIR: /mount/caches/ccache/graph-compiler/llvm/ubuntu_24_04_x86_64_Release
+
+    steps:
+      - name: Load SCCACHE_AZURE_CONNECTION_STRING from file
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> "$GITHUB_ENV"
+
+      - name: Clone OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'recursive'
+          ref: ${{ inputs.target-branch }}
+
+      - name: Clone Graph Compiler
+        env:
+          GRAPH_COMPILER_REF: ${{ inputs.graph-compiler-ref }}
+        run: |
+          cmake_file="${OPENVINO_REPO}/src/plugins/intel_gpu/thirdparty/cmake/graph-compiler.cmake"
+          ref="${GRAPH_COMPILER_REF:-$(sed -nE 's/.*GRAPH_COMPILER_TAG "([^"]+)".*/\1/p' "$cmake_file")}"
+          repo="$(sed -nE 's/.*GRAPH_COMPILER_REPO "([^"]+)".*/\1/p' "$cmake_file")"
+          [ -n "$ref" ] || { echo "Failed to resolve Graph Compiler ref"; exit 1; }
+          [ -n "$repo" ] || { echo "Failed to resolve Graph Compiler repository"; exit 1; }
+          git init "${GC_REPO}"
+          git -C "${GC_REPO}" fetch --depth 1 "${repo}" "$ref"
+          git -C "${GC_REPO}" checkout FETCH_HEAD
+          echo "Graph Compiler $ref at $(git -C "${GC_REPO}" rev-parse HEAD)"
+
+      - name: Compute LLVM cache key
+        id: cache_keys
+        working-directory: ${{ env.GC_REPO }}
+        run: |
+          llvm_sha=$({ cat cmake/llvm-version.txt scripts/build.sh scripts/utils.sh patches/*.patch; c++ --version; echo "${LLVM_CMAKE_ARGS}"; } \
+            | sha1sum | cut -d' ' -f1)
+          echo "llvm-key=llvm-${LLVM_BUILD_TYPE}-dylink${GC_DYLINK}-${llvm_sha}" >> "$GITHUB_OUTPUT"
+          # The restore action creates the target directory with a non-recursive mkdir
+          mkdir -p "$(dirname "${LLVM_INSTALL_DIR}")"
+
+      - name: Setup LLVM cache
+        id: llvm_cache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.LLVM_CACHE_DIR }}
+          path: ${{ env.LLVM_INSTALL_DIR }}
+          key: ${{ steps.cache_keys.outputs.llvm-key }}
+
+      - name: Clean up old LLVM caches
+        if: github.event_name == 'push'
+        uses: ./openvino/.github/actions/cache/cleanup
+        with:
+          cache-path: ${{ env.LLVM_CACHE_DIR }}
+          key: ${{ steps.cache_keys.outputs.llvm-key }}
+          restore-keys: llvm-${{ env.LLVM_BUILD_TYPE }}-dylink${{ env.GC_DYLINK }}-
+          cache-size: 3
+          max-cache-size: 6
+
+      - name: Clean sccache stats
+        run: ${SCCACHE_PATH} --zero-stats
+
+      - name: Build LLVM and Graph Compiler
+        working-directory: ${{ env.GC_REPO }}
+        run: ./scripts/build.sh
+
+      - name: Show and clean sccache stats (LLVM + Graph Compiler)
+        run: |
+          ${SCCACHE_PATH} --show-stats
+          ${SCCACHE_PATH} --zero-stats
+
+      - name: Shrink the LLVM install tree
+        if: steps.llvm_cache.outputs.cache-hit != 'true'
+        run: |
+          # Unused by the GC and OV builds. Files referenced by the LLVM cmake config are
+          # truncated rather than deleted, otherwise `find_package(LLVM)` fails on a cache hit.
+          # lib/*.a must be kept: GC and OV link LLVM/MLIR statically.
+          rm -rf "${LLVM_INSTALL_DIR}/share" "${LLVM_INSTALL_DIR}/python_packages" "${LLVM_INSTALL_DIR}/src"
+          find "${LLVM_INSTALL_DIR}/bin/" -type f \
+            ! -name '*tblgen*' ! -name mlir-linalg-ods-yaml-gen ! -name mlir-pdll ! -name mlir-src-sharder \
+            ! -name FileCheck ! -name llvm-lit \
+            -exec truncate -s 0 {} +
+          du -sh "${LLVM_INSTALL_DIR}"
+
+      - name: Build OpenVINO
+        run: |
+          # ENABLE_DEBUG_CAPS is required: OV_GPU_ENABLE_MLIR is a debug-only option
+          cmake -S "${OPENVINO_REPO}" -B "${BUILD_DIR}" \
+            -DENABLE_MLIR_FOR_GPU=ON \
+            -DENABLE_DEBUG_CAPS=ON \
+            -DCMAKE_PREFIX_PATH="${GC_INSTALL_DIR};${LLVM_INSTALL_DIR}" \
+            -DENABLE_ONEDNN_FOR_GPU=OFF \
+            -DENABLE_TESTS=ON \
+            -DENABLE_INTEL_CPU=OFF \
+            -DENABLE_INTEL_NPU=OFF \
+            -DENABLE_NCC_STYLE=OFF \
+            -DENABLE_OV_ONNX_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF \
+            -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF \
+            -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_JAX_FRONTEND=OFF \
+            -DENABLE_PYTHON=OFF -DENABLE_SAMPLES=OFF \
+            -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_SYSTEM_OPENCL=ON \
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          cmake --build "${BUILD_DIR}" --parallel "${CMAKE_BUILD_PARALLEL_LEVEL}" -- --quiet
+
+      - name: Show sccache stats (OpenVINO)
+        run: ${SCCACHE_PATH} --show-stats
+
+      - name: Upload sccache log
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: sccache_log
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
+
+      - name: CMake install - OpenVINO
+        run: |
+          cmake --install "${BUILD_DIR}" --prefix "${INSTALL_DIR}"
+          cmake --install "${BUILD_DIR}" --prefix "${INSTALL_TEST_DIR}" --component tests
+
+      - name: Pack openvino_package and openvino_tests
+        run: |
+          tar -I pigz -cf "${BUILD_DIR}/openvino_package.tar.gz" -C "${INSTALL_DIR}" .
+          tar -I pigz -cf "${BUILD_DIR}/openvino_tests.tar.gz" -C "${INSTALL_TEST_DIR}" .
+
+      - name: Upload openvino package
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino tests
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+  Test:
+    name: Arc BMG dGPU MLIR Tests
+    needs: [ Build, Docker ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    with:
+      device: 'dgpu'
+      test_type: 'func'
+      runner: "[ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]"
+      runner-group: 'Intel-GPU'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      # FIXME: Without OV_GPU_ALLOW_NEW_SHAPE_INFER, mlir_RMS test fails due to shape [1,64,1,1].
+      # To be fixed in a separate, memory layout related, PR.
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129 -e OV_GPU_ENABLE_MLIR=1 -e OV_GPU_ALLOW_NEW_SHAPE_INFER=1"
+      test_filter: 'mlir_*'
+
+  Overall_Status:
+    name: ci/gha_overall_status_dev_gpu_linux_mlir
+    needs: [ Smart_CI, Docker, Build, Test ]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

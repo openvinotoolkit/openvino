@@ -8,7 +8,9 @@
 #include <string>
 
 #include "llm_test_helpers.hpp"
+#include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "openvino/op/parameter.hpp"
+#include "transformations/convert_precision.hpp"
 
 namespace {
 
@@ -87,6 +89,29 @@ TEST(ModelBuilderLoraTest, BuildLlmWithoutLoraHasNoLoraParameters) {
     auto model = ov::test::npuw::build_llm_test_model();
     ASSERT_TRUE(model);
     EXPECT_FALSE(has_param(model, "lora_state_"));
+}
+
+// bf16 LoRA A/B states must survive LoraStatefulToStatelessPass + ConvertPrecision(bf16, f16)
+// unchanged, since GenAI fixes their precision and bridges to compute precision separately.
+TEST(ModelBuilderLoraTest, Bf16LoraWeightsSurviveConvertPrecision) {
+    ov::test::npuw::ModelBuilder builder;
+    auto config = ov::test::npuw::make_test_model_config<ov::test::npuw::LoRAConfig>();
+    config.lora_stateful = true;
+    config.lora_precision = ov::element::bf16;
+
+    auto model = builder.build_lora_adapter(config);
+    ASSERT_TRUE(model);
+
+    ov::npuw::LoraStatefulToStatelessPass().run_on_model(model);
+    ov::pass::ConvertPrecision(ov::element::bf16, ov::element::f16).run_on_model(model);
+
+    auto a = find_param(model, "q_proj.MatMul.A");
+    auto b = find_param(model, "q_proj.MatMul.B");
+    ASSERT_TRUE(a && b);
+    EXPECT_EQ(a->get_element_type(), ov::element::bf16);
+    EXPECT_EQ(b->get_element_type(), ov::element::bf16);
+
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
 }  // namespace

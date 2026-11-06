@@ -34,6 +34,7 @@ static size_t get_subgroup_size(gpu_arch arch) {
         return 8;
     case gpu_arch::xe2:
     case gpu_arch::xe3:
+    case gpu_arch::xe3p:
         return 16;
     default:
         return 0;
@@ -273,7 +274,7 @@ KernelData GatherMatmulBatchedGemmGenerator::get_kernel_data(const kernel_impl_p
     shim_options.useTileOps = true;
     shim_options.decorator = "gm";
 
-    kd.code->jit += generateShim(bgm_gemm, micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(bgm_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (bgm_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }

@@ -6,7 +6,7 @@
 # archive based on the current platform. The expected location of the archive and naming convention is as follows:
 #     storage location: https://storage.openvinotoolkit.org/dependencies/thirdparty
 #     WINDOWS: 
-#         windows2022: npu_compiler_vcl_windows_2022-<compiler_version>-<compiler_commit_sha>.zip
+#         windows2026: npu_compiler_vcl_windows_2026-<compiler_version>-<compiler_commit_sha>.zip
 #     LINUX:
 #         ubuntu22.04: npu_compiler_vcl_ubuntu_22_04-<compiler_version>-<compiler_commit_sha>.tar.gz
 #         ubuntu24.04: npu_compiler_vcl_ubuntu_24_04-<compiler_version>-<compiler_commit_sha>.tar.gz
@@ -22,7 +22,7 @@
 # To update the prebuilt compiler version, please update the following variables in this script:
 #     PLUGIN_COMPILER_VERSION_MAJOR, PLUGIN_COMPILER_VERSION_MINOR,
 #     PLUGIN_COMPILER_VERSION_PATCH, PLUGIN_COMPILER_COMMIT_SHA
-#     PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM, PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM,
+#     PLUGIN_COMPILER_WINDOWS_2026_CHECKSUM, PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM,
 #     PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM
 # 
 # The script expects the archive to contain:
@@ -66,20 +66,20 @@ if(ENABLE_INTEL_NPU_COMPILER)
     message(STATUS "Resolving prebuilt NPU Plugin Compiler dependencies...")
 
     set(PLUGIN_COMPILER_VERSION_MAJOR 8)
-    set(PLUGIN_COMPILER_VERSION_MINOR 4)
+    set(PLUGIN_COMPILER_VERSION_MINOR 5)
     set(PLUGIN_COMPILER_VERSION_PATCH 0)
-    set(PLUGIN_COMPILER_COMMIT_SHA f45de31)
-    set(PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM 7c2bfc2ac560372735f248d64f412f8472c33256d557453e1ebb9249ccbd1e1a)
-    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM 6a26086312c17ac72ab7befeba00cbc0e4731e3d7c033768efcfc11dbea875b2)
-    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 27ed07ff346c49b8af4c916279d4beb361fde27c0cf290fcb3ca75f9963ab572)
-    set(PLUGIN_COMPILER_UBUNTU_26_04_CHECKSUM 3be20895461b8bdf0e0e638a0aaa4f316f41ff28dce36e4d83a06a33dddb4411)
+    set(PLUGIN_COMPILER_COMMIT_SHA c044760)
+    set(PLUGIN_COMPILER_WINDOWS_2026_CHECKSUM 5f5833ea4bacb1450d70225f0b85e8741aaa212f68b05c00657f225ed26a5276)
+    set(PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM c08c87a5932cebbdb806f81e196786dfb1473c93be883ac93d566bb891ac2113)
+    set(PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM 5c6d58db29107aeb0e497a16d5d8778c1604671e9e55c418cab5dbd0960ef8ef)
+    set(PLUGIN_COMPILER_UBUNTU_26_04_CHECKSUM 7908fbc9cd6efb097651aad6065bf5fe00cb53b10adff223cebca5dadb2cf4b9)
 
     set(PLUGIN_COMPILER_VERSION_UNDERSCORE "${PLUGIN_COMPILER_VERSION_MAJOR}_${PLUGIN_COMPILER_VERSION_MINOR}_${PLUGIN_COMPILER_VERSION_PATCH}")
     message(STATUS "The prebuilt compiler version is ${PLUGIN_COMPILER_VERSION_MAJOR}.${PLUGIN_COMPILER_VERSION_MINOR}.${PLUGIN_COMPILER_VERSION_PATCH}.${PLUGIN_COMPILER_COMMIT_SHA}")
 
     if(WIN32)
         set(OS_FAMILY "windows")
-        set(OS_VERSION_UNDERSCORE "2022")
+        set(OS_VERSION_UNDERSCORE "2026")
         set(OS_UPPERCASE "WINDOWS_${OS_VERSION_UNDERSCORE}")
 
         set(PLUGIN_COMPILER_PACKAGE_PREFIX "npu_compiler_vcl_windows_${OS_VERSION_UNDERSCORE}")

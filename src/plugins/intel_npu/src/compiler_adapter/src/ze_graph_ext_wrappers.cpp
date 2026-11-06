@@ -552,6 +552,51 @@ bool ZeGraphExtWrappers::isBlobDataImported(const GraphDescriptor& graphDescript
     return graphDescriptor._memoryPersistent;
 }
 
+bool ZeGraphExtWrappers::isInitStageRequired(const GraphDescriptor& graphDescriptor) const {
+    // Every path below reports false for the same reason: the requirement is something only the
+    // driver can establish, and a requirement that was never established is not asserted.
+
+    // ze_graph_properties_2_t, and with it initStageRequired, exists only from 1.8 on. An older
+    // driver has no way to express the requirement, so it cannot have stated one.
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 8)) {
+        return false;
+    }
+
+    // There is no graph to state anything about.
+    if (graphDescriptor._handle == nullptr) {
+        return false;
+    }
+
+    ze_graph_properties_2_t properties = {};
+    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
+    const ze_result_t result =
+        _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(graphDescriptor._handle, &properties);
+    if (result != ZE_RESULT_SUCCESS) {
+        // Degrade rather than throw: the query is an optimisation hint, not a correctness
+        // requirement, and a driver that failed to answer has stated nothing either.
+        _logger.warning("pfnGetProperties2 returned error: 0x%x", static_cast<uint32_t>(result));
+        return false;
+    }
+
+    return (properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) != 0;
+}
+
+std::optional<bool> ZeGraphExtWrappers::isProfilingEnabled(const GraphDescriptor& graphDescriptor) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 16)) {
+        _logger.debug("Reporting whether a graph was compiled for profiling is not supported by the current driver "
+                      "version.");
+        return std::nullopt;
+    }
+
+    ze_graph_properties_3_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
+
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphDescriptor._handle, &graphProperties);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+    return (graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED) != 0;
+}
+
 void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      uint32_t indexUsedByDriver,
                                      std::vector<IODescriptor>& inputs,

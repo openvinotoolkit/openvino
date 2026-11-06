@@ -98,3 +98,6 @@
 	path = thirdparty/liburing/liburing
 	url = https://github.com/axboe/liburing.git
 	ignore = dirty
+[submodule "src/plugins/intel_gpu/thirdparty/TernOCL"]
+	path = src/plugins/intel_gpu/thirdparty/TernOCL
+	url = https://github.com/libxsmm/TernOCL.git

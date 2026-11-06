@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -15,6 +16,8 @@
 #include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
+
+struct InnerProductKey;
 
 class GatherMatmulDnnlExecutor : public Executor {
 public:
@@ -32,6 +35,9 @@ private:
     class InnerProduct;
     using InnerProductPtr = std::shared_ptr<InnerProduct>;
 
+    // The GEMM for an input of the given number of rows, from m_gemmKey through the runtime cache.
+    [[nodiscard]] InnerProductPtr createGemm(size_t rows) const;
+
     ExecutorContext::CPtr m_context;
 
     MemoryPtr m_weightsMemory;
@@ -39,12 +45,15 @@ private:
     MemoryPtr m_zpMemory;
 
     InnerProductPtr m_gemvImpl;
-    InnerProductPtr m_gemmImpl;
+    // Key of the GEMMs run for M > 1 (experts with enough rows), each sized to the rows routed to its gather index
+    // instead of the full input length. createGemm() sets the row count.
+    std::shared_ptr<const InnerProductKey> m_gemmKey;
 
     MemoryPtr m_tmpInpBuffer;
     MemoryDescPtr m_tmpInputDesc;
     MemoryDescPtr m_tmpOutputDesc;
 
+    // Selects the row threshold below which an expert runs per-row GEMV instead of a GEMM.
     bool m_bf16AmxMode = false;
     impl_desc_type m_implType = impl_desc_type::unknown;
 };

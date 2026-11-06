@@ -1,5 +1,9 @@
 name: Windows (VS 2022, Python 3.11, Release)
+run-name: ${{ github.event_name == 'schedule' && 'Windows (VS 2022, Python 3.11, Release) - Nightly (C++20 build only)' || 'Windows (VS 2022, Python 3.11, Release)' }}
 on:
+  schedule:
+    # at 02:00 every day: C++20 build without the regular build and tests
+    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -34,6 +38,7 @@ jobs:
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
@@ -63,7 +68,8 @@ jobs:
 
   Build:
     needs: [ Smart_CI ]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    # Skip the regular build and its dependent build/test jobs on the daily C++20 schedule.
+    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
       runner: 'aks-win-16-cores-32gb-build'
@@ -84,6 +90,35 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
+
+  # Non-blocking C++20 compile check (CVS-189849): daily, dispatched, or re-run workflows.
+  # Promote to a required pre-commit check once stable.
+  Build_CPP20:
+    name: Build (C++20, non-blocking)
+    needs: [ Smart_CI ]
+    if: >-
+      ${{
+        !needs.smart_ci.outputs.skip_workflow &&
+        (github.event.schedule == '0 2 * * *' || github.event_name == 'workflow_dispatch' || github.run_attempt > 1)
+      }}
+    uses: ./.github/workflows/job_build_windows_cpp20.yml
+    with:
+      runner: 'aks-win-16-cores-32gb-build'
+      cmake-build-parallel-level: '15'
+      build-type: 'Release'
+      target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_PYTHON=ON
+            -DENABLE_WHEEL=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config_cpp20"
+            -DCMAKE_CXX_STANDARD=20
 
   Samples:
     needs: [ Build, Smart_CI ]
@@ -172,7 +207,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Upload Test Results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() }}
         with:
           name: test-results-samples
@@ -228,7 +263,7 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -251,12 +286,10 @@ jobs:
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
       - name: E2E of openvino-node package
-        if: ${{ 'false' }} # Skipping E2E tests for now due to CVS-192563
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e
 
       - name: E2E of openvino-node package (cmd)
-        if: ${{ 'false' }} # Skipping E2E tests for now due to CVS-192563
         shell: cmd
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: call npm run test:e2e
@@ -431,7 +464,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.14t"]
     defaults:
       run:
         shell: pwsh
@@ -562,13 +595,14 @@ jobs:
     if: >-
       ${{
         fromJSON(needs.smart_ci.outputs.affected_components).NPU.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
+        fromJSON(needs.smart_ci.outputs.changed_components).TF_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).JAX_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).PyTorch_FE
       }}
     with:
       runner: 'aks-win-4-cores-8gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      changed-components: ${{ needs.smart_ci.outputs.changed_components }}
 
   CXX_Unit_Tests:
     name: C++ unit tests
@@ -639,7 +673,7 @@ jobs:
         run: python3 -m pip install -r ${{ github.workspace }}\install\tests\functional_test_utils\layer_tests_summary\requirements.txt
 
       - name: Restore tests execution time
-        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -653,7 +687,7 @@ jobs:
         timeout-minutes: 60
 
       - name: Save tests execution time
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: github.ref_name == 'master'
         with:
           path: ${{ env.PARALLEL_TEST_CACHE }}

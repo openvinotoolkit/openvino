@@ -1,0 +1,173 @@
+name: Initialize GOLD BOM Baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      build-run-ids:
+        description: >-
+          JSON array of successful build workflow run IDs. All bom_* artifacts from every
+          run are collected, so include runs for all desired OS, architecture, and build
+          configurations. Example: ["123456789", "123456790"]
+        type: string
+        required: true
+
+permissions: read-all
+
+jobs:
+  initialize:
+    if: github.repository == 'openvinotoolkit/openvino' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Download all BOM artifacts and validate configurations
+        shell: bash
+        env:
+          BUILD_RUN_IDS: ${{ inputs.build-run-ids }}
+          TARGET_BRANCH: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if ! jq -e '
+            type == "array" and
+            length > 0 and
+            ([.[] | tostring] | unique | length) == length and
+            all(.[]; tostring | test("^[0-9]+$"))
+          ' <<< "$BUILD_RUN_IDS" >/dev/null; then
+            echo "::error::Input must be a non-empty JSON array of unique numeric workflow run IDs."
+            exit 1
+          fi
+
+          mkdir -p "$RUNNER_TEMP/bom-artifacts" boms
+          seen_configurations=()
+          added_files=0
+
+          while IFS= read -r run_id; do
+            run_info=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")
+            if ! jq -e --arg repository "$GITHUB_REPOSITORY" \
+              '.repository.full_name == $repository' <<< "$run_info" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must belong to repository ${GITHUB_REPOSITORY}."
+              exit 1
+            fi
+            if ! jq -e '.status == "completed" and .conclusion == "success"' <<< "$run_info" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must be completed successfully."
+              exit 1
+            fi
+
+            artifact_names=$(gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
+              --jq '.artifacts[] | select(.name | startswith("bom_")) | .name')
+            if [[ -z "$artifact_names" ]]; then
+              echo "::error::The provided workflow run ${run_id} does not contain the required BOM artifacts. Verify that you provided the workflow run ID (not a job ID) of a build workflow containing artifacts whose names start with 'bom_'. Check https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id} under Summary > Artifacts."
+              exit 1
+            fi
+
+            while IFS= read -r artifact_name; do
+              [[ -z "$artifact_name" ]] && continue
+              configuration="${artifact_name#bom_}"
+              if [[ ! "$configuration" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+                echo "::error::Invalid BOM configuration name in artifact '${artifact_name}'."
+                exit 1
+              fi
+              if [[ " ${seen_configurations[*]} " == *" ${configuration} "* ]]; then
+                echo "::error::Duplicate BOM configuration '${configuration}' was found in the selected runs."
+                exit 1
+              fi
+              seen_configurations+=("$configuration")
+
+              artifact_dir="$RUNNER_TEMP/bom-artifacts/$run_id/$artifact_name"
+              mkdir -p "$artifact_dir"
+              gh run download "$run_id" \
+                --repo "$GITHUB_REPOSITORY" \
+                --name "$artifact_name" \
+                --dir "$artifact_dir"
+
+              if find "$artifact_dir" -mindepth 1 -maxdepth 1 ! -type d -print -quit | grep -q .; then
+                echo "::error::Artifact ${artifact_name} contains files outside its platform folder."
+                exit 1
+              fi
+              mapfile -t platform_dirs < <(find "$artifact_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+              if [[ ${#platform_dirs[@]} -ne 1 ]]; then
+                echo "::error::Artifact ${artifact_name} must contain exactly one platform folder."
+                exit 1
+              fi
+
+              platform="${platform_dirs[0]}"
+              if [[ ! "$platform" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+                echo "::error::Invalid platform folder '${platform}' in artifact ${artifact_name}."
+                exit 1
+              fi
+
+              platform_dir="$artifact_dir/$platform"
+              mapfile -t bom_files < <(find "$platform_dir" -mindepth 1 -maxdepth 1 -type f -name '*.json' -print | sort)
+              if [[ ${#bom_files[@]} -eq 0 ]]; then
+                echo "::error::Artifact ${artifact_name} contains no BOM JSON files."
+                exit 1
+              fi
+              if find "$platform_dir" -mindepth 1 ! -type f -print -quit | grep -q . ||
+                 find "$platform_dir" -mindepth 1 -maxdepth 1 -type f ! -name '*.json' -print -quit | grep -q .; then
+                echo "::error::Artifact ${artifact_name} contains unexpected files or directories."
+                exit 1
+              fi
+
+              mkdir -p "boms/$configuration"
+              for bom_file in "${bom_files[@]}"; do
+                if [[ -L "$bom_file" ]]; then
+                  echo "::error::Symbolic links are not allowed in BOM artifacts."
+                  exit 1
+                fi
+
+                component="${bom_file##*/}"
+                component="${component%.json}"
+                if ! jq -e --arg component "$component" '
+                  .component == $component and
+                  (.files | type == "array") and
+                  all(.files[]; type == "string")
+                ' "$bom_file" >/dev/null; then
+                  echo "::error::Invalid BOM manifest: ${bom_file}"
+                  exit 1
+                fi
+                if [[ -e "boms/$configuration/$component.json" ]]; then
+                  echo "::notice::Keeping existing GOLD BOM: boms/${configuration}/${component}.json"
+                  continue
+                fi
+                cp "$bom_file" "boms/$configuration/$component.json"
+                added_files=$((added_files + 1))
+              done
+            done <<< "$artifact_names"
+          done < <(jq -r '.[] | tostring' <<< "$BUILD_RUN_IDS")
+
+          if [[ ${#seen_configurations[@]} -eq 0 ]]; then
+            echo "::error::No BOM configurations were collected."
+            exit 1
+          fi
+          if [[ "$added_files" -eq 0 ]]; then
+            echo "::error::All BOMs from the selected runs already have GOLD files on ${TARGET_BRANCH}; there is nothing to initialize."
+            exit 1
+          fi
+
+      - name: Create GOLD BOM pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.EXTERNAL_LABELLER_TOKEN }}
+          add-paths: boms/
+          commit-message: Initialize GOLD BOM baseline
+          title: "[CI] Initialize GOLD BOM baseline"
+          body: |
+            Initializes the GOLD BOM manifests from all BOM artifacts in the selected
+            successful build runs. Each artifact is stored under its configuration name.
+
+            Only BOM files that do not already exist on the target branch are included.
+            Existing GOLD BOM files are never overwritten; changes to them must be made
+            manually in the PR that changes the packaged file list.
+          branch: initialize-gold-bom-baseline-${{ github.run_id }}
+          base: ${{ github.ref_name }}

@@ -48,6 +48,7 @@ safe-outputs:
     max: 3                                   # at most three remediation PRs per run
     draft: true                              # open as draft; akashchi marks ready after review
     title-prefix: "[ci-doctor] "
+    branch-prefix: "ci-doctor/"            # matches the branch-protection exclusion for bot branches
     labels: [agentic-workflows, automated-fix]
     reviewers: [akashchi]
     assignees: [akashchi]
@@ -124,6 +125,7 @@ Select the **highest-impact code-fixable issues, at most 3**, and create one pul
 - Make the **minimal, root-cause-oriented** change. Touch only files relevant to that issue; do not bundle unrelated fixes or drive-by refactors into the same PR.
 - Keep each PR self-contained (one issue → one PR). Reviewer, assignee, labels, and draft state are applied automatically by the workflow — you do **not** set them.
 - **PR title**: concise and understandable at a glance (e.g. `Fix flaky Bucketize comparison in smoke tests`). Do not include run or PR numbers.
+- **Branch name**: a short kebab-case slug describing the fix (e.g. `fix-bucketize-flake`). Do **not** add a `ci-doctor/` prefix yourself — the workflow prepends it automatically.
 - **PR body** must contain, in this order:
   1. **Problem** — a plain-language description of the recurring failure and its impact.
   2. **Affected pipelines & PRs** — the failing pipeline/workflow name(s), and, when known, the affected pull requests (`affected_prs`) and commits (`affected_commits`), plus links to the recent run URLs (`recent_run_urls`) from the pattern/investigation records. Omit any field that is unknown rather than guessing.

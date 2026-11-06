@@ -169,6 +169,9 @@ the following setup options:
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
 |                                              | beginning. The default value is ``true``, indicating that CPU is   |
 |                                              | used as acceleration by default.                                   |
+|                                              |                                                                    |
+|                                              | As a trade-off, two model instances will be kept, resulting in     |
+|                                              | additional memory usage of approximately one model’s size.         |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_runtime_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
@@ -192,6 +195,42 @@ the following setup options:
 |                                              | plugin for AUTO cumulative mode.                                   |
 |                                              |                                                                    |
 |                                              | The default value is ``DEVICE_PRIORITY``.                          |
++----------------------------------------------+--------------------------------------------------------------------+
+| ``ov::intel_auto::compile_for_all``          | **Values**:                                                        |
+|                                              |                                                                    |
+|                                              | ``true``                                                           |
+|                                              |                                                                    |
+|                                              | ``false``                                                          |
+|                                              |                                                                    |
+|                                              | Compiles the model to the remaining candidate devices in the       |
+|                                              | background, after the actual device is ready, to populate cache    |
+|                                              | blobs for faster device switching later. Devices whose cache blob  |
+|                                              | already exists are skipped. CPU candidates are excluded from       |
+|                                              | background pre-compilation.                                        |
+|                                              |                                                                    |
+|                                              | Enabling it disables ``ov::intel_auto::enable_startup_fallback``   |
+|                                              | and ``ov::intel_auto::enable_runtime_fallback``.                   |
+|                                              |                                                                    |
+|                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
+|                                              | compiling the model throws on every host.                          |
+|                                              |                                                                    |
+|                                              | Ignored in cumulative throughput mode, when there is no            |
+|                                              | other candidate device to compile, and when ``ov::cache_blob_id``  |
+|                                              | is set for AUTO or for any candidate device.                       |
+|                                              |                                                                    |
+|                                              | A device whose cache path is a single-file cache (``*.bin``) is    |
+|                                              | skipped with a warning.                                            |
+|                                              |                                                                    |
+|                                              | Only the devices listed in ``ov::device::priorities`` or in the    |
+|                                              | device string, for example ``AUTO:GPU,NPU``, are compiled; other   |
+|                                              | available devices are not. With ``AUTO:GPU,NPU``, if GPU becomes   |
+|                                              | actual device, NPU is compiled in the background (and vice versa). |
+|                                              |                                                                    |
+|                                              | Warm-up compiles one device at a time and releases each compiled   |
+|                                              | model right away. The memory needed by the background compilation  |
+|                                              | itself is not included.                                            |
+|                                              |                                                                    |
+|                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:

@@ -15,6 +15,7 @@
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/resample.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
+#include "concatenation_inst.h"
 
 using namespace cldnn;
 using namespace tests;
@@ -220,6 +221,70 @@ TEST(depth_concatenate_f32_gpu, test02) {
     ASSERT_FLOAT_EQ(-0.5f, output_ptr[13]);
     ASSERT_FLOAT_EQ(0.0f, output_ptr[14]);
     ASSERT_FLOAT_EQ(-0.2f, output_ptr[15]);
+}
+
+TEST(depth_concatenate_f32_gpu, dynamic_byxf) {
+    auto& engine = get_test_engine();
+
+    ov::PartialShape in1_shape = { 2, 1, 2, 2 };
+    ov::PartialShape in2_shape = { 2, 1, 2, 2 };
+
+    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()), data_types::f32, format::byxf };
+    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()), data_types::f32, format::byxf };
+
+    auto input1 = engine.allocate_memory({ in1_shape, data_types::f32, format::byxf });
+    auto input2 = engine.allocate_memory({ in2_shape, data_types::f32, format::byxf });
+
+    set_values(input1, { 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f });
+    set_values(input2, { 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f });
+
+    topology topology;
+    topology.add(input_layout("input1", input1_layout));
+    topology.add(input_layout("input2", input2_layout));
+    topology.add(concatenation("depth1", { input_info("input1"), input_info("input2") }, 1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+
+    auto inst = network.get_primitive("depth1");
+    ASSERT_EQ(inst->input_memory(0).get_layout().format, format::byxf);
+
+    auto outputs = network.execute({});
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "depth1");
+
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_FALSE(impl->is_cpu());
+    const auto impl_name = inst->get_implementation_name();
+    ASSERT_FALSE(impl_name.empty());
+
+    bool found_concat_info = false;
+    for (const auto& info : network.get_primitives_info()) {
+        if (info.original_id == "depth1") {
+            found_concat_info = true;
+            ASSERT_EQ(info.type_id, "concatenation");
+            ASSERT_FALSE(info.is_cpu);
+            break;
+        }
+    }
+    ASSERT_TRUE(found_concat_info);
+
+    const auto prim_info = network.get_primitive_info("depth1");
+    ASSERT_NE(prim_info.find("concatenation"), std::string::npos) << prim_info;
+
+    auto output = outputs.at("depth1").get_memory();
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    std::vector<float> expected = {1.f, 9.f, 2.f, 10.f, 3.f, 11.f, 4.f, 12.f,
+                                   5.f, 13.f, 6.f, 14.f, 7.f, 15.f, 8.f, 16.f};
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]);
+    }
 }
 
 TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
@@ -665,7 +730,6 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
     auto outputs = network.execute({});
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "depth4");
-
     auto output = outputs.at("depth4").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 

@@ -25,6 +25,10 @@ std::vector<std::vector<ov::test::InputShape>> inputShapes_5D_ZeroDim = {
     {{{}, {{2, 19, 0, 2, 0}}}},
 };
 
+std::vector<std::vector<ov::test::InputShape>> inputShapes_EmptyAxes = {
+    {{{}, {{2, 19, 2, 9}}}},
+};
+
 const std::vector<std::vector<int>> axes5D = {
         {2, 4},
         {1, 2, 4},
@@ -84,6 +88,26 @@ const auto params_MultiAxis_5D_ZeroDim_ref =
                      testing::Values(emptyFusingSpec),
                      testing::ValuesIn(additionalConfigFP32()));
 
+std::vector<CPUSpecificParams> cpuParams_4D_ref = {
+        CPUSpecificParams({nchw}, {nchw}, {"ref"}, {"ref"}),
+};
+
+// An empty axes list reduces nothing, so the output keeps the shape of the input.
+// ACL has no reduction primitive for such a list, so the reference implementation is
+// used, and it is registered with the f32 precision only.
+const auto params_EmptyAxes_ref =
+    testing::Combine(testing::Combine(testing::Values(std::vector<int>{}),
+                                      testing::Values(ov::test::utils::OpType::VECTOR),
+                                      testing::Values(false),
+                                      testing::ValuesIn(reductionTypes()),
+                                      testing::ValuesIn(inpOutPrc()),
+                                      testing::Values(ElementType::dynamic),
+                                      testing::Values(ElementType::dynamic),
+                                      testing::ValuesIn(inputShapes_EmptyAxes)),
+                     testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_ref)),
+                     testing::Values(emptyFusingSpec),
+                     testing::ValuesIn(additionalConfigFP32()));
+
 //There are dedicated instences of smoke_Reduce_MultiAxis_5D_CPU test in arm and x64 folders
 //because ACL does not support 0 as reduction axis
 INSTANTIATE_TEST_SUITE_P(
@@ -105,6 +129,14 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_5D_ZeroDim_CPU_ref,
         ReduceCPULayerTest,
         params_MultiAxis_5D_ZeroDim_ref,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+// Reference implementation testing of ACL unsupported case
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_EmptyAxes_CPU_ref,
+        ReduceCPULayerTest,
+        params_EmptyAxes_ref,
         ReduceCPULayerTest::getTestCaseName
 );
 

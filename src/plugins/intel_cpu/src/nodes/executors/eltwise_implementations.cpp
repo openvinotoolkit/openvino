@@ -144,6 +144,13 @@ static const TypeMapping eltwiseReferenceTypeMapping {
     {{_any, _any},        {just<f32>(), just<f32>()}},
 };
 
+static const TypeMapping integerDivideReferenceTypeMapping {
+    // {src, dst}         pt<src, dst>
+    {{_i8 | _i16 | _i32 | _i64 | _u8 | _u16 | _u32 | _u64,
+      _i8 | _i16 | _i32 | _i64 | _u8 | _u16 | _u32 | _u64},
+     {bypass(), bypass()}},
+};
+
 static const TypeMapping bitwiseReferenceTypeMapping {
     // {src, dst}         pt<src, dst>
     {{_u8 | _i8 | _u16 | _i16 | _i32, _u8 | _i8 | _u16 | _i16 | _i32},        {bypass(), bypass()}},
@@ -381,7 +388,11 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                 return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const bool isIntegerDivide = config.attrs.data.algo == Algorithm::EltwiseDivide &&
+                                             config.descs.at(ARG_SRC)->getPrecision().is_integral_number();
+                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping
+                                           : isIntegerDivide    ? integerDivideReferenceTypeMapping
+                                                                : eltwiseReferenceTypeMapping;
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -401,7 +412,11 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
-                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping : eltwiseReferenceTypeMapping;
+                const bool isIntegerDivide = config.attrs.data.algo == Algorithm::EltwiseDivide &&
+                                             config.descs.at(ARG_SRC)->getPrecision().is_integral_number();
+                const auto& typeMapping = isBitwiseAlgorithm(config) ? bitwiseReferenceTypeMapping
+                                           : isIntegerDivide    ? integerDivideReferenceTypeMapping
+                                                                : eltwiseReferenceTypeMapping;
                 return createOptimalConfigCommon(config,
                                                  typeMapping,
                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},

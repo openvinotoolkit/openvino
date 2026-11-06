@@ -58,9 +58,16 @@ struct ConvertGather {
         auto cast = arith::IndexCastOp::create(builder, loc, indices_type, mlir::ValueRange{shape_of});
 
         auto empty_add = tensor::EmptyOp::create(builder, loc, indices_expanded.getType(), dynamic_index_dims);
-        auto add = linalg::AddOp::create(builder, loc, mlir::ValueRange{cast.getResult(), indices_expanded}, mlir::ValueRange{empty_add});
-        auto select =
-            linalg::SelectOp::create(builder, loc, mlir::ValueRange{cmpi.getResult(), add.getResult(0), indices_expanded}, mlir::ValueRange{empty_add});
+        auto add = linalg::ElementwiseOp::create(builder,
+                                                 loc,
+                                                 mlir::ValueRange{cast.getResult(), indices_expanded},
+                                                 mlir::ValueRange{empty_add},
+                                                 linalg::ElementwiseKind::add);
+        auto select = linalg::ElementwiseOp::create(builder,
+                                                    loc,
+                                                    mlir::ValueRange{cmpi.getResult(), add.getResult(0), indices_expanded},
+                                                    mlir::ValueRange{empty_add},
+                                                    linalg::ElementwiseKind::select);
 
         auto gather_node = std::dynamic_pointer_cast<ov::op::util::GatherBase>(node);
         assert(gather_node && "Expected a gather node");

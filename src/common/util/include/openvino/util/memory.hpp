@@ -7,11 +7,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <future>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <string>
 #include <system_error>
+#include <type_traits>
 
 namespace ov::util {
 
@@ -140,9 +143,13 @@ struct MemoryProperties {
     size_t offset = 0;  //!< Offset of this buffer within the allocation identified by IBuffer::get_id().
 };
 
+/** @brief Handle to wait for a background prefetch; an invalid handle means there is nothing to wait for. */
+using PrefetchToken = std::shared_future<void>;
+
 /** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
 class MemoryView {
 public:
+    constexpr MemoryView() noexcept = default;
     constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
 
     constexpr const std::byte* data() const noexcept {
@@ -157,11 +164,46 @@ public:
     constexpr const std::byte* end() const noexcept {
         return data() + size();
     }
+    constexpr bool empty() const noexcept {
+        return size() == 0 || data() == nullptr;
+    }
 
 private:
     const std::byte* m_data = nullptr;
     size_t m_size = 0;
 };
+
+/** @brief True for types with std::data() and std::size() (containers, arrays). */
+template <typename T, typename = void>
+struct IsContiguousRange : std::false_type {};
+
+template <typename T>
+struct IsContiguousRange<
+    T,
+    std::void_t<decltype(std::data(std::declval<const T&>())), decltype(std::size(std::declval<const T&>()))>>
+    : std::true_type {};
+
+/**
+ * @brief Non-owning byte view of @p value; @p value must outlive the view.
+ *
+ * A contiguous container (std::string, std::vector, std::array, C array) is viewed by its elements,
+ * any other trivially copyable type by its object representation.
+ */
+template <typename T>
+MemoryView as_memory_view(const T& value) noexcept {
+    if constexpr (IsContiguousRange<T>::value) {
+        using element_type = std::remove_cv_t<std::remove_pointer_t<decltype(std::data(value))>>;
+        static_assert(std::is_trivially_copyable_v<element_type>,
+                      "as_memory_view requires trivially copyable elements");
+        return {reinterpret_cast<const std::byte*>(std::data(value)), std::size(value) * sizeof(element_type)};
+    } else {
+        static_assert(std::is_trivially_copyable_v<T>, "as_memory_view requires a trivially copyable type");
+        return {reinterpret_cast<const std::byte*>(std::addressof(value)), sizeof(T)};
+    }
+}
+
+template <typename T, std::enable_if_t<!std::is_lvalue_reference_v<T>>* = nullptr>
+MemoryView as_memory_view(T&&) = delete;
 
 /**
  * @brief Capability: hints for managing a buffer's physical-memory residency.
@@ -172,8 +214,11 @@ public:
 
     /** @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits). */
     virtual void hint_evict() noexcept = 0;
-    /** @brief Hint to fetch the data to memory. */
-    virtual void hint_prefetch() noexcept = 0;
+    /**
+     * @brief Hint to start fetching the data to memory in the background, returns immediately.
+     * @return A handle to wait for the data to be resident; an invalid handle means there is nothing to wait for.
+     */
+    virtual PrefetchToken hint_prefetch() noexcept = 0;
 };
 
 /**
