@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -98,14 +99,22 @@ void quantize_row_q8_0_c(const float* x, size_t cols, int8_t* out_weights, ov::f
     for (size_t c = 0; c < cols; ++c) {
         amax = std::max(amax, std::fabs(x[c]));
     }
-    const float d = amax / 127.0f;
-    // A zero row has a zero scale and must remain zero. Keep the division in a
-    // branch where its divisor is known to be non-zero.
-    float id = 0.0f;
-    if (d != 0.0f) {
-        id = 1.0f / d;
+    if (amax == 0.0f) {
+        out_scale = ov::float16(0.0f);
+        std::fill_n(out_weights, cols, int8_t{0});
+        return;
     }
+    const float d = amax / 127.0f;
     out_scale = ov::float16(d);
+    if (d < std::numeric_limits<float>::min()) {
+        // Avoid an underflowed scale or overflowing reciprocal for tiny nonzero rows.
+        const double id = 127.0 / static_cast<double>(amax);
+        for (size_t c = 0; c < cols; ++c) {
+            out_weights[c] = static_cast<int8_t>(std::lround(static_cast<double>(x[c]) * id));
+        }
+        return;
+    }
+    const float id = 1.0f / d;
     for (size_t c = 0; c < cols; ++c) {
         out_weights[c] = static_cast<int8_t>(std::lround(x[c] * id));
     }
@@ -296,6 +305,27 @@ void fill_q8_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
     });
 }
 
+void fill_q8_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+    constexpr size_t weights_per_block = 32;
+    constexpr size_t bytes_per_block = 36;
+    OPENVINO_ASSERT(tensor.num_weights % weights_per_block == 0 && weights_arr.get_size() == tensor.num_weights &&
+                        scales_arr.get_size() == tensor.num_weights / weights_per_block,
+                    "[GGUF] invalid Q8_1 output sizes");
+    OPENVINO_ASSERT(tensor.bsize % bytes_per_block == 0 && tensor.bsize / bytes_per_block == scales_arr.get_size(),
+                    "[GGUF] invalid Q8_1 payload size");
+    const auto* data = static_cast<const uint8_t*>(tensor.weights_data);
+    auto* weights = weights_arr.data<int8_t>();
+    auto* scales = scales_arr.data<ov::float16>();
+    ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
+        const auto* block = data + i * bytes_per_block;
+        uint16_t scale_bits;
+        std::memcpy(&scale_bits, block, sizeof(scale_bits));
+        scales[i] = ov::float16::from_bits(scale_bits);
+        // The second F16 field is a dot-product sum, not a weight offset.
+        std::memcpy(weights + i * weights_per_block, block + 4, weights_per_block);
+    });
+}
+
 // Q5_0 symmetric: block = |f16 scale d|32-bit qh|16 bytes ql (32x4bit low)|.
 // weight = lo|(hi<<4) in [0..31]; dequant = d*(w - 16). Output: i8 weights [-16..15].
 void fill_q5_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
@@ -457,6 +487,42 @@ static void dequant_row_q6_k_f32(const uint8_t* row, size_t cols, float* y) {
             qh += 32;
             sc += 8;
         }
+    }
+}
+
+void gguf_fill_q5_k_i8(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
+    constexpr size_t group_size = 32;
+    OPENVINO_ASSERT(tensor.type == GGUF_TYPE_Q5_K, "[GGUF] invalid Q5_K symmetric requantization group");
+    OPENVINO_ASSERT(tensor.num_weights % 256 == 0 && tensor.bsize / kQ5K_BLOCK_BYTES == tensor.num_weights / 256 &&
+                        tensor.bsize % kQ5K_BLOCK_BYTES == 0,
+                    "[GGUF] invalid Q5_K symmetric requantization payload");
+    OPENVINO_ASSERT(weights.get_element_type() == ov::element::i8 && weights.get_size() == tensor.num_weights &&
+                        scales.get_element_type() == ov::element::f16 &&
+                        scales.get_size() == tensor.num_weights / group_size,
+                    "[GGUF] invalid Q5_K symmetric requantization buffers");
+    auto* dst = weights.data<int8_t>();
+    auto* scale_data = scales.data<ov::float16>();
+    ov::parallel_for(tensor.num_weights / 256, [&](size_t block) {
+        std::array<float, 256> values;
+        dequant_row_q45_k_f32<true>(tensor.weights_data + block * kQ5K_BLOCK_BYTES, 256, values.data());
+        for (size_t offset = 0; offset < 256; offset += group_size) {
+            float amax = 0.0f;
+            for (size_t k = offset; k < offset + group_size; ++k) {
+                OPENVINO_ASSERT(std::isfinite(values[k]), "[GGUF] cannot requantize non-finite Q5_K values");
+                amax = std::max(amax, std::fabs(values[k]));
+            }
+            const ov::float16 scale_f16(amax / 127.0f);
+            const float scale = static_cast<float>(scale_f16);
+            OPENVINO_ASSERT(std::isfinite(scale), "[GGUF] Q5_K symmetric scale exceeds f16 range");
+            scale_data[(block * 256 + offset) / group_size] = scale_f16;
+            for (size_t k = offset; k < offset + group_size; ++k) {
+                const float code = scale > 0.0f ? std::round(values[k] / scale) : 0.0f;
+                dst[block * 256 + k] = static_cast<int8_t>(std::clamp(code, -127.0f, 127.0f));
+            }
+        }
+    });
+    if (tensor.num_weights != 0) {
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q5_K_SYMMETRIC_REQUANT);
     }
 }
 
@@ -805,13 +871,10 @@ static void fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Ten
     });
 }
 
-// Q1_0 block: 18 bytes = f16 scale d + 128 packed 1-bit codes (bit ? +d : -d).
-// We re-expand each bit to an i4 nibble (0 -> 0xF, 1 -> 0x1), packed two-per-byte
-// low-nibble-first - same layout OpenVINO already uses for Q4_0.
-// So Q1_0 reuses the existing SYMMETRIC_I4 path unchanged.
+// GGML binary codes are LSB-first; OpenVINO u1 codes are MSB-first.
 static void fill_q1_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 18;
-    const uint64_t out_bytes_per_block = 64;  // 128 elements as i4, 2 per byte
+    const uint64_t out_bytes_per_block = 16;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
@@ -823,12 +886,11 @@ static void fill_q1_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Ten
         scales[i] = ov::float16::from_bits(scale_bits);
         const uint8_t* qs = block + 2;
         uint8_t* out = weights + i * out_bytes_per_block;
-        for (int j = 0; j < 128; j += 2) {
-            const int bit0 = (qs[j / 8] >> (j % 8)) & 1;
-            const int bit1 = (qs[(j + 1) / 8] >> ((j + 1) % 8)) & 1;
-            const uint8_t nib0 = bit0 ? 0x1 : 0xF;
-            const uint8_t nib1 = bit1 ? 0x1 : 0xF;
-            out[j / 2] = static_cast<uint8_t>(nib0 | (nib1 << 4));
+        for (size_t j = 0; j < out_bytes_per_block; ++j) {
+            uint8_t bits = qs[j];
+            bits = ((bits & 0x55) << 1) | ((bits & 0xaa) >> 1);
+            bits = ((bits & 0x33) << 2) | ((bits & 0xcc) >> 2);
+            out[j] = (bits << 4) | (bits >> 4);
         }
     });
 }
@@ -856,8 +918,9 @@ void fill_q8_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
 // (dequantize_row_q2_0: `(qs[j/4] >> ((j%4)*2)) & 3`), which is exactly the order OpenVINO's u2
 // Constant reads, so the 16 code bytes are copied verbatim. The zero-point is the constant 1.
 void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
-    const uint64_t bytes_per_block = 18;
-    const uint64_t bytes_per_block_codes = 16;
+    const bool dense_trits = tensor.type == GGUF_TYPE_PTQ1_0;
+    const uint64_t bytes_per_block_codes = tensor.type == GGUF_TYPE_Q2_0 ? 16 : 32;
+    const uint64_t bytes_per_block = dense_trits ? 28 : bytes_per_block_codes + 2;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
@@ -866,14 +929,34 @@ void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tenso
     ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
         const uint8_t* block = data + i * bytes_per_block;
         uint16_t scale_bits;
-        std::memcpy(&scale_bits, block, sizeof(scale_bits));
+        std::memcpy(&scale_bits, block + (dense_trits ? 26 : 0), sizeof(scale_bits));
         scales[i] = ov::float16::from_bits(scale_bits);
-        std::memcpy(weights + i * bytes_per_block_codes, block + 2, bytes_per_block_codes);
+        auto* codes = weights + i * bytes_per_block_codes;
+        if (dense_trits) {
+            std::memset(codes, 0, bytes_per_block_codes);
+            constexpr uint8_t powers[] = {1, 3, 9, 27, 81};
+            size_t index = 0;
+            const auto unpack = [&](size_t start, size_t count, size_t trits) {
+                for (size_t n = 0; n < trits; ++n) {
+                    for (size_t m = 0; m < count; ++m) {
+                        const uint8_t q = block[start + m] * powers[n];
+                        const uint8_t code = (static_cast<uint16_t>(q) * 3) >> 8;
+                        codes[index / 4] |= code << (2 * (index % 4));
+                        ++index;
+                    }
+                }
+            };
+            unpack(0, 16, 5);
+            unpack(16, 8, 5);
+            unpack(24, 2, 4);
+        } else {
+            std::memcpy(codes, block + 2, bytes_per_block_codes);
+        }
         zp.store(i, 1.0f);
     });
 }
 
-// Symmetric types (Q1_0, Q4_0, Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no
+// Symmetric types (Q1_0, Q4_0, Q8_0, Q8_1, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no
 // zero-point. Q8_K uses f32 scales and is handled by a separate overload dispatched on
 // tensor.type.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
@@ -884,6 +967,8 @@ void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& sc
         return fill_q4_0(tensor, weights, scales);
     case GGUF_TYPE_Q8_0:
         return fill_q8_0(tensor, weights, scales);
+    case GGUF_TYPE_Q8_1:
+        return fill_q8_1(tensor, weights, scales);
     case GGUF_TYPE_Q5_0:
         return fill_q5_0(tensor, weights, scales);
     case GGUF_TYPE_Q6_K:

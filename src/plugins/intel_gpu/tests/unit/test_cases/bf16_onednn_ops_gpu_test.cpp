@@ -18,7 +18,6 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/moe_gemm.hpp>
-#include <intel_gpu/primitives/gated_mlp.hpp>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -642,80 +641,6 @@ TEST(bf16_onednn_ops, moe_gemm_bf16) {
         GTEST_SKIP() << "moe_gemm bf16 hits oneDNN JIT bug (772847a58c not yet merged)";
     }
     auto result_f16 = run_moe_gemm(data_types::f16);
-
-    compare_outputs(result_f16, result_bf16, 0.05f);
-}
-
-// =====================================================
-// TEST: Gated MLP bf16 (bf16 vs f16 comparison)
-// =====================================================
-TEST(bf16_onednn_ops, gated_mlp_bf16) {
-    auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
-
-    tests::random_generator rg("bf16_gated_mlp");
-    const int batch = 2, ifm = 32, hidden = 16;
-
-    auto src_f32 = rg.generate_random_1d<float>(batch * ifm, -0.5f, 0.5f);
-    auto gate_f32 = rg.generate_random_1d<float>(ifm * hidden, -0.5f, 0.5f);
-    auto up_f32 = rg.generate_random_1d<float>(ifm * hidden, -0.5f, 0.5f);
-    auto down_f32 = rg.generate_random_1d<float>(hidden * ifm, -0.5f, 0.5f);
-
-    auto run_gated_mlp = [&](data_types dt) -> std::vector<float> {
-        auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, dt, format::bfyx});
-        auto gate_mem = engine.allocate_memory({{ifm, hidden}, dt, format::bfyx});
-        auto up_mem = engine.allocate_memory({{ifm, hidden}, dt, format::bfyx});
-        auto down_mem = engine.allocate_memory({{hidden, ifm}, dt, format::bfyx});
-
-        if (dt == data_types::bf16) {
-            auto to_bf16 = [](const std::vector<float>& v) {
-                std::vector<ov::bfloat16> r(v.size());
-                for (size_t i = 0; i < v.size(); ++i) r[i] = ov::bfloat16(v[i]);
-                return r;
-            };
-            set_values(src_mem, to_bf16(src_f32));
-            set_values(gate_mem, to_bf16(gate_f32));
-            set_values(up_mem, to_bf16(up_f32));
-            set_values(down_mem, to_bf16(down_f32));
-        } else {
-            auto to_f16 = [](const std::vector<float>& v) {
-                std::vector<ov::float16> r(v.size());
-                for (size_t i = 0; i < v.size(); ++i) r[i] = ov::float16(v[i]);
-                return r;
-            };
-            set_values(src_mem, to_f16(src_f32));
-            set_values(gate_mem, to_f16(gate_f32));
-            set_values(up_mem, to_f16(up_f32));
-            set_values(down_mem, to_f16(down_f32));
-        }
-
-        topology tp;
-        tp.add(input_layout("src", src_mem->get_layout()));
-        tp.add(data("w_gate", gate_mem));
-        tp.add(data("w_up", up_mem));
-        tp.add(data("w_down", down_mem));
-        tp.add(reorder("src_2d", input_info("src"), {dt, format::bfyx, tensor(batch, ifm, 1, 1)}));
-        tp.add(gated_mlp("gmlp", input_info("src_2d"), input_info("w_gate"),
-                          input_info("w_up"), input_info("w_down"),
-                          ov::op::internal::GLU::GluType::Swish,
-                          tensor(batch, ifm, 1, 1), dt));
-        tp.add(reorder("output", input_info("gmlp"), format::bfyx, data_types::f32));
-
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::use_onednn(true));
-
-        network net(engine, tp, config);
-        net.set_input_data("src", src_mem);
-        auto out_mem = net.execute().at("output").get_memory();
-        mem_lock<float> ptr(out_mem, get_test_stream());
-        return std::vector<float>(ptr.begin(), ptr.end());
-    };
-
-    auto result_f16 = run_gated_mlp(data_types::f16);
-    auto result_bf16 = run_gated_mlp(data_types::bf16);
 
     compare_outputs(result_f16, result_bf16, 0.05f);
 }

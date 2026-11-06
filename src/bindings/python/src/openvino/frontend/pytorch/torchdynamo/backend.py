@@ -47,8 +47,6 @@ logger.setLevel(logging.WARNING)
     2) model = torch.compile(model, backend="openvino")
 """
 
-openvino_options = {}
-
 # Disable regional compilation which was enabled by default from Torch 2.5.0
 if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
     torch._dynamo.config.inline_inbuilt_nn_modules=False
@@ -56,10 +54,9 @@ if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
     if _get_aot_autograd(options):
-        global openvino_options
-        openvino_options = options
         decompositions = _get_decompositions(options) + get_inf_decomposition_list() + get_aot_decomposition_list()
-        return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
+        compiler = partial(fx_openvino, options=options)
+        return aot_autograd(fw_compiler=compiler, bw_compiler=compiler, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
     return fx_openvino(subgraph, example_inputs, options)
 
 if "openvino" not in torch.compiler.list_backends():
@@ -67,8 +64,6 @@ if "openvino" not in torch.compiler.list_backends():
 
 def fx_openvino(subgraph, example_inputs, options=None):
     try:
-        if len(openvino_options) != 0:
-            options = openvino_options
         executor_parameters = None
         inputs_reversed = False
         openvino_model_caching = _get_model_caching(options)
@@ -103,12 +98,15 @@ def fx_openvino(subgraph, example_inputs, options=None):
             model = subgraph
         else:
             decompositions = _get_decompositions(options) + get_inf_decomposition_list()
-            model = make_fx(
-                subgraph,
-                decomposition_table=get_decompositions(decompositions),
-                tracing_mode="fake",
-                _allow_non_fake_inputs=True,
-            )(*example_inputs)
+            # Trace outside Dynamo's TracingContext so make_fx creates its own fake mode;
+            # otherwise its shape guards leak into Dynamo's ShapeEnv with make_fx input names.
+            with torch._guards.tracing(None):
+                model = make_fx(
+                    subgraph,
+                    decomposition_table=get_decompositions(decompositions),
+                    tracing_mode="fake",
+                    _allow_non_fake_inputs=True,
+                )(*example_inputs)
             with torch.no_grad():
                 model.eval()
         partitioner = Partitioner(options)

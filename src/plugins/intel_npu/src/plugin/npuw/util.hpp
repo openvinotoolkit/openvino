@@ -6,13 +6,17 @@
 
 #include <future>
 #include <optional>
+#include <ostream>
 #include <random>
 #include <string>
+#include <unordered_set>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -36,6 +40,43 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
+// Case-insensitive substring search.
+bool contains_ignore_case(const std::string& str, const std::string& substr);
+
+// Strictly parses `str` as a positive base-10 integer (std::from_chars; whole string
+// consumed, no sign accepted, unlike std::stoull). Returns nullopt for anything else,
+// including an empty string or 0.
+std::optional<int64_t> parse_positive_int_env_var(const std::string& str);
+
+// Walks back from `node`'s single input along pass-through ops (e.g. Convert) until it
+// reaches a Parameter, or gives up (nullptr) if the chain branches or dead-ends.
+std::shared_ptr<ov::op::v0::Parameter> trace_back_to_parameter(std::shared_ptr<ov::Node> node);
+
+// Forward analog of trace_back_to_parameter(): walks from `output` along pass-through ops
+// until it reaches a Result, or gives up (nullptr) on a branch/dead-end. Used to map a
+// GroupQueryAttention op's present_key/
+// present_value output directly to its model-level Result, independent of naming.
+std::shared_ptr<ov::op::v0::Result> trace_forward_to_result(const ov::Output<ov::Node>& output);
+
+// Forward data-flow reachability: true if `target` can be reached from `start` by following
+// output->target_input edges.
+bool reaches(const ov::Node* start, const ov::Node* target);
+
+// Parses a bracketed, comma-separated integer list (ONNX metadata_props stored as a
+// string rt_info value, e.g. "[0, 1, 5, 6]"). Returns an empty set if missing/malformed.
+std::unordered_set<int64_t> parse_layer_index_list(const std::string& text);
+
+// Returns the single dynamic axis of `shape`, or nullopt if rank is dynamic, no axis is
+// dynamic, or more than one is (ambiguous).
+std::optional<size_t> find_single_dynamic_axis(const ov::PartialShape& shape);
+
+// True if `axis` is a plausible GQA KV-cache capacity axis for a rank-4 past_key/
+// past_value parameter: axis 2 ([N,H,S,E]) or axis 3 (--transpose_v's [N,H,E,S]).
+bool is_supported_kv_cache_capacity_axis(size_t axis, size_t rank);
+
+// Names of all RW entries of an ov::supported_properties list (of a compiled model or a plugin)
+std::unordered_set<std::string> mutable_properties(const std::vector<ov::PropertyName>& supported_properties);
+
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular
 // [1, seq_len], or 3D mrope [num_sections, 1, seq_len] (e.g. Qwen2.5-VL uses 3
@@ -43,6 +84,10 @@ bool starts_with(const std::string& str, const std::string& prefix);
 bool is_supported_position_ids_input(const ov::Output<const ov::Node>& p);
 
 std::string fmt(std::size_t number, std::size_t total);
+
+// Merges space-separated `key=value` lists; `overrides` replaces tokens with the same key, new keys are appended.
+// For compute-layers-with-higher-precision, override layers are appended to the existing comma-separated list.
+std::string merge_compilation_mode_params(const std::string& defaults, const std::string& overrides);
 
 // Matches the three DynamicQuantize decomposition implementations declared in
 // kv_cache_compressed.hpp.
@@ -243,6 +288,15 @@ bool is_swa_kv_cache_name(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
+// One-line tensor digest for log traces: LOG_VERB("x: " << TensorBrief{t}).
+// Tensors past kMaxStats elements, such as KV cache pools, print their shape only.
+struct TensorBrief {
+    static constexpr std::size_t kMaxInline = 16u;
+    static constexpr std::size_t kMaxStats = 1u << 20;
+    ov::SoPtr<ov::ITensor> tensor;
+};
+std::ostream& operator<<(std::ostream& os, const TensorBrief& brief);
+
 // Structure to hold SDPA pattern nodes.
 // After SplitKVCacheIntoBlocks the single past_key / past_value parameter is
 // replaced by N block parameters, so both param-node fields are vectors.
@@ -330,7 +384,10 @@ private:
         if (done)
             return data;
         if (future.valid()) {
-            future.wait();
+            // Previously used `future.wait()`, which waits for completion but does not
+            // propagate exceptions. `get()` retrieves the result and rethrows any
+            // stored exception, but makes the future invalid afterward.
+            future.get();
             done = true;
         }
         return data;

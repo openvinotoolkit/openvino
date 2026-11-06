@@ -240,25 +240,19 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     cpu_isa_t isa = isa_undef;
     if (use_amx) {
         isa = isa_undef;
+    } else if (is_int8) {
+        // No signed-input compensation buffer is supplied, so native s8s8 dot products are required.
+        isa = mayiuse(avx10_2) ? avx10_2 : avx2_vnni_2;
     } else if (mayiuse(avx512_core)) {
         if (ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 && mayiuse(avx512_core_bf16)) {
             isa = avx512_core_bf16;
         } else if (ctx.dt_in0 == dnnl_data_type_t::dnnl_f16 && mayiuse(avx512_core_fp16)) {
             isa = avx512_core_fp16;
         } else {
-            if (is_int8) {
-                isa = avx512_core_vnni;
-            } else {
-                isa = avx512_core;
-            }
+            isa = avx512_core;
         }
     } else {
-        // s8s8 is only support by avx2_vnni_2
-        if (is_int8) {
-            isa = cpu_isa_t::avx2_vnni_2;
-        } else {
-            isa = cpu_isa_t::avx2;
-        }
+        isa = cpu_isa_t::avx2;
     }
     auto status = brgemm_desc_init(&brgDesc,
                                    isa,
@@ -279,7 +273,6 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
                                    nullptr);
 
     if (bScaleType != BrgemmKernel::ScaleType::NONE) {
-        ctx.has_post_ops = true;
         dnnl::impl::primitive_attr_t attr;
         memory_desc_t Dmd;
         dims_t dims{static_cast<dnnl_dim_t>(ctx.M), static_cast<dnnl_dim_t>(ctx.N)};
@@ -315,9 +308,6 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     if (use_amx) {
         amx_tile_configure(ctx.palette);
     }
-    // s8s8 kernel are only support for amx/vnni_2, s8s8 vis compensation pass is not support
-    ctx.has_post_ops = false;
-
     brgemm_kernel_t* brgKernel_ = nullptr;
     status = brgemm_kernel_create(&brgKernel_, brgDesc);
     if (status != dnnl_success) {
@@ -335,7 +325,7 @@ void BrgemmKernel::init_brgemm_copy_a(
     dnnl_data_type_t dt_in0,
     bool transpose,
     size_t copy_A_src_stride) {
-    brgemm_matmul_conf_t brgCopyKernelConf;
+    brgemm_matmul_conf_t brgCopyKernelConf{};
     brgCopyKernelConf.src_tag = dnnl_abcd;
     brgCopyKernelConf.K = K;
     brgCopyKernelConf.K_tail = K_tail;
@@ -378,7 +368,7 @@ void BrgemmKernel::init_brgemm_copy_b(
     dnnl_data_type_t dt_in1,
     bool transpose,
     size_t copy_B_wei_stride) {
-    brgemm_matmul_conf_t brgCopyKernelConf;
+    brgemm_matmul_conf_t brgCopyKernelConf{};
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
     brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));

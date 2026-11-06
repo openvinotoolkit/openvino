@@ -77,7 +77,7 @@ BroadcastMatMulFusion::BroadcastMatMulFusion() {
     auto matmul_rhs = pattern::wrap_type<v0::MatMul>({other, broadcast});
     auto matmul = matmul_lhs | matmul_rhs;
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         const auto broadcast_value = pattern_map.at(broadcast);

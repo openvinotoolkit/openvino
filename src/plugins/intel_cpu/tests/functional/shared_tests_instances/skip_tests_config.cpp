@@ -481,26 +481,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             // Target Static Shape is empty
             std::regex(R"(.*proposal_params/.*)"),
-            // Quantized models unsupported
-            std::regex(R"(.*Quantized.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
-            std::regex(R"(.*smoke_Snippets_Dyn(?!MatMult).*Mat.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
-            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
-            // Accuracy problem in dynamic MHA tests
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D/MHA.*IS\[0\]=\[\?.\?.12\.64\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D/MHA.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_2D/MHA2D.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_3D_MHAParallelWAOptimizer/MHAWithThreadCount.*IS\[0\]=\[\?.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.\?.\?\].*)"),
-            std::regex(R"(.*smoke_Snippets_MHA_4D_WithDynamicMul/MHAWithDynamicMul.*IS\[0\]=\[\?.\?.12\.64\].*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
@@ -625,7 +610,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(smoke_ExportImportTest/ExportOptimalNumStreams.OptimalNumStreams/.*)"));
             // by calc abs_threshold with expected value
             patterns.emplace_back(std::regex(R"(.*smoke_GatherCompressedWeights_basic/GatherWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
-            patterns.emplace_back(std::regex(R"(.*smoke_Interaction/IntertactionCPUTest.CompareWithRefs.*Prc=i32.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_(amx|sym_amx|corner_cases_amx)/MatmulWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_EnforcePrecision_bf16/EnforcePrecisionTest.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHABF16_4D/MHA.CompareWithRefImpl/.*\[1.58.16.34\]_IS\[1\]=\[1.58.16.34\]_IS\[2\]=\[1.1.1.58\]_IS\[3\]=\[1.58.16.34\].*)"));
