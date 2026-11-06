@@ -324,7 +324,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     const int AD_w = dv * (int)sizeof(OUTPUT_TYPE), AD_h = q, AD_p = (int)lda * (int)sizeof(OUTPUT_TYPE);
 
-#if PA_CUR_KV_F16
+#if PA_CUR_KV_F16 && SG8
+    // k_tile_dword reads Kc a dword (two head dims) per lane: a block read needs an even row pitch and a 4 B aligned base
+    // (a crop view of a fused QKV input can break either), false selects its aligned-dword fallback. Uniform.
+    const bool kc_dword_ok = ((ldk & 1u) == 0) && ((as_long(Kc) & 3) == 0);
+#elif PA_CUR_KV_F16
     // Surfaces for the NEW-token part of the key range: Kc/Vc are f16 and q rows tall, and rows
     // past q read as zero (those keys are masked anyway).
     const int KcD_w = d * (int)sizeof(half), KcD_h = q, KcD_p = (int)ldk * (int)sizeof(half);
@@ -761,7 +765,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
     #if PA_CUR_KV_F16
             else {
-        #if PA_K_PERMUTED
+        #if SG8
+                // Kc holds the q new tokens, key `key` in row key - past_len, so it ends at row k - past_len.
+            #if defined(NEG_SG8) && NEG_SG8 == 27
+                // Negative control: the next token's K row.
+                FUNC_CALL(k_tile_dword)(k_raw, (const __global ushort *)Kc, ldk, key_base - past_len + 1, k - past_len, d, db,
+                                        lane, kc_dword_ok);
+            #else
+                FUNC_CALL(k_tile_dword)(k_raw, (const __global ushort *)Kc, ldk, key_base - past_len, k - past_len, d, db, lane,
+                                        kc_dword_ok);
+            #endif
+        #elif PA_K_PERMUTED
                 if (kc_dword_ok) {
                     uint kw[DPAS_ROWS];
                     FUNC_CALL(kc_tile_u4_dword)(k_raw, kw, Kc_b2d, KcD_w_b2d, KcD_h, KcD_p, KcD_x0_dw, key_base,
@@ -808,7 +822,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #if SG8 && defined(KV_COMPRESSED)
             FUNC_CALL(k_tile_dword_i8)(k_raw, K, ldk, k_scale_lane, k_zpb_lane, key_base, k, d, db, lane);
     #elif SG8
-            FUNC_CALL(k_tile_dword)(k_raw, K, ldk, key_base, k, d, db, lane, k_dword_ok);
+            FUNC_CALL(k_tile_dword)(k_raw, (const __global ushort *)K, ldk, key_base, k, d, db, lane, k_dword_ok);
     #else
     #if KV_COMP_PER_CHANNEL
             FUNC_CALL(k_tile_gather_ch)(k_raw, K, ldk, key_base, k, d, db, (int)lane);
@@ -1267,7 +1281,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
             #if PA_CUR_KV_F16
             else {
+                #if SG8
+                FUNC_CALL(vc_tile_gather)(vb, (const __global ushort *)Vc, ldv, k0, cp, k, past_len, dv, sg_j0_sv, (int)lane);
+                #else
                 FUNC_CALL(v_tile_b2d16)(vb, Vc_b2d, VcD_w_b2d, VcD_h, VcD_p, VcD_x0, sg_j0_sv, k0, cp, past_len);
+                #endif
             }
             #endif
             #elif USE_2D_BLOCK_IO_V_I8

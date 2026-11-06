@@ -305,7 +305,7 @@ SDPA_OCL_INLINE void FUNC(pa_k_page_read_1d)(__private uchar16 (*k_pg)[PA_PAGE_R
 // own arrays with lifetime markers the inline code never had, which moved scratch allocation on a
 // spill-bound kernel.
 
-#if (USE_2D_BLOCK_IO_KV && !IS_PA_MIXED) || (PA_CUR_KV_F16 && !PA_K_PERMUTED)
+#if (USE_2D_BLOCK_IO_KV && !IS_PA_MIXED) || (PA_CUR_KV_F16 && !PA_K_PERMUTED && !SG8)
 // f16 [key, head] surface (the K input, or MIXED's Kc) whose row key - y_sub holds key. The _16r
 // builtin returns 16 key rows (2 row-blocks), so issue one read per 16-key group: with
 // kq_sg_tile_keys == 32 a single read would leave k_raw[2..3] uninitialised.
@@ -667,7 +667,9 @@ SDPA_OCL_INLINE void FUNC(kc_tile_u4_dword)(__private ushort8 *k_raw, __private 
 // a whole in-bounds tile (an overrun would read the next head or past the buffer); the head-dim tail and the unaligned
 // case read each lane's two halves separately. A key at/past k stays 0, and so does a half at/past d, which keeps NaN
 // out of S_tile (Q is zero there too, but 0 * NaN is NaN). The key index is uniform across the subgroup, so the branches are.
-SDPA_OCL_INLINE void FUNC(k_tile_dword)(__private int8 *k_raw, const __global KEY_DATA_T *K, const uint ldk,
+// K is taken as 2-byte elements: PA MIXED points it at Kc (PA_CUR_KV_F16) with key_base and k shifted by past_len, Kc's
+// rows being the new tokens, and there KEY_DATA_T is the cache's type.
+SDPA_OCL_INLINE void FUNC(k_tile_dword)(__private int8 *k_raw, const __global ushort *K, const uint ldk,
                                         const int key_base, const int k, const int d, const int db, const size_t lane,
                                         const bool dword_ok) {
     const int head_base = db * DPAS_K;
@@ -681,7 +683,7 @@ SDPA_OCL_INLINE void FUNC(k_tile_dword)(__private int8 *k_raw, const __global KE
             const int key = key_base + mb * DPAS_ROWS + key_offset;
             uint w = 0;
             if (key < k) {
-                const __global KEY_DATA_T *row = K + (size_t)key * ldk + head_base;
+                const __global ushort *row = K + (size_t)key * ldk + head_base;
                 if (dword_ok && whole_tile) {
                     w = intel_sub_group_block_read((const __global uint *)row);
                 } else {
@@ -690,7 +692,7 @@ SDPA_OCL_INLINE void FUNC(k_tile_dword)(__private int8 *k_raw, const __global KE
                     // wrong) for some row pitches / views on DG2; this reads like the block-read arm.
                     w = 0;
                     if (head < d) {
-                        const ulong addr = (ulong)((const __global char *)K) + ((ulong)key * ldk + (ulong)head) * sizeof(KEY_DATA_T);
+                        const ulong addr = (ulong)((const __global char *)K) + ((ulong)key * ldk + (ulong)head) * sizeof(ushort);
                         const __global uint *aligned = (const __global uint *)(addr & ~(ulong)3);
                         if ((addr & 2) == 0) {
                             w = aligned[0];

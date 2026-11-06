@@ -2947,12 +2947,13 @@ TEST_P(paged_attention_mixed_tm_test, matches_reference) {
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_mixed_tm, paged_attention_mixed_tm_test, ::testing::ValuesIn(mixed_hpg_heads_cases()));
 
 namespace {
-// Compressed caches on forced token-major pages (plan P7b-P7d, the reference's S8a-S8c cases): i8 BY_TOKEN (cases 0-16) and
-// i8 BY_CHANNEL (17-30). MIXED reads the past from the compressed page (and, on SG8, the new tokens too), PREFILL the f16
-// inputs. Every case distorts K (per token, or per channel for BY_CHANNEL) and V per token (comp_stress) so that the scale or
-// zp of a wrong token or channel fails, and has a sharp softmax so that a wrong K is seen. SDPA_OCL_NEG_SG8=19 / 20 / 21 / 22
-// must fail the BY_TOKEN cases and 20 / 21 / 22 / 23 / 24 the BY_CHANNEL ones (the PREFILL-only cases 13 and 27 excepted:
-// they read no page).
+// Compressed caches on forced token-major pages (plan P7b-P7e, the reference's S8a-S8c cases): i8 BY_TOKEN (cases 0-16),
+// i8 BY_CHANNEL (17-30) and padded inputs (31, 32). MIXED reads the past from the compressed page and the new tokens from the
+// f16 inputs (Kc / Vc), PREFILL the f16 inputs. Every case distorts K (per token, or per channel for BY_CHANNEL) and V per
+// token (comp_stress) so that the scale or zp of a wrong token or channel fails, and has a sharp softmax so that a wrong K is
+// seen. SDPA_OCL_NEG_SG8=19 / 20 / 21 / 22 must fail the BY_TOKEN cases and 20 / 21 / 22 / 23 / 24 the BY_CHANNEL ones (the
+// PREFILL-only cases 13 and 27 excepted: they read no page), and 27 / 28 (the next token's Kc / Vc row) the MIXED cases where
+// a new token wins the sharp softmax.
 paged_attention_test_params
 comp_case(std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads, int k_head, int v_head, int window = 0, int stress = 3) {
     auto p = sharp_softmax(feature_case(std::move(subsequences), heads, kv_heads, k_head, v_head, window));
@@ -3001,6 +3002,10 @@ std::vector<paged_attention_test_params> comp_hpg_cases() {
         with_sinks(by_channel(comp_case({{50, 200}}, 8, 2, 64, 64))),       // 28 a sink
         by_channel(comp_case({{4, 50}}, 4, 1, 512, 512)),                   // 29
         by_channel(comp_case({{5, 43}}, 2, 2, 64, 32)),                     // 30 k != v
+        // Padded inputs: Kc / Vc 2 B off a dword, and an odd row pitch (131 halves), both k_tile_dword's aligned-dword fallback.
+        // They fail with SDPA_OCL_PA_CUR_F16=0: the KV cache writer misreads such rows (docs/sdpa_ocl.md Known issues).
+        with_input_pads(comp_case({{3, 27}}, 2, 2, 64, 64), pads_qkv(1, 7, DYNAMIC_PAD)),              // 31
+        with_input_pads(by_channel(comp_case({{3, 27}}, 2, 2, 64, 64)), pads_qkv(0, 3, DYNAMIC_PAD)),  // 32
     };
 }
 }  // namespace
