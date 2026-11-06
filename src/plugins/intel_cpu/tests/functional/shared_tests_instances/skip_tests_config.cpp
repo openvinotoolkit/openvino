@@ -20,8 +20,8 @@
 const std::vector<std::regex>& disabled_test_patterns() {
     auto get_patterns = []() {
         std::vector<std::regex> patterns{
-            // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
-            std::regex(R"(.*(BF|bf)16.*(jit_avx(?!5)|jit_sse).*)"),
+            // Skip BF16 cases targeting AVX2 implementations.
+            std::regex(R"(.*(BF|bf)16.*jit_avx2.*)"),
 #if !defined(OPENVINO_ARCH_X86)
             // TODO: Incorrect blob sizes for node BinaryConvolution_X
             std::regex(R"(.*BinaryConvolutionLayerTest.*)"),

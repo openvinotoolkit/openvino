@@ -43,7 +43,6 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
-#    include <common/utils.hpp>
 #    include <type_traits>
 #    include <unordered_map>
 
@@ -105,11 +104,11 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    static_assert(isa == cpu::x64::avx2 || isa == cpu::x64::avx512_core);
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>;
 
     const int v_len = cpu_isa_traits_t<isa>::vlen;
-    const int x_len = cpu_isa_traits_t<sse41>::vlen;
+    const int x_len = 16;  // legacy sse vlen;
     const int v_step = v_len / sizeof(float);
     const int x_step = x_len / sizeof(float);
 
@@ -319,31 +318,6 @@ private:
                 }
                 store_buffer(vmm_buf, reg_buf, v_step);
 
-                if ((isa == cpu::x64::sse41) && (jcp_.layout == ROIAlignLayoutType::blk)) {
-                    add(reg_src0, x_step * jcp_.data_size);
-                    add(reg_src1, x_step * jcp_.data_size);
-                    add(reg_src2, x_step * jcp_.data_size);
-                    add(reg_src3, x_step * jcp_.data_size);
-                    add(reg_buf, x_step * sizeof(float));
-
-                    generate_samples(x_step);
-                    load_buffer(reg_buf, vmm_buf, x_step);
-                    if (jcp_.alg == Algorithm::ROIAlignAvg) {
-                        uni_vaddps(vmm_buf, vmm_buf, vmm_sample);
-                    } else {
-                        uni_vmaxps(vmm_buf, vmm_buf, vmm_sample);
-                    }
-                    store_buffer(vmm_buf, reg_buf, x_step);
-
-                    sub(reg_src0, x_step * jcp_.data_size);
-                    sub(reg_src1, x_step * jcp_.data_size);
-                    sub(reg_src2, x_step * jcp_.data_size);
-                    sub(reg_src3, x_step * jcp_.data_size);
-                    // reg_buf no need reset back, buf is continious
-
-                    sub(reg_tmp_64, x_step);
-                }
-
                 add(reg_src0, reg_src_stride);
                 add(reg_src1, reg_src_stride);
                 add(reg_src2, reg_src_stride);
@@ -406,8 +380,7 @@ private:
             int dst_stride = v_step * jcp_.data_size;
             mov(reg_dst_stride, dst_stride);
         } else if (jcp_.layout == ROIAlignLayoutType::blk) {
-            int blk_size = (isa == cpu::x64::sse41) ? v_step * 2 : v_step;
-            int dst_stride = blk_size * jcp_.pooled_h * jcp_.pooled_w * jcp_.data_size;
+            int dst_stride = v_step * jcp_.pooled_h * jcp_.pooled_w * jcp_.data_size;
             mov(reg_dst_stride, dst_stride);
         }
 
@@ -421,21 +394,6 @@ private:
                 uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
             }
             store(vmm_buf, reg_dst, v_step);
-
-            if ((isa == cpu::x64::sse41) && (jcp_.layout == ROIAlignLayoutType::blk)) {
-                add(reg_buf, x_step * sizeof(float));
-                add(reg_dst, x_step * jcp_.data_size);
-
-                load_buffer(reg_buf, vmm_buf, x_step);
-                if (jcp_.alg == Algorithm::ROIAlignAvg) {
-                    uni_vmulps(vmm_buf, vmm_buf, vmm_scale);
-                }
-                store(vmm_buf, reg_dst, x_step);
-
-                sub(reg_dst, x_step * jcp_.data_size);
-
-                sub(reg_work_amount, x_step);
-            }
 
             add(reg_buf, v_step * sizeof(float));
             add(reg_dst, reg_dst_stride);
@@ -543,15 +501,12 @@ private:
                         horizontal_add_xmm(xmm_temp1, xmm_temp2);
                         uni_vmaxps(xmm_dst, xmm_dst, xmm_temp1);
                     }
-                } else if (isa == cpu::x64::avx2) {
+                } else {
                     for (int i = 0; i < lane; i++) {
                         vextractf128(xmm_temp1, Xbyak::Ymm(vmm_src.getIdx()), i);
                         horizontal_add_xmm(xmm_temp1, xmm_temp2);
                         uni_vmaxps(xmm_dst, xmm_dst, xmm_temp1);
                     }
-                } else {
-                    horizontal_add_xmm(xmm_src, xmm_temp2);
-                    uni_vmaxps(xmm_dst, xmm_dst, xmm_src);
                 }
             }
 
@@ -615,17 +570,14 @@ private:
 
     // gather f32 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
     void gather_f32(Vmm& vmm_src, const reg64_t& reg_src, const Vmm& vmm_idx) {
-        constexpr bool is_ymm = std::is_same_v<Vmm, Xbyak::Ymm>;
         constexpr bool is_zmm = std::is_same_v<Vmm, Xbyak::Zmm>;
 
         if (is_zmm) {
             kxnord(k_mask, k_mask, k_mask);
             vgatherdps(vmm_src | k_mask, ptr[reg_src + vmm_idx * jcp_.data_size]);
-        } else if (is_ymm) {
+        } else {
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             vgatherdps(vmm_src, ptr[reg_src + vmm_idx * jcp_.data_size], vmm_mask);
-        } else {
-            gather_f32_xmm(Xbyak::Xmm(vmm_src.getIdx()), reg_src, Xbyak::Xmm(vmm_idx.getIdx()));
         }
     }
 
@@ -685,9 +637,7 @@ private:
         auto xmm_dst = Xbyak::Xmm(vmm_dst.getIdx());
         auto xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
         auto xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
-        if (isa == cpu::x64::sse41) {
-            horizontal_add_xmm(xmm_dst, xmm_temp1);
-        } else if (isa == cpu::x64::avx2) {
+        if (isa == cpu::x64::avx2) {
             auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
             vextractf128(xmm_temp1, ymm_dst, 0);
             vextractf128(xmm_temp2, ymm_dst, 1);
@@ -811,8 +761,6 @@ void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlign
         roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>>(jcp);
     } else if (ov::with_cpu_x86_avx2()) {
         roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::avx2>>(jcp);
-    } else if (ov::with_cpu_x86_sse42()) {
-        roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::sse41>>(jcp);
     }
     if (roi_align_kernel) {
         roi_align_kernel->create_ker();
@@ -847,15 +795,12 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
         if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (ov::with_cpu_x86_sse42()) {
-            return impl_desc_type::jit_sse42;
-        }
         return impl_desc_type::ref;
     }();
 
     std::vector<std::pair<LayoutType, LayoutType>> supportedFormats{{LayoutType::ncsp, LayoutType::ncsp}};
 
-    if (ov::with_cpu_x86_sse42()) {
+    if (ov::with_cpu_x86_avx2()) {
         supportedFormats.emplace_back(LayoutType::nspc, LayoutType::nspc);
         if (impl_desc_type::jit_avx512 == impl_type) {
             supportedFormats.emplace_back(LayoutType::nCsp16c, LayoutType::nCsp16c);

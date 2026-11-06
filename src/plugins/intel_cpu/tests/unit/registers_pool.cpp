@@ -179,8 +179,6 @@ using TestTypes = combiner::TestTypesCombiner<combiner::Combinations_t<
         std::tuple<
                 Xbyak::Reg8, Xbyak::Reg16, Xbyak::Reg32, Xbyak::Reg64, Xbyak::Xmm, Xbyak::Ymm, Xbyak::Zmm
         >,
-        IsaParam<x64::sse41>,
-        IsaParam<x64::avx>,
         IsaParam<x64::avx2>,
         IsaParam<x64::avx2_vnni> >>::Types;
 

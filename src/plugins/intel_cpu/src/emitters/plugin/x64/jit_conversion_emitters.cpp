@@ -7,11 +7,11 @@
 #include <xbyak/xbyak.h>
 
 #include <algorithm>
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
@@ -77,7 +77,7 @@ void jit_convert_emitter::emit_data() const {
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_emitter::float2bfloat(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Ymm, Zmm>;
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     if (!uni_vcvtneps2bf16) {
@@ -112,9 +112,7 @@ bool jit_convert_truncation_emitter::is_i8_and_u8_case() const {
 void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                const std::vector<size_t>& out_vec_idxs) const {
     validate_types();
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
@@ -126,7 +124,7 @@ void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t>& in_vec
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_truncation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Ymm, Zmm>;
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
@@ -239,7 +237,7 @@ void jit_convert_truncation_emitter::register_table_entries() {
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t>& in_vec_idxs,
                                                 const std::vector<size_t>& out_vec_idxs) const {
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Ymm, Zmm>;
     auto vmm_src = Vmm(in_vec_idxs[0]);
 
     auto vmm_dst = Vmm(out_vec_idxs[0]);
@@ -251,9 +249,7 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t>& in_ve
     } else if (isa == dnnl::impl::cpu::x64::avx2) {
         h->vpand(vmm_dst, vmm_src, table_val("mask_byte"));  // to avoid saturation
         h->uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-        if (isa != dnnl::impl::cpu::x64::sse41) {
-            h->vpermq(ymm_dst, ymm_dst, 0x08);
-        }
+        h->vpermq(ymm_dst, ymm_dst, 0x08);
         h->uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
     }
 }
@@ -274,9 +270,7 @@ jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator_t* 
 void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                                const std::vector<size_t>& out_vec_idxs) const {
     validate_types();
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
@@ -288,7 +282,7 @@ void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t>& in_vec
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_saturation_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Ymm, Zmm>;
     auto vmm_src = Vmm(in_vec_idxs[0]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
 
@@ -396,7 +390,7 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_convert_saturation_emitter::dword2int8(const std::vector<size_t>& in_vec_idxs,
                                                 const std::vector<size_t>& out_vec_idxs,
                                                 bool is_signed) const {
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Ymm, Zmm>;
     auto vmm_src = Vmm(in_vec_idxs[0]);
 
     auto vmm_dst = Vmm(out_vec_idxs[0]);
@@ -419,9 +413,7 @@ void jit_convert_saturation_emitter::dword2int8(const std::vector<size_t>& in_ve
             h->uni_vpackusdw(vmm_dst, vmm_src, vmm_src);
         }
 
-        if (isa != dnnl::impl::cpu::x64::sse41) {
-            h->vpermq(ymm_dst, ymm_dst, 0x08);
-        }
+        h->vpermq(ymm_dst, ymm_dst, 0x08);
 
         if (is_signed) {
             h->uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);

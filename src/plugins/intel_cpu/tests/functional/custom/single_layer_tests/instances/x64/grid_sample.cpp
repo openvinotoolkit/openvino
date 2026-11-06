@@ -23,10 +23,6 @@ std::vector<CPUSpecificParams> getCPUInfoX64() {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"});
     } else if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"});
-    } else if (ov::with_cpu_x86_avx()) {
-        resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx"}, "jit_avx"});
-    } else if (ov::with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"});
     }
     return resCPUParams;
 }
