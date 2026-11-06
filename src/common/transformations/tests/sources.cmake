@@ -67,6 +67,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_clamp_and_fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_moe_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_qsa_indexer_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_rotary_positional_embeddings.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fused_names_cleanup.cpp
@@ -105,6 +106,8 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pad_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_gated_delta_net_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_qsa_indexer_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_sparse_attention_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_selective_ssm_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/preprocessing_fusion_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pull_through_reduce_test.cpp

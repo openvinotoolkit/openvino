@@ -191,6 +191,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/power.cpp
@@ -199,6 +200,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/range.cpp
