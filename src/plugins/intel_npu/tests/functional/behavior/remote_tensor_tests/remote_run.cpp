@@ -637,6 +637,160 @@ TEST_P(RemoteRunTests, ImportCpuVAUsingStandardRemoteTensorAPI) {
     }
 }
 
+TEST_P(RemoteRunTests, ImportCpuVAWithImportSizeBiggerThanTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+        auto shape = Shape{1, 1024};
+        auto shape_size = ov::shape_size(shape);
+        auto model = createModel(element::f32, shape, "N...");
+
+        // import twice the memory required by the tensor
+        const size_t import_size = 2 * shape_size * sizeof(float);
+        auto data = ::operator new(import_size, std::align_val_t(4096));
+        for (size_t i = 0; i < shape_size; ++i) {
+            static_cast<float*>(data)[i] = 5.f;
+        }
+
+        ov::CompiledModel compiled_model;
+        ov::InferRequest inference_request;
+
+        auto context = core->get_default_context(target_device);
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+        ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                             {ov::intel_npu::mem_handle.name(), data},
+                             {ov::intel_npu::import_size.name(), import_size}};
+        ov::RemoteTensor remote_tensor;
+        OV_ASSERT_NO_THROW(remote_tensor = context.create_tensor(ov::element::f32, shape, params));
+        EXPECT_EQ(remote_tensor.get_shape(), shape);
+
+        OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        auto output_tensor = inference_request.get_output_tensor();
+        float* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+
+        float expected_result = 6.0f;
+        for (size_t j = 0; j < output_tensor.get_size(); ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+        }
+
+        inference_request = {};
+        remote_tensor = {};
+
+        ::operator delete(data, std::align_val_t(4096));
+    } else {
+        GTEST_SKIP() << "Standard allocation is not supported by the driver";
+    }
+}
+
+TEST_P(RemoteRunTests, ImportCpuVAUnalignedTensorSizeWithAlignedImportSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    if (std::make_shared<::intel_npu::ZeroInitStructsHolder>()->isExternalMemoryStandardAllocationSupported()) {
+        // tensor size (256 bytes) is not aligned to the page size, so importing it without import_size fails
+        auto shape = Shape{1, 64};
+        auto shape_size = ov::shape_size(shape);
+        auto model = createModel(element::f32, shape, "N...");
+
+        const size_t import_size = 4096;
+        auto data = ::operator new(import_size, std::align_val_t(4096));
+        for (size_t i = 0; i < shape_size; ++i) {
+            static_cast<float*>(data)[i] = 5.f;
+        }
+
+        ov::CompiledModel compiled_model;
+        ov::InferRequest inference_request;
+
+        auto context = core->get_default_context(target_device);
+        OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+        ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                             {ov::intel_npu::mem_handle.name(), data}};
+        ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
+
+        params[ov::intel_npu::import_size.name()] = import_size;
+        ov::RemoteTensor remote_tensor;
+        OV_ASSERT_NO_THROW(remote_tensor = context.create_tensor(ov::element::f32, shape, params));
+        EXPECT_EQ(remote_tensor.get_shape(), shape);
+
+        OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        auto output_tensor = inference_request.get_output_tensor();
+        float* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+
+        float expected_result = 6.0f;
+        for (size_t j = 0; j < output_tensor.get_size(); ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+        }
+
+        inference_request = {};
+        remote_tensor = {};
+
+        ::operator delete(data, std::align_val_t(4096));
+    } else {
+        GTEST_SKIP() << "Standard allocation is not supported by the driver";
+    }
+}
+
+TEST_P(RemoteRunTests, ImportCpuVAWithImportSizeSmallerThanTensorExpectedError) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 1024};
+    const size_t tensor_size = ov::shape_size(shape) * sizeof(float);
+    auto data = ::operator new(tensor_size, std::align_val_t(4096));
+
+    auto context = core->get_default_context(target_device);
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                         {ov::intel_npu::mem_handle.name(), data},
+                         {ov::intel_npu::import_size.name(), tensor_size / 2}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, params),
+                                  ov::Exception,
+                                  "is smaller than the tensor size");
+    ::operator delete(data, std::align_val_t(4096));
+}
+
+TEST_P(RemoteRunTests, ImportSizeWithoutMemTypeExpectedError) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 1024};
+    const size_t tensor_size = ov::shape_size(shape) * sizeof(float);
+
+    auto context = core->get_default_context(target_device);
+
+    ov::AnyMap params = {{ov::intel_npu::import_size.name(), tensor_size}};
+    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
+}
+
+TEST_P(RemoteRunTests, ImportSizeWithNonImportMemTypeExpectedError) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 1024};
+    const size_t tensor_size = ov::shape_size(shape) * sizeof(float);
+
+    auto context = core->get_default_context(target_device);
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
+                         {ov::intel_npu::import_size.name(), tensor_size}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, params),
+                                  ov::Exception,
+                                  "can be set only when importing memory");
+
+    ov::AnyMap file_params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
+                              {ov::intel_npu::file_descriptor.name(), ov::intel_npu::FileDescriptor("dummy_file.bin")},
+                              {ov::intel_npu::import_size.name(), tensor_size}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, file_params),
+                                  ov::Exception,
+                                  "can be set only when importing memory");
+}
+
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
     // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

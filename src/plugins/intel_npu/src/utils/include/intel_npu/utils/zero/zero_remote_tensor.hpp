@@ -27,7 +27,8 @@ public:
                      ov::intel_npu::TensorType zero_tensor_type = ov::intel_npu::TensorType::BINDED,
                      ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
                      const void* memory = nullptr,
-                     const std::optional<ov::intel_npu::FileDescriptor>& file_desc = std::nullopt);
+                     const std::optional<ov::intel_npu::FileDescriptor>& file_desc = std::nullopt,
+                     const std::optional<std::size_t>& import_size = std::nullopt);
 
     /**
      * @brief Returns additional information associated with tensor

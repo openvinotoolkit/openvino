@@ -121,6 +121,28 @@ For more details, see the code snippets below:
                :language: cpp
                :fragment: [allocate_level_zero_host]
 
+Importing More Memory Than the Tensor Size
+++++++++++++++++++++++++++++++++++++++++++
+
+By default, the size of the imported memory is computed from the tensor element type and shape.
+The page-alignment requirement applies to the size of the imported memory, so a tensor whose size is not
+a multiple of the page size cannot be imported from an allocation that is exactly as big as the tensor.
+In such cases, set the ``ov::intel_npu::import_size`` property to the size in bytes of the whole allocation.
+The tensor shape and strides are not affected, only the size of the imported memory changes.
+
+.. doxygensnippet:: docs/articles_en/assets/snippets/npu_remote_objects_creation.cpp
+   :language: cpp
+   :fragment: [import_cpu_va_import_size]
+
+The property follows these rules:
+
+* If it is not set, the size is computed from the tensor element type and shape.
+* If it is set, it must not be smaller than the size computed from the tensor element type and shape.
+* It can be set only when importing memory, that is, when ``ov::intel_npu::mem_type`` is ``SHARED_BUF`` or ``CPU_VA``.
+  Setting it for any other memory type, such as ``L0_INTERNAL_BUF`` or ``MMAPED_FILE``, or without ``ov::intel_npu::mem_type``,
+  results in an error.
+* It can be passed in the ``ov::AnyMap`` of ``ov::RemoteContext::create_tensor()``, or set once when creating the context
+  to apply to every tensor created from it. In the second case, all tensors created from that context must import memory.
 
 Limitations
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

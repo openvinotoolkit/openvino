@@ -212,7 +212,8 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    TensorType zero_tensor_type,
                                    MemType memory_type,
                                    const void* memory,
-                                   const std::optional<FileDescriptor>& file_desc)
+                                   const std::optional<FileDescriptor>& file_desc,
+                                   const std::optional<std::size_t>& import_size)
     : _context(context),
       _init_structs(init_structs),
       _element_type(element_type),
@@ -229,7 +230,20 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
     const auto byte_size = ov::util::get_memory_size_safe(element_type, shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", shape);
 
-    allocate(*byte_size);
+    if (import_size.has_value()) {
+        OPENVINO_ASSERT(*import_size >= *byte_size,
+                        "Import size (",
+                        *import_size,
+                        " bytes) is smaller than the tensor size (",
+                        *byte_size,
+                        " bytes) for type: ",
+                        element_type,
+                        " and shape: ",
+                        shape);
+    }
+
+    // import_size is only accepted for imported memory, so other memory types always use the tensor size
+    allocate(import_size.value_or(*byte_size));
 }
 
 const ov::element::Type& ZeroRemoteTensor::get_element_type() const {
