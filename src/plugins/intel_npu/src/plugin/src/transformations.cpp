@@ -17,9 +17,8 @@ namespace intel_npu {
 
 bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
                                          ov::intel_npu::CompilerType compilerType,
-                                         bool compilationModeSet,
-                                         bool dynamicShapeToStatic) {
-    if (compilerType != ov::intel_npu::CompilerType::PLUGIN || compilationModeSet || dynamicShapeToStatic) {
+                                         bool compilationModeSet) {
+    if (compilerType != ov::intel_npu::CompilerType::PLUGIN || compilationModeSet) {
         return false;
     }
 

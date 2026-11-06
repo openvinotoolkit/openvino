@@ -106,16 +106,13 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(PERFORMANCE_HINT_NUM_REQUESTS);
     REGISTER_OPTION(INFERENCE_PRECISION_HINT);
     REGISTER_OPTION(COMPILATION_MODE_PARAMS);
-    REGISTER_OPTION(DMA_ENGINES);
     REGISTER_OPTION(TILES);
     REGISTER_OPTION(COMPILATION_MODE);
     REGISTER_OPTION(COMPILER_TYPE);
     REGISTER_OPTION(COMPILER_VERSION);
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
-    REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
     REGISTER_OPTION(PROFILING_TYPE);
-    REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
     REGISTER_OPTION(BATCH_MODE);
     REGISTER_OPTION(BYPASS_UMD_CACHING);
     REGISTER_OPTION(DEFER_WEIGHTS_LOAD);
@@ -129,7 +126,6 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
     REGISTER_OPTION(ALLOW_BYTECODE);
-    REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
     REGISTER_OPTION(SEPARATE_WEIGHTS_VERSION);
@@ -298,10 +294,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
-    if (should_use_host_compile_interpreter(model,
-                                            compilerType,
-                                            localConfig.has<COMPILATION_MODE>(),
-                                            localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+    if (should_use_host_compile_interpreter(model, compilerType, localConfig.has<COMPILATION_MODE>())) {
         _logger.info(
             "NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
             "for dynamic model (at least one input has a dynamic non-batch dimension, all input ranks static)");
