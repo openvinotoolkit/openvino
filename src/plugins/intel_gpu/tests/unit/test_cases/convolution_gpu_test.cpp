@@ -5289,6 +5289,136 @@ TEST(convolution_gpu, basic_yxfb_4_4_yxfb_2_2_b16_if2_of16_st2_2_p0_sp1_fp16)
     }
 }
 
+struct convolution_yxfb_yxio_b16_params {
+    data_types data_type;
+    int batch;
+    int input_features;
+    int output_features;
+    bool with_bias;
+};
+
+class convolution_yxfb_yxio_b16_accuracy : public ::testing::TestWithParam<convolution_yxfb_yxio_b16_params> {
+public:
+    static std::string get_test_name(const ::testing::TestParamInfo<convolution_yxfb_yxio_b16_params>& info) {
+        const auto& p = info.param;
+        return ov::element::Type(p.data_type).get_type_name() + "_b" + std::to_string(p.batch) + "_ifm" +
+               std::to_string(p.input_features) + "_ofm" + std::to_string(p.output_features) +
+               (p.with_bias ? "_bias" : "_nobias");
+    }
+
+protected:
+    template <typename T>
+    void run(const convolution_yxfb_yxio_b16_params& p) {
+        auto& engine = get_test_engine();
+
+        constexpr int in_xy = 5;
+        constexpr int k = 3;
+        constexpr int pad = 1;
+        constexpr int out_xy = in_xy + 2 * pad - k + 1;
+
+        const layout in_layout{ov::PartialShape{p.batch, p.input_features, in_xy, in_xy}, p.data_type, format::bfyx};
+        const layout w_layout{ov::PartialShape{p.output_features, p.input_features, k, k}, p.data_type, format::bfyx};
+        const layout b_layout{ov::PartialShape{1, p.output_features, 1, 1}, p.data_type, format::bfyx};
+
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto input_vals = rg.generate_random_1d<T>(in_layout.count(), -0.5, 0.5);
+        auto weights_vals = rg.generate_random_1d<T>(w_layout.count(), -0.5, 0.5);
+        auto bias_vals = rg.generate_random_1d<T>(b_layout.count(), -0.5, 0.5);
+
+        auto input = engine.allocate_memory(in_layout);
+        auto weights = engine.allocate_memory(w_layout);
+        set_values(input, input_vals);
+        set_values(weights, weights_vals);
+
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(data("weights", weights));
+        topology.add(reorder("input_yxfb", input_info("input"), format::yxfb, p.data_type));
+        std::string bias_id = no_bias;
+        if (p.with_bias) {
+            auto bias = engine.allocate_memory(b_layout);
+            set_values(bias, bias_vals);
+            topology.add(data("bias", bias));
+            bias_id = "bias";
+        }
+        topology.add(convolution("conv", input_info("input_yxfb"), "weights", bias_id, 1, {1, 1}, {1, 1}, {pad, pad}, {pad, pad}, false));
+        topology.add(reorder("output", input_info("conv"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc conv_impl = {format::yxfb, "convolution_gpu_yxfb_yxio_b16", impl_types::ocl};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+
+        network network(engine, topology, config);
+        ASSERT_NE(network.get_implementation_info("conv").find("convolution_gpu_yxfb_yxio_b16"), std::string::npos)
+            << network.get_implementation_info("conv");
+
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        auto output_memory = outputs.at("output").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+
+        const float tolerance = p.data_type == data_types::f16 ? 1e-2f : 1e-4f;
+        for (int b = 0; b < p.batch; ++b) {
+            for (int of = 0; of < p.output_features; ++of) {
+                for (int y = 0; y < out_xy; ++y) {
+                    for (int x = 0; x < out_xy; ++x) {
+                        float expected = p.with_bias ? static_cast<float>(bias_vals[of]) : 0.f;
+                        for (int ifm = 0; ifm < p.input_features; ++ifm) {
+                            for (int ky = 0; ky < k; ++ky) {
+                                const int iy = y + ky - pad;
+                                if (iy < 0 || iy >= in_xy)
+                                    continue;
+                                for (int kx = 0; kx < k; ++kx) {
+                                    const int ix = x + kx - pad;
+                                    if (ix < 0 || ix >= in_xy)
+                                        continue;
+                                    const size_t in_idx = ((b * p.input_features + ifm) * in_xy + iy) * in_xy + ix;
+                                    const size_t w_idx = ((of * p.input_features + ifm) * k + ky) * k + kx;
+                                    expected += static_cast<float>(input_vals[in_idx]) * static_cast<float>(weights_vals[w_idx]);
+                                }
+                            }
+                        }
+                        const size_t out_idx = ((b * p.output_features + of) * out_xy + y) * out_xy + x;
+                        ASSERT_NEAR(expected, output_ptr[out_idx], tolerance)
+                            << "b=" << b << " f=" << of << " y=" << y << " x=" << x;
+                    }
+                }
+            }
+        }
+    }
+};
+
+TEST_P(convolution_yxfb_yxio_b16_accuracy, basic) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_intel_subgroups) {
+        GTEST_SKIP() << "cl_intel_subgroups is not supported";
+    }
+    if (p.data_type == data_types::f16) {
+        if (!engine.get_device_info().supports_fp16) {
+            GTEST_SKIP() << "cl_khr_fp16 is not supported";
+        }
+        run<ov::float16>(p);
+    } else {
+        run<float>(p);
+    }
+}
+
+// OFM is a multiple of OFM_PER_WORK_ITEM so the last OFM block ends exactly at the end of the filter/bias buffers.
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         convolution_yxfb_yxio_b16_accuracy,
+                         ::testing::Values(
+                             convolution_yxfb_yxio_b16_params{data_types::f16, 16, 3, 16, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f16, 16, 8, 32, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f16, 32, 8, 32, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f16, 64, 8, 48, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f16, 64, 8, 32, false},
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 32, 3, 16, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 32, 4, 24, true},
+                             convolution_yxfb_yxio_b16_params{data_types::f32, 64, 4, 32, false}),
+                         convolution_yxfb_yxio_b16_accuracy::get_test_name);
+
 using TestParamType_convolution_gpu = ::testing::tuple<int,   // 0 - Filter size
                                                        int,   // 1 - Input features
                                                        int,   // 2 - Stride
