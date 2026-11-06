@@ -45,7 +45,9 @@ keys, `imports`, `safe-outputs`, tools, and the `gh aw compile` workflow.
   `ci-doctor-remediation.md` reuses the `collect-ci-doctor-history.md` step fragment
   (`collect_ci_doctor_history.py`) to pre-download the recent knowledge base. Do not assume this is the
   complete list — check `.github/workflows/*.md` for the current set of `gh-aw` sources, since more
-  will be added over time.
+  will be added over time. The deterministic companion
+  [`ci-doctor-mq-readd.yml`](../../../.github/workflows/ci-doctor-mq-readd.yml) is a plain GitHub
+  Actions workflow, not an agentic source.
 
 ## Golden rules
 
@@ -172,11 +174,17 @@ them — see below):
 - **`workflow_run` branch scope** (`CTR-021`, gh-aw ≥ v0.93) — `on.workflow_run.branches` must be a
   non-empty positive list. For merge-queue triggers use `gh-readonly-queue/**`: merge-queue runs always
   execute on those base-repo branches, even for PRs from forks.
+- **Merge-queue re-add marker race** — a PR `dequeued` event can reach the deterministic companion
+  before CI Doctor MQ finishes analysis. Pair the dequeue trigger with an analysis-completion fallback,
+  bind the marker to the current PR head and both run IDs, and verify the bot author and latest
+  `failed_checks` removal. Any `pull_request_target` companion must use trusted default-branch code and
+  never check out or execute PR-head content.
 - **Teams source badge** (`notify-teams.md`) — the shared Teams job is used by both `ci-doctor-mq` and
   `ci-doctor-post-commit`; each must pass the `source` input (`merge_queue` / `post_commit`) so the
   card shows the right `[MQ]` / `[PC]` badge and uploads the correctly-named statistics artifact.
 - **Secrets** — new Teams/queue-style behavior may need dedicated secrets (e.g. `TEAMS_WEBHOOK_URL`,
-  `MERGE_QUEUE_TOKEN`); the default `GITHUB_TOKEN` cannot re-trigger `merge_group` runs.
+  `MERGE_QUEUE_TOKEN`); the default `GITHUB_TOKEN` cannot re-trigger `merge_group` runs. Keep the
+  queue-modification token in the deterministic re-add workflow, not the analysis agent.
 - **Import ordering** (`ci-doctor-*.md` fragments) — gh-aw inlines imported bodies *before* the
   workflow's own body, in `imports:` order; workflow-specific text can therefore only follow the shared
   protocol, never interleave with it. Keep the `name:` frontmatter key so the fragment's H1 does not
