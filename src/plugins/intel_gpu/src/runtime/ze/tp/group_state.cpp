@@ -5,6 +5,7 @@
 #include "group_state.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -448,6 +449,7 @@ void GroupState::ensure_staging(Staging& s,
                         " bytes of staging, the fixed staging has ",
                         s.bytes);
     } else if (need > s.bytes) {
+        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_staging_grow");
         ScopedTime stall(m_options.profiling_host, m_stats.scratch_stall_ns);
         if (Splice* last = m_last_splice[static_cast<std::size_t>(rank)]) {
             if (await_splice(*last, rank, collective_id) && m_options.profiling_host && last->allreduce) {

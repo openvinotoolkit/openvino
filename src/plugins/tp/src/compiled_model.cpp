@@ -9,6 +9,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "tp/itt.hpp"
 #include "openvino/runtime/plugin_managed_cache.hpp"
 #include "remote_context.hpp"
 #include "tp_blob.hpp"
@@ -97,6 +98,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 }
 
 void CompiledModel::export_model(std::ostream& stream) const {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_plugin, "TP::export_model");
     stream.write(tp_blob::magic, sizeof(tp_blob::magic));
     tp_blob::write_trivial<uint32_t>(stream, tp_blob::version);
     tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_rank_compiled.size()));

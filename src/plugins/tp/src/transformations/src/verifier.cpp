@@ -4,6 +4,8 @@
 
 #include "tp_transformations/verifier.hpp"
 
+#include "itt.hpp"
+
 #include <algorithm>
 #include <map>
 #include <optional>
@@ -1140,6 +1142,7 @@ private:
 }  // namespace
 
 bool TPShardingVerifier::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_transforms, "TPShardingVerifier");
     Verifier(m_world_size, m_dump).run(*model);
     return false;
 }

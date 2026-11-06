@@ -19,6 +19,8 @@ namespace domains {
     // Domain namespace for all of the operators
     OV_ITT_DOMAIN(intel_gpu_op, "ov::op::gpu");
     OV_ITT_DOMAIN(intel_gpu_plugin, "ov::intel_gpu");
+    // The TP collectives
+    OV_ITT_DOMAIN(tp_collective, "ov::tp::collective");
 }  // namespace domains
 }  // namespace itt
 }  // namespace ov::intel_gpu

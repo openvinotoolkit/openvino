@@ -23,6 +23,7 @@
 #include "tp_transformations/rank_passes.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/tp_collective.hpp"
+#include "tp/itt.hpp"
 #include "tp/tp_config.hpp"
 #include "tp/tp_debug.hpp"
 #include "openvino/runtime/icore.hpp"
@@ -367,6 +368,7 @@ std::vector<ov::SoPtr<ov::IRemoteContext>> Plugin::create_rank_contexts(const st
     // the rank's setup payload, and the device plugin collects them all when
     // the first rank model is bound, by which time every rank has published.
     const auto rank_count = static_cast<int>(device_names.size());
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_plugin, "TP::create_rank_contexts");
     const auto timeout_ms = config.get_communication_timeout_ms();
     auto endpoints = InProcessExchange::create_group(rank_count, std::chrono::milliseconds{timeout_ms});
 
@@ -414,6 +416,7 @@ void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, o
 }
 
 void Plugin::check_collective_support(const std::vector<std::string>& device_names, const TPConfig& config) const {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_plugin, "TP::check_collective_support");
     const auto type = TPConfig::device_type(device_names);
     const auto internal = get_core()->get_property(type, ov::internal::supported_properties);
     OPENVINO_ASSERT(ov::util::contains(internal, ov::tp::internal::collective_support.name()),
@@ -443,6 +446,7 @@ std::vector<std::string> Plugin::device_uuids(const std::vector<std::string>& de
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_plugin, "TP::compile_model");
     TPConfig cfg;
     ov::AnyMap config;
     build_call_config(properties, cfg, config);
@@ -504,6 +508,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             strip_collectives(rank_model);
             rank_compiled[rank] = get_core()->compile_model(rank_model, device_names[rank], config);
         } else {
+            OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_plugin, "TP::compile_rank");
             rank_compiled[rank] = get_core()->compile_model(rank_model, rank_contexts[rank], config);
         }
     }
@@ -653,6 +658,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_plugin, "TP::import_model");
     TPConfig cfg;
     ov::AnyMap config;
     build_call_config(properties, cfg, config);

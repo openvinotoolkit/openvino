@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "block_utils.hpp"
+#include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
@@ -41,6 +42,7 @@ TPLayerAnalyzer::TPLayerAnalyzer(const TPAnalyzerConfig& config, TPAnalysisRepor
       m_report(report ? std::move(report) : std::make_shared<TPAnalysisReport>()) {}
 
 bool TPLayerAnalyzer::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_transforms, "TPLayerAnalyzer");
     OPENVINO_ASSERT(m_config.world_size >= 2, "[TP] the analysis needs at least 2 ranks");
 
     ov::pass::Manager manager("TPLayerAnalyzer");
@@ -52,7 +54,10 @@ bool TPLayerAnalyzer::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<TPDenseMLPBlock>(m_config, m_report);
     if (m_config.shard_lm_head)
         manager.register_pass<TPVocabParallelBlock>(m_config, m_report);
-    manager.run_passes(model);
+    {
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_transforms, "TPBlockPasses");
+        manager.run_passes(model);
+    }
 
     OPENVINO_ASSERT(m_report->attention_blocks > 0,
                     "[TP] Could not identify transformer layers for TP: the model contains neither "

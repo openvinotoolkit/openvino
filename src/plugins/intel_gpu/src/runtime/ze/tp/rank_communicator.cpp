@@ -4,6 +4,8 @@
 
 #include "rank_communicator.hpp"
 
+#include "intel_gpu/runtime/itt.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <cstring>
@@ -132,6 +134,7 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
 }
 
 void RankCommunicator::connect(int num_collectives) {
+    OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_communicator_connect");
     const auto blobs = m_exchange->collect();
     OPENVINO_ASSERT(blobs.size() == static_cast<size_t>(m_world_size),
                     "[GPU][TP] collected ", blobs.size(), " payloads for ", m_world_size, " ranks");

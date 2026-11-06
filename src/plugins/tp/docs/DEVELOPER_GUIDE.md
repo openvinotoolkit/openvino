@@ -129,6 +129,20 @@ Verbosity and profiling are deliberately separate: raising the verbosity to see
 what a run is doing should not start timing it, and asking for timings should
 not require guessing which log level carries them.
 
+ITT tasks (`OV_ITT_SCOPED_TASK_BASE`, on in every build with the default `ENABLE_PROFILING_ITT=BASE`;
+nothing measurable without a collector attached) cover the rest for VTune or any ITT collector:
+
+| Domain | Tasks |
+|---|---|
+| `ov::tp::plugin` | `TP::compile_model`, `TP::check_collective_support`, `TP::create_rank_contexts`, `TP::compile_rank` (one per rank, in rank order), `TP::import_model`, `TP::export_model` |
+| `ov::tp::transforms` | `TPLayerAnalyzer` > `TPBlockPasses`, `TPShardingVerifier`; `TPWeightShardingPass`, `TPInsertCollectives` (per rank) |
+| `ov::tp::inference` | `TP::infer` > `TP::set_rank_inputs`, `TP::run_ranks` > `TP::rank_infer` (on each rank's worker thread), `TP::collect_outputs`; `TP::state_reset` / `state_set` / `state_get` |
+| `ov::tp::collective` (GPU) | per call on the rank's thread: `tp_allreduce_rendezvous`, `tp_allreduce_wait_previous_splice`, `tp_allreduce_record` (only when it re-records), `tp_allreduce_append` or `tp_allreduce_execute_sync`; `tp_gather_rendezvous`, `tp_gather_append`; `tp_communicator_connect`, `tp_staging_grow` |
+
+Without VTune, the ITT API's reference collector logs every task: build
+`thirdparty/ittapi/ittapi/src/ittnotify_refcol/itt_refcol_impl.c` as a shared library and set
+`INTEL_LIBITTNOTIFY64=<lib>` (`INTEL_LIBITTNOTIFY_LOG_DIR=<dir>` for the log).
+
 Both sides write every message whole, so lines of concurrently logging ranks do not interleave.
 `OV_TP_LOG_TO_FILE=<file>` sends the plugin's messages and reports there instead of the standard
 output; the collectives follow the GPU plugin's own `OV_GPU_LOG_TO_FILE=<file>`. Give the two

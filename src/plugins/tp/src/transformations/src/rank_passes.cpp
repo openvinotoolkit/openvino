@@ -6,6 +6,8 @@
 
 #include <cstring>
 
+#include "itt.hpp"
+
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -118,6 +120,7 @@ ov::Output<ov::Node> runtime_slice(const ov::Output<ov::Node>& source, int64_t a
 }  // namespace
 
 bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_transforms, "TPWeightShardingPass");
     TPShardingStats stats;
     for (const auto& node : model->get_ordered_ops()) {
         const auto* annotation = get_shard(*node);
@@ -174,6 +177,7 @@ bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model)
 }
 
 bool TPInsertCollectives::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_transforms, "TPInsertCollectives");
     for (const auto& node : model->get_ordered_ops()) {
         const auto* role = get_role(*node);
         if (!role || role->collective == Collective::NONE)

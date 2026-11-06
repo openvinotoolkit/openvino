@@ -14,6 +14,7 @@
 #include <string>
 
 #include "openvino/core/except.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #define ZE_THROW(expr) OV_ZE_EXPECT(expr)
 
@@ -604,13 +605,16 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     };
 
     const auto t0 = stamp();
-    group.begin_allreduce(rank,
-                          collective_id,
-                          n,
-                          dtype,
-                          half_bytes(plan.chunk_elems * dtype.size(), plan.halving),
-                          plan.count,
-                          m_call);
+    {
+        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_allreduce_rendezvous");
+        group.begin_allreduce(rank,
+                              collective_id,
+                              n,
+                              dtype,
+                              half_bytes(plan.chunk_elems * dtype.size(), plan.halving),
+                              plan.count,
+                              m_call);
+    }
     const auto t1 = stamp();
     const int parity = m_call.parity;
     if (measure_host && rank == 0 && plan.count > 1) {
@@ -654,6 +658,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
         if (m_sig[parity] == sig) {
             return;
         }
+        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_allreduce_record");
         const auto rec0 = stamp();
         m_sig[parity] = std::move(sig);
         record(parity);
@@ -675,6 +680,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
         // Two parities alternate, so this asks about work handed over two
         // collectives ago, which is normally long done.
         if (splice.in_flight.load(std::memory_order_acquire)) {
+            OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_allreduce_wait_previous_splice");
             const auto w0 = stamp();
             ze_result_t res = ze_api()->zeEventQueryStatus(splice.done);
             if (res == ZE_RESULT_NOT_READY) {
@@ -751,7 +757,10 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
 
         record_if_stale();
         const auto a0 = stamp();
-        m_rec.splice_into(model_queue, parity);
+        {
+            OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_allreduce_append");
+            m_rec.splice_into(model_queue, parity);
+        }
         if (measure_host) {
             st.p2_append_ns[rank].add(elapsed_ns(a0, clk::now()));
             const uint64_t depth = st.ahead_now[rank].v.fetch_add(1, std::memory_order_relaxed) + 1;
@@ -773,6 +782,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
         record_if_stale();
         const std::string what = "allreduce: queue rank " + std::to_string(rank) + " (n=" + std::to_string(n) +
                                  (m_world_size > 2 ? ", ring" : "") + ")";
+        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_allreduce_execute_sync");
         group.execute_and_wait(rank, m_rec.list(parity), what.c_str());
         te1 = stamp();
     }

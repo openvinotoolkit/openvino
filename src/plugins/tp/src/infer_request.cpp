@@ -18,6 +18,7 @@
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "tp/itt.hpp"
 
 namespace ov {
 namespace tp {
@@ -51,6 +52,7 @@ public:
           m_period(dump_period) {}
 
     void reset() override {
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::state_reset");
         if (TP_VERBOSE_AT_LEAST(ov::log::Level::DEBUG)) {
             // Two ranks sharing a pointer would mean the states were aliased
             // rather than paired by name, and reset() would reach one rank --
@@ -76,6 +78,7 @@ public:
     }
 
     void set_state(const ov::SoPtr<ov::ITensor>& state) override {
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::state_set");
         if (!m_sharded || m_per_rank.size() == 1) {
             for (auto& s : m_per_rank)
                 s->set_state(state);
@@ -119,6 +122,7 @@ public:
     }
 
     ov::SoPtr<ov::ITensor> get_state() const override {
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::state_get");
         OPENVINO_ASSERT(!m_per_rank.empty(), "[TP] variable '", get_name(), "' has no per-rank states");
         if (!m_sharded || m_per_rank.size() == 1) {
             return m_per_rank.front()->get_state();
@@ -395,6 +399,7 @@ void InferRequest::check_tensors() const {
 }
 
 void InferRequest::set_rank_inputs() {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::set_rank_inputs");
     const auto& user_inputs = m_compiled_model->inputs();
     const auto& rank_ports = m_rank_requests[0]->get_compiled_model()->inputs();
 
@@ -413,6 +418,7 @@ void InferRequest::set_rank_inputs() {
 }
 
 void InferRequest::run_ranks() {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::run_ranks");
     if (m_rank_requests.size() == 1) {
         ScopedTime timer(m_profiling, m_rank_time[0]);
         m_rank_requests[0]->infer();
@@ -424,12 +430,14 @@ void InferRequest::run_ranks() {
         if (m_profiling) {
             m_rank_start[rank] = launch.elapsed();
         }
+        OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::rank_infer");
         ScopedTime timer(m_profiling, m_rank_time[rank]);
         m_rank_requests[rank]->infer();
     });
 }
 
 void InferRequest::collect_outputs() {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::collect_outputs");
     const auto& outputs = m_compiled_model->outputs();
     const auto& rank_ports = m_rank_requests[0]->get_compiled_model()->outputs();
 
@@ -465,6 +473,7 @@ void InferRequest::report_breakdown(const Stages& stages) {
 }
 
 void InferRequest::infer() {
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::tp_inference, "TP::infer");
     // One TP request at a time on these devices, so two requests cannot mix
     // their ranks in one collective call.
     [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();

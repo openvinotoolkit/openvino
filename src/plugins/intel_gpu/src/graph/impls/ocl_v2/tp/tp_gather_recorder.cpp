@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #define ZE_THROW(expr) OV_ZE_EXPECT(expr)
 
@@ -161,7 +162,10 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
     const bool g_dev = group.options().profiling_device;
     const Stopwatch since_entry(g_host);
 
-    group.begin_gather(rank, collective_id, rows, slice_elems, dtype, out, m_call);
+    {
+        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_gather_rendezvous");
+        group.begin_gather(rank, collective_id, rows, slice_elems, dtype, out, m_call);
+    }
     const int parity = m_call.parity;
     if (g_host) {
         st.gather_barrier_ns[rank].add(since_entry.elapsed().ns());
@@ -230,7 +234,10 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
         group.await_splice(splice, rank, collective_id);
         record_if_stale();
         const Stopwatch splice_time(g_host);
-        m_rec.splice_into(model_queue, parity);
+        {
+            OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::tp_collective, "tp_gather_append");
+            m_rec.splice_into(model_queue, parity);
+        }
         if (g_host) {
             st.gather_append_ns[rank].add(splice_time.elapsed().ns());
             st.gather_spliced[rank].bump();
