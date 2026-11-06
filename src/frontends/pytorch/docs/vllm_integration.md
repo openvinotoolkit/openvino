@@ -1,10 +1,14 @@
 # vLLM integration architecture
 
-The `torch.compile` OpenVINO backend can run the per-step forward of vLLM's CPU model runner. vLLM keeps
+The `torch.compile` OpenVINO backend can run the per-step forward of vLLM's model runner. vLLM keeps
 scheduling, batching, the KV-cache pool and sampling; OpenVINO executes the model graph, including paged
 attention. This page describes how the pieces fit together for developers of the frontend and the backend.
 Installation, usage, environment variables and troubleshooting are in the
 [user guide](../../../bindings/python/src/openvino/frontend/pytorch/torchdynamo/vllm/README.md).
+
+The integration currently targets CPU: it patches vLLM's CPU model runner and compiles for the OpenVINO CPU
+device, so the CPU-specific details below (the CPU PagedAttention kernel, the CPU compile config) describe that
+path. Support for GPU and NPU will be added in the future.
 
 ## Components
 
