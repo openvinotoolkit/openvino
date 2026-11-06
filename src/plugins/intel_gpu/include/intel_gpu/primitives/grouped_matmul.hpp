@@ -63,10 +63,13 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
     input_info decompression_scale;
     input_info decompression_zero_point;
     std::optional<float> decompression_zero_point_scalar;
+    /// @brief When > 0, no group has more than total_tokens / rows_per_token rows (MoE: a token visits an expert once).
+    size_t rows_per_token = 0;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, compressed_weights);
+        seed = hash_combine(seed, rows_per_token);
         seed = hash_combine(seed, decompression_scale.is_valid());
         seed = hash_combine(seed, decompression_zero_point.is_valid());
         seed = hash_combine(seed, decompression_zero_point_scalar.has_value());
@@ -79,7 +82,7 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
             return false;
         }
         auto rhs_casted = downcast<const grouped_matmul>(rhs);
-        return compressed_weights == rhs_casted.compressed_weights &&
+        return compressed_weights == rhs_casted.compressed_weights && rows_per_token == rhs_casted.rows_per_token &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
                decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
                decompression_zero_point_scalar.value_or(0.0f) ==
@@ -89,6 +92,7 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<grouped_matmul>::save(ob);
         ob << compressed_weights;
+        ob << rows_per_token;
         ob << decompression_scale;
         ob << decompression_zero_point;
         if (decompression_zero_point_scalar.has_value()) {
@@ -102,6 +106,7 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
     void load(BinaryInputBuffer& ib) override {
         primitive_base<grouped_matmul>::load(ib);
         ib >> compressed_weights;
+        ib >> rows_per_token;
         ib >> decompression_scale;
         ib >> decompression_zero_point;
         bool has_value = false;

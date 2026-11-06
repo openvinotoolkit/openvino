@@ -4062,5 +4062,69 @@ TEST(grouped_matmul_gpu_tests, smoke_2d_3d_f16) {
         ASSERT_LE(diff, tol) << "mismatch at i=" << i << ": gpu=" << gpu_out[i] << ", ref=" << ref_out[i];
     }
 }
+
+// rows_per_token = top_k sets the oneDNN max-group-size hint to total_rows / top_k. The routings below give one
+// expert every token, so the hint equals the real max and any row the dispatch drops shows up as a mismatch.
+TEST(grouped_matmul_gpu_tests, rows_per_token_hint_f16) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "grouped_matmul onednn impl requires XMX/DPAS support (Xe-HPG+)";
+
+    constexpr size_t G = 4;
+    constexpr size_t K = 128;
+    constexpr size_t N = 64;
+    constexpr size_t top_k = 2;
+
+    auto mat_b_f16 = tests::random_generator("grouped_matmul_hint_b").generate_random_1d<ov::float16>(G * N * K, -1, 1, 8);
+    auto mat_b_mem = engine.allocate_memory({ov::PartialShape{G, N, K}, data_types::f16, format::bfyx});
+    set_values(mat_b_mem, mat_b_f16);
+
+    topology tp;
+    tp.add(input_layout("mat_a", layout{ov::PartialShape{-1, static_cast<int64_t>(K)}, data_types::f16, format::bfyx}));
+    tp.add(data("mat_b", mat_b_mem));
+    tp.add(input_layout("offsets", layout{ov::PartialShape{G}, data_types::i32, format::bfyx}));
+    auto gmm = grouped_matmul("gmm", {input_info("mat_a"), input_info("mat_b"), input_info("offsets")}, data_types::f16);
+    gmm.rows_per_token = top_k;
+    tp.add(gmm);
+    tp.add(reorder("output", input_info("gmm"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net(engine, tp, config);
+
+    // Rows per expert for T tokens with top_k = 2; the max is T in each case.
+    const std::vector<std::vector<int32_t>> routings = {{200, 150, 50, 0}, {24, 0, 12, 12}, {0, 300, 0, 300}};
+    for (const auto& rows_per_expert : routings) {
+        const size_t rows = std::accumulate(rows_per_expert.begin(), rows_per_expert.end(), size_t{0});
+        std::vector<int32_t> offsets(G);
+        std::partial_sum(rows_per_expert.begin(), rows_per_expert.end(), offsets.begin());
+
+        auto mat_a_f16 = tests::random_generator("grouped_matmul_hint_a").generate_random_1d<ov::float16>(rows * K, -1, 1, 8);
+        auto mat_a_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(rows), K}, data_types::f16, format::bfyx});
+        auto off_mem = engine.allocate_memory({ov::PartialShape{G}, data_types::i32, format::bfyx});
+        set_values(mat_a_mem, mat_a_f16);
+        set_values(off_mem, offsets);
+
+        net.set_input_data("mat_a", mat_a_mem);
+        net.set_input_data("offsets", off_mem);
+        auto out_mem = net.execute().at("output").get_memory();
+        cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
+
+        std::vector<ov::float16> ref_out(rows * N, ov::float16(0.f));
+        ov::reference::grouped_matmul_2d_3d<ov::float16, int32_t>(mat_a_f16.data(),
+                                                                  mat_b_f16.data(),
+                                                                  offsets.data(),
+                                                                  ref_out.data(),
+                                                                  ov::Shape{rows, K},
+                                                                  ov::Shape{G, N, K});
+        // Dynamic-shape outputs may be preallocated beyond the current shape
+        ASSERT_GE(out_ptr.size(), ref_out.size());
+        for (size_t i = 0; i < ref_out.size(); ++i) {
+            const float ref = static_cast<float>(ref_out[i]);
+            ASSERT_NEAR(out_ptr[i], ref, 0.05f * std::max(1.f, std::abs(ref))) << "rows=" << rows << ", i=" << i;
+        }
+    }
+}
 #endif  // ENABLE_ONEDNN_FOR_GPU
 } // namespace

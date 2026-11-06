@@ -82,6 +82,10 @@ protected:
         args.insert({DNNL_ARG_DST, output.get_onednn_grouped_memory(_pd.dst_desc(0), offsets)});
 
         const auto& prim = instance.get_impl_params()->typed_desc<grouped_matmul>();
+        if (prim->rows_per_token > 0) {
+            const auto rows = instance.get_input_layout(grouped_matmul::GroupedMatmulInputIdx::INPUT).get_shape()[0];
+            args.insert({DNNL_ARG_HINT_MAX_GROUP_SIZE, make_grouped_matmul_hint(static_cast<int32_t>(rows / prim->rows_per_token))});
+        }
         if (prim->compressed_weights) {
             const auto q = get_quant(*instance.get_impl_params());
             const auto& wei_shape = instance.get_input_layout(grouped_matmul::GroupedMatmulInputIdx::WEIGHT).get_shape();

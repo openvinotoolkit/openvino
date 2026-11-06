@@ -95,6 +95,7 @@
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_expert_sort.hpp"
 #include "plugin/transformations/fuse_moe_scatter_reduce.hpp"
+#include "plugin/transformations/mark_grouped_matmul_rows_per_token.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
@@ -905,6 +906,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
                 manager.register_pass<ov::intel_gpu::FuseMoEExpertSort>(device_info.max_work_group_size);
                 manager.register_pass<ov::intel_gpu::FuseMoEScatterReduce>();
+                manager.register_pass<ov::intel_gpu::MarkGroupedMatMulRowsPerToken>();
             }
         }
 

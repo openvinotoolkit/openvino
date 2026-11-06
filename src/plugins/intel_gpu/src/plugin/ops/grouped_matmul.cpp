@@ -11,6 +11,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "ov_ops/grouped_matmul_compressed.hpp"
+#include "plugin/transformations/mark_grouped_matmul_rows_per_token.hpp"
 
 namespace ov::intel_gpu {
 
@@ -28,6 +29,12 @@ static void ensure_i32_offsets(ProgramBuilder& p,
     auto reorder_prim = cldnn::reorder(reorder_id, inputs[offsets_idx], fmt, cldnn::data_types::i32);
     p.add_primitive(*op, reorder_prim);
     inputs[offsets_idx] = cldnn::input_info(reorder_id);
+}
+
+static size_t get_rows_per_token(const std::shared_ptr<ov::Node>& op) {
+    const auto& rt = op->get_rt_info();
+    const auto it = rt.find(grouped_matmul_rows_per_token_key);
+    return it == rt.end() ? 0 : static_cast<size_t>(it->second.as<int64_t>());
 }
 
 static void CreateGroupedMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v17::GroupedMatMul>& op) {
@@ -73,7 +80,8 @@ static void CreateGroupedMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::o
 
     ensure_i32_offsets(p, op, inputs, /*offsets_idx=*/2);
 
-    const cldnn::grouped_matmul prim(layer_name, inputs, output_dt);
+    cldnn::grouped_matmul prim(layer_name, inputs, output_dt);
+    prim.rows_per_token = get_rows_per_token(op);
     p.add_primitive(*op, prim);
 }
 
@@ -162,6 +170,7 @@ static void CreateGroupedMatMulCompressedOp(ProgramBuilder& p,
     if (has_scalar_zp) {
         prim.decompression_zero_point_scalar = zp_scalar_value;
     }
+    prim.rows_per_token = get_rows_per_token(op);
     p.add_primitive(*op, prim);
 }
 
