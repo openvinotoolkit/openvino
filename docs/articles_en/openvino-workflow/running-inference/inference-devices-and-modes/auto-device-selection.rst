@@ -250,8 +250,11 @@ string; plain ``AUTO`` uses its usual eligible devices.
   Core reuses compatible cache blobs and may rebuild invalid ones.
 
 Warm-up compiles one device at a time and releases each temporary compiled model. Background compilation adds
-memory overhead, including a private clone for in-memory models. Destroying the AUTO compiled model cancels pending warm-ups
-and waits for any compilation already in progress.
+memory overhead, including a private clone for in-memory models. Destroying the AUTO compiled model cancels pending
+warm-ups and waits for any compilation already in progress.
+
+GPU warm-up runs with low host task priority, but the CPU plugin has no equivalent setting. A background CPU warm-up
+therefore competes with ongoing inference for host CPU cores and memory bandwidth.
 
 See :doc:`Model Caching Overview <../optimize-inference/optimizing-latency/model-caching-overview>` for cache settings.
 

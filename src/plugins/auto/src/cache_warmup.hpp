@@ -25,8 +25,8 @@ class CacheWarmupManager;
 // exist the next time the model is loaded (e.g. when a different device is picked later). Needs a cache dir/path.
 //
 // Flow:
-//  1. start() is called once the actual device is known. It filters out the actual device and CPU, then hands this
-//     object to CacheWarmupManager (once per object).
+//  1. start() is called once the actual device is known. It filters out the actual device, then hands this object
+//     to CacheWarmupManager (once per object).
 //  2. The manager's single worker thread calls run(), which handles the devices one by one:
 //     - caching disabled for the device (no cache dir/path) -> skip;
 //     - the blob for this model/config is already in the cache -> skip;

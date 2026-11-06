@@ -658,9 +658,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                                 })) {
             // Independent of how many devices the host has, so the contract of an explicit true is the same everywhere.
             OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
-        } else if (auto_s_context->m_device_priorities_initial.size() < 2) {
-            LOG_WARNING_TAG("compile_for_all is ignored: no other candidate device to compile");
-            auto_s_context->m_compile_for_all = false;
         }
     }
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);

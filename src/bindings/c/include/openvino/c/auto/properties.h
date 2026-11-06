@@ -35,10 +35,9 @@ ov_property_key_intel_auto_enable_runtime_fallback;
 
 /**
  * @brief Boolean property to enable background cache warm-up for other eligible AUTO candidate devices.
- * In the C API, pass the string value "YES" or "NO". Requires ov::cache_dir or ov::cache_path; the property
- * may be ignored in cumulative throughput mode or when ov::cache_blob_id is configured for AUTO or a candidate.
- * When another candidate exists at scheduling initialization and this property is active, startup and runtime fallbacks
- * are disabled for this compile, even if startup retries later remove all remaining warm-up candidates.
+ * In the C API, pass the string value "YES" or "NO". Requires ov::cache_dir or ov::cache_path; the property is
+ * ignored in cumulative throughput mode or when ov::cache_blob_id is set. When active, startup and runtime fallbacks
+ * are disabled for this compile.
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)

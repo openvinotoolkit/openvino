@@ -278,13 +278,18 @@ TEST_F(AutoCacheWarmupTest, warmsUpOtherCpuIdWhenAllCandidatesAreCpu) {
 TEST_F(AutoCacheWarmupTest, disablesStartupAndRuntimeFallback) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, "GPU.0", actual_device});
+    std::atomic<bool> actual_ready{false};
     std::atomic<int> cpu_count{0};
     std::atomic<int> warmup_count{0};
     on_compile(cpu_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        // A startup CPU helper would compile concurrently with the actual device; warm-up only starts after it.
+        EXPECT_TRUE(actual_ready.load());
         cpu_count++;
         return {mockIExeNet, {}};
     });
-    on_compile(actual_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+    on_compile(actual_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        actual_ready = true;
         return {mockIExeNetActual, {}};
     });
     auto warmup_compiled_model = make_compiled_model();
@@ -309,9 +314,9 @@ TEST_F(AutoCacheWarmupTest, disablesStartupAndRuntimeFallback) {
     // No runtime fallback: the failure of the actual device reaches the caller.
     EXPECT_THROW(request->infer(), ov::Exception);
     EXPECT_TRUE(wait_until([&] {
-        return warmup_count.load() == 1;
+        return warmup_count.load() == 1 && cpu_count.load() == 1;
     }));
-    // CPU is compiled once for cache warm-up; no CPU helper is compiled for startup fallback.
+    // CPU is compiled once, after the actual device is ready: warm-up, not a startup fallback helper.
     EXPECT_EQ(cpu_count.load(), 1);
 }
 

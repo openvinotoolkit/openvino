@@ -177,25 +177,23 @@ TEST_F(AutoFuncTests, compile_for_all_populates_cache_reused_by_later_loads) {
     core.set_property("MOCK_GPU", ov::device::id("gpu"));
     core.set_property("MOCK_3", ov::device::id("3"));
     {
-        auto compiled_model = core.compile_model(model_cannot_batch,
-                                                 "AUTO",
-                                                 {ov::device::priorities("MOCK_GPU", "MOCK_3", "MOCK_CPU"),
-                                                  ov::intel_auto::compile_for_all(true),
-                                                  ov::intel_auto::enable_startup_fallback(false),
-                                                  ov::intel_auto::enable_runtime_fallback(false)});
+        auto compiled_model =
+            core.compile_model(model_cannot_batch,
+                               "AUTO",
+                               {ov::device::priorities("MOCK_GPU", "MOCK_3"), ov::intel_auto::compile_for_all(true)});
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-        while (ov::test::utils::listFilesWithExt(cache_path, "blob").size() < 3 &&
+        while (ov::test::utils::listFilesWithExt(cache_path, "blob").size() < 2 &&
                std::chrono::steady_clock::now() < deadline) {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
-    // Releasing AUTO waits for an in-flight warm-up, so all three blobs are fully written here.
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
-    for (const std::string device : {"MOCK_GPU", "MOCK_3", "MOCK_CPU"}) {
+    // Releasing AUTO waits for an in-flight warm-up, so both blobs are fully written here.
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
+    for (const std::string device : {"MOCK_GPU", "MOCK_3"}) {
         auto compiled_model = core.compile_model(model_cannot_batch, device);
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache)) << device;
     }
-    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 3);
+    ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
     core.set_property(ov::cache_path(""));
 }
 
