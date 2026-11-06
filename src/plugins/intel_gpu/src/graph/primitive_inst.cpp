@@ -311,6 +311,10 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     } else {
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
+        // Refresh dynamic arguments during preparation even if the input shape is unchanged.
+        if (is_dynamic()) {
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
         // Replacing the primary output means any borrowed remote permute view is no longer active.
         if (idx == 0)
             _remote_permute_output_alias.reset();
