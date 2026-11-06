@@ -1,0 +1,160 @@
+name: OpenVINO GenAI
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which to run the build'
+        type: string
+        required: true
+      shell:
+        description: "shell to override the default shell settings in the runner's operating system."
+        type: string
+        required: true
+      image:
+        description: 'Docker image to use for the job'
+        type: string
+        required: false
+        default: null
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.12"'
+        type: string
+        required: true
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+
+permissions: read-all
+
+env:
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+jobs:
+  Openvino_genai:
+    name: OpenVINO GenAI
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: ${{ inputs.shell }}
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - /home/runner/secrets/:/secrets:ro
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER
+    env:
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_CACHE_SIZE: 30G
+      SCCACHE_AZURE_KEY_PREFIX: ubuntu_24_x86_64_genai_Release
+      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
+      SCCACHE_LOG: warn
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      OPENVINO_GENAI_REPO: ${{ github.workspace }}/openvino.genai
+      GENAI_BUILD_DIR: ${{ github.workspace }}/build
+      WHO_WHAT_BENCH_BUILD_DIR: ${{ github.workspace }}/build/whowhatbench
+
+    steps:
+      - name: checkout actions
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+
+      - name: Clone OpenVINO GenAI
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/openvino.genai'
+          path: ${{ env.OPENVINO_GENAI_REPO }}
+          ref: ${{ env.TARGET_BRANCH }}
+          submodules: 'recursive'
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          use-pip-proxy: 'true'
+          set-pip-install-path: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          pattern: 'openvino_{wheels,tokenizers_wheel}'
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      - name: Install OpenVINO build wheel
+        uses: ./.github/actions/install_wheel
+        with:
+          local_wheel_dir: ${{ env.INSTALL_WHEELS_DIR }}
+          packages: openvino
+
+      - name: Configure sccache
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          export SCCACHE_AZURE_CONNECTION_STRING
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> "$GITHUB_ENV"
+          sccache --zero-stats
+
+      - name: Build GenAI wheel
+        working-directory: ${{ env.OPENVINO_GENAI_REPO }}
+        run: |
+          parallel_jobs=$(nproc)
+          openvino_cmake_dir=$(python3 -c 'from openvino.utils import get_cmake_path; print(get_cmake_path())')
+          build_args_override="override=cmake.build_args={\"=\"=[\"--parallel\",\"${parallel_jobs}\",\"--target\",\"py_openvino_genai_stub\"]}"
+          python3 -m pip wheel -v --no-deps --wheel-dir ${GENAI_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} \
+            --config-settings='override=cmake.options.CMAKE_CXX_COMPILER_LAUNCHER="sccache"' \
+            --config-settings='override=cmake.options.CMAKE_C_COMPILER_LAUNCHER="sccache"' \
+            --config-settings="override=cmake.options.OpenVINO_DIR=\"${openvino_cmake_dir}\"" \
+            --config-settings="$build_args_override" .
+
+      - name: Show sccache stats
+        if: ${{ always() }}
+        run: sccache --show-stats
+
+      - name: Build WhoWhatBench wheel
+        run: |
+          python3 -m pip wheel --no-deps --wheel-dir "${WHO_WHAT_BENCH_BUILD_DIR}" \
+            "${OPENVINO_GENAI_REPO}/tools/who_what_benchmark"
+
+      - name: Upload OpenVINO GenAI wheel
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_genai_wheel
+          path: ${{ env.GENAI_BUILD_DIR }}/*.whl
+          if-no-files-found: 'error'
+
+      - name: Upload WhoWhatBench wheel
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_whowhatbench_wheel
+          path: ${{ env.WHO_WHAT_BENCH_BUILD_DIR }}/*.whl
+          if-no-files-found: 'error'
+
+      - name: Upload sccache log
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: genai_sccache_log
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
