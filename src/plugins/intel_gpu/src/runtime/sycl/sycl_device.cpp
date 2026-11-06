@@ -13,6 +13,7 @@
 
 #include "sycl_device.hpp"
 #include "sycl_common.hpp"
+#include "driver_dev_id.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include <map>
@@ -27,6 +28,8 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <optional>
+#include <sstream>
 #include <utility>
 
 #ifdef _WIN32
@@ -37,8 +40,6 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#include <setupapi.h>
-#include <devguid.h>
 #include <cstring>
 #else
 #include <unistd.h>
@@ -75,74 +76,26 @@ gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
 }
 #endif
 
-int driver_dev_id() {
-    const std::vector<int> unused_ids = {
-        0x4905, 0x4906, 0x4907, 0x4908
-    };
-    std::vector<int> result;
-
-#ifdef _WIN32
-    {
-        HDEVINFO device_info_set = SetupDiGetClassDevsA(&GUID_DEVCLASS_DISPLAY, NULL, NULL, DIGCF_PRESENT);
-        if (device_info_set == INVALID_HANDLE_VALUE)
-            return 0;
-
-        SP_DEVINFO_DATA devinfo_data;
-        std::memset(&devinfo_data, 0, sizeof(devinfo_data));
-        devinfo_data.cbSize = sizeof(devinfo_data);
-
-        for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
-            const size_t kBufSize = 512;
-            char buf[kBufSize];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
-                continue;
-            }
-
-            char* vendor_pos = std::strstr(buf, "VEN_");
-            if (vendor_pos != NULL && std::stoi(vendor_pos + 4, NULL, 16) == 0x8086) {
-                char* device_pos = strstr(vendor_pos, "DEV_");
-                if (device_pos != NULL) {
-                    result.push_back(std::stoi(device_pos + 4, NULL, 16));
-                }
-            }
-        }
-
-        if (device_info_set) {
-            SetupDiDestroyDeviceInfoList(device_info_set);
-        }
-    }
-#elif defined(__linux__)
-    {
-        std::string dev_base{ "/sys/devices/pci0000:00/0000:00:02.0/" };
-        std::ifstream ifs(dev_base + "vendor");
-        if (ifs.good()) {
-            int ven_id;
-            ifs >> std::hex >> ven_id;
-            ifs.close();
-            if (ven_id == 0x8086) {
-                ifs.open(dev_base + "device");
-                if (ifs.good()) {
-                    int res = 0;
-                    ifs >> std::hex >> res;
-                    result.push_back(res);
-                }
-            }
-        }
-    }
-#endif
-
-    auto id_itr = result.begin();
-    while (id_itr != result.end()) {
-        if (std::find(unused_ids.begin(), unused_ids.end(), *id_itr) != unused_ids.end())
-            id_itr = result.erase(id_itr);
-        else
-            id_itr++;
+std::optional<pci_bus_info> get_pci_bus_info(const ::sycl::device& device) {
+    if (!device.has(::sycl::aspect::ext_intel_pci_address)) {
+        return std::nullopt;
     }
 
-    if (result.empty())
-        return 0;
-    else
-        return result.back();
+    // The address has the BDF form, e.g. "0000:03:00.0"
+    std::istringstream pci_address(device.get_info<::sycl::ext::intel::info::device::pci_address>());
+    unsigned int domain = 0;
+    unsigned int bus = 0;
+    unsigned int dev = 0;
+    unsigned int function = 0;
+    char domain_separator = 0;
+    char bus_separator = 0;
+    char function_separator = 0;
+    pci_address >> std::hex >> domain >> domain_separator >> bus >> bus_separator >> dev >> function_separator >> function;
+    if (pci_address.fail() || pci_address.peek() != std::char_traits<char>::eof() || domain_separator != ':' ||
+        bus_separator != ':' || function_separator != '.' || bus > 0xff || dev > 0x1f || function > 7) {
+        return std::nullopt;
+    }
+    return pci_bus_info{domain, bus, dev, function};
 }
 
 device_type get_device_type(const ::sycl::device& device) {
@@ -166,7 +119,7 @@ bool get_imad_support(const ::sycl::device& device) {
             0x9A60, 0x9A68, 0x9A70, 0x9A78,
             0x9A7F, 0x9AF8, 0x9AC0, 0x9AC9
         };
-        int dev_id = driver_dev_id();
+        int dev_id = driver_dev_id(get_pci_bus_info(device));
         if (dev_id == 0)
             return false;
 
@@ -284,7 +237,7 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
     } else {
         info.gfx_ver = {0, 0, 0};
-        info.device_id = driver_dev_id();
+        info.device_id = driver_dev_id(get_pci_bus_info(device));
         info.num_slices = 0;
         info.num_sub_slices_per_slice = 0;
         info.num_eus_per_sub_slice = 0;
