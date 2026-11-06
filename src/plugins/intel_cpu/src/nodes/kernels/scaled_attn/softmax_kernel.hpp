@@ -634,7 +634,8 @@ inline void scale_add2_reduce_max(ov::float16* a,
                                   float alibi_slope,
                                   ov::float16& max) {
     size_t i = 0;
-    constexpr float16_t min_f16 = std::numeric_limits<float16_t>::lowest();
+    // std::numeric_limits is not specialized for float16_t (__fp16), so its lowest() would return 0
+    const auto min_f16 = static_cast<float16_t>(std::numeric_limits<ov::float16>::lowest());
 #    if defined(HAVE_SVE)
     svfloat16_t v_max = svdup_n_f16(min_f16);
     svfloat16_t v_scale = svdup_n_f16(static_cast<float16_t>(scale));
