@@ -25,6 +25,8 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include <arm_neon.h>
+
+#    include <array>
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -770,6 +772,11 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
             float group_sum = 0.0f;
 
             auto v_group_zp = vdupq_n_f16(group_zp);
+            // Independent vector accumulators, reduced once per group.
+            float32x4_t v_sum0 = vdupq_n_f32(0.0F);
+            float32x4_t v_sum1 = vdupq_n_f32(0.0F);
+            float32x4_t v_sum2 = vdupq_n_f32(0.0F);
+            float32x4_t v_sum3 = vdupq_n_f32(0.0F);
 
             for (; i + 16 <= group_size; i += 16) {
                 float16x8_t v_a_lo = vld1q_f16(_a + offset + i);
@@ -794,11 +801,12 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
                 float32x4_t v_f2 = vcvt_f32_f16(vget_low_f16(v_b_hi));
                 float32x4_t v_f3 = vcvt_f32_f16(vget_high_f16(v_b_hi));
 
-                group_sum += vaddvq_f32(v_f0);
-                group_sum += vaddvq_f32(v_f1);
-                group_sum += vaddvq_f32(v_f2);
-                group_sum += vaddvq_f32(v_f3);
+                v_sum0 = vaddq_f32(v_sum0, v_f0);
+                v_sum1 = vaddq_f32(v_sum1, v_f1);
+                v_sum2 = vaddq_f32(v_sum2, v_f2);
+                v_sum3 = vaddq_f32(v_sum3, v_f3);
             }
+            group_sum += vaddvq_f32(vaddq_f32(vaddq_f32(v_sum0, v_sum1), vaddq_f32(v_sum2, v_sum3)));
             for (; i < group_size; i++) {
                 group_sum += _a[i + offset] * (_b[i + offset] - group_zp);
             }
@@ -1212,6 +1220,198 @@ static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S,
 }
 #endif
 
+#if defined(OPENVINO_ARCH_ARM64)
+// Grouped-query attention: the h_each_group_len query heads of a key/value head, and its q_len query tokens, read
+// the same key and value rows. The helpers below dequantize each row once for a tile of up to 4 (token, head) rows:
+// 4 rows x 4 f32x4 accumulators plus the 4 dequantized vectors fit in the 32 NEON registers.
+
+// Loads 16 u8 values as 4 f32 vectors and subtracts the zero point.
+static inline void dequant_u8x16(const uint8_t* src, float32x4_t zp, float32x4_t* out) {
+    const uint8x16_t v_u8 = vld1q_u8(src);
+    const uint16x8_t v_u16_lo = vmovl_u8(vget_low_u8(v_u8));
+    const uint16x8_t v_u16_hi = vmovl_u8(vget_high_u8(v_u8));
+    out[0] = vsubq_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(v_u16_lo))), zp);
+    out[1] = vsubq_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(v_u16_lo))), zp);
+    out[2] = vsubq_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(v_u16_hi))), zp);
+    out[3] = vsubq_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(v_u16_hi))), zp);
+}
+
+// Dot products of R f32 query rows with one u8 key row, with the operations and summation order of the ARM64 u8
+// dot_product of common.hpp, so each result equals that function's for the same row.
+// scale_zp holds interleaved {scale, zero point} pairs, one per group of group_size elements.
+template <size_t R>
+static void dot_product_u8_rows(const float* const* q,
+                                const uint8_t* k,
+                                size_t n,
+                                const float* scale_zp,
+                                size_t group_size,
+                                float* out) {
+    float sum[R] = {};
+    for (size_t group_id = 0; group_id < n / group_size; group_id++) {
+        const float group_scale = scale_zp[group_id * 2];
+        const float group_zp = scale_zp[group_id * 2 + 1];
+        const size_t offset = group_id * group_size;
+        float32x4_t acc[R][4];
+        for (size_t r = 0; r < R; r++) {
+            for (size_t j = 0; j < 4; j++) {
+                acc[r][j] = vdupq_n_f32(0.0F);
+            }
+        }
+        size_t i = 0;
+        for (; i + 16 <= group_size; i += 16) {
+            float32x4_t v_k[4];
+            dequant_u8x16(k + offset + i, vdupq_n_f32(group_zp), v_k);
+            for (size_t r = 0; r < R; r++) {
+                for (size_t j = 0; j < 4; j++) {
+                    acc[r][j] = vfmaq_f32(acc[r][j], v_k[j], vld1q_f32(q[r] + offset + i + 4 * j));
+                }
+            }
+        }
+        for (size_t r = 0; r < R; r++) {
+            float group_sum = vaddvq_f32(vaddq_f32(vaddq_f32(acc[r][0], acc[r][1]), vaddq_f32(acc[r][2], acc[r][3])));
+            for (size_t j = i; j < group_size; j++) {
+                group_sum += q[r][offset + j] * (static_cast<float>(k[offset + j]) - group_zp);
+            }
+            sum[r] += group_scale * group_sum;
+        }
+    }
+    for (size_t r = 0; r < R; r++) {
+        out[r] = sum[r];
+    }
+}
+
+// Accumulates one u8 value row into R output rows, out[r] += weight[r] * dequant(v), with the operations, order and
+// 16-element step of attn_acc_value(float*, float, uint8_t*, ...), so each row's result is unchanged.
+// scale_zp holds interleaved {scale, zero point} pairs.
+template <size_t R>
+static void attn_acc_value_u8_rows(float* const* out,
+                                   const float* weight,
+                                   const uint8_t* v,
+                                   size_t S,
+                                   const float* scale_zp,
+                                   size_t group_size) {
+    for (size_t group_id = 0; group_id < S / group_size; group_id++) {
+        const float group_scale = scale_zp[group_id * 2];
+        const float group_zp = scale_zp[group_id * 2 + 1];
+        const size_t offset = group_id * group_size;
+        float32x4_t v_scaled_weight[R];
+        for (size_t r = 0; r < R; r++) {
+            v_scaled_weight[r] = vdupq_n_f32(group_scale * weight[r]);
+        }
+        size_t i = 0;
+        for (; i + 16 <= group_size; i += 16) {
+            float32x4_t v_f[4];
+            dequant_u8x16(v + offset + i, vdupq_n_f32(group_zp), v_f);
+            for (size_t r = 0; r < R; r++) {
+                float* dst = out[r] + offset + i;
+                for (size_t j = 0; j < 4; j++) {
+                    vst1q_f32(dst + 4 * j, vaddq_f32(vmulq_f32(v_f[j], v_scaled_weight[r]), vld1q_f32(dst + 4 * j)));
+                }
+            }
+        }
+        for (size_t r = 0; r < R; r++) {
+            for (size_t j = i; j < group_size; j++) {
+                out[r][offset + j] += weight[r] * (static_cast<float>(v[offset + j]) - group_zp) * group_scale;
+            }
+        }
+    }
+}
+
+#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+// f16 outputs, with the per-element operations of attn_acc_value(ov::float16*, ov::float16, uint8_t*, ...) and its
+// step (svcntb() with SVE, 16 with NEON_FP16), so each element takes the same vector or scalar path on every vector
+// length. One difference: the vector loop rounds weight * group_scale to f16 with the hardware conversion, while
+// attn_acc_value uses ov::float16(float), which mis-rounds some f16 subnormals (#38797).
+template <size_t R>
+static void attn_acc_value_u8_rows(ov::float16* const* out,
+                                   const ov::float16* weight,
+                                   const uint8_t* v,
+                                   size_t S,
+                                   const float* scale_zp,
+                                   size_t group_size) {
+    for (size_t group_id = 0; group_id < S / group_size; group_id++) {
+        const auto group_scale = static_cast<float16_t>(scale_zp[group_id * 2]);
+        const auto group_zp = static_cast<float16_t>(scale_zp[group_id * 2 + 1]);
+        const size_t offset = group_id * group_size;
+        size_t i = 0;
+#        if defined(HAVE_SVE) || defined(HAVE_NEON_FP16)
+        // weight * group_scale per row, rounded in hardware; memcpy reads the ov::float16 bits without type punning.
+        float16_t weighed_group_scale[R]{};
+        for (size_t r = 0; r < R; r++) {
+            float16_t w{};
+            std::memcpy(&w, weight + r, sizeof(w));
+            weighed_group_scale[r] = static_cast<float16_t>(static_cast<float>(w) * static_cast<float>(group_scale));
+        }
+#        endif
+#        if defined(HAVE_SVE)
+        const svbool_t pg_b08 = svptrue_b8();
+        const svfloat16_t v_group_zp = svdup_n_f16(group_zp);
+        for (; i + svcntb() <= group_size; i += svcntb()) {
+            const svuint8_t v_u8 = svld1_u8(pg_b08, v + offset + i);
+            const svfloat16_t v_f16_lo = svsub_f16_x(pg_b08, svcvt_f16_u16_x(pg_b08, svunpklo_u16(v_u8)), v_group_zp);
+            const svfloat16_t v_f16_hi = svsub_f16_x(pg_b08, svcvt_f16_u16_x(pg_b08, svunpkhi_u16(v_u8)), v_group_zp);
+            for (size_t r = 0; r < R; r++) {
+                // SVE vectors are sizeless and cannot be array elements, so the scale is broadcast per row.
+                const svfloat16_t v_scale = svdup_n_f16(weighed_group_scale[r]);
+                auto* dst = reinterpret_cast<float16_t*>(out[r]) + offset + i;
+                const svfloat16_t v_out_lo = svld1_f16(pg_b08, dst);
+                const svfloat16_t v_out_hi = svld1_f16(pg_b08, dst + svcnth());
+                svst1_f16(pg_b08, dst, svadd_f16_x(pg_b08, v_out_lo, svmul_f16_x(pg_b08, v_f16_lo, v_scale)));
+                svst1_f16(pg_b08,
+                          dst + svcnth(),
+                          svadd_f16_x(pg_b08, v_out_hi, svmul_f16_x(pg_b08, v_f16_hi, v_scale)));
+            }
+        }
+#        elif defined(HAVE_NEON_FP16)
+        const float16x8_t v_group_zp = vdupq_n_f16(group_zp);
+        float16x8_t v_weighed_group_scale[R];
+        for (size_t r = 0; r < R; r++) {
+            v_weighed_group_scale[r] = vdupq_n_f16(weighed_group_scale[r]);
+        }
+        for (; i + 16 <= group_size; i += 16) {
+            const uint8x16_t v_u8 = vld1q_u8(v + offset + i);
+            const float16x8_t v_f16_lo = vsubq_f16(vcvtq_f16_u16(vmovl_u8(vget_low_u8(v_u8))), v_group_zp);
+            const float16x8_t v_f16_hi = vsubq_f16(vcvtq_f16_u16(vmovl_u8(vget_high_u8(v_u8))), v_group_zp);
+            for (size_t r = 0; r < R; r++) {
+                auto* dst = reinterpret_cast<float16_t*>(out[r]) + offset + i;
+                vst1q_f16(dst, vaddq_f16(vld1q_f16(dst), vmulq_f16(v_f16_lo, v_weighed_group_scale[r])));
+                vst1q_f16(dst + 8, vaddq_f16(vld1q_f16(dst + 8), vmulq_f16(v_f16_hi, v_weighed_group_scale[r])));
+            }
+        }
+#        endif
+        for (size_t r = 0; r < R; r++) {
+            for (size_t j = i; j < group_size; j++) {
+                out[r][offset + j] += weight[r] * (static_cast<float>(v[offset + j]) - group_zp) * group_scale;
+            }
+        }
+    }
+}
+#    endif
+
+// Calls f(std::integral_constant<size_t, R>{}, m) for consecutive tiles [m, m + R) of R <= 4 of the q_len x heads
+// rows, token-major (row m is query token m / heads, head m % heads in the group); a tile may span query tokens.
+template <typename F>
+static void for_each_row_tile(size_t rows, const F& f) {
+    size_t m = 0;
+    for (; m + 4 <= rows; m += 4) {
+        f(std::integral_constant<size_t, 4>{}, m);
+    }
+    switch (rows - m) {
+    case 3:
+        f(std::integral_constant<size_t, 3>{}, m);
+        break;
+    case 2:
+        f(std::integral_constant<size_t, 2>{}, m);
+        break;
+    case 1:
+        f(std::integral_constant<size_t, 1>{}, m);
+        break;
+    default:
+        break;
+    }
+}
+#endif
+
 template <typename T, typename T2, typename T3>
 static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     const ov::intel_cpu::PlainTensor& present_key,
@@ -1266,6 +1466,22 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         cpu_parallel->parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
             sum_q_head(query.ptr<T>(b, h, pq), S, key_group_size, head_sum.ptr<float>(b, h, pq));
         });
+    }
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64)
+    // dot_product_u8_rows reads f32 query rows, so grouped key scoring converts other query types once here, into
+    // buf_attn_score, instead of once per key row; with f16 kernels it thus replaces dot_product_fp16's f16 products
+    // by f32 ones. query_f32 aliases buf_attn_score, which the value phase resizes and clears: it is valid only in
+    // the key phase, and the buffer keeps the larger of the two sizes.
+    const bool group_heads = std::is_same_v<T2, uint8_t> && !quant_key_by_channel && h_each_group_len > 1;
+    if constexpr (!std::is_same_v<T, float>) {
+        if (group_heads) {
+            buf_attn_score.resize<float>({B, H, q_len, S});
+            cpu_parallel->parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
+                cvt_copy(buf_attn_score.ptr<float>(b, h, pq), query.ptr<T>(b, h, pq), S);
+            });
+        }
     }
 #endif
 
@@ -1386,6 +1602,48 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     }
                 }
             } else {
+#if defined(OPENVINO_ARCH_ARM64)
+                if constexpr (std::is_same_v<T2, uint8_t>) {
+                    if (group_heads) {
+                        const ov::intel_cpu::PlainTensor& query_f32 = std::is_same_v<T, float> ? query : buf_attn_score;
+                        for (size_t iwork = start; iwork < end; ++iwork) {
+                            auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
+                            const auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
+                            const auto* k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
+                            const size_t h0 = h_group * h_each_group_len;
+                            for_each_row_tile(q_len * h_each_group_len, [&](auto tile, size_t m) {
+                                constexpr size_t R = decltype(tile)::value;
+                                std::array<const float*, R> q_rows{};
+                                std::array<T3*, R> dst_rows{};
+                                for (size_t r = 0; r < R; r++) {
+                                    const size_t pq = (m + r) / h_each_group_len;
+                                    const size_t h = h0 + (m + r) % h_each_group_len;
+                                    q_rows[r] = query_f32.ptr<float>(b, h, pq);
+                                    dst_rows[r] = buf_attn_w.ptr<T3>(b, h, pq) + pk;
+                                }
+                                std::array<float, R> qk{};
+                                dot_product_u8_rows<R>(q_rows.data(), k, S, p, key_group_size, qk.data());
+                                for (size_t r = 0; r < R; r++) {
+                                    T3* dst = dst_rows[r];
+#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+                                    if constexpr (std::is_same_v<T3, ov::float16>) {
+                                        // Hardware rounding, not the out-of-line ov::float16 constructor (they differ
+                                        // only for f16 subnormals, #38797). float16_t takes this file's usual guard,
+                                        // and memcpy stores its bits into ov::float16 without type punning.
+                                        const auto qk_f16 = static_cast<float16_t>(qk[r]);
+                                        std::memcpy(dst, &qk_f16, sizeof(qk_f16));
+                                        continue;
+                                    }
+#    endif
+                                    *dst = static_cast<T3>(qk[r]);
+                                }
+                            });
+                            parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
+                        }
+                        return;
+                    }
+                }
+#endif
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                     for (size_t pq = 0; pq < q_len; pq++) {
@@ -1484,6 +1742,28 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                 auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
                 auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
+#if defined(OPENVINO_ARCH_ARM64)
+                // Values are quantized per token whatever quant_key_by_channel, so both value paths group heads on
+                // h_each_group_len alone, unlike group_heads.
+                if constexpr (std::is_same_v<T2, uint8_t>) {
+                    if (h_each_group_len > 1) {
+                        const size_t h0 = h_group * h_each_group_len;
+                        for_each_row_tile(q_len * h_each_group_len, [&](auto tile, size_t m) {
+                            constexpr size_t R = decltype(tile)::value;
+                            std::array<T3*, R> out{};
+                            std::array<T3, R> w{};
+                            for (size_t r = 0; r < R; r++) {
+                                const size_t pq = (m + r) / h_each_group_len;
+                                const size_t g = (m + r) % h_each_group_len;
+                                out[r] = buf_attn_score.ptr<T3>(ithr, pq, g);
+                                w[r] = buf_attn_w.ptr<T3>(b, h0 + g, pq)[pv];
+                            }
+                            attn_acc_value_u8_rows<R>(out.data(), w.data(), v, SV, p, value_group_size);
+                        });
+                        continue;
+                    }
+                }
+#endif
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = h_group * h_each_group_len, group_idx = 0; h < (h_group + 1) * h_each_group_len;
                          h++, group_idx++) {
@@ -1542,6 +1822,27 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                     auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
                     auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
+#if defined(OPENVINO_ARCH_ARM64)
+                    if constexpr (std::is_same_v<T2, uint8_t>) {
+                        if (h_each_group_len > 1) {
+                            const size_t h0 = h_group * h_each_group_len;
+                            for_each_row_tile(q_len * h_each_group_len, [&](auto tile, size_t m) {
+                                constexpr size_t R = decltype(tile)::value;
+                                std::array<T3*, R> out{};
+                                std::array<T3, R> w{};
+                                for (size_t r = 0; r < R; r++) {
+                                    const size_t pq = (m + r) / h_each_group_len;
+                                    const size_t g = (m + r) % h_each_group_len;
+                                    out[r] = buf_attn_score.ptr<T3>(ithr, b, pq, h0 + g);
+                                    w[r] = buf_attn_w.ptr<T3>(b, h0 + g, pq)[pv];
+                                }
+                                attn_acc_value_u8_rows<R>(out.data(), w.data(), v, SV, p, value_group_size);
+                            });
+                            parallel_it_step(pv, kv_len, b, B, h_group, h_group_num);
+                            continue;
+                        }
+                    }
+#endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
                             attn_acc_value(buf_attn_score.ptr<T3>(ithr, b, pq, h),
