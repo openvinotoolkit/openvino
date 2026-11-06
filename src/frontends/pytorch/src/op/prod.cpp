@@ -14,15 +14,15 @@ Output<Node> translate_prod_common(const NodeContext& context,
                                    const Output<Node>& input,
                                    const Output<Node>& dim,
                                    bool keepdim,
-                                   bool skip_bool_check) {
-    // ReduceProd doesn't support boolean inputs
+                                   bool skip_dtype_promotion) {
+    // PyTorch promotes integral inputs to int64 when dtype is not specified.
     auto input_tensor = input;
-    if (!skip_bool_check) {
-        auto data_dtype = simplified_type_interpret(context.get_input_type(0));
-        if (input_tensor.get_element_type() == element::boolean ||
-            (data_dtype.is<element::Type>() && data_dtype.as<element::Type>() == element::boolean)) {
-            input_tensor = context.mark_node(std::make_shared<ov::op::v0::Convert>(input_tensor, element::i64));
-        }
+    const auto data_dtype = simplified_type_interpret(context.get_input_type(0));
+    if (!skip_dtype_promotion &&
+        ((input_tensor.get_element_type().is_static() && input_tensor.get_element_type().is_integral()) ||
+         (data_dtype.is<element::Type>() && data_dtype.as<element::Type>().is_static() &&
+          data_dtype.as<element::Type>().is_integral()))) {
+        input_tensor = context.mark_node(std::make_shared<ov::op::v0::Convert>(input_tensor, element::i64));
     }
     return context.mark_node(std::make_shared<ov::op::v1::ReduceProd>(input_tensor, dim, keepdim));
 }
@@ -46,12 +46,12 @@ OutputVector translate_prod(const NodeContext& context) {
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unexpected number of inputs.");
     }
-    bool skip_bool_check = false;
+    bool skip_dtype_promotion = false;
     if (!context.input_is_none(dtype_idx)) {
-        skip_bool_check = true;
+        skip_dtype_promotion = true;
         input = apply_dtype(context, dtype_idx, input);
     }
-    auto prod = translate_prod_common(context, input, dim, keepdim, skip_bool_check);
+    auto prod = translate_prod_common(context, input, dim, keepdim, skip_dtype_promotion);
     return {prod};
 };
 
@@ -71,13 +71,13 @@ OutputVector translate_prod_fx(const NodeContext& context) {
     if (!context.input_is_none(2)) {
         keepdim = context.const_input<bool>(2);
     }
-    bool skip_bool_check = false;
+    bool skip_dtype_promotion = false;
     if (context.has_attribute("dtype")) {
-        skip_bool_check = true;
+        skip_dtype_promotion = true;
         auto dtype = context.get_attribute<element::Type>("dtype");
         input = context.mark_node(std::make_shared<ov::op::v0::Convert>(input, dtype));
     }
-    auto prod = translate_prod_common(context, input, dim, keepdim, skip_bool_check);
+    auto prod = translate_prod_common(context, input, dim, keepdim, skip_dtype_promotion);
     return {prod};
 };
 
