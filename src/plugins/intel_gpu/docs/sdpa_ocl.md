@@ -58,7 +58,7 @@ xe_hpg (SG8, no 2D block IO) can take the `sdpa_ocl` lane only with `TEST_USE_SD
 it nothing about xe_hpg changes. Only the kernel arms that exist are served: `supported()` requires the
 op's `HpgTier` bits (`sdpa_ocl_hpg.hpp`, `hpg_tier_required()`) to be set in `kHpgTiersReady`, which
 has `PLAIN_F16_STATIC` (plain f16 SDPA, static shape, more than one query, no mask / causal / sink / runtime
-scale), `PLAIN_I8`, `PA_PREFILL`, `PA_MIXED_F16`, `PA_FEATURES`, `PA_I8_TOKEN`, `PA_I8_CHANNEL` and `PLAIN_EXT` (the rest of uncompressed plain SDPA: bf16, a mask, causal, a sink, a runtime scale, a dynamic
+scale), `PLAIN_I8`, `PA_PREFILL`, `PA_MIXED_F16`, `PA_FEATURES`, `PA_I8_TOKEN`, `PA_I8_CHANNEL`, `PA_U4` and `PLAIN_EXT` (the rest of uncompressed plain SDPA: bf16, a mask, causal, a sink, a runtime scale, a dynamic
 shape, one query; the mask, causal, sink and softmax code is lane = query and shared with SG16, only the 16-key
 `mask_full` vector of a full 2D mask is wider than the subgroup). Every other op is refused and runs the opt kernels,
 as every op does with the switch off (until 2026-11-02 a temporary routing sent both to `sdpa_micro`). The SG8 arm (`SG8` in
@@ -115,8 +115,22 @@ scale and zp of a pair swapped) fail all 13 of them that read a page (all but th
 `SDPA_OCL_NEG_SG8=27` / `28` (the next new token's Kc / Vc row) fail 23 / 21 of the 33 cases: the others are
 PREFILL only (13, 27) or keep a shift of the q newest of past + q keys inside the tolerance (3, 5, 9-11, 24, 25, 29, for
 28 also 4 and 15). With `SDPA_OCL_PA_CUR_F16=0` cases 31 / 32 fail: the KV cache writer misreads rows 2 B off a dword
-(Known issues). `PA_U4` is not ready: such an op runs the opt kernels, and `sdpa_ocl_config.cl` still `#error`s on
-the u4 page readers and on the SG8 permuted-depth (u4) Kc read.
+(Known issues). `PA_U4` (a u4 cache: K BY_CHANNEL, V per token) reads its token-major pages in the same SG8 gathers. A
+K byte holds two channels (byte b: 2b, 2b + 1) and the depth is permuted in 32-channel windows (`PA_K_U4_CHANNEL`), so
+lane l of tile db needs channels win + 4l + par and that + 2: one ushort at byte win / 2 + 2l, nibble par of each byte
+(unsigned), and the comp dwords of both channels. A V row holds value b in the low nibble of byte b and value b +
+`PA_V_ROW_ELEMS` in the high one; the row is Align(v / 2, 16) bytes, the KV cache writer's (`pa_u4_v_row_align`; SG8 had
+taken Align(v / 2, 8)), and the page's scales and zps follow the rows. Kc comes from `kc_tile_u4_gather` (two ushorts
+per lane at the permuted channels, any pitch or base), Vc from `vc_tile_gather`. The S*V loop's u4 skip of blocks past
+`k_chunk` is SG16 only: on SG8 it spilled 4.9-7.8 KB at heads 96-512 (DG2, IGC 2.41.5), and without it those blocks
+read in-bounds V and add 0, as on the i8 caches. Cases 33-47 of `smoke_paged_attention_comp_tm` are u4 (page edges, K
+distorted only, mixed subsequences, GQA, a long past, heads 96 / 256 / 512, a window, PREFILL only (43), a sink, k != v,
+padded inputs). Their reference reads the past from the caches (`reference_past_from_cache`: the u4 rounding of a
+distorted V alone exceeds the tolerance against the f16 inputs), so every V head there is a multiple of 32 (Known
+issues). `SDPA_OCL_NEG_SG8=25` / `26` (the other nibble of K / V) fail all 14 of them that read a page, and so do 20 /
+21 / 23 / 24; 27 / 28 fail 11 of the 14 MIXED ones (40, 41 and 45 keep the shift inside the tolerance); 19 and 22 pass
+them (BY_TOKEN comp, the i8 unpack). With `SDPA_OCL_PA_CUR_F16=0` cases 33-35, 37, 44, 46 and 47 fail by 0.025-0.036,
+the u4 rounding of the new tokens.
 The PA unit tests ask `tests::pa_hpg_tiers()` for the bits of their case, so their expected backend follows the mask.
 `PLAIN_I8` is plain SDPA on an i8 KV cache (always asymmetric, planar): the K tile comes from `k_tile_dword_i8`, which
 dequantizes `(q - zp) * scale` per element from the hoisted per-key scale/zp into the same dword A operand (byte
@@ -2028,7 +2042,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_HPG_PA_TILE_KEYS` / `_PER_WG_KEYS` / `_PER_WG_QUERIES` | xe_hpg PA PREFILL kernel tiling (16 / 32 keys per subgroup tile, subgroups along keys / queries); a tiling the kernel is not written for throws |
 | `SDPA_OCL_HPG_PA_KQ_UNROLL` | xe_hpg PA PREFILL kernel: unroll of the KQ depth loop (default whole up to head 128, 2 at 256; `0` = whole) |
 | `SDPA_OCL_SG8_KQ_UNROLL` / `SDPA_OCL_SG8_SV_UNROLL` | xe_hpg generic kernel: unroll of the KQ depth loop / S*V key loop (default 1 = not unrolled, `0` = unrolled whole, which spills) |
-| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback, and the unaligned-Q staging of the xe_hpg PA PREFILL kernel (must pass, but for the IGC hazard cases in "xe_hpg follow-ups"); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests); `10` reads plain-SDPA K / V of batch 0, KV head 0 in the PREFILL kernel (must fail `smoke_sdpa_hpg_rows`); `11` / `12` / `13` break the mask of the xe_hpg PREFILL kernel, `18` its head-72 output columns (above); on an i8 BY_TOKEN page in the generic kernel's MIXED `19` reads the K comp of tokens 0..7 for both 8-key groups of a page, `20` swaps the V scales of a lane's two keys, `21` takes the V zps of the next key pair, `22` swaps the two K channels of a dword (each must fail the i8 BY_TOKEN cases 0-16 of `smoke_paged_attention_comp_tm` but its PREFILL-only case 13: 15 / 16 / 16 / 16 of 17, 19 also passing the V-only case 5; 20 / 21 / 22 also fail the 13 BY_CHANNEL cases that read a page); on an i8 BY_CHANNEL page `23` swaps the (scale, zp) pairs of a lane's two channels, `24` scale and zp of a pair (each must fail the BY_CHANNEL cases 17-30 but the PREFILL-only case 27: 13 of 14); for the new tokens of a compressed MIXED `27` / `28` read the next token's Kc / Vc row (each must fail `smoke_paged_attention_comp_tm` but its PREFILL-only and tolerance-hidden cases: 23 / 21 of 33); `30` reads key `lane` for both halves of a page, `31` swaps the S*V key pair, `32` reads the page of chunk % 8 (pages 8-15 of a partition wrong), `33` swaps the BY_CHANNEL pairs, `34` drops the BY_TOKEN K zero point, `35` gives both keys of a pair the even key's V scale in the SG8 decode reader (each must fail `smoke_paged_attention_decode_tm`); `36` swaps the two keys of a K pair, `37` the V pages of adjacent blocks, `38` reads the odd V row of a pair past k in the generic kernel's token-major MIXED readers (each must fail `smoke_paged_attention_mixed_tm`: 36 / 37 fail 100 of 105, 38 exactly the 15 NaN-poisoned cases) |
+| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback, and the unaligned-Q staging of the xe_hpg PA PREFILL kernel (must pass, but for the IGC hazard cases in "xe_hpg follow-ups"); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests); `10` reads plain-SDPA K / V of batch 0, KV head 0 in the PREFILL kernel (must fail `smoke_sdpa_hpg_rows`); `11` / `12` / `13` break the mask of the xe_hpg PREFILL kernel, `18` its head-72 output columns (above); on an i8 BY_TOKEN page in the generic kernel's MIXED `19` reads the K comp of tokens 0..7 for both 8-key groups of a page, `20` swaps the V scales of a lane's two keys, `21` takes the V zps of the next key pair, `22` swaps the two K channels of a dword (each must fail the i8 BY_TOKEN cases 0-16 of `smoke_paged_attention_comp_tm` but its PREFILL-only case 13: 15 / 16 / 16 / 16 of 17, 19 also passing the V-only case 5; 20 / 21 / 22 also fail the 13 BY_CHANNEL cases that read a page, 20 / 21 the 14 u4 ones too); on an i8 BY_CHANNEL page `23` swaps the (scale, zp) pairs of a lane's two channels, `24` scale and zp of a pair (each must fail the BY_CHANNEL cases 17-30 but the PREFILL-only case 27: 13 of 14, and the 14 u4 cases that read a page); on a u4 page `25` reads the other nibble of K, `26` of V (each must fail the u4 cases 33-47 but the PREFILL-only case 43: 14 of 15); for the new tokens of a compressed MIXED `27` / `28` read the next token's Kc / Vc row (each must fail `smoke_paged_attention_comp_tm` but its PREFILL-only and tolerance-hidden cases: 34 / 32 of 48); `30` reads key `lane` for both halves of a page, `31` swaps the S*V key pair, `32` reads the page of chunk % 8 (pages 8-15 of a partition wrong), `33` swaps the BY_CHANNEL pairs, `34` drops the BY_TOKEN K zero point, `35` gives both keys of a pair the even key's V scale in the SG8 decode reader (each must fail `smoke_paged_attention_decode_tm`); `36` swaps the two keys of a K pair, `37` the V pages of adjacent blocks, `38` reads the odd V row of a pair past k in the generic kernel's token-major MIXED readers (each must fail `smoke_paged_attention_mixed_tm`: 36 / 37 fail 100 of 105, 38 exactly the 15 NaN-poisoned cases) |
 | `OV_GPU_ARCH_OVERRIDE` | Debug caps only: report another arch (`xe_hpg`, `xe2`, ...) so its host code runs on this device (dump only) |
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
@@ -2512,6 +2526,11 @@ keys, so its time does not depend on the token count and grows with the context.
   (0.044 / 0.055 against 0.025); a later step reading those tokens from the cache gets the wrong values. The two
   controls (the same case without the pads passes; the same padded case passes on Kc / Vc) put it in the writer,
   the alignment cause is from code reading. Found in the xe_hpg port (P7e), not fixed.
+- The PA unit-test harness (`paged_attention_gpu_test.h`) writes the past tokens' token-major u4 V rows v / 2 bytes
+  apart, while the KV cache writer (`pa_kv_cache_update_ref.cl`'s `PACKED_V_HEAD_SIZE`) and the readers align the row to
+  16 B. The two agree only for V heads that are multiples of 32, so the cache-based u4 reference
+  (`read_value_from_cache()`) asserts that and the u4 cases of `smoke_paged_attention_comp_tm` keep to it; a u4 case at
+  V head 72 or 80 would put the past and the new tokens in different layouts. Found in the xe_hpg port (P7d), not fixed.
 - `sdpa_opt.cl` types a paged-attention runtime scale as `INPUT3_TYPE` (`SCALE_TYPE` follows
   `HAS_ATTN_MASK_INPUT`, which the paged-attention generator never sets, and INPUT3 is a 32-bit index
   input there), so `pa_sdpa_opt` PREFILL and MIXED read the 16-bit scale as an int32. Real models give a
@@ -2610,7 +2629,6 @@ re-measures against the opt kernels.
   2026-10-30/31): PA PREFILL 6.5-14x at 1K tokens (1.2-2.1x at 32), PA MIXED after a long prompt 4.3-8.3x against
   `sdpa_micro__generate` (measured at head 128), plain SDPA 3.6-4.2x (phi-4-multimodal's vision encoder at head 72,
   flux.1-schnell's VAE at head 512); the PREFILL kernel serves those plain SDPA heads now.
-- Not ported to SG8 yet: the u4 cache (`PA_U4`).
 - Every qq_bias feature case is MIXED, which runs `pa_multi_token` on xe_hpg while its pages are d-major, so
   `SDPA_OCL_NEG_SG8=8` has nothing to detect there yet. Where `sdpa_ocl` ran them (an earlier d-major SG8 MIXED reader)
   the control failed them only just past the tolerance (first error about 0.003); a case with a short past, where the

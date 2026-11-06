@@ -324,7 +324,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     const int AD_w = dv * (int)sizeof(OUTPUT_TYPE), AD_h = q, AD_p = (int)lda * (int)sizeof(OUTPUT_TYPE);
 
-#if PA_CUR_KV_F16 && SG8
+#if PA_CUR_KV_F16 && SG8 && PA_K_PERMUTED
+    // kc_tile_u4_gather() reads Kc by ushort, at any pitch or base.
+#elif PA_CUR_KV_F16 && SG8
     // k_tile_dword reads Kc a dword (two head dims) per lane: a block read needs an even row pitch and a 4 B aligned base
     // (a crop view of a fused QKV input can break either), false selects its aligned-dword fallback. Uniform.
     const bool kc_dword_ok = ((ldk & 1u) == 0) && ((as_long(Kc) & 3) == 0);
@@ -765,7 +767,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
     #if PA_CUR_KV_F16
             else {
-        #if SG8
+        #if SG8 && PA_K_PERMUTED
+                FUNC_CALL(kc_tile_u4_gather)(k_raw, (const __global ushort *)Kc, ldk, key_base, past_len, k, d, db, (int)lane);
+        #elif SG8
                 // Kc holds the q new tokens, key `key` in row key - past_len, so it ends at row k - past_len.
             #if defined(NEG_SG8) && NEG_SG8 == 27
                 // Negative control: the next token's K row.
@@ -1047,7 +1051,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if MAX_SPLIT_BARRIER
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 #endif
-#if IS_PA_K_U4 && PA_CUR_KV_F16
+#if IS_PA_K_U4 && PA_CUR_KV_F16 && !SG8
         if (!from_cache && sg_i_sv == 0)
             FUNC_CALL(vc_prefetch)(Vc_b2d, VcD_w_b2d, VcD_h, VcD_p, VcD_x0, sg_j0_sv, dv, k0, k_chunk, past_len);
 #endif
@@ -1187,10 +1191,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
 #endif
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
-#if IS_PA_K_U4 && PA_CUR_KV_F16
+#if IS_PA_K_U4 && PA_CUR_KV_F16 && !SG8
             // Exact chunks can end before the fixed S*V tile: skip whole blocks past k_chunk (their
             // scores are zero) together with their SLM/V loads, dequant and DPAS. Uniform; the
-            // barriers stay outside.
+            // barriers stay outside. Not on SG8: there the skip cut into the loaded-ahead V of the
+            // unrolled loop and spilled 4.9-7.8 KB at heads 96-512 (DG2, IGC 2.41.5); without it the
+            // blocks past k_chunk read in-bounds V and add 0, as on the i8 caches.
             if (cp * DPAS_K >= k_chunk)
                 continue;
 #elif CAUSAL_TILE_SKIP && IS_CAUSAL

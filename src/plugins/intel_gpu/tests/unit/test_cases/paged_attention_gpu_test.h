@@ -1108,6 +1108,9 @@ struct PagedAttentionManager {
     // read it through get_default_scale()). Only paged_attention_test_params::runtime_scale_multiplier and logit_scale_gain set it.
     float scale_multiplier = 1.0f;
 
+    // paged_attention_test_params::reference_past_from_cache.
+    bool reference_past_from_cache = false;
+
     float get_default_scale() {
         return scale_multiplier * static_cast<float>(1.f / std::sqrt(k_head_size));
     }
@@ -1348,7 +1351,8 @@ struct hash<ov::float16> {
 struct PagedAttentionReference {
     PagedAttentionReference(PagedAttentionManager& pam) : pam(pam), test_engine(pam.test_engine), test_stream(pam.test_stream) {}
 
-    std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> get_reference(cldnn::memory::ptr key_cache_mem = nullptr) {
+    std::tuple<std::vector<ov::float16>, std::vector<ov::float16>, std::vector<ov::float16>> get_reference(cldnn::memory::ptr key_cache_mem = nullptr,
+                                                                                                           cldnn::memory::ptr value_cache_mem = nullptr) {
         const bool has_xattention = pam.has_xattention;
         if (has_xattention) {
             const size_t total_iterations = pam.subsequence_descs.size();
@@ -1373,6 +1377,12 @@ struct PagedAttentionReference {
             const auto kv_seq_len = subsequence_desc.num_tokens + subsequence_desc.past_len;
 
             auto key_data = pam.key_data[i];
+            auto value_data = pam.value_data[i];
+            if (pam.reference_past_from_cache && subsequence_desc.past_len > 0) {
+                OPENVINO_ASSERT(key_cache_mem && value_cache_mem && !pam.rotation_config.apply_rotation,
+                                "reference_past_from_cache needs both caches and no rotation");
+                past_from_cache(key_data, value_data, key_cache_mem, value_cache_mem, i, subsequence_desc.past_len, kv_seq_len);
+            }
             if (pam.rotation_config.apply_rotation) {
                 auto blocks_start = pam.block_indices_begins[i];
                 auto blocks_end = pam.block_indices_begins[i + 1];
@@ -1436,7 +1446,7 @@ struct PagedAttentionReference {
             auto subsequence_ref_results = run_reference(has_xattention,
                                                          pam.query_data[i],
                                                          key_data,
-                                                         pam.value_data[i],
+                                                         value_data,
                                                          subsequence_desc.num_tokens,
                                                          kv_seq_len,
                                                          pam.num_heads,
@@ -1954,6 +1964,70 @@ public:
                      num_heads, k_head_size, block_size, per_block);
     }
 
+    // The past rows (tokens [0, past_len), data layout [token][kv_head][head]) as the caches hold them after the run, i.e. as
+    // the kernels read them (the cache update runs first, and a BY_CHANNEL page it appends to is requantized); the new rows
+    // stay the f16 inputs, which MIXED reads as they are (PA_CUR_KV_F16).
+    void past_from_cache(std::vector<ov::float16>& key_data,
+                         std::vector<ov::float16>& value_data,
+                         cldnn::memory::ptr key_cache_mem,
+                         cldnn::memory::ptr value_cache_mem,
+                         size_t seq_idx,
+                         int past_len,
+                         int total_tokens) {
+        const auto k_cache = read_key_from_cache(key_cache_mem, seq_idx, total_tokens);      // [kv_head][token][head]
+        const auto v_cache = read_value_from_cache(value_cache_mem, seq_idx, total_tokens);  // [kv_head][token][head]
+        for (int token = 0; token < past_len; ++token) {
+            for (int h = 0; h < pam.num_kv_heads; ++h) {
+                for (int d = 0; d < pam.k_head_size; ++d)
+                    key_data[(static_cast<size_t>(token) * pam.num_kv_heads + h) * pam.k_head_size + d] =
+                        k_cache[(static_cast<size_t>(h) * total_tokens + token) * pam.k_head_size + d];
+                for (int d = 0; d < pam.v_head_size; ++d)
+                    value_data[(static_cast<size_t>(token) * pam.num_kv_heads + h) * pam.v_head_size + d] =
+                        v_cache[(static_cast<size_t>(h) * total_tokens + token) * pam.v_head_size + d];
+            }
+        }
+    }
+
+    // The dequantized V of a u4 cache, [kv_head][token][head], in either page layout of get_value_cache_memory(): rows of
+    // head / 2 + 4 bytes (value 2b in the low nibble, 2b + 1 in the high one, then the token's (1 / scale, zp)), or with a
+    // token-major K page rows of head / 2 bytes (value b low, b + head / 2 high) and trailing per-token arrays. The writer
+    // aligns that row to 16 bytes (pa_kv_cache_update_ref.cl's PACKED_V_HEAD_SIZE), the harness does not, so the two agree
+    // only for a head / 2 that is a multiple of 16.
+    std::vector<ov::float16> read_value_from_cache(cldnn::memory::ptr value_cache_mem, size_t seq_idx, int total_tokens) {
+        OPENVINO_ASSERT(pam.kv_cache_compression && pam.is_int4_kv_cache(), "read_value_from_cache reads u4 caches only");
+        OPENVINO_ASSERT((pam.v_head_size / 2) % 16 == 0, "the harness's u4 V page matches the writer's only for v_head_size % 32 == 0");
+        std::vector<ov::float16> value_data(static_cast<size_t>(pam.num_kv_heads) * total_tokens * pam.v_head_size);
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(value_cache_mem, test_stream);
+        const int packed = pam.v_head_size / 2;
+        const size_t row = static_cast<size_t>(packed) + 4;
+        const bool v_tm = pam.k_cache_token_major();
+        const int blocks_start = pam.block_indices_begins[seq_idx];
+        const int num_blocks = pam.block_indices_begins[seq_idx + 1] - blocks_start;
+        for (int block_idx = 0; block_idx < num_blocks; ++block_idx) {
+            const int physical_block = pam.block_indices[blocks_start + block_idx];
+            const int tokens_in_block = std::min(pam.block_size, total_tokens - block_idx * pam.block_size);
+            for (int h = 0; h < pam.num_kv_heads; ++h) {
+                const size_t block_base = (static_cast<size_t>(physical_block) * pam.num_kv_heads + h) * row * pam.block_size;
+                for (int t = 0; t < tokens_in_block; ++t) {
+                    const size_t data = block_base + static_cast<size_t>(t) * (v_tm ? packed : row);
+                    const size_t comp = v_tm ? block_base + static_cast<size_t>(packed) * pam.block_size + 2 * static_cast<size_t>(t) : data + packed;
+                    const size_t zp_off = v_tm ? comp + 2 * static_cast<size_t>(pam.block_size) : comp + 2;
+                    const float inv_scale = static_cast<float>(*reinterpret_cast<const ov::float16*>(&cache_ptr[comp]));
+                    const float zp = static_cast<float>(*reinterpret_cast<const ov::float16*>(&cache_ptr[zp_off]));
+                    const size_t out = (static_cast<size_t>(h) * total_tokens + block_idx * pam.block_size + t) * pam.v_head_size;
+                    for (int d = 0; d < pam.v_head_size; ++d) {
+                        const int byte = v_tm ? d % packed : d / 2;
+                        const bool high = v_tm ? d >= packed : (d % 2) != 0;
+                        const uint8_t b = cache_ptr[data + byte];
+                        const float q = static_cast<float>(high ? (b >> 4) & 0xFu : b & 0xFu);
+                        value_data[out + d] = ov::float16((q - zp) * inv_scale);
+                    }
+                }
+            }
+        }
+        return value_data;
+    }
+
     std::vector<ov::float16> read_key_from_cache(cldnn::memory::ptr key_cache_mem, size_t seq_idx, int total_tokens) {
         // Read key vectors from key_cache memory
         // key_cache layout: [num_blocks, num_kv_heads, head_size, block_size]
@@ -2266,6 +2340,7 @@ public:
         }
         if (p.comp_stress)
             pam->apply_kv_comp_stress(p.comp_stress);
+        pam->reference_past_from_cache = p.reference_past_from_cache;
     }
 
     std::vector<ov::float16> get_output_data() {
@@ -2421,8 +2496,10 @@ public:
         }
 
         if (p.kv_cache_compression) {
-            // INT4 quantization has larger error than INT8 (~17x larger step size)
-            tolerance = (kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4) ? 75e-3 : 25e-3;
+            // INT4 quantization has larger error than INT8 (~17x larger step size), unless the reference reads the past from
+            // the caches too (the u4 comp cases).
+            const bool int4 = kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
+            tolerance = (int4 && !p.reference_past_from_cache) ? 75e-3 : 25e-3;
         }
 
         auto query_mem = pam.get_query_memory();
@@ -2779,7 +2856,7 @@ public:
         // because they use different layouts (key cache is [N,K,H,B] in OCL vs [N,K,B,H] in CM)
         verify_cm_kv_cache_write(p);
 
-        auto ref_data = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+        auto ref_data = PagedAttentionReference(pam).get_reference(result.key_cache_mem, result.value_cache_mem);
         if (p.has_xattention) {
             compare_xattention(output_data_mem, output_scores_mem, ref_data, p.num_heads, p.k_head_size);
         } else {
@@ -3575,6 +3652,11 @@ struct paged_attention_test_params {
     // holds a very different scale / zp per token. Without it a comp read of the wrong token moves the output by < 0.003.
     // Bit 2 distorts K per channel instead (even / odd channels 4x apart), for the BY_CHANNEL caches.
     int comp_stress = 0;
+
+    // The reference takes the past K and V (tokens before past_len) from the caches after the run, i.e. dequantized as the
+    // kernels read them, instead of the f16 inputs (u4 caches only: read_value_from_cache()). The rounding of a u4 page alone
+    // (up to 1/30 of a token's V range, undiluted under a sharp softmax) otherwise exceeds the tolerance on every kernel.
+    bool reference_past_from_cache = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;

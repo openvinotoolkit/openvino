@@ -635,7 +635,7 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_u4_1d)(__private ushort8 *k_raw,
 }
 #endif
 
-#if PA_K_PERMUTED && PA_CUR_KV_F16
+#if PA_K_PERMUTED && PA_CUR_KV_F16 && !SG8
 // u4 Kc (PA_K_PERMUTED): tile db needs lane L = channel PA_K_U4_WIN(db) + 2L +
 // PA_K_U4_PAR(db) (the permuted depth axis Q_slm is staged in), a stride-2 gather no 16b block read can do.
 // Channels (win + 2L, win + 2L + 1) are adjacent halves, i.e. one dword at dword column win/2 + L, so a 32b
@@ -845,11 +845,13 @@ SDPA_OCL_INLINE void FUNC(k_tile_gather)(__private ushort8 *k_raw, const __globa
 
 #if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_I8 && !USE_1D_BLOCK_IO_K_PA_U4 && IS_PA_KV_COMPRESSED
 #if SG8
-// SG8 i8 K page, token-major (the u4 page stops at sdpa_ocl_config.cl's tripwire): the KQ A operand is an int8 (component
-// kk = key key_base + mb * DPAS_ROWS + kk, lane = the dword of channels c0 = db * DPAS_K + 2 lane and c0 + 1, the low half
-// c0). The page holds a key's channels side by side, so a lane reads its channel pair as one ushort (c0 is even and the row
-// pitch is the head size, so it is 2 B aligned). The dequant is (q - zp) * scale in half, as the SG16 gather; a channel
-// at/past d is 0.
+// SG8 compressed K page, token-major: the KQ A operand is an int8 (component kk = key key_base + mb * DPAS_ROWS + kk, lane =
+// the dword of depth positions 2 lane and 2 lane + 1 of tile db, the low half the even one). i8: channels c0 = db * DPAS_K +
+// 2 lane and c1 = c0 + 1, side by side in the page, so a lane reads its pair as one ushort (c0 is even and the row pitch is
+// the head size, so it is 2 B aligned). u4 (BY_CHANNEL, the permuted depth Q_slm is staged in, PA_K_U4_CHANNEL): channels
+// c0 = win + 4 lane + par and c1 = c0 + 2, in bytes win / 2 + 2 lane and the next one (byte b holds channels 2b and 2b + 1),
+// nibble par of each; one ushort again (win / 2 is a multiple of 16 and the row pitch, the head size / 2, is even). The
+// dequant is (q - zp) * scale in half, as the SG16 gather; a channel at/past d is 0.
 //  - BY_TOKEN: a row block is DPAS_ROWS == SUBGROUP_SIZE keys, i.e. one key group of pa_k_comp_by_token(), so key kk's
 //    (scale, zp) is that group's lane kk; a key at/past k has scale and zp 0, so its slot dequantizes to 0 whatever it holds.
 //  - BY_CHANNEL: the page's comp is one (scale, zp) dword per channel, so a lane reads the dwords of its two channels, the
@@ -864,12 +866,26 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private int8 *k_raw, const __glo
 #endif
                                               const size_t b0_kv, const int key_base, const int k, const int d, const int db,
                                               const size_t lane, const int lane_i) {
+#if IS_PA_K_U4
+    const int c0 = PA_K_U4_CHANNEL(db, 2 * lane_i);
+    const int c1 = c0 + 2;
+    const int byte0 = PA_K_U4_WIN(db) / 2 + 2 * lane_i;
+    #if defined(NEG_SG8) && NEG_SG8 == 25
+    // Negative control: the other nibble, i.e. the neighbouring channels c0 ^ 1 and c1 ^ 1.
+    const uint nib_sh = PA_K_U4_PAR(db) ? 0u : 4u;
+    #else
+    const uint nib_sh = PA_K_U4_PAR(db) ? 4u : 0u;
+    #endif
+#else
     const int c0 = db * DPAS_K + 2 * lane_i;
+    const int c1 = c0 + 1;
+    const int byte0 = c0;
+#endif
     const bool c0_ok = c0 < d;
-    const bool c1_ok = c0 + 1 < d;
+    const bool c1_ok = c1 < d;
     #pragma unroll
     for (int mb = 0; mb < kq_key_blocks; ++mb) {
-        const size_t mb_page_base = PA_K_PAGE_OFF(k_page[mb], b0_kv) + (size_t)c0 * PA_K_HIDDEN_STRIDE;
+        const size_t mb_page_base = PA_K_PAGE_OFF(k_page[mb], b0_kv) + (size_t)byte0 * PA_K_HIDDEN_STRIDE;
         // key_base is a multiple of PAGED_ATTENTION_BLOCK_SIZE, so the row block's first token is a constant.
         const int tok0 = (mb * DPAS_ROWS) % PAGED_ATTENTION_BLOCK_SIZE;
 #if IS_PA_K_BY_CHANNEL
@@ -877,11 +893,11 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private int8 *k_raw, const __glo
         const __global uint *mb_comp = (const __global uint *)(K + PA_K_PAGE_OFF(k_page[mb], b0_kv) + PA_K_COMP_OFF);
     #if defined(NEG_SG8) && NEG_SG8 == 23
         // Negative control: the pairs of the two channels swapped.
-        const uint cc0 = (mb_valid && c1_ok) ? mb_comp[c0 + 1] : 0u;
+        const uint cc0 = (mb_valid && c1_ok) ? mb_comp[c1] : 0u;
         const uint cc1 = (mb_valid && c0_ok) ? mb_comp[c0] : 0u;
     #else
         const uint cc0 = (mb_valid && c0_ok) ? mb_comp[c0] : 0u;
-        const uint cc1 = (mb_valid && c1_ok) ? mb_comp[c0 + 1] : 0u;
+        const uint cc1 = (mb_valid && c1_ok) ? mb_comp[c1] : 0u;
     #endif
     #if defined(NEG_SG8) && NEG_SG8 == 24
         // Negative control: scale and zp of a pair swapped (the BY_TOKEN comp keeps them in two arrays).
@@ -902,14 +918,17 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private int8 *k_raw, const __glo
 #endif
             const uint pair =
                 c0_ok ? (uint)*(const __global ushort *)(K + mb_page_base + (size_t)(tok0 + kk) * PA_K_TOKEN_STRIDE) : 0u;
-#if defined(NEG_SG8) && NEG_SG8 == 22
+#if IS_PA_K_U4
+            // Unsigned nibbles (the u4 quantizer's).
+            const half2 q = (half2)((half)((pair >> nib_sh) & 0x0Fu), (half)((pair >> (8u + nib_sh)) & 0x0Fu));
+#elif defined(NEG_SG8) && NEG_SG8 == 22
             // Negative control: the two channels of the dword swapped.
             const half2 q = (half2)((half)(char)(pair >> 8), (half)(char)(pair & 0xFFu));
 #else
             const half2 q = (half2)((half)(char)(pair & 0xFFu), (half)(char)(pair >> 8));
 #endif
-            // A channel at/past d is 0, not -zp * scale (BY_TOKEN's pair is the key's, not 0); c1 at/past d (an odd d)
-            // read a byte of the next row.
+            // A channel at/past d is 0, not -zp * scale (BY_TOKEN's pair is the key's, not 0); c1 at/past d read a byte of
+            // the next row (an odd d) or past the row's end.
             const half2 deq = PA_DEQ(q, ch_zp, ch_sc);
             k_raw[mb][kk] = as_int((half2)(c0_ok ? deq.s0 : (half)0.0h, c1_ok ? deq.s1 : (half)0.0h));
         }
@@ -1045,7 +1064,37 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private ushort8 *k_raw, const __gl
 #endif  // SG8
 #endif
 
-#if PA_K_PERMUTED && PA_CUR_KV_F16
+#if PA_K_PERMUTED && PA_CUR_KV_F16 && SG8
+// SG8 u4 Kc: lane l of the int8 A operand holds depth positions 2l and 2l + 1 of tile db, i.e. channels
+// PA_K_U4_CHANNEL(db, 2l) = win + 4l + par and that + 2 (the labelling Q_slm is staged in): two ushorts of a Kc row, which
+// holds the new token `key` in row key - past_len (k - past_len rows). Any pitch or base; a key at/past k or a channel at/past
+// d is 0.
+SDPA_OCL_INLINE void FUNC(kc_tile_u4_gather)(__private int8 *k_raw, const __global ushort *Kc, const uint ldk,
+                                             const int key_base, const int past_len, const int k, const int d, const int db,
+                                             const int lane_i) {
+    const int c0 = PA_K_U4_CHANNEL(db, 2 * lane_i);
+    const int c1 = c0 + 2;
+    #pragma unroll
+    for (int mb = 0; mb < kq_key_blocks; ++mb) {
+        #pragma unroll
+        for (int kk = 0; kk < DPAS_ROWS; ++kk) {
+            const int key = key_base + mb * DPAS_ROWS + kk;
+    #if defined(NEG_SG8) && NEG_SG8 == 27
+            // Negative control: the next token's Kc row (a row past the last still reads nothing).
+            const int row = key - past_len + 1;
+            const bool key_ok = key < k && row < k - past_len;
+    #else
+            const int row = key - past_len;
+            const bool key_ok = key < k;
+    #endif
+            const __global ushort *kc_row = Kc + (size_t)row * ldk;
+            const uint lo = (key_ok && c0 < d) ? (uint)kc_row[c0] : 0u;
+            const uint hi = (key_ok && c1 < d) ? (uint)kc_row[c1] : 0u;
+            k_raw[mb][kk] = (int)(lo | (hi << 16));
+        }
+    }
+}
+#elif PA_K_PERMUTED && PA_CUR_KV_F16
 // u4 Kc when the dword read cannot represent an odd half offset from the aligned surface origin: stay
 // on the exact Kc source and gather the permuted channels directly. Falling back to the cache here
 // would reintroduce quantization error and would use page addressing with a potentially

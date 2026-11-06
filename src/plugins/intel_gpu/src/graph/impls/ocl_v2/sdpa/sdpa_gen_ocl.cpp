@@ -1102,7 +1102,7 @@ pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
     c.dequant_ok = (i8 && !c.key_by_channel) || c.by_channel_tm;
     if (c.u4_by_channel_tm) {
         c.k_row_elems = pa_u4_k_row_bytes(p.k_head_size);
-        c.v_row_elems = pa_u4_v_row_bytes(p.v_head_size, static_cast<size_t>(p.tiling.subgroup_size));
+        c.v_row_elems = pa_u4_v_row_bytes(p.v_head_size, pa_u4_v_row_align);
     }
     return c;
 }
@@ -1274,7 +1274,8 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // 0..7 for both 8-key groups of a page, 20 = the V scales of a lane's two keys swapped, 21 = the V zps of the next key
     // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm), on an i8 BY_CHANNEL
     // page 23 = the (scale, zp) pairs of a lane's two channels swapped, 24 = scale and zp of a pair swapped (each must fail
-    // its BY_CHANNEL cases), and for the new tokens of a compressed MIXED (PA_CUR_KV_F16) 27 = the next token's Kc row, 28 =
+    // its BY_CHANNEL cases), on a u4 page 25 = the other nibble of the K bytes, 26 = the other nibble of the V bytes (each
+    // must fail its u4 cases), and for the new tokens of a compressed MIXED (PA_CUR_KV_F16) 27 = the next token's Kc row, 28 =
     // the next token's Vc row (each must fail the comp cases that read a new token). Absent unless asked for, so the
     // default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
@@ -1371,7 +1372,7 @@ void add_pa_cache_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("PAGED_ATTENTION_BLOCK_SIZE", in.config.paged_attention_block_size);
     // An int4 K page is always per channel (4-bit BY_TOKEN keys are rejected by the execution config).
     const bool int4 = c.compressed && data_type_traits::is_i4_u4(in.kv_cache_precision);
-    const size_t v_row = int4 ? pa_u4_v_row_bytes(in.problem.v_head_size, static_cast<size_t>(in.problem.tiling.subgroup_size)) : in.problem.v_head_size;
+    const size_t v_row = int4 ? pa_u4_v_row_bytes(in.problem.v_head_size, pa_u4_v_row_align) : in.problem.v_head_size;
     add_pa_adjusted_jit(jit, in.problem.k_head_size, v_row, int4, int4 || c.key_by_channel, c.compressed ? 4 : 0);
 }
 
@@ -1464,10 +1465,10 @@ void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
         // Kc/Vc are read as QRY_DATA_T.
         const bool f16_in = kc.data_type == in.q.data_type && vc.data_type == in.q.data_type && ov::element::Type(in.q.data_type).size() == 2;
         if (!block2d) {
-            // SG8 reads Kc with k_tile_dword and Vc with vc_tile_gather, which take any layout. Compressed caches only (an f16
-            // page holds the same bits); not yet u4, whose permuted-depth Kc read is block2d only. SDPA_OCL_PA_CUR_F16=0 reads
-            // the current tokens back from the cache instead.
-            cur_f16 = (f16_in && in.cache.compressed && !in.cache.u4_by_channel_tm) ? env_int("SDPA_OCL_PA_CUR_F16", 1) : 0;
+            // SG8 reads Kc with k_tile_dword (kc_tile_u4_gather in a u4 cache's permuted depth) and Vc with vc_tile_gather,
+            // which take any layout. Compressed caches only (an f16 page holds the same bits). SDPA_OCL_PA_CUR_F16=0 reads the
+            // current tokens back from the cache instead.
+            cur_f16 = (f16_in && in.cache.compressed) ? env_int("SDPA_OCL_PA_CUR_F16", 1) : 0;
             jit.make("PA_CUR_KV_F16", cur_f16 != 0 ? 1 : 0);
             jit.make("BLOCK2D_KV_CUR_BASE_FIXUP", 0);
             return;

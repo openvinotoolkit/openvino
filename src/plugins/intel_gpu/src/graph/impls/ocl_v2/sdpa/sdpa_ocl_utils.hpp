@@ -179,6 +179,9 @@ inline size_t pa_u4_k_row_bytes(size_t k_head_size) {
 inline size_t pa_u4_v_row_bytes(size_t v_head_size, size_t subgroup_size) {
     return align_up(v_head_size / 2, subgroup_size);
 }
+// The alignment the cache writer gives that row (pa_kv_cache_update_ref.cl's PACKED_V_HEAD_SIZE, with paged_attention_opt.cpp's
+// subgroup of 16), whatever subgroup the reader runs: every reader of the page passes this, not its own subgroup size.
+constexpr size_t pa_u4_v_row_align = 16;
 
 // Whether the PagedAttention op's K cache holds token-major pages -- of any kind: uncompressed, i8 BY_TOKEN or i8/u4
 // BY_CHANNEL -- read off its physical shape by paged_attention::k_cache_token_major() (the decision is made once, in
