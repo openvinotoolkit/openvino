@@ -664,7 +664,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         if (from_cache)
             FUNC_CALL(pa_k_page_prefetch)(K, k_page, b0_kv, key_base, k);
     #endif
-    #if IS_PA_K_BY_CHANNEL
+    #if IS_PA_K_BY_CHANNEL && SG8
+        // The (scale, zp) pairs are read with the bytes (pa_k_tile_q_gather()).
+    #elif IS_PA_K_BY_CHANNEL
         half k_pa_sc_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
         half k_pa_zp_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
         if (from_cache)
@@ -744,7 +746,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #elif USE_1D_BLOCK_IO_K_PA_U4
             FUNC_CALL(pa_k_tile_u4_1d)(k_raw, k_pg, k_pa_sc_ch, k_pa_zp_ch, d, db, (int)lane);
     #elif IS_PA_KV_COMPRESSED
-        #if IS_PA_K_BY_CHANNEL
+        #if IS_PA_K_BY_CHANNEL && SG8
+            FUNC_CALL(pa_k_tile_q_gather)(k_raw, K, k_page, b0_kv, key_base, k, d, db, lane, (int)lane);
+        #elif IS_PA_K_BY_CHANNEL
             FUNC_CALL(pa_k_tile_q_gather)(k_raw, K, k_page, k_pa_sc_ch, k_pa_zp_ch, b0_kv, key_base, k, d, db, lane,
                                           (int)lane);
         #else
