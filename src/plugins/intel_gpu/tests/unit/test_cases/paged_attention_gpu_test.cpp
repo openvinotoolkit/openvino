@@ -346,9 +346,6 @@ input_feature_pads pads_q(int before, int after, bool dynamic) {
 input_feature_pads pads_kv(int before, int after, bool dynamic) {
     return input_feature_pads{{}, {before, after}, {before, after}, dynamic};
 }
-input_feature_pads pads_qv(int before, int after, bool dynamic) {
-    return input_feature_pads{{before, after}, {}, {before, after}, dynamic};
-}
 }  // namespace
 
 namespace {
@@ -395,10 +392,10 @@ std::vector<paged_attention_test_params> feature_pad_cases() {
         // 13-14: a dynamic 4 B pad on Q alone: Q takes the scalar path, whatever the pad.
         with_input_pads(prefill(2, 2, 64), pads_q(2, 2, DYNAMIC_PAD)),
         with_input_pads(mixed(2, 2, 64), pads_q(2, 2, DYNAMIC_PAD)),
-        // 15-16: GQA at head 128, and a compressed cache (MIXED still reads the raw f16 Kc/Vc for the new tokens). K is not padded
-        // there: the i8 BY_CHANNEL requantize path of pa_kv_cache_update_ref.cl ignores the pitch of the key input ("Known issues").
+        // 15-16: GQA at head 128, and a compressed cache (MIXED still reads the raw f16 Kc/Vc for the new tokens). What the
+        // cache writer stores from the padded key is checked by paged_attention_key_pad_cache_test.
         with_input_pads(prefill(8, 2, 128), pads_qkv(8, 8, DYNAMIC_PAD)),
-        with_input_pads(mixed_i8(2, 2, 64), pads_qv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(mixed_i8(2, 2, 64), pads_qkv(8, 8, DYNAMIC_PAD)),
     };
 
     // 17-33: the same cases with a sharp softmax.
@@ -458,6 +455,74 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_paged_attention,
     paged_attention_feature_pad_test,
     ::testing::ValuesIn(feature_pad_cases()));
+
+// The cache writer (pa_kv_cache_update_ref.cl) with a padded key input: every token it stores must be the input row
+// read at the padded pitch. The output does not show a wrong write here -- MIXED reads the new tokens from the key input
+// (Kc), and the basic rows do not observe the cache bytes (docs/sdpa_ocl.md "Test coverage gaps") -- so this dequantizes
+// the K cache back (read_key_from_cache(), either page layout) and compares every stored token with its input. The i8
+// BY_CHANNEL requantize of a partially filled block ({10, 34}: 10 new tokens from slot 2) stepped by the unpadded row
+// until 2026-11-06; the unpadded, u4 BY_CHANNEL and i8 BY_TOKEN cases are controls.
+class paged_attention_key_pad_cache_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_key_pad_cache_test, cache_matches_input) {
+    auto p = GetParam();
+    // The output check belongs to sdpa_ocl's padded-input gates (as in paged_attention_feature_pad_test); the cache check
+    // holds on every device.
+    execute(p, sdpa_ocl_serves_prefill_mixed());
+    ASSERT_NE(this->last_key_cache_mem, nullptr);
+
+    auto& pam = *this->pam;
+    const bool is_int4 = p.kv_cache_precision == ov::element::u4;
+    // Each stored token went through one or two roundings to the block's channel (BY_CHANNEL) or the token's (BY_TOKEN)
+    // step: range / 255 for i8, range / 15 for u4, with N(0, 0.1) data. A token read from the wrong row is off by ~0.1.
+    const float tol = is_int4 ? 0.08f : 0.01f;
+    PagedAttentionReference reference(pam);
+    for (size_t s = 0; s < pam.subsequence_descs.size(); s++) {
+        const auto& desc = pam.subsequence_descs[s];
+        const int total = desc.past_len + desc.num_tokens;
+        const auto cached = reference.read_key_from_cache(this->last_key_cache_mem, s, total);  // [kv_head][token][dim]
+        const auto& input = pam.key_data[s];                                                    // [token][kv_head][dim]
+        for (int t = 0; t < total; t++) {
+            for (int h = 0; h < pam.num_kv_heads; h++) {
+                for (int d = 0; d < pam.k_head_size; d++) {
+                    const float got = cached[(static_cast<size_t>(h) * total + t) * pam.k_head_size + d];
+                    const float want = input[(static_cast<size_t>(t) * pam.num_kv_heads + h) * pam.k_head_size + d];
+                    ASSERT_NEAR(got, want, tol) << "subsequence " << s << " token " << t << " (past_len " << desc.past_len
+                                                << ") kv head " << h << " dim " << d;
+                }
+            }
+        }
+    }
+}
+
+namespace {
+std::vector<paged_attention_test_params> key_pad_cache_cases() {
+    // {1, 34}: one new token at slot 2; {25, 0}: a fresh prompt; {10, 34}: 10 new tokens from slot 2 (the requantize).
+    auto mixed = [](ov::internal::CacheQuantMode mode, ov::element::Type precision) {
+        auto p = paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, mode, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+        p.kv_cache_precision = precision;
+        return p;
+    };
+    const auto i8_bc = mixed(ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8);
+    const auto u4_bc = mixed(ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4);
+    const auto i8_bt = mixed(ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8);
+    return {
+        // 0: unpadded control. 1-3: i8 BY_CHANNEL with a padded key (dynamic 16 B, static 16 B, static 4 B pads).
+        i8_bc,
+        with_input_pads(i8_bc, pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(i8_bc, pads_qkv(8, 8, STATIC_PAD)),
+        with_input_pads(i8_bc, pads_kv(2, 2, STATIC_PAD)),
+        // 4-5: controls, the same pads on the u4 BY_CHANNEL and i8 BY_TOKEN writers.
+        with_input_pads(u4_bc, pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(i8_bt, pads_qkv(8, 8, DYNAMIC_PAD)),
+    };
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_key_pad_cache,
+    paged_attention_key_pad_cache_test,
+    ::testing::ValuesIn(key_pad_cache_cases()));
 
 // PA PREFILL at head 128: the xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) on xe_hpg with the sdpa_ocl lane, the
 // generic kernels elsewhere. Lengths around its 32-query and 256-key workgroup tiles, several subsequences per call (its
