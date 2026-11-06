@@ -103,30 +103,32 @@ TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
 }
 
 // The landmine row: with TEST_USE_SDPA_OCL_HPG=1 sdpa_ocl_selected(xe_hpg) is true, yet no GENERATE reader reads a
-// token-major page there, so the page must stay d-major. The expectation does not look at the HPG switch.
-TEST(SdpaOclPredicates, TokenMajorReadableTruthTable) {
+// token-major page there, so the page must stay d-major. The expectation looks at no kernel switch: the layout is
+// static per device and config (TEST_USE_SDPA_OCL_DECODE=0 or OV_GPU_ENABLE_SDPA_MICRO=0 only move the reads to
+// paged_attention_opt.cl, which reads the token-major page too).
+TEST(SdpaOclPredicates, TokenMajorRuleTruthTable) {
     SCOPED_TRACE(env_trace());
     if (kOneDnn && pa::sdpa_ocl_hpg_enabled()) {
         // Positive control: the landmine is armed (the old one-predicate check would have said yes here).
         ASSERT_TRUE(pa::sdpa_ocl_selected(make_info(gpu_arch::xe_hpg, true)));
     }
-    pa::k_tm_op_info op;
-    op.k_head_size = 64;
-    op.v_head_size = 64;
-    op.heads_num = 8;
-    op.kv_heads_num = 2;
     for (auto a : kArchs) {
         for (bool immad : kBools) {
-            // dpas = mixed_dpas_enabled, the config's enable_sdpa_micro (no microkernel query: sdpa_ocl does not need one).
-            for (bool dpas : kBools) {
-                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " dpas=" << dpas);
-                const bool want =
-                    kOneDnn && pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::sdpa_ocl_decode_enabled() && immad && dpas && xe2_plus(a);
-                // The same rule for every page kind both token-major readers read.
-                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::i8, true, {op}), want);
-                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::f16, false, {op}), want);
-                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::i8, false, {op}), want);
-            }
+            SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
+            const auto info = make_info(a, immad);
+            const bool device = kOneDnn && immad && xe2_plus(a);
+            EXPECT_EQ(pa::k_token_major_device(info), device);
+            const bool want = device && pa::k_token_major_switch() != pa::k_layout_switch::d_major;
+            // The same rule for every page kind (k_token_major_kind()).
+            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::i8, true), want);
+            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::u4, true), want);
+            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::f16, false), want);
+            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::i8, false), want);
+            // Not a kind, or not an f16 inference precision: d-major everywhere.
+            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::f16, ov::element::u8, false));
+            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::f16, ov::element::u4, false));
+            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::f32, ov::element::i8, true));
+            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::bf16, ov::element::f16, false));
         }
     }
 }

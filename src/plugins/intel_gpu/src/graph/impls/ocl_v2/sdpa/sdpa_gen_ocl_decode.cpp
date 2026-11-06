@@ -250,12 +250,11 @@ size_t SDPAOclDecodeGenerator::get_q_per_wg(const RuntimeParams& params) {
     return q_per_wg_for(params, c, sg_per_wg_for(params, c));
 }
 
-// paged_attention::k_token_major_readable() replays the checks below that do not depend on the
-// K page; change the two together. The device/switch part lives in paged_attention.hpp.
+// An op refused here runs pa_single_token / pa_gqa_single_token, which read both K page layouts. The device/switch part
+// lives in paged_attention.hpp.
 bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     const auto& device_info = params.get_device_info();
-    // DPAS needs XMX; the 2D block reads (and the paths tuned around them) are Xe2+. The same predicate
-    // paged_attention::k_token_major_readable() asks, so the K layout and this gate cannot drift.
+    // DPAS needs XMX; the 2D block reads (and the paths tuned around them) are Xe2+.
     if (!paged_attention::sdpa_ocl_decode_reader_available(device_info)) {
         return false;
     }
