@@ -238,7 +238,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    timeout-minutes: ${{ (inputs.testFilterType == 'CONCISE' || (!inputs.testFilterType && github.event_name != 'schedule')) && 35 || 135 }}
+    timeout-minutes: ${{ (inputs.testFilterType == 'CONCISE' || (!inputs.testFilterType && github.event_name != 'schedule')) && 45 || 135 }}
     needs: [Smart_CI, Docker, Build]
     runs-on: aks-linux-4-cores-16gb
     container:

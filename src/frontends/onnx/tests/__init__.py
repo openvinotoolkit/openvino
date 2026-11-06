@@ -137,7 +137,6 @@ xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize
                                        "is not supported. Choose one of the following modes: "
                                        "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel, "
                                        "half_pixel")
-xfail_issue_119903 = xfail_test(reason="DeformConv operation is not supported")
 xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): y>': Unsupported padding mode: [wrap]")
 xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
 xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
@@ -189,8 +188,6 @@ xfail_issue_onnx122_bitcast = xfail_test(
     reason="OV ONNX FE does not support BitCast-26 (new in ONNX opset 26)")
 xfail_issue_onnx122_cumprod = xfail_test(
     reason="OV ONNX FE does not support CumProd-26 (new in ONNX opset 26)")
-xfail_issue_onnx122_tensorscatter = xfail_test(
-    reason="OV ONNX FE does not support TensorScatter-24 (new in ONNX opset 24)")
 xfail_issue_onnx122_attention = xfail_test(
     reason="OV ONNX FE does not fully support Attention-24 for these cases (ONNX opset 24)")
 xfail_issue_onnx122_newdtype = xfail_test(
