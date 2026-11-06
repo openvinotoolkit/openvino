@@ -17,6 +17,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/graph/memory_state.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/merge_transpose_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/resolve_edge_conflicts_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_serializer_deserializer_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_desc/empty_memory_desc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/tensoriterator_test.cpp
