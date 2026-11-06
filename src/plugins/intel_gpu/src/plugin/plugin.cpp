@@ -398,6 +398,7 @@ cldnn::ze::tp::CollectiveOptions collective_options(const ExecutionConfig& confi
     options.halving_max_bytes = config.get_tp_halving_max_bytes();
     options.force_sync_collective = GPU_DEBUG_VALUE_OR(config.get_tp_force_sync_collective(), false);
     options.skip_collective = GPU_DEBUG_VALUE_OR(config.get_tp_skip_collective(), false);
+    options.validate_allreduce_output = GPU_DEBUG_VALUE_OR(config.get_tp_validate_allreduce_output(), false);
     options.verbosity = GPU_DEBUG_VALUE_OR(config.get_tp_verbose(), ov::log::Level::NO);
 
     const auto profiling = GPU_DEBUG_VALUE_OR(config.get_tp_profiling(), TPProfilingMode::NONE);

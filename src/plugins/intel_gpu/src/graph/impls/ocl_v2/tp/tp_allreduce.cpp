@@ -108,14 +108,26 @@ public:
         }
 
         const auto& layout = instance.get_impl_params()->get_input_layout(0);
+        const auto collective_id = static_cast<int>(instance.get_typed_desc<tp_allreduce>()->collective_id);
         m_recorder.run(channel,
-                       static_cast<int>(instance.get_typed_desc<tp_allreduce>()->collective_id),
+                       collective_id,
                        instance.input_memory_ptr()->buffer_ptr(),
                        instance.output_memory_ptr()->buffer_ptr(),
                        layout.count(),
                        ov::element::Type{layout.data_type},
                        reduce_kernel(),
                        async ? model_queue_of(stream) : nullptr);
+        if (channel.options().validate_allreduce_output) {
+            stream.finish();
+            // One copy: reading device memory element by element crosses the bus every time.
+            std::vector<uint8_t> output(instance.get_output_layout().bytes_count());
+            instance.output_memory_ptr()->copy_to(stream, output.data(), 0, 0, output.size(), true);
+            uint64_t checksum = 14695981039346656037ULL;  // FNV-1a
+            for (const auto byte : output) {
+                checksum = (checksum ^ byte) * 1099511628211ULL;
+            }
+            channel.group()->check_output(channel.rank(), collective_id, checksum, instance.id());
+        }
         // The stream is in-order, so consumers are ordered behind the collective;
         // only a network output needs an event that completes with it.
         if (instance.is_output()) {

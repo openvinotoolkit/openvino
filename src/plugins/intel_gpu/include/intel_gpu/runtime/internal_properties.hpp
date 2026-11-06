@@ -294,6 +294,7 @@ static constexpr Property<TPProfilingMode, ov::PropertyMutability::RW> tp_profil
 static constexpr Property<uint64_t, ov::PropertyMutability::RW> tp_dump_period{"GPU_TP_DUMP_PERIOD"};
 static constexpr Property<bool, ov::PropertyMutability::RW> tp_force_sync_collective{"GPU_TP_FORCE_SYNC_COLLECTIVE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> tp_skip_collective{"GPU_TP_SKIP_COLLECTIVE"};
+static constexpr Property<bool, ov::PropertyMutability::RW> tp_validate_allreduce_output{"GPU_TP_VALIDATE_ALLREDUCE_OUTPUT"};
 #endif  // ENABLE_TP
 }  // namespace ov::intel_gpu
 

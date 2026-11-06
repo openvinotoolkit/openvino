@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <sstream>
 #include <utility>
@@ -186,6 +187,10 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
 }
 
 GroupState::~GroupState() {
+    if (m_options.validate_allreduce_output) {
+        TP_REPORT << "[TP][CHECK] AllReduce outputs compared across " << m_world_size << " ranks: " << m_checked
+                  << " calls, " << m_mismatches << " differ" << std::endl;
+    }
     // Before anything it watches goes away. Every recording holds the group,
     // so none is left to use the staging or the events below.
     stop_watchdog();
@@ -197,6 +202,37 @@ GroupState::~GroupState() {
     for (auto& rs : m_ranks) {
         destroy_rank(rs);
     }
+}
+
+void GroupState::check_output(int rank, int collective_id, uint64_t checksum, const std::string& name) {
+    // A mismatch flood (every call of a broken collective) would bury the first ones.
+    constexpr uint64_t kMaxReports = 20;
+    std::lock_guard<std::mutex> lock(m_check_mutex);
+    if (m_check_calls.empty())
+        m_check_calls.assign(m_world_size, std::vector<uint64_t>(m_num_collectives, 0));
+    const auto call = m_check_calls[rank][collective_id]++;
+    auto& check = m_checks[{collective_id, call}];
+    if (check.checksums.empty())
+        check.checksums.assign(m_world_size, 0);
+    check.checksums[rank] = checksum;
+    if (++check.arrived < m_world_size)
+        return;
+
+    ++m_checked;
+    const auto& sums = check.checksums;
+    if (std::adjacent_find(sums.begin(), sums.end(), std::not_equal_to<>()) != sums.end()) {
+        if (++m_mismatches <= kMaxReports) {
+            std::ostringstream message;
+            message << "[TP][CHECK] AllReduce output differs across ranks: " << name << " (collective "
+                    << collective_id << ", call " << call << "):";
+            for (int r = 0; r < m_world_size; ++r)
+                message << " r" << r << "=0x" << std::hex << sums[r] << std::dec;
+            if (m_mismatches == kMaxReports)
+                message << "; further differences are only counted";
+            TP_WARN_ALWAYS << message.str();
+        }
+    }
+    m_checks.erase({collective_id, call});
 }
 
 ze_context_handle_t GroupState::context() const {

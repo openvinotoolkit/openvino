@@ -19,6 +19,8 @@ struct CollectiveOptions {
     uint64_t halving_max_bytes = 256 * 1024;
     bool force_sync_collective = false;
     bool skip_collective = false;
+    /// Compare a checksum of every rank's AllReduce output across the ranks.
+    bool validate_allreduce_output = false;
     bool profiling_host = false;
     bool profiling_device = false;
     std::size_t dump_period = 0;  ///< collectives between two reports; 0 when profiling is off

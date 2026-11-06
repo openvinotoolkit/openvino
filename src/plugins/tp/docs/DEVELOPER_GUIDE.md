@@ -381,6 +381,15 @@ an abort after `COMMUNICATION_TIMEOUT_MS` and names the rank and the stage.
 
 ### "A collective produces zeros or NaNs"
 
+Find it first. `OV_GPU_VALIDATE_OUTPUT_BUFFER=1` (the GPU plugin's own option) checks the output of
+every primitive of every rank, the `tp_allreduce` ones included, for inf / NaN and names the first
+one; `OV_GPU_TP_VALIDATE_ALLREDUCE_OUTPUT=1` compares a checksum of every AllReduce output across the
+ranks -- they must be bit-identical -- and names the collective and the call where they differ
+(`[TP][CHECK] AllReduce output differs across ranks: <name> (collective 24, call 0): r0=0x.. r1=0x..`,
+the first 20, then a count at the end: `[TP][CHECK] AllReduce outputs compared across 4 ranks: 98304
+calls, 0 differ`). Both drain the queue at every check: Llama-3.1-8B TP4, 1024-token prompt, TTFT
+755 ms and TPOT 9.6 ms with the checksum instead of 90 ms and 6.7 ms.
+
 In order of frequency:
 
 1. **Memcpy enqueued on the wrong rank's list.** L0 silently drops transfers

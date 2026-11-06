@@ -9,10 +9,12 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "collective_options.hpp"
@@ -224,6 +226,10 @@ public:
     bool run_spliced() const {
         return async_supported() && !m_options.force_sync_collective;
     }
+
+    /// GPU_TP_VALIDATE_ALLREDUCE_OUTPUT: `rank`'s checksum of its output of its next call of `collective_id`.
+    /// The rank completing a call compares the ranks' checksums and reports a difference with `name`.
+    void check_output(int rank, int collective_id, uint64_t checksum, const std::string& name);
 
     // ---------------------------------------------------------------
     // Fixed staging
@@ -530,6 +536,17 @@ private:
 
     CollectiveStats m_stats;
     DumpPeriod m_dump_period;
+
+    // GPU_TP_VALIDATE_ALLREDUCE_OUTPUT.
+    struct OutputCheck {
+        std::vector<uint64_t> checksums;  // [N]
+        int arrived = 0;
+    };
+    std::mutex m_check_mutex;
+    std::vector<std::vector<uint64_t>> m_check_calls;  // [N][collective]: calls checked so far
+    std::map<std::pair<int, uint64_t>, OutputCheck> m_checks;  // (collective, call) still collecting
+    uint64_t m_checked = 0;
+    uint64_t m_mismatches = 0;
 };
 
 using GroupStatePtr = std::shared_ptr<GroupState>;

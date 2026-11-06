@@ -157,4 +157,5 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_profiling, ov::intel_gpu::TPProfilingMo
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_dump_period, uint64_t{0}, "Rank-0 collectives between two measurement reports. 0 means report every one")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_force_sync_collective, false, "Force collectives off the spliced model queue onto their own queue with a full drain")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_skip_collective, false, "DANGEROUS: return from every AllReduce without doing anything. Output buffers keep whatever they held")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_validate_allreduce_output, false, "After every AllReduce, compare a checksum of each rank's output across the ranks and report any difference. Drains the queue at every collective")
 #endif  // ENABLE_TP
