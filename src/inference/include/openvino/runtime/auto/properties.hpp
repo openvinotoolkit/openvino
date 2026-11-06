@@ -31,20 +31,20 @@ static constexpr Property<bool> enable_startup_fallback{"ENABLE_STARTUP_FALLBACK
 static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK"};
 
 /**
- * @brief auto device setting that enables compiling the model to the remaining candidate devices in the background,
- * after the actual device is ready, to populate cache blobs for faster device switching.
- * Enabling it disables ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback.
- * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws on every host. Ignored in
- * cumulative throughput mode, when there is no other candidate device, and when
- * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
+ * @brief Enables background cache warm-up for AUTO candidate devices other than the one AUTO serves inference on,
+ * including CPU when it is a candidate. Warm-up fills the model cache for a later compile_model call; it does not
+ * switch the current compiled model to another device.
  *
- * When ov::device::priorities (or a device string such as "AUTO:GPU,NPU") is set, it determines the candidates;
- * otherwise AUTO discovers its usual eligible devices. For example, to warm up the cache for GPU and NPU, so that
- * the one not selected by AUTO is compiled in the background:
+ * Requires ov::cache_dir or ov::cache_path; compiling the model throws otherwise. The property is ignored in
+ * cumulative throughput mode, when ov::cache_blob_id is set, or when no other candidate exists. When active, it
+ * disables ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback for this compile.
+ * Warm-up failures are logged as warnings. See the AUTO device selection article for details.
+ *
+ * For example, to warm up other eligible candidates:
  * @code
  * core.compile_model(model,
  *                    "AUTO",
- *                    ov::device::priorities("GPU,NPU"),
+ *                    ov::device::priorities("GPU,CPU"),
  *                    ov::cache_dir("model_cache"),
  *                    ov::intel_auto::compile_for_all(true));
  * @endcode

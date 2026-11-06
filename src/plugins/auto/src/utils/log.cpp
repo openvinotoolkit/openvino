@@ -8,6 +8,6 @@
 namespace ov {
 namespace auto_plugin {
 ov::log::Level Log::default_log_level = ov::log::Level::NO;
-std::vector<std::string> Log::valid_format = {"u", "d", "s", "ld", "lu", "lf"};
+std::vector<std::string> Log::valid_format = {"u", "d", "s", "ld", "lu", "lf", "zu"};
 } // namespace auto_plugin
 } // namespace ov

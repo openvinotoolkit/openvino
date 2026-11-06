@@ -34,8 +34,10 @@ OPENVINO_C_VAR(const char*)
 ov_property_key_intel_auto_enable_runtime_fallback;
 
 /**
- * @brief Read-write property<string> to enable/disable compiling the model to all candidate devices in the
- * background to populate cache blobs for faster subsequent loading (requires ov::cache_dir or ov::cache_path)
+ * @brief Boolean property to enable background cache warm-up for other eligible AUTO candidate devices.
+ * In the C API, pass the string value "YES" or "NO". Requires ov::cache_dir or ov::cache_path; the property is
+ * ignored in cumulative throughput mode or when ov::cache_blob_id is set. When active, startup and runtime fallbacks
+ * are disabled for this compile.
  * @ingroup ov_property_c_api
  */
 OPENVINO_C_VAR(const char*)

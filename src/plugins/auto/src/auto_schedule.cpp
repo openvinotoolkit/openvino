@@ -141,10 +141,10 @@ void AutoSchedule::init() {
         const auto& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
         const auto& candidates = m_compile_context[ACTUALDEVICE].m_meta_devices;
         const bool has_warmup_candidate = std::any_of(candidates.begin(), candidates.end(), [&](const auto& device) {
-            return device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU";
+            return device.device_name != actual_device;
         });
         if (!has_warmup_candidate) {
-            LOG_WARNING_TAG("compile_for_all is ignored: no other non-CPU candidate device to compile");
+            LOG_WARNING_TAG("compile_for_all is ignored: no other candidate device to compile");
             m_context->m_compile_for_all = false;
         } else {
             // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.

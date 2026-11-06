@@ -63,6 +63,7 @@ What is important, **AUTO starts inference with the CPU of the system by default
 While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impact inference at its initial stages.
 For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
+See :ref:`Pre-compiling the Model for Other Devices <auto-compile-for-all>` for the cache warm-up option and its latency and fallback trade-offs.
 
 Note that if you choose to exclude CPU from the priority list or disable the initial
 CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be
@@ -169,9 +170,6 @@ the following setup options:
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
 |                                              | beginning. The default value is ``true``, indicating that CPU is   |
 |                                              | used as acceleration by default.                                   |
-|                                              |                                                                    |
-|                                              | As a trade-off, two model instances will be kept, resulting in     |
-|                                              | additional memory usage of approximately one model’s size.         |
 +----------------------------------------------+--------------------------------------------------------------------+
 | ``ov::intel_auto::enable_runtime_fallback``  | **Values**:                                                        |
 |                                              |                                                                    |
@@ -202,35 +200,10 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | ``false``                                                          |
 |                                              |                                                                    |
-|                                              | Compiles the model to the remaining candidate devices in the       |
-|                                              | background, after the actual device is ready, to populate cache    |
-|                                              | blobs for faster device switching later. Devices whose cache blob  |
-|                                              | already exists are skipped. CPU candidates are excluded from       |
-|                                              | background pre-compilation.                                        |
-|                                              |                                                                    |
-|                                              | Enabling it disables ``ov::intel_auto::enable_startup_fallback``   |
-|                                              | and ``ov::intel_auto::enable_runtime_fallback``.                   |
-|                                              |                                                                    |
-|                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
-|                                              | compiling the model throws on every host.                          |
-|                                              |                                                                    |
-|                                              | Ignored in cumulative throughput mode, when there is no            |
-|                                              | other candidate device to compile, and when ``ov::cache_blob_id``  |
-|                                              | is set for AUTO or for any candidate device.                       |
-|                                              |                                                                    |
-|                                              | A device whose cache path is a single-file cache (``*.bin``) is    |
-|                                              | skipped with a warning.                                            |
-|                                              |                                                                    |
-|                                              | Only the devices listed in ``ov::device::priorities`` or in the    |
-|                                              | device string, for example ``AUTO:GPU,NPU``, are compiled; other   |
-|                                              | available devices are not. With ``AUTO:GPU,NPU``, if GPU becomes   |
-|                                              | actual device, NPU is compiled in the background (and vice versa). |
-|                                              |                                                                    |
-|                                              | Warm-up compiles one device at a time and releases each compiled   |
-|                                              | model right away. The memory needed by the background compilation  |
-|                                              | itself is not included.                                            |
-|                                              |                                                                    |
-|                                              | The default value is ``false``.                                    |
+|                                              | Enables background cache warm-up for other eligible candidates.    |
+|                                              | Default: ``false``. Disables startup/runtime fallbacks if active.  |
+|                                              | First-inference latency may increase.                              |
+|                                              | See :ref:`details <auto-compile-for-all>`.                         |
 +----------------------------------------------+--------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
@@ -254,6 +227,52 @@ The code samples on this page assume following import(Python)/using (C++) are in
             :language: cpp
             :fragment: [py_ov_property_import_header]
 
+
+
+.. _auto-compile-for-all:
+
+Pre-compiling the Model for Other Devices
++++++++++++++++++++++++++++++++++++++++++
+
+Enable ``ov::intel_auto::compile_for_all`` to prepare cached models for other eligible devices, including CPU,
+in the background after the execution device is ready. This can speed up later ``compile_model`` calls;
+it does not change the current execution device. Candidates come from ``ov::device::priorities`` or the device
+string; plain ``AUTO`` uses its usual eligible devices.
+
+* Requires ``ov::cache_dir`` or ``ov::cache_path``. Without either, ``compile_model`` throws unless the property
+  is ignored in cumulative throughput mode or because ``ov::cache_blob_id`` is set for AUTO or any candidate.
+* Ignored in ``CUMULATIVE_THROUGHPUT`` mode, with ``ov::cache_blob_id``, or when no other candidate exists at
+  scheduling initialization. In the last case, cache settings are validated first and fallbacks remain unchanged.
+* When active, disables ``ov::intel_auto::enable_startup_fallback`` and ``ov::intel_auto::enable_runtime_fallback``
+  at initialization, even if startup retries later remove all warm-up candidates. This may increase first-inference
+  latency and prevents retrying a failed inference on another device.
+* Skips devices with caching disabled or a single-file cache path (``*.bin``). Warm-up failures are logged as warnings.
+  Core reuses compatible cache blobs and may rebuild invalid ones.
+
+Warm-up compiles one device at a time and releases each temporary compiled model. Background compilation adds
+memory overhead, including a private clone for in-memory models. Destroying the AUTO compiled model cancels pending
+warm-ups and waits for any compilation already in progress.
+
+GPU warm-up runs with low host task priority, but the CPU plugin has no equivalent setting. A background CPU warm-up
+therefore competes with ongoing inference for host CPU cores and memory bandwidth.
+
+See :doc:`Model Caching Overview <../optimize-inference/optimizing-latency/model-caching-overview>` for cache settings.
+
+.. tab-set::
+
+    .. tab-item:: Python
+        :sync: py
+
+        .. doxygensnippet:: docs/articles_en/assets/snippets/ov_auto.py
+           :language: python
+           :fragment: [compile_for_all]
+
+    .. tab-item:: C++
+        :sync: cpp
+
+        .. doxygensnippet:: docs/articles_en/assets/snippets/AUTO0.cpp
+            :language: cpp
+            :fragment: [compile_for_all]
 
 
 Device Candidates and Priority
