@@ -90,7 +90,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
+    if: "!needs.smart_ci.outputs.skip_workflow && (fromJSON(needs.smart_ci.outputs.affected_components).GPU || fromJSON(needs.smart_ci.outputs.affected_components).samples)"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -147,9 +147,79 @@ jobs:
         options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
         test_filter: 'smoke_MatMulCompressedWeights_corner_cases*'
 
+  Arc_BMG_dGPU_remote_tensor_sample:
+    name: Arc BMG dGPU hello_remote_tensor Sample Level Zero
+    needs: [ Build, Docker, Smart_CI ]
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU || fromJSON(needs.smart_ci.outputs.affected_components).samples
+    timeout-minutes: 30
+    runs-on:
+      group: 'Intel-GPU'
+      labels: [ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      volumes:
+        - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
+        - ${{ github.workspace }}:${{ github.workspace }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+    defaults:
+      run:
+        shell: bash
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt # Needed by Node.js actions behind the proxy
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt # Needed by the test's model download (requests) behind the proxy
+    steps:
+      - name: Download OpenVINO artifacts (package)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download OpenVINO artifacts (tests)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO packages
+        run: |
+          pigz -dc openvino_package.tar.gz | tar -xf -
+          pigz -dc openvino_tests.tar.gz | tar -xf -
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Verify devices
+        timeout-minutes: 5
+        run: clinfo
+
+      - name: Add proxy CA certificate to system trust store
+        run: update-ca-certificates
+
+      # The sample needs a Level Zero context; on the OpenCL runtime this requires LEO (EnableLEO=1).
+      - name: hello_remote_tensor sample tests
+        env:
+          EnableLEO: '1'
+          TEST_DEVICE: 'GPU;GPU.0'
+        run: |
+          export IE_APP_PATH=$INSTALL_DIR/samples_bin
+          python3 -m pip install -r $INSTALL_TEST_DIR/smoke_tests/requirements.txt pytest-timeout==2.4.0
+          source ${INSTALL_DIR}/setupvars.sh
+          python3 -m pytest $INSTALL_TEST_DIR/smoke_tests/test_hello_remote_tensor.py \
+            -v -ra --timeout=180 \
+            --junitxml=$INSTALL_TEST_DIR/TEST-hello_remote_tensor.xml
+
+      - name: Upload Test Results
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: test-results-hello_remote_tensor-dgpu
+          path: ${{ env.INSTALL_TEST_DIR }}/TEST-hello_remote_tensor.xml
+          if-no-files-found: 'warn'
+
   Overall_Status:
     name: ci/gha_overall_status_dev_gpu_linux_level_zero
-    needs: [ Smart_CI, Docker, Build, Arc_BMG_dGPU_unit, Arc_BMG_dGPU_func ]
+    needs: [ Smart_CI, Docker, Build, Arc_BMG_dGPU_unit, Arc_BMG_dGPU_func, Arc_BMG_dGPU_remote_tensor_sample ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
