@@ -300,6 +300,7 @@ JitConstants SDPAOptGeneratorFinalization::get_jit_constants(const kernel_impl_p
     auto jit = SDPAOptGeneratorBase::get_jit_constants_base(params, SDPAStage::FINALIZATION);
     jit.make("SDPA_STAGE_1", 1);
     jit.make("TARGET_SEQ_LEN_BLOCK_SIZE", get_target_seq_len_block_size());
+    jit.make("MAX_PARTITIONS_NUM", get_max_partitions_num());
     return jit;
 }
 
