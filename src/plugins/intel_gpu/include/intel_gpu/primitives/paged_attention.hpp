@@ -60,12 +60,12 @@ struct paged_attention : public primitive_base<paged_attention> {
     //   u4 BY_CHANNEL   [block_size tokens][k_head_size / 2] bytes, channels 2b and 2b + 1 in byte b (d-major packs two
     //                   TOKENS per byte), then the per-channel pairs. It relays the u4 V page too: split nibbles and a
     //                   trailing per-token comp array instead of the pair inline at the end of every row.
-    // The layout is decided once per model, in transformations_pipeline.cpp, by one rule for every kind of page
-    // (k_token_major_readable()). Every consumer reads it back off the physical cache shape with k_cache_token_major()
-    // and passes one jit flag, IS_KEY_TOKEN_MAJOR, for every kind of page.
+    // The layout is decided once per model, in transformations_pipeline.cpp, by one static rule for every kind of page
+    // (k_token_major_rule()). Every consumer reads it back off the physical cache shape with k_cache_token_major()
+    // and passes one jit flag, IS_KEY_TOKEN_MAJOR, for every kind of page; every consumer reads both layouts.
 
     // The one layout switch, OV_GPU_PA_K_TOKEN_MAJOR, read once per process:
-    //   unset  the rule (k_token_major_readable())
+    //   unset  the rule (k_token_major_rule())
     //   '0'    every K page d-major, the upstream layout: the control for the token-major readers
     // '1' (the uncompressed / BY_TOKEN page token-major on every device, read by the opt kernels) and
     // OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR are retired and rejected rather than ignored.
@@ -78,21 +78,24 @@ struct paged_attention : public primitive_base<paged_attention> {
             if (env == nullptr || env[0] == '\0')
                 return k_layout_switch::rule;
             OPENVINO_ASSERT(!(env[0] == '1' && env[1] == '\0'),
-                            "[GPU] OV_GPU_PA_K_TOKEN_MAJOR=1 is retired: the opt kernels no longer read a token-major K page, which is "
-                            "made only where sdpa_ocl and sdpa_ocl_decode read it (unset); OV_GPU_PA_K_TOKEN_MAJOR=0 makes every K page d-major");
+                            "[GPU] OV_GPU_PA_K_TOKEN_MAJOR=1 is retired: the K page is token-major wherever the rule allows it "
+                            "(unset); OV_GPU_PA_K_TOKEN_MAJOR=0 makes every K page d-major");
             OPENVINO_ASSERT(env[0] == '0' && env[1] == '\0', "[GPU] OV_GPU_PA_K_TOKEN_MAJOR must be 0 or unset, got ", env);
             return k_layout_switch::d_major;
         }();
         return value;
     }
 
-    // The devices whose K pages may be token-major: the sdpa_ocl lane with its GENERATE reader, i.e. Xe2+ with XMX. Not
-    // xe_hpg (its opt-in lane has no sdpa_ocl_decode); every other device keeps the upstream d-major page and kernels.
+    // The devices whose K pages are token-major: Xe2+ with XMX (and oneDNN, which the sdpa_ocl lane is built with), where
+    // sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE), the kernels the layout is for, exist. Not xe_hpg (its opt-in lane
+    // has no sdpa_ocl_decode); every other device keeps the upstream d-major page. The device only, not the switches
+    // that turn those kernels off (TEST_USE_SDPA_OCL_HPG, TEST_USE_SDPA_OCL_DECODE, OV_GPU_ENABLE_SDPA_MICRO): the opt
+    // kernels that serve an op they refuse read the token-major page too.
     static bool k_token_major_device(const device_info& info) {
-        return sdpa_ocl_selected(info) && sdpa_ocl_decode_reader_available(info);
+        return sdpa_ocl_selected(info, false) && sdpa_ocl_decode_reader_available(info, true);
     }
 
-    // The kinds of K page both token-major readers, sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE), read: f16
+    // The kinds of K page every consumer reads token-major, among them sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE): f16
     // (uncompressed; the quant mode means nothing there), i8 BY_TOKEN, i8 BY_CHANNEL and u4 BY_CHANNEL.
     //
     // f16 only among the uncompressed types, because sdpa_ocl_decode takes an f16 cache only. i8 rather than i8/u8,
@@ -114,11 +117,11 @@ struct paged_attention : public primitive_base<paged_attention> {
     // block dimension (adjusted_block_size: block_size, or for a compressed BY_CHANNEL page block_size -- halved for
     // INT4 -- plus its comp rows) is d2 in a token-major page and d3 in a d-major one. Every consumer of the cache asks
     // this rather than re-running the creation rule, so the decision made once cannot drift between them. Where the
-    // shape cannot tell -- a dynamic dim, or a square page (head dim == block dim) -- the page is d-major:
-    // k_token_major_readable() never makes a square page token-major (an f16 k_head_size 16 page is refused, and the
-    // square i8 BY_TOKEN page, k_head_size 12, and BY_CHANNEL page, k_head_size 20 or 12 for u4, fail its
-    // k_head_size % 16), and the PagedAttention consumers get the static page dims the pipeline gave the cache (a
-    // shape-agnostic pa_kv_reorder picks its kernel off the real shape at dispatch). XAttention pages are not covered.
+    // shape cannot tell -- a dynamic dim, or a square page (head dim == block dim: f16 k_head_size 16, i8 BY_TOKEN 12,
+    // BY_CHANNEL 20, or 12 for u4) -- the page is d-major, which is then what every consumer writes and reads: the
+    // token-major dim order gives a square page the same shape. The PagedAttention consumers get the static page dims the
+    // pipeline gave the cache (a shape-agnostic pa_kv_reorder picks its kernel off the real shape at dispatch).
+    // XAttention pages are not covered.
     static bool k_cache_token_major(const ov::PartialShape& key_cache_ps, size_t adjusted_block_size) {
         if (key_cache_ps.rank().is_static() && key_cache_ps.size() == 4 && key_cache_ps[2].is_static() && key_cache_ps[3].is_static()) {
             const auto d2 = key_cache_ps[2].get_length();
@@ -131,9 +134,8 @@ struct paged_attention : public primitive_base<paged_attention> {
     }
 
     // TEST_USE_SDPA_OCL_DECODE: unset or '1' => sdpa_ocl_decode may serve GENERATE.
-    // Read once per process. The SDPA / PA gates and k_token_major_readable() all go through these switches,
-    // so the K layout and the kernel choice never see different values. (TEST_USE_SDPA_OCL, which selected sdpa_micro,
-    // was retired with it; OV_GPU_ENABLE_SDPA_MICRO=0 turns the DPAS kernel off.)
+    // Read once per process. The SDPA / PA gates all go through these switches; the K layout does not look at them. (TEST_USE_SDPA_OCL, which selected
+    // sdpa_micro, was retired with it; OV_GPU_ENABLE_SDPA_MICRO=0 turns the DPAS kernel off.)
     static bool sdpa_ocl_decode_enabled() {
         static const bool enabled = []() {
             const char* env = std::getenv("TEST_USE_SDPA_OCL_DECODE");
@@ -190,42 +192,25 @@ struct paged_attention : public primitive_base<paged_attention> {
         return sdpa_ocl_decode_reader_available(info, sdpa_ocl_decode_enabled());
     }
 
-    // What the gates of the two token-major readers look at in one PagedAttention op.
-    struct k_tm_op_info {
-        size_t k_head_size = 0;   // 0 = unknown
-        size_t v_head_size = 0;   // 0 = unknown
-        size_t heads_num = 0;     // 0 = unknown
-        size_t kv_heads_num = 0;  // 0 = unknown
-        bool has_alibi = false;
-        bool has_scores_output = false;
-        bool has_adaptive_rkv = false;
-    };
-
-    // The layout rule, the same for every kind of K page: whether a model whose PagedAttention ops are `ops` may keep
-    // its K cache of this precision and quant mode token-major on this device. True only for a page kind both
-    // token-major readers read (k_token_major_kind()), and only if every op's MIXED dispatch will run sdpa_ocl
-    // (sdpa_ocl_selected(), the sdpa_ocl branch of PagedAttentionOptImpl::choose_dpas_backend) AND every GENERATE
-    // dispatch sdpa_ocl_decode (sdpa_ocl_decode_reader_available(), SDPAOclDecodeGenerator::supported); together that
-    // is k_token_major_device(). The two are independent: folding them into one would give xe_hpg a token-major page
-    // that only d-major readers see. One op either gate refuses keeps the whole model d-major, so the opt kernels that
-    // serve it never see a token-major page. The layout is decided once per model but
-    // the reader per dispatch, and a refused gate lands on a reader that may read the page d-major and return
-    // garbage, so this must never say yes where a gate says no. Saying no where a gate would say yes only costs
-    // speed: the d-major page has a correct reader in every stage. Keep it in step with those two
-    // gates; PagedAttentionOptImpl::update_rt_params() throws if they disagree on the BY_CHANNEL page.
-    // False under OV_GPU_PA_K_TOKEN_MAJOR=0.
-    // `mixed_dpas_enabled` is the config part of the MIXED gate (PagedAttentionOptImpl::choose_dpas_backend()): the
-    // config's enable_sdpa_micro, which OV_GPU_ENABLE_SDPA_MICRO=0 turns off for the DPAS kernel (sdpa_ocl).
-    // The sdpa_ocl lane needs no oneDNN microkernel support, so nothing about the driver goes in.
-    // `infer_precision` is the plugin's inference precision (the PA op's Q/output type).
-    // `key_cache_precision` is the CONFIGURED kv-cache precision, as for k_token_major_kind().
-    // Defined next to the gates, in graph/impls/ocl_v2/sdpa/paged_attention_opt.cpp.
-    static bool k_token_major_readable(const device_info& info,
-                                       bool mixed_dpas_enabled,
-                                       const ov::element::Type& infer_precision,
-                                       const ov::element::Type& key_cache_precision,
-                                       bool is_key_by_channel,
-                                       const std::vector<k_tm_op_info>& ops);
+    // The layout rule, the same for every kind of K page: whether a model's K cache of this precision and quant mode is
+    // token-major. Static per device and config, never per op: the token-major page has a reader in every kernel that
+    // can serve a PagedAttention stage (sdpa_ocl, pa_small_q and paged_attention_opt.cl for MIXED; sdpa_ocl_decode and
+    // paged_attention_opt.cl for GENERATE; the writer, rotate, pa_kv_reorder and the R-KV diversity kernel), so a gate
+    // that refuses an op only changes which of them reads the page, and what an op refused costs is the opt kernel's
+    // token-major read instead of its d-major one.
+    //   - k_token_major_device(): Xe2+ XMX.
+    //   - an f16 inference precision (the PA op's Q/output type): sdpa_ocl_decode reads an f16 query only, and the
+    //     compressed pages' comp is f16 only there. f32 and bf16 inference keep the upstream d-major page.
+    //   - k_token_major_kind(): f16, i8 BY_TOKEN, i8/u4 BY_CHANNEL.
+    // False under OV_GPU_PA_K_TOKEN_MAJOR=0. `key_cache_precision` is the CONFIGURED kv-cache precision, as for
+    // k_token_major_kind().
+    static bool k_token_major_rule(const device_info& info,
+                                   const ov::element::Type& infer_precision,
+                                   const ov::element::Type& key_cache_precision,
+                                   bool is_key_by_channel) {
+        return k_token_major_switch() != k_layout_switch::d_major && k_token_major_device(info) && infer_precision == ov::element::f16 &&
+               k_token_major_kind(key_cache_precision, is_key_by_channel);
+    }
 
     paged_attention() : primitive_base("", {}) {}
 

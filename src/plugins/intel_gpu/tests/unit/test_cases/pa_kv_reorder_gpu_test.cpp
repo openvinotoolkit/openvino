@@ -40,8 +40,8 @@ size_t key_offset(size_t block,
     return page_base + (token_major ? token * k_head_size + k : k * block_size + token);
 }
 
-// The layout the plugin gives this test's cache on the test device when every PagedAttention op of the model has a
-// token-major reader (paged_attention::k_token_major_readable()); the reorder reads it back off the cache shape.
+// The layout the plugin gives this test's cache on the test device (paged_attention::k_token_major_rule(), f16 inference);
+// the reorder reads it back off the cache shape.
 // i8 BY_TOKEN follows the same rule (its scale/zp trail the data region). The token-major BY_CHANNEL
 // pages are covered by smoke_pa_kv_reorder_layout below.
 bool k_token_major_page() {

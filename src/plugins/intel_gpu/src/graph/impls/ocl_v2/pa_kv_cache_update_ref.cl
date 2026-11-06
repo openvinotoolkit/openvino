@@ -245,10 +245,10 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 //                        sits inline at the end of it.
 //   token-major          [block_size + 4 rows][k_head_size]: rows 0..block_size-1 are the tokens with
 //                        a k_head_size pitch -- exactly the BY_TOKEN data geometry -- and the pairs
-//                        follow the data as one per-channel array. This kernel, kv_cache_rotate,
-//                        pa_kv_cache_reorder, sdpa_ocl_decode, pa_small_q and sdpa_ocl MIXED read it;
-//                        every other reader takes the page d-major, so the page is created only where
-//                        paged_attention::k_token_major_readable() allows it.
+//                        follow the data as one per-channel array. Every consumer reads it (this kernel,
+//                        kv_cache_rotate, pa_kv_cache_reorder, the R-KV diversity kernel, sdpa_ocl_decode,
+//                        pa_small_q, sdpa_ocl MIXED and paged_attention_opt.cl); it is created where
+//                        paged_attention::k_token_major_rule() allows it.
 //
 // The page SIZE is k_head_size * (block_size + 4) either way, so page bases are untouched.
 #if KEY_BY_CHANNEL_TM
