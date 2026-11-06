@@ -58,6 +58,12 @@ private:
      * @note device is updated in place when the compilation falls back to another candidate device.
      */
     bool ensure_device_ready(DeviceInformation& device);
+    /**
+     * @brief Drop the compiled model and workers of a device that is no longer the active one.
+     * @note Only done with compile_for_all, which guarantees a model cache to reload from. The initial device is kept
+     * because it backs inputs()/outputs() and the property queries of the compiled model.
+     */
+    void release_inactive_device(const DeviceName& device_name);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;

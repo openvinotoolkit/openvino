@@ -678,6 +678,15 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
         }
         const bool is_pinned = !preferred_device.empty();
         const auto pinned_device_name = device.device_name;
+        DeviceName previous_device;
+        {
+            std::lock_guard<std::mutex> lock(m_gate_mutex);
+            previous_device = m_gate_current_device;
+        }
+        // released before the compilation of the new device to keep the peak memory low
+        if (previous_device != pinned_device_name) {
+            release_inactive_device(previous_device);
+        }
         OPENVINO_ASSERT(ensure_device_ready(device),
                         get_log_tag(),
                         ": failed to compile the model on the selected device ",
@@ -829,6 +838,35 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
                  device.device_name.c_str(),
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count());
     return true;
+}
+
+void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
+    if (!m_context->m_compile_for_all || device_name.empty() ||
+        device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
+        return;
+    }
+    const auto cached = m_dynamic_compiled_models.find(device_name);
+    if (cached == m_dynamic_compiled_models.end()) {
+        return;
+    }
+    auto& workers = m_worker_requests[device_name];
+    auto& idle_workers = m_idle_worker_requests[device_name];
+    std::vector<std::pair<int, WorkerInferRequest*>> popped;
+    std::pair<int, WorkerInferRequest*> worker;
+    while (idle_workers.try_pop(worker)) {
+        popped.push_back(worker);
+    }
+    // a worker that is not idle is still running, keep the device
+    if (popped.size() != workers.size()) {
+        for (const auto& idle_worker : popped) {
+            idle_workers.try_push(idle_worker);
+        }
+        return;
+    }
+    // the requests go first, they keep the compiled model alive
+    workers.clear();
+    m_dynamic_compiled_models.erase(cached);
+    LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device_name.c_str());
 }
 
 void AutoSchedule::release_execution_slot() {
