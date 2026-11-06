@@ -6,6 +6,8 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 
+#include "utils.hpp"
+
 #include <memory>
 
 namespace cldnn {
@@ -19,13 +21,10 @@ struct GemmImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<gemm>());
         const auto& config = node.get_program().get_config();
-        if (!config.get_use_onednn())
-            return false;
-#ifdef OV_GPU_VENDOR_INTEL
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
-#endif
+        }
 
         const auto& gemm_node = node.as<gemm>();
         const auto& gemm_prim = gemm_node.get_primitive();
@@ -58,13 +57,9 @@ struct GemmImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
-#ifdef OV_GPU_VENDOR_INTEL
-        if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64}))
+        if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64})) {
             return false;
-#else
-        if (one_of(in0_dt, {data_types::i64}) || one_of(in1_dt, {data_types::i64}))
-            return false;
-#endif
+        }
 
         if (!one_of(in0_layout.format.value, supported_formats) ||
             !one_of(in1_layout.format.value, supported_formats) ||
@@ -79,23 +74,21 @@ struct GemmImplementationManager : public ImplementationManager {
         }
 
         bool f16f16_case = everyone_is(data_types::f16, in0_dt, in1_dt) && one_of(out_dt, {data_types::f16, data_types::f32, data_types::i8});
+        bool bf16bf16_case = everyone_is(data_types::bf16, in0_dt, in1_dt) &&
+                            one_of(out_dt, {data_types::bf16, data_types::f16, data_types::f32, data_types::i8});
         bool u8s8_case = one_of(in0_dt, {data_types::i8, data_types::u8}) &&
                          one_of(in1_dt, {data_types::i8, data_types::u8}) &&
-                         one_of(out_dt, {data_types::f16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
+                         one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i32, data_types::i8, data_types::u8});
 
-#ifdef OV_GPU_VENDOR_INTEL
-        if (!f16f16_case && !u8s8_case)
+        if (!f16f16_case && !bf16bf16_case && !u8s8_case) {
             return false;
-#else
-        bool f32f32_case = everyone_is(data_types::f32, in0_dt, in1_dt) && one_of(out_dt, {data_types::f32});
-        if (!f32f32_case && !f16f16_case && !u8s8_case)
-            return false;
-#endif
+        }
 
-        if (gemm_prim->indirect_a || gemm_prim->indirect_b)
+        if (gemm_prim->indirect_a || gemm_prim->indirect_b) {
             return false;
+        }
 
-        return true;
+        return is_supported_post_ops(node);
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {
