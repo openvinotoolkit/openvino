@@ -390,8 +390,7 @@ void ZeroInitStructsHolder::resetDriverAndExtensions() {
     _device_handle = nullptr;
     _driver_properties = {};
     _ze_drv_api_version = {};
-    _driver_extension_properties.clear();
-    _mutable_command_list_ext_version = 0;
+    _supported_extensions.clear();
     _graph_dditable_ext_decorator.reset();
     _command_queue_npu_dditable_ext_decorator.reset();
     _graph_profiling_npu_dditable_ext_decorator.reset();
