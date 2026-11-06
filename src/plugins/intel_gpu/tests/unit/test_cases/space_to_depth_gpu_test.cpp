@@ -905,6 +905,36 @@ public:
     }
 };
 
+template <typename T>
+void test_grouped_space_to_depth(data_types data_type) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_type, format::bfzyx, {1, 1, 2, 2, 3}});
+    set_values(input, {T(1.0f), T(2.0f), T(3.0f), T(4.0f), T(5.0f), T(6.0f), T(7.0f), T(8.0f), T(9.0f), T(10.0f), T(11.0f), T(12.0f)});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(space_to_depth("grouped_space_to_depth", input_info("input"), 2, 2, 2));
+
+    auto network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), false);
+    network->set_input_data("input", input);
+    auto output = network->execute().at("grouped_space_to_depth").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const std::vector<float> expected = {0.0f, 6.5f, 2.5f, 10.5f};
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({1, 2, 2, 1, 1}));
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_FLOAT_EQ(static_cast<float>(output_ptr[index]), expected[index]);
+    }
+}
+
+TEST(grouped_space_to_depth_gpu, temporal_padding_and_grouped_mean_fp32) {
+    test_grouped_space_to_depth<float>(data_types::f32);
+}
+
+TEST(grouped_space_to_depth_gpu, temporal_padding_and_grouped_mean_fp16) {
+    test_grouped_space_to_depth<ov::float16>(data_types::f16);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // 1. Test cases for mode "blocks first ".
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

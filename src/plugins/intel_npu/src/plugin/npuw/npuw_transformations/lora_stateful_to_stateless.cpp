@@ -9,6 +9,7 @@
 #include "openvino/op/util/assign_base.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/op/util/read_value_base.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace {
 
@@ -44,6 +45,12 @@ void convert_stateful_lora_to_stateless(const std::shared_ptr<ov::Model>& model)
 
         auto parameter = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
         ov::op::util::set_name(*parameter, variable_name);
+
+        // LoRA A/B tensor precision (e.g. bf16) is fixed to the original weight precision
+        // by the GenAI pipeline. Keep the parameter precision unchanged to avoid
+        // ConvertPrecision (bf16 -> f16) retyping the tensor.
+        ov::enable_keep_const_precision(parameter);
+
         replace_node(read_value, parameter);
 
         auto assign = assigns[i];

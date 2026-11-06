@@ -51,7 +51,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Crop                                                    |1                       |                                |                                |
 |                        |CumSum                                                  |11                      |14, 11                          |                                |
 |                        |DFT                                                     |17                      |20, 17                          |                                |
-|                        |DeformConv                                              |                        |22, 19                          |                                |
+|                        |DeformConv                                              |19                      |22, 19                          |Only 2D convolution (rank-4 inputs)|
 |                        |DepthToSpace                                            |1                       |13, 11, 1                       |                                |
 |                        |DequantizeLinear                                        |21, 19, 13, 10          |21, 19, 13, 10                  |                                |
 |                        |Det                                                     |                        |22, 11                          |                                |
@@ -128,7 +128,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |OptionalGetElement                                      |                        |18, 15                          |                                |
 |                        |OptionalHasElement                                      |                        |18, 15                          |                                |
 |                        |Or                                                      |1                       |7, 1                            |                                |
-|                        |PRelu                                                   |1                       |16, 9, 7, 6, 1                  |                                |
+|                        |PRelu                                                   |7, 1                    |16, 9, 7, 6, 1                  |                                |
 |                        |Pad                                                     |11, 1                   |21, 19, 18, 13, 11, 2, 1        |                                |
 |                        |Pow                                                     |1                       |15, 13, 12, 7, 1                |                                |
 |                        |QLinearConv                                             |10                      |10                              |                                |
@@ -199,6 +199,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Swish                                                   |24                      |24                              |                                |
 |                        |Tan                                                     |7                       |22, 7                           |                                |
 |                        |Tanh                                                    |1                       |13, 6, 1                        |                                |
+|                        |TensorScatter                                           |24                      |24                              |                                |
 |                        |TfIdfVectorizer                                         |                        |9                               |Supported through openvino_tokenizers|
 |                        |ThresholdedRelu                                         |10                      |22, 10                          |                                |
 |                        |Tile                                                    |1                       |13, 6, 1                        |                                |

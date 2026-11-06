@@ -112,6 +112,7 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
                               const std::filesystem::path& model_path) {
             return plugin->Plugin::get_device_list(config, model, {});
         });
+    ON_CALL(*plugin, is_telemetry_available).WillByDefault(Return(true));
     ON_CALL(*plugin, parse_meta_devices)
         .WillByDefault([this](const std::string& priorityDevices, const ov::AnyMap& config) {
             return plugin->Plugin::parse_meta_devices(priorityDevices, config);
@@ -122,9 +123,8 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
                               const std::string& netPrecision,
                               unsigned int priority,
                               const ov::auto_plugin::DeviceSelectionPolicy& selection_policy,
-                              const std::string& low_power_device,
-                              bool is_low_power_mode_active) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device, is_low_power_mode_active);
+                              const std::optional<DeviceInformation>& low_power_device) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device);
         });
 
     ON_CALL(*plugin, sort_device_by_perf_curve)

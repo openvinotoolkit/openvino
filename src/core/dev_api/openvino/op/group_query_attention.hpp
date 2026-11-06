@@ -15,8 +15,8 @@ enum class GroupQueryAttentionInputs : size_t {
     QUERY = 0,                  // Q (mandatory)
     KEY = 1,                    // K (mandatory)
     VALUE = 2,                  // V (mandatory)
-    PAST_KEY = 3,               // KV cache key (mandatory)
-    PAST_VALUE = 4,             // KV cache value (mandatory)
+    PAST_KEY = 3,               // KV cache key (mandatory; the ONNX FE passes an empty cache for an absent past)
+    PAST_VALUE = 4,             // KV cache value (mandatory; the ONNX FE passes an empty cache for an absent past)
     SEQLENS_K = 5,              // Sequence lengths (mandatory)
     TOTAL_SEQUENCE_LENGTH = 6,  // Total sequence length (mandatory)
     COS_CACHE = 7,              // RoPE cos cache (optional, required if do_rotary=1)
@@ -26,7 +26,8 @@ enum class GroupQueryAttentionInputs : size_t {
     HEAD_SINK = 11,             // Head sink (optional, required if smooth_softmax=1)
     K_SCALE = 12,               // Quantization scale for K (optional, required if kv_cache_bit_width != 0)
     V_SCALE = 13,               // Quantization scale for V (optional, required if kv_cache_bit_width != 0)
-    // Positions 14-15 are reserved (QK-Norm, not supported)
+    Q_NORM_WEIGHT = 14,         // Per-head Q RMSNorm weight [head_size] (optional, paired with K_NORM_WEIGHT)
+    K_NORM_WEIGHT = 15,         // Per-head K RMSNorm weight [head_size] (optional, paired with Q_NORM_WEIGHT)
 };
 
 enum class GroupQueryAttentionQuantType {
@@ -35,8 +36,18 @@ enum class GroupQueryAttentionQuantType {
     PER_CHANNEL,
 };
 
+// Optional 4th output (ONNX qk_output): the attention scores before or after softmax.
+enum class GroupQueryAttentionQKOutput {
+    NONE,
+    BEFORE_SOFTMAX,
+    AFTER_SOFTMAX,
+};
+
 OPENVINO_API
 std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQuantType& quant_type);
+
+OPENVINO_API
+std::ostream& operator<<(std::ostream& s, const GroupQueryAttentionQKOutput& qk_output);
 
 }  // namespace ov::op::internal
 
@@ -52,6 +63,18 @@ public:
     ~AttributeAdapter() override;
 
     OPENVINO_RTTI("AttributeAdapter<ov::op::internal::GroupQueryAttentionQuantType>");
+};
+
+template <>
+class OPENVINO_API AttributeAdapter<op::internal::GroupQueryAttentionQKOutput>
+    : public EnumAttributeAdapterBase<op::internal::GroupQueryAttentionQKOutput> {
+public:
+    AttributeAdapter(op::internal::GroupQueryAttentionQKOutput& value)
+        : EnumAttributeAdapterBase<op::internal::GroupQueryAttentionQKOutput>(value) {}
+
+    ~AttributeAdapter() override;
+
+    OPENVINO_RTTI("AttributeAdapter<ov::op::internal::GroupQueryAttentionQKOutput>");
 };
 
 }  // namespace ov
@@ -76,7 +99,10 @@ public:
                         int64_t local_window_size = -1,
                         bool sliding_window_cache = false,
                         bool smooth_softmax = false,
-                        bool causal = true);
+                        bool causal = true,
+                        float softcap = 0.0f,
+                        float qk_norm_epsilon = 1e-6f,
+                        GroupQueryAttentionQKOutput qk_output = GroupQueryAttentionQKOutput::NONE);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -130,6 +156,33 @@ public:
     bool get_causal() const {
         return m_causal;
     }
+    // Shared KV (ONNX kv_sequence_length == 0): key/value are statically empty and past_key/past_value already
+    // hold the complete KV, so nothing is appended and present_key/present_value equal the past.
+    bool is_shared_kv() const;
+    // True when the key/value sequence length may differ from the query's at runtime (separate K/V with a dynamic
+    // length, e.g. 0 for ORT shared KV), so the cache arithmetic must use the key's own length. Packed QKV is
+    // excluded: Q/K/V are split from one tensor, so S_kv == S_q even when that length is dynamic.
+    bool has_independent_kv_length() const;
+    // True when present keeps the past buffer's own capacity (a preallocated cache written in place): the past is
+    // non-empty and the past, query and key sequence lengths are static. Batch and head dimensions do not matter.
+    // Shape inference and the decomposition both use it, so the inferred and the decomposed present agree.
+    bool has_fixed_kv_capacity() const;
+    // Logit soft-capping (Gemma-style): when > 0, scaled scores become softcap * tanh(score / softcap)
+    // before the attention bias/mask and softmax. 0 disables it (the ONNX frontend maps ORT's "<= 0 disables" to 0).
+    float get_softcap() const {
+        return m_softcap;
+    }
+    // QK-Norm (Qwen3/Gemma3-style): when q_norm_weight/k_norm_weight are present, the new Q and K heads are
+    // RMS-normalized over head_size before RoPE: x * rsqrt(mean(x^2) + qk_norm_epsilon) * weight.
+    bool has_qk_norm() const;
+    float get_qk_norm_epsilon() const {
+        return m_qk_norm_epsilon;
+    }
+    // When not NONE, output 3 holds the [B, num_heads, S, total_sequence_length] attention scores before softmax
+    // (scaled, soft-capped, plus attention_bias; masked positions are 0) or after it, as in ONNX Runtime.
+    GroupQueryAttentionQKOutput get_qk_output() const {
+        return m_qk_output;
+    }
 
 private:
     int64_t m_num_heads = 0;
@@ -144,6 +197,9 @@ private:
     bool m_sliding_window_cache = false;
     bool m_smooth_softmax = false;
     bool m_causal = true;
+    float m_softcap = 0.0f;
+    float m_qk_norm_epsilon = 1e-6f;
+    GroupQueryAttentionQKOutput m_qk_output = GroupQueryAttentionQKOutput::NONE;
 };
 
 }  // namespace ov::op::internal

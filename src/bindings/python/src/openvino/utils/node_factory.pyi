@@ -7,15 +7,15 @@ from openvino._pyopenvino import NodeFactory as _NodeFactory
 from openvino._pyopenvino import Output
 from openvino.exceptions import UserInputError
 from pathlib import Path
+from typing import Any
 import openvino._pyopenvino
-import typing
-__all__: list[str] = ['DEFAULT_OPSET', 'Extension', 'Node', 'NodeFactory', 'Output', 'Path', 'UserInputError', 'singledispatchmethod']
+__all__: list[str] = ['Any', 'DEFAULT_OPSET', 'Extension', 'Node', 'NodeFactory', 'Output', 'Path', 'UserInputError', 'singledispatchmethod']
 class NodeFactory:
     """
     Factory front-end to create node objects.
     """
     @staticmethod
-    def _arguments_as_outputs(arguments: list[openvino._pyopenvino.Node | openvino._pyopenvino.Output]) -> list[openvino._pyopenvino.Output]:
+    def _arguments_as_outputs(arguments: list[typing.Union[openvino._pyopenvino.Node, openvino._pyopenvino.Output]]) -> list[openvino._pyopenvino.Output]:
         ...
     @staticmethod
     def add_extension(*args, **kwargs) -> None:

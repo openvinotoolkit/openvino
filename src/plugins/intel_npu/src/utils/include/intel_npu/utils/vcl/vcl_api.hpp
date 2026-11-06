@@ -92,14 +92,12 @@ public:
      * @brief The function table, sharing this loader's lifetime.
      *
      * An aliasing `shared_ptr`, so a holder of the returned table keeps the library loaded without
-     * having to know a library exists.
+     * having to know a library exists. This is the only handle on the library handed out: consumers
+     * need nothing else to dispatch safely, and none of them can extend the library's lifetime
+     * beyond their own use of the table.
      */
     std::shared_ptr<const VCLFunctionTable> sharedFunctions() const {
         return {shared_from_this(), &_functions};
-    }
-
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
     }
 
 private:

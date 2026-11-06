@@ -10,6 +10,10 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     const uint output_index = out_byte_offset * 2;
     const uint w = output_index % OUTPUT_INNERMOST_NUM;
     const uint h = output_index / OUTPUT_INNERMOST_NUM;
+    if (w >= INPUT0_INNERMOST_NUM) {
+        output[out_byte_offset] = 0;
+        return;
+    }
     const uint in_byte_offset = (h * INPUT0_INNERMOST_NUM + w) / 2;
     const bool within_pitch = (w + 1 < INPUT0_INNERMOST_NUM);
 
