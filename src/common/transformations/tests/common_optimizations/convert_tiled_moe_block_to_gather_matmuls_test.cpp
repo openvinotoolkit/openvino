@@ -61,8 +61,7 @@ protected:
     static constexpr size_t input_features = groups * 32;
 
     static std::vector<float> getWeightLut() {
-        return {0.f, 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f, 6.f,
-                -0.f, -0.5f, -1.f, -1.5f, -2.f, -3.f, -4.f, -6.f};
+        return {0.f, 0.5f, 1.f, 1.5f, 2.f, 3.f, 4.f, 6.f, -0.f, -0.5f, -1.f, -1.5f, -2.f, -3.f, -4.f, -6.f};
     }
 
     static std::shared_ptr<ov::Model> getModel(bool reshape_source = false,
@@ -71,8 +70,8 @@ protected:
                                                bool constant_weights = true) {
         using namespace ov::op;
         const ov::Dimension tokens = dynamic_tokens ? ov::Dimension::dynamic() : ov::Dimension(3);
-        auto activations = std::make_shared<v0::Parameter>(ov::element::f32,
-                                                          ov::PartialShape{tokens, 2, input_features});
+        auto activations =
+            std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{tokens, 2, input_features});
         auto indices = std::make_shared<v0::Parameter>(indices_type, ov::PartialShape{tokens, 2});
         activations->output(0).set_names({"activations"});
         indices->output(0).set_names({"expert_indices"});
@@ -88,8 +87,8 @@ protected:
             for (size_t block = 0; block < experts * output_features * groups; ++block) {
                 data[block * 17] = exponents[block % exponents.size()];
                 for (size_t byte = 0; byte < 16; ++byte) {
-                    data[block * 17 + byte + 1] = static_cast<uint8_t>(
-                        ((block + byte) % 16) | (((block + byte + 7) % 16) << 4));
+                    data[block * 17 + byte + 1] =
+                        static_cast<uint8_t>(((block + byte) % 16) | (((block + byte + 7) % 16) << 4));
                 }
             }
             packed = v0::Constant::create(ov::element::u8, packed_shape, data);
@@ -105,40 +104,37 @@ protected:
                 v0::Constant::create<int64_t>(ov::element::i64, {4}, {experts, output_features, groups, 17}),
                 false);
         }
-        auto gathered = std::make_shared<v8::Gather>(
-            packed, indices, v0::Constant::create(ov::element::i64, {}, {0}));
+        auto gathered = std::make_shared<v8::Gather>(packed, indices, v0::Constant::create(ov::element::i64, {}, {0}));
         auto slice = [&](int64_t start, int64_t stop) {
             return std::make_shared<v8::Slice>(gathered,
-                                              v0::Constant::create(ov::element::i64, {1}, {start}),
-                                              v0::Constant::create(ov::element::i64, {1}, {stop}),
-                                              v0::Constant::create(ov::element::i64, {1}, {1}),
-                                              v0::Constant::create(ov::element::i64, {1}, {4}));
+                                               v0::Constant::create(ov::element::i64, {1}, {start}),
+                                               v0::Constant::create(ov::element::i64, {1}, {stop}),
+                                               v0::Constant::create(ov::element::i64, {1}, {1}),
+                                               v0::Constant::create(ov::element::i64, {1}, {4}));
         };
         auto packed_values = slice(1, 17);
-        auto low = std::make_shared<v13::BitwiseAnd>(
-            packed_values, v0::Constant::create(ov::element::u8, {}, {15}));
-        auto high = std::make_shared<v15::BitwiseRightShift>(
-            packed_values, v0::Constant::create(ov::element::u8, {}, {4}));
-        auto weight_indices = std::make_shared<v0::Convert>(
-            std::make_shared<v0::Concat>(ov::OutputVector{low, high}, 4), ov::element::i32);
-        auto weights = std::make_shared<v8::Gather>(
-            v0::Constant::create(ov::element::f32, {16}, getWeightLut()),
-            weight_indices,
-            v0::Constant::create(ov::element::i64, {}, {0}));
+        auto low = std::make_shared<v13::BitwiseAnd>(packed_values, v0::Constant::create(ov::element::u8, {}, {15}));
+        auto high =
+            std::make_shared<v15::BitwiseRightShift>(packed_values, v0::Constant::create(ov::element::u8, {}, {4}));
+        auto weight_indices =
+            std::make_shared<v0::Convert>(std::make_shared<v0::Concat>(ov::OutputVector{low, high}, 4),
+                                          ov::element::i32);
+        auto weights = std::make_shared<v8::Gather>(v0::Constant::create(ov::element::f32, {16}, getWeightLut()),
+                                                    weight_indices,
+                                                    v0::Constant::create(ov::element::i64, {}, {0}));
         std::vector<float> scale_lut(256);
         for (size_t exponent = 0; exponent < scale_lut.size(); ++exponent) {
             scale_lut[exponent] = std::ldexp(1.f, static_cast<int>(exponent) - 127);
         }
-        auto scales = std::make_shared<v8::Gather>(
-            v0::Constant::create(ov::element::f32, {256}, scale_lut),
-            std::make_shared<v0::Convert>(slice(0, 1), ov::element::i32),
-            v0::Constant::create(ov::element::i64, {}, {0}));
+        auto scales = std::make_shared<v8::Gather>(v0::Constant::create(ov::element::f32, {256}, scale_lut),
+                                                   std::make_shared<v0::Convert>(slice(0, 1), ov::element::i32),
+                                                   v0::Constant::create(ov::element::i64, {}, {0}));
         auto expanded_weights = std::make_shared<v1::Reshape>(
             std::make_shared<v1::Multiply>(weights, scales),
             v0::Constant::create<int64_t>(ov::element::i64, {4}, {0, 0, output_features, input_features}),
             true);
-        auto expanded_activations = std::make_shared<v0::Unsqueeze>(
-            activations, v0::Constant::create(ov::element::i64, {1}, {2}));
+        auto expanded_activations =
+            std::make_shared<v0::Unsqueeze>(activations, v0::Constant::create(ov::element::i64, {1}, {2}));
         auto matmul = std::make_shared<v0::MatMul>(expanded_activations, expanded_weights, false, true);
         matmul->set_friendly_name("PackedMoeMatMul");
         matmul->output(0).set_names({"packed_moe_output"});
@@ -148,8 +144,8 @@ protected:
     static std::shared_ptr<ov::Model> getModelRef(bool dynamic_tokens) {
         using namespace ov::op;
         const ov::Dimension tokens = dynamic_tokens ? ov::Dimension::dynamic() : ov::Dimension(3);
-        auto activations = std::make_shared<v0::Parameter>(ov::element::f32,
-                                                          ov::PartialShape{tokens, 2, input_features});
+        auto activations =
+            std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{tokens, 2, input_features});
         auto indices = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{tokens, 2});
         activations->output(0).set_names({"activations"});
         indices->output(0).set_names({"expert_indices"});
@@ -173,12 +169,10 @@ protected:
             v0::Constant::create(ov::element::f32, {experts, output_features, groups}, scales),
             std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0}));
         gathered_matmul->set_friendly_name("PackedMoeMatMul");
-        auto restored_rank = std::make_shared<v0::Unsqueeze>(
-            std::make_shared<v1::Transpose>(gathered_matmul, order),
-            v0::Constant::create(ov::element::i64, {1}, {2}));
+        auto restored_rank = std::make_shared<v0::Unsqueeze>(std::make_shared<v1::Transpose>(gathered_matmul, order),
+                                                             v0::Constant::create(ov::element::i64, {1}, {2}));
         restored_rank->output(0).set_names({"packed_moe_output"});
-        return std::make_shared<ov::Model>(ov::OutputVector{restored_rank},
-                                           ov::ParameterVector{activations, indices});
+        return std::make_shared<ov::Model>(ov::OutputVector{restored_rank}, ov::ParameterVector{activations, indices});
     }
 
     void SetUp() override {
@@ -189,9 +183,8 @@ protected:
     }
 };
 
-class ConvertPackedMoeMatMulToGatherMatmulPositiveTest
-    : public ConvertPackedMoeMatMulToGatherMatmulTest,
-      public WithParamInterface<std::tuple<bool, bool>> {
+class ConvertPackedMoeMatMulToGatherMatmulPositiveTest : public ConvertPackedMoeMatMulToGatherMatmulTest,
+                                                         public WithParamInterface<std::tuple<bool, bool>> {
 public:
     static std::string getTestCaseName(const TestParamInfo<ParamType>& info) {
         return std::string(std::get<0>(info.param) ? "ReshapedConstant" : "DirectConstant") +
@@ -212,13 +205,22 @@ protected:
         }
         auto output = model->get_results().front()->input_value(0).get_node_shared_ptr();
         auto output_transpose = output->input_value(0).get_node_shared_ptr();
-        auto gathered_matmul = ov::as_type_ptr<GatherMatmulCompressed>(output_transpose->input_value(0).get_node_shared_ptr());
+        auto gathered_matmul =
+            ov::as_type_ptr<GatherMatmulCompressed>(output_transpose->input_value(0).get_node_shared_ptr());
         ASSERT_NE(gathered_matmul, nullptr);
-        auto reference = model_ref->get_results().front()->input_value(0).get_node_shared_ptr()
-                             ->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr();
+        auto reference = model_ref->get_results()
+                             .front()
+                             ->input_value(0)
+                             .get_node_shared_ptr()
+                             ->input_value(0)
+                             .get_node_shared_ptr()
+                             ->input_value(0)
+                             .get_node_shared_ptr();
         for (const auto input_index : {1, 4}) {
-            auto actual = ov::as_type_ptr<ov::op::v0::Constant>(gathered_matmul->input_value(input_index).get_node_shared_ptr());
-            auto expected = ov::as_type_ptr<ov::op::v0::Constant>(reference->input_value(input_index).get_node_shared_ptr());
+            auto actual =
+                ov::as_type_ptr<ov::op::v0::Constant>(gathered_matmul->input_value(input_index).get_node_shared_ptr());
+            auto expected =
+                ov::as_type_ptr<ov::op::v0::Constant>(reference->input_value(input_index).get_node_shared_ptr());
             ASSERT_NE(actual, nullptr);
             ASSERT_NE(expected, nullptr);
             ASSERT_EQ(actual->get_byte_size(), expected->get_byte_size());
@@ -258,8 +260,7 @@ TEST_F(ConvertPackedMoeMatMulToGatherMatmulTest, NonconstantPackedWeightsAreNotC
 TEST_F(ConvertPackedMoeMatMulToGatherMatmulTest, MissingActivationUnsqueezeIsNotConverted) {
     model = getModel();
     auto matmul = model->get_results().front()->input_value(0).get_node_shared_ptr();
-    auto expanded_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
-                                                               ov::Shape{3, 2, 1, input_features});
+    auto expanded_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 2, 1, input_features});
     expanded_input->output(0).set_names({"activations"});
     matmul->input(0).replace_source_output(expanded_input);
     model->replace_parameter(0, expanded_input);
