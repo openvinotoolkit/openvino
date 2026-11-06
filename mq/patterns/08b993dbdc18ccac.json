@@ -4,16 +4,18 @@
   "signature_hash": "08b993dbdc18ccac",
   "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
   "category": "Configuration",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-06T11:53:20Z",
-  "last_seen": "2026-11-06T11:53:20Z",
+  "last_seen": "2026-11-06T16:06:09Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42234699742",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42198977524"
   ],
   "affected_prs": [
     "https://github.com/openvinotoolkit/openvino/pull/39101"
   ],
   "recent_timestamps": [
+    "2026-11-06T16:06:09Z",
     "2026-11-06T11:53:20Z"
   ],
   "rerun_search_string": null

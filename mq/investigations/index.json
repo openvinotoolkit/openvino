@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 340,
+  "total": 341,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3311,6 +3311,15 @@
       "investigation_id": "2026-11-06-11-53-20-167-42198977524",
       "run_id": "42198977524",
       "timestamp": "2026-11-06T11:53:20Z",
+      "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
+      "category": "Configuration",
+      "signature_hash": "08b993dbdc18ccac",
+      "pr_number": "39101"
+    },
+    {
+      "investigation_id": "2026-11-06-16-06-09-000-42234699742",
+      "run_id": "42234699742",
+      "timestamp": "2026-11-06T16:06:09Z",
       "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
       "category": "Configuration",
       "signature_hash": "08b993dbdc18ccac",

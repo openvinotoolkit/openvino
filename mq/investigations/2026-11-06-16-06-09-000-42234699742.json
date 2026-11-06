@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-06-16-06-09-000-42234699742",
+  "timestamp": "2026-11-06T16:06:09Z",
+  "run_id": "42234699742",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42234699742",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39101",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39101",
+  "author": "mryzhov",
+  "category": "Configuration",
+  "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO GenAI / OpenVINO GenAI",
+      "conclusion": "failure",
+      "symptom": "sccache server fails to start with AzblobError InvalidUri, causing the GenAI and WhoWhatBench wheel build/upload steps to fail"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the OpenVINO GenAI job failed"
+    }
+  ],
+  "key_errors": [
+    "sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server. RequestId:f171d18f-801e-0022-2d01-6e352f000000 Time:2026-11-06T15:12:55.1084551Z\" }\n   uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_24_x86_64_genai_Release/.sccache_check",
+    "##[error]Process completed with exit code 2.",
+    "##[error]No files were found with the provided path: /__w/openvino/openvino/build/*.whl. No artifacts will be uploaded.",
+    "##[error]No files were found with the provided path: /__w/openvino/openvino/build/whowhatbench/*.whl. No artifacts will be uploaded."
+  ],
+  "root_cause": "job_genai.yml's 'Run SCCACHE_AZURE_CONNECTION_STRING=...' step loads the Azure connection string directly from /secrets/sccache/connection-string without the trailing-slash sanitization applied in job_build_linux.yml (`sed -E 's#(^|;)(BlobEndpoint=[^;]*[^/;])/+(;|$)#\\1\\2\\3#g'`, added because OpenDAL 0.58.1 used by sccache 0.18.0 no longer trims BlobEndpoint trailing slashes). The doubled slash produces an invalid blob URI (`.../blob.core.windows.net//sccache/...`), which Azure rejects with InvalidUri, so sccache's server fails to start (exit code 2) and no .whl files are produced, failing the two dependent wheel-upload steps. This is the same signature recorded ~4 hours earlier in this same PR's merge-queue run (42198977524); the fix identified then had not yet been applied/merged when this run executed.",
+  "reproduction_steps": "Locally: set SCCACHE_AZURE_CONNECTION_STRING from the Azure sccache secret with a BlobEndpoint containing a trailing slash (e.g. BlobEndpoint=https://ghasccacheblobs.blob.core.windows.net/;...), with SCCACHE_AZURE_BLOB_CONTAINER=sccache and SCCACHE_AZURE_KEY_PREFIX=ubuntu_24_x86_64_genai_Release set, then run `sccache --zero-stats` and observe the AzblobError InvalidUri. N/A for a fully isolated repro without the real Azure connection string.",
+  "recommended_actions": [
+    "Apply the trailing-slash sanitization from job_build_linux.yml's SCCACHE_AZURE_CONNECTION_STRING-loading step to the equivalent step in job_genai.yml (PR #39101 changed job_genai.yml but still lacks this sanitization as of this run).",
+    "Factor the sccache Azure connection-string loading/sanitization into a shared composite action used by every reusable job (job_build_linux.yml, job_genai.yml, and any others loading /secrets/sccache/connection-string) so the fix cannot be missed in future job files.",
+    "Re-run the OpenVINO GenAI job once the fix lands in job_genai.yml on this PR branch."
+  ],
+  "prevention_strategies": "Factor sccache Azure connection-string loading/sanitization into a single composite action (e.g. .github/actions/setup_sccache) referenced by every job workflow that needs Azure-backed sccache, so an OpenDAL/sccache compatibility fix is made once instead of copy-pasted (and potentially missed) per reusable job file.",
+  "historical_context": "Identical signature (hash 08b993dbdc18ccac) was already recorded once on 2026-11-06T11:53:20Z from an earlier merge-queue run of this same PR (#39101, run 42198977524), which already identified this exact root cause and recommended adding the sed sanitization used in job_build_linux.yml. This run shows the earlier identified fix had not yet been applied to job_genai.yml when this merge-queue attempt ran. A related but distinct sccache failure (ARM64 CMake 'Timed out waiting for server startup', signature_hash e78859139d383270, External Service category) has occurred twice on other PRs (#38909, #39524) but is a different symptom/root cause (network timeout vs. malformed URI)."
+}
