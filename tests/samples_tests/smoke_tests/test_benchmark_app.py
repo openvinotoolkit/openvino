@@ -21,7 +21,7 @@ import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
 from openvino import opset8 as opset
-from openvino.tools.benchmark.utils.utils import parse_devices
+from openvino.tools.benchmark.utils.utils import parse_devices, parse_input_output_precision
 import openvino as ov
 
 def get_executable(sample_language):
@@ -121,6 +121,27 @@ def test_parse_devices_with_empty_entries():
     assert parse_devices('MULTI:CPU,,GPU') == ['MULTI', 'CPU', 'GPU']
     assert parse_devices('MULTI:CPU, ,GPU') == ['MULTI', 'CPU', 'GPU']
     assert parse_devices('HETERO:CPU,') == ['HETERO', 'CPU']
+
+
+@pytest.mark.parametrize('precision_arg, expected', [
+    pytest.param('input:f16', {'input': 'f16'}, id='plain-name'),
+    pytest.param('input:0:f16', {'input:0': 'f16'}, id='one-colon'),
+    pytest.param('encoder:input:0:f16', {'encoder:input:0': 'f16'}, id='two-colons'),
+    pytest.param('model:encoder:input:0:f16', {'model:encoder:input:0': 'f16'}, id='three-colons'),
+    pytest.param('decoder:output:0:f32', {'decoder:output:0': 'f32'}, id='output-name'),
+    pytest.param(
+        'encoder:input:0:f16,decoder:output:0:f32',
+        {'encoder:input:0': 'f16', 'decoder:output:0': 'f32'},
+        id='multiple-settings',
+    ),
+    pytest.param(
+        ' encoder : input : 0 : f16 , decoder : output : 0 : f32 ',
+        {'encoder:input:0': 'f16', 'decoder:output:0': 'f32'},
+        id='spaces',
+    ),
+])
+def test_parse_input_output_precision(precision_arg, expected):
+    assert parse_input_output_precision(precision_arg) == expected
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
