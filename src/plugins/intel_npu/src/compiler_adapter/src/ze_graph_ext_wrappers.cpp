@@ -597,6 +597,26 @@ std::optional<bool> ZeGraphExtWrappers::isProfilingEnabled(const GraphDescriptor
     return (graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED) != 0;
 }
 
+std::optional<bool> ZeGraphExtWrappers::isLoadedFromDriverCache(const GraphDescriptor& graphDescriptor) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 12)) {
+        _logger.debug("Reporting whether a graph was loaded from the driver cache is not supported by the current "
+                      "driver version.");
+        return std::nullopt;
+    }
+
+    if (graphDescriptor._handle == nullptr) {
+        return std::nullopt;
+    }
+
+    ze_graph_properties_3_t graphProperties = {};
+    graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
+
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphDescriptor._handle, &graphProperties);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties3", result, _zeroInitStruct->getGraphDdiTable());
+
+    return (graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE) != 0;
+}
+
 void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
                                      uint32_t indexUsedByDriver,
                                      std::vector<IODescriptor>& inputs,
