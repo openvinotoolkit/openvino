@@ -436,6 +436,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
 
     m_graph->update_network_name(network_name);
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
+        validate_batch_size_against_descriptors(m_graph->get_metadata(), m_batch_size.value());
         // Initial batch setup for static cases
         m_graph->set_batch_size(m_batch_size.value());
     }
@@ -459,6 +460,33 @@ std::shared_ptr<ov::Model> IBlobFormatImporter::create_dummy_model() const {
 
 Config IBlobFormatImporter::get_config() const {
     return m_config;
+}
+
+void validate_batch_size_against_descriptors(const NetworkMetadata& metadata, const int64_t batch_size) {
+    if (batch_size <= 0) {
+        return;
+    }
+
+    auto check_descriptors = [batch_size](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            if (descriptor.isInitInputWeights || descriptor.isInitOutputWeights || descriptor.isMainInputWeights) {
+                continue;
+            }
+
+            const ov::Rank rank = descriptor.shapeFromCompiler.rank();
+            OPENVINO_ASSERT(rank.is_static() && rank.get_length() > 0,
+                            "The blob metadata holds the batch size ",
+                            batch_size,
+                            ", but the I/O descriptor \"",
+                            descriptor.nameFromCompiler,
+                            "\" has the shape ",
+                            descriptor.shapeFromCompiler,
+                            " which does not contain a batch axis");
+        }
+    };
+
+    check_descriptors(metadata.inputs);
+    check_descriptors(metadata.outputs);
 }
 
 namespace blob_format_importer_factory {
