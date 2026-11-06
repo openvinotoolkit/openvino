@@ -12,6 +12,8 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <optional>
+#include <sstream>
 #include <type_traits>
 
 #include "openvino/runtime/hsm_format.hpp"
@@ -45,6 +47,19 @@ TEST(HsmModelIdSectionTest, decode_reads_the_little_endian_wire_bytes) {
     EXPECT_EQ(hsm::decode_model_id(inline_section(sample_wire)), sample_id);
     EXPECT_EQ(hsm::decode_model_id(inline_section(max_wire)), max_id);
     EXPECT_EQ(hsm::decode_model_id(inline_section(WireId{})), 0u);
+}
+
+TEST(HsmModelIdSectionTest, decode_reports_a_throwing_stream_as_a_failed_read) {
+    hsm::ManifestEntry entry{};
+    entry.tag = hsm::SectionTag::make(hsm::model_id_tag.id(), /*is_inline=*/false);
+    entry.size = sizeof(uint64_t);
+    std::stringstream stream("abc");  // shorter than the declared section
+    stream.exceptions(std::ios::failbit | std::ios::badbit);
+    const hsm::Section section(entry, stream, std::streampos(0));
+
+    std::optional<uint64_t> decoded = sample_id;
+    EXPECT_NO_THROW(decoded = hsm::decode_model_id(section));
+    EXPECT_FALSE(decoded.has_value());
 }
 
 }  // namespace ov::test
