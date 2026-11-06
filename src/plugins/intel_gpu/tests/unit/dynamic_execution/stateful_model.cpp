@@ -304,4 +304,66 @@ TEST(stateful_model, kv_cache_release) {
     }
 }
 
+TEST(stateful_model, kv_cache_state_bound_to_output_without_preallocation) {
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{get_test_engine().get_device()});
+    auto& engine = context->get_engine();
+    // Report the device as almost full, so ShapePredictor::can_preallocate() rejects the kv_cache output preallocation
+    engine.add_memory_used(static_cast<uint64_t>(engine.get_device_info().max_global_mem_size * 0.9), allocation_type::usm_device);
+
+    const ov::Shape token_shape{1, 2, 1, 16};  // [batch, heads, seq, head_size]
+    const size_t heads = token_shape[1];
+    const size_t head_size = token_shape[3];
+    const auto token_lay = layout{token_shape, data_types::f32, format::bfyx};
+    ov::PartialShape kv_shape = token_shape;
+    kv_shape[0] = ov::Dimension::dynamic();
+    kv_shape[2] = ov::Dimension::dynamic();
+
+    ov::op::util::VariableInfo info{kv_shape, data_types::f32, "v0"};
+    topology topology(input_layout("past", token_lay),
+                      input_layout("present", token_lay),
+                      read_value("kv_cache", {input_info("past")}, info.variable_id, {layout{kv_shape, data_types::f32, format::bfyx}}),
+                      kv_cache("concat", {input_info("kv_cache"), input_info("present")}, info, 2, 0, false, false, false),
+                      reorder("reorder", input_info("concat"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    ov::intel_gpu::VariableStateInfo var_info{info.variable_id, token_lay};
+    network->set_variable(info.variable_id, std::make_shared<ov::intel_gpu::VariableState>(var_info, context, network->get_shape_predictor()));
+
+    const auto make_token = [&](float first_value) {
+        std::vector<float> values(token_lay.count());
+        std::iota(values.begin(), values.end(), first_value);
+        auto mem = engine.allocate_memory(token_lay);
+        set_values(mem, values);
+        return std::make_pair(mem, values);
+    };
+
+    auto [past_mem, expected] = make_token(0.f);
+    network->set_input_data("past", past_mem);
+    size_t seq_len = 1;
+    for (size_t iter = 1; iter <= 2; ++iter) {
+        auto [present_mem, present] = make_token(1000.f * iter);
+        network->set_input_data("present", present_mem);
+        auto outputs = network->execute();
+
+        std::vector<float> concatenated;
+        for (size_t h = 0; h < heads; ++h) {
+            concatenated.insert(concatenated.end(), expected.begin() + h * seq_len * head_size, expected.begin() + (h + 1) * seq_len * head_size);
+            concatenated.insert(concatenated.end(), present.begin() + h * head_size, present.begin() + (h + 1) * head_size);
+        }
+        expected = std::move(concatenated);
+        ++seq_len;
+
+        auto output_mem = outputs.at("reorder").get_memory();
+        ASSERT_EQ(output_mem->get_layout().get_shape(), (ov::Shape{1, heads, seq_len, head_size}));
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, network->get_stream());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_EQ(output_ptr[i], expected[i]) << "iteration " << iter << ", index " << i;
+        }
+    }
+}
+
 }  // stateful_model_tests
