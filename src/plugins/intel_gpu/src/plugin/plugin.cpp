@@ -407,6 +407,7 @@ cldnn::ze::tp::CollectiveOptions collective_options(const ExecutionConfig& confi
     if (profiling != TPProfilingMode::NONE) {
         const auto period = static_cast<std::size_t>(GPU_DEBUG_VALUE_OR(config.get_tp_dump_period(), uint64_t{0}));
         options.dump_period = period != 0 ? period : 1;
+        options.profiling_csv_dir = GPU_DEBUG_VALUE_OR(config.get_tp_dump_profiling_data_path(), std::string{});
     }
     return options;
 }

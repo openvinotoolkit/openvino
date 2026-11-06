@@ -10,6 +10,7 @@
 #include <chrono>
 #include <limits>
 #include <mutex>
+#include <sstream>
 #include <string>
 
 #include "openvino/core/except.hpp"
@@ -584,6 +585,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     collective_payload_bytes(n, dtype);
     m_world_size = channel.world_size();
     m_rec.bind(channel, collective_id, true);
+    const uint64_t call = m_calls++;
 
     // A message larger than the fixed staging goes in chunks, all of them in
     // the one recording: no rendezvous, list or re-recording per chunk.
@@ -719,13 +721,21 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                     // one ended means out-of-order readings or a wrap; skipped.
                     const uint64_t prev_end = st.dev_last_end_ticks[rank] & mask;
                     const uint64_t cur_start = kt.global.kernelStart & mask;
+                    std::string gap_us;
                     if (st.dev_last_cid[rank] >= 0 && cur_start >= prev_end) {
                         st.dev_gap_ns[rank].add((cur_start - prev_end) * tick);
                         st.dev_gap_count[rank].bump();
+                        gap_us = std::to_string(static_cast<double>((cur_start - prev_end) * tick) / 1.0e3);
                     }
                     st.dev_last_end_ticks[rank] = kt.global.kernelEnd;
                     st.dev_last_cid[rank] = collective_id;
                     st.dev_bytes[rank].add(splice.bytes);
+                    if (group.profiling_csv()) {
+                        std::ostringstream row;
+                        row << "device," << rank << "," << collective_id << "," << splice.call << ",," << splice.bytes
+                            << ",,,," << static_cast<double>(ns) / 1.0e3 << "," << gap_us;
+                        group.write_csv_row(row.str());
+                    }
                 }
             }
             ZE_THROW(ze_api()->zeEventHostReset(splice.done));
@@ -754,6 +764,7 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
             splice.bytes = m_world_size > 2 ? 2u * static_cast<std::size_t>(m_world_size - 1) * payload_bytes /
                                                   static_cast<std::size_t>(m_world_size)
                                             : payload_bytes;
+            splice.call = call;
         }
         te1 = stamp();
     } else {
@@ -776,6 +787,15 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
         st.ph1_ns[rank].add(elapsed_ns(t0, t1));
         st.ph2_ns[rank].add(elapsed_ns(t1, t2));
         st.last_exit[rank] = t2;
+        if (group.profiling_csv()) {
+            const char* schedule = m_world_size == 2 ? "pair" : plan.halving ? "halving" : "ring";
+            std::ostringstream row;
+            row << "host," << rank << "," << collective_id << "," << call << "," << schedule << "," << payload_bytes
+                << "," << static_cast<double>(group.last_late_ns(rank)) / 1.0e3 << ","
+                << static_cast<double>(elapsed_ns(t0, t1)) / 1.0e3 << "," << static_cast<double>(elapsed_ns(t1, t2)) / 1.0e3
+                << ",,";
+            group.write_csv_row(row.str());
+        }
     }
     group.note_collective_done(rank);
 }

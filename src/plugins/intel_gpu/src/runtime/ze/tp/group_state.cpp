@@ -7,6 +7,8 @@
 #include "intel_gpu/runtime/engine.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <filesystem>
 #include <functional>
 #include <limits>
 #include <sstream>
@@ -152,6 +154,18 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
     m_allreduce_seq.assign(n_ranks, 0);
     m_gather_seq.assign(n_ranks, 0);
     m_last_splice.assign(n_ranks, nullptr);
+    m_last_late_ns.assign(n_ranks, 0);
+    if (!m_options.profiling_csv_dir.empty()) {
+        static std::atomic<int> groups{0};
+        std::filesystem::create_directories(m_options.profiling_csv_dir);
+        const auto file = std::filesystem::path(m_options.profiling_csv_dir) /
+                          ("tp_collectives_" + std::to_string(world_size) + "ranks_" + std::to_string(groups++) + ".csv");
+        m_csv.open(file);
+        OPENVINO_ASSERT(m_csv, "[TP][L0] Cannot write the profiling CSV to ", file.string());
+        // host: the call's host phases; device: the queue time of a splice, read when its recording is reused.
+        m_csv << "kind,rank,collective,call,schedule,bytes,late_us,rendezvous_us,handover_us,device_us,model_gap_us\n";
+        TP_REPORT << "[TP] Writing the collectives' profiling data to " << file.string() << std::endl;
+    }
     m_mailbox.slots[0].assign(n_ranks, MailboxSlot{});
     m_mailbox.slots[1].assign(n_ranks, MailboxSlot{});
     m_started = std::make_unique<std::atomic<uint64_t>[]>(n_ranks);
@@ -202,6 +216,11 @@ GroupState::~GroupState() {
     for (auto& rs : m_ranks) {
         destroy_rank(rs);
     }
+}
+
+void GroupState::write_csv_row(const std::string& row) {
+    std::lock_guard<std::mutex> lock(m_csv_mutex);
+    m_csv << row << '\n';
 }
 
 void GroupState::check_output(int rank, int collective_id, uint64_t checksum, const std::string& name) {
@@ -549,6 +568,7 @@ void GroupState::call_rendezvous(int rank, const MailboxSlot& mine, std::vector<
                 mb.first_arrival[p] = t_arrive;
             }
             st.late_ns[rank].add(elapsed_ns(mb.first_arrival[p], t_arrive));
+            m_last_late_ns[static_cast<std::size_t>(rank)] = elapsed_ns(mb.first_arrival[p], t_arrive);
             if (mb.arrived[p] + 1 == m_world_size) {
                 st.spread_ns += elapsed_ns(mb.first_arrival[p], t_arrive);
                 st.last_count[rank].bump();
@@ -931,14 +951,19 @@ void GroupState::report_host_ranks(uint64_t calls) {
               << std::endl;
     for (int r = 0; r < m_world_size; ++r) {
         const double last_share = 100.0 * static_cast<double>(st.last_count[r].get()) / c;
-        const double sc = std::max<double>(1.0, static_cast<double>(st.seg_count[r].get()));
+        const uint64_t segments = st.seg_count[r].get();
+        std::ostringstream segment;
+        if (segments == 0) {
+            segment << "segment: none yet";
+        } else {
+            segment << "segment mean=" << (static_cast<double>(st.seg_ns[r].get()) / 1.0e3 / static_cast<double>(segments))
+                    << "us min=" << (static_cast<double>(st.seg_min_ns[r].get()) / 1.0e3)
+                    << "us max=" << (static_cast<double>(st.seg_max_ns[r].get()) / 1.0e3) << "us";
+        }
         TP_REPORT << "[TP][RANK|host]   rank " << r << ": late=" << us(st.late_ns[r].get()) << "us"
                   << " arrived_last=" << last_share << "%"
                   << "  ph1=" << us(st.ph1_ns[r].get()) << "us"
-                  << " ph2=" << us(st.ph2_ns[r].get()) << "us"
-                  << "  segment mean=" << (static_cast<double>(st.seg_ns[r].get()) / 1.0e3 / sc) << "us"
-                  << " min=" << (static_cast<double>(st.seg_min_ns[r].get()) / 1.0e3)
-                  << "us max=" << (static_cast<double>(st.seg_max_ns[r].get()) / 1.0e3) << "us" << std::endl;
+                  << " ph2=" << us(st.ph2_ns[r].get()) << "us  " << segment.str() << std::endl;
         const uint64_t p2_known =
             st.p2_rec_ns[r].get() + st.p2_wait_ns[r].get() + st.p2_reset_ns[r].get() + st.p2_append_ns[r].get();
         TP_REPORT << "[TP][RANK|host]     ph1 staging check=" << us(st.p2_gate_ns[r].get()) << "us"

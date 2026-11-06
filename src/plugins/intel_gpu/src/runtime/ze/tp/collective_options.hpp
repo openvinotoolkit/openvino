@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 #include "openvino/runtime/properties.hpp"
 
@@ -24,6 +25,8 @@ struct CollectiveOptions {
     bool profiling_host = false;
     bool profiling_device = false;
     std::size_t dump_period = 0;  ///< collectives between two reports; 0 when profiling is off
+    /// Directory of the per-call CSV of what is profiled; empty: none.
+    std::string profiling_csv_dir;
     ov::log::Level verbosity = ov::log::Level::NO;
 };
 

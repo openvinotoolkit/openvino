@@ -22,11 +22,10 @@ namespace internal {
 static constexpr Property<int, PropertyMutability::RO> world_size{"ov_internal_tp_world_size"};
 }  // namespace internal
 
+/// What TP_PROFILING measures. Device-side numbers of the collectives are the device plugin's (GPU_TP_PROFILING).
 enum class ProfilingMode : uint8_t {
-    NONE = 0,    //!< No measurement at all.
-    HOST = 1,    //!< Host-side timings only. Does not change the schedule.
-    DEVICE = 2,  //!< Device-side kernel timestamps only. Changes the schedule.
-    ALL = 3,     //!< Both.
+    NONE = 0,  //!< No measurement at all.
+    HOST = 1,  //!< Host-side timings of the plugin's dispatch. Does not change the schedule.
 };
 
 inline std::ostream& operator<<(std::ostream& os, const ProfilingMode& mode) {
@@ -35,10 +34,6 @@ inline std::ostream& operator<<(std::ostream& os, const ProfilingMode& mode) {
         return os << "NONE";
     case ProfilingMode::HOST:
         return os << "HOST";
-    case ProfilingMode::DEVICE:
-        return os << "DEVICE";
-    case ProfilingMode::ALL:
-        return os << "ALL";
     default:
         OPENVINO_THROW("[TP] Unsupported profiling mode");
     }
@@ -51,12 +46,8 @@ inline std::istream& operator>>(std::istream& is, ProfilingMode& mode) {
         mode = ProfilingMode::NONE;
     } else if (str == "HOST") {
         mode = ProfilingMode::HOST;
-    } else if (str == "DEVICE") {
-        mode = ProfilingMode::DEVICE;
-    } else if (str == "ALL") {
-        mode = ProfilingMode::ALL;
     } else {
-        OPENVINO_THROW("[TP] Unsupported profiling mode: ", str);
+        OPENVINO_THROW("[TP] Unsupported profiling mode: ", str, "; supported: NONE, HOST");
     }
     return is;
 }

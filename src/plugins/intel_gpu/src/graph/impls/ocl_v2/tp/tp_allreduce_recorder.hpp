@@ -108,6 +108,7 @@ private:
     Signature m_sig[2];
     cldnn::ze::tp::GroupState::AllreduceCall m_call;
     int m_world_size{0};
+    uint64_t m_calls{0};  ///< calls of this collective so far: one per inference
     std::size_t m_max_chunk_elems[2]{};  // by element size: 2, 4 bytes
 };
 

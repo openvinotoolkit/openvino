@@ -9,6 +9,7 @@
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -51,6 +52,8 @@ struct Splice {
     std::atomic<uint8_t> in_flight{0};
     /// What the hand-over moves across a device boundary; device profiling only.
     std::size_t bytes{0};
+    /// The collective's call the hand-over belongs to; device profiling only.
+    uint64_t call{0};
     bool allreduce{true};
 };
 
@@ -230,6 +233,16 @@ public:
     /// GPU_TP_VALIDATE_ALLREDUCE_OUTPUT: `rank`'s checksum of its output of its next call of `collective_id`.
     /// The rank completing a call compares the ranks' checksums and reports a difference with `name`.
     void check_output(int rank, int collective_id, uint64_t checksum, const std::string& name);
+
+    /// GPU_TP_DUMP_PROFILING_DATA_PATH: whether there is a CSV, and one row of it.
+    bool profiling_csv() const {
+        return m_csv.is_open();
+    }
+    void write_csv_row(const std::string& row);
+    /// How long after the first rank `rank` reached its last call rendezvous; host profiling only.
+    uint64_t last_late_ns(int rank) const {
+        return m_last_late_ns[static_cast<std::size_t>(rank)];
+    }
 
     // ---------------------------------------------------------------
     // Fixed staging
@@ -547,6 +560,11 @@ private:
     std::map<std::pair<int, uint64_t>, OutputCheck> m_checks;  // (collective, call) still collecting
     uint64_t m_checked = 0;
     uint64_t m_mismatches = 0;
+
+    // GPU_TP_DUMP_PROFILING_DATA_PATH.
+    std::mutex m_csv_mutex;
+    std::ofstream m_csv;
+    std::vector<uint64_t> m_last_late_ns;  // [N], each written by its rank only
 };
 
 using GroupStatePtr = std::shared_ptr<GroupState>;

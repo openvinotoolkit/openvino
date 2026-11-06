@@ -155,6 +155,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_collective_backend, std::str
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_verbose, ov::log::Level::NO, "Verbosity of the collectives' diagnostics. Values: LOG_NONE, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG, LOG_TRACE")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_profiling, ov::intel_gpu::TPProfilingMode::NONE, "Measurement of the collectives. Values: NONE, HOST, DEVICE, ALL")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_dump_period, uint64_t{0}, "Rank-0 collectives between two measurement reports. 0 means report every one")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_dump_profiling_data_path, std::string{}, "Directory for a CSV with a row per AllReduce call and rank of what GPU_TP_PROFILING measures")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_force_sync_collective, false, "Force collectives off the spliced model queue onto their own queue with a full drain")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_skip_collective, false, "DANGEROUS: return from every AllReduce without doing anything. Output buffers keep whatever they held")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_validate_allreduce_output, false, "After every AllReduce, compare a checksum of each rank's output across the ranks and report any difference. Drains the queue at every collective")

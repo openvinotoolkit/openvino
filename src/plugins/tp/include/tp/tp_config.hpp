@@ -87,8 +87,7 @@ struct TPConfig : public ov::PluginConfig {
     }
 
     bool profiling_host() const {
-        const auto mode = profiling_mode();
-        return mode == ProfilingMode::HOST || mode == ProfilingMode::ALL;
+        return profiling_mode() == ProfilingMode::HOST;
     }
 
     std::size_t dump_period() const {

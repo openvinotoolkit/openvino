@@ -292,6 +292,7 @@ static constexpr Property<std::string, ov::PropertyMutability::RW> tp_collective
 static constexpr Property<ov::log::Level, ov::PropertyMutability::RW> tp_verbose{"GPU_TP_VERBOSE"};
 static constexpr Property<TPProfilingMode, ov::PropertyMutability::RW> tp_profiling{"GPU_TP_PROFILING"};
 static constexpr Property<uint64_t, ov::PropertyMutability::RW> tp_dump_period{"GPU_TP_DUMP_PERIOD"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> tp_dump_profiling_data_path{"GPU_TP_DUMP_PROFILING_DATA_PATH"};
 static constexpr Property<bool, ov::PropertyMutability::RW> tp_force_sync_collective{"GPU_TP_FORCE_SYNC_COLLECTIVE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> tp_skip_collective{"GPU_TP_SKIP_COLLECTIVE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> tp_validate_allreduce_output{"GPU_TP_VALIDATE_ALLREDUCE_OUTPUT"};
