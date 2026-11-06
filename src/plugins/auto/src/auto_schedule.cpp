@@ -875,8 +875,13 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
         CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name).empty()) {
         return;
     }
-    auto& workers = m_worker_requests[device_name];
-    auto& idle_workers = m_idle_worker_requests[device_name];
+    const auto workers_it = m_worker_requests.find(device_name);
+    const auto idle_workers_it = m_idle_worker_requests.find(device_name);
+    if (workers_it == m_worker_requests.end() || idle_workers_it == m_idle_worker_requests.end()) {
+        return;
+    }
+    auto& workers = workers_it->second;
+    auto& idle_workers = idle_workers_it->second;
     // the dynamic selection runs one worker per device, so an empty idle queue means it is still running
     std::pair<int, WorkerInferRequest*> worker;
     if (workers.size() != 1 || !idle_workers.try_pop(worker)) {
@@ -887,7 +892,10 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     // the requests go first, they keep the compiled model alive
     workers.clear();
     idle_workers.set_capacity(0);
-    m_infer_pipeline_tasks_device_specific[device_name] = nullptr;
+    if (const auto tasks_it = m_infer_pipeline_tasks_device_specific.find(device_name);
+        tasks_it != m_infer_pipeline_tasks_device_specific.end()) {
+        tasks_it->second = nullptr;
+    }
     m_dynamic_compiled_models.erase(cached);
     LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released; the statistics of its %zu "
                  "inferences are dropped from the final summary",
