@@ -553,6 +553,11 @@ void jit_uni_eltwise_generic<isa>::store_vector(const XReg& ptr,
 
         switch (src_prc) {
         case ov::element::i32: {
+            if (dst_prc == ov::element::i8) {
+                xtn(data.h4, data.s4);
+                xtn(data.b8, data.h8);
+                break;
+            }
             scvtf(data.s, data.s);
             convert_from_f32_to_dst();
             break;
@@ -639,6 +644,12 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const XReg& ptr,
 
         switch (src_prc) {
         case ov::element::i32: {
+            if (dst_prc == ov::element::i8) {
+                TReg vec_data(data.getIdx());
+                xtn(vec_data.h4, vec_data.s4);
+                xtn(vec_data.b8, vec_data.h8);
+                break;
+            }
             scvtf(data, data);
             convert_from_f32_to_dst();
             break;
