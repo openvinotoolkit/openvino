@@ -25,6 +25,26 @@ Check that an op translator is actually what is missing:
 - Both decoder paths (native builder and llama.cpp cgraph) share translator bodies, so a change here
   affects both. Keep the body path-agnostic; branch on `op_case`, never on "which decoder made this".
 
+Supplied graph decoders may instead describe an operation with named attributes. Existing native
+builder `op_case` contracts remain supported; a decoder need not migrate the native builders to
+use the shared translators. Prefer inferred operand shapes over capture-time metadata when a
+named descriptor already supplies the operation's layout.
+
+| Operation | Supplied-decoder description |
+|-----------|-----------------------------|
+| `VIEW` | `view_slice` / `view_reshape`, raw byte strides and offset, or `kv_view` with runtime cache bounds |
+| `RESHAPE` / `CONT` | `reshape_target` / `cont_reshape`, with `-1` for the runtime dimension |
+| `PERMUTE` | `perm`, in OpenVINO axis order |
+| `ROPE` | `rope_mode` (`normal`, `neox`, `imrope`, `mrope`, `vision`) and `rope_config` |
+| `CPY` | Update `axis`, optional `source_slice` / `reshape_target`, destination and optional offset operands |
+| `SCALE` | Optional start and length operands for an in-place range update |
+| `POOL_2D` | Seven `pool_params`: mode, kernel width/height, strides and padding |
+
+Graph-walk storage updates rebind later reads of a cache and its reshape aliases; `CONT` snapshots
+retain the pre-write value. Unsupported raw `VIEW` layouts fail conversion rather than silently
+returning a contiguous approximation. The supplied-decoder path also registers convolution,
+reduction and unary operations formerly translated by the llama.cpp OpenVINO backend.
+
 ## Checklist
 
 | # | File | Change |

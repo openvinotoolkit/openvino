@@ -1,9 +1,6 @@
 name: GGUF Frontend x llama.cpp validation
 
-# The GGUF frontend is consumed directly by llama.cpp's ggml-openvino backend, which has its
-# own, much stricter accuracy tolerance (test-backend-ops) than genai; this job is the only
-# place that exercises that path, against the frontend already built by this workflow's own
-# Build job -- no separate OpenVINO build needed here.
+# Exercise the ggml-openvino backend against the OpenVINO package built by this workflow.
 on:
   workflow_call:
     inputs:
@@ -24,11 +21,13 @@ on:
 permissions: read-all
 
 env:
-  # mvafin/llama.cpp@ov-frontend-swap-llamacpp-sync, pinned to the commit that carries the
-  # ggml-openvino decoder/backend fixes this frontend snapshot requires. Bump alongside any
-  # GGUF-frontend change that needs a matching llama.cpp-side update.
-  LLAMA_CPP_REPO: mvafin/llama.cpp
-  LLAMA_CPP_REF: 9631fc03fbd5f7c6490b9552e622a213411e1459
+  # preetha-intel/llama.cpp@ov-gguf-frontend, the head of ravi9/llama.cpp#342.
+  LLAMA_CPP_REPO: preetha-intel/llama.cpp
+  LLAMA_CPP_REF: 6abf2aed89807f4e9a8e54eb34b5a307343f898e
+  LLAMA_CPP_DIR: ${{ github.workspace }}/llama.cpp
+  LLAMA_CPP_BUILD_DIR: ${{ github.workspace }}/llama.cpp/build
+  LLAMA_MODEL_DIR: ${{ github.workspace }}/llama.cpp/build/gguf-test-models
+  OPENVINO_SOURCE_DIR: ${{ github.workspace }}/openvino-src
   INSTALL_DIR: ${{ github.workspace }}/install
   SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
@@ -49,7 +48,15 @@ jobs:
       # Hard-coded at workflow call site; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
+      GGML_OPENVINO_DEVICE: CPU
+      # Use the faithful Q4_K decode path for llama.cpp's strict f32-oracle comparisons.
+      OV_GGUF_Q4_K_ZP_F16: "1"
     steps:
+      - name: Checkout OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        with:
+          path: openvino-src
+
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
@@ -79,54 +86,97 @@ jobs:
 
       - name: Configure llama.cpp against the OpenVINO package
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          cmake -G Ninja -S llama.cpp -B llama.cpp/build \
+          source "${INSTALL_DIR}/setupvars.sh"
+          cmake -G Ninja -S "${LLAMA_CPP_DIR}" -B "${LLAMA_CPP_BUILD_DIR}" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
-            -DGGML_OPENVINO=ON
+            -DGGML_OPENVINO=ON \
+            -DLLAMA_BUILD_TESTS=ON
 
       - name: Build llama.cpp
-        run: cmake --build llama.cpp/build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL}
+        run: cmake --build "${LLAMA_CPP_BUILD_DIR}" --parallel "${CMAKE_BUILD_PARALLEL_LEVEL}"
 
       - name: Show sccache stats
         run: sccache --show-stats
 
-      - name: Run llama.cpp tests against the ggml-openvino backend
-        env:
-          # The production Q4_K path requantizes weights to OpenVINO u4 and is necessarily lossy.
-          # llama.cpp's test-backend-ops uses a strict f32-oracle tolerance, so validate the
-          # frontend's faithful Q4_K decode path here. The requantized path has dedicated tests.
-          OV_GGUF_Q4_K_ZP_F16: "1"
+      - name: Verify the packaged GGUF frontend is linked
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          # Keep operators enabled; run supported model/state fixtures below instead of
-          # sweeping recurrent layouts this backend cannot execute.
-          ctest --test-dir llama.cpp/build -L main \
-            -E '^test-(opt|llama-archs|recurrent-state-rollback(-nemotron-h|-dsv4)?|save-load-state|llama-context)$' \
-            --output-on-failure --timeout 2000
+          source "${INSTALL_DIR}/setupvars.sh"
+          linked_frontend=$(ldd "${LLAMA_CPP_BUILD_DIR}/bin/libggml-openvino.so" |
+            awk '$1 ~ /^libopenvino_gguf_frontend/ {print $3}')
+          test -n "${linked_frontend}"
+          test "$(realpath "${linked_frontend}")" = \
+            "$(realpath "${INSTALL_DIR}/runtime/lib/intel64/libopenvino_gguf_frontend.so")"
+          echo "Linked GGUF frontend: ${linked_frontend}"
 
-      - name: Validate context state on supported llama.cpp models
-        env:
-          OV_GGUF_Q4_K_ZP_F16: "1"
+      - name: Run portable llama.cpp tests
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          # Failed-restore isolation (rf) already fails for these two models before this PR.
-          for model in llama-dense qwen2-dense; do
-            timeout 2000 llama.cpp/build/bin/test-llama-context \
-              -m "llama.cpp/build/tests/test-models/${model}.gguf" --test '^(?!rf$).*'
+          source "${INSTALL_DIR}/setupvars.sh"
+          ctest --test-dir "${LLAMA_CPP_BUILD_DIR}" --no-tests=error \
+            -R '^test-(generate-models|tiled-mulmat|barrier|quantize-fns|quantize-perf|rope|col2im-1d)$' \
+            --output-on-failure --timeout 300
+
+      - name: Compare selected backend operators with ggml CPU
+        run: |
+          source "${INSTALL_DIR}/setupvars.sh"
+          run_backend_test() {
+            local op="$1" filter="$2" log="${RUNNER_TEMP}/gguf-backend-${1}.log"
+            timeout 300 "${LLAMA_CPP_BUILD_DIR}/bin/test-backend-ops" test \
+              -b OPENVINO0 -o "${op}" -p "${filter}" | tee "${log}"
+            grep -Fq 'GGML_OPENVINO_DEVICE=CPU (selected)' "${log}"
+            grep -Eq '^  [1-9][0-9]*/[1-9][0-9]* tests passed$' "${log}"
+          }
+          run_backend_test ADD \
+            '^type=f32,ne=.*nr=\[1,1,1,1\],nf=1,perm1=0,src_overlap=0$'
+          run_backend_test MUL_MAT \
+            '^type_a=(f32|f16|q4_0|q4_K),type_b=f32,m=16,n=(1|2|4),k=256,bs=\[1,1\],nr=\[1,1\],per=\[0,1,2,3\],k_v=0,o=1,src_overlap=0,m_v=0,pad=0$'
+          run_backend_test SOFT_MAX \
+            '^type=f32,ne=\[16,16,1,1\],mask=(0|1),sinks=0,m_prec=f(16|32),nr23=\[1,1\],scale=(0\.100000|1\.000000),max_bias=(0\.000000|8\.000000),inplace=0$'
+          run_backend_test ROPE \
+            '^type=f32,ne_a=\[128,32,2,1\],n_dims=128,mode=(0|2),n_ctx=512,fs=1\.000000,ef=0\.000000,af=1\.000000,ff=0,v=0,inplace=0,n_offs=0$'
+
+      - name: Generate deterministic llama.cpp models
+        run: |
+          source "${INSTALL_DIR}/setupvars.sh"
+          mkdir -p "${LLAMA_MODEL_DIR}"
+          "${LLAMA_CPP_BUILD_DIR}/bin/test-llama-archs" \
+            -a '^(llama|qwen2|qwen3)$' -s 1234 -o "${LLAMA_MODEL_DIR}"
+          for model in llama qwen2 qwen3; do
+            test -s "${LLAMA_MODEL_DIR}/${model}-dense.gguf"
           done
-          timeout 2000 llama.cpp/build/bin/test-llama-context \
-            -m llama.cpp/build/tests/test-models/qwen3-dense.gguf
 
-      - name: Validate state save/load on supported llama.cpp models
-        env:
-          OV_GGUF_Q4_K_ZP_F16: "1"
+      - name: Run llama.cpp thread-safety test
         run: |
-          source ${{ env.INSTALL_DIR }}/setupvars.sh
-          # Generated by test-generate-models above. Run every state scenario in single-model
-          # mode instead of sweeping architectures the ggml-openvino backend cannot execute.
-          for model in llama-dense qwen2-dense qwen3-dense; do
-            timeout 2000 llama.cpp/build/bin/test-save-load-state \
-              -m "llama.cpp/build/tests/test-models/${model}.gguf"
+          source "${INSTALL_DIR}/setupvars.sh"
+          log="${RUNNER_TEMP}/gguf-thread-safety.log"
+          timeout 300 "${LLAMA_CPP_BUILD_DIR}/bin/test-thread-safety" \
+            -m "${LLAMA_MODEL_DIR}/llama-dense.gguf" -dev OPENVINO0 -ngl all \
+            -p 'The meaning of life is' -n 16 -c 256 -ub 32 -np 4 -t 2 2>&1 | tee "${log}"
+          grep -Eq 'Creating context [0-9]+/4 for model 1/3' "${log}"
+          grep -Fq 'All threads finished without errors.' "${log}"
+
+      - name: Build llama.cpp model integration test
+        run: |
+          source "${INSTALL_DIR}/setupvars.sh"
+          g++ -std=c++17 -O2 -Wall -Wextra -Werror \
+            -I "${LLAMA_CPP_DIR}/include" -I "${LLAMA_CPP_DIR}/ggml/include" \
+            -isystem "${INSTALL_DIR}/runtime/include" \
+            "${OPENVINO_SOURCE_DIR}/src/frontends/gguf/tests/llamacpp_integration.cpp" \
+            -L "${LLAMA_CPP_BUILD_DIR}/bin" -L "${INSTALL_DIR}/runtime/lib/intel64" \
+            -Wl,-rpath,"${LLAMA_CPP_BUILD_DIR}/bin" -Wl,-rpath,"${INSTALL_DIR}/runtime/lib/intel64" \
+            -lggml-openvino -lllama -lggml -lggml-base -lopenvino \
+            -o "${LLAMA_CPP_BUILD_DIR}/bin/gguf-llamacpp-integration"
+
+      - name: Compare model logits and restored state
+        run: |
+          source "${INSTALL_DIR}/setupvars.sh"
+          for model in llama qwen2 qwen3; do
+            for attention in flash noflash; do
+              for first_seq in 0 1; do
+                echo "Testing ${model}, ${attention}, first sequence ${first_seq}"
+                timeout 300 "${LLAMA_CPP_BUILD_DIR}/bin/gguf-llamacpp-integration" \
+                  "${LLAMA_MODEL_DIR}/${model}-dense.gguf" "${attention}" "${first_seq}"
+              done
+            done
           done

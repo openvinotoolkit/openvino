@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::frontend::gguf {
 namespace pass {
@@ -20,6 +21,16 @@ class LowerSetRowsStateless : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::frontend::gguf::pass::LowerSetRowsStateless")
     LowerSetRowsStateless();
+};
+
+// The GPU plugin's StatelessKVFusion reads a cache through a single VariadicSplit. A cache read by
+// several attention layers (KV sharing, e.g. gemma-3n/gemma-4) cannot fuse, and the unfused
+// VariadicSplits then copy the cache and push SDPA onto its reference kernel. Read such caches with
+// Slices instead.
+class SliceSharedKVReads : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::frontend::gguf::pass::SliceSharedKVReads");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace pass

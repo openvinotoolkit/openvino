@@ -286,6 +286,7 @@ OPS_EXPECTATIONS = {
     "resize_down": "mmproj_interpolate_down_expected",
     "resize_down_corners": "mmproj_interpolate_down_corners_expected",
     "im2col7": "mmproj_im2col7", "im2col9": "mmproj_im2col9",
+    "im2col_3d_mixed": "mmproj_im2col_3d_mixed",
 }
 
 

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <climits>
 #include <cstdint>
 #include <memory>
@@ -25,18 +26,19 @@ OutputVector translate_permute(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
     int op_case = context.get_op_case();
-    FRONT_END_CHECK_IMPLEMENTED(op_case == 1 || op_case == 2 || op_case == 3 || op_case == 4,
-                                "Unsupported PERMUTE case");
+    FRONT_END_OP_CONVERSION_CHECK(op_case != 0 || !context.get_attribute_as_any("perm").empty(),
+                                  "PERMUTE requires a permutation descriptor");
+    FRONT_END_CHECK_IMPLEMENTED(op_case >= 0 && op_case <= 4, "Unsupported PERMUTE case");
 
     ov::Output<Node> res;
     auto src = context.get_input(0);
     auto perm_order = context.get_attribute<std::vector<int64_t>>("perm", {0, 2, 1, 3});
-    if (op_case == 1 && src.get_partial_shape().rank() == 3 && perm_order.size() == 4 && perm_order[0] == 0) {
+    if (op_case <= 1 && src.get_partial_shape().rank() == 3 && perm_order.size() == 4 && perm_order[0] == 0) {
         perm_order = {perm_order[1] - 1, perm_order[2] - 1, perm_order[3] - 1};
     }
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {perm_order.size()}, perm_order);
 
-    if (op_case == 1) {
+    if (op_case <= 1) {
         res = std::make_shared<ov::op::v1::Transpose>(src, perm);
     } else if (op_case == 4) {
         auto output_shape = context.get_output_shape().to_shape();
@@ -85,10 +87,22 @@ OutputVector translate_permute(const NodeContext& context) {
                                        cache_shape[2].is_static() && cache_shape[3].is_static() &&
                                        cache_shape[2].get_length() == n_heads &&
                                        cache_shape[3].get_length() == head_size;
-        if (cache_is_expanded) {
+        const auto captured_shape = context.get_input_shape(0);
+        const bool dynamic_expanded_cache =
+            cache_shape.rank().is_static() && cache_shape.rank().get_length() == 4 && cache_shape[2].is_dynamic() &&
+            cache_shape[3].is_static() && cache_shape[3].get_length() == head_size && n_heads > 0 &&
+            captured_shape.is_static() && captured_shape.rank().get_length() == 4 &&
+            captured_shape.compatible(cache_shape) && captured_shape[2].get_length() == n_heads &&
+            captured_shape[3].get_length() == head_size && perm_order.size() == 4 &&
+            std::equal(perm_order.begin(), perm_order.end(), output_shape.begin(), [&](int64_t axis, size_t size) {
+                return axis >= 0 && axis < 4 &&
+                       static_cast<size_t>(captured_shape[static_cast<size_t>(axis)].get_length()) == size;
+            });
+        if (cache_is_expanded || dynamic_expanded_cache) {
             ov::Output<Node> active_cache = src;
             const int64_t n_seq = cache_shape[0].is_static() ? cache_shape[0].get_length() : -1;
-            if (n_seq != 1) {
+            // The dynamic expanded input already represents the captured VIEW.
+            if (n_seq != 1 && !dynamic_expanded_cache) {
                 auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
                 auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
                 Output<Node> seq_active_start;
@@ -104,6 +118,11 @@ OutputVector translate_permute(const NodeContext& context) {
                                                                   {start + static_cast<int64_t>(output_shape[0])});
                 }
                 active_cache = std::make_shared<ov::op::v8::Slice>(src, seq_active_start, seq_active_end, one, zero);
+            }
+            if (dynamic_expanded_cache) {
+                const auto shape =
+                    ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, n_heads, -1});
+                active_cache = std::make_shared<ov::op::v1::Reshape>(active_cache, shape, true);
             }
             res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
             return rename_outputs_with_suffix({std::move(res)}, context.get_name());

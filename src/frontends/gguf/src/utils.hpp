@@ -66,6 +66,13 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
 // x / max(sqrt(sum(x^2, -1)), eps), matching ggml's l2_norm.
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps);
 
+// ggml's per-head ALiBi slopes as a rank-`rank` constant with `n_head` values along `head_axis`.
+ov::Output<ov::Node> make_alibi_slopes(const ov::element::Type& type,
+                                       size_t rank,
+                                       size_t head_axis,
+                                       uint32_t n_head,
+                                       float max_bias);
+
 ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input, bool matrix_form = false);
 void decompose_hadamard(ov::Output<ov::Node> input);
 
@@ -89,9 +96,14 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
                                                            std::shared_ptr<ov::Node> inp_pos,
                                                            std::shared_ptr<ov::Node> rope_freqs_weight = nullptr,
                                                            bool imrope = false,
-                                                           bool stateful = false);
+                                                           bool stateful = false,
+                                                           bool mrope = false);
 
 ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_index, int slice_len = 0);
+
+inline bool is_kvcache_4d_shape(const ov::PartialShape& shape) {
+    return shape.rank() == 4 && shape[0] == 1 && shape[1].is_dynamic() && shape[2].is_static() && shape[3].is_static();
+}
 
 namespace op {
 template <typename T>

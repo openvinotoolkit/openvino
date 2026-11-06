@@ -4,10 +4,12 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -35,6 +37,11 @@ struct ConstantCache {
         hadamard_outputs;
     std::map<Output<Node>, Output<Node>> f32_activations;
     std::map<Output<Node>, Output<Node>> rank3_activations;
+    std::map<
+        std::
+            tuple<Output<Node>, std::optional<Output<Node>>, int, int, std::vector<float>, std::array<int32_t, 4>, int>,
+        std::pair<Output<Node>, Output<Node>>>
+        rope_tables;
 };
 
 class NodeContext : public frontend::NodeContext {
@@ -148,6 +155,25 @@ public:
 
     Output<Node> get_f32_activation(const Output<Node>& input) const;
     Output<Node> get_rank3_activation(const Output<Node>& input) const;
+
+    std::pair<Output<Node>, Output<Node>>& get_rope_tables(const RopeConfig& config,
+                                                           const Output<Node>& positions,
+                                                           const Output<Node>& frequencies,
+                                                           int mode) const {
+        return m_constant_cache
+            ->rope_tables[{positions,
+                           frequencies.get_node_shared_ptr() ? std::optional<Output<Node>>{frequencies} : std::nullopt,
+                           config.n_dims,
+                           config.n_ctx_orig,
+                           {config.freq_base,
+                            config.freq_scale,
+                            config.ext_factor,
+                            config.attn_factor,
+                            config.beta_fast,
+                            config.beta_slow},
+                           config.sections,
+                           mode}];
+    }
 
 private:
     std::shared_ptr<GgufDecoder> m_decoder;

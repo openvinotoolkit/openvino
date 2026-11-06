@@ -49,13 +49,25 @@ OutputVector translate_rope(const NodeContext& context) {
         output_shape = context.get_input_shape(0);
     }
     auto rope_config = context.get_attribute<RopeConfig>("rope_config");
-    const int mode = (op_case & 0xFFFF0000) >> 16;
+    int mode = (op_case & 0xFFFF0000) >> 16;
     op_case = (op_case & 0x0000FFFF);
 
     constexpr int TYPE_NORMAL = 0;
     constexpr int TYPE_NEOX = 1;
     constexpr int TYPE_IMROPE = 2;
     constexpr int TYPE_VISION = 3;
+    constexpr int TYPE_MROPE = 4;
+    const auto explicit_mode = context.get_attribute<std::string>("rope_mode", "");
+    if (!explicit_mode.empty()) {
+        FRONT_END_CHECK_IMPLEMENTED(explicit_mode == "normal" || explicit_mode == "neox" || explicit_mode == "imrope" ||
+                                        explicit_mode == "vision" || explicit_mode == "mrope",
+                                    "Unsupported ROPE mode: " + explicit_mode);
+        mode = explicit_mode == "normal"   ? TYPE_NORMAL
+               : explicit_mode == "neox"   ? TYPE_NEOX
+               : explicit_mode == "imrope" ? TYPE_IMROPE
+               : explicit_mode == "mrope"  ? TYPE_MROPE
+                                           : TYPE_VISION;
+    }
 
     if (mode == TYPE_VISION) {
         // ggml vision RoPE rotates the full head in two halves; n_dims is half the
@@ -118,7 +130,7 @@ OutputVector translate_rope(const NodeContext& context) {
 
     Output<Node> cos_theta_node;
     Output<Node> sin_theta_node;
-    if (context.has_input("rope_cos")) {
+    if (explicit_mode.empty() && context.has_input("rope_cos")) {
         cos_theta_node = context.get_input("rope_cos");
         sin_theta_node = context.get_input("rope_sin");
     } else {
@@ -127,7 +139,14 @@ OutputVector translate_rope(const NodeContext& context) {
         if (context.get_input_size() == 3) {
             rope_freqs_weight = context.get_input(2).get_node_shared_ptr();
         }
-        auto sin_cos = make_sin_cos(rope_config, inp_pos, rope_freqs_weight, mode == TYPE_IMROPE);
+        auto& sin_cos = context.get_rope_tables(rope_config,
+                                                context.get_input(1),
+                                                context.get_input_size() == 3 ? context.get_input(2) : Output<Node>{},
+                                                mode);
+        if (!sin_cos.first.get_node_shared_ptr()) {
+            sin_cos =
+                make_sin_cos(rope_config, inp_pos, rope_freqs_weight, mode == TYPE_IMROPE, false, mode == TYPE_MROPE);
+        }
         sin_theta_node = sin_cos.first;
         cos_theta_node = sin_cos.second;
     }
@@ -237,7 +256,7 @@ OutputVector translate_rope(const NodeContext& context) {
         ov::Output<ov::Node> rotated = std::make_shared<ov::op::v1::Add>(y1, y2);
         res = n_rot < head_size ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1)
                                 : rotated;
-    } else if (mode == TYPE_NEOX || mode == TYPE_IMROPE) {
+    } else if (mode == TYPE_NEOX || mode == TYPE_IMROPE || mode == TYPE_MROPE) {
         // Partial rotary (ggml n_dims < head_dim): only the first n_dims of every head are
         // rotated; the remaining tail is passed through unchanged. cos/sin have width n_dims/2,
         // so the rotated block must be exactly n_dims wide.
@@ -280,7 +299,7 @@ OutputVector translate_rope(const NodeContext& context) {
         };
         // Normalize angles to [B, 1, L, head/2].
         auto cossin_to_bhls = [&](ov::Output<ov::Node> x) -> ov::Output<ov::Node> {
-            if (mode == TYPE_IMROPE) {
+            if (mode == TYPE_IMROPE || mode == TYPE_MROPE) {
                 x = std::make_shared<ov::op::v1::Reshape>(
                     x,
                     ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, -1, 1, n_rot / 2}),
@@ -300,7 +319,7 @@ OutputVector translate_rope(const NodeContext& context) {
         split_rotary(x_bhls, rotary_in, pass_through);
         ov::pass::NodeRegistry reg;
         ov::Output<ov::Node> roped;
-        if (mode == TYPE_IMROPE) {
+        if (mode == TYPE_IMROPE || mode == TYPE_MROPE) {
             auto halves = std::make_shared<ov::op::v1::VariadicSplit>(
                 rotary_in,
                 ov::op::v0::Constant::create(ov::element::i64, {}, {3}),
