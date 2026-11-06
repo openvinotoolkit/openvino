@@ -1272,9 +1272,11 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the odd V row of a pair read at/past k (each must fail
     // smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases); on an i8 BY_TOKEN page 19 = the K comp of tokens
     // 0..7 for both 8-key groups of a page, 20 = the V scales of a lane's two keys swapped, 21 = the V zps of the next key
-    // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm), and on an i8 BY_CHANNEL
+    // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm), on an i8 BY_CHANNEL
     // page 23 = the (scale, zp) pairs of a lane's two channels swapped, 24 = scale and zp of a pair swapped (each must fail
-    // its BY_CHANNEL cases). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
+    // its BY_CHANNEL cases), and for the new tokens of a compressed MIXED (PA_CUR_KV_F16) 27 = the next token's Kc row, 28 =
+    // the next token's Vc row (each must fail the comp cases that read a new token). Absent unless asked for, so the
+    // default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
@@ -1455,15 +1457,23 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
 void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
     int cur_f16 = 0;
     bool cur_aligned = false;
-    // SG8: Kc/Vc have only a block2d reader, so an SG8 compressed MIXED reads the current tokens from the cache (0); the
-    // cache round trip is lossy, which the Xe2 exact read avoids.
-    if (in.is_pa && !in.is_prefill && block2d_io_allowed(static_cast<size_t>(in.problem.tiling.subgroup_size))) {
+    const bool block2d = block2d_io_allowed(static_cast<size_t>(in.problem.tiling.subgroup_size));
+    if (in.is_pa && !in.is_prefill) {
         const auto& kc = in.params.input_layouts[1];
         const auto& vc = in.params.input_layouts[2];
-        const auto ldk = in.problem.k_head_size * ov::element::Type(kc.data_type).size();
-        const auto ldv = in.problem.v_head_size * ov::element::Type(vc.data_type).size();
         // Kc/Vc are read as QRY_DATA_T.
         const bool f16_in = kc.data_type == in.q.data_type && vc.data_type == in.q.data_type && ov::element::Type(in.q.data_type).size() == 2;
+        if (!block2d) {
+            // SG8 reads Kc with k_tile_dword and Vc with vc_tile_gather, which take any layout. Compressed caches only (an f16
+            // page holds the same bits); not yet u4, whose permuted-depth Kc read is block2d only. SDPA_OCL_PA_CUR_F16=0 reads
+            // the current tokens back from the cache instead.
+            cur_f16 = (f16_in && in.cache.compressed && !in.cache.u4_by_channel_tm) ? env_int("SDPA_OCL_PA_CUR_F16", 1) : 0;
+            jit.make("PA_CUR_KV_F16", cur_f16 != 0 ? 1 : 0);
+            jit.make("BLOCK2D_KV_CUR_BASE_FIXUP", 0);
+            return;
+        }
+        const auto ldk = in.problem.k_head_size * ov::element::Type(kc.data_type).size();
+        const auto ldv = in.problem.v_head_size * ov::element::Type(vc.data_type).size();
         cur_aligned = block2d_layout_ok(kc, ldk) && block2d_layout_ok(vc, ldv);
         const bool fixup_ok = block2d_layout_fixup_ok(kc, ldk) && block2d_layout_fixup_ok(vc, ldv);
         // Here only: Kc/Vc exist only in the MIXED signature. 0 reads the current tokens from the cache. Only a compressed

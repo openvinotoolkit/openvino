@@ -564,10 +564,11 @@
 #    error "sdpa_ocl.cl SG8: the u4 K / V page readers are SG16 (plan S8c)"
 #  endif
 // The contiguous K input reads (k_tile_dword, and k_tile_dword_i8 for the plain i8 cache), the f16 page gather
-// (pa_k_tile_gather) and the i8 page gather (pa_k_tile_q_gather) have an int8 A form. The Kc / Vc reads of
-// PA_CUR_KV_F16 are 2D block reads, so an SG8 compressed MIXED reads the current tokens from the cache.
-#  if IS_PA_MIXED && PA_CUR_KV_F16
-#    error "sdpa_ocl.cl SG8: the PA_CUR_KV_F16 Kc / Vc reads are 2D block reads; SG8 reads the current tokens from the cache"
+// (pa_k_tile_gather) and the i8 page gather (pa_k_tile_q_gather) have an int8 A form. PA_CUR_KV_F16 reads Kc with
+// k_tile_dword and Vc with vc_tile_gather on SG8; the permuted-depth (u4) Kc reads and the Kc / Vc base fixup are block2d
+// only.
+#  if IS_PA_MIXED && PA_CUR_KV_F16 && (PA_K_PERMUTED || BLOCK2D_KV_CUR_BASE_FIXUP)
+#    error "sdpa_ocl.cl SG8: the permuted-depth Kc read and the Kc / Vc base fixup are 2D block reads"
 #  endif
 #endif
 
