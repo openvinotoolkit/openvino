@@ -586,6 +586,21 @@ ov::Output<ov::Node> ov::pass::GroupQueryAttentionDecomposition::resize_kv_to_ca
     const ov::Output<ov::Node>& past_rows,
     const ov::Output<ov::Node>& buffer,
     const ov::Output<ov::Node>& total_sequence_length) {
+    // Skip building the Slice/Broadcast/Concat growth entirely when it would be a no-op: a statically-sized
+    // buffer that already covers both past_rows and a constant total_sequence_length never needs trimming or
+    // filler, so the result is just the buffer unchanged.
+    const auto& buffer_ps = buffer.get_partial_shape();
+    if (buffer_ps.rank().is_static() && buffer_ps[2].is_static()) {
+        const auto past_rows_const = ov::util::get_constant_from_source(past_rows);
+        const auto total_const = ov::util::get_constant_from_source(total_sequence_length);
+        if (past_rows_const && total_const) {
+            const auto capacity =
+                std::max(past_rows_const->cast_vector<int64_t>().at(0), total_const->cast_vector<int64_t>().at(0));
+            if (capacity <= buffer_ps[2].get_length()) {
+                return buffer;
+            }
+        }
+    }
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));

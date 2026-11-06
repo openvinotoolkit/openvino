@@ -1314,6 +1314,54 @@ TEST(GroupQueryAttentionValues, padded_query_static_capacity_grows_and_sanitizes
         << "unwritten capacity tail must be zeroed so NaN filler can't leak through softmax";
 }
 
+// When the declared capacity already covers a constant total_sequence_length, resize_kv_to_capacity must
+// fold away instead of building a Slice/Broadcast/Concat that would just reproduce its input: the scatter
+// writes directly into past_key/past_value, same as the no-total_sequence_length fast path.
+TEST(GroupQueryAttentionValues, padded_query_static_capacity_already_sufficient_skips_resize) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 8;
+    constexpr int64_t total_sequence_length = 8;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(f32, PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_TRUE(gqa->has_fixed_kv_capacity());
+    ASSERT_EQ(gqa->get_output_partial_shape(1), (PartialShape{1, KV_NUM_HEADS, past_rows, HEAD_SIZE}));
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    bool scatter_into_past_key_directly = false;
+    bool found_capacity_concat = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto su = as_type_ptr<op::v3::ScatterUpdate>(op)) {
+            scatter_into_past_key_directly |= su->get_input_node_shared_ptr(0) == past_key;
+        }
+        if (const auto concat = as_type_ptr<op::v0::Concat>(op)) {
+            found_capacity_concat |= concat->get_output_partial_shape(0).rank() == 4 && concat->get_axis() == 2;
+        }
+    }
+    EXPECT_TRUE(scatter_into_past_key_directly)
+        << "an already-sufficient static capacity should scatter straight into past_key, no resize needed";
+    EXPECT_FALSE(found_capacity_concat) << "resize_kv_to_capacity must fold away as a no-op, not build a Concat";
+}
+
 // Same hazard as padded_query_static_capacity_grows_and_sanitizes_unwritten_tail, through the batched writer
 // (dynamic batch) instead of the scalar one.
 TEST(GroupQueryAttentionValues, padded_query_batched_static_capacity_sanitizes_unwritten_tail) {
