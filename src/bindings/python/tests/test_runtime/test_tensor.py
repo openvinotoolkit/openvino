@@ -410,10 +410,12 @@ def test_roi_from_packed_tensor_when_strided_two_heads():
     # goes through the real per-dimension strides instead, so use it to verify the content.
     dense_tensor = ov.Tensor(ov.Type.i4, [1, 2, 10, 512])
     roi_tensor.copy_to(dense_tensor)
-    for h in range(2):
-        src_start = h * head_stride_bytes
-        dst_start = h * 10 * row_bytes
-        assert np.array_equal(dense_tensor.data[dst_start : dst_start + 10 * row_bytes], ov_tensor.data[src_start : src_start + 10 * row_bytes])
+    for head_idx in range(2):
+        src_start = head_idx * head_stride_bytes
+        dst_start = head_idx * 10 * row_bytes
+        dst_slice = dense_tensor.data[dst_start : dst_start + 10 * row_bytes]
+        src_slice = ov_tensor.data[src_start : src_start + 10 * row_bytes]
+        assert np.array_equal(dst_slice, src_slice)
 
 
 def test_roi_from_packed_tensor_when_contiguous():
