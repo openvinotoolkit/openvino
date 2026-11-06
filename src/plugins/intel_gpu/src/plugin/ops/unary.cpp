@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
+
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -107,6 +111,10 @@ static void CreateClampOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::C
         // So to avoid this issue we use largest representable value which doesn't cause overflow
         // TODO: Consider improving jitter to operate with int types directly
         max = std::min<double>(2147483583.0, max);
+        // ConvertPrecision can narrow i64 data to i32 while retaining i64 Clamp
+        // bounds as double attributes. The JIT casts these bounds back to i32;
+        // keep the lower bound representable as well (INT32_MIN is exact in f32).
+        min = std::max<double>(std::numeric_limits<int32_t>::lowest(), min);
     }
     CreateUnaryEltwiseOp(p, op, cldnn::activation_func::clamp, {static_cast<float>(min), static_cast<float>(max)});
 }
