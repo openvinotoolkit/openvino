@@ -413,8 +413,8 @@ def test_roi_from_packed_tensor_when_strided_two_heads():
     for head_idx in range(2):
         src_start = head_idx * head_stride_bytes
         dst_start = head_idx * 10 * row_bytes
-        dst_slice = dense_tensor.data[dst_start : dst_start + 10 * row_bytes]
-        src_slice = ov_tensor.data[src_start : src_start + 10 * row_bytes]
+        dst_slice = dense_tensor.data[dst_start: dst_start + 10 * row_bytes]
+        src_slice = ov_tensor.data[src_start: src_start + 10 * row_bytes]
         assert np.array_equal(dst_slice, src_slice)
 
 
@@ -788,7 +788,7 @@ def test_copy_and_deepcopy(copy_func, should_share_data):
                          (np.float32, (224, 224)),
                          (np.int32, (224, 224)),
                          (np.uint8, (224, 224, 3)),
-                         (np.uint16, (224, 224)),],)
+                         (np.uint16, (224, 224))])
 def test_tensor_from_pillow(numpy_dtype, shape):
     from PIL import Image
 
