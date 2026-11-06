@@ -86,6 +86,8 @@ public:
     memory::ptr adaptive_rkv_diversity_block_set_indices_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ADAPTIVE_RKV_DIVERSITY_BLOCK_SET_INDICES_BEGINS); }
     memory::ptr qq_bias_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::QQ_BIAS); }
     memory::ptr qq_bias_begins_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::QQ_BIAS_BEGINS); }
+    // Only call when typed_desc()->has_chunk_base_ptrs is true (see new_plan.md Phase 5).
+    memory::ptr chunk_base_ptrs_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::CHUNK_BASE_PTRS); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;

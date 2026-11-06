@@ -20,9 +20,10 @@ using PagedAttentionExtension = ov::op::PagedAttentionExtension;
 namespace ov::intel_gpu {
 
 static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::PagedAttentionExtension>& op) {
-    validate_inputs_count(op, {28});
+    validate_inputs_count(op, {28, 29});
     auto inputs = p.GetInputInfo(op);
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
+    prim.has_chunk_base_ptrs = op->has_chunk_base_ptrs();
 
     const auto& rt_info = op->get_rt_info();
     const auto* const k_head_size_id = "k_head_size";
@@ -30,6 +31,26 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     const auto* const num_k_heads_id = "num_k_heads";
     const auto has_rt_params =
         rt_info.find(k_head_size_id) != rt_info.end() && rt_info.find(v_head_size_id) != rt_info.end() && rt_info.find(num_k_heads_id) != rt_info.end();
+
+    if (prim.has_chunk_base_ptrs) {
+        // See new_plan.md Phase 5: chunk layout parameters aren't derivable from any input's shape/dtype
+        // alone (blocks_per_chunk is purely an openvino.genai-side allocation decision), so they travel
+        // as rt_info, the same mechanism already used for k_head_size/v_head_size/num_k_heads above.
+        const auto* const blocks_per_chunk_id = "blocks_per_chunk";
+        OPENVINO_ASSERT(rt_info.find(blocks_per_chunk_id) != rt_info.end(),
+                        "[GPU] PagedAttentionExtension has a chunk_base_ptrs input but is missing the "
+                        "'blocks_per_chunk' rt_info attribute");
+        prim.blocks_per_chunk = static_cast<size_t>(rt_info.at(blocks_per_chunk_id).as<int64_t>());
+        OPENVINO_ASSERT(prim.blocks_per_chunk > 0, "[GPU] PagedAttentionExtension rt_info 'blocks_per_chunk' must be > 0");
+
+        // chunk_base_ptrs is intentionally dynamically-shaped ([-1]): its length (2 * num_chunks) grows
+        // across inference steps as openvino.genai allocates new chunks. num_chunks is therefore not
+        // knowable at graph-compile time and is read from the runtime input shape at dispatch time
+        // instead (see KVCacheUpdateGenerator/PagedAttentionGeneratorBase's get_dispatch_data_func()).
+        const auto chunk_base_ptrs_ps = op->get_input_partial_shape(cldnn::paged_attention::PagedAttentionInputIdx::CHUNK_BASE_PTRS);
+        OPENVINO_ASSERT(chunk_base_ptrs_ps.rank().get_length() == 1,
+                        "[GPU] PagedAttentionExtension chunk_base_ptrs input must have rank 1");
+    }
 
     auto query_ps = op->get_input_partial_shape(0);
     auto key_cache_ps = op->get_input_partial_shape(3);

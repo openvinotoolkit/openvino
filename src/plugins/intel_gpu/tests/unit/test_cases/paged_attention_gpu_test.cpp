@@ -1642,3 +1642,51 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_by_channel_large_head, kv_cache_by_chann
     paged_attention_test_params{ {{1, 10}, {1, 14}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 },
 }));
 
+// See new_plan.md Phase 5: exercises the new CHUNK_BASE_PTRS addressing path (both the
+// pa_kv_cache_update write kernel and the pa_sdpa_opt read kernel) by splitting the legacy
+// key_cache/value_cache buffers into multiple independent device chunks. The CPU reference
+// computation (PagedAttentionReference) is derived purely from PagedAttentionManager's host-side
+// query/key/value vectors, never from the GPU cache buffer layout for these non-adaptive-RKV,
+// non-xattention cases, so the exact same comparison used by every other basic test case is valid
+// here without modification.
+class paged_attention_chunked_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(paged_attention_chunked_test, basic) {
+    auto p = GetParam();
+    execute(p, p.run_reference);
+}
+
+namespace {
+paged_attention_test_params make_chunked_test_params(std::vector<SubsequenceDescriptor> subsequences, size_t blocks_per_chunk) {
+    paged_attention_test_params p{};
+    p.subsequences = std::move(subsequences);
+    p.num_heads = 2;
+    p.num_kv_heads = 2;
+    p.k_head_size = 64;
+    p.v_head_size = 64;
+    p.block_size = 16;
+    p.sliding_window_size = 0;
+    p.kv_cache_compression = false;
+    p.key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    p.dynamic_paddings = STATIC_INPUT_PAD;
+    p.scores_mode = DISABLE_SCORES;
+    p.rotation_config = DISABLE_ROTATION;
+    p.disable_flashattn_v2 = DISABLE_FA_V2;
+    p.chunking_blocks_per_chunk = blocks_per_chunk;
+    return p;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_chunked,
+    paged_attention_chunked_test,
+    ::testing::Values(
+        // Decode (2nd+ token): past_len=40, block_size=16 -> 3 physical blocks (0,1,2).
+        // blocks_per_chunk=2 -> 2 chunks (chunk0={0,1}, chunk1={2}); the read kernel's per-block
+        // loop crosses the chunk boundary, the write kernel only touches the single block in chunk1.
+        make_chunked_test_params({{1, 40}}, 2),
+        // Prefill (1st token): num_tokens=20, past_len=0, block_size=16 -> 2 physical blocks
+        // (block0 full, block1 partial-4-tokens). blocks_per_chunk=1 -> 2 chunks, one per block;
+        // the write kernel's prefill full-block and partial-block branches each touch a different chunk.
+        make_chunked_test_params({{20, 0}}, 1)));
+
+

@@ -514,6 +514,15 @@ public:
             jit.make("HAS_ROTATED_BLOCKS", 1);
         }
 
+        // See new_plan.md Phase 5: only the uncompressed cache read path is chunk-aware so far.
+        jit.make("HAS_CHUNK_BASE_PTRS", desc->has_chunk_base_ptrs ? 1 : 0);
+        if (desc->has_chunk_base_ptrs) {
+            jit.make("BLOCKS_PER_CHUNK", desc->blocks_per_chunk);
+            // NUM_CHUNKS is deliberately NOT a jit constant here either -- see the write kernel's
+            // KVCacheUpdateGenerator::get_jit_constants() for why; it is passed as a runtime scalar
+            // kernel argument instead (see get_arguments_desc/get_dispatch_data_func below).
+        }
+
         jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
         return jit;
     }
@@ -600,6 +609,11 @@ public:
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES});         // block_indices
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block_indices_begins
 
+        if (desc->has_chunk_base_ptrs) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::CHUNK_BASE_PTRS});  // chunk_base_ptrs
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                       // num_chunks
+        }
+
         if (has_scale_input) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
         }
@@ -624,6 +638,14 @@ public:
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+
+            if (desc->has_chunk_base_ptrs) {
+                auto& scalars = kd.params.scalars;
+                scalars.resize(1);
+                const auto& chunk_base_ptrs_layout = params.input_layouts[PagedAttentionInputIdx::CHUNK_BASE_PTRS];
+                scalars[0].t = ScalarDescriptor::Types::UINT32;
+                scalars[0].v.u32 = static_cast<uint32_t>(chunk_base_ptrs_layout.get_shape()[0] / 2);
+            }
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
@@ -655,6 +677,14 @@ public:
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+
+            if (desc->has_chunk_base_ptrs) {
+                auto& scalars = kd.params.scalars;
+                scalars.resize(1);
+                const auto& chunk_base_ptrs_layout = params.input_layouts[PagedAttentionInputIdx::CHUNK_BASE_PTRS];
+                scalars[0].t = ScalarDescriptor::Types::UINT32;
+                scalars[0].v.u32 = static_cast<uint32_t>(chunk_base_ptrs_layout.get_shape()[0] / 2);
+            }
 
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
@@ -804,6 +834,11 @@ public:
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::BLOCK_INDICES_BEGINS});  // block_indices_begins
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});    // subsequence_begins
 
+        if (desc->has_chunk_base_ptrs) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::CHUNK_BASE_PTRS});  // chunk_base_ptrs
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                       // num_chunks
+        }
+
         if (has_scale_input) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
         }
@@ -834,6 +869,15 @@ public:
             auto& wgs = kd.params.workGroups;
             const auto desc = params.typed_desc<paged_attention>();
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+
+            if (desc->has_chunk_base_ptrs) {
+                auto& scalars = kd.params.scalars;
+                scalars.resize(1);
+                const auto& chunk_base_ptrs_layout = params.input_layouts[PagedAttentionInputIdx::CHUNK_BASE_PTRS];
+                scalars[0].t = ScalarDescriptor::Types::UINT32;
+                scalars[0].v.u32 = static_cast<uint32_t>(chunk_base_ptrs_layout.get_shape()[0] / 2);
+            }
+
             const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
             const size_t heads_num = desc->heads_num;
             const size_t v_head_size = desc->v_head_size;
@@ -1279,6 +1323,18 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
 
+        // See new_plan.md Phase 5: only the decode (2nd+ token), uncompressed cache path is chunk-aware so
+        // far; IS_KV_COMPRESSED/IS_KEY_BY_CHANNEL and the prefill path still assume a single contiguous
+        // key_cache_data/value_cache_data allocation regardless of this flag.
+        jit.make("HAS_CHUNK_BASE_PTRS", desc->has_chunk_base_ptrs ? 1 : 0);
+        if (desc->has_chunk_base_ptrs) {
+            jit.make("BLOCKS_PER_CHUNK", desc->blocks_per_chunk);
+            // NUM_CHUNKS is NOT a jit constant: chunk_base_ptrs grows across inference steps as new
+            // chunks are allocated, and re-JIT-ing the kernel on every such growth would be far too
+            // costly. It is instead read at dispatch time from the actual runtime input shape and
+            // passed as a scalar kernel argument (see get_arguments_desc/get_dispatch_data_func below).
+        }
+
         return jit;
     }
 
@@ -1301,6 +1357,12 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::KEY_CACHE});    // key_cache
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::VALUE_CACHE});  // value_cache
 
+        const auto desc = params.typed_desc<paged_attention>();
+        if (desc->has_chunk_base_ptrs) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::CHUNK_BASE_PTRS});  // chunk_base_ptrs
+            args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                       // num_chunks
+        }
+
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
@@ -1314,9 +1376,15 @@ protected:
             assert(!params.is_dynamic());
             auto& wgs = kd.params.workGroups;
             auto& scalars = kd.params.scalars;
-            scalars.resize(1);
 
             const auto desc = params.typed_desc<paged_attention>();
+            scalars.resize(desc->has_chunk_base_ptrs ? 2 : 1);
+            if (desc->has_chunk_base_ptrs) {
+                const auto& chunk_base_ptrs_layout = params.input_layouts[PagedAttentionInputIdx::CHUNK_BASE_PTRS];
+                scalars[1].t = ScalarDescriptor::Types::UINT32;
+                scalars[1].v.u32 = static_cast<uint32_t>(chunk_base_ptrs_layout.get_shape()[0] / 2);
+            }
+
             auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
 
             const auto is_prefill = rtp->stage == PagedAttentionStage::PREFILL || rtp->stage == PagedAttentionStage::MIXED;

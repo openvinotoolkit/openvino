@@ -1832,6 +1832,9 @@ public:
         cldnn::memory::ptr key_cache_mem;
         cldnn::memory::ptr value_cache_mem;
         cldnn::network::ptr network;
+        // See new_plan.md Phase 5: kept alive here only when chunking_blocks_per_chunk > 0; unused
+        // (empty) for every other test.
+        std::vector<cldnn::memory::ptr> chunk_mems;
     };
 
     void validate_zero_key_cache_scales(const cldnn::memory::ptr& key_cache_mem, const T& p) {
@@ -1950,6 +1953,61 @@ public:
             result.key_cache_mem = pam.get_key_cache_memory();
         }
         result.value_cache_mem = pam.get_value_cache_memory();
+
+        // See new_plan.md Phase 5: split the already-populated legacy key_cache/value_cache buffers
+        // into `blocks_per_chunk`-sized chunks and build the CHUNK_BASE_PTRS table pointing at them.
+        // "key_cache"/"value_cache" stay bound as before (dead arguments in the chunked kernel path);
+        // the chunked kernels only actually read/write through the new chunk buffers.
+        cldnn::memory::ptr chunk_base_ptrs_mem = nullptr;
+        size_t num_chunks = 0;
+        if (p.chunking_blocks_per_chunk > 0) {
+            EXPECT_FALSE(p.kv_cache_compression) << "chunking test coverage is limited to the uncompressed cache path (see HAS_CHUNK_BASE_PTRS && IS_KV_COMPRESSED #error guard)";
+            const size_t blocks_per_chunk = p.chunking_blocks_per_chunk;
+            const size_t num_blocks = static_cast<size_t>(pam.block_indices.back() + 1);
+            num_chunks = cldnn::ceil_div(num_blocks, blocks_per_chunk);
+
+            auto split_into_chunks = [&](cldnn::memory::ptr src_mem) {
+                std::vector<cldnn::memory::ptr> chunks;
+                const size_t elements_per_block = src_mem->count() / num_blocks;
+                cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> src_lock(src_mem, tests::get_test_stream());
+                for (size_t chunk_id = 0; chunk_id < num_chunks; chunk_id++) {
+                    auto chunk_layout = cldnn::layout{ov::PartialShape{static_cast<int64_t>(blocks_per_chunk * elements_per_block)},
+                                                      src_mem->get_layout().data_type,
+                                                      cldnn::format::bfyx};
+                    auto chunk_mem = tests::get_test_engine().allocate_memory(chunk_layout);
+                    std::vector<ov::float16> chunk_data(blocks_per_chunk * elements_per_block, ov::float16(0.f));
+                    const size_t src_start_block = chunk_id * blocks_per_chunk;
+                    const size_t src_end_block = std::min(src_start_block + blocks_per_chunk, num_blocks);
+                    for (size_t block = src_start_block; block < src_end_block; block++) {
+                        const size_t src_offset = block * elements_per_block;
+                        const size_t dst_offset = (block - src_start_block) * elements_per_block;
+                        std::copy_n(src_lock.data() + src_offset, elements_per_block, chunk_data.begin() + dst_offset);
+                    }
+                    tests::set_values<ov::float16>(chunk_mem, chunk_data);
+                    chunks.push_back(chunk_mem);
+                }
+                return chunks;
+            };
+
+            auto key_chunks = split_into_chunks(result.key_cache_mem);
+            auto value_chunks = split_into_chunks(result.value_cache_mem);
+
+            std::vector<int64_t> chunk_ptrs(2 * num_chunks);
+            for (size_t i = 0; i < num_chunks; i++) {
+                chunk_ptrs[i] = reinterpret_cast<int64_t>(key_chunks[i]->buffer_ptr());
+                chunk_ptrs[num_chunks + i] = reinterpret_cast<int64_t>(value_chunks[i]->buffer_ptr());
+                EXPECT_NE(chunk_ptrs[i], 0) << "chunk buffer must provide a valid raw device pointer";
+                EXPECT_NE(chunk_ptrs[num_chunks + i], 0) << "chunk buffer must provide a valid raw device pointer";
+            }
+
+            auto chunk_base_ptrs_layout = cldnn::layout{ov::PartialShape{static_cast<int64_t>(2 * num_chunks)}, cldnn::data_types::i64, cldnn::format::bfyx};
+            chunk_base_ptrs_mem = tests::get_test_engine().allocate_memory(chunk_base_ptrs_layout);
+            tests::set_values<int64_t>(chunk_base_ptrs_mem, chunk_ptrs);
+
+            result.chunk_mems = key_chunks;
+            result.chunk_mems.insert(result.chunk_mems.end(), value_chunks.begin(), value_chunks.end());
+            result.chunk_mems.push_back(chunk_base_ptrs_mem);
+        }
 
         auto past_lens_mem = pam.get_past_lens_memory();
         auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
@@ -2100,6 +2158,10 @@ public:
                                                     cldnn::input_info("qq_bias"),
                                                     cldnn::input_info("qq_bias_begins")};
 
+        if (chunk_base_ptrs_mem != nullptr) {
+            pa_inputs.push_back(cldnn::input_info("chunk_base_ptrs"));
+        }
+
         auto pa_prim = cldnn::paged_attention("paged_attention", pa_inputs);
 
         pa_prim.k_head_size = p.k_head_size;
@@ -2127,6 +2189,13 @@ public:
         }
 
         pa_prim.has_qq_bias = p.has_qq_bias;
+
+        if (chunk_base_ptrs_mem != nullptr) {
+            pa_prim.has_chunk_base_ptrs = true;
+            pa_prim.blocks_per_chunk = p.chunking_blocks_per_chunk;
+            // num_chunks is intentionally not part of the primitive: it's read at dispatch time from
+            // chunk_base_ptrs_mem's own runtime shape (see new_plan.md Phase 5).
+        }
 
         cldnn::topology topology;
 
@@ -2178,6 +2247,10 @@ public:
             topology.add(cldnn::input_layout("qq_bias_begins", qq_bias_begins_layout));
         }
 
+        if (chunk_base_ptrs_mem != nullptr) {
+            topology.add(cldnn::input_layout("chunk_base_ptrs", chunk_base_ptrs_mem->get_layout()));
+        }
+
         ov::intel_gpu::ExecutionConfig config = tests::get_test_default_config(tests::get_test_engine());
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -2217,6 +2290,10 @@ public:
         network->set_input_data("token_type_ids", token_type_ids_mem);
         network->set_input_data("qq_bias", qq_bias);
         network->set_input_data("qq_bias_begins", qq_bias_begins);
+
+        if (chunk_base_ptrs_mem != nullptr) {
+            network->set_input_data("chunk_base_ptrs", chunk_base_ptrs_mem);
+        }
 
         last_key_cache_mem = result.key_cache_mem;
         last_block_indices = pam.block_indices;
@@ -3008,6 +3085,11 @@ struct paged_attention_test_params {
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
+
+    // See new_plan.md Phase 5: when > 0, key_cache/value_cache are split into chunks of this many
+    // physical blocks each, exercised via the new CHUNK_BASE_PTRS primitive input. 0 = disabled
+    // (default, exact legacy single-buffer path, matches every other existing test case).
+    size_t chunking_blocks_per_chunk = 0;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
