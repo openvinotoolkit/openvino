@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "moe.hpp"
+
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -13,7 +16,6 @@
 #include "u3_symmetric_zero_point.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
-#include "moe.hpp"
 
 using namespace CPUTestUtils;
 
@@ -271,6 +273,47 @@ void generate_small_range_inputs(std::map<std::shared_ptr<ov::Node>, ov::Tensor>
 }
 }  // namespace
 
+namespace {
+// One input whose element (row r, column k) is (0.125 + ((29 * k + 7 * r) % 17) / 8) * (0.25 + ((5 * r) % 13) / 8):
+// positive like the small-range inputs, but every row has its own scale (0.25 to 1.75) and column pattern. Rows 64
+// apart differ in scale by at least 1.55 times and rows 128 apart by at least 1.27 times.
+void generate_row_pattern_inputs(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs,
+                                 const std::shared_ptr<ov::Model>& function,
+                                 const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& shape = targetInputStaticShapes.front();
+    const auto& params = function->get_parameters();
+    ASSERT_EQ(params.size(), 1);
+    const auto& param = params.front();
+    const auto type = param->get_element_type();
+    ASSERT_TRUE(type == ov::element::f32 || type == ov::element::bf16) << "unexpected input type " << type;
+
+    ov::Tensor input_tensor(type, shape);
+    const size_t K = shape.back();
+    const size_t rows = ov::shape_size(shape) / K;
+    for (size_t r = 0; r < rows; r++) {
+        for (size_t k = 0; k < K; k++) {
+            const auto value = (0.125F + static_cast<float>((29 * k + 7 * r) % 17) / 8.0F) *
+                               (0.25F + static_cast<float>((5 * r) % 13) / 8.0F);
+            if (type == ov::element::f32) {
+                input_tensor.data<float>()[r * K + k] = value;
+            } else {
+                input_tensor.data<ov::bfloat16>()[r * K + k] = ov::bfloat16(value);
+            }
+        }
+    }
+    inputs.insert({param, input_tensor});
+}
+}  // namespace
+
+void MoESubgraphRowPatternTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    generate_row_pattern_inputs(inputs, function, targetInputStaticShapes);
+}
+
+void MoECompressedWeightsRowPatternTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    generate_row_pattern_inputs(inputs, function, targetInputStaticShapes);
+}
+
 void MoESubgraphSmallInputsTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     generate_small_range_inputs(inputs, function, targetInputStaticShapes);
 }
@@ -340,5 +383,103 @@ TEST_P(MoECompressedWeightsU3SymmetricZpSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();
+}
+
+TEST_P(MoESubgraphRowPatternTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+#if defined(OPENVINO_ARCH_ARM)
+    GTEST_SKIP();
+#endif
+    run();
+    check_results();
+}
+
+TEST_P(MoECompressedWeightsRowPatternTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+#if defined(OPENVINO_ARCH_ARM)
+    GTEST_SKIP();
+#elif defined(OPENVINO_ARCH_ARM64)
+    if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
+        GTEST_SKIP();
+    }
+#endif
+    run();
+    check_results();
+}
+
+namespace {
+// One infer request per target shape. Each request first runs alone, then all of them start at the same time
+// for several rounds. A request must return, bit for bit, what it returned when it ran alone. The requests
+// share the weights but nothing that a GatherMatmul executor writes while it executes, so what one request
+// does (another input length, other GEMM heights, another task layout) must not show in another one's output.
+void run_requests_in_parallel(ov::CompiledModel& compiled_model,
+                              const std::vector<std::vector<ov::Shape>>& target_static_shapes) {
+    const int32_t streams = compiled_model.get_property(ov::num_streams);
+    ASSERT_GT(streams, 1) << "the model must be compiled with more than one stream for requests to overlap";
+
+    struct Job {
+        ov::Shape shape;
+        ov::InferRequest request;
+        ov::Tensor input;
+        ov::Tensor alone;
+    };
+    std::vector<Job> jobs;
+    const auto input_type = compiled_model.input().get_element_type();
+    for (size_t i = 0; i < target_static_shapes.size(); ++i) {
+        Job job;
+        job.shape = target_static_shapes[i].front();
+        job.request = compiled_model.create_infer_request();
+        job.input = ov::test::utils::create_and_fill_tensor(
+            input_type,
+            job.shape,
+            ov::test::utils::InputGenerateData(0.125, 2, 8, static_cast<int>(1234 + i)));
+        job.request.set_input_tensor(job.input);
+        job.request.infer();
+        const auto output = job.request.get_output_tensor();
+        job.alone = ov::Tensor(output.get_element_type(), output.get_shape());
+        output.copy_to(job.alone);
+        jobs.push_back(std::move(job));
+    }
+    ASSERT_GT(jobs.size(), static_cast<size_t>(streams)) << "more requests than streams, so that some also queue";
+
+    constexpr size_t rounds = 8;
+    for (size_t round = 0; round < rounds; ++round) {
+        for (auto& job : jobs) {
+            job.request.start_async();
+        }
+        for (auto& job : jobs) {
+            job.request.wait();
+        }
+        for (auto& job : jobs) {
+            const auto output = job.request.get_output_tensor();
+            ASSERT_EQ(output.get_shape(), job.alone.get_shape());
+            EXPECT_EQ(std::memcmp(output.data(), job.alone.data(), job.alone.get_byte_size()), 0)
+                << "the request with input " << job.shape << " returned a different output in round " << round << " of "
+                << jobs.size() << " requests on " << streams << " streams than when it ran alone";
+        }
+    }
+}
+}  // namespace
+
+TEST_P(MoEParallelRequestsTest, RequestsInParallelReturnWhatTheyReturnAlone) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+#if defined(OPENVINO_ARCH_ARM)
+    GTEST_SKIP();
+#endif
+    run();
+    run_requests_in_parallel(compiledModel, targetStaticShapes);
+}
+
+TEST_P(MoECompressedWeightsParallelRequestsTest, RequestsInParallelReturnWhatTheyReturnAlone) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+#if defined(OPENVINO_ARCH_ARM)
+    GTEST_SKIP();
+#elif defined(OPENVINO_ARCH_ARM64)
+    if (!ov::with_cpu_arm_dotprod() && !ov::with_cpu_arm_i8mm()) {
+        GTEST_SKIP();
+    }
+#endif
+    run();
+    run_requests_in_parallel(compiledModel, targetStaticShapes);
 }
 }  // namespace ov::test

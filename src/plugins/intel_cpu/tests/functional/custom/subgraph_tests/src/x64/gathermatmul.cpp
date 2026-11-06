@@ -87,10 +87,62 @@ const std::vector<MoeTestShapeParams> moe_params_all_experts = {
     },
 };
 
+// Row counts on both sides of the 64-row task size that splits an expert's rows into tasks for the AMX bf16
+// expert-parallel path. Top-k equals the number of experts, so every expert receives every row: 63 and 64 rows
+// make one task, 65 rows make a 64-row task and a 1-row task, 128 rows make two full tasks, and 129 rows make two
+// full tasks and a 1-row task. Run with row-pattern inputs (see MoESubgraphRowPatternTest).
+const std::vector<MoeTestShapeParams> moe_params_expert_task_edges = {
+    {
+        {{-1, -1, 64}, {{1, 63, 64}, {1, 64, 64}, {1, 65, 64}, {1, 128, 64}, {1, 129, 64}}},  // data_shape
+        2,                                                                                    // topk
+        2,                                                                                    // number_of_experts
+        64                                                                                    // intermediate_size
+    },
+};
+
+// A 128-expert top-8 model whose input length changes from long to short to medium, so the work areas of the
+// expert-parallel path, sized for one length, must be resized for the next. Run with small-range inputs.
+const std::vector<MoeTestShapeParams> moe_params_expert_parallel_reshape = {
+    {
+        {{-1, -1, 64}, {{1, 2048, 64}, {1, 70, 64}, {1, 700, 64}}},  // long, then short, then medium
+        8,                                                           // topk
+        128,                                                         // number_of_experts
+        64                                                           // intermediate_size
+    },
+};
+
+// Requests of one compiled model running at the same time (see MoEParallelRequestsTest). One request per input
+// below, more requests than streams. The first case uses the task-edge row counts, the second a 128-expert
+// top-8 model with long and short inputs and a single row, so requests that overlap run different task
+// layouts, different GEMM heights and the single-row GEMV path.
+const std::vector<MoeTestShapeParams> moe_params_parallel_requests = {
+    {
+        {{-1, -1, 64}, {{1, 63, 64}, {1, 64, 64}, {1, 65, 64}, {1, 128, 64}, {1, 129, 64}}},  // data_shape
+        2,                                                                                    // topk
+        2,                                                                                    // number_of_experts
+        64                                                                                    // intermediate_size
+    },
+    {
+        {{-1, -1, 64}, {{1, 2048, 64}, {1, 700, 64}, {1, 70, 64}, {1, 1, 64}, {1, 1024, 64}}},  // data_shape
+        8,                                                                                      // topk
+        128,                                                                                    // number_of_experts
+        64                                                                                      // intermediate_size
+    },
+};
+
 std::vector<ov::AnyMap> generate_additional_config() {
     std::vector<ov::AnyMap> additional_config = {{{ov::hint::inference_precision.name(), ov::element::f32}}};
     if (ov::with_cpu_x86_bfloat16()) {
         additional_config.push_back({{ov::hint::inference_precision.name(), ov::element::bf16}});
+    }
+    return additional_config;
+}
+
+// The same configurations with two streams: two requests execute at the same time, each on its own graph.
+std::vector<ov::AnyMap> generate_two_stream_config() {
+    auto additional_config = generate_additional_config();
+    for (auto& config : additional_config) {
+        config.insert(ov::num_streams(2));
     }
     return additional_config;
 }
@@ -152,6 +204,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_all_experts_rounding_steps,
                                             ::testing::Values(MoEActivationType::SWISH),
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphSmallInputsTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_expert_task_edges,
+                         MoESubgraphRowPatternTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_expert_task_edges),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(generate_additional_config())),
+                         MoESubgraphRowPatternTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_expert_parallel_reshape,
+                         MoESubgraphSmallInputsTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_expert_parallel_reshape),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(generate_additional_config())),
+                         MoESubgraphSmallInputsTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_parallel_requests,
+                         MoEParallelRequestsTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_parallel_requests),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(generate_two_stream_config())),
+                         MoEParallelRequestsTest::getTestCaseName);
 
 const std::vector<ov::test::ElementType> decompression_precisions = {ov::element::f32};
 const std::vector<ov::test::ElementType> weights_precisions = {ov::element::u8,
@@ -318,6 +394,101 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_uneven_routing,
                                             ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+// Task-edge row counts with compressed weights, with and without zero points.
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_expert_task_edges,
+                         MoECompressedWeightsRowPatternTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_expert_task_edges),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(ov::element::u8, ov::element::u4, ov::element::i4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsRowPatternTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_expert_parallel_reshape,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_expert_parallel_reshape),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(ov::element::u8, ov::element::u4, ov::element::i4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+namespace {
+// The expert-parallel path runs only with bf16 inference, and the suites above already cover u3 with f32 inference
+// and activation quantization. Without bf16 hardware, f32 without activation quantization.
+std::vector<ov::AnyMap> generate_expert_parallel_u3_config() {
+    if (ov::with_cpu_x86_bfloat16()) {
+        return {{{ov::hint::inference_precision.name(), ov::element::bf16}}};
+    }
+    return config_dyn_quant_disabled;
+}
+}  // namespace
+
+// u3 weights always come with zero points.
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_expert_task_edges_u3,
+                         MoECompressedWeightsRowPatternTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_expert_task_edges),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(32),     // decompression group size
+                                            ::testing::ValuesIn(generate_expert_parallel_u3_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsRowPatternTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_expert_parallel_reshape_u3,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_expert_parallel_reshape),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(32),     // decompression group size
+                                            ::testing::ValuesIn(generate_expert_parallel_u3_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_parallel_requests,
+                         MoECompressedWeightsParallelRequestsTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_parallel_requests),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(ov::element::u8, ov::element::i4),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_two_stream_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsParallelRequestsTest::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov
