@@ -719,6 +719,40 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_gather)(__private int8 *vb, const __global V
 }
 #endif
 
+#if SG8 && IS_PA_MIXED && PA_CUR_KV_F16
+// SG8 Vc read (PA_CUR_KV_F16): the S*V B operand of a tile of new tokens from the raw V input, in the page gathers' layout
+// (lane = value, component kp = keys (2 kp, 2 kp + 1) of the cp block, the low half the even key). Vc holds the q new
+// tokens, key `key` in row key - past_len; a key at/past k or a value at/past dv stays 0. Raw 2-byte elements: the DPAS
+// takes them as they are.
+SDPA_OCL_INLINE void FUNC(vc_tile_gather)(__private int8 *vb, const __global ushort *Vc, const uint ldv, const int k0,
+                                          const int cp, const int k, const int past_len, const int dv,
+                                          const size_t sg_j0_sv, const int lane_i) {
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+        vb[cd] = (int8)0;
+        const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane_i;
+        if (value < dv) {
+            #pragma unroll
+            for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
+                const int key0 = k0 + cp * DPAS_K + 2 * key_pair;
+#if defined(NEG_SG8) && NEG_SG8 == 28
+                // Negative control: the next token's V row (a key at/past k still reads nothing).
+                const int row0 = key0 - past_len + 1;
+                const int rows = k - past_len;
+                const uint lo = (key0 < k && row0 < rows) ? Vc[(size_t)row0 * ldv + value] : 0u;
+                const uint hi = (key0 + 1 < k && row0 + 1 < rows) ? Vc[(size_t)(row0 + 1) * ldv + value] : 0u;
+#else
+                const int row0 = key0 - past_len;
+                const uint lo = (key0 < k) ? Vc[(size_t)row0 * ldv + value] : 0u;
+                const uint hi = (key0 + 1 < k) ? Vc[(size_t)(row0 + 1) * ldv + value] : 0u;
+#endif
+                vb[cd][key_pair] = (int)(lo | (hi << 16));
+            }
+        }
+    }
+}
+#endif
+
 #if !IS_PA_MIXED && !USE_2D_BLOCK_IO_V_I8 && !USE_2D_BLOCK_IO_KV && !KV_COMP_PER_CHANNEL
 // V input: f16/bf16 as-is, or plain-SDPA i8 with the per-token (per-kv-head) asymmetric dequant. The
 // scale/zp vary per key (token), so they are indexed by key0/key1 here, not by the value (head-dim)
