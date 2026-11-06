@@ -267,6 +267,135 @@ static std::optional<ov::Shape> infer_reshape(const ov::Shape& data_shape, const
     }
 }
 
+static std::shared_ptr<ov::Model> create_moe_input_model(bool compressed,
+                                                       bool three_gemm,
+                                                       const ov::PartialShape& input_shape) {
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, input_shape);
+    const auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2});
+    const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 2});
+    ov::OutputVector args{input, routing, indices};
+    const auto add_projection = [&](size_t output_features, size_t input_features, bool bias) {
+        if (compressed) {
+            args.push_back(ov::op::v0::Constant::create(ov::element::u8,
+                                                       ov::Shape{3, output_features, input_features / 4, 4},
+                                                       {1}));
+            args.push_back(ov::op::v0::Constant::create(ov::element::f16,
+                                                       ov::Shape{3, output_features, input_features / 4, 1},
+                                                       {1}));
+        } else {
+            args.push_back(ov::op::v0::Constant::create(ov::element::f16,
+                                                       ov::Shape{3, output_features, input_features},
+                                                       {1}));
+        }
+        if (bias) {
+            args.push_back(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{3, 1, output_features}, {0}));
+        } else if (compressed) {
+            args.push_back(ov::op::v0::Constant::create(ov::element::u8,
+                                                       ov::Shape{3, output_features, input_features / 4, 1},
+                                                       {0}));
+        }
+    };
+    if (three_gemm) {
+        add_projection(4, 8, false);
+        add_projection(4, 8, false);
+    } else {
+        add_projection(8, 8, true);
+    }
+    add_projection(8, 4, !three_gemm);
+    ov::op::internal::MOE::Config config;
+    config.expert_type = three_gemm ? ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU
+                                   : ov::op::internal::MOE::Expert_type::GEMM2_BIAS_SWIGLU_CLAMP;
+    config.expert_alpha = three_gemm ? 0.0f : 1.702f;
+    config.expert_beta = three_gemm ? 1.0f : 7.0f;
+    std::shared_ptr<ov::Node> original;
+    if (compressed) {
+        ov::op::internal::MOECompressed::Config compressed_config;
+        static_cast<ov::op::internal::MOE::Config&>(compressed_config) = config;
+        compressed_config.hidden_size = 8;
+        compressed_config.inter_size = three_gemm ? 4 : 8;
+        compressed_config.num_expert = 3;
+        compressed_config.top_k = 2;
+        compressed_config.group_size = 4;
+        compressed_config.has_batch_dim = input_shape.rank() == 3;
+        compressed_config.has_zp = three_gemm;
+        compressed_config.out_type = ov::element::f16;
+        compressed_config.scale_factor = 0.5f;
+        original = std::make_shared<ov::op::internal::MOECompressed>(args, compressed_config);
+    } else {
+        original = std::make_shared<ov::op::internal::MOE>(args, config);
+    }
+    return std::make_shared<ov::Model>(ov::OutputVector{original}, ov::ParameterVector{input, routing, indices});
+}
+
+class NormalizeMoEInputShapeTest : public testing::TestWithParam<std::tuple<bool, bool>> {};
+
+TEST_P(NormalizeMoEInputShapeTest, PreservesDynamicPrefillDecodeShape) {
+    const auto [compressed, three_gemm] = GetParam();
+    auto model = create_moe_input_model(compressed, three_gemm, ov::PartialShape{1, -1, -1});
+    const auto original = ov::as_type_ptr<ov::op::internal::MOE>(model->get_results()[0]->get_input_node_shared_ptr(0));
+    const auto args = original->input_values();
+    const auto config = original->get_config();
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::NormalizeMoEInputShape>();
+    manager.run_passes(model);
+
+    const auto restored = ov::as_type_ptr<ov::op::v1::Reshape>(model->get_results()[0]->get_input_node_shared_ptr(0));
+    ASSERT_NE(restored, nullptr);
+    const auto normalized = ov::as_type_ptr<ov::op::internal::MOE>(restored->get_input_node_shared_ptr(0));
+    ASSERT_NE(normalized, nullptr);
+    EXPECT_EQ(normalized->get_input_partial_shape(0).rank(), ov::Rank(3));
+    for (size_t index = 1; index < args.size(); ++index) {
+        EXPECT_EQ(normalized->input_value(index), args[index]);
+    }
+    EXPECT_EQ(normalized->get_config().expert_alpha, config.expert_alpha);
+    EXPECT_EQ(normalized->get_config().expert_beta, config.expert_beta);
+    if (compressed) {
+        const auto compressed_moe = ov::as_type_ptr<ov::op::internal::MOECompressed>(normalized);
+        ASSERT_NE(compressed_moe, nullptr);
+        EXPECT_FALSE(compressed_moe->get_config().has_batch_dim);
+        EXPECT_EQ(compressed_moe->get_config().scale_factor, std::optional<float>(0.5f));
+        EXPECT_EQ(compressed_moe->get_config().has_zp, three_gemm);
+    }
+    const std::vector<std::pair<ov::Shape, size_t>> requests{
+        {{1, 16, 8}, 16}, {{1, 1, 8}, 1}, {{1, 0, 8}, 0}, {{2, 3, 8}, 6}, {{2, 1, 8}, 2}, {{1, 8, 8}, 8}};
+    for (const auto& [shape, tokens] : requests) {
+        model->get_parameters()[0]->set_partial_shape(shape);
+        model->get_parameters()[1]->set_partial_shape(ov::Shape{tokens, 2});
+        model->get_parameters()[2]->set_partial_shape(ov::Shape{tokens, 2});
+        model->validate_nodes_and_infer_types();
+        EXPECT_EQ(model->get_output_shape(0), shape);
+        EXPECT_EQ(normalized->get_input_shape(0), (ov::Shape{tokens, 1, 8}));
+    }
+    manager.run_passes(model);
+    EXPECT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), restored);
+}
+
+TEST_P(NormalizeMoEInputShapeTest, LeavesRankTwoInputUnchanged) {
+    const auto [compressed, three_gemm] = GetParam();
+    auto model = create_moe_input_model(compressed, three_gemm, ov::PartialShape{-1, 8});
+    const auto original = model->get_results()[0]->get_input_node_shared_ptr(0);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::NormalizeMoEInputShape>();
+    manager.run_passes(model);
+    EXPECT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), original);
+}
+
+TEST_P(NormalizeMoEInputShapeTest, RespectsTransformationCallback) {
+    const auto [compressed, three_gemm] = GetParam();
+    auto model = create_moe_input_model(compressed, three_gemm, ov::PartialShape{1, -1, 8});
+    const auto original = model->get_results()[0]->get_input_node_shared_ptr(0);
+    ov::pass::Manager manager;
+    manager.get_pass_config()->set_callback<ov::intel_gpu::NormalizeMoEInputShape>(
+        [](const std::shared_ptr<const ov::Node>&) { return true; });
+    manager.register_pass<ov::intel_gpu::NormalizeMoEInputShape>();
+    manager.run_passes(model);
+    EXPECT_EQ(model->get_results()[0]->get_input_node_shared_ptr(0), original);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                        NormalizeMoEInputShapeTest,
+                        testing::Combine(testing::Bool(), testing::Bool()));
+
 class NormalizeMoEOutputReshapeTest : public testing::TestWithParam<std::tuple<bool, bool, int>> {};
 
 TEST_P(NormalizeMoEOutputReshapeTest, ResolvesAxisCopies) {
