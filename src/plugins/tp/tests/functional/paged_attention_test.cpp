@@ -8,10 +8,10 @@
 // devices, so the pipeline cannot allocate it through one remote context. The
 // plugin manages it instead (ov::plugin_managed_cache), and these cases pin
 // down both halves of that contract: what the facade reports and does, and
-// that a model running on the resulting cache computes what a single GPU
-// computes.
+// that a model running on the resulting cache computes what a single rank
+// device computes.
 //
-// Needs two or more GPUs; the suite skips otherwise.
+// Needs two or more rank devices (rank_devices.hpp); the suite skips otherwise.
 
 #include <gtest/gtest.h>
 
@@ -29,6 +29,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/plugin_managed_cache.hpp"
+#include "rank_devices.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp::tests {
@@ -51,17 +52,9 @@ std::vector<int32_t> block_range(size_t first, size_t count) {
 
 class TPPagedAttentionTest : public ::testing::Test {
 protected:
-    static void SetUpTestSuite() {
-        try {
-            gpu_count = ov::Core{}.get_property("GPU", ov::available_devices).size();
-        } catch (const std::exception& e) {
-            gpu_error = e.what();
-        }
-    }
-
     void SetUp() override {
-        if (gpu_count < world_size)
-            GTEST_SKIP() << "need >= " << world_size << " GPUs, found " << gpu_count << gpu_error;
+        if (const auto missing = missing_rank_devices(world_size); !missing.empty())
+            GTEST_SKIP() << missing;
     }
 
     /// The cache precision is pinned to f16 rather than left to the plugin,
@@ -69,12 +62,16 @@ protected:
     /// last-bit difference between a sharded and an unsharded reduction lands
     /// on a different level and the two runs diverge for a reason that has
     /// nothing to do with sharding.
-    static ov::AnyMap gpu_config() {
+    static ov::AnyMap reference_config() {
         return {ov::hint::kv_cache_precision(ov::element::f16)};
     }
 
     static ov::AnyMap tp_config() {
-        return gpu_config();
+        return reference_config();
+    }
+
+    ov::CompiledModel compile_reference(const std::shared_ptr<ov::Model>& model) {
+        return core.compile_model(model, rank_device(0), reference_config());
     }
 
     static ov::PluginManagedCache cache_of(const ov::CompiledModel& compiled) {
@@ -151,7 +148,7 @@ protected:
         set_metadata(request, 0, tokens, block_range(0, (tokens + block_size - 1) / block_size));
     }
 
-    /// Allocates the cache of a plain GPU model the way a paged-attention
+    /// Allocates the cache of a single-device model the way a paged-attention
     /// pipeline does, so the reference run has something to write into.
     static std::vector<ov::Tensor> allocate_reference_cache(ov::CompiledModel& compiled,
                                                             ov::InferRequest& request,
@@ -207,13 +204,7 @@ protected:
     }
 
     ov::Core core;
-
-    static size_t gpu_count;
-    static std::string gpu_error;
 };
-
-size_t TPPagedAttentionTest::gpu_count = 0;
-std::string TPPagedAttentionTest::gpu_error;
 
 // ---------------------------------------------------------------------------
 // The controller contract
@@ -235,14 +226,14 @@ TEST_F(TPPagedAttentionTest, OffersTheCacheOnlyForPagedAttentionModels) {
 
 TEST_F(TPPagedAttentionTest, ReportsTheModelLevelGroup) {
     // Everything the facade reports is about the model as if it were not
-    // split: the shapes and the block size are those a single GPU reports, so
+    // split: the shapes and the block size are those a single device reports, so
     // the scheduler budgets the whole block and not one rank's share. One KV
     // head is kept by both ranks and still counted once.
     BlockConfig one_kv_head;
     one_kv_head.num_kv_heads = 1;
     for (const auto& config : {BlockConfig{}, one_kv_head}) {
         SCOPED_TRACE(std::to_string(config.num_kv_heads) + " KV heads");
-        auto reference = core.compile_model(make_paged_attention_block(config), "GPU", gpu_config());
+        auto reference = compile_reference(make_paged_attention_block(config));
         auto parallel = core.compile_model(make_paged_attention_block(config), tp_device(world_size), tp_config());
 
         const auto groups = cache_of(parallel).get_groups();
@@ -319,7 +310,7 @@ TEST_F(TPPagedAttentionTest, AvailableMemoryFollowsTheAllocation) {
 TEST_F(TPPagedAttentionTest, FailedReallocationKeepsTheCache) {
     BlockConfig config;
     auto model = make_paged_attention_block(config);
-    auto reference_model = core.compile_model(model, "GPU", gpu_config());
+    auto reference_model = compile_reference(model);
     auto reference = reference_model.create_infer_request();
     auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
     auto parallel = parallel_model.create_infer_request();
@@ -378,11 +369,11 @@ TEST_F(TPPagedAttentionTest, RefusesToInferWithoutACache) {
 // Numbers
 // ---------------------------------------------------------------------------
 
-TEST_F(TPPagedAttentionTest, MatchesSingleGpuOnAPrefill) {
+TEST_F(TPPagedAttentionTest, MatchesSingleDeviceOnAPrefill) {
     BlockConfig config;
     auto model = make_paged_attention_block(config);
 
-    auto reference_model = core.compile_model(model, "GPU", gpu_config());
+    auto reference_model = compile_reference(model);
     auto reference = reference_model.create_infer_request();
 
     auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
@@ -412,7 +403,7 @@ TEST_F(TPPagedAttentionTest, MatchesSingleGpuOnAPrefill) {
                              1e-2);
 }
 
-TEST_F(TPPagedAttentionTest, MatchesSingleGpuAcrossTwoSteps) {
+TEST_F(TPPagedAttentionTest, MatchesSingleDeviceAcrossTwoSteps) {
     // One KV head: both ranks keep it and half of its query heads each. Fused projections: one
     // weight per fused projection, cut per part.
     BlockConfig one_kv_head;
@@ -424,7 +415,7 @@ TEST_F(TPPagedAttentionTest, MatchesSingleGpuAcrossTwoSteps) {
         SCOPED_TRACE(std::to_string(config.num_kv_heads) + " KV heads, fused " + std::to_string(config.qkv != Fused::NONE));
         auto model = make_paged_attention_block(config);
 
-        auto reference_model = core.compile_model(model, "GPU", gpu_config());
+        auto reference_model = compile_reference(model);
         auto reference = reference_model.create_infer_request();
 
         auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
@@ -459,7 +450,7 @@ TEST_F(TPPagedAttentionTest, CopiedBlocksHoldTheSameKeysAndValues) {
     // same block indices, so each has to copy.
     BlockConfig config;
     auto model = make_paged_attention_block(config);
-    auto reference_model = core.compile_model(model, "GPU", gpu_config());
+    auto reference_model = compile_reference(model);
     auto reference = reference_model.create_infer_request();
     auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
     auto parallel = parallel_model.create_infer_request();

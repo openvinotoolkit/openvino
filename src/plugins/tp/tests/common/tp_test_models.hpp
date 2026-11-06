@@ -20,15 +20,6 @@
 
 namespace ov::tp::tests {
 
-/// The TP device name for `world_size` ranks on GPU.0 .. GPU.{world_size - 1}.
-inline std::string tp_device(size_t world_size) {
-    std::string name = "TP:";
-    for (size_t rank = 0; rank < world_size; ++rank) {
-        name += (rank == 0 ? "GPU." : ",GPU.") + std::to_string(rank);
-    }
-    return name;
-}
-
 /// How a fused projection's output is split into its parts, the way checkpoints export them.
 enum class Fused {
     NONE,            ///< separate projections

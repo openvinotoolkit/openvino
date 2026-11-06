@@ -4,7 +4,7 @@
 // Accuracy of the whole TP pipeline.
 //
 // Each case compiles one synthetic transformer block twice -- once on a single
-// GPU, once on TP with the model split across several of them -- feeds both
+// rank device, once on TP with the model split across several of them -- feeds both
 // the same input and compares the outputs. Tensor parallelism is a pure
 // refactoring of the computation, so the two must agree up to the reordering of
 // the AllReduce summation.
@@ -14,7 +14,7 @@
 // block realistic, not as the subject -- these blocks use SDPA, and the
 // PagedAttention formulation has its own suite in paged_attention_test.cpp.
 //
-// Needs two or more GPUs; the suite skips otherwise.
+// Needs two or more rank devices (rank_devices.hpp); the suite skips otherwise.
 
 #include <gtest/gtest.h>
 
@@ -25,6 +25,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/core.hpp"
+#include "rank_devices.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp::tests {
@@ -47,32 +48,29 @@ protected:
         return std::get<1>(GetParam());
     }
 
-    static void SetUpTestSuite() {
-        try {
-            gpu_count = ov::Core{}.get_property("GPU", ov::available_devices).size();
-        } catch (const std::exception& e) {
-            gpu_error = e.what();
-        }
-    }
-
     void SetUp() override {
-        if (gpu_count < world_size())
-            GTEST_SKIP() << "need >= " << world_size() << " GPUs, found " << gpu_count << gpu_error;
+        if (const auto missing = missing_rank_devices(world_size()); !missing.empty())
+            GTEST_SKIP() << missing;
     }
 
     static double tolerance() {
         return inference_precision() == ov::element::f16 ? 1e-2 : 1e-5;
     }
 
-    /// Compiles `model` on a single GPU and on TP over the parameter's
+    /// The single-device reference and the TP model over the parameter's world size.
+    std::pair<ov::InferRequest, ov::InferRequest> compile_both(const std::shared_ptr<ov::Model>& model) {
+        return {core.compile_model(model, rank_device(0), precision_config()).create_infer_request(),
+                core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request()};
+    }
+
+    /// Compiles `model` on a single rank device and on TP over the parameter's
     /// world size, runs both on `input` and returns the two outputs.
     ///
     /// The outputs are copied to host memory: an output tensor is owned by the
     /// infer request that produced it and does not outlive the pipelines torn
     /// down when this returns.
     std::pair<ov::Tensor, ov::Tensor> run_both(const std::shared_ptr<ov::Model>& model, const ov::Tensor& input) {
-        auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-        auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
+        auto [reference, parallel] = compile_both(model);
 
         reference.set_input_tensor(input);
         parallel.set_input_tensor(input);
@@ -128,15 +126,9 @@ protected:
     }
 
     ov::Core core;
-
-    static size_t gpu_count;
-    static std::string gpu_error;
 };
 
-size_t TPAccuracyTest::gpu_count = 0;
-std::string TPAccuracyTest::gpu_error;
-
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnGatedMlpBlock) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnGatedMlpBlock) {
     BlockConfig config;
     auto model = make_transformer_block(config);
 
@@ -144,7 +136,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnGatedMlpBlock) {
     expect_close(reference, parallel);
 }
 
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnSingleBranchMlpBlock) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnSingleBranchMlpBlock) {
     BlockConfig config;
     config.gated_mlp = false;
     auto model = make_transformer_block(config);
@@ -153,7 +145,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnSingleBranchMlpBlock) {
     expect_close(reference, parallel);
 }
 
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnBiasedProjections) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnBiasedProjections) {
     BlockConfig config;
     config.with_bias = true;
     auto model = make_transformer_block(config);
@@ -165,7 +157,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnBiasedProjections) {
 // A row-parallel projection sums partial products across ranks, so its bias
 // must be added exactly once. Adding it on every rank would scale the bias by
 // the world size, which only shows up once the collective has run.
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnUntransposedWeights) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUntransposedWeights) {
     BlockConfig config;
     config.transpose_b = false;
     auto model = make_transformer_block(config);
@@ -177,13 +169,12 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnUntransposedWeights) {
 // Two generation steps over a stateful KV cache: the second one reads back what
 // the first wrote, so a cache that was sharded inconsistently with the query
 // heads shows up as a mismatch only on the second call.
-TEST_P(TPAccuracyTest, MatchesSingleGpuAcrossStatefulSteps) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceAcrossStatefulSteps) {
     BlockConfig config;
     config.stateful = true;
     auto model = make_transformer_block(config);
 
-    auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
+    auto [reference, parallel] = compile_both(model);
 
     for (size_t step = 0; step < 2; ++step) {
         SCOPED_TRACE("step " + std::to_string(step));
@@ -204,15 +195,14 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuAcrossStatefulSteps) {
 // rank holds a slice of the kv heads, so the read has to gather and the write
 // has to scatter; getting that wrong overwrites the other ranks' heads with
 // rank 0's and the next step silently produces a different answer.
-TEST_P(TPAccuracyTest, MatchesSingleGpuAfterKvCacheTrim) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceAfterKvCacheTrim) {
     constexpr size_t trimmed_tokens = 4;
 
     BlockConfig config;
     config.stateful = true;
     auto model = make_transformer_block(config);
 
-    auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
+    auto [reference, parallel] = compile_both(model);
 
     auto prefill = make_input(config, sequence_length, 1);
     reference.set_input_tensor(prefill);
@@ -237,7 +227,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuAfterKvCacheTrim) {
 // whole groups. 512 is 16 groups, which two and four ranks do divide evenly;
 // running both tells an error in that fallback apart from one in the split
 // itself.
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnEvenlyDivisibleMlp) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnEvenlyDivisibleMlp) {
     BlockConfig config;
     config.intermediate = 512;
     auto model = make_transformer_block(config);
@@ -250,7 +240,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnEvenlyDivisibleMlp) {
 // for any world size the tests use, so the ranks end up with different numbers
 // of attention heads -- and with the remainder handed to the lower ranks, the
 // last rank is the one that gets shorted.
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnUnevenHeadSplit) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUnevenHeadSplit) {
     BlockConfig config;
     config.num_kv_heads = 5;
     config.num_heads = 10;
@@ -269,7 +259,7 @@ BlockConfig one_kv_head() {
     return config;
 }
 
-TEST_P(TPAccuracyTest, MatchesSingleGpuWithOneKvHead) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceWithOneKvHead) {
     auto config = one_kv_head();
     auto model = make_transformer_block(config);
 
@@ -278,7 +268,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuWithOneKvHead) {
 }
 
 // Two KV heads on four ranks: ranks 0-1 keep head 0, ranks 2-3 head 1.
-TEST_P(TPAccuracyTest, MatchesSingleGpuWithTwoKvHeadsOnMoreRanks) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceWithTwoKvHeadsOnMoreRanks) {
     if (world_size() % 2 != 0)
         GTEST_SKIP() << "2 KV heads do not divide " << world_size() << " ranks";
     auto config = one_kv_head();
@@ -289,13 +279,12 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuWithTwoKvHeadsOnMoreRanks) {
     expect_close(reference, parallel);
 }
 
-TEST_P(TPAccuracyTest, MatchesSingleGpuWithOneKvHeadAfterKvCacheTrim) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceWithOneKvHeadAfterKvCacheTrim) {
     auto config = one_kv_head();
     config.stateful = true;
     auto model = make_transformer_block(config);
 
-    auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
+    auto [reference, parallel] = compile_both(model);
 
     auto prefill = make_input(config, sequence_length, 1);
     reference.set_input_tensor(prefill);
@@ -319,7 +308,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuWithOneKvHeadAfterKvCacheTrim) {
 
 // Fused qkv_proj / gate_up_proj (Phi-3): one weight per fused projection, cut per part, and the
 // split after it taking the rank's parts. A contiguous cut gives rank 0 only gate features.
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnFusedProjections) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnFusedProjections) {
     BlockConfig config;
     config.qkv = Fused::SLICES;
     config.gate_up = Fused::SPLIT;
@@ -329,7 +318,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnFusedProjections) {
     expect_close(reference, parallel);
 }
 
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnFusedProjectionsWithVariadicSplitsAndBias) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnFusedProjectionsWithVariadicSplitsAndBias) {
     BlockConfig config;
     config.qkv = Fused::VARIADIC_SPLIT;
     config.gate_up = Fused::VARIADIC_SPLIT;
@@ -340,7 +329,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnFusedProjectionsWithVariadicSplitsAndBi
     expect_close(reference, parallel);
 }
 
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnAFusedQkvWithOneKvHeadAfterKvCacheTrim) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAFusedQkvWithOneKvHeadAfterKvCacheTrim) {
     BlockConfig config;
     config.qkv = Fused::SLICES;
     config.gate_up = Fused::SPLIT;
@@ -349,8 +338,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnAFusedQkvWithOneKvHeadAfterKvCacheTrim)
     config.stateful = true;
     auto model = make_transformer_block(config);
 
-    auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
+    auto [reference, parallel] = compile_both(model);
 
     auto prefill = make_input(config, sequence_length, 1);
     reference.set_input_tensor(prefill);
@@ -373,7 +361,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnAFusedQkvWithOneKvHeadAfterKvCacheTrim)
 // copied back into rank 0 -- the only rank whose outputs anyone reads. A band
 // written at the wrong offset, or a rank whose slice never arrives, shows up
 // here as logits that stop matching partway along the vocabulary.
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnAVocabularyProjection) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAVocabularyProjection) {
     BlockConfig config;
     auto model = make_block_with_lm_head(config, 768);  // divides by every world size under test
 
@@ -383,7 +371,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnAVocabularyProjection) {
 
 // A vocabulary no world size divides has to stay whole on every rank, with no
 // gather inserted; the logits must come out right all the same.
-TEST_P(TPAccuracyTest, MatchesSingleGpuOnAnIndivisibleVocabulary) {
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAnIndivisibleVocabulary) {
     BlockConfig config;
     auto model = make_block_with_lm_head(config, 769);  // prime
 

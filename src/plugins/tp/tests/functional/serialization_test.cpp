@@ -3,14 +3,14 @@
 //
 // Export / import of a TP compiled model.
 //
-// The blob is an internal cache artifact: it carries one intel_gpu blob per
+// The blob is an internal cache artifact: it carries one rank device blob per
 // rank and only loads back onto the topology it was produced on.  What these
 // cases pin down is that a restored model computes the same thing as the one it
 // was exported from -- the collectives are rebuilt from scratch on import, so a
 // mistake there shows up as wrong numbers rather than as a load failure -- and
 // that a blob which does not belong is refused instead of half-loaded.
 //
-// Needs two or more GPUs; the suite skips otherwise.
+// Needs two or more rank devices (rank_devices.hpp); the suite skips otherwise.
 
 #include <gtest/gtest.h>
 
@@ -23,6 +23,7 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/runtime/core.hpp"
+#include "rank_devices.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp::tests {
@@ -36,17 +37,9 @@ constexpr uint32_t world_size = 2;
 
 class TPSerializationTest : public ::testing::Test {
 protected:
-    static void SetUpTestSuite() {
-        try {
-            gpu_count = ov::Core{}.get_property("GPU", ov::available_devices).size();
-        } catch (const std::exception& e) {
-            gpu_error = e.what();
-        }
-    }
-
     void SetUp() override {
-        if (gpu_count < world_size)
-            GTEST_SKIP() << "need >= " << world_size << " GPUs, found " << gpu_count << gpu_error;
+        if (const auto missing = missing_rank_devices(world_size); !missing.empty())
+            GTEST_SKIP() << missing;
     }
 
     void TearDown() override {
@@ -102,15 +95,9 @@ protected:
 
     ov::Core core;
 
-    static size_t gpu_count;
-    static std::string gpu_error;
-
 private:
     std::string m_cache_dir;
 };
-
-size_t TPSerializationTest::gpu_count = 0;
-std::string TPSerializationTest::gpu_error;
 
 TEST_F(TPSerializationTest, ImportedModelMatchesExportedOne) {
     BlockConfig config;
@@ -242,8 +229,8 @@ TEST_F(TPSerializationTest, RanksAddNoCacheEntries) {
 // IR split two ways and three ways produces different blobs, and handing one to
 // the other would run a graph whose collectives expect ranks that are not there.
 TEST_F(TPSerializationTest, DifferentWorldSizeGetsItsOwnCacheEntry) {
-    if (gpu_count < 3)
-        GTEST_SKIP() << "need >= 3 GPUs to compare two world sizes, found " << gpu_count;
+    if (const auto missing = missing_rank_devices(3); !missing.empty())
+        GTEST_SKIP() << missing << " to compare two world sizes";
 
     BlockConfig config;
     auto model = make_transformer_block(config);
@@ -262,8 +249,8 @@ TEST_F(TPSerializationTest, DifferentWorldSizeGetsItsOwnCacheEntry) {
 // Explicit import bypasses the cache key, so the mismatch has to be caught by
 // the blob itself.
 TEST_F(TPSerializationTest, ImportRejectsMismatchedTopology) {
-    if (gpu_count < 3)
-        GTEST_SKIP() << "need >= 3 GPUs to request a topology the blob was not built for, found " << gpu_count;
+    if (const auto missing = missing_rank_devices(3); !missing.empty())
+        GTEST_SKIP() << missing << " to request a topology the blob was not built for";
 
     BlockConfig config;
     auto model = make_transformer_block(config);
@@ -306,7 +293,8 @@ TEST_F(TPSerializationTest, CacheKeyCoversRankDeviceProperties) {
     for (const auto precision : {ov::element::f32, ov::element::f16}) {
         auto compiled = core.compile_model(model,
                                            tp_device(world_size),
-                                           ov::device::properties("GPU", ov::hint::inference_precision(precision)));
+                                           ov::device::properties(rank_device_type(),
+                                                                  ov::hint::inference_precision(precision)));
         EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache)) << precision;
         EXPECT_EQ(compiled.get_property(ov::hint::inference_precision), precision);
     }

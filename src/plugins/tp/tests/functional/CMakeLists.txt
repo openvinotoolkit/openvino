@@ -14,18 +14,21 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     openvino::runtime
-    openvino::runtime::dev  # the collective contract and the collective ops, for tp_context_test.cpp
+    openvino::runtime::dev  # the TP plugin's internal properties
     common_test_utils
     gtest
     gtest_main)
 
-if(TARGET LevelZero::LevelZero)
-    target_link_options(${TARGET_NAME} PRIVATE "LINKER:--no-as-needed")
-    target_link_libraries(${TARGET_NAME} PRIVATE LevelZero::LevelZero)
+if(ENABLE_TP_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_TP_DEBUG_CAPS)
 endif()
 
-# The plugins are loaded at run time, but must exist before the test runs.
-add_dependencies(${TARGET_NAME} openvino_tp_plugin openvino_intel_gpu_plugin)
+# The plugins are loaded at run time, but must exist before the test runs. The
+# rank devices are of type OV_TP_TEST_DEVICE (GPU by default).
+add_dependencies(${TARGET_NAME} openvino_tp_plugin)
+if(ENABLE_INTEL_GPU)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
+endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${OpenVINO_SOURCE_DIR}/bin/intel64/$<CONFIG>")

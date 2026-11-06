@@ -4,6 +4,7 @@
 
 set(FUNC_SHARED_TESTS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/behavior/compiled_model/model_cache.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/behavior/tp/collective_contract.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/execution_graph_tests/add_output.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/execution_graph_tests/disable_lowering_precision.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/execution_graph_tests/duplicate_inputs_outputs_names.hpp
@@ -445,6 +446,7 @@ set(FUNC_SHARED_TESTS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_tests/transpose_matmul_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/subgraph_tests/variadic_split_pad.hpp
     ${CMAKE_CURRENT_LIST_DIR}/src/behavior/compiled_model/model_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/behavior/tp/collective_contract.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/execution_graph_tests/add_output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/execution_graph_tests/disable_lowering_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/execution_graph_tests/duplicate_inputs_outputs_names.cpp
