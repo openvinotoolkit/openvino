@@ -138,7 +138,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             const auto zp_type = node->get_element_type();
             std::shared_ptr<ov::Node> result = node;
             // Convert ZP to u8 (or i8 for a scalar i4 ZP)
-            if (zp_type == ov::element::u4 || zp_type == ov::element::u3 || zp_type == ov::element::u2) {
+            if (zp_type == ov::element::u8) {
+                result = node;
+            } else if (zp_type == ov::element::u4 || zp_type == ov::element::u3 || zp_type == ov::element::u2) {
                 result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
                 // Only unsigned ZP types can be converted to u8.
             } else if (weight_u8 && sub_with_convert && !zp_type.is_signed()) {
