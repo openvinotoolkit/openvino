@@ -5,8 +5,10 @@
 #pragma once
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 namespace ov ::npuw ::util {
 
@@ -56,6 +58,23 @@ void validate_encoder_embedding_model(const std::shared_ptr<ov::Model>& model);
 // uses a different positional scheme). The static sequence length must not exceed this, or the
 // position embedding (clamped to the table) won't broadcast against the token embedding.
 std::optional<uint32_t> get_max_position_embeddings(const std::shared_ptr<ov::Model>& model);
+
+// What the NPU behind the plugin supports, for the default NPUW configs.
+struct NPUDesc {
+    std::string arch;
+    int64_t max_tiles = 0;
+    bool compiler_dq = false;
+    bool compiler_matmul_gate = false;
+    int64_t compiler_ver = 0;
+    bool support_flash_attention_tile = false;
+};
+
+// Returns nullopt when there is no NPU device to query.
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                              const ov::AnyMap& config);
+
+// The NPU defaults every NPUW LLM submodel config starts from.
+ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc);
 
 // clang-format off
 }  // namespace ov
