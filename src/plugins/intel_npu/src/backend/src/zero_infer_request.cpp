@@ -372,8 +372,9 @@ void ZeroInferRequest::setup_pipeline() {
         }
 
         if (get_level_zero_input(inputIndex)) {
-            if (_dynamicBatchValueChanged && batchSize.has_value() &&
-                get_level_zero_input(inputIndex)->get_shape()[utils::BATCH_AXIS] != batchSize.value()) {
+            const auto& levelZeroInputShape = get_level_zero_input(inputIndex)->get_shape();
+            if (_dynamicBatchValueChanged && batchSize.has_value() && !levelZeroInputShape.empty() &&
+                levelZeroInputShape[utils::BATCH_AXIS] != batchSize.value()) {
                 OPENVINO_THROW("Input tensor ",
                                _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                                " has different batch size than other tensors.");
@@ -395,8 +396,10 @@ void ZeroInferRequest::setup_pipeline() {
     for (size_t outputIndex = 0; outputIndex < _metadata.outputs.size(); ++outputIndex) {
         if (_levelZeroOutputTensors.at(outputIndex)) {
             if (_dynamicBatchValueChanged) {
+                // Rank zero tensors have no batch axis, thus they don't need to be reallocated
+                const auto& levelZeroOutputShape = _levelZeroOutputTensors.at(outputIndex)->get_shape();
                 if (batchSize.has_value() &&
-                    _levelZeroOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
+                    (levelZeroOutputShape.empty() || levelZeroOutputShape[utils::BATCH_AXIS] == batchSize.value())) {
                     _logger.debug("setup_pipeline - tensor %s was already allocated",
                                   _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
                     continue;
@@ -815,7 +818,9 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
             return userTensor;
         } else {
-            if (batchSize.has_value() && userTensor->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
+            const auto& userTensorShape = userTensor->get_shape();
+            if (batchSize.has_value() &&
+                (userTensorShape.empty() || userTensorShape[utils::BATCH_AXIS] == batchSize.value())) {
                 _logger.debug("get_tensor - tensor by index: %zu is already allocated", ioIndex);
 
                 auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensor._ptr);
@@ -867,7 +872,8 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
 
     ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
 
-    if (batchSize.has_value()) {
+    // "ov::Shape::operator[]" is unchecked, rank zero shapes have no batch axis to write into
+    if (batchSize.has_value() && !allocatedTensorShape.empty()) {
         allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 

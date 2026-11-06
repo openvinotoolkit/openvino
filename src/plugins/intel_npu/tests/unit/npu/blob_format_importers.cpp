@@ -154,3 +154,61 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
 }
+
+namespace {
+
+IODescriptor create_descriptor(const std::string& name, const ov::PartialShape& shape) {
+    IODescriptor descriptor;
+    descriptor.nameFromCompiler = name;
+    descriptor.precision = ov::element::f32;
+    descriptor.shapeFromCompiler = shape;
+    return descriptor;
+}
+
+}  // namespace
+
+/**
+ * @brief A positive batch size is accepted if all descriptors have a batch axis
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeAcceptedForRankedDescriptors) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3, 4}));
+    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1, 3}));
+
+    OV_ASSERT_NO_THROW(validate_batch_size_against_descriptors(metadata, 4));
+}
+
+/**
+ * @brief A rank zero descriptor has no batch axis, the batch value would otherwise be written through a null pointer
+ * when allocating the tensor
+ */
+TEST_F(BlobFormatImportersTest, BatchSizeRejectedForRankZeroDescriptors) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::Shape{1, 3}));
+    metadata.outputs.push_back(create_descriptor("scalar_output", ov::Shape{}));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_batch_size_against_descriptors(metadata, 4), ov::Exception, "scalar_output");
+
+    metadata.outputs.back() = create_descriptor("output", ov::Shape{1});
+    IODescriptor state_input = create_descriptor("scalar_state", ov::Shape{});
+    state_input.isStateInput = true;
+    metadata.inputs.push_back(std::move(state_input));
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_batch_size_against_descriptors(metadata, 4), ov::Exception, "scalar_state");
+
+    metadata.inputs.back() = create_descriptor("dynamic_rank", ov::PartialShape::dynamic());
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate_batch_size_against_descriptors(metadata, 4), ov::Exception, "dynamic_rank");
+}
+
+/**
+ * @brief Rank zero descriptors are allowed when the plugin does not perform the batching or for weights inputs
+ */
+TEST_F(BlobFormatImportersTest, RankZeroDescriptorsAllowedWithoutPluginBatching) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("scalar_input", ov::Shape{}));
+    metadata.outputs.push_back(create_descriptor("output", ov::Shape{1}));
+
+    OV_ASSERT_NO_THROW(validate_batch_size_against_descriptors(metadata, 0));
+    OV_ASSERT_NO_THROW(validate_batch_size_against_descriptors(metadata, -1));
+
+    metadata.inputs.back().isMainInputWeights = true;
+    OV_ASSERT_NO_THROW(validate_batch_size_against_descriptors(metadata, 4));
+}
