@@ -4,14 +4,22 @@
 
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
 
+#include <cmath>
+#include <cstring>
 #include <initializer_list>
+#include <limits>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/minimum.hpp"
@@ -28,19 +36,11 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/pp.hpp"
 #include "ov_ops/gather_matmul.hpp"
-#include "transformations/pattern_blocks/compressed_weights_block.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_right_shift.hpp"
-#include "openvino/runtime/tensor.hpp"
-#include <limits>
-#include <cmath>
-#include <cstring>
 #include "ov_ops/gather_matmul_compressed.hpp"
+#include "transformations/pattern_blocks/compressed_weights_block.hpp"
 
 namespace {
 using namespace ov::pass;
@@ -104,12 +104,12 @@ std::shared_ptr<v8::Gather> get_packed_mxfp4_scale_gather(const ov::Output<ov::N
 bool is_mxfp4_lut_gather(const ov::Output<ov::Node>& output, size_t lut_size) {
     auto gather = ov::as_type_ptr<v8::Gather>(output.get_node_shared_ptr());
     auto constant = gather ? ov::as_type_ptr<v0::Constant>(gather->input_value(0).get_node_shared_ptr()) : nullptr;
-    return constant && constant->get_shape() == ov::Shape{ lut_size };
+    return constant && constant->get_shape() == ov::Shape{lut_size};
 }
 
 bool unpack_packed_mxfp4_weights(const std::shared_ptr<v8::Gather>& weights_gather,
-    std::shared_ptr<v0::Constant>& weights,
-    std::shared_ptr<v0::Constant>& scales) {
+                                 std::shared_ptr<v0::Constant>& weights,
+                                 std::shared_ptr<v0::Constant>& scales) {
     auto weights_source = weights_gather->input_value(0).get_node_shared_ptr();
     if (auto reshape = ov::as_type_ptr<v1::Reshape>(weights_source)) {
         weights_source = reshape->input_value(0).get_node_shared_ptr();
@@ -134,8 +134,8 @@ bool unpack_packed_mxfp4_weights(const std::shared_ptr<v8::Gather>& weights_gath
     const size_t input_features = groups * group_size;
     const auto* packed_data = packed_constant->get_data_ptr<uint8_t>();
 
-    ov::Tensor weights_tensor(ov::element::f4e2m1, ov::Shape{ experts, output_features, input_features });
-    ov::Tensor scales_tensor(ov::element::f32, ov::Shape{ experts, output_features, groups });
+    ov::Tensor weights_tensor(ov::element::f4e2m1, ov::Shape{experts, output_features, input_features});
+    ov::Tensor scales_tensor(ov::element::f32, ov::Shape{experts, output_features, groups});
     auto* weights_data = static_cast<uint8_t*>(weights_tensor.data());
     std::memset(weights_data, 0, weights_tensor.get_byte_size());
     auto* scales_data = scales_tensor.data<float>();
@@ -148,11 +148,9 @@ bool unpack_packed_mxfp4_weights(const std::shared_ptr<v8::Gather>& weights_gath
                 float scale = 0.0f;
                 if (packed_data[src_offset] == 0) {
                     scale = std::ldexp(1.0f, -127);
-                }
-                else if (packed_data[src_offset] == 255) {
+                } else if (packed_data[src_offset] == 255) {
                     scale = std::numeric_limits<float>::quiet_NaN();
-                }
-                else {
+                } else {
                     std::memcpy(&scale, &scale_bits, sizeof(scale));
                 }
                 scales_data[(expert * output_features + output) * groups + group] = scale;
@@ -160,7 +158,8 @@ bool unpack_packed_mxfp4_weights(const std::shared_ptr<v8::Gather>& weights_gath
                 for (size_t k = 0; k < group_size; ++k) {
                     const auto packed_byte = packed_data[src_offset + 1 + (k % 16)];
                     const auto nibble = static_cast<uint8_t>(k < 16 ? packed_byte & 0x0f : packed_byte >> 4);
-                    const size_t dst_index = (expert * output_features + output) * input_features + group * group_size + k;
+                    const size_t dst_index =
+                        (expert * output_features + output) * input_features + group * group_size + k;
                     weights_data[dst_index / 2] |= static_cast<uint8_t>(nibble << ((dst_index % 2) * 4));
                 }
             }
@@ -169,7 +168,7 @@ bool unpack_packed_mxfp4_weights(const std::shared_ptr<v8::Gather>& weights_gath
 
     weights = std::make_shared<v0::Constant>(weights_tensor);
     scales = std::make_shared<v0::Constant>(scales_tensor);
-    ov::copy_runtime_info(packed_constant, { weights, scales });
+    ov::copy_runtime_info(packed_constant, {weights, scales});
     return true;
 }
 
@@ -539,21 +538,21 @@ ConvertTiledMoeBlockTo3GatherMatmuls::ConvertTiledMoeBlockTo3GatherMatmuls(
 ConvertPackedMoeMatMulToGatherMatmul::ConvertPackedMoeMatMulToGatherMatmul() {
     MATCHER_SCOPE(ConvertPackedMoeMatMulToGatherMatmul);
 
-    auto matmul_pattern = pattern::wrap_type<v0::MatMul>(
-        { pattern::any_input(), pattern::any_input() },
-        pattern::attrs_match({ {"transpose_a", false}, {"transpose_b", true} }));
+    auto matmul_pattern =
+        pattern::wrap_type<v0::MatMul>({pattern::any_input(), pattern::any_input()},
+                                       pattern::attrs_match({{"transpose_a", false}, {"transpose_b", true}}));
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto matmul = ov::as_type_ptr<v0::MatMul>(m.get_match_root());
         if (!matmul || transformation_callback(matmul)) {
             return false;
         }
-       
+
         auto expanded_activations = ov::as_type_ptr<v0::Unsqueeze>(matmul->input_value(0).get_node_shared_ptr());
         auto expanded_weights = ov::as_type_ptr<v1::Reshape>(matmul->input_value(1).get_node_shared_ptr());
         auto weight_scale_product =
             expanded_weights ? ov::as_type_ptr<v1::Multiply>(expanded_weights->input_value(0).get_node_shared_ptr())
-            : nullptr;
+                             : nullptr;
         if (!expanded_activations || !expanded_weights || !weight_scale_product ||
             matmul->get_input_partial_shape(0).rank() != 4 || matmul->get_input_partial_shape(1).rank() != 4 ||
             expanded_activations->input_value(0).get_partial_shape().rank() != 3 ||
@@ -583,35 +582,36 @@ ConvertPackedMoeMatMulToGatherMatmul::ConvertPackedMoeMatMulToGatherMatmul() {
 
         const auto activations = expanded_activations->input_value(0);
         auto activation_transpose_order =
-            v0::Constant::create(ov::element::i64, ov::Shape{ 3 }, std::vector<int64_t>{1, 0, 2});
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 0, 2});
         auto activation_transpose = std::make_shared<v1::Transpose>(activations, activation_transpose_order);
-        auto empty_bias = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{ 0 });
-        auto empty_zero_points = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{ 0 });
-        auto gathered_matmul = std::make_shared<ov::op::internal::GatherMatmulCompressed>(
-            activation_transpose,
-            weights,
-            packed_weights_gather->input_value(1),
-            empty_bias,
-            scales,
-            empty_zero_points);
+        auto empty_bias = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
+        auto empty_zero_points = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
+        auto gathered_matmul =
+            std::make_shared<ov::op::internal::GatherMatmulCompressed>(activation_transpose,
+                                                                       weights,
+                                                                       packed_weights_gather->input_value(1),
+                                                                       empty_bias,
+                                                                       scales,
+                                                                       empty_zero_points);
         auto output_transpose_order =
-            v0::Constant::create(ov::element::i64, ov::Shape{ 3 }, std::vector<int64_t>{1, 0, 2});
+            v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 0, 2});
         auto output_transpose = std::make_shared<v1::Transpose>(gathered_matmul, output_transpose_order);
-        auto restored_rank_axis = v0::Constant::create(ov::element::i64, ov::Shape{ 1 }, std::vector<int64_t>{2});
+        auto restored_rank_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
         auto restored_rank = std::make_shared<v0::Unsqueeze>(output_transpose, restored_rank_axis);
 
-        ov::copy_runtime_info(matmul, { activation_transpose_order,
-                                       activation_transpose,
-                                       empty_bias,
-                                       empty_zero_points,
-                                       gathered_matmul,
-                                       output_transpose_order,
-                                       output_transpose,
-                                       restored_rank_axis,
-                                       restored_rank });
+        ov::copy_runtime_info(matmul,
+                              {activation_transpose_order,
+                               activation_transpose,
+                               empty_bias,
+                               empty_zero_points,
+                               gathered_matmul,
+                               output_transpose_order,
+                               output_transpose,
+                               restored_rank_axis,
+                               restored_rank});
         gathered_matmul->set_friendly_name(matmul->get_friendly_name());
         return ov::replace_output_update_name(matmul->output(0), restored_rank->output(0));
-        };
+    };
 
     auto matcher = std::make_shared<pattern::Matcher>(matmul_pattern, matcher_name);
     this->register_matcher(matcher, callback);
