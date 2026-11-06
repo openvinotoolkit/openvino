@@ -358,6 +358,15 @@ void GroupQueryAttention::validate_and_infer_types() {
                               " and query sequence_length ",
                               sequence_len,
                               ".");
+        const auto& value_ps_for_qsl = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::VALUE));
+        NODE_VALIDATION_CHECK(this,
+                              value_ps_for_qsl.rank().is_dynamic() || value_ps_for_qsl[2].compatible(sequence_len),
+                              "GroupQueryAttention: query_seqlens requires key/value sequence_length to equal "
+                              "query's, got value shape ",
+                              value_ps_for_qsl,
+                              " and query sequence_length ",
+                              sequence_len,
+                              ".");
     }
 
     if (m_do_rotary) {

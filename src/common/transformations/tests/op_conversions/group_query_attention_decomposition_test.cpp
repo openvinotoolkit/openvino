@@ -1358,3 +1358,46 @@ TEST(GroupQueryAttentionValues, padded_query_batched_static_capacity_sanitizes_u
     EXPECT_TRUE(found_sanitize_select)
         << "batched writer must also zero the unwritten capacity tail so NaN filler can't leak through softmax";
 }
+
+TEST(GroupQueryAttentionValues, padded_query_batched_dynamic_capacity_sanitizes_unwritten_tail) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto total_seq = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args, NUM_HEADS, KV_NUM_HEADS, 0.0f, false, false);
+    ASSERT_TRUE(gqa->has_query_seqlens());
+    ASSERT_FALSE(gqa->has_fixed_kv_capacity());
+
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, total_seq, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    bool found_sanitize_select = false;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto select = as_type_ptr<op::v1::Select>(op)) {
+            const auto zero_const = as_type_ptr<op::v0::Constant>(select->get_input_node_shared_ptr(2));
+            found_sanitize_select |= zero_const && zero_const->get_shape().empty();
+        }
+    }
+    EXPECT_TRUE(found_sanitize_select) << "batched writer's dynamic-capacity (Concat-grown) buffer must also zero "
+                                          "the unwritten tail so a garbage past Parameter can't leak NaN through "
+                                          "softmax";
+}

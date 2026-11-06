@@ -910,9 +910,11 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
     };
     outputs.sdpa_key = write(past_key, key);
     outputs.sdpa_value = write(past_value, value);
-    if (is_static_input && node->has_query_seqlens()) {
+    if (node->has_query_seqlens()) {
         // Same unwritten-capacity-tail NaN hazard as the non-batched writer (see construct_kvcache above), per
-        // batch: zero columns at or beyond that batch's running valid total (total_b).
+        // batch: zero columns at or beyond that batch's running valid total (total_b). Applies to both the
+        // static (preallocated, grown-before-scatter) and dynamic (Concat-grown) buffers above -- a dynamic
+        // past Parameter can itself carry unwritten/garbage rows beyond this batch's valid length.
         const auto capacity = get_dimensions(register_new_node<v3::ShapeOf>(outputs.sdpa_key), {2});
         const auto rows =
             register_new_node<v1::Reshape>(register_new_node<v4::Range>(zero_without_shape,

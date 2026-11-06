@@ -981,6 +981,14 @@ TEST(type_prop, group_query_attention_query_seqlens_invalid) {
                     ov::NodeValidationFailure,
                     HasSubstr("query_seqlens requires key/value sequence_length to equal query's"));
 
+    // VALUE alone mismatched (KEY still matches query's S): must be rejected too, not just KEY.
+    auto mismatched_value_only = make_gqa_query_seqlens_args();
+    mismatched_value_only[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 1, 8});
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<GroupQueryAttention>(mismatched_value_only, 6, 2, 1.0f, false, false),
+        ov::NodeValidationFailure,
+        HasSubstr("query_seqlens requires key/value sequence_length to equal query's"));
+
     // ORT's CheckQuerySeqlens: a non-windowed cache must hold the whole padded chunk (sequence_length=4 here).
     auto undersized_capacity = make_gqa_query_seqlens_args();
     undersized_capacity[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
