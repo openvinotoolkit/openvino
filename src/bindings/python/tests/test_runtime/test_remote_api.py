@@ -53,6 +53,19 @@ def test_get_default_context_gpu():
     "GPU" not in os.environ.get("TEST_DEVICE", ""),
     reason="Test can be only performed on GPU device!",
 )
+def test_get_params_enum_values_gpu():
+    core = ov.Core()
+    context = core.get_default_context("GPU")
+    tensor = context.create_tensor(ov.Type.f32, ov.Shape([1]), {})
+
+    assert context.get_params()["CONTEXT_TYPE"].value == "OCL"
+    assert tensor.get_params()["SHARED_MEM_TYPE"].value == "OCL_BUFFER"
+
+
+@pytest.mark.skipif(
+    "GPU" not in os.environ.get("TEST_DEVICE", ""),
+    reason="Test can be only performed on GPU device!",
+)
 def test_create_host_tensor_gpu():
     core = ov.Core()
     context = core.get_default_context("GPU")
