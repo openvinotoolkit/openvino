@@ -135,6 +135,25 @@ struct IODescriptor {
      * transposed data without copying.
      */
     bool supportsStridedLayout = false;
+
+    /**
+     * @brief Indicates whether this input descriptor is left out of the model exposed to the user.
+     * @details The compiler may add inputs which are not part of the original IR model (states, shape tensors,
+     * weights). Those are filtered out while building the model, so a public port index matches the index of its
+     * descriptor only for as long as no hidden descriptor precedes a public one.
+     * @note Keep this in sync with the filter applied while building the model out of the descriptors.
+     */
+    bool isHiddenInput() const {
+        return isStateInput || isStateOutput || isShapeTensor || isInitInputWeights || isMainInputWeights;
+    }
+
+    /**
+     * @brief Indicates whether this output descriptor is left out of the model exposed to the user.
+     * @see isHiddenInput
+     */
+    bool isHiddenOutput() const {
+        return isStateInput || isStateOutput || isShapeTensor || isInitOutputWeights;
+    }
 };
 
 struct NetworkMetadata final {
