@@ -57,6 +57,12 @@ private:
     void generate() override;
     // out = scale * sum_c gate_c * rbar_c for `step` elements, advancing the pointers when it is a full vector.
     void mix_store(size_t step);
+    // acc += gate_b * rbar_b for branches [first, first + count), relative to the given base pointers.
+    void accumulate_branches(const Xbyak::Reg64& reg_gate_base,
+                             const Xbyak::Reg64& reg_rbar_base,
+                             size_t first,
+                             size_t count,
+                             int elt_num);
     void load(const Vmm& vmm_dst,
               const Xbyak::Reg64& reg_src,
               ov::element::Type src_prc,
@@ -73,6 +79,12 @@ private:
     const Xbyak::Reg64 reg_out = r11;
     const Xbyak::Reg64 reg_work_amount = r12;
     const Xbyak::Reg32 reg_tmp32 = r13d;
+    // Branch-group loop (used only when there are many branches).
+    const Xbyak::Reg64 reg_gate_cursor = r14;
+    const Xbyak::Reg64 reg_rbar_cursor = r15;
+    const Xbyak::Reg64 reg_group_count = rbx;
+    // Branches per group of the runtime loop. Either way at most 2 * branch_unroll - 1 branches are unrolled.
+    static constexpr size_t branch_unroll = 4;
 
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
     const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rax.getIdx()), static_cast<size_t>(r9.getIdx())};

@@ -68,20 +68,52 @@ void jit_gated_residual_mix_kernel<isa>::generate() {
 }
 
 template <cpu_isa_t isa>
+void jit_gated_residual_mix_kernel<isa>::accumulate_branches(const Xbyak::Reg64& reg_gate_base,
+                                                             const Xbyak::Reg64& reg_rbar_base,
+                                                             size_t first,
+                                                             size_t count,
+                                                             int elt_num) {
+    // Branch b lives `b * data_size` elements after the base pointers in both rows.
+    const size_t branch_stride = m_jcp.data_size * sizeof(float);
+    for (size_t i = 0; i < count; i++) {
+        load(vmm_gate, reg_gate_base, ov::element::f32, elt_num, (first + i) * branch_stride);
+        load(vmm_rbar, reg_rbar_base, ov::element::f32, elt_num, (first + i) * branch_stride);
+        uni_vfmadd231ps(vmm_acc, vmm_gate, vmm_rbar);
+    }
+}
+
+template <cpu_isa_t isa>
 void jit_gated_residual_mix_kernel<isa>::mix_store(size_t step) {
     const bool is_tail = step < vec_size;
     const auto elt_num = static_cast<int>(step);
-    // Branch c lives `c * data_size` elements after branch 0 in both rows.
     const size_t branch_stride = m_jcp.data_size * sizeof(float);
 
     load(vmm_acc, reg_gate, ov::element::f32, elt_num, 0);
     load(vmm_rbar, reg_rbar, ov::element::f32, elt_num, 0);
     uni_vmulps(vmm_acc, vmm_acc, vmm_rbar);
-    for (size_t c = 1; c < m_jcp.branches; c++) {
-        load(vmm_gate, reg_gate, ov::element::f32, elt_num, c * branch_stride);
-        load(vmm_rbar, reg_rbar, ov::element::f32, elt_num, c * branch_stride);
-        uni_vfmadd231ps(vmm_acc, vmm_gate, vmm_rbar);
+
+    // Branches 1..C-1. Few branches are unrolled at generation time; many run in a loop over groups of
+    // branch_unroll branches, so the code size stays bounded however large C is. The remainder is unrolled.
+    const size_t rest = m_jcp.branches - 1;
+    const size_t groups = rest / branch_unroll;
+    if (groups >= 2) {
+        lea(reg_gate_cursor, ptr[reg_gate + branch_stride]);
+        lea(reg_rbar_cursor, ptr[reg_rbar + branch_stride]);
+        mov(reg_group_count, groups);
+        Xbyak::Label group_loop;
+        L(group_loop);
+        {
+            accumulate_branches(reg_gate_cursor, reg_rbar_cursor, 0, branch_unroll, elt_num);
+            add(reg_gate_cursor, branch_unroll * branch_stride);
+            add(reg_rbar_cursor, branch_unroll * branch_stride);
+            dec(reg_group_count);
+            jnz(group_loop, T_NEAR);
+        }
+        accumulate_branches(reg_gate_cursor, reg_rbar_cursor, 0, rest % branch_unroll, elt_num);
+    } else {
+        accumulate_branches(reg_gate, reg_rbar, 1, rest, elt_num);
     }
+
     uni_vmulps(vmm_acc, vmm_acc, vmm_scale);
     store(reg_out, vmm_acc, m_jcp.prc, elt_num);
 
