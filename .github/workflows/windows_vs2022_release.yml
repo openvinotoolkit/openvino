@@ -134,7 +134,7 @@ jobs:
       - name: Run GPU unit tests
         run: |
           . "${{ env.INSTALL_DIR }}\\setupvars.ps1"
-          & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_unit_tests.exe" "--gtest_filter=-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-unit-${{ matrix.shard }}.xml"
+          & "${{ env.INSTALL_TEST_DIR }}\\ov_gpu_unit_tests.exe" "--gtest_filter=-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*:*sdpa_gpu_sink_test.matches_independent_reference*:*permute_f_y_axes_tile.combined/InputShape=(16.32.128.512)*:*fusings_gpu/conv_fp32_multi_eltwise_quantization.basic/1:*cpu_impls/activation_random_test.random/2:*smoke/moe_3gemm_compressed_gpu_random.moe_accuracy_test_random/10" "--gtest_output=xml:${{ env.INSTALL_TEST_DIR }}\\TEST-gpu-unit-${{ matrix.shard }}.xml"
         timeout-minutes: 500
 
       - name: Upload GPU unit test results
