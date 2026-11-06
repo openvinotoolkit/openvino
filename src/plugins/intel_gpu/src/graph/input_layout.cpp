@@ -40,7 +40,7 @@ input_layout_inst::typed_primitive_inst(network& network, const input_layout_nod
 event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memory_to_set) {
     auto ol = get_node_output_layout();
 
-    bool empty_mem = mem->size() == 0 && (ol.is_dynamic() || ol.count() == 0);
+    bool empty_mem = ol.is_dynamic() ? (mem->size() == 0) : (ol.count() == 0);
     if (!empty_mem && need_to_check_memory_to_set) {
         check_memory_compatibility(*mem, ol);
     }

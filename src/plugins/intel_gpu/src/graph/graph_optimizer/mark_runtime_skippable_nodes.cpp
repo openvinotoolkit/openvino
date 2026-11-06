@@ -4,6 +4,7 @@
 
 #include "broadcast_inst.h"
 #include "dynamic_quantize_inst.h"
+#include "fully_connected_inst.h"
 #include "gather_inst.h"
 #include "gemm_inst.h"
 #include "kv_cache_inst.h"
@@ -54,6 +55,11 @@ void mark_runtime_skippable_nodes::run(program& p) {
             GPU_DEBUG_TRACE_DETAIL << "[mark_runtime_skippable_nodes] : " << node->id() << " has only shape_of as users. Set can_be_optimized always"
                                    << std::endl;
             continue;
+        }
+
+        // Zero-size static FC has no work to run; kernel selection rejects zero global size.
+        if (node->is_type<fully_connected>() && !node->is_dynamic() && node->get_output_layout().count() == 0) {
+            node->can_be_optimized(true);
         }
 
         program_helpers::do_for_types<gather>(*node, [](gather_node& node) {
