@@ -39,6 +39,22 @@ namespace {
     }
 } // namespace
 
+bool normalize_l2_supports_across_x(const ov::op::v0::NormalizeL2& op) {
+    const auto& shape = op.get_input_partial_shape(0);
+    const auto type = op.get_input_element_type(0);
+    if (!shape.is_static() || (shape.size() != 3 && shape.size() != 4) ||
+        (type != ov::element::f16 && type != ov::element::f32) ||
+        op.get_eps_mode() != ov::op::EpsMode::ADD || ov::shape_size(shape.to_shape()) == 0) {
+        return false;
+    }
+    const auto axes_node = ov::as_type_ptr<const ov::op::v0::Constant>(op.get_input_node_shared_ptr(1));
+    if (!axes_node) {
+        return false;
+    }
+    const auto axes = axes_node->cast_vector<int64_t>();
+    return axes.size() == 1 && (axes[0] == -1 || axes[0] == static_cast<int64_t>(shape.size() - 1));
+}
+
 NormalizeL2Decomposition::NormalizeL2Decomposition(bool use_fp32_reducesum) {
     auto normalize_l2_pattern = ov::pass::pattern::wrap_type<ov::op::v0::NormalizeL2>();
 
