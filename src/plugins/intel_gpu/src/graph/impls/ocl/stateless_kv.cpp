@@ -92,6 +92,14 @@ kernel_selector::scatter_update_axis convert_scatter_axis(int64_t axis, size_t r
     return kernel_selector::scatter_update_axis::X;
 }
 
+layout get_seq_dynamic_layout(layout l, int64_t axis) {
+    auto shape = l.get_partial_shape();
+    shape[axis] = ov::Dimension::dynamic();
+    l.set_partial_shape(shape);
+    l.data_padding._dynamic_dims_mask[axis] = true;
+    return l;
+}
+
 }  // namespace
 
 struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
@@ -244,13 +252,13 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
 
     static concat_kernel_params_t get_concat2_to1_kernel_params(const kernel_impl_params& impl_param,
                                                                 const layout& input0_layout,
+                                                                const layout& input1_layout,
                                                                 size_t input0_shape_info_idx,
                                                                 size_t input1_idx,
                                                                 size_t output_idx,
                                                                 bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<stateless_kv>();
         auto params = get_default_params<concat_kernel_params_t>(impl_param, is_shape_agnostic);
-        const auto& input1_layout = impl_param.get_input_layout(input1_idx);
         const auto& output_layout = impl_param.get_output_layout(output_idx);
         params.axis = convert_concat_axis(primitive->concat_axis, output_layout.get_rank());
         params.inputs.resize(2);
@@ -347,16 +355,13 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
         std::vector<stateless_kv_stage> stages;
         kernels_data.reserve(swa ? swa_stage_count : 1);
         stages.reserve(swa ? swa_stage_count : 1);
+        const auto new_layout = get_seq_dynamic_layout(params.get_input_layout(1), primitive->concat_axis);
 
         if (primitive->window_size > 0) {
-            OPENVINO_ASSERT(primitive->input.size() == 3, "[GPU] stateless_kv doesn't support window_size together with pos_idx");
+            OPENVINO_ASSERT(!primitive->has_pos_idx, "[GPU] stateless_kv doesn't support window_size together with pos_idx");
             auto& kernel_selector = concat_kernel_selector_t::Instance();
-            auto past_view_layout = params.get_input_layout(0);
-            auto past_view_shape = past_view_layout.get_partial_shape();
-            past_view_shape[primitive->concat_axis] = ov::Dimension::dynamic();
-            past_view_layout.set_partial_shape(past_view_shape);
-            past_view_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = true;
-            auto concat_to_sdpa_params = get_concat2_to1_kernel_params(params, past_view_layout, 3, 1, 1, true);
+            const auto past_view_layout = get_seq_dynamic_layout(params.get_input_layout(0), primitive->concat_axis);
+            auto concat_to_sdpa_params = get_concat2_to1_kernel_params(params, past_view_layout, new_layout, primitive->input.size(), 1, 1, true);
             concat_to_sdpa_params.stage_id = stages.size();
             auto concat_to_sdpa_data = kernel_selector.get_best_kernel(concat_to_sdpa_params);
             OPENVINO_ASSERT(concat_to_sdpa_data.kernels.size() == 2, "[GPU] stateless_kv concat-to-SDPA stage expects two sub-kernels");
@@ -364,20 +369,16 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
             stages.push_back(stateless_kv_stage::concat_to_sdpa);
 
             auto sdpa_to_present_params =
-                get_swa_concat_kernel_params(params, stages.size(), params.get_output_layout(1), params.get_output_layout(0), 4, 0, true);
+                get_swa_concat_kernel_params(params, stages.size(), params.get_output_layout(1), params.get_output_layout(0), primitive->input.size() + 1, 0, true);
             auto sdpa_to_present_data = kernel_selector.get_best_kernel(sdpa_to_present_params);
             OPENVINO_ASSERT(sdpa_to_present_data.kernels.size() == 1, "[GPU] stateless_kv SDPA-to-present stage expects one sub-kernel");
             kernels_data.push_back(std::move(sdpa_to_present_data));
             stages.push_back(stateless_kv_stage::sdpa_to_present);
         }
 
-        if (primitive->input.size() == 3) {
-            auto input0_layout = params.get_input_layout(0);
-            auto input0_shape = input0_layout.get_partial_shape();
-            input0_shape[primitive->concat_axis] = ov::Dimension::dynamic();
-            input0_layout.set_partial_shape(input0_shape);
-            input0_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = true;
-            auto kernel_params = get_concat2_to1_kernel_params(params, input0_layout, 0, 1, 0, true);
+        if (!primitive->has_pos_idx) {
+            const auto input0_layout = get_seq_dynamic_layout(params.get_input_layout(0), primitive->concat_axis);
+            auto kernel_params = get_concat2_to1_kernel_params(params, input0_layout, new_layout, 0, 1, 0, true);
             kernel_params.stage_id = stages.size();
             kernel_params.is_shape_agnostic = kernel_params.has_dynamic_tensors();
             auto& kernel_selector = concat_kernel_selector_t::Instance();
@@ -404,7 +405,7 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
         if (state != nullptr) {
             OPENVINO_ASSERT(!state->is_rolling() || (state->past_front_idx <= state->sdpa_front_idx && state->sdpa_front_idx <= state->present_front_idx));
             OPENVINO_ASSERT(state->get_new_in_sdpa_offset() >= 0);
-            OPENVINO_ASSERT(state->get_present_output_len() == std::max<int64_t>(0, state->get_new_in_present_offset()) + state->new_token_len -
+            OPENVINO_ASSERT(state->get_present_output_len() == std::max<int64_t>(0, state->get_new_in_present_offset()) + state->new_seq_len -
                                                                    std::max<int64_t>(0, -state->get_new_in_present_offset()));
         }
 
@@ -420,22 +421,22 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
             switch (stage) {
             case stateless_kv_stage::concat_to_sdpa: {
                 OPENVINO_ASSERT(swa && state != nullptr, "[GPU] stateless_kv concat-to-SDPA stage requires SWA");
-                if (!rolling || (state->get_new_in_sdpa_offset() == 0 && state->new_token_len == 0)) {
+                if (!state->is_capacity_overflow()) {
                     skip_stage();
                     break;
                 }
                 const auto past_view = state->get_past_to_sdpa_input_layout(impl_param.get_input_layout(0), primitive->concat_axis);
-                auto updated_params = get_concat2_to1_kernel_params(impl_param, past_view, 3, 1, 1, true);
+                const auto new_view = state->get_new_input_layout(impl_param.get_input_layout(1), primitive->concat_axis);
+                auto updated_params = get_concat2_to1_kernel_params(impl_param, past_view, new_view, primitive->input.size(), 1, 1, true);
                 updated_params.stage_id = stage_idx;
                 if (!kernel_data.params) {
                     kernel_data.params = std::make_shared<concat_kernel_params_t>(std::move(updated_params));
                 } else {
                     static_cast<concat_kernel_params_t&>(*kernel_data.params) = std::move(updated_params);
                 }
+                // also marks empty past/new parts as skipped
                 kernel_data.update_dispatch_data_func(*kernel_data.params, kernel_data);
                 OPENVINO_ASSERT(kernel_data.kernels.size() == 2);
-                for (auto& kernel : kernel_data.kernels)
-                    kernel.skip_execution = false;
                 break;
             }
             case stateless_kv_stage::sdpa_to_present: {
@@ -445,7 +446,8 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
                     break;
                 }
                 const auto sdpa_view = state->get_sdpa_to_present_input_layout(impl_param.get_output_layout(1), primitive->concat_axis);
-                auto updated_params = get_swa_concat_kernel_params(impl_param, stage_idx, sdpa_view, impl_param.get_output_layout(0), 4, 0, false);
+                auto updated_params =
+                    get_swa_concat_kernel_params(impl_param, stage_idx, sdpa_view, impl_param.get_output_layout(0), primitive->input.size() + 1, 0, false);
                 if (!kernel_data.params) {
                     kernel_data.params = std::make_shared<concat_kernel_params_t>(std::move(updated_params));
                 } else {
@@ -464,9 +466,13 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
                     skip_stage();
                     break;
                 }
-                const auto concat_offset = swa ? std::optional<int64_t>(state->get_new_in_present_offset()) : get_concat_offset(impl_param);
+                OPENVINO_ASSERT(!primitive->has_cur_len() || _runtime_state.has_value(),
+                                "[GPU] stateless_kv with cur_len requires runtime state");
+                const auto concat_offset = _runtime_state ? std::optional<int64_t>(_runtime_state->get_new_in_present_offset()) : get_concat_offset(impl_param);
                 const auto input0_layout = get_concat_input0_layout(impl_param, concat_offset);
-                auto updated_params = get_concat2_to1_kernel_params(impl_param, input0_layout, 0, 1, 0, true);
+                const auto input1_layout = _runtime_state ? _runtime_state->get_new_input_layout(impl_param.get_input_layout(1), primitive->concat_axis)
+                                                          : impl_param.get_input_layout(1);
+                auto updated_params = get_concat2_to1_kernel_params(impl_param, input0_layout, input1_layout, 0, 1, 0, true);
                 updated_params.stage_id = stage_idx;
                 if (!kernel_data.params) {
                     kernel_data.params = std::make_shared<concat_kernel_params_t>(std::move(updated_params));
@@ -475,8 +481,7 @@ struct stateless_kv_impl : multi_stage_primitive<stateless_kv> {
                 }
                 kernel_data.update_dispatch_data_func(*kernel_data.params, kernel_data);
                 OPENVINO_ASSERT(kernel_data.kernels.size() == 2, "[GPU] stateless_kv concat expects two sub-kernels");
-                kernel_data.kernels[0].skip_execution = _is_inplace;
-                kernel_data.kernels[1].skip_execution = false;
+                kernel_data.kernels[0].skip_execution = kernel_data.kernels[0].skip_execution || _is_inplace;
                 if (concat_offset) {
                     OPENVINO_ASSERT(*concat_offset >= 0 && *concat_offset <= std::numeric_limits<uint32_t>::max());
                     auto& scalars = kernel_data.kernels[1].params.scalars;

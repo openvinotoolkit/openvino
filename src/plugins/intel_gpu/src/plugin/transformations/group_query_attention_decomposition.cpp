@@ -10,6 +10,7 @@
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -142,6 +143,8 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
 
+    constexpr size_t query_seqlens_idx = 16;
+    const bool query_seqlens = query_seqlens_idx < node->get_input_size() && !ov::util::is_empty_constant_tensor(node->input_value(query_seqlens_idx));
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
     bool can_fuse_transpose_v = m_sdpa_support_immad && !use_explicit_attention;
@@ -160,7 +163,14 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     KVCacheOutputs outputs;
     const bool sliding_window = node->get_sliding_window_cache();
     const int64_t window_size = sliding_window ? node->get_local_window_size() : 0;
+    std::optional<ov::Output<ov::Node>> cur_seq_len;
+    if (query_seqlens) {
+        cur_seq_len = node->input_value(query_seqlens_idx);
+    }
     const auto make_stateless_kv = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current, int64_t concat_axis) {
+        if (query_seqlens) {
+            return register_new_node<op::StatelessKV>(past, current, seqlens_1d, *cur_seq_len, concat_axis, true, window_size);
+        }
         return register_new_node<op::StatelessKV>(past, current, seqlens_1d, concat_axis, true, window_size);
     };
 

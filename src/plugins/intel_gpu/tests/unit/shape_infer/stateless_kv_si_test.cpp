@@ -27,6 +27,7 @@ struct stateless_kv_test_params {
     std::vector<layout> expected_layouts;
     int64_t window_size = 0;
     int64_t seq_len = -1;
+    bool has_pos_idx = false;
 };
 
 class stateless_kv_test : public testing::TestWithParam<stateless_kv_test_params> {};
@@ -47,7 +48,7 @@ TEST_P(stateless_kv_test, shape_infer) {
 
     const auto concat_axis = ov::util::normalize(p.concat_axis, p.input_layouts[0].get_rank());
     auto stateless_kv_prim =
-        std::make_shared<stateless_kv>("output", input_prim_ids, concat_axis, p.is_seq_len_present_len, p.window_size);
+        std::make_shared<stateless_kv>("output", input_prim_ids, concat_axis, p.is_seq_len_present_len, p.window_size, p.has_pos_idx);
     stateless_kv_prim->num_outputs = 2;
     stateless_kv_prim->output_data_types = {p.input_layouts[0].data_type, p.input_layouts[0].data_type};
     auto& stateless_kv_node = prog.get_or_create(stateless_kv_prim);
@@ -98,6 +99,9 @@ INSTANTIATE_TEST_SUITE_P(
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
             },
+            0,
+            -1,
+            true,
         },
         {
             {
@@ -125,6 +129,9 @@ INSTANTIATE_TEST_SUITE_P(
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
                 layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
             },
+            0,
+            -1,
+            true,
         },
         {
             {

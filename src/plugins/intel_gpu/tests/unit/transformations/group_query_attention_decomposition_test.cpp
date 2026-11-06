@@ -19,6 +19,7 @@
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/manager.hpp"
@@ -59,6 +60,10 @@ struct GQAConfig {
     QKOutput qk_output = QKOutput::NONE;
     ov::PartialShape key_scale_shape{1};
     ov::PartialShape value_scale_shape{1};
+    // Right-padded query chunk (ONNX query_seqlens, input 16): when set, query/key/value get sequence_length
+    // rows (S > 1) and a query_seqlens Parameter is wired in, exercising the StatelessKV cur_len path.
+    bool query_seqlens = false;
+    int64_t sequence_length = 1;
 };
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
