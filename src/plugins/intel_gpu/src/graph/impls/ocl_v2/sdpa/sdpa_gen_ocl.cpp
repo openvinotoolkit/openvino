@@ -1268,8 +1268,10 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // test), 10 = plain SDPA K / V of batch 0, KV head 0 in the xe_hpg PREFILL kernel (must fail smoke_sdpa_hpg_rows), and in its
     // mask 11 = the first query's row, 12 = the mask of batch 0, head 0, 13 = the 8-key halves of each 16-key block swapped (each
     // must fail the smoke_sdpa_hpg_rows mask cases it can see), and 18 = head 72's last value subgroup stores its columns
-    // unshifted (must fail every head-72 case of smoke_sdpa_hpg_rows). Absent unless asked for, so the default jit (and every
-    // SG16 jit) is unchanged.
+    // unshifted (must fail every head-72 case of smoke_sdpa_hpg_rows). On a token-major page in MIXED: 36 = the two keys of a K
+    // pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the odd V row of a pair read at/past k (each must fail
+    // smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases). Absent unless asked for, so the default jit (and
+    // every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
