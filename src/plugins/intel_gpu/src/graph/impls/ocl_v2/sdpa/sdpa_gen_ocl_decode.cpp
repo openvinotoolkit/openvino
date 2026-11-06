@@ -122,7 +122,7 @@ bool v_twin_pair_legal(const RuntimeParams& params, const decode_config& c, size
     const auto desc = params.typed_desc<paged_attention>();
     const size_t v_tiles = desc->v_head_size / subgroup_size;
     const size_t v_reads = c.v_row_bytes / subgroup_size;
-    return c.kv_u4 && c.v_2d && v_tiles == 2 * v_reads && v_reads % get_sv_dim_sgs(sg_per_wg, v_tiles) == 0;
+    return c.kv_u4 && c.v_2d != 0 && v_tiles == 2 * v_reads && v_reads % get_sv_dim_sgs(sg_per_wg, v_tiles) == 0;
 }
 
 // Local memory the kernel declares for a given M. The output staging term vanishes whenever one subgroup
