@@ -327,7 +327,7 @@ static std::shared_ptr<ov::Model> build_vlm_inputs_model() {
 
 // --- Test 6 -------------------------------------------------------------------
 // visual_pos_masks must be reshaped to {1, input_size}.
-// The Whisper kvcache override (lhs_seq_size && kvcache_size > 4) must NOT
+// The Whisper generate override must NOT
 // affect visual_pos_masks — even when lhs_seq_size is non-zero.
 TEST(ReshapeToStaticVLMTest, VisualPosMasksShapeIsRowsByInputSize) {
     auto model = build_vlm_inputs_model();
@@ -338,7 +338,13 @@ TEST(ReshapeToStaticVLMTest, VisualPosMasksShapeIsRowsByInputSize) {
 
     // lhs_seq_size=8 would trigger the Whisper branch for attention_mask;
     // visual_pos_masks must NOT be overwritten by it.
-    ReshapeToStatic pass(input_size, kvcache_size, kv_axes, /*lora_rank=*/0, /*lhs_seq_size=*/8);
+    ReshapeToStatic pass(input_size,
+                         kvcache_size,
+                         kv_axes,
+                         /*lora_rank=*/0,
+                         /*lhs_seq_size=*/8,
+                         /*is_prefill=*/false,
+                         /*is_whisper=*/true);
     ASSERT_TRUE(pass.run_on_model(model));
 
     bool found = false;
@@ -366,7 +372,13 @@ TEST(ReshapeToStaticVLMTest, AttentionMaskIsAffectedByWhisperPath) {
     constexpr uint32_t kvcache_size = 192;
     KVAxesPosition kv_axes{0, 1};
 
-    ReshapeToStatic pass(input_size, kvcache_size, kv_axes, /*lora_rank=*/0, /*lhs_seq_size=*/8);
+    ReshapeToStatic pass(input_size,
+                         kvcache_size,
+                         kv_axes,
+                         /*lora_rank=*/0,
+                         /*lhs_seq_size=*/8,
+                         /*is_prefill=*/false,
+                         /*is_whisper=*/true);
     ASSERT_TRUE(pass.run_on_model(model));
 
     bool found = false;
@@ -381,6 +393,19 @@ TEST(ReshapeToStaticVLMTest, AttentionMaskIsAffectedByWhisperPath) {
         }
     }
     EXPECT_TRUE(found) << "attention_mask input not found in model";
+}
+
+TEST(ReshapeToStaticVLMTest, AudioLengthAloneDoesNotEnableWhisperMaskPadding) {
+    constexpr uint32_t input_size = 128;
+    constexpr uint32_t kvcache_size = 192;
+    KVAxesPosition kv_axes{0, 1};
+    for (const bool is_prefill : {false, true}) {
+        SCOPED_TRACE(is_prefill);
+        auto model = build_vlm_inputs_model();
+        ReshapeToStatic pass(input_size, kvcache_size, kv_axes, 0, 8, is_prefill, false);
+        ASSERT_TRUE(pass.run_on_model(model));
+        EXPECT_EQ(model->input("attention_mask").get_shape(), (ov::Shape{1, kvcache_size}));
+    }
 }
 
 TEST(ReshapeToStaticVLMTest, FourDimensionalFloatAttentionMaskHasStaticQueryAndKeyDimensions) {
