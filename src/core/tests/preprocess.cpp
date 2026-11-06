@@ -239,6 +239,96 @@ TEST(pre_post_process, clamp_operation_on_output_postprocess) {
     }
 }
 
+TEST(pre_post_process, postprocess_mean_scale) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(model);
+    p.output().postprocess().mean(1.f).scale(2.f);
+    model = p.build();
+
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+    EXPECT_EQ(model->get_output_shape(0), (Shape{1, 3, 2, 2}));
+    auto scale_node = model->get_results().front()->get_input_node_shared_ptr(0);
+    // Division by a constant is converted to multiplication by its reciprocal
+    EXPECT_STREQ(scale_node->get_type_name(), "Multiply");
+    auto mean_node = scale_node->get_input_node_shared_ptr(0);
+    EXPECT_STREQ(mean_node->get_type_name(), "Subtract");
+    EXPECT_STREQ(mean_node->get_input_node_shared_ptr(0)->get_type_name(), "Relu");
+
+    auto mean_const = ov::as_type_ptr<op::v0::Constant>(mean_node->get_input_node_shared_ptr(1));
+    ASSERT_NE(mean_const, nullptr);
+    EXPECT_EQ(mean_const->get_shape(), (Shape{}));
+    EXPECT_EQ(mean_const->cast_vector<float>(), (std::vector<float>{1.f}));
+    auto scale_const = ov::as_type_ptr<op::v0::Constant>(scale_node->get_input_node_shared_ptr(1));
+    ASSERT_NE(scale_const, nullptr);
+    EXPECT_EQ(scale_const->cast_vector<float>(), (std::vector<float>{0.5f}));
+}
+
+TEST(pre_post_process, postprocess_mean_scale_scalar_output) {
+    auto model = create_simple_function(element::f32, Shape{});
+    auto p = PrePostProcessor(model);
+    p.output().postprocess().mean(1.f).scale(2.f);
+    model = p.build();
+
+    EXPECT_EQ(model->get_output_shape(0), (Shape{}));
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+}
+
+TEST(pre_post_process, postprocess_mean_scale_vector_model_layout) {
+    auto model = create_simple_function(element::f32, PartialShape{Dimension::dynamic(), 3, 2, 2});
+    auto p = PrePostProcessor(model);
+    p.output().model().set_layout("NCHW");
+    p.output().postprocess().mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f});
+    model = p.build();
+
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
+    auto scale_node = model->get_results().front()->get_input_node_shared_ptr(0);
+    // Division by a constant is converted to multiplication by its reciprocal
+    EXPECT_STREQ(scale_node->get_type_name(), "Multiply");
+    EXPECT_EQ(scale_node->get_input_shape(1), (Shape{1, 3, 1, 1}));
+    auto mean_node = scale_node->get_input_node_shared_ptr(0);
+    EXPECT_STREQ(mean_node->get_type_name(), "Subtract");
+    EXPECT_EQ(mean_node->get_input_shape(1), (Shape{1, 3, 1, 1}));
+}
+
+TEST(pre_post_process, postprocess_mean_scale_vector_after_convert_layout) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(model);
+    p.output().model().set_layout("NCHW");
+    p.output().postprocess().convert_layout("NHWC").mean({1.f, 2.f, 3.f}).scale({2.f, 3.f, 4.f});
+    model = p.build();
+
+    EXPECT_EQ(model->get_output_shape(0), (Shape{1, 2, 2, 3}));
+    auto scale_node = model->get_results().front()->get_input_node_shared_ptr(0);
+    // Division by a constant is converted to multiplication by its reciprocal
+    EXPECT_STREQ(scale_node->get_type_name(), "Multiply");
+    EXPECT_EQ(scale_node->get_input_shape(1), (Shape{1, 1, 1, 3}));
+}
+
+TEST(pre_post_process, postprocess_mean_vector_no_layout) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(model);
+    EXPECT_THROW(p.output().postprocess().mean({0.1f, 0.2f, 0.3f}); p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_scale_vector_dim_mismatch) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(model);
+    p.output().model().set_layout("NCHW");
+    EXPECT_THROW(p.output().postprocess().scale({0.1f, 0.2f, 0.3f, 0.4f}); p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_mean_not_float) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(model);
+    EXPECT_THROW(p.output().postprocess().convert_element_type(element::i32).mean(2.f); p.build(), ov::AssertFailure);
+}
+
+TEST(pre_post_process, postprocess_scale_not_float) {
+    auto model = create_simple_function(element::f32, Shape{1, 3, 2, 2});
+    auto p = PrePostProcessor(model);
+    EXPECT_THROW(p.output().postprocess().convert_element_type(element::i32).scale(2.f); p.build(), ov::AssertFailure);
+}
+
 TEST(pre_post_process, convert_element_type_and_scale) {
     auto f = create_simple_function(element::i8, Shape{1, 3, 2, 2});
     auto p = PrePostProcessor(f);
