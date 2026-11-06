@@ -1206,6 +1206,9 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_compiled_again_w
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {
+    const std::vector<ov::PropertyName> supported_properties = {ov::compilation_num_threads, ov::enable_profiling};
+    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(Return(ov::Any(supported_properties)));
     config.insert(ov::enable_profiling(true));
     config.insert(ov::intel_auto::compile_for_all(true));
     expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU"});
