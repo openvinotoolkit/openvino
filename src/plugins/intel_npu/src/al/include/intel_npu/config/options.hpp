@@ -171,6 +171,23 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 };
 
+// The default mirrors PLATFORM's (AUTO_DETECT), so a generic query of SUPPORTED_PROPERTIES can read the value
+// without an explicit target. Config::has<COMPILATION_TARGET>() still reports only explicit sets, which is what
+// resolveCompilationTarget and the bundle resolution in Plugin::compile_model check.
+struct COMPILATION_TARGET final : OptionBase<COMPILATION_TARGET, std::string> {
+    static std::string_view key() {
+        return ov::compilation_target.name();
+    }
+
+    static std::string defaultValue() {
+        return std::string(ov::intel_npu::Platform::AUTO_DETECT);
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     static std::string_view key() {
         return ov::device::id.name();

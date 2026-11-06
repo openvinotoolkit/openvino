@@ -13,10 +13,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <iomanip>
 #include <istream>
 #include <limits>
 #include <map>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -1528,4 +1530,26 @@ inline constexpr Property<std::string, PropertyMutability::RO> runtime_requireme
  * @endcode
  */
 static constexpr Property<CompatibilityCheck, PropertyMutability::RO> compatibility_check{"COMPATIBILITY_CHECK"};
+
+/**
+ * @brief Read-only: offline compilation targets supported by this device's compiler.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Each target is a platform identifier, equal to ov::device::architecture as reported by a device of
+ * that platform. Answerable with no device present. Takes no arguments; a plugin may accept its own
+ * platform selector as a convenience, but callers must not assume every plugin does.
+ */
+static constexpr Property<std::vector<std::string>, PropertyMutability::RO> offline_compilation_targets{
+    "OFFLINE_COMPILATION_TARGETS"};
+
+/**
+ * @brief Select one offline compilation target, as listed by ov::offline_compilation_targets, for
+ * ov::Core::compile_model.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Compiles for the target's platform instead of the current device.
+ * Combining it with an explicit platform selector is allowed only if they match; otherwise it throws.
+ * Only the platform value reaches the compiler, never the property itself.
+ */
+static constexpr Property<std::string, PropertyMutability::RW> compilation_target{"COMPILATION_TARGET"};
 }  // namespace ov

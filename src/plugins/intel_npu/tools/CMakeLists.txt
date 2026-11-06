@@ -5,6 +5,7 @@
 
 add_subdirectory(common)
 add_subdirectory(compile_tool)
+add_subdirectory(app_npu_compilation_target)
 add_subdirectory(single-image-test)
 
 if (ENABLE_INTEL_NPU_PROTOPIPE)

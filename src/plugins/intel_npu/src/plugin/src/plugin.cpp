@@ -4,7 +4,9 @@
 
 #include "plugin.hpp"
 
+#include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <numeric>
 
 #include "blob_format_importers.hpp"
@@ -112,6 +114,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(COMPILER_TYPE);
     REGISTER_OPTION(COMPILER_VERSION);
     REGISTER_OPTION(PLATFORM);
+    REGISTER_OPTION(COMPILATION_TARGET);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
     REGISTER_OPTION(PROFILING_TYPE);
@@ -265,6 +268,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), npuwProperties);
     }
 
+    // Offline target-driven mode: resolves ov::compilation_target into NPU_PLATFORM before
+    // platform/device resolution runs below (see utils::resolveCompilationTarget for the throw
+    // conditions).
+    utils::resolveCompilationTarget(localProperties);
+
     // DEVICE_ID can be passed both as an index and as a platform name.
     // Identify the right device object to be taken into account when the target compilation platform is determined
     std::string deviceId = _propertiesManager->determineDeviceId(localProperties);
@@ -282,7 +290,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
                                         compilationPlatform,
-                                        _compilerOptionSupportHelper->getOptionSupportCache());
+                                        _compilerOptionSupportHelper->getOptionSupportCache(),
+                                        localProperties.count(ov::compilation_target.name()) > 0);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -413,6 +422,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
+    // Graphs compiled for the remaining bundles of a multi-SKU platform. Exported along with `graph` in a container.
+    std::vector<std::shared_ptr<intel_npu::IGraph>> additionalGraphs;
 
     AdapterDescriptor adapterDesc;
     // Bypass the adapter's internal cache if requested explicitly or if the OV cache is enabled
@@ -467,7 +478,46 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             compilerConfig.update(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
 
+        // The compiler's answer depends on the config the model is compiled with (e.g. a single bundle for
+        // HostCompile or THROUGHPUT), so the bundles are resolved from the final one. The first bundle is merged
+        // into the config of the returned CompiledModel too; the remaining ones are compiled below and exported
+        // along with it in a container.
+        std::vector<std::string> compilationTargetBundles;
+        if (localConfig.has<COMPILATION_TARGET>()) {
+            compilationTargetBundles = compiler->resolve_compilation_target_bundles(compilerConfig);
+            if (!compilationTargetBundles.empty()) {
+                _logger.info("Merging compilation target bundle '%s' into config '%s'",
+                             compilationTargetBundles.front().c_str(),
+                             compilerConfig.toString().c_str());
+                localConfig.mergeFromString(compilationTargetBundles.front());
+                compilerConfig.mergeFromString(compilationTargetBundles.front());
+            }
+        }
+
+        // Each bundle is compiled from this same (possibly debatched) model; the compiler modifies what it is given.
+        std::shared_ptr<ov::Model> modelForAdditionalBundles =
+            compilationTargetBundles.size() > 1 ? modelToCompile->clone() : nullptr;
+
         graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
+        if (!compilationTargetBundles.empty()) {
+            const auto descriptor = graph->get_compatibility_descriptor();
+            std::cout << "[MULTI-BLOB] Primary compile of bundle '" << compilationTargetBundles.front()
+                      << "' succeeded; compatibility descriptor: '" << descriptor.value_or("<none>") << "'"
+                      << std::endl;
+        }
+
+        // One more schedule per remaining device variant. A failure is fatal: a partial set would silently leave some
+        // devices of the platform without a schedule.
+        for (size_t i = 1; i < compilationTargetBundles.size(); ++i) {
+            const auto& bundle = compilationTargetBundles[i];
+            Config bundleConfig = compilerConfig;
+            bundleConfig.mergeFromString(bundle);
+            auto bundleGraph = compileWithConfig(modelForAdditionalBundles->clone(), bundleConfig);
+            const auto descriptor = bundleGraph->get_compatibility_descriptor();
+            std::cout << "[MULTI-BLOB] Compile of bundle '" << bundle << "' succeeded; compatibility descriptor: '"
+                      << descriptor.value_or("<none>") << "'" << std::endl;
+            additionalGraphs.push_back(std::move(bundleGraph));
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -481,6 +531,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (batch > 0 && graph->get_kind() != GraphKind::Dynamic) {
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
+            for (const auto& additionalGraph : additionalGraphs) {
+                additionalGraph->set_batch_size(batch.value());
+            }
         }
     }
 
@@ -499,7 +552,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                         graph,
                                                         localConfig,
                                                         unknownProperties,
-                                                        batch);
+                                                        batch,
+                                                        additionalGraphs);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -597,14 +651,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     auto [runtimeConfig, unknownProperties] =
         _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import);
 
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, runtimeConfig.get<DEVICE_ID>());
+    OPENVINO_ASSERT(device != nullptr, "Device not found.");
+
+    // The device is needed up front to pick the right entry if the blob is a container of several blobs
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
         blobSource,
         runtimeConfig.get<DISABLE_VERSION_CHECK>() ? true : runtimeConfig.get<IMPORT_RAW_BLOB>(),
         runtimeConfig.has<MODEL_PTR>() ? runtimeConfig.get<MODEL_PTR>().lock() : nullptr,
-        runtimeConfig);
-
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, runtimeConfig.get<DEVICE_ID>());
-    OPENVINO_ASSERT(device != nullptr, "Device not found.");
+        runtimeConfig,
+        device);
 
     if (!runtimeConfig.get<LOADED_FROM_CACHE>()) {
         _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");

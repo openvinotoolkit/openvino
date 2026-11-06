@@ -6,6 +6,7 @@
 
 #include <mutex>
 #include <optional>
+#include <vector>
 
 #include "compiled_model_property_manager.hpp"
 #include "intel_npu/common/icompiled_model.hpp"
@@ -29,6 +30,9 @@ public:
      * @param graph Object holding the graph handle along with distinct fields for metadata
      * @param config Custom configuration object
      * @param batchSize Optional batch size value.
+     * @param additionalGraphs Graphs compiled for other device variants (e.g. other SKUs of the same platform). If
+     * there are any, `export_model` writes a container holding a complete blob for `graph` and for each of them; only
+     * `graph` is used for inference.
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -36,7 +40,8 @@ public:
                   const std::shared_ptr<IGraph>& graph,
                   const Config& config,
                   const ov::AnyMap& properties,
-                  const std::optional<int64_t>& batchSize);
+                  const std::optional<int64_t>& batchSize,
+                  const std::vector<std::shared_ptr<IGraph>>& additionalGraphs = {});
 
     CompiledModel(const CompiledModel&) = delete;
 
@@ -61,6 +66,11 @@ public:
     void release_memory() override;
 
 private:
+    /**
+     * @brief Exports the given graph as a complete NPU blob: the compiler payload followed by the metadata.
+     */
+    void export_entry(const std::shared_ptr<IGraph>& graph, std::ostream& stream, const Config& localConfig) const;
+
     // For special config, stream executors must be set accordingly to ensure correct behavior.
     void configure_stream_executors(ov::streams::Num numStreams,
                                     bool runInferencesSequentially,
@@ -71,6 +81,7 @@ private:
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
+    std::vector<std::shared_ptr<IGraph>> _additionalGraphs;
     std::optional<int64_t> _batchSize;
 
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;

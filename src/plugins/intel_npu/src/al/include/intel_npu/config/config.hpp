@@ -551,6 +551,14 @@ public:
      */
     void fromString(const std::string& str);
 
+    /**
+     * @brief Merges a space-separated sequence of KEY="VALUE" entries into the configuration.
+     * @details Registered options are updated; any other key is stored as an internal compiler option, replacing a
+     * previous value without a warning. Meant for compiler-resolved entries such as NPU_MAX_TILES, which the plugin
+     * does not register as an option of its own.
+     */
+    void mergeFromString(const std::string& str);
+
     // Returns a string with all config keys which have set values
     std::string toString() const;
 
