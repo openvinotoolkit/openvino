@@ -263,6 +263,7 @@ own suites in intel_gpu.
 | `TPAnalyzerTest`                          | The analysis of the synthetic blocks: roles, geometry, bias, LM head, KV-cache variables, refusals, tied embeddings                     | no         |
 | `TPShardingVerifierTest`                  | The verifier's rules on hand-annotated graphs and its refusals, each with the error text                                               | no         |
 | `TPRankPasses/*`                          | Rank models on 2/3/4 ranks: weights, collectives, KV-cache variables, PagedAttention head counts, fewer KV heads than ranks, fused projections | no |
+| `TPRankWeightsTest`                       | The rank weights read off the analyzed model against the built rank models, a runtime-sliced weight, the fewest devices that fit        | no         |
 | `TPAnalyzerModels`                        | Real IRs listed in `OV_TP_TEST_MODELS` (paths separated by `:`): every rank model on 2 and 4 ranks; skipped without the variable      | no         |
 
 ### `ov_tp_func_tests`
@@ -283,7 +284,7 @@ support reasons come from the device plugin's own queries
 |                           | allocation, a reallocation in between), copy_blocks and zero_blocks checked through decode numerics                                    |
 | `TPSerializationTest`     | export/import round-trip, cache entries per topology and per rank property, foreign and truncated blobs, weightless caching             |
 | `TPDeviceNameTest`        | The device name and the config, refused before any device is touched: too few devices, mixed types, empty entries, several streams, linear attention, unknown strategy |
-| `TPDevicePropertiesTest`  | Properties reaching the ranks, the device plugin's refusals with its reasons, the named backend, host tensors of the TP context, two TP models over the same devices |
+| `TPDevicePropertiesTest`  | Properties reaching the ranks, the device plugin's refusals with its reasons, weights that do not fit a nearly full device, the named backend, host tensors of the TP context, two TP models over the same devices |
 | `TPOptionsTest`, `TPOptionsOnDevicesTest` | The listed options, the timeout validation, a fixed staging and input staging end to end, `reset_state`; with TP debug caps the unsharded LM head and the sharding-state dump |
 
 ### The collective contract: `TPCollectiveContractTest` (shared)

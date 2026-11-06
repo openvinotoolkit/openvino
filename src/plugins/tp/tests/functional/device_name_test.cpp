@@ -152,6 +152,34 @@ TEST_F(TPDevicePropertiesTest, RejectsAGroupTheDevicePluginCannotServe) {
                     HasSubstr(repeated));
 }
 
+// With rank 0's device all but full, the rank weights do not fit: the compilation stops before
+// any rank is built and says how many devices it would take.
+TEST_F(TPDevicePropertiesTest, RejectsWeightsThatDoNotFitTheDevice) {
+    ov::Core core;
+    auto free_memory = [&core] {
+        const auto memory = core.get_property(rank_device(0), ov::tp::internal::device_memory.name(), {})
+                                .as<ov::tp::internal::DeviceMemory>();
+        return memory.total > memory.used ? memory.total - memory.used : 0;
+    };
+    auto context = core.get_default_context(rank_device(0));
+    std::vector<ov::RemoteTensor> filler;
+    constexpr uint64_t leave = 64 * 1024;  // less than the block's weights
+    for (uint64_t free = free_memory(); free > leave; free = free_memory()) {
+        const uint64_t chunk = std::min<uint64_t>(free - leave / 2, uint64_t{1} << 30);
+        try {
+            filler.push_back(context.create_tensor(ov::element::u8, ov::Shape{chunk}, {}));
+        } catch (const ov::Exception&) {
+            break;
+        }
+    }
+    if (free_memory() > leave)
+        GTEST_SKIP() << "could not fill " << rank_device(0) << " to below " << leave << " bytes free";
+
+    OV_EXPECT_THROW(core.compile_model(make_transformer_block(BlockConfig{}), tp_device(2)),
+                    ov::Exception,
+                    HasSubstr("The model does not fit even split over 2 devices: rank 0 needs at least"));
+}
+
 TEST_F(TPDevicePropertiesTest, RejectsADevicePluginWithoutCollectives) {
     ov::Core core;
     if (!ov::util::contains(core.get_available_devices(), "CPU"))

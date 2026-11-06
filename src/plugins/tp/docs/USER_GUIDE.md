@@ -262,15 +262,28 @@ The plugin failed to load, or was never built. Check:
 The device name lists fewer than two rank devices (`"TP"` alone lists none). Name
 them: `"TP:GPU.0,GPU.1"`; `core.get_available_devices()` shows which exist.
 
+### `[TP] The model does not fit even split over N devices`
+
+Before building any rank, the plugin compares each rank's weights with its
+device's free memory (total minus what every context of the process uses) and
+stops if they alone do not fit. The message gives the rank, both sizes, the part
+of the weights every rank keeps whole (embedding, norms, layers no block pass
+splits) and the fewest devices with that much free memory that would hold the
+rest -- or that no number would, when the whole part alone is too big. The
+weights are counted low (a cut weight by its share, f32 at two bytes per
+element), so a model that passes can still run out of memory during compilation
+or in the KV cache; one that fails cannot fit.
+
 ### Compilation fails on rank > 0 with an out-of-memory error
 
-The current sharding divides the weights of the column- and row-parallel
-MatMuls and the vocabulary projection across ranks, but does **not** shard
-the embedding table or activation memory (a vocabulary projection that shares
-its weights with the embedding adds its slice on top of the whole table). Effective memory per rank is
+The weights fit, but what comes on top does not. The current sharding divides
+the weights of the column- and row-parallel MatMuls and the vocabulary
+projection across ranks, but does **not** shard the embedding table or
+activation memory (a vocabulary projection that shares its weights with the
+embedding adds its slice on top of the whole table). Effective memory per rank is
 roughly `(sharded weights / N) + (unsharded weights) + (full activation
-budget)`. If a single GPU does not have enough VRAM for that, TP cannot fit
-it either.
+budget)`; `OV_TP_VERBOSE=LOG_INFO` prints each rank's weights next to its
+device's free memory.
 
 ### Outputs differ slightly from the single-GPU baseline
 

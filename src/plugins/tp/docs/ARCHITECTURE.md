@@ -32,7 +32,11 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │       block passes annotate the projections, shape constants │
 │       and KV-cache variables of every attention and MLP      │
 │       block; TPShardingVerifier proves the annotations or    │
-│       fails the compilation naming the node.                 │
+│       fails the compilation naming the node. Each rank's     │
+│       weights, read off the annotations, are compared with   │
+│       its device's free memory (ov_internal_tp_device_memory)│
+│       and the compilation stops if they do not fit, naming   │
+│       the fewest devices that would do.                      │
 │    3. Create one remote context per rank with the TP         │
 │       parameters of the collective contract: device group +  │
 │       the rank's endpoint of an InProcessExchange. Each      │

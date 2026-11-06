@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <istream>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <streambuf>
@@ -21,6 +22,7 @@
 #include "tp_transformations/analyzer.hpp"
 #include "tp_transformations/annotations.hpp"
 #include "tp_transformations/rank_passes.hpp"
+#include "tp_transformations/rank_weights.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/tp_collective.hpp"
 #include "tp/itt.hpp"
@@ -247,6 +249,12 @@ std::string mib(size_t bytes) {
     return out.str();
 }
 
+std::string gib(uint64_t bytes) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(1) << static_cast<double>(bytes) / (1024.0 * 1024.0 * 1024.0) << " GiB";
+    return out.str();
+}
+
 size_t count_collectives(const ov::Model& model) {
     size_t count = 0;
     for (const auto& node : model.get_ops()) {
@@ -435,6 +443,55 @@ void Plugin::check_collective_support(const std::vector<std::string>& device_nam
     OPENVINO_ASSERT(reason.empty(), get_device_name(), ": ", reason);
 }
 
+void Plugin::check_rank_memory(const ov::Model& analyzed,
+                               const std::vector<std::string>& device_names,
+                               uint32_t shard_degree) const {
+    const auto type = TPConfig::device_type(device_names);
+    const auto internal = get_core()->get_property(type, ov::internal::supported_properties);
+    if (!ov::util::contains(internal, ov::tp::internal::device_memory.name()))
+        return;
+
+    const auto weights = rank_weights(analyzed, shard_degree);
+    uint64_t min_free = std::numeric_limits<uint64_t>::max();
+    std::ostringstream failure;
+    for (size_t rank = 0; rank < device_names.size(); ++rank) {
+        const auto memory = get_core()
+                                ->get_property(device_names[rank], ov::tp::internal::device_memory.name(), {})
+                                .as<ov::tp::internal::DeviceMemory>();
+        const uint64_t free = memory.total > memory.used ? memory.total - memory.used : 0;
+        min_free = std::min(min_free, free);
+        TP_LOG_INFO << "[TP] Rank " << rank << " weights: at least " << gib(weights.per_rank[rank]) << ", "
+                    << device_names[rank] << " has " << gib(free) << " free of " << gib(memory.total) << std::endl;
+        if (weights.per_rank[rank] > free && failure.tellp() == 0) {
+            failure << "rank " << rank << " needs at least " << gib(weights.per_rank[rank]) << " for its weights, "
+                    << device_names[rank] << " has " << gib(free) << " free of " << gib(memory.total);
+        }
+    }
+    if (failure.tellp() == 0)
+        return;
+
+    const auto needed = min_world_size(weights, static_cast<size_t>(min_free));
+    std::ostringstream advice;
+    if (needed == 0) {
+        advice << "the part every rank keeps whole alone is more than a device has free, so no number of devices "
+                  "is enough";
+    } else {
+        advice << "at least " << std::max<size_t>(needed, shard_degree + 1)
+               << " devices with this much free memory are needed";
+    }
+    OPENVINO_THROW("[TP] The model does not fit even split over ",
+                   shard_degree,
+                   " devices: ",
+                   failure.str(),
+                   ". Every rank keeps ",
+                   gib(weights.replicated),
+                   " of the weights whole and a share of the other ",
+                   gib(weights.split),
+                   "; ",
+                   advice.str(),
+                   ".");
+}
+
 std::vector<std::string> Plugin::device_uuids(const std::vector<std::string>& device_names) const {
     std::vector<std::string> uuids;
     uuids.reserve(device_names.size());
@@ -480,6 +537,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const size_t num_collectives = shard_only ? 0 : count_collectives(*analyzed);
     log_analysis(*report, num_collectives);
     warn_on_kv_imbalance(*report, shard_degree);
+    check_rank_memory(*analyzed, device_names, shard_degree);
 
     // A shard stripped of its collectives runs alone, on an ordinary context.
     const auto rank_contexts =
