@@ -368,6 +368,34 @@ SDPA_OCL_INLINE void FUNC(v_tile_gather_ch)(__private int8 *vb, const __global V
 #endif
 
 #if IS_PA_MIXED && IS_PA_KV_COMPRESSED
+#if SG8
+// SG8: lane l of pA holds keys (2l, 2l + 1) of the cp block (one page) for every query component, so the lane folds the
+// scales of both keys -- one dword of the comp array, the keys being even-aligned in their page -- and returns both zps as
+// a half2 for the V dequant (pa_v_tile_q_gather() broadcasts key pair kp from lane kp). Keys at/past k get scale and zp 0
+// by a select, so a NaN in a slot no key filled stays out.
+SDPA_OCL_INLINE half2 FUNC(pa_v_comp_fold)(__private int8 *pA, const __global VAL_DATA_T *V, const uint v_blk,
+                                           const int k0, const int cp, const int k, const size_t b0_kv,
+                                           const size_t lane) {
+    const int key0 = k0 + cp * DPAS_K + 2 * (int)lane;
+    const global uint *v_comp_pa = (const global uint *)(V + PA_V_PAGE_OFF(v_blk, b0_kv) + PA_V_COMP_OFF);
+    const int tok0 = key0 % PAGED_ATTENTION_BLOCK_SIZE;
+    half2 vs_c = as_half2(v_comp_pa[tok0 / 2]);
+    half2 v_zp = as_half2(v_comp_pa[(PAGED_ATTENTION_BLOCK_SIZE + tok0) / 2]);
+    vs_c.s0 = (key0 < k) ? vs_c.s0 : (half)0.0h;
+    v_zp.s0 = (key0 < k) ? v_zp.s0 : (half)0.0h;
+    vs_c.s1 = (key0 + 1 < k) ? vs_c.s1 : (half)0.0h;
+    v_zp.s1 = (key0 + 1 < k) ? v_zp.s1 : (half)0.0h;
+#if defined(NEG_SG8) && NEG_SG8 == 20
+    // Negative control: the scales of the two keys swapped.
+    vs_c = vs_c.s10;
+#endif
+    const half16 vs_c16 = (half16)(vs_c, vs_c, vs_c, vs_c, vs_c, vs_c, vs_c, vs_c);
+    #pragma unroll
+    for (int r = 0; r < sv_score_blocks; ++r)
+        pA[r] = as_int8(as_half16(pA[r]) * vs_c16);
+    return v_zp;
+}
+#else
 // Compressed V page comp of this cp block: per-key scale/zp from the page's comp region
 // (PA_V_COMP_OFF: [token], [block_size + token]); a cp block is one page, so lane == token. The scale
 // folds into pA as in the plain-SDPA path (f16 only: every PA compressed path assumes f16) and the
@@ -391,6 +419,7 @@ SDPA_OCL_INLINE half FUNC(pa_v_comp_fold)(__private short8 *pA, const __global V
         pA[r] = as_short8(as_half8(pA[r]) * vs_c_pa);
     return v_zp_c;
 }
+#endif  // SG8
 #endif
 
 #if IS_PA_MIXED && IS_PA_KV_COMPRESSED && USE_2D_BLOCK_IO_V_PA_I8
@@ -565,6 +594,45 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_b2d16)(__private int8 *vb, const __global VA
 // (value, key pair); a key at/past k (or a value at/past dv) leaves its element 0.
 
 #if IS_PA_MIXED && IS_PA_KV_COMPRESSED && !USE_2D_BLOCK_IO_V_PA_I8 && !USE_1D_BLOCK_IO_V_PA_U4
+#if SG8
+// SG8 i8 V page (u4 stops at sdpa_ocl_config.cl's BY_CHANNEL tripwire): the same B operand as the SG16 gather (lane =
+// value, component kp = keys (2 kp, 2 kp + 1) of the cp block), with the zps of key pair kp taken from lane kp of
+// pa_v_comp_fold()'s half2 (SG8 has no lanes 8..15 to broadcast a key's zp from). The broadcasts are collectives, so they
+// come first, outside the per-lane value guard.
+SDPA_OCL_INLINE void FUNC(pa_v_tile_q_gather)(__private int8 *vb, const __global VAL_DATA_T *V, const size_t v_page_base,
+                                              const int cp_key0, const int k, const int dv, const size_t sg_j0_sv,
+                                              const size_t lane, const int lane_i, const half2 v_zp_c) {
+    half2 zp2[DPAS_ROWS];
+    #pragma unroll
+    for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
+#if defined(NEG_SG8) && NEG_SG8 == 21
+        // Negative control: the zps of the next key pair.
+        zp2[key_pair] = as_half2(sub_group_broadcast(as_uint(v_zp_c), (key_pair + 1) % SUBGROUP_SIZE));
+#else
+        zp2[key_pair] = as_half2(sub_group_broadcast(as_uint(v_zp_c), key_pair));
+#endif
+    }
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+        vb[cd] = (int8)0;
+        const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane_i;
+        if (value < dv) {
+            #pragma unroll
+            for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
+                const int key0 = cp_key0 + key_pair * 2;
+                half2 vv = (half2)0.0h;
+                if (key0 < k)
+                    vv.s0 = (half)(char)V[v_page_base + (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value] -
+                            zp2[key_pair].s0;
+                if (key0 + 1 < k)
+                    vv.s1 = (half)(char)V[v_page_base + (size_t)((key0 + 1) % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value] -
+                            zp2[key_pair].s1;
+                vb[cd][key_pair] = as_int(vv);
+            }
+        }
+    }
+}
+#else
 // Compressed V page (SDPA_OCL_V_PA_I8_2D=0, or a pitch that fails the block2d rule): the same dequant
 // as the block reads, one message per value per key pair.
 SDPA_OCL_INLINE void FUNC(pa_v_tile_q_gather)(__private int8 *vb, const __global VAL_DATA_T *V, const size_t v_page_base,
@@ -614,6 +682,7 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_q_gather)(__private int8 *vb, const __global
         }
     }
 }
+#endif  // SG8
 #endif
 
 #if IS_PA_MIXED && !IS_PA_KV_COMPRESSED && !USE_2D_BLOCK_IO_V_PA
