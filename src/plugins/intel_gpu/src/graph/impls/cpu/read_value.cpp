@@ -51,7 +51,9 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
     event::ptr execute_impl(const std::vector<event::ptr>& events, read_value_inst& instance) override {
         auto& variable = instance.get_network().get_variable(variable_id);
         auto &stream = instance.get_network().get_stream();
-        stream.wait_for_events(events);
+        // In-order queue: the copies enqueued below already run after the dependencies; no host wait needed.
+        if (stream.get_queue_type() != QueueTypes::in_order)
+            stream.wait_for_events(events);
 
         OPENVINO_ASSERT(variable.get_layout() == instance.get_output_layout(),
                 "[GPU] Layout mismatch: variable layout: ", variable.get_layout().to_short_string(),
