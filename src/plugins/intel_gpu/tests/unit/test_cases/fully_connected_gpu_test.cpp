@@ -3275,6 +3275,102 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
+    void test_compressed_int8_parameter_scale_zp(bool is_per_group, bool transpose_scale_zp) {
+        auto& engine = get_test_engine();
+
+        constexpr int64_t ofm = 4;
+        constexpr int64_t ifm = 32;
+        const int64_t groups = is_per_group ? 2 : 1;
+        const int64_t group_size = ifm / groups;
+
+        // Non-transposed scale/zp are [groups, N]; transposed scale/zp are [N, groups].
+        const ov::PartialShape param_shape = transpose_scale_zp ? ov::PartialShape{ofm, groups} : ov::PartialShape{groups, ofm};
+        auto param_offset = [&](int64_t group, int64_t output) {
+            return static_cast<size_t>(transpose_scale_zp ? output * groups + group : group * ofm + output);
+        };
+
+        auto input_mem = engine.allocate_memory({ {1, 2, ifm}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm, ifm}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ param_shape, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ param_shape, data_types::u8, format::bfyx });
+
+        std::vector<float> input_data(2 * ifm);
+        for (size_t i = 0; i < input_data.size(); ++i) {
+            input_data[i] = static_cast<float>(static_cast<int64_t>(i % 3) - 1);
+        }
+        std::vector<uint8_t> weights_data(ofm * ifm);
+        for (int64_t output = 0; output < ofm; ++output) {
+            for (int64_t k = 0; k < ifm; ++k) {
+                weights_data[output * ifm + k] = static_cast<uint8_t>((output * 3 + k) % 8);
+            }
+        }
+        std::vector<float> scale_data(ofm * groups);
+        std::vector<uint8_t> zp_data(ofm * groups);
+        for (int64_t group = 0; group < groups; ++group) {
+            for (int64_t output = 0; output < ofm; ++output) {
+                scale_data[param_offset(group, output)] = 0.5f * static_cast<float>((group + output) % 2 + 1);
+                zp_data[param_offset(group, output)] = static_cast<uint8_t>((group + output) % 3);
+            }
+        }
+
+        std::vector<ov::float16> input_f16(input_data.begin(), input_data.end());
+        std::vector<ov::float16> scale_f16(scale_data.begin(), scale_data.end());
+        set_values(input_mem, input_f16);
+        set_values(weights_mem, weights_data);
+        set_values(scale_mem, scale_f16);
+        set_values(zp_mem, zp_data);
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            input_layout("scale", scale_mem->get_layout()),
+            input_layout("zp", zp_mem->get_layout()),
+            fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 3, 2, true,
+                            transpose_scale_zp, transpose_scale_zp));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network network(engine, topology, config);
+        network.set_input_data("input", input_mem);
+        network.set_input_data("scale", scale_mem);
+        network.set_input_data("zp", zp_mem);
+
+        // Grouped transposed scale/zp [N, groups] must be reordered from bfyx to fbyx to make N innermost.
+        // Per-channel [N, 1] already has N innermost, so it stays as the bfyx parameter.
+        const bool expect_reorder = transpose_scale_zp && is_per_group;
+        auto fc_inst = network.get_primitive("fc_prim");
+        for (size_t idx : {size_t{2}, size_t{3}}) {
+            const auto& dep = fc_inst->get_node().get_dependency(idx);
+            if (expect_reorder) {
+                EXPECT_TRUE(dep.is_type<reorder>()) << "input " << idx;
+                EXPECT_EQ(fc_inst->get_input_layout(idx).format, format::fbyx) << "input " << idx;
+            } else {
+                EXPECT_TRUE(dep.is_type<input_layout>()) << "input " << idx;
+                EXPECT_EQ(fc_inst->get_input_layout(idx).format, format::bfyx) << "input " << idx;
+            }
+        }
+
+        auto outputs = network.execute();
+        auto output_mem = outputs.at("fc_prim").get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        ASSERT_EQ((ov::PartialShape{1, 2, ofm}), output_mem->get_layout().get_partial_shape());
+
+        for (int64_t token = 0; token < 2; ++token) {
+            for (int64_t output = 0; output < ofm; ++output) {
+                float expected = 0.0f;
+                for (int64_t k = 0; k < ifm; ++k) {
+                    const auto offset = param_offset(k / group_size, output);
+                    const float weight = (static_cast<float>(weights_data[output * ifm + k]) - zp_data[offset]) * scale_data[offset];
+                    expected += input_data[token * ifm + k] * weight;
+                }
+                EXPECT_NEAR(static_cast<float>(output_ptr[token * ofm + output]), expected, 1e-2f)
+                    << "token = " << token << ", output = " << output;
+            }
+        }
+    }
+
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -6113,6 +6209,22 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
     this->test_compressed_int8_transpose_scale_zp(true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_channel) {
+    this->test_compressed_int8_parameter_scale_zp(false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_channel_transposed) {
+    this->test_compressed_int8_parameter_scale_zp(false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group) {
+    this->test_compressed_int8_parameter_scale_zp(true, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group_transposed) {
+    this->test_compressed_int8_parameter_scale_zp(true, true);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
