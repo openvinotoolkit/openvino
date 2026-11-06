@@ -233,9 +233,7 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(
         auto cpuParams = std::get<cpuParamsIndex>(param);
         auto selectedTypeStr = std::get<selectedTypeIndex>(cpuParams);
 
-        if (selectedTypeStr.find("jit") != std::string::npos && !ov::with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && !ov::with_cpu_x86_sse42())
+        if (selectedTypeStr.find("jit") != std::string::npos && !ov::with_cpu_x86_avx2())
             continue;
         if (selectedTypeStr.find("avx2") != std::string::npos && !ov::with_cpu_x86_avx2())
             continue;

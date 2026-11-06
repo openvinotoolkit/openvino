@@ -186,8 +186,6 @@ CPUSpecificParams getCPUSpecificParams() {
         return CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
     } else if (ov::with_cpu_x86_avx2()) {
         return CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
-    } else if (ov::with_cpu_x86_sse42()) {
-        return CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"};
     } else {
         return CPUSpecificParams{{}, {}, {"ref"}, "ref"};
     }

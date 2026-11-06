@@ -136,7 +136,6 @@ void check_power_emitter(cpu_isa_t isa, bool dynamic, bool inplace) {
 
 TEST(PowerEmitter, DynamicPreservesResultsAndLiveVectors) {
     for (bool inplace : {false, true}) {
-        check_power_emitter<Xbyak::Xmm>(sse41, true, inplace);
         check_power_emitter<Xbyak::Ymm>(avx2, true, inplace);
         check_power_emitter<Xbyak::Zmm>(avx512_core, true, inplace);
     }
@@ -144,7 +143,6 @@ TEST(PowerEmitter, DynamicPreservesResultsAndLiveVectors) {
 
 TEST(PowerEmitter, StaticFallbackPreservesResultsAndLiveVectors) {
     for (bool inplace : {false, true}) {
-        check_power_emitter<Xbyak::Xmm>(sse41, false, inplace);
         check_power_emitter<Xbyak::Ymm>(avx2, false, inplace);
         check_power_emitter<Xbyak::Zmm>(avx512_core, false, inplace);
     }

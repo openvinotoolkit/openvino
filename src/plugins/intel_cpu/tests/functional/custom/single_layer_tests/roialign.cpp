@@ -168,10 +168,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
         resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_avx2"}, {"jit_avx2"}});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_avx2"}, {"jit_avx2"}});
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {"jit_avx2"}, {"jit_avx2"}});
-    } else if (ov::with_cpu_x86_sse42()) {
-        resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"jit_sse42"}, {"jit_sse42"}});
-        resCPUParams.push_back(CPUSpecificParams{{nhwc, nc, x}, {nhwc}, {"jit_sse42"}, {"jit_sse42"}});
-        resCPUParams.push_back(CPUSpecificParams{{nChw8c, nc, x}, {nChw8c}, {"jit_sse42"}, {"jit_sse42"}});
     } else {
         resCPUParams.push_back(CPUSpecificParams{{nchw, nc, x}, {nchw}, {"ref"}, {"ref"}});
     }

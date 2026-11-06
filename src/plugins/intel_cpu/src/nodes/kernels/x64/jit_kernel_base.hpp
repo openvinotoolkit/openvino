@@ -185,6 +185,7 @@ protected:
         return dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
+    const Xbyak::util::Cpu m_cpu;
     const dnnl::impl::cpu::x64::cpu_isa_t m_isa;
     RegistersPool::Ptr registersPool;
     size_t vlen;
