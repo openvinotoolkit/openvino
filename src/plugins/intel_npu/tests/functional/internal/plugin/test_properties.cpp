@@ -34,6 +34,7 @@
 #include "openvino/util/codec_xor.hpp"
 #include "plugin_property_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "vcl_provider_utils.hpp"
 #include "zero_backend.hpp"
 
 using ::testing::AllOf;
@@ -45,6 +46,7 @@ using ConfigParams = std::tuple<std::string,   // Device name
 namespace ov {
 namespace test {
 namespace behavior {
+
 class PropertiesManagerTests : public ov::test::behavior::OVPluginTestBase,
                                public testing::WithParamInterface<ConfigParams> {
 protected:
@@ -156,10 +158,13 @@ public:
             REGISTER_OPTION(Opt);
         });
 
+        const auto adapterFactory =
+            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(vcl_provider::processWide());
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, CompilerAdapterFactory()),
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory),
+            adapterFactory,
             ::intel_npu::Logger::global());
     }
 
@@ -682,10 +687,13 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
 
     std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
     localOptions->add<::intel_npu::COMPILER_TYPE>();
+    const auto adapterFactory =
+        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(vcl_provider::processWide());
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
-        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory()),
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory),
+        adapterFactory,
         ::intel_npu::Logger::global());
 
     {

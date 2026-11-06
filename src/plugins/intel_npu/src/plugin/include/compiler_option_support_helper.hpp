@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -21,7 +22,7 @@ namespace intel_npu {
 class CompilerOptionSupportHelper final {
 public:
     explicit CompilerOptionSupportHelper(const ov::SoPtr<IEngineBackend>& backend,
-                                         const CompilerAdapterFactory& adapterFactory);
+                                         const std::shared_ptr<const CompilerAdapterFactory>& adapterFactory);
 
     const std::shared_ptr<OptionSupportCache>& getOptionSupportCache() const;
 
@@ -31,7 +32,7 @@ public:
 
 private:
     const ov::SoPtr<IEngineBackend> _backend;
-    const CompilerAdapterFactory _adapterFactory;
+    const std::shared_ptr<const CompilerAdapterFactory> _adapterFactory;
     std::shared_ptr<OptionSupportCache> _optionSupportCache;
 
     std::mutex _supportedOptionsLoadedMutex;

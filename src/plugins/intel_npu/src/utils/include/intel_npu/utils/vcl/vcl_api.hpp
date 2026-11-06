@@ -4,7 +4,11 @@
 
 #pragma once
 
+#include <exception>
+#include <functional>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -76,8 +80,8 @@ struct VCLFunctionTable {
 /**
  * @brief Owns the loaded VCL compiler library and the function table resolved out of it.
  *
- * The loading constructor is private: `getInstance` is the only way to load, so the process cannot
- * end up with two independently dlopen'd copies of the compiler library.
+ * Instances must be owned by a `shared_ptr` (`sharedFunctions()` relies on it), so only
+ * VCLLoaderHolder creates them. Whoever owns the holder decides how long the library stays loaded.
  */
 class VCLLoader final : public std::enable_shared_from_this<VCLLoader> {
 public:
@@ -85,8 +89,6 @@ public:
     VCLLoader(VCLLoader&& other) = delete;
     void operator=(const VCLLoader&) = delete;
     void operator=(VCLLoader&&) = delete;
-
-    static const std::shared_ptr<const VCLLoader> getInstance();
 
     /**
      * @brief The function table, sharing this loader's lifetime.
@@ -101,11 +103,65 @@ public:
     }
 
 private:
+    friend class VCLLoaderHolder;
+
     explicit VCLLoader(const std::string& library_dir);
 
     VCLFunctionTable _functions;
     std::shared_ptr<void> lib;
     Logger _logger;
+};
+
+/**
+ * @brief Obtains the VCL entry points on demand.
+ *
+ * Providers defer loading until the entry points are requested to resolve or construct a compiler-in-plugin,
+ * or to create a profiling decoder. Profiling imports can request them even when using the driver compiler.
+ * A provider should remember a failed load, so that callers do not repeat it, and always supply the same set of
+ * entry points: what is built from them, such as a CompilerAdapterFactory, is bound to that set.
+ */
+using VCLFunctionTableProvider = std::function<std::shared_ptr<const VCLFunctionTable>()>;
+
+/**
+ * @brief Owns one lazily loaded VCL compiler library and its one set of entry points.
+ *
+ * Caches the outcome of the first load. The returned tables keep the library loaded even after the
+ * plugin releases its holder.
+ *
+ * @note A failed load is remembered: every later call throws the same error without loading again. The
+ * library is therefore looked up at most once per holder, whichever component asks first (compiler
+ * resolution, PLUGIN compilation or profiling imports).
+ */
+class VCLLoaderHolder final {
+public:
+    /**
+     * @brief Loads from the directory of the OpenVINO runtime library.
+     * @note The directory is resolved on the first load, not here.
+     */
+    VCLLoaderHolder() = default;
+
+    /**
+     * @brief Loads from the given directory.
+     */
+    explicit VCLLoaderHolder(const std::string& library_dir);
+
+    VCLLoaderHolder(const VCLLoaderHolder&) = delete;
+    VCLLoaderHolder& operator=(const VCLLoaderHolder&) = delete;
+
+    /**
+     * @brief Returns the entry points, loading the library on the first call.
+     *
+     * The returned table keeps the library loaded, even after this holder is destroyed.
+     * @throws ov::Exception when the library cannot be loaded. Later calls rethrow the same error.
+     */
+    std::shared_ptr<const VCLFunctionTable> functions() const;
+
+private:
+    std::optional<std::string> _library_dir;
+    mutable std::mutex _mutex;
+    // Loaded library, or the error of the load that failed. Both stay empty until the first call.
+    mutable std::shared_ptr<const VCLLoader> _loader;
+    mutable std::exception_ptr _loadFailure;
 };
 
 }  // namespace intel_npu

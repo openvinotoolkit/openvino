@@ -45,7 +45,7 @@ protected:
         allocator = std::make_shared<::intel_npu::vcl_allocator_2>();
 
         try {
-            functions = ::intel_npu::VCLLoader::getInstance()->sharedFunctions();
+            functions = ::intel_npu::VCLLoaderHolder().functions();
         } catch (const std::exception&) {
             GTEST_SKIP() << "Couldn't load compiler library";
         }

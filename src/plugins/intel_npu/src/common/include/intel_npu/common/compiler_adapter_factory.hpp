@@ -7,7 +7,6 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -15,21 +14,83 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
 
+/**
+ * @brief Creates compiler adapters on top of one set of VCL entry points.
+ *
+ * A factory knows how to build a compiler-in-plugin only from the entry points of the provider it was given. A plugin
+ * has one VCL loader holder, which loads the library at most once and holds one set of entry points, and one factory.
+ * Entry points from another provider need another factory.
+ *
+ * The factory therefore remembers, for its provider, whether a compiler-in-plugin can be created (see
+ * decideCompilerType()). It is not copyable: share one instance, for example through a
+ * `std::shared_ptr<const CompilerAdapterFactory>`, among everything that works with the same provider, so that all of
+ * it sees the same outcome and a failed attempt is not repeated. Never share an instance across providers.
+ */
 class CompilerAdapterFactory final {
 public:
+    /**
+     * @brief Creates a factory that obtains the VCL entry points from the given provider.
+     *
+     * The factory calls the provider only to create a compiler-in-plugin, including the probe that resolves
+     * PREFER_PLUGIN. Driver compilation never calls it.
+     *
+     * @param vclFunctions Supplies the VCL entry points. Must not be empty.
+     * @throws ov::Exception if the provider is empty.
+     */
+    explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions);
+
+    CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
+    CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
+
+    /**
+     * @brief Creates the compiler adapter and writes the resolved type back to `compilerType`.
+     *
+     * PREFER_PLUGIN is resolved like in decideCompilerType(), and a compiler that the probe creates is returned as is.
+     * A request that resolved to PLUGIN without probing, or that asked for PLUGIN explicitly, creates the
+     * compiler-in-plugin and throws if that fails; there is no fallback to the driver compiler at that point, and an
+     * explicit PLUGIN request retries every time.
+     *
+     * @param engineBackend The backend that provides the device and the Level Zero structures. May be empty for
+     *        offline compilation with the compiler-in-plugin.
+     * @param[in,out] compilerType The requested compiler type on input; the type of the returned adapter on output
+     *        (never PREFER_PLUGIN).
+     * @param platform The compilation target platform. Empty means no explicit target, which is treated as online
+     *        compilation on the backend device.
+     * @param optionSupportCache Where the compiler records which options it supports. May be null.
+     * @return The compiler adapter. Never null.
+     * @throws ov::Exception if the requested compiler cannot be created, if the driver compiler is selected without a
+     *         device matching `platform`, or if `compilerType` is invalid.
+     */
     std::unique_ptr<ICompilerAdapter> getCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
         ov::intel_npu::CompilerType& compilerType,
         std::string_view platform,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
 
+    /**
+     * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER. Any other `compilerType` is left unchanged.
+     *
+     * Meant for validating properties against the compiler that will be used, so PLUGIN means that a
+     * compiler-in-plugin could really be created. The first resolution that needs to know creates one and discards
+     * it. The factory remembers the outcome, so later resolutions, including the ones of getCompiler(), do not probe
+     * again. A platform that only the driver compiler serves resolves to DRIVER without probing, when the
+     * compilation is online. Threads that race on the first resolution may each probe, with the same outcome.
+     *
+     * @param[in,out] compilerType The requested compiler type on input; the resolved type on output.
+     * @param device The device that runs the compiled model. May be null for offline compilation.
+     * @param platform The compilation target platform. Empty means no explicit target, which is treated as online
+     *        compilation on `device`.
+     * @throws ov::Exception if the compilation is offline (or cross compilation) and the compiler-in-plugin cannot
+     *         be created, since only it can serve such a compilation.
+     */
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
                             const std::shared_ptr<intel_npu::IDevice>& device,
-                            std::string_view platform);
+                            std::string_view platform) const;
 
     static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
 
@@ -43,12 +104,16 @@ private:
         std::string_view platform) const;
 
     enum class PluginCompilerPresence : std::uint8_t {
-        UNKNOWN = 0,
-        PRESENT = 1,
-        ABSENT = 2,
+        UNKNOWN = 0,  // Not probed yet.
+        PRESENT = 1,  // A compiler-in-plugin was created from the provider.
+        ABSENT = 2,   // Creating a compiler-in-plugin from the provider failed.
     };
 
-    inline static std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
+    // Outcome of the compiler-in-plugin probe for this factory's provider. The factory is not copyable, so everything
+    // sharing one instance sees the same outcome, and a factory for another provider probes on its own.
+    mutable std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
+
+    VCLFunctionTableProvider _vclFunctions;
 };
 
 }  // namespace intel_npu

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -20,11 +21,14 @@
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "vcl_provider_utils.hpp"
 #include "zero_backend.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
+
+using namespace ::intel_npu;
 
 namespace {
 // Log markers emitted once per adapter, when its constructor runs (see driver_compiler_adapter.cpp /
@@ -55,8 +59,8 @@ std::string bulkLoadMarkerFor(ov::intel_npu::CompilerType compilerType) {
 class CompilerOptionSupportHelperFunctionalTests : public ov::test::behavior::OVPluginTestBase,
                                                    public testing::WithParamInterface<ov::intel_npu::CompilerType> {
 protected:
-    ov::SoPtr<::intel_npu::IEngineBackend> backend;
-    std::unique_ptr<::intel_npu::CompilerOptionSupportHelper> helper;
+    ov::SoPtr<IEngineBackend> backend;
+    std::unique_ptr<CompilerOptionSupportHelper> helper;
     ov::intel_npu::CompilerType compilerType;
 
     std::string targetDevice;
@@ -68,9 +72,10 @@ protected:
         OVPluginTestBase::SetUp();
 
         compilerType = GetParam();
-        backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory());
+        backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        helper = std::make_unique<CompilerOptionSupportHelper>(
+            backend,
+            std::make_shared<const CompilerAdapterFactory>(vcl_provider::processWide()));
     }
 
     void TearDown() override {
@@ -152,7 +157,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, CachesResultAfterRealCompiler
 }
 
 TEST_P(CompilerOptionSupportHelperFunctionalTests, AddsNewOptionToCacheAndReturnsItWithoutCompilerLookup) {
-    const auto cacheKey = static_cast<::intel_npu::OptionSupportCache::CacheKey>(compilerType);
+    const auto cacheKey = static_cast<OptionSupportCache::CacheKey>(compilerType);
     helper->getOptionSupportCache()->addSupportedOption(cacheKey, "MANUALLY_CACHED_OPTION", true);
 
     std::string logs;
@@ -227,9 +232,9 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, ProbesCompilerDirectlyForOpti
 TEST_P(CompilerOptionSupportHelperFunctionalTests, BatchModeSupportMatchesDirectCompilerProbe) {
     const std::string batchModeOption = ov::intel_npu::batch_mode.name();
 
-    ::intel_npu::CompilerAdapterFactory factory;
+    const CompilerAdapterFactory factory{vcl_provider::processWide()};
     auto adapterCompilerType = compilerType;
-    std::unique_ptr<::intel_npu::ICompilerAdapter> compilerAdapter;
+    std::unique_ptr<ICompilerAdapter> compilerAdapter;
     OV_ASSERT_NO_THROW(compilerAdapter = factory.getCompiler(backend, adapterCompilerType, ""));
 
     bool supportedByCompiler = false;
@@ -321,8 +326,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
 // (DRIVER and PLUGIN), to verify the once_flag/cache map has no cross-key races or deadlocks.
 class CompilerOptionSupportHelperConcurrencyTests : public ov::test::behavior::OVPluginTestBase {
 protected:
-    ov::SoPtr<::intel_npu::IEngineBackend> backend;
-    std::unique_ptr<::intel_npu::CompilerOptionSupportHelper> helper;
+    ov::SoPtr<IEngineBackend> backend;
+    std::unique_ptr<CompilerOptionSupportHelper> helper;
 
     std::string targetDevice;
 
@@ -332,9 +337,10 @@ protected:
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
         OVPluginTestBase::SetUp();
 
-        backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper =
-            std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, ::intel_npu::CompilerAdapterFactory());
+        backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        helper = std::make_unique<CompilerOptionSupportHelper>(
+            backend,
+            std::make_shared<const CompilerAdapterFactory>(vcl_provider::processWide()));
     }
 
     void TearDown() override {

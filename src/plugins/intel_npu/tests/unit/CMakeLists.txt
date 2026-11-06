@@ -37,6 +37,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/internal
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include
@@ -47,6 +48,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_format_importers.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_source.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp

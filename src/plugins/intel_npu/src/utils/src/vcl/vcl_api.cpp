@@ -4,6 +4,7 @@
 
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 
+#include <exception>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
@@ -45,22 +46,27 @@ VCLLoader::VCLLoader(const std::string& library_dir) : _logger("VCLLoader", Logg
 #undef vcl_symbol_statement
 }
 
-const std::shared_ptr<const VCLLoader> VCLLoader::getInstance() {
-    static std::mutex mtx;
-    std::lock_guard<std::mutex> lock(mtx);
+VCLLoaderHolder::VCLLoaderHolder(const std::string& library_dir) : _library_dir(library_dir) {}
 
-    static std::shared_ptr<const VCLLoader> instance = nullptr;
-
-    if (!instance) {
-        const auto library_dir = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        if (library_dir.empty()) {
-            OPENVINO_THROW("VCLLoader instance has not been loaded yet, and no valid path was provided to load it.");
-        }
-        // Not make_shared: the loading constructor is private so that this is the only way to load.
-        instance = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
+std::shared_ptr<const VCLFunctionTable> VCLLoaderHolder::functions() const {
+    std::lock_guard<std::mutex> lock(_mutex);
+    if (_loadFailure) {
+        std::rethrow_exception(_loadFailure);
     }
-
-    return instance;
+    if (_loader == nullptr) {
+        try {
+            const auto library_dir =
+                _library_dir ? *_library_dir : ov::util::path_to_string(ov::util::get_ov_lib_path());
+            OPENVINO_ASSERT(!library_dir.empty(),
+                            "Cannot load the VCL compiler library: no library directory was given");
+            // The constructor is private, so make_shared is not an option here.
+            _loader = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
+        } catch (...) {
+            _loadFailure = std::current_exception();
+            throw;
+        }
+    }
+    return _loader->sharedFunctions();
 }
 
 }  // namespace intel_npu

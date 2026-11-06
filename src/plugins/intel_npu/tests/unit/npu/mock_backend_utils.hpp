@@ -1,0 +1,134 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <algorithm>
+#include <cctype>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "intel_npu/common/npu.hpp"
+#include "openvino/core/except.hpp"
+
+namespace npu_mock {
+
+/// What MockEngineBackend::getInitStructs() throws while failInitStructs is set.
+inline constexpr std::string_view kNoInitStructsMessage = "No Level Zero structures in the mock backend";
+
+class MockDevice final : public ::intel_npu::IDevice {
+public:
+    static constexpr uint64_t kAllocMemSize = 4096;
+
+    explicit MockDevice(std::string name = "4000") : _name(std::move(name)) {}
+
+    std::string getName() const override {
+        return _name;
+    }
+    std::string getFullDeviceName() const override {
+        return "Mock NPU " + _name;
+    }
+    uint64_t getAllocMemSize() const override {
+        return kAllocMemSize;
+    }
+    std::shared_ptr<::intel_npu::InferRequest> createInferRequest(
+        const std::shared_ptr<const ::intel_npu::ICompiledModel>&,
+        const ::intel_npu::Config&) override {
+        return nullptr;
+    }
+    void updateInfo(const ov::AnyMap&) override {}
+    bool validateCompatibilityDescriptor(const std::string&) const override {
+        return true;
+    }
+    DeviceProperties getDeviceProperties() const override {
+        return {};
+    }
+
+private:
+    std::string _name;
+};
+
+/// An engine backend over MockDevices, one per given name; no names means no devices, like in offline compilation.
+/// Mirrors the device lookup of ZeroEngineBackend: an empty id selects the first device, a number is an index when it
+/// is in range and a name otherwise, and an unknown name throws.
+class MockEngineBackend final : public ::intel_npu::IEngineBackend {
+public:
+    explicit MockEngineBackend(const std::vector<std::string>& deviceNames) {
+        for (const auto& name : deviceNames) {
+            _devices.push_back(std::make_shared<MockDevice>(name));
+        }
+    }
+
+    const std::shared_ptr<::intel_npu::IDevice> getDevice() const override {
+        return _devices.empty() ? nullptr : _devices.front();
+    }
+    const std::shared_ptr<::intel_npu::IDevice> getDevice(const std::string& name) const override {
+        if (_devices.empty()) {
+            return nullptr;
+        }
+        if (name.empty()) {
+            return getDevice();
+        }
+        if (std::all_of(name.begin(), name.end(), ::isdigit)) {
+            const auto index = static_cast<std::size_t>(std::stoul(name));
+            if (index < _devices.size()) {
+                return _devices[index];
+            }
+        }
+        for (const auto& device : _devices) {
+            if (device->getName() == name) {
+                return device;
+            }
+        }
+        OPENVINO_THROW("Could not find available NPU device with the specified name: NPU.", name);
+    }
+    const std::vector<std::string> getDeviceNames() const override {
+        std::vector<std::string> names;
+        for (const auto& device : _devices) {
+            names.push_back(device->getName());
+        }
+        return names;
+    }
+    const std::string getName() const override {
+        return "MOCK_BACKEND";
+    }
+    bool isCommandQueueExtSupported() const override {
+        return false;
+    }
+    bool isLUIDExtSupported() const override {
+        return luidExt;
+    }
+    bool isContextExtSupported() const override {
+        return contextExt;
+    }
+    void updateInfo(const ov::AnyMap& properties) override {
+        for (const auto& property : properties) {
+            updatedKeys.push_back(property.first);
+        }
+    }
+    const std::shared_ptr<::intel_npu::ZeroInitStructsHolder> getInitStructs() const override {
+        if (failInitStructs) {
+            OPENVINO_THROW(kNoInitStructsMessage);
+        }
+        return nullptr;
+    }
+
+    bool luidExt = false;
+    bool contextExt = false;
+    // The driver compiler adapter needs Level Zero structures. Failing here lets a test that ends up on the driver
+    // path observe that, instead of dereferencing missing structures.
+    bool failInitStructs = false;
+    // Keys of the properties passed to updateInfo(), in call order.
+    std::vector<std::string> updatedKeys;
+
+private:
+    std::vector<std::shared_ptr<MockDevice>> _devices;
+};
+
+}  // namespace npu_mock
