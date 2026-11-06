@@ -23,8 +23,11 @@ static void CreateCommonReshapeOp(ProgramBuilder& p, const std::shared_ptr<ov::N
 
     auto input_pshape = op->get_input_partial_shape(0);
     auto output_pshape = op->get_output_partial_shape(0);
+    
+    // The legacy cldnn::tensor path reads a 0 dim as "copy from input", so it cannot describe an empty output.
+    const bool empty_static_output = output_pshape.is_static() && ov::shape_size(output_pshape.to_shape()) == 0;
 
-    if (p.use_new_shape_infer() || op->is_dynamic()) {
+    if (p.use_new_shape_infer() || op->is_dynamic() || empty_static_output) {
         std::shared_ptr<cldnn::reshape> reshape_prim = nullptr;
         auto second_const_input = op->get_input_size() == 2 ? ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1)) : nullptr;
         std::vector<int64_t> output_pattern = {};
