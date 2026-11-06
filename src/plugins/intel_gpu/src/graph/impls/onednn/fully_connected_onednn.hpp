@@ -154,11 +154,13 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             const size_t scale_idx = fc_prim->bias.is_valid() ? 3 : 2;
             const size_t zp_idx = scale_idx + 1;
             const bool is_decompression_parameter =
-                ((fc_prim->decompression_scale.is_valid() && idx == scale_idx) ||
-                 (fc_prim->decompression_zero_point.is_valid() && idx == zp_idx)) &&
-                node.get_dependency(idx).is_type<input_layout>();
+                 ((fc_prim->decompression_scale.is_valid() && idx == scale_idx) ||
+                  (fc_prim->decompression_zero_point.is_valid() && idx == zp_idx));
             if (is_decompression_parameter) {
-                continue;
+                 in_fmts[idx] = node.get_input_layout(idx).format;
+                 GPU_DEBUG_LOG << node.id() << " : Keep scale/zp parameter format "
+                               << "at index " << idx << std::endl;
+                 continue;
             }
 
             auto target_format = format::get_default_format(out_rank);
