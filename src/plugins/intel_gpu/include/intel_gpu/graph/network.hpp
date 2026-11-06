@@ -185,6 +185,9 @@ public:
     std::vector<primitive_inst*> get_primitives(const std::vector<primitive_id>& ids);
     std::vector<std::pair<primitive_inst*, int>> get_primitives(const std::vector<std::pair<program_node*, int>>& nodes);
     void allocate_primitives();
+    // An instance of a node that may belong to another program, and its removal
+    std::shared_ptr<primitive_inst> add_primitive(const program_node& node);
+    void remove_primitive(const primitive_id& id);
     void configure_primitives_second_output();
     void build_insts_deps();
     uint32_t get_id() const { return net_id; }
