@@ -1140,6 +1140,7 @@ public:
             .WillByDefault(Return(ov::Any(std::string("test_cache_dir"))));
         ON_CALL(*core, get_property(_, StrEq(ov::cache_path.name()), _))
             .WillByDefault(Return(ov::Any(std::filesystem::path())));
+        ON_CALL(*core, device_supports_model_caching(_)).WillByDefault(Return(true));
         config.erase(ov::device::priorities.name());
         config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
         config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
@@ -1230,6 +1231,31 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_kept) {
     config.insert(ov::device::properties("CPU", ov::cache_dir("")));
     switch_between_devices(true);
     EXPECT_EQ(m_cpu_compile_count.load(), 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_caching_support_is_kept) {
+    ON_CALL(*core, device_supports_model_caching(StrEq(ov::test::utils::DEVICE_CPU))).WillByDefault(Return(false));
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_new_device_fails_to_compile) {
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault([](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&)
+                           -> ov::SoPtr<ov::ICompiledModel> {
+            OPENVINO_THROW("mock GPU.1 compile failure");
+        });
+    config.insert(ov::intel_auto::compile_for_all(true));
+    // GPU.1 fails on the switch away from CPU, and the fallback selects CPU again
+    expect_selected_devices({"GPU.0", "CPU", "GPU.1", "CPU"});
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 2);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_FALSE(m_cpu_model.expired());
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_never_released) {

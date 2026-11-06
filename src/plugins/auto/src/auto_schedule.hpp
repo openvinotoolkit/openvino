@@ -60,8 +60,9 @@ private:
     bool ensure_device_ready(DeviceInformation& device);
     /**
      * @brief Drop the compiled model and workers of a device that is no longer the active one.
-     * @note Only done with compile_for_all, which guarantees a model cache to reload from. The initial device is kept
-     * because it backs inputs()/outputs() and the property queries of the compiled model.
+     * @note Only done with compile_for_all, and only for devices that support model caching and have a cache location
+     * to reload from. The initial device is kept because it backs inputs()/outputs() and the property queries of the
+     * compiled model.
      */
     void release_inactive_device(const DeviceName& device_name);
     // disables the configured low_power_device override if it matches the failed device
@@ -87,6 +88,8 @@ private:
     DeviceName                                                           m_gate_current_device;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
     DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
+    // whether Core writes a cache blob for the device, queried once per device
+    DeviceMap<bool>                                                      m_device_supports_caching;
     std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
     std::atomic<size_t>                                                  m_dynamic_switch_count = {0};
 };

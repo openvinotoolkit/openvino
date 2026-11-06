@@ -862,7 +862,17 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
             : (m_context->m_low_power_device && m_context->m_low_power_device->device_name == device_name
                    ? m_context->m_low_power_device->config
                    : no_config);
-    if (CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name).empty()) {
+    auto supports_caching = m_device_supports_caching.find(device_name);
+    if (supports_caching == m_device_supports_caching.end()) {
+        bool supported = false;
+        try {
+            supported = m_context->m_ov_core->device_supports_model_caching(device_name);
+        } catch (const ov::Exception&) {
+        }
+        supports_caching = m_device_supports_caching.emplace(device_name, supported).first;
+    }
+    if (!supports_caching->second ||
+        CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name).empty()) {
         return;
     }
     auto& workers = m_worker_requests[device_name];
@@ -872,12 +882,17 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     if (workers.size() != 1 || !idle_workers.try_pop(worker)) {
         return;
     }
+    // the timings of these requests go with them, so the per-device summary of ~Schedule() no longer covers them
+    const size_t dropped_infer_count = workers.front().m_start_times.size();
     // the requests go first, they keep the compiled model alive
     workers.clear();
     idle_workers.set_capacity(0);
     m_infer_pipeline_tasks_device_specific[device_name] = nullptr;
     m_dynamic_compiled_models.erase(cached);
-    LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device_name.c_str());
+    LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released; the statistics of its %zu "
+                 "inferences are dropped from the final summary",
+                 device_name.c_str(),
+                 dropped_infer_count);
 }
 
 void AutoSchedule::release_execution_slot() {

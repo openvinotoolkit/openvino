@@ -16,7 +16,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <vector>
 #include "plugin.hpp"
 
 namespace ov {
