@@ -2789,3 +2789,83 @@ INSTANTIATE_TEST_SUITE_P(
         paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 },  // u4 BY_CHANNEL MIXED
         with_text_token_type_ids(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false })));  // f16 MIXED + token_type_ids
 #endif
+
+// GENERATE on a forced token-major K page of each kind (f16, i8 BY_TOKEN, i8 BY_CHANNEL, u4 BY_CHANNEL), wherever
+// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg on its opt-in lane (the SG8 reader, sdpa_ocl_hpg_decode.cl), whose
+// pages the layout rule does not make token-major yet. Every subsequence is one new token, so GENERATE is the only stage
+// that reads the cache (kv_cache_update writes the new token token-major first), and a d-major reader picked for the page
+// would throw in PagedAttentionOptImpl::update_rt_params() instead of passing. The cases cover M = 1 / 4 / 8 and a
+// leftover row, page and partition edges, several partitions, heads 64-512, k != v, a sliding window, a sink, a runtime
+// scale and dynamic padding; each also runs with a sharp softmax, under which a misread key is visible.
+class paged_attention_decode_tm_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_decode_tm_test, matches_reference) {
+    if (!cldnn::paged_attention::sdpa_ocl_decode_reader_available(engine.get_device_info()))
+        GTEST_SKIP() << "sdpa_ocl_decode does not serve this device";
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    this->pam->force_k_cache_token_major = true;
+    execute(p);
+}
+
+namespace {
+paged_attention_test_params decode_case(std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads, int k_head, int v_head,
+                                        bool compressed, ov::internal::CacheQuantMode mode,
+                                        ov::element::Type kv_precision = ov::element::dynamic) {
+    return paged_attention_test_params{ std::move(subsequences), heads, kv_heads, k_head, v_head, 16, 0, compressed, mode, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, kv_precision };
+}
+
+std::vector<paged_attention_test_params> decode_tm_cases() {
+    using QM = ov::internal::CacheQuantMode;
+    const auto f16 = [](std::vector<SubsequenceDescriptor> s, int h, int kvh, int kh, int vh) {
+        return decode_case(std::move(s), h, kvh, kh, vh, DISABLE_CACHE_COMPRESSION, QM::BY_TOKEN);
+    };
+    const auto i8_token = [](std::vector<SubsequenceDescriptor> s, int h, int kvh, int kh, int vh) {
+        return decode_case(std::move(s), h, kvh, kh, vh, ENABLE_CACHE_COMPRESSION, QM::BY_TOKEN);
+    };
+    const auto i8_channel = [](std::vector<SubsequenceDescriptor> s, int h, int kvh, int kh, int vh) {
+        return decode_case(std::move(s), h, kvh, kh, vh, ENABLE_CACHE_COMPRESSION, QM::BY_CHANNEL);
+    };
+    const auto u4 = [](std::vector<SubsequenceDescriptor> s, int h, int kvh, int kh, int vh) {
+        return decode_case(std::move(s), h, kvh, kh, vh, ENABLE_CACHE_COMPRESSION, QM::BY_CHANNEL, ov::element::u4);
+    };
+    const std::vector<paged_attention_test_params> base = {
+        f16({{1, 34}}, 2, 2, 64, 64),
+        f16({{1, 34}, {1, 515}, {1, 17}}, 8, 2, 64, 64),
+        f16({{1, 1}, {1, 15}, {1, 16}, {1, 255}, {1, 256}}, 4, 4, 128, 128),
+        f16({{1, 2047}}, 32, 8, 128, 128),
+        f16({{1, 700}}, 16, 2, 128, 128),
+        f16({{1, 300}}, 6, 2, 128, 128),
+        f16({{1, 515}}, 4, 1, 256, 256),
+        f16({{1, 515}}, 8, 1, 512, 512),
+        f16({{1, 100}}, 2, 2, 96, 96),
+        f16({{1, 300}}, 4, 2, 128, 64),
+        with_sliding_window(f16({{1, 600}, {1, 40}}, 4, 2, 128, 128), 300),
+        with_sliding_window(f16({{1, 1000}}, 4, 2, 64, 64), 64),
+        with_sinks(f16({{1, 300}, {1, 34}}, 4, 2, 64, 64)),
+        with_runtime_scale(f16({{1, 34}, {1, 515}}, 2, 2, 64, 64)),
+        with_dynamic_paddings(f16({{1, 34}, {1, 515}}, 8, 2, 64, 64)),
+        i8_token({{1, 34}, {1, 515}}, 8, 2, 64, 64),
+        i8_token({{1, 1000}}, 4, 4, 128, 128),
+        i8_token({{1, 300}}, 6, 2, 256, 256),
+        with_sliding_window(i8_token({{1, 600}}, 4, 2, 128, 128), 300),
+        i8_channel({{1, 34}, {1, 515}}, 8, 2, 64, 64),
+        i8_channel({{1, 1000}}, 32, 8, 128, 128),
+        i8_channel({{1, 300}}, 4, 1, 256, 256),
+        with_sinks(i8_channel({{1, 300}}, 4, 2, 128, 128)),
+        u4({{1, 34}}, 2, 2, 64, 64),
+        u4({{1, 515}, {1, 17}}, 8, 2, 128, 128),
+        u4({{1, 300}}, 4, 2, 256, 256),
+    };
+    std::vector<paged_attention_test_params> cases;
+    for (const auto& p : base) {
+        cases.push_back(p);
+        // A runtime scale and the sharpening gain are exclusive; the runtime-scale case is already sharp (x64).
+        if (!p.runtime_scale_multiplier.has_value())
+            cases.push_back(sharp_softmax(p));
+    }
+    return cases;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_decode_tm, paged_attention_decode_tm_test, ::testing::ValuesIn(decode_tm_cases()));

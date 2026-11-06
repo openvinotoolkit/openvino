@@ -46,6 +46,14 @@
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 
+#if SUBGROUP_SIZE == 8
+// The xe_hpg (SG8, no 2D block IO) reader takes the place of the kernel below (SDPAOclDecodeGenerator on xe_hpg).
+#include "sdpa_ocl_hpg_decode.cl"
+#  if !defined(SDPA_OCL_HPG_DECODE_INL)
+#    error "sdpa_ocl_decode.cl: sdpa_ocl_hpg_decode.cl was not inlined"
+#  endif
+#else
+
 #pragma OPENCL EXTENSION cl_intel_subgroup_matrix_multiply_accumulate : enable
 #pragma OPENCL EXTENSION cl_intel_subgroup_2d_block_io                : enable
 #pragma OPENCL EXTENSION cl_intel_subgroups                          : enable
@@ -1330,3 +1338,5 @@ KERNEL(sdpa_ocl_decode)(
         }
     }
 }
+
+#endif  // SUBGROUP_SIZE == 8

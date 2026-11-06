@@ -87,12 +87,13 @@ struct paged_attention : public primitive_base<paged_attention> {
     }
 
     // The devices whose K pages are token-major: Xe2+ with XMX (and oneDNN, which the sdpa_ocl lane is built with), where
-    // sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE), the kernels the layout is for, exist. Not xe_hpg (its opt-in lane
-    // has no sdpa_ocl_decode); every other device keeps the upstream d-major page. The device only, not the switches
-    // that turn those kernels off (TEST_USE_SDPA_OCL_HPG, TEST_USE_SDPA_OCL_DECODE, OV_GPU_ENABLE_SDPA_MICRO): the opt
+    // sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE), the kernels the layout is for, exist. Not xe_hpg yet: its opt-in
+    // lane has the SG8 GENERATE reader, but sdpa_ocl's MIXED does not read every kind of token-major page on SG8, so its
+    // pages stay d-major. Every other device keeps the upstream d-major page. The device only, not the switches that
+    // turn those kernels off (TEST_USE_SDPA_OCL_HPG, TEST_USE_SDPA_OCL_DECODE, OV_GPU_ENABLE_SDPA_MICRO): the opt
     // kernels that serve an op they refuse read the token-major page too.
     static bool k_token_major_device(const device_info& info) {
-        return sdpa_ocl_selected(info, false) && sdpa_ocl_decode_reader_available(info, true);
+        return sdpa_ocl_selected(info, false) && sdpa_ocl_decode_reader_available(info, true, false);
     }
 
     // The kinds of K page every consumer reads token-major, among them sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE): f16
@@ -182,14 +183,17 @@ struct paged_attention : public primitive_base<paged_attention> {
         return sdpa_ocl_selected(info, sdpa_ocl_hpg_enabled());
     }
 
-    // Whether sdpa_ocl_decode (the GENERATE reader of a token-major K page under the rule) can serve this device.
-    // Mirrors the device/switch part of SDPAOclDecodeGenerator::supported(), which calls this itself so the two cannot drift.
-    // Deliberately no HPG term and no oneDNN guard: the decode kernel is SG16 + 2D block IO and does not need oneDNN.
-    static bool sdpa_ocl_decode_reader_available(const device_info& info, bool decode_enabled) {
-        return decode_enabled && info.supports_immad && info.arch >= gpu_arch::xe2;
+    // Whether sdpa_ocl_decode (the GENERATE reader of a token-major K page) can serve this device: Xe2+ XMX (SG16 + 2D
+    // block IO), and xe_hpg with TEST_USE_SDPA_OCL_HPG=1 (the SG8 reader, sdpa_ocl_hpg_decode.cl). It only ever reads a
+    // page that is token-major (SDPAOclDecodeGenerator::supported() checks the cache shape), which on xe_hpg the layout
+    // rule does not make yet (k_token_major_device()). Mirrors the device/switch part of supported(), which calls this
+    // itself so the two cannot drift. No oneDNN guard: the decode kernel does not need oneDNN.
+    // The three-argument form is pure so a host test can walk the whole table; the one-argument form reads the process env.
+    static bool sdpa_ocl_decode_reader_available(const device_info& info, bool decode_enabled, bool hpg_opt_in) {
+        return decode_enabled && info.supports_immad && sdpa_ocl_arch_ok(info, hpg_opt_in);
     }
     static bool sdpa_ocl_decode_reader_available(const device_info& info) {
-        return sdpa_ocl_decode_reader_available(info, sdpa_ocl_decode_enabled());
+        return sdpa_ocl_decode_reader_available(info, sdpa_ocl_decode_enabled(), sdpa_ocl_hpg_enabled());
     }
 
     // The layout rule, the same for every kind of K page: whether a model's K cache of this precision and quant mode is
