@@ -184,6 +184,25 @@ updates:
   # Github actions - CI
   #
 
+  # CI and developer tooling Python dependencies
+  - package-ecosystem: pip
+    directories:
+      - "/.github/**/*"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Asia/Dubai"
+    assignees:
+      - "akashchi"
+      - "mryzhov"
+      - "akladiev"
+    open-pull-requests-limit: 5
+    versioning-strategy: increase-if-necessary
+    groups:
+      pip-ci-infrastructure:
+        patterns:
+          - "*"
+
   # Custom Github actions (Node.js)
   - package-ecosystem: npm
     directories:
