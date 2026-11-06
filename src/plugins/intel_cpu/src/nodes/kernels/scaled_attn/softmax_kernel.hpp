@@ -991,8 +991,7 @@ inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size
     // Process 4 FP32 elements at a time
     for (; i + vec_len_f32_neon <= size; i += vec_len_f32_neon) {
         // Load FP16 and convert to FP32
-        float16x4_t v_a_f16 = vld1_f16(reinterpret_cast<const float16_t*>(a + i));
-        v_a = vcvt_f32_f16(v_a_f16);
+        v_a = loadq_f32(a + i);
 
         // Compute in FP32
         v_a = vsubq_f32(v_a, v_max);
@@ -1000,8 +999,7 @@ inline void exp_reduce_sum_f32(ov::float16* a, const ov::float16 max, const size
         v_sum = vaddq_f32(v_sum, v_a);
 
         // Convert back to FP16 and store
-        float16x4_t v_result_f16 = vcvt_f16_f32(v_a);
-        vst1_f16(reinterpret_cast<float16_t*>(a + i), v_result_f16);
+        storeq_f32(a + i, v_a);
     }
 
     // Reduce sum
