@@ -53,6 +53,8 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/eltwise.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/extremum.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/extremum.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/gated_residual.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/gated_residual.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grid_sample.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grid_sample.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/identity.cpp
@@ -286,6 +288,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/eltwise.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/grid_sample.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/grouped_matmul_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/interpolate.cpp
@@ -672,6 +675,7 @@ set(TMP_LIST_OF_TEST_CLASSES
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/extremum.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/gated_residual.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grid_sample.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/identity.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/interpolate.cpp
