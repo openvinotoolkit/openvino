@@ -2793,8 +2793,8 @@ INSTANTIATE_TEST_SUITE_P(
 // GENERATE on a forced token-major K page of each kind (f16, i8 BY_TOKEN, i8 BY_CHANNEL, u4 BY_CHANNEL), wherever
 // sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg on its opt-in lane (the SG8 reader, sdpa_ocl_hpg_decode.cl), whose
 // pages the layout rule does not make token-major yet. Every subsequence is one new token, so GENERATE is the only stage
-// that reads the cache (kv_cache_update writes the new token token-major first), and a d-major reader picked for the page
-// would throw in PagedAttentionOptImpl::update_rt_params() instead of passing. The cases cover M = 1 / 4 / 8 and a
+// that reads the cache (kv_cache_update writes the new token token-major first). paged_attention_opt.cl reads a token-major
+// page too, so the test asks which kernel ran rather than relying on a refused op to fail. The cases cover M = 1 / 4 / 8 and a
 // leftover row, page and partition edges, several partitions, heads 64-512, k != v, a sliding window, a sink, a runtime
 // scale and dynamic padding; each also runs with a sharp softmax, under which a misread key is visible.
 class paged_attention_decode_tm_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -2805,7 +2805,14 @@ TEST_P(paged_attention_decode_tm_test, matches_reference) {
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
     this->pam->force_k_cache_token_major = true;
-    execute(p);
+    auto result = run_gpu_inference(*this->pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    ASSERT_NE(pa_inst->get_impl(), nullptr);
+    const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    ASSERT_NE(entries.find("sdpa_ocl_decode"), std::string::npos) << "kernels: " << entries;
+    const auto reference = PagedAttentionReference(*this->pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
 }
 
 namespace {
@@ -2926,7 +2933,7 @@ TEST_P(paged_attention_mixed_tm_test, matches_reference) {
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
     if (!sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
-        GTEST_SKIP() << "sdpa_ocl does not serve this PA op here, and no other MIXED kernel reads a token-major K page";
+        GTEST_SKIP() << "sdpa_ocl does not serve this PA op here (the suite checks sdpa_ocl's token-major readers)";
     this->pam->force_k_cache_token_major = true;
     auto result = run_gpu_inference(*this->pam, p);
     auto pa_inst = result.network->get_primitive("paged_attention");
