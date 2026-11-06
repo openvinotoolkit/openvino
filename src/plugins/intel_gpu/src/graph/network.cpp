@@ -406,7 +406,8 @@ void network::set_arguments() {
         if (!prim->is_dynamic()) {
             bool can_set_args = true;
             for (const auto& dep : prim->dependencies()) {
-                if (prim->is_output() && prim->type() == reorder::type_id() && dep.first->type() == stateless_kv::type_id()) {
+                // stateless_kv outputs are only bound at runtime; its users set args after that.
+                if (dep.first->type() == stateless_kv::type_id()) {
                     can_set_args = false;
                     break;
                 }
