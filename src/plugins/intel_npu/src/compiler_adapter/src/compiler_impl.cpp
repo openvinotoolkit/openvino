@@ -115,6 +115,7 @@ VCLCompilerImpl::VCLCompilerImpl(const std::shared_ptr<const VCLFunctionTable>& 
     compilerDesc.debugLevel = static_cast<__vcl_log_level_t>(static_cast<int>(Logger::global().level()) + 1);
 
     vcl_device_desc_t vclDeviceDesc = {};
+    vcl_device_desc_t* vclDeviceDescPtr = nullptr;
     if (deviceProperties.has_value()) {
         constexpr auto invalidRevision = std::numeric_limits<uint16_t>::max();
         const auto revision = deviceProperties->subdeviceId >= invalidRevision
@@ -132,17 +133,14 @@ VCLCompilerImpl::VCLCompilerImpl(const std::shared_ptr<const VCLFunctionTable>& 
                      deviceProperties->subdeviceId,
                      deviceProperties->numSlices);
         vclDeviceDesc = {sizeof(vcl_device_desc_t), deviceProperties->deviceId, revision, deviceProperties->numSlices};
+        vclDeviceDescPtr = &vclDeviceDesc;
     } else {
-        // This information cannot be determined during the initialization phase; set device desc default value, the
-        // related info will be processed in compile phase if passed by user.
-        _logger.info("Device description is not provided, using default values");
-        uint32_t defaultTileCount = std::numeric_limits<uint32_t>::max();
-        vclDeviceDesc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
+        _logger.info("Device description is not provided, passing a null device descriptor");
     }
 
     THROW_ON_FAIL_FOR_VCL(*_functions,
                           "vclCompilerCreate",
-                          _functions->vclCompilerCreate(&compilerDesc, &vclDeviceDesc, &_compilerHandle, &_logHandle),
+                          _functions->vclCompilerCreate(&compilerDesc, vclDeviceDescPtr, &_compilerHandle, &_logHandle),
                           nullptr);
     THROW_ON_FAIL_FOR_VCL(*_functions,
                           "vclCompilerGetProperties",
