@@ -1211,16 +1211,19 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactiv
         .WillByDefault(Return(ov::Any(supported_properties)));
     config.insert(ov::enable_profiling(true));
     config.insert(ov::intel_auto::compile_for_all(true));
-    expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU"});
+    expect_selected_devices({"GPU.0", "CPU", "GPU.0"});
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-    auto infer_request = compiled_model->create_infer_request();
-    // the AUTO request stays alive across the switches; the CPU compile mock checks the retired CPU objects expired
-    for (size_t i = 0; i < 3; i++) {
-        OV_ASSERT_NO_THROW(infer_request->infer());
-    }
-    EXPECT_EQ(m_cpu_compile_count.load(), 2);
-    OV_ASSERT_NO_THROW(infer_request->get_profiling_info());
+    // the first request ran on CPU and is kept alive without running again
+    auto cpu_request = compiled_model->create_infer_request();
+    OV_ASSERT_NO_THROW(cpu_request->infer());
+    EXPECT_FALSE(m_cpu_model.expired());
+    // a second request switches to GPU.0, which releases CPU
+    auto gpu_request = compiled_model->create_infer_request();
+    OV_ASSERT_NO_THROW(gpu_request->infer());
+    EXPECT_TRUE(m_cpu_model.expired());
+    EXPECT_TRUE(m_cpu_worker_request.expired());
+    OV_ASSERT_NO_THROW(cpu_request->get_profiling_info());
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_kept) {
