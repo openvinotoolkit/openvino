@@ -7,6 +7,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/cum_sum.hpp"
 #include "utils.hpp"
@@ -82,6 +83,11 @@ void CumSum::validate_and_infer_types() {
                           ").");
 
     // No axis input shape check for backward compatibility
+    const auto& data_rank = get_input_partial_shape(0).rank();
+    if (const auto axis = ov::util::get_constant_from_source(input_value(1));
+        axis && data_rank.is_static() && shape_size(axis->get_shape()) > 0) {
+        ov::util::validate_axis(axis->cast_vector<int64_t>(1).front(), data_rank, *this);
+    }
 }
 
 std::shared_ptr<Node> CumSum::clone_with_new_inputs(const OutputVector& new_args) const {
