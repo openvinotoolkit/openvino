@@ -1587,8 +1587,13 @@ subgroup reductions instead of an SLM tile plus an alpha rescale. Almost nothing
   previous choice: u4 head 64 (lfm2.5, llama-3.2-1b, minicpm4) 0.45-0.51x at 1-6 partitions and 0.83x at
   17-18; u4 head 128 llama-3.1-8b 0.82x/0.79x at 1K/4K, qwen3-8b 0.77x at 8K, phi-4-mini 0.82x at 1K and
   4K (with the rounded-up M). i8 loses with 16 once the GPU is full (head 64 1.26x and head 128 1.29x at
-  4K, against 0.85-0.89x at 1K), and head 96 measured mixed, so they keep 8. `SG_PER_WG`
-  must divide `SEQ_LEN_PARTITION_SIZE / SUBGROUP_SIZE` and not exceed the subgroup size.
+  4K, against 0.85-0.89x at 1K), so they keep 8. Head 96 MHA (phi-3.5) takes 16 since 2026-11-06: six
+  tiles split unevenly over 8 subgroups, so S*V reduces over key slots at 8 as well, and a one-head
+  workgroup is the cheapest there is. With the per-lane page reads of "Compressed pages block2d does not
+  take", 16 measured 0.85-0.98x the time of 8 from 700 to 13K keys for u4, i8 and f16 (probe), 1.06-1.09x
+  at 1.1K (5 partitions: 2560 threads, just over one wave of B70's 2048) and parity past 18K; with the
+  old byte gather it had measured mixed. `SG_PER_WG` must divide `SEQ_LEN_PARTITION_SIZE /
+  SUBGROUP_SIZE` and not exceed the subgroup size.
 - The cache is f16, i8 or u4. i8 only among the 8-bit types: the dequant widens the byte as signed,
   as `kv_cache_update` wrote it, so a u8 cache would decode with the wrong sign. i4 is rejected. qq_bias
   is accepted: one new token per sequence makes the tree mask the 1 x 1 identity, which plain causal
@@ -1598,8 +1603,8 @@ subgroup reductions instead of an SLM tile plus an alpha rescale. Almost nothing
   cliloader line; ocloc mispredicts it.
 - The key axis is split into partitions of `SEQ_LEN_PARTITION_SIZE`, and the kernel writes
   `pa_sdpa_finalization_stage`'s intermediates unchanged (see the contract at the top of the file).
-- S*V splits the head dim, not the keys: a subgroup that owns a head-dim tile reduces over every
-  key and produces a final result. The earlier key split left every subgroup holding a partial over
+- S*V splits the head dim, not the keys (except `V_PAGE_1D`, below): a subgroup that owns a head-dim
+  tile reduces over every key and produces a final result. The earlier key split left every subgroup holding a partial over
   all dims and cost a `SG_PER_WG * Q_PER_WG * V_HEAD_SIZE` SLM round trip — 16 KB at head 128, which
   capped Xe-core occupancy at 7 workgroups instead of 8. The DPAS and V-load counts are the same
   either way (16 per subgroup at head 128).
@@ -1642,6 +1647,64 @@ off, distance 1, 2 and 4 measured 1.1031e9, 1.0984e9 and 1.0958e9 ns, so the bar
 better place for them; the prefetches issued in the barrier wait account for 0.7 points of the
 2.1% win at distance 4.
 
+### Compressed pages block2d does not take (2026-11-06)
+
+A u4 row is `h / 2` (K) or `Align(h / 2, 16)` (V) bytes: 32 at head 64 and 48 at head 96, below the
+64-byte block2d minimum, and the i8 row of head 96 (96 bytes) fails the strict `% 64` rule. Those pages
+took the per-lane fallback, which is cheap for K (IGC merged the byte `vload8` into dword loads) but
+not for V: one byte gather per (token, lane), 16 messages per (tile, chunk), 128 `load.ugm.d8u32` per
+tile in the S*V loop of phi-3.5-mini (u4 and i8 head 96) against 8 block reads with block2d. This is
+what made `paged_attention_opt.cl` faster there ("Performance opportunities", the record-only
+comparison).
+
+- `V_PAGE_1D`: S*V splits the keys only (`SV_DIM_SGS` 1), so every subgroup owns every head-dim tile
+  of its chunks and reads the whole data region of each page with `V_PAGE_COLS = ROW / 16`
+  `intel_sub_group_block_read_uc16` reads -- the mapping of "u4 1D page read", with `t` and `c` both
+  compile-time, so nothing is read twice and both nibbles of a u4 byte feed their two tiles. The V
+  scale and zero point are loaded, folded and broadcast once per chunk instead of once per (tile,
+  chunk); that is why the 1D read also beat the V block read on i8 head 96 (2D K + 1D V 0.76-0.90x the
+  time of 2D K + 2D V with the head-dim split, probe). The partials of the `SG_PER_WG` key slots are summed per (tile, head
+  row), so all subgroups take part when `V_TILES * Q_PER_WG >= SG_PER_WG` (head 64 has 4 tiles and 16
+  subgroups); same order and multiply as the per-tile loop, so bit-identical to it. The key split
+  changes the summation order against the head-dim split (output bits differ, the probe's error
+  against the reference did not move on any of the 35 changed cases). The host takes it only where
+  its partial-output staging (`SG_PER_WG * Q_PER_WG * V_HEAD_SIZE` floats) does not cost M through
+  the local-memory clamp.
+- `K_LANE_TILES`: the per-lane K fallback of a compressed cache loads one dword vector per lane for
+  4 (u4) or 2 (i8) tiles, a divisor of `K_TILES`, the 32 bytes a transposed block read hands each
+  lane. Bit-identical (408 of 408 probe cases). On i8 head 96 it measured the same as the block read
+  the relaxed `% 16` page rule would allow (52.2 / 86.7 / 249.9 against 52.3 / 86.6 / 249.7 us at
+  2.3K / 4.5K / 18K keys), so `sdpa_ocl_decode` keeps the strict rule.
+- Head 96 MHA takes 16 subgroups (the `SG_PER_WG` bullet above).
+
+Probe (B70 1800 MHz, L2 flushed, median of 60 launches), HEAD -> this change: phi-3.5-mini (32 / 32,
+head 96) u4 58.2 / 93.8 / 257 -> 30.6 / 52.5 / 157 us and i8 BY_CHANNEL 74.2 / 117.5 / 316 -> 47.7 /
+82.0 / 247 us at 2.3K / 4.5K / 18K keys; llama-3.2-1b (32 / 8, head 64, u4) 40.8 / 62.6 / 117.6 ->
+25.2 / 38.5 / 69.5 us at 8.2K / 16K / 32.6K; gpt-oss-20b (64 / 8, head 64, u4) 51.5 / 146 -> 36.6 /
+102 us at 8.4K / 33.4K. Over every per-lane shape the host generates (u4 / i8 head 16..192, kv group
+1..8, 600 keys) no shape got slower (0.12-1.00x); spill fell where the old layout spilled (head 160 /
+192 at M = 8: 18.5-20 KB -> 0.4-3.5 KB) and appeared only on u4 head 192 at M = 4 (1.25 KB, 0.29x the
+time). Block2d shapes compile to the identical kernel (ISA compared: llama-3.1-8b u4 / i8 / f16, the
+gemma-4 head-512 low-register layout).
+
+On the models (cliloader device time per decode token, 128-token minus 1-token runs, B70 pinned at 1800
+MHz, two runs in reversed order agreeing within 1%), attention kernel time HEAD -> this change:
+phi-3.5-mini u4 0.60 / 0.60 / 0.68x at 2K / 4K / 16K, i8 BY_CHANNEL 0.66 / 0.68 / 0.74x, i8 BY_TOKEN
+0.63 / 0.67 / 0.75x, f16 0.98 / 0.99 / 1.00x (16 subgroups only: f16 is bandwidth-bound there, the probe's
+0.85x did not carry over); llama-3.2-1b u4 0.73 / 0.72 / 0.72 / 0.68x at 2K / 8K / 16K / 32K; gpt-oss-20b
+u4 0.93 / 0.84x at 8K / 32K; llama-3.1-8b u4 (block2d) 1.000x. Device time per token: phi-3.5-mini u4
+0.90 / 0.86 / 0.80x, llama-3.2-1b u4 0.96 / 0.92 / 0.89 / 0.82x, gpt-oss-20b 0.99 / 0.96x.
+
+End to end (`test/run_daily_bench.py` with the daily prompts, one (model, size) at a time, HEAD / this change / the
+opt kernel back to back in rotating order, B70 pinned at 1800 MHz, load <= 3.7 on 32 cores; 4-bit models, so a u4
+cache), second-token latency against HEAD: phi-3.5-mini 0.95 / 0.97 / 0.89 / 0.86 / 0.85 / 0.82 / 0.78 at 32 / 1K /
+2.2K / 4.5K / 9.2K / 17.9K / 36.6K tokens, phi-3.5-vision 0.88 / 0.82 / 0.75 at 2.2K / 9.2K / 36.6K, llama-3.2-1b
+0.97 / 0.97 / 0.97 / 0.94 / 0.93 / 0.90 / 0.84 at 32 / 1K / 2K / 4K / 8K / 16K / 32K, minicpm4-0.5b 0.97 / 0.97 /
+0.94 / 0.92 (32 / 1K / 4.4K / 17K), gpt-oss-20b 1.00 / 0.99 / 0.99 / 0.96 (32 / 1K / 8K / 32K); llama-3.1-8b (block2d,
+the control) 0.993-0.997 with identical output MD5s. The opt kernel against this change: phi-3.5 1.00-1.15, llama-3.2-1b
+1.00-1.09, minicpm4-0.5b 1.02-1.14, gpt-oss-20b 1.02-1.34. First-token latency within 1% except 32-token prompts
+(0.98-1.03). phi-3.5's outputs differ between the iterations of one prompt in every build, so MD5 is no oracle there.
+
 ## Debug and bisection switches
 
 All are read on the host when the kernel is compiled.
@@ -1673,6 +1736,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
 | `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths |
 | `SDPA_OCL_DECODE_LOW_REG` | Decode low-register layout: `0`/`1` forces it off/on (bit-identical either way) |
+| `SDPA_OCL_DECODE_V_PAGE_1D`, `_K_LANE_TILES` | Decode per-lane pages: `0` restores the V byte gather and the head-dim split; K tiles per per-lane load, 1 / 2 / 4 dividing the tile count (bit-identical) |
 | `OV_GPU_PA_K_TOKEN_MAJOR` | K cache layout ("Paged-attention cache layouts"): `0` every page d-major (MIXED then runs `pa_multi_token`, GENERATE the opt kernels), unset the rule. `1` and `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` are retired and rejected |
 | `OV_GPU_PA_K_TM_BREAK=<consumer>` | Forces one consumer back to the d-major read, to test whether a suite observes it |
 
@@ -2195,7 +2259,10 @@ Each needs its own measured change.
   head's workgroup reads its whole KV head now, as in `sdpa_micro`) would go past `sdpa_micro` on GQA. bf16, compressed
   K / V, `d_max` 32 and Xe3 keep the table tile, unmeasured with this one.
 - `sdpa_ocl_decode` checks pages with the strict `% 64` rule. The relaxed `% 16` page rule of the
-  MIXED kernel would give block reads to i8 heads 80, 96, 112 and f16 heads 48, 80.
+  MIXED kernel would give block reads to i8 heads 80, 96, 112 and f16 heads 48, 80. For i8 head 96 it
+  would not pay: the per-lane K read with `K_LANE_TILES` measured the same as the K block read, and the
+  `V_PAGE_1D` read beat the V block read ("Compressed pages block2d does not take"). f16 heads 48 / 80
+  are unmeasured.
 - An op the DPAS kernels refuse on Xe2 (alibi, scores output, adaptive R-KV, a head size either rejects) runs
   `paged_attention_opt.cl` on the token-major page. Its i8 BY_TOKEN K read there is a per-lane `vload16`, 10% slower
   than the d-major read in `pa_gqa_single_token` at 4K / 16K ("Token-major K page by a static rule (2026-11-06)"); a
@@ -2219,6 +2286,11 @@ Each needs its own measured change.
   gemma-2-9b, gemma-3-4b and qwen3.5-9b are within 0.99-1.02 (gemma-2-9b 1.06 at 2K). The first-token latency, the
   control, was within 1.5% except phi-3.5-mini's 32-token prompt (0.96). Not measured: batch > 1, i8 and f16 caches end
   to end. Routing head 96 or long contexts to the opt kernel, or fixing `sdpa_ocl_decode` there, was left open.
+  Since the per-lane page reads ("Compressed pages block2d does not take", 2026-11-06; same cliloader method), the opt
+  kernel takes 1.00 / 1.18 / 1.17x the attention time of `sdpa_ocl_decode` on phi-3.5-mini with u4 at 2K / 4K / 16K,
+  1.26-1.32x with i8 BY_CHANNEL and 1.31-1.39x with i8 BY_TOKEN; f16, block2d before and after, stays at 0.87 / 0.99 /
+  1.00x. llama-3.2-1b (u4): 1.71 / 1.05 / 1.01 / 1.07x at 2K / 8K / 16K / 32K. End to end the opt kernel is now
+  1.00-1.15 on phi-3.5-mini / vision and 1.00-1.09 on llama-3.2-1b (second-token latency, same method).
 - A small GQA MIXED step on a token-major page runs `sdpa_ocl` below the `pa_small_q_opt.cl` threshold, 1.9-3.6x the
   time the opt GQA fallback took there ("Paged-attention cache layouts"); a few-query `sdpa_ocl` MIXED tiling would serve
   every cache kind.
@@ -2233,7 +2305,9 @@ Each needs its own measured change.
   an i8 cache 16 subgroups took 0.85-0.89x the GENERATE device time of 8 at 1-5 partitions and
   1.26-1.29x at 16-17 (heads 64 and 128, B70), so i8 keeps 8 and gives up the short-context gain.
   Building both variants and choosing per dispatch from `num_of_partitions` against the device's
-  thread count would keep both.
+  thread count would keep both. The same holds with the per-lane page reads (probe, 2026-11-06): u4
+  head 64 at kv group 4 (llama-3.2-1b) is 0.81-0.88x with 16 at 300-2.3K keys and 1.01-1.16x from 4.3K,
+  so it keeps the 16 of the u4 rule; head 96 MHA loses 6-9% with 16 at 1.1K only.
 - `PREFETCH_V` at `d_max` <= 256 still asks for each 256 B L3 line up to four times (a 64 B wide block prefetch).
   `PREFETCH_V_L3` in its place lost 1-5%, but that also stopped filling L1; one request per line into L1 and L3
   (`L1C_L3C` at a 256 B stride) was measured at `d_max` 512 only (+1.2% / -8.9% at 8K / 32K there).

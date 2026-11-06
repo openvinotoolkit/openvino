@@ -32,6 +32,11 @@ struct decode_config {
     size_t v_row_bytes = 0;
     int k_2d = 0;  // after the SDPA_OCL_DECODE_K_2D / _V_2D bisection overrides
     int v_2d = 0;
+    // Compressed K without block reads: tiles per per-lane load (K_LANE_TILES), a divisor of the tile count.
+    size_t k_lane_tiles = 1;
+    // Compressed V without block reads may take whole-page 1D reads with a key-only S*V split (V_PAGE_1D);
+    // q_tiling_for() makes the final call, as it must not cost M.
+    bool v_page_1d_ok = false;
 };
 
 decode_config make_decode_config(const RuntimeParams& params) {
@@ -48,13 +53,38 @@ decode_config make_decode_config(const RuntimeParams& params) {
     // head_size % 32 == 0, i8 % 64 and u4 K % 128 (u4 V is aligned up to 16).
     c.k_2d = env_int("SDPA_OCL_DECODE_K_2D", block2d_surface_ok(c.k_row_bytes) ? 1 : 0);
     c.v_2d = env_int("SDPA_OCL_DECODE_V_2D", block2d_surface_ok(c.v_row_bytes) ? 1 : 0);
+
+    // The per-lane fallback of a compressed K loads a dword vector per lane covering several tiles (u4: 2
+    // dwords a tile, up to 4 tiles; i8: 4 dwords a tile, up to 2), the same 32 bytes a block read hands
+    // each lane. Bit-identical: the tiles still feed the DPAS in ascending order. Measured on B70 against
+    // one load per tile: u4 head 64 -13% (llama-3.2-1b shape, 32K keys), u4 / i8 head 96 -5 / -11%.
+    if (c.compressed && c.k_2d == 0) {
+        const size_t k_tiles = desc->k_head_size / dpas_k;
+        size_t n = c.kv_u4 ? 4 : 2;
+        while (n > 1 && k_tiles % n != 0) {
+            n /= 2;
+        }
+        // Tuning / bisection override: 1, 2 or 4 where it divides the tile count.
+        if (const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_K_LANE_TILES", 0));
+            (requested == 1 || requested == 2 || requested == 4) && k_tiles % requested == 0) {
+            n = requested;
+        }
+        c.k_lane_tiles = n;
+    }
+    // A compressed V row block2d does not take (u4 head 64 / 96: 32- / 48-byte rows; i8 head 96 under the
+    // strict rule) is otherwise read one byte per (token, lane, tile). The 1D reads need whole 16-byte
+    // column groups. SDPA_OCL_DECODE_V_PAGE_1D=0 restores the gather (bisection).
+    c.v_page_1d_ok = c.compressed && c.v_2d == 0 && c.v_row_bytes % subgroup_size == 0 && env_int("SDPA_OCL_DECODE_V_PAGE_1D", 1) != 0;
     return c;
 }
 
 // How many of the workgroup's subgroups split the V head-dim axis during S*V; the rest split the keys, and
 // only those produce partial outputs to reduce. A power of two, so every dim subgroup gets an equal share
-// (v_tiles itself can be 3, e.g. head 48).
-size_t get_sv_dim_sgs(size_t sg_per_wg, size_t v_tiles) {
+// (v_tiles itself can be 3, e.g. head 48). V_PAGE_1D splits the keys only: each subgroup reads whole pages.
+size_t get_sv_dim_sgs(size_t sg_per_wg, size_t v_tiles, bool v_page_1d) {
+    if (v_page_1d) {
+        return 1;
+    }
     size_t d = 1;
     while (d * 2 <= std::min(sg_per_wg, v_tiles)) {
         d *= 2;
@@ -122,15 +152,16 @@ bool v_twin_pair_legal(const RuntimeParams& params, const decode_config& c, size
     const auto desc = params.typed_desc<paged_attention>();
     const size_t v_tiles = desc->v_head_size / subgroup_size;
     const size_t v_reads = c.v_row_bytes / subgroup_size;
-    return c.kv_u4 && c.v_2d != 0 && v_tiles == 2 * v_reads && v_reads % get_sv_dim_sgs(sg_per_wg, v_tiles) == 0;
+    return c.kv_u4 && c.v_2d != 0 && v_tiles == 2 * v_reads && v_reads % get_sv_dim_sgs(sg_per_wg, v_tiles, false) == 0;
 }
 
 // Local memory the kernel declares for a given M. The output staging term vanishes whenever one subgroup
 // per head-dim tile covers all the keys (v_tiles >= sg_per_wg). The low-register layout adds the query
-// (M halves per head dim) and, for a compressed cache, the staged V zero points.
-size_t slm_bytes_for(size_t m, size_t sg_per_wg, size_t k_head_size, size_t v_head_size, bool low_reg, bool compressed) {
+// (M halves per head dim) and, for a compressed cache, the staged V zero points. V_PAGE_1D stages a partial
+// output per subgroup.
+size_t slm_bytes_for(size_t m, size_t sg_per_wg, size_t k_head_size, size_t v_head_size, bool low_reg, bool compressed, bool v_page_1d) {
     const size_t v_tiles = v_head_size / subgroup_size;
-    const size_t key_sgs = sg_per_wg / get_sv_dim_sgs(sg_per_wg, v_tiles);
+    const size_t key_sgs = sg_per_wg / get_sv_dim_sgs(sg_per_wg, v_tiles, v_page_1d);
     const size_t slm_p = m * pa_seq_len_partition_size * sizeof(uint16_t);
     const size_t slm_out = (key_sgs > 1) ? key_sgs * m * v_head_size * sizeof(float) : 0;
     const size_t slm_max_sum = 2 * sg_per_wg * m * sizeof(float);
@@ -144,11 +175,18 @@ struct q_tiling {
     size_t m = 1;
     // The low-register layout. Bit-identical output: it only moves data out of registers.
     bool low_reg = false;
+    // V_PAGE_1D, whose key-only S*V split stages SG_PER_WG partial outputs in local memory.
+    bool v_page_1d = false;
 };
 
-q_tiling q_tiling_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+q_tiling q_tiling_with(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg, bool v_page_1d) {
     const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
+    // K_LANE_TILES stays out of the count on purpose, so M comes out as without it. Checked on B70 over the
+    // shapes the host generates with it and V_PAGE_1D (u4 / i8 head 16..192, kv group 1..8): spill stayed
+    // or fell everywhere (head 160 / 192 at M = 8: 18.5-20 KB -> 0.4-3.5 KB) except u4 head 192 at M = 4
+    // (0 -> 1.25 KB, still 0.29x the time), and no shape got slower. V_PAGE_1D's accumulators live only
+    // after the KQ loop.
     const size_t k_tiles_per_read = (c.kv_u4 && c.k_2d) ? 4 : ((c.compressed && c.k_2d) ? 2 : 1);
     const bool twin = v_twin_pair_legal(params, c, sg_per_wg);
 
@@ -167,6 +205,7 @@ q_tiling q_tiling_for(const RuntimeParams& params, const decode_config& c, size_
     }
 
     q_tiling q;
+    q.v_page_1d = v_page_1d;
     // The override bypasses the register caps, so configurations the heuristic rejects stay reachable, but
     // not the local-memory clamp, which guards the build.
     const auto requested = static_cast<size_t>(env_int("SDPA_OCL_DECODE_M", 0));
@@ -202,10 +241,23 @@ q_tiling q_tiling_for(const RuntimeParams& params, const decode_config& c, size_
 
     // An over-budget kernel does not build at all; half the arena keeps occupancy up as well.
     const size_t budget = params.get_device_info().max_local_mem_size / 2;
-    while (q.m > 1 && slm_bytes_for(q.m, sg_per_wg, desc->k_head_size, desc->v_head_size, q.low_reg, c.compressed) > budget) {
+    while (q.m > 1 && slm_bytes_for(q.m, sg_per_wg, desc->k_head_size, desc->v_head_size, q.low_reg, c.compressed, q.v_page_1d) > budget) {
         q.m /= 2;
     }
     return q;
+}
+
+q_tiling q_tiling_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
+    const q_tiling gather = q_tiling_with(params, c, sg_per_wg, false);
+    if (!c.v_page_1d_ok) {
+        return gather;
+    }
+    // V_PAGE_1D only where its partial-output staging does not cost M (a large head with M = 8 at 16
+    // subgroups can push past the local-memory budget): the redundancy M avoids outweighs the gather.
+    // Measured on B70 against the gather, both at the shape's M: u4 head 96 MHA (phi-3.5) -36..-39%, u4
+    // head 64 at kv group 4 (llama-3.2-1b) -27..-30% and 8 (gpt-oss) -13..-15%, i8 head 96 MHA -17..-24%.
+    const q_tiling page = q_tiling_with(params, c, sg_per_wg, true);
+    return page.m >= gather.m ? page : gather;
 }
 
 size_t q_per_wg_for(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
@@ -223,6 +275,13 @@ size_t sg_per_wg_for(const RuntimeParams& params, const decode_config& c) {
     const size_t v_tiles = desc->v_head_size / subgroup_size;
     size_t value = 8;
     if (v_tiles >= 16 || (c.kv_u4 && (v_tiles == 4 || v_tiles == 8) && q_per_wg_for(params, c, 16) >= 4)) {
+        value = 16;
+    }
+    // Head 96 MHA (phi-3.5): six tiles split unevenly over 8 subgroups, so S*V reduces over key slots at 8
+    // as well, and a one-head workgroup is the cheapest there is. 16 measured 0.85-0.98x the time of 8 from
+    // 700 to 13K keys for u4, i8 and f16 alike, except 1.06-1.09x at 1.1K (5 partitions: 2560 threads,
+    // just over one wave of B70's 2048), and parity past 18K.
+    if (v_tiles == 6 && desc->heads_num == desc->kv_heads_num) {
         value = 16;
     }
 
@@ -330,7 +389,9 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
     const auto q = q_tiling_for(params, c, sg_per_wg);
     jit.make("Q_PER_WG", q.m);
     jit.make("HEAD_ITERS", ceil_div(kv_group_size, q.m));
-    jit.make("SV_DIM_SGS", get_sv_dim_sgs(sg_per_wg, desc->v_head_size / subgroup_size));
+    jit.make("SV_DIM_SGS", get_sv_dim_sgs(sg_per_wg, desc->v_head_size / subgroup_size, q.v_page_1d));
+    jit.make("V_PAGE_1D", q.v_page_1d ? 1 : 0);
+    jit.make("K_LANE_TILES", c.k_lane_tiles);
 
     // The low-register layout and the two S*V savings that ride with it, each where it applies.
     jit.make("Q_IN_SLM", q.low_reg ? 1 : 0);
