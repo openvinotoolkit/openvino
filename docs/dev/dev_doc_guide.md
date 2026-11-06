@@ -52,7 +52,7 @@ The section contains a list of component tutorials.
 Example:
  * [How to support new operation](./docs/operation_support.md)
  * [How to implement new feature](./docs/new_feature.md)
- * [How to debug the component](./docs/debug_capabilities.md)
+ * [How to debug the component](./debug_capabilities.md)
  * ...
 
 ## See also
