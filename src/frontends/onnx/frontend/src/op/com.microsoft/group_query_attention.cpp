@@ -31,7 +31,7 @@ using ov::frontend::onnx::attention::get_dimensions;
 namespace opset_1 {
 ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     constexpr size_t inputs_count_min = 7;   // Taken from ONNX spec
-    constexpr size_t inputs_count_max = 17;  // Taken from ONNX spec
+    constexpr size_t inputs_count_max = 17;  // 16 from ONNX spec + query_seqlens (ORT contrib-op extension)
     constexpr size_t query_seqlens_index = 16;
 
     // Minimum required inputs basing on the spec and ONNX Runtime code: 7

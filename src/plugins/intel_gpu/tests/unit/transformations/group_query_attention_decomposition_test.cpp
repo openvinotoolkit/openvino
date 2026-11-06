@@ -87,7 +87,9 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
-    ov::OutputVector inputs(17);
+    // query_seqlens (input 16) is appended only when wired, matching the ONNX FE: models without it keep a
+    // 16-input op instead of a 17-input op with an empty placeholder at 16.
+    ov::OutputVector inputs(cfg.query_seqlens ? 17 : 16);
     inputs[0] = query;
     inputs[1] = key;
     inputs[2] = value;
@@ -104,8 +106,6 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
         auto query_seqlens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
         inputs[16] = query_seqlens;
         parameters.push_back(query_seqlens);
-    } else {
-        inputs[16] = ov::op::v0::Constant::create(f32, ov::Shape{0}, {});
     }
 
     if (cfg.attention_bias) {
