@@ -37,22 +37,10 @@ _classes_lock = threading.Lock()
 _STORAGE = {4: "uint8", 8: "int8"}
 
 
-def _unpack_int4(packed):
-    """Symmetric int4 -> int8 in [-8, 7], gaining a trailing dim of 2.
-
-    Low nibble of byte k first, as NNCF packs; the -8 undoes the unsigned bias.
-    """
-    import torch
-
-    low = torch.bitwise_and(packed, 15)
-    high = torch.bitwise_right_shift(packed, 4)
-    return torch.stack((low, high), dim=-1).type(torch.int8) - 8
-
-
 def _unpack_uint4(packed):
     """Asymmetric int4 -> uint8 in [0, 15], gaining a trailing dim of 2.
 
-    Same nibble order as `_unpack_int4`; the offset lives in a zero point.
+    Low nibble of byte k first, as NNCF packs; the offset lives in a zero point.
     """
     import torch
 
@@ -61,7 +49,14 @@ def _unpack_uint4(packed):
     return torch.stack((low, high), dim=-1)
 
 
-def _dequantize(qweight, scale, bits, group_size, out_dtype, zero_point=None):
+def _unpack_int4(packed):
+    """Symmetric int4 -> int8 in [-8, 7]; the -8 undoes the unsigned bias."""
+    import torch
+
+    return _unpack_uint4(packed).type(torch.int8) - 8
+
+
+def _dequantize(qweight, scale, bits, out_dtype, zero_point=None):
     """Decompress to a dense [out, in] weight in `out_dtype`.
 
     Multiply in the scale's dtype and cast after, and subtract `zero_point`
@@ -76,22 +71,14 @@ def _dequantize(qweight, scale, bits, group_size, out_dtype, zero_point=None):
         in_features = qweight.shape[1]
         weight = qweight
 
-    if group_size > 0:
-        groups = scale.shape[1]
-        weight = weight.reshape(out_features, groups, in_features // groups)
-        weight = weight.type(scale.dtype)
-        if zero_point is not None:
-            weight = weight - zero_point.type(scale.dtype).unsqueeze(-1)
-        weight = weight * scale.unsqueeze(-1)
-        weight = weight.reshape(out_features, in_features)
-    else:
-        # Per output channel: scale is [out, 1] and broadcasts as stored.
-        weight = weight.reshape(out_features, in_features)
-        weight = weight.type(scale.dtype)
-        if zero_point is not None:
-            weight = weight - zero_point.type(scale.dtype)
-        weight = weight * scale
-    return weight.type(out_dtype)
+    # scale is [out, groups]; per output channel is the groups == 1 case.
+    groups = scale.shape[1]
+    weight = weight.reshape(out_features, groups, in_features // groups)
+    weight = weight.type(scale.dtype)
+    if zero_point is not None:
+        weight = weight - zero_point.type(scale.dtype).unsqueeze(-1)
+    weight = weight * scale.unsqueeze(-1)
+    return weight.reshape(out_features, in_features).type(out_dtype)
 
 
 def _define_classes():
@@ -268,7 +255,7 @@ def _define_classes():
         def apply(self, layer, inputs, bias=None):
             config = self.quant_config
             weight = _dequantize(
-                layer.qweight, layer.scale, config.bits, config.group_size,
+                layer.qweight, layer.scale, config.bits,
                 layer.nncf_out_dtype,
                 zero_point=None if config.sym else layer.zero_point)
             return functional.linear(inputs, weight, bias)

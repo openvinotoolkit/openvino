@@ -257,17 +257,7 @@ def _patch_cpu_model_runner():
         # Flip _supports_onednn before load so vLLM's FC layers see it built.
         # else restores it for a later non-OV model in the same process.
         is_ov = _ov_active(self)
-        if is_ov:
-            try:
-                import vllm._custom_ops as _ops
-                if not getattr(_ops, "_ov_plugin_onednn_disabled", False):
-                    _ops._ov_plugin_onednn_saved = getattr(_ops, "_supports_onednn", True)
-                    _ops._supports_onednn = False
-                    _ops._ov_plugin_onednn_disabled = True
-                    logger.debug("[OV plugin] _supports_onednn forced False (backend=openvino)")
-            except Exception as _e:
-                logger.debug("[OV plugin] _supports_onednn flip skipped: %s", _e)
-        else:
+        if not is_ov:
             try:
                 import vllm._custom_ops as _ops
                 if getattr(_ops, "_ov_plugin_onednn_disabled", False):
@@ -276,18 +266,25 @@ def _patch_cpu_model_runner():
                     logger.debug("[OV plugin] _supports_onednn restored (backend != openvino)")
             except Exception as _e:
                 logger.debug("[OV plugin] _supports_onednn restore skipped: %s", _e)
-
-        if is_ov:
-            _check_layername()
-            _warn_if_unpinned()
-            # vLLM picks each Linear's CPU kernel while loading weights, so the
-            # SGL kernel is turned off for exactly this model's load.
-            with _sgl_kernel_disabled():
-                _orig_load_model(self, load_dummy_weights)
-        else:
             _orig_load_model(self, load_dummy_weights)
-        if not is_ov:
             return
+
+        try:
+            import vllm._custom_ops as _ops
+            if not getattr(_ops, "_ov_plugin_onednn_disabled", False):
+                _ops._ov_plugin_onednn_saved = getattr(_ops, "_supports_onednn", True)
+                _ops._supports_onednn = False
+                _ops._ov_plugin_onednn_disabled = True
+                logger.debug("[OV plugin] _supports_onednn forced False (backend=openvino)")
+        except Exception as _e:
+            logger.debug("[OV plugin] _supports_onednn flip skipped: %s", _e)
+
+        _check_layername()
+        _warn_if_unpinned()
+        # vLLM picks each Linear's CPU kernel while loading weights, so the
+        # SGL kernel is turned off for exactly this model's load.
+        with _sgl_kernel_disabled():
+            _orig_load_model(self, load_dummy_weights)
 
         # "vllm": True turns on every vLLM-required flag (see preset.py).
         # Precision keys are deliberately absent: derived per-model dtype.
@@ -322,7 +319,6 @@ def _patch_cpu_model_runner():
         except Exception as _e:
             logger.debug("[OV plugin] sampler install skipped: %s", _e)
 
-        import torch
         try:
             import openvino.torch  # noqa: F401  (registers backend)
         except Exception as e:
@@ -333,7 +329,7 @@ def _patch_cpu_model_runner():
         # the wide mask at creation.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_aff
-            _vh_aff.widen_affinity_if_needed(None)
+            _vh_aff.widen_affinity_if_needed()
         except Exception as _e:
             logger.debug("[OV plugin] affinity widen skipped: %s", _e)
 
@@ -621,10 +617,7 @@ def _patch_lazy_kv_cache():
 
         def _maybe_lazy_zeros(*a, **kw):
             size = a[0] if a else kw.get("size")
-            try:
-                nbytes = size if isinstance(size, int) else None
-            except Exception:
-                nbytes = None
+            nbytes = size if isinstance(size, int) else None
             if nbytes is not None and nbytes >= _LAZY_KV_MIN_BYTES:
                 return torch.empty(*a, **kw)
             return real_zeros(*a, **kw)

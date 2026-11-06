@@ -56,8 +56,6 @@ def _build_native_sampler(vocab: int, top_k: int):
     logits[B,V] + temperature[B] -> sampled_token[B] via Gumbel-max: scale,
     topk(k), softmax, add Gumbel noise, argmax over k, gather the winner.
     """
-    import numpy as np
-    import openvino as ov
     from openvino import opset13 as op
     from openvino import Type, PartialShape, Model, Core
 
@@ -94,16 +92,9 @@ def _build_native_sampler(vocab: int, top_k: int):
 def _build_fused_sampler():
     import torch
 
-    def _top_p_only(logits, temperature, top_k, top_p, exp_noise):
-        # top_k covers the vocab here, so there is no k-th boundary to tie at.
-        scaled = logits / temperature.unsqueeze(-1)
-        max_k = top_k.max()
-        vocab_size = logits.shape[-1]
-        max_k_c = torch.clamp(max_k, max=vocab_size)
-        topk_vals, topk_idx = torch.topk(scaled, k=max_k_c, dim=-1, sorted=True)
-        col_idx = torch.arange(max_k_c, device=logits.device).unsqueeze(0)
-        keep_k = col_idx < top_k.unsqueeze(-1)
-        topk_softmax = torch.softmax(topk_vals, dim=-1)
+    def _sample_top_p(topk_vals, topk_idx, k_vals, keep_k, col_idx, top_p, exp_noise):
+        # Top-p over the top-k survivors `k_vals`, then a Gumbel-max draw among what's kept.
+        topk_softmax = torch.softmax(k_vals, dim=-1)
         cumprob = torch.cumsum(topk_softmax, dim=-1)
         keep_p = (cumprob - topk_softmax) < top_p.unsqueeze(-1)
         keep_p = keep_p | (col_idx == 0)
@@ -116,6 +107,17 @@ def _build_fused_sampler():
         sampled = torch.gather(topk_idx, dim=-1, index=winner).squeeze(-1)
         return sampled.to(torch.int64)
 
+    def _top_p_only(logits, temperature, top_k, top_p, exp_noise):
+        # top_k covers the vocab here, so there is no k-th boundary to tie at.
+        scaled = logits / temperature.unsqueeze(-1)
+        max_k = top_k.max()
+        vocab_size = logits.shape[-1]
+        max_k_c = torch.clamp(max_k, max=vocab_size)
+        topk_vals, topk_idx = torch.topk(scaled, k=max_k_c, dim=-1, sorted=True)
+        col_idx = torch.arange(max_k_c, device=logits.device).unsqueeze(0)
+        keep_k = col_idx < top_k.unsqueeze(-1)
+        return _sample_top_p(topk_vals, topk_idx, topk_vals, keep_k, col_idx, top_p, exp_noise)
+
     def _with_top_k(logits, temperature, top_k, top_p, exp_noise):
         scaled = logits / temperature.unsqueeze(-1)
         vocab_size = logits.shape[-1]
@@ -123,27 +125,16 @@ def _build_fused_sampler():
         # vLLM's top-k keeps every logit tied with the k-th largest, so look a little past k for ties.
         window = torch.clamp(top_k_c.max() + _TOPK_TIE_WINDOW, max=vocab_size)
         topk_vals, topk_idx = torch.topk(scaled, k=window, dim=-1, sorted=True)
-        neg_inf = torch.full_like(topk_vals, float("-inf"))
         kth = torch.gather(topk_vals, -1, (top_k_c - 1).unsqueeze(-1).to(torch.int64))
         keep_k = topk_vals >= kth
         # Ties may run past the window if its last column still ties (finite k-th only; -inf ties
         # carry no probability): the caller hands the step to vLLM.
         last_ties = (topk_vals[:, -1:] >= kth) & (window < vocab_size)
         overflow = last_ties & torch.isfinite(kth)
-        k_vals = torch.where(keep_k, topk_vals, neg_inf)
-        topk_softmax = torch.softmax(k_vals, dim=-1)
-        cumprob = torch.cumsum(topk_softmax, dim=-1)
+        k_vals = torch.where(keep_k, topk_vals, torch.full_like(topk_vals, float("-inf")))
         col_idx = torch.arange(window, device=logits.device).unsqueeze(0)
-        keep_p = (cumprob - topk_softmax) < top_p.unsqueeze(-1)
-        keep_p = keep_p | (col_idx == 0)
-        keep = keep_k & keep_p
-        masked_vals = torch.where(keep, topk_vals, neg_inf)
-        probs = torch.softmax(masked_vals, dim=-1)
-        gathered_noise = torch.gather(exp_noise, dim=-1, index=topk_idx)
-        scores = probs / gathered_noise
-        winner = scores.argmax(dim=-1, keepdim=True)
-        sampled = torch.gather(topk_idx, dim=-1, index=winner).squeeze(-1)
-        return sampled.to(torch.int64), overflow.squeeze(-1)
+        sampled = _sample_top_p(topk_vals, topk_idx, k_vals, keep_k, col_idx, top_p, exp_noise)
+        return sampled, overflow.squeeze(-1)
 
     options = {"aot_autograd": True, "vllm": True}
     top_p_only, with_top_k = (
@@ -222,8 +213,7 @@ def install():
                         _use_native = False
 
             if _use_native:
-                import numpy as np
-                logits_f32 = logits.to(torch.float32) if logits.dtype != torch.float32 else logits
+                logits_f32 = logits.float()
                 temperature = sampling_metadata.temperature
                 if temperature.dim() == 0:
                     temperature = temperature.unsqueeze(0).expand(batch_size)
@@ -250,7 +240,7 @@ def install():
                 return _orig_sample(self, logits, sampling_metadata,
                                     logprobs_mode_override=logprobs_mode_override)
 
-        logits_f32 = logits.to(torch.float32) if logits.dtype != torch.float32 else logits
+        logits_f32 = logits.float()
         temperature = sampling_metadata.temperature
         if temperature.dim() == 0:
             temperature = temperature.unsqueeze(0).expand(logits_f32.shape[0])

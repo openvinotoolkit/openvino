@@ -19,9 +19,6 @@ from openvino.frontend.pytorch.torchdynamo.vllm import preset as _preset
 logger = logging.getLogger(__name__)
 
 
-# The four apply_* entry points below are grouped so compile.py needs one
-# try/except per call site rather than one per hook.
-
 def decoder_default_float_type(options):
     """The torch dtype the model was built with, for the FX decoder's default_float_type, or None.
 
@@ -30,8 +27,7 @@ def decoder_default_float_type(options):
     then converts a bf16/f16 model to f32 activations, weights kept narrow behind a decompression
     Convert. "canonical_precision": False keeps the graph in the model's own types.
     """
-    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
-    if not bool_opt(options, "canonical_precision", False):
+    if not _preset.bool_opt(options, "canonical_precision", False):
         return None
     return options.get("default_float_type") if options else None
 
@@ -42,39 +38,24 @@ def apply_post_convert(om, options):
     Runs right after ``fe.convert(im)`` and before serialization or input
     shaping.
     """
-    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
-    if bool_opt(options, "vllm", False):
+    if _preset.is_vllm_preset(options):
         # Read back in CommonOptimizations to gate NormalizeVLLMRoPE.
         om.set_rt_info(True, "vllm_model")
     register_pa_parameters(om)
     normalize_concat_ranks(om)
 
 
-def apply_input_shapes(om, args, options, gm=None):
+def apply_input_shapes(om, args, options, gm):
     """Resolve Python-int FX inputs and shape the remaining tensor Parameters.
-
-    ``gm`` is optional for older callers, but without it int inputs can only be
-    frozen at trace-time values (see bake_symint_constants).
 
     Returns False when the caller should fall through to its own loop: no int
     args and no vLLM preset.
     """
-    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
-    if not (bool_opt(options, "vllm", False) or any(isinstance(a, int) for a in args)):
+    if not (_preset.is_vllm_preset(options) or any(isinstance(a, int) for a in args)):
         return False
     bake_symint_constants(
-        om, args, dyn_shapes=bool_opt(options, "dynamic_shapes", True), gm=gm)
+        om, args, dyn_shapes=_preset.bool_opt(options, "dynamic_shapes", True), gm=gm)
     return True
-
-
-def apply_post_config(config, device, options, om=None):
-    """Fill the vLLM defaults into the core.compile_model config.
-
-    Called once the caller has built ``config`` and set CACHE_DIR. ``om`` is
-    optional for older callers, but without it float precisions cannot be
-    derived from the model and fall back to the preset default.
-    """
-    apply_kv_cache_config_defaults(config, device, options, om=om)
 
 
 def _vllm_omp_core_ids():
@@ -100,7 +81,7 @@ def _vllm_omp_core_ids():
     return None
 
 
-def widen_affinity_if_needed(options):
+def widen_affinity_if_needed():
     """Widen process CPU affinity when narrower than needed.
 
     Needed because the worker's own sched_setaffinity mask narrows to one CPU
@@ -118,10 +99,7 @@ def widen_affinity_if_needed(options):
     """
     try:
         cur = os.sched_getaffinity(0)
-        from openvino.frontend.pytorch.torchdynamo.backend_utils import _get_config
-        cfg = _get_config(options) or {}
-        req = int(cfg.get("INFERENCE_NUM_THREADS",
-                          os.environ.get("OV_INFERENCE_NUM_THREADS", "0")) or 0)
+        req = int(os.environ.get("OV_INFERENCE_NUM_THREADS", "0") or 0)
         if req == 0 or len(cur) < req:
             target = _vllm_omp_core_ids() or set(range(os.cpu_count() or 1))
             os.sched_setaffinity(0, target)
@@ -183,15 +161,8 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
     """
     import torch
     import numpy as np
-    from openvino import Type, PartialShape, opset1 as _opset1, opset8 as _opset8
-
-    _dtype_mapping = {
-        torch.float32: Type.f32, torch.float64: Type.f64,
-        torch.float16: Type.f16, torch.bfloat16: Type.bf16,
-        torch.int64: Type.i64,
-        torch.int32: Type.i32, torch.uint8: Type.u8,
-        torch.int8: Type.i8, torch.bool: Type.boolean,
-    }
+    from openvino import PartialShape, opset1 as _opset1, opset8 as _opset8
+    from openvino.frontend.pytorch.utils import pt_to_ov_type_map
 
     sources = symint_shape_sources(gm, args)
     n_int_args = sum(1 for a in args if isinstance(a, int))
@@ -251,7 +222,7 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
         om_input = _om_input_for(idx)
         if om_input is None:
             continue
-        om_input.get_node().set_element_type(_dtype_mapping[input_data.dtype])
+        om_input.get_node().set_element_type(pt_to_ov_type_map[str(input_data.dtype)])
         # Upstream size values arrive as 1-element tensors; keep them static [1]
         # or every shape derived from them becomes dynamic rank (CPU rejects).
         meta_val = None
@@ -309,10 +280,8 @@ def normalize_concat_ranks(om):
             return len(node.get_output_shape(0)) >= 1
         return False
 
-    def _find_targets():
-        for node in om.get_ordered_ops():
-            if node.get_type_name() != "Concat" or node.get_input_size() < 2:
-                continue
+    def _find_targets(concats):
+        for node in concats:
             ranks = set()
             for i in range(node.get_input_size()):
                 ps = node.input_value(i).get_partial_shape()
@@ -330,8 +299,11 @@ def normalize_concat_ranks(om):
                     yield node, i, inner
 
     try:
+        # Rewiring a Concat's inputs never adds or removes Concats: collect them once.
+        concats = [node for node in om.get_ordered_ops()
+                   if node.get_type_name() == "Concat" and node.get_input_size() >= 2]
         for _ in range(64):
-            targets = list(_find_targets())
+            targets = list(_find_targets(concats))
             if not targets:
                 break
             for node, i, inner in targets:
@@ -421,11 +393,12 @@ def retype_kv_cache_parameters(om, et_name):
     return changed
 
 
-def apply_kv_cache_config_defaults(config, device, options=None, om=None):
-    """Fill the vLLM KV-cache and FC-quantization defaults into the OV CPU config.
+def apply_post_config(config, device, options, om):
+    """Fill the vLLM KV-cache and FC-quantization defaults into the core.compile_model config.
 
-    Caller-supplied entries win. No-op on non-CPU devices and on non-vLLM
-    callers, which compile.py also routes here.
+    Called once the caller has built ``config`` and set CACHE_DIR. Caller-supplied
+    entries win. No-op on non-CPU devices and on non-vLLM callers, which
+    compile.py also routes here.
     """
     if device != "CPU" or not _preset.is_vllm_preset(options):
         return
@@ -452,9 +425,3 @@ def apply_kv_cache_config_defaults(config, device, options=None, om=None):
     # Make the graph agree with the config, or the plugin splices in a
     # Convert that silently drops every cache write.
     retype_kv_cache_parameters(om, config["KV_CACHE_PRECISION"])
-
-    if "DYNAMIC_QUANTIZATION_GROUP_SIZE" not in config:
-        # On-the-fly int8 FC activations: vnni int8 GEMM beats f32 GEMM by a
-        # lot. Matches OV GenAI CPU behavior.
-        config["DYNAMIC_QUANTIZATION_GROUP_SIZE"] = int(
-            os.environ.get("DYNAMIC_QUANTIZATION_GROUP_SIZE", "32"))

@@ -1,13 +1,27 @@
-# OpenVINO backend for vLLM (CPU)
+# OpenVINO backend for vLLM
 
-This subpackage wires the OpenVINO `torch.compile` backend into vLLM's CPU
-model runner. With it, vLLM's per-step `model.forward()` is dispatched to a
+This subpackage wires the OpenVINO `torch.compile` backend into vLLM's model
+runner. With it, vLLM's per-step `model.forward()` is dispatched to a
 pre-compiled OpenVINO graph instead of PyTorch eager / `torch.compile +
 inductor`, while vLLM keeps owning scheduling, paged attention, batching,
 sampling, etc.
 
+The backend currently runs on CPU; support for GPU and NPU will be added in
+the future (see [Device support](#device-support)).
+
 No source patches are required. `vllm-cpu` pins its own PyTorch exactly, so
 the install is one `pip install` plus an OpenVINO wheel.
+
+## Device support
+
+| Device | Status |
+|---|---|
+| CPU | Supported: vLLM's CPU model runner (`vllm-cpu`) with the OpenVINO CPU device |
+| GPU | Planned, not available yet |
+| NPU | Planned, not available yet |
+
+Sections that depend on the device, such as the install steps, the
+`block_size` constraint and Precision, describe the CPU path.
 
 ## Requirements
 
@@ -15,7 +29,7 @@ Exercised on the following stack:
 
 | Component | Version | Notes |
 |---|---|---|
-| CPU | any x86-64 | AMX-BF16 (Sapphire Rapids+) for the bf16 compute path; older/smaller CPUs fall back to f32, see Precision |
+| Device | x86-64 CPU | AMX-BF16 (Sapphire Rapids+) for the bf16 compute path; older/smaller CPUs fall back to f32, see Precision. GPU and NPU: see [Device support](#device-support) |
 | OS | Linux 5.15+ / glibc 2.34+ | THP=madvise |
 | Python | 3.11 | 3.10 also works |
 | vLLM | `vllm-cpu` 0.28.0 | v1 engine; CPU wheel |
@@ -48,7 +62,7 @@ source ~/ov_vllm_env/bin/activate
 python -m pip install -U pip setuptools wheel
 ```
 
-### 2. vLLM (CPU)
+### 2. vLLM (CPU build)
 
 One command. The PyTorch CPU index has to be reachable because `vllm-cpu`
 pins the `+cpu` local-version build of torch; PyPI alone cannot satisfy it.
@@ -415,8 +429,8 @@ beam search, speculative decoding, prefix caching, custom logits processors).
 
 ## Limitations
 
-- CPU-only for now. The OV GPU/NPU paths are not tested by this integration
-  yet.
+- Runs on CPU only for now; support for GPU and NPU will be added in the
+  future (see [Device support](#device-support)).
 - `compilation_config["mode"]` must be `STOCK_TORCH_COMPILE`. `VLLM_COMPILE`
   invokes vLLM's own `torch.compile` wrapper and would double-wrap.
 - f16 models execute with bf16 compute, not f16 (see Precision).

@@ -32,7 +32,6 @@ class PatternNode:
 
 class Partitioner:
     def __init__(self, options):
-        self._ov_options = options
         self.supported_ops = OperatorSupport(options)
 
     def fx_serialize(self, graph_module: GraphModule, *args, **kwargs):
@@ -145,7 +144,7 @@ class Partitioner:
         # Not wrapped in try: on the vLLM path a failed rewrite must stop compilation
         # (see vllm.maybe_rewrite_paged_attention); elsewhere it already returns 0.
         from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
-        _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))
+        _vllm.maybe_rewrite_paged_attention(graph_module, options)
 
         partitioner = CapabilityBasedPartitioner(
             graph_module, self.supported_ops, allows_single_node_partition=allow_single_node_partition)
