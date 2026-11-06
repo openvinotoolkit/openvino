@@ -1,0 +1,61 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-06-18-08-04-000-42251178938",
+    "timestamp": "2026-11-06T18:08:04Z",
+    "run_id": "42251178938",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42251178938",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
+    "signature": "pyarrow requires numpy 2.0 or newer but older numpy installed causing importerror in datasets/pyarrow dependency chain|Dependencies",
+    "signature_hash": "90d42369fa7c1efb",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "NPU Models Tests / 3720",
+            "conclusion": "failure",
+            "symptom": "bert-base-uncased HF transformers model-hub tests fail: ImportError pyarrow requires NumPy 2.0 or newer, found 1.26.4"
+        },
+        {
+            "name": "NPU Models Tests / 5010",
+            "conclusion": "failure",
+            "symptom": "Same pyarrow/NumPy ImportError during HF transformers model loading"
+        },
+        {
+            "name": "NPU Models Tests / 5020",
+            "conclusion": "failure",
+            "symptom": "Same pyarrow/NumPy ImportError during HF transformers model loading"
+        },
+        {
+            "name": "NPU Models Tests / 4000",
+            "conclusion": "failure",
+            "symptom": "Same pyarrow/NumPy ImportError during HF transformers model loading"
+        },
+        {
+            "name": "NPU Models Tests / 6010",
+            "conclusion": "failure",
+            "symptom": "Same pyarrow/NumPy ImportError during HF transformers model loading"
+        },
+        {
+            "name": "ci/gha_overall_status_windows",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check fails because the NPU Models Tests jobs failed"
+        }
+    ],
+    "key_errors": [
+        "File \"C:\\HostedTools\\Python\\3.11.9\\x64\\Lib\\site-packages\\datasets\\arrow_dataset.py\", line 60, in <module>\n    import pyarrow as pa\n  File \"C:\\HostedTools\\Python\\3.11.9\\x64\\Lib\\site-packages\\pyarrow\\__init__.py\", line 71, in <module>\n    from pyarrow.lib import (BuildInfo, CppBuildInfo, RuntimeInfo, set_timezone_db_path,\n  File \"pyarrow/lib.pyx\", line 42, in init pyarrow.lib\nImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+        "====== 2 failed, 2 passed, 7 skipped, 232 deselected in 69.18s (0:01:09) ======"
+    ],
+    "root_cause": "The NPU Models Tests jobs (groups 3720, 5010, 5020, 4000, 6010) pip-install HF transformer test requirements that resolve to a pyarrow build requiring NumPy>=2.0, while the Windows venv still has an older NumPy 1.26.4 pinned by another dependency in the same requirements set. When test_hf_transformers.py imports `datasets`, which imports `pyarrow`, the native pyarrow.lib extension raises ImportError due to the ABI/version mismatch. PR #39512 only modifies a benchmarks CSV doc file and is unrelated to this failure; the identical signature has now recurred 5 times in the pattern database across multiple Windows/Linux workflows in the last ~36 hours, confirming an environment/dependency-pinning issue rather than a PR-introduced regression.",
+    "reproduction_steps": "1. Build/obtain the openvino wheels as in job_npu_tests.yml on a Windows runner.\n2. Install install/tests/model_hub_tests/pytorch requirements as done in CI.\n3. Run: python -m pytest install\\tests\\model_hub_tests\\pytorch\\test_hf_transformers.py -k bert-base-uncased -v\n4. Observe ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4 when the test imports `datasets`.",
+    "recommended_actions": [
+        "Pin a pyarrow version compatible with NumPy 1.26.x (e.g. pyarrow<18) in the model_hub_tests/pytorch requirements, OR upgrade numpy to >=2.0 in that same requirements file so pyarrow's ABI matches.",
+        "Audit model_hub_tests requirements files (Windows and Linux variants) for conflicting numpy/pyarrow pins and align them across platforms.",
+        "Add a CI smoke check that imports `datasets`/`pyarrow` right after dependency installation to fail fast with a clear message instead of deep inside a multiprocessing worker, on both Linux and Windows runners."
+    ],
+    "prevention_strategies": "Pin compatible numpy/pyarrow versions together in all requirements files used by PyTorch model-hub tests (Linux and Windows), and add a `pip check` step after installing test requirements to catch ABI-incompatible combinations before running tests.",
+    "historical_context": "This is the 5th recorded occurrence of the same pyarrow/NumPy ABI mismatch (signature_hash 90d42369fa7c1efb) within roughly the last 36 hours, previously seen on runs 41939333537, 41968975085, 42062435152, and 42251179008 (Linux workflow of this same merge-queue attempt for PR #39512). This run is the Windows counterpart of the same merge-queue attempt, confirming the issue is environment-wide and platform-independent, not isolated to one OS or PR."
+}
