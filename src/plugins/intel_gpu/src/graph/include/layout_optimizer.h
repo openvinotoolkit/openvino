@@ -249,7 +249,6 @@ public:
     bool contains_onednn_impls_optimization_attribute(const program_node*);
     bool is_empty_onednn_impls_optimization_attribute();
     void clear_onednn_impls_optimization_attribute();
-    std::map<primitive_type_id, bool> get_all_onednn_impls_optimization_attribute();
 
     void set_implementation_forcing(const ov::intel_gpu::ImplForcingMap& map);
     const std::map<primitive_id, std::pair<format::type, impl_types>>& get_implementation_forcing() const;
