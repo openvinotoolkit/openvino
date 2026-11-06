@@ -33,7 +33,7 @@ namespace ov::pass {
  * PagedAttention block size. The dense states must be read from variables, directly or through the beam Gather,
  * in the layout created by FuseQSAIndexer. Their variable ids are added to var_ids_to_remove.
  *
- * Only indexers with query_norm and query_rope enabled are converted, since PagedQSAIndexer always applies both.
+ * Query normalization/rotation flags are preserved, so plugin compilation can absorb query preprocessing later.
  * The query and raw keys must have static head counts and f32, f16 or bf16 data.
  */
 class TRANSFORMATIONS_API PagedQSAIndexerFusion : public MatcherPass {

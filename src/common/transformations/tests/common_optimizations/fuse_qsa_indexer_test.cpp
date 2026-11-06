@@ -34,6 +34,8 @@
 #include "openvino/op/variadic_split.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -75,7 +77,7 @@ struct GraphOptions {
     bool extra_state_consumers = false;
     // The SparseAttentionIndexer query is also a model output.
     bool extra_query_consumer = false;
-    // The query RMSNorm and RoPE are decomposed, so FuseQSAIndexer fuses them with RMSFusion and RoPEFusion first.
+    // Plugin compilation canonicalizes the decomposed query RMSNorm and RoPE before query absorption.
     // Only for QueryLayout::BLHDTransposed.
     bool decomposed_query = false;
     // Negative cases.
@@ -375,7 +377,10 @@ protected:
         TransformationTestsF::SetUp();
         comparator.enable(FunctionsComparator::ATTRIBUTES);
         comparator.enable(FunctionsComparator::CONST_VALUES);
+        manager.register_pass<pass::RoPEFusion>(true);
+        manager.register_pass<pass::RMSFusion>(false, true);
         manager.register_pass<pass::FuseQSAIndexer>();
+        manager.register_pass<pass::FuseQSAIndexerQuery>();
     }
 };
 
@@ -434,28 +439,57 @@ INSTANTIATE_TEST_SUITE_P(FuseQSAIndexer,
                          testing::ValuesIn(fused_cases),
                          FuseQSAIndexerTest::getTestCaseName);
 
-TEST_F(TransformationTestsF, FuseQSAIndexerFusesOtherNonAffineRMSNorm) {
+TEST_F(TransformationTestsF, FuseQSAIndexerLeavesQueryAndOtherNonAffineRMSNormUnchanged) {
     GraphOptions o;
     o.decomposed_query = true;
-    const auto add_other_norm = [](const std::shared_ptr<Model>& m, bool fused) {
+    const auto add_other_norm = [](const std::shared_ptr<Model>& m) {
         const auto x = std::make_shared<v0::Parameter>(element::f32, PartialShape{2, head_size});
-        Output<Node> norm;
-        if (fused) {
-            norm = std::make_shared<op_internal::RMS>(x, epsilon, element::f32);
-        } else {
-            norm = decomposed_rms(x, -1, epsilon);
-        }
+        const auto norm = decomposed_rms(x, -1, epsilon);
         m->add_parameters({x});
         m->add_results({std::make_shared<v0::Result>(norm)});
     };
     model = getModel(o);
-    add_other_norm(model, false);
+    add_other_norm(model);
+    o.query_fusion = QueryFusion::None;
     model_ref = getModelRef(o);
-    add_other_norm(model_ref, true);
+    add_other_norm(model_ref);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
     disable_result_friendly_names_check();
     manager.register_pass<pass::FuseQSAIndexer>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerLeavesCanonicalQueryUnchanged) {
+    GraphOptions o;
+    o.query_fusion = QueryFusion::None;
+    model = getModel(o);
+    model_ref = getModelRef(o);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    disable_result_friendly_names_check();
+    manager.register_pass<pass::FuseQSAIndexer>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerHonorsDisabledPass) {
+    model = getModel(GraphOptions{});
+    manager.register_pass<pass::FuseQSAIndexer>();
+    manager.get_pass_config()->disable<pass::FuseQSAIndexer>();
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerHonorsCallback) {
+    model = getModel(GraphOptions{});
+    manager.register_pass<pass::FuseQSAIndexer>();
+    manager.get_pass_config()->set_callback<pass::FuseQSAIndexer>([](const std::shared_ptr<const Node>&) {
+        return true;
+    });
+}
+
+TEST_F(TransformationTestsF, FuseQSAIndexerQueryLeavesDecomposedQueryUnchanged) {
+    GraphOptions o;
+    o.decomposed_query = true;
+    o.query_fusion = QueryFusion::None;
+    model = getModelRef(o);
+    manager.register_pass<pass::FuseQSAIndexerQuery>();
 }
 
 // QSAIndexer keeps the query steps that do not match the kernel ones in the graph.
