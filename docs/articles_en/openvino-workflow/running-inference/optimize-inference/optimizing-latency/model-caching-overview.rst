@@ -163,10 +163,6 @@ Weightless caching is a feature that allows you to create a cache file which doe
 
 .. important::
 
-   Currently, this property is supported only by the GPU Plugin and IR model format.
-
-.. important::
-
    Some weights which undergo transformations during model compilation may not be eligible for weightless caching. In such cases, the cache file will contain these weights while still using the weightless caching mechanism for the rest. The feature supports some of the common transformations and replicates them after loading the model from the cache.
 
 Enable cache encryption
