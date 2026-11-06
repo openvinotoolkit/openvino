@@ -54,53 +54,22 @@ void TPGatherRecorder::record(int parity) {
     const std::size_t slice_bytes = checked_multiply(sig.slice_elems, sig.dtype.size(), "gather slice");
     const std::size_t full_bytes = checked_multiply(slice_bytes, static_cast<std::size_t>(world_size), "gather row");
 
-    OPENVINO_ASSERT(full_bytes <= std::numeric_limits<uint32_t>::max(),
-                    "[TP][L0] gather row of ",
-                    full_bytes,
-                    " bytes exceeds the pitch a Level Zero region copy can express");
-    OPENVINO_ASSERT(sig.rows <= std::numeric_limits<uint32_t>::max(),
-                    "[TP][L0] gather of ",
-                    sig.rows,
-                    " rows exceeds the region copy height");
-
     m_rec.reset(parity, false);
     ze_command_list_handle_t list = m_rec.list(parity);
 
-    // This rank's band of the root's rows: one contiguous run for a single row,
-    // otherwise one region copy rather than `rows` transfers.
+    // This rank's band of the root's rows, a copy per row: a region copy left the first bytes of a
+    // row's band stale on the root about once in 500 calls.
     auto copy_band = [&] {
-        if (sig.rows == 1) {
+        for (std::size_t row = 0; row < sig.rows; ++row) {
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             static_cast<uint8_t*>(sig.root_out) +
+                                                             static_cast<uint8_t*>(sig.root_out) + row * full_bytes +
                                                                  static_cast<std::size_t>(rank) * slice_bytes,
-                                                             sig.in,
+                                                             static_cast<const uint8_t*>(sig.in) + row * slice_bytes,
                                                              slice_bytes,
                                                              nullptr,
                                                              0,
                                                              nullptr));
-            return;
         }
-        ze_copy_region_t dst_region{};
-        dst_region.originX = static_cast<uint32_t>(static_cast<std::size_t>(rank) * slice_bytes);
-        dst_region.width = static_cast<uint32_t>(slice_bytes);
-        dst_region.height = static_cast<uint32_t>(sig.rows);
-        dst_region.depth = 1;
-        ze_copy_region_t src_region{};
-        src_region.width = static_cast<uint32_t>(slice_bytes);
-        src_region.height = static_cast<uint32_t>(sig.rows);
-        src_region.depth = 1;
-        ZE_THROW(ze_api()->zeCommandListAppendMemoryCopyRegion(list,
-                                                               sig.root_out,
-                                                               &dst_region,
-                                                               static_cast<uint32_t>(full_bytes),
-                                                               0,
-                                                               sig.in,
-                                                               &src_region,
-                                                               static_cast<uint32_t>(slice_bytes),
-                                                               0,
-                                                               nullptr,
-                                                               0,
-                                                               nullptr));
     };
 
     if (rank != 0) {

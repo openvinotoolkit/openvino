@@ -49,15 +49,23 @@ public:
         const auto desc = instance.get_typed_desc<tp_gather>();
         const auto& input_layout = instance.get_impl_params()->get_input_layout(0);
 
-        // The gathered axis is the innermost one for a vocabulary projection,
-        // so a rank's slice is contiguous in its own buffer but strided in the
-        // root's. rows is everything above that axis flattened.
+        // A rank's slice -- everything from the gathered axis on -- is contiguous
+        // in its own buffer but strided in the root's; rows is everything above
+        // that axis flattened. The axis counts from the front, which also holds
+        // for the 4D layouts static shapes are padded to.
         const auto shape = input_layout.get_shape();
         const auto rank_len = static_cast<int64_t>(shape.size());
         const int64_t axis = desc->axis >= 0 ? desc->axis : desc->axis + rank_len;
-        OPENVINO_ASSERT(axis == rank_len - 1, "[GPU] tp_gather currently gathers the innermost axis only, got ", desc->axis);
-        const size_t slice_elems = shape.back();
-        const size_t rows = input_layout.count() / std::max<size_t>(slice_elems, 1);
+        OPENVINO_ASSERT(axis >= 0 && axis < rank_len,
+                        "[GPU] tp_gather axis ",
+                        desc->axis,
+                        " is out of range for ",
+                        input_layout.to_short_string());
+        size_t rows = 1;
+        for (int64_t i = 0; i < axis; ++i) {
+            rows *= shape[static_cast<size_t>(i)];
+        }
+        const size_t slice_elems = input_layout.count() / std::max<size_t>(rows, 1);
 
         const auto& channel = instance.get_network().get_tp_channel();
         OPENVINO_ASSERT(channel != nullptr,

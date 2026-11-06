@@ -70,7 +70,8 @@ private:
 
 /// \brief Concatenation of the inputs of all ranks along `axis`, in rank order, on rank 0.
 ///
-/// Only rank 0's output holds every slice; the other ranks pass their own slice through.
+/// Only rank 0's output holds every slice; the other ranks' output has their input's shape and unspecified
+/// contents.
 class TRANSFORMATIONS_API TPGather : public TPCollectiveBase {
 public:
     OPENVINO_OP("TPGather", "ie_internal_opset", TPCollectiveBase);

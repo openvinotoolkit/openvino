@@ -20,12 +20,17 @@ static void CreateTPGatherOp(ProgramBuilder& p,
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
+    // Counted from the front: static layouts are padded to 4D at the back, where -1 would land on a padding axis.
+    const auto input_rank = op->get_input_partial_shape(0).rank();
+    OPENVINO_ASSERT(input_rank.is_static(), "TPGather ", op->get_friendly_name(), ": the input rank must be static");
+    const int64_t axis = op->get_axis() < 0 ? op->get_axis() + input_rank.get_length() : op->get_axis();
+
     auto prim = cldnn::tp_gather(layerName,
                                  inputs[0],
                                  p.next_tp_collective_ordinal(),
                                  static_cast<uint32_t>(op->get_rank()),
                                  static_cast<uint32_t>(op->get_world_size()),
-                                 op->get_axis());
+                                 axis);
 
     p.add_primitive(*op, prim);
 }
