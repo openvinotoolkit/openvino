@@ -38,13 +38,13 @@ public:
     }
 
     void update_primitive_map(const primitive_id& prevID, const primitive_id& newID) {
-        auto replace_external_id = [&](std::map<primitive_id, primitive_id>& input_map, const primitive_id& prevID, const primitive_id& newID) {
-            auto iter = input_map.find(prevID);
-            if (iter != input_map.end()) {
-                primitive_id new_external_id = newID;
-                primitive_id internal_id = iter->second;
-                input_map.erase(iter);
-                input_map.insert({new_external_id, internal_id});
+        auto replace_external_id = [&](std::map<size_t, condition::branch::input_mapping>& input_map,
+                                      const primitive_id& prevID,
+                                      const primitive_id& newID) {
+            for (auto& input : input_map) {
+                if (input.second.external_id.pid == prevID) {
+                    input.second.external_id.pid = newID;
+                }
             }
         };
 

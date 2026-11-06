@@ -58,11 +58,11 @@ public:
     // and the ov::compatibility_check property so the two never diverge if the policy changes.
     static bool is_runtime_requirements_compatible(const std::string& requirements, const cldnn::device_info& info);
 
-    // Version of the runtime requirements descriptor persisted in the blob. Bump this whenever
-    // build_runtime_requirements() changes (its format or the fields it emits) so the importer
-    // can detect and reject descriptors produced by a different build.
+    // Version of the compiled-model blob layout. Bump this whenever the compatibility descriptor
+    // or a serialized GPU primitive payload changes so the importer rejects incompatible blobs.
     // v2: added the compile-time runtime tag (rt=) to partition OCL/ZE blobs.
-    static constexpr uint32_t runtime_requirements_version = 2;
+    // v3: serialized condition::branch inputs by dependency index with external and internal ids.
+    static constexpr uint32_t runtime_requirements_version = 3;
 
     // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
     // the importer reject blobs that lack it (e.g. produced by an OpenVINO build predating this
