@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <tuple>
@@ -70,6 +71,7 @@ private:
                                          const std::string& device);
 
     void serialize(ov::npuw::orc::Stream& stream);
+    void deserialize(ov::npuw::orc::Stream& stream, const std::function<void(const std::string&)>& validate_device);
     void read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device);
 
     mutable std::mutex m_mutex;
