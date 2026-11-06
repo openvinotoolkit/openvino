@@ -89,7 +89,11 @@ def _to_list_transforms_compose(transform: transforms.Compose) -> list:
 
 def _get_shape_layout_from_data(input_example: Union[torch.Tensor, np.ndarray, Image.Image]) -> tuple[list, Layout]:
     if isinstance(input_example, (torch.Tensor, np.ndarray, Image.Image)):  # PyTorch, OpenCV, numpy, PILLOW
-        shape = list(np.array(input_example, copy=False).shape)
+        # Only the shape is needed, so tensors (even with requires_grad) and arrays are not converted
+        if isinstance(input_example, (torch.Tensor, np.ndarray)):
+            shape = list(input_example.shape)
+        else:
+            shape = list(np.asarray(input_example).shape)
         layout = Layout("NCHW") if isinstance(input_example, torch.Tensor) else Layout("NHWC")
     else:
         raise TypeError(f"Unsupported input type: {type(input_example)}")
