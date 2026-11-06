@@ -54,6 +54,35 @@
 #include "transformations/convert_precision.hpp"
 
 namespace {
+constexpr std::size_t kMaxNpuwImportDepth = 32;
+thread_local std::size_t npuw_import_depth = 0;
+
+class NpuwImportDepthGuard {
+public:
+    explicit NpuwImportDepthGuard(bool only_if_depth_is_zero = false) {
+        if (only_if_depth_is_zero && npuw_import_depth != 0) {
+            return;
+        }
+        if (npuw_import_depth >= kMaxNpuwImportDepth) {
+            OPENVINO_THROW("NPUW import nesting exceeds the maximum depth of ", kMaxNpuwImportDepth);
+        }
+        ++npuw_import_depth;
+        m_active = true;
+    }
+
+    ~NpuwImportDepthGuard() {
+        if (m_active) {
+            --npuw_import_depth;
+        }
+    }
+
+    NpuwImportDepthGuard(const NpuwImportDepthGuard&) = delete;
+    NpuwImportDepthGuard& operator=(const NpuwImportDepthGuard&) = delete;
+
+private:
+    bool m_active = false;
+};
+
 std::string canonical_device_name(const std::string& device_name) {
     const auto dot_pos = device_name.find('.');
     return dot_pos == std::string::npos ? device_name : device_name.substr(0, dot_pos);
@@ -397,6 +426,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
+    [[maybe_unused]] const NpuwImportDepthGuard import_depth_guard;
+
     LOG_INFO("Choosing which NPUW CompiledModel to import");
     LOG_BLOCK();
 
@@ -1561,6 +1592,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     const ov::AnyMap& properties,
     bool require_weights_bank,
     const std::function<std::string(const std::string&)>& decrypt) {
+    [[maybe_unused]] const NpuwImportDepthGuard import_depth_guard(/*only_if_depth_is_zero=*/true);
+
     ov::npuw::orc::ScopedReadSection root(stream);
     if (root.header().type != kOrcType || root.header().version > kOrcVersion ||
         ov::npuw::orc::has_flag(root.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
