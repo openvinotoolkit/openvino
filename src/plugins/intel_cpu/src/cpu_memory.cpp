@@ -164,7 +164,19 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
     if (nullptr != data) {
         m_blockHandle->setExtBuff(const_cast<void*>(data), memSize);
     } else {
-        m_blockHandle->resize(memSize);
+        try {
+            m_blockHandle->resize(memSize);
+        } catch (const std::exception& e) {
+            // rethrow with the descriptor context, the raw size alone doesn't tell which tensor requested it
+            OPENVINO_THROW("Memory allocation of ",
+                           memSize,
+                           " bytes failed for a tensor with shape ",
+                           m_pMemDesc->getShape().toString(),
+                           ", precision ",
+                           m_pMemDesc->getPrecision(),
+                           ": ",
+                           e.what());
+        }
     }
 }
 
