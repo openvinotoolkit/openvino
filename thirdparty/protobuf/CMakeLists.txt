@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -101,10 +101,11 @@ target_include_directories(libprotobuf-lite SYSTEM PRIVATE "${Protobuf_INCLUDE_D
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM)
     if(protobuf_BUILD_PROTOC_BINARIES)
         list(APPEND _protoc_libs protoc libprotoc libprotobuf)
-        set_target_properties(${_protoc_libs} PROPERTIES
+        set_target_properties(protoc libprotoc PROPERTIES
             CXX_VISIBILITY_PRESET default
             C_VISIBILITY_PRESET default
-            VISIBILITY_INLINES_HIDDEN OFF
+            VISIBILITY_INLINES_HIDDEN OFF)
+        set_target_properties(${_protoc_libs} PROPERTIES
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
     endif()
     # protobuf is incompatible with thread sanitizers
