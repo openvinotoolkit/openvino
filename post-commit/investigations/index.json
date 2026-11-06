@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 75,
+  "total": 76,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -766,6 +766,17 @@
       "category": "Network",
       "signature_hash": "0c33a04c2cbe783c",
       "commit_sha": "77915ab634872d6a62ac7b40583584090677abce"
+    },
+    {
+      "investigation_id": "2026-11-06-17-07-13-000-42243497813",
+      "run_id": "42243497813",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42243497813",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-06T17:07:13Z",
+      "title": "OpenVINO tokenizers wheel build fails on Windows: pip cannot find matching dev openvino version for build dependency",
+      "category": "Dependencies",
+      "signature_hash": "3006cd222bc46b05",
+      "commit_sha": "feffa3c6f7301221131c40fe7354dddea47ef6c1"
     }
   ]
 }
