@@ -28,15 +28,15 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │       ov::num_streams other than 1; ask the device plugin    │
 │       (collective_support) whether it can serve the group;   │
 │       reject models with linear-attention state.             │
-│    2. Create one remote context per rank with the TP         │
-│       parameters of the collective contract: device group +  │
-│       the rank's endpoint of an InProcessExchange. Each      │
-│       context publishes its setup payload and returns.       │
-│    3. Analyze a clone of the model once (TPLayerAnalyzer):   │
+│    2. Analyze a clone of the model once (TPLayerAnalyzer):   │
 │       block passes annotate the projections, shape constants │
 │       and KV-cache variables of every attention and MLP      │
 │       block; TPShardingVerifier proves the annotations or    │
 │       fails the compilation naming the node.                 │
+│    3. Create one remote context per rank with the TP         │
+│       parameters of the collective contract: device group +  │
+│       the rank's endpoint of an InProcessExchange. Each      │
+│       context publishes its setup payload and returns.       │
 │    4. For each rank: clone the analyzed model,               │
 │       TPWeightShardingPass cuts the annotated constants and  │
 │       gives shape constants the rank's sizes,                │
@@ -293,16 +293,19 @@ src/plugins/tp/
 ├── docs/                                   ← this directory
 ├── include/tp/
 │   ├── options.inl                         ← the option table (X-macro)
-│   ├── internal_properties.hpp             ← property keys for those options
+│   ├── properties.hpp                      ← public-facing keys: TP_STRATEGY, COLLECTIVE_BACKEND
+│   ├── internal_properties.hpp             ← keys of the internal, tuning and debug options
 │   ├── tp_config.hpp                       ← TPConfig: typed getters, validation
-│   └── tp_debug.hpp                        ← logging macros, NS/Stopwatch/
-│                                             ScopedTime/DumpPeriod
+│   ├── tp_debug.hpp                        ← logging macros (TP_LOG_*, TP_WARN_ALWAYS, TP_REPORT)
+│   └── itt.hpp                             ← ITT domains ov::tp::plugin / ov::tp::inference
 ├── src/
 │   ├── plugin.{hpp,cpp}                    ← IPlugin entry point; creates the
 │   │                                         rank contexts
 │   ├── compiled_model.{hpp,cpp}            ← ICompiledModel, export/import
 │   ├── infer_request.{hpp,cpp}             ← ISyncInferRequest, rank fan-out
 │   ├── rank_workers.hpp                    ← persistent worker thread per rank
+│   ├── device_locks.hpp                    ← process-wide per-device locks
+│   ├── remote_context.{hpp,cpp}            ← the TP context: host tensors only
 │   ├── cache_controller.{hpp,cpp}          ← IPluginManagedCache: the PA cache on every rank
 │   ├── transformations/                    ← L1, static library openvino_tp_transformations
 │   │   ├── include/tp_transformations/     ← annotations, analyzer, verifier, rank passes
@@ -314,10 +317,13 @@ src/plugins/tp/
 └── tests/
     ├── common/tp_test_models.hpp           ← synthetic blocks, shared by suites
     ├── unit/                               ← ov_tp_unit_tests: annotations, analysis,
-    │                                         verifier, rank models (no GPU)
-    └── functional/                         ← ov_tp_func_tests: accuracy,
-                                              paged attention, serialization,
-                                              TP contexts
+    │                                         verifier, rank models (no device)
+    └── functional/                         ← ov_tp_func_tests: accuracy, paged attention,
+                                              serialization, device names, options; the
+                                              rank device type from OV_TP_TEST_DEVICE
+
+src/tests/functional/plugin/shared/{include,src}/behavior/tp/
+└── collective_contract.*                   ← L3 conformance tests, instantiated by a device plugin
 
 src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 ├── src/runtime/ze/tp/
@@ -325,6 +331,7 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 │   │                                         process registry of groups
 │   ├── group_state.{hpp,cpp}               ← GroupState: rendezvous, staging,
 │   │                                         events, watchdog, profiling report
+│   ├── collective_backend.{hpp,cpp}        ← backend names, support checks, AUTO
 │   ├── tp_l0_shared_context.{hpp,cpp}      ← shared ze_context + its cache
 │   ├── collective_options.hpp              ← CollectiveOptions (GPU_TP_*)
 │   └── tp_debug.hpp                        ← timers and report helpers
@@ -337,7 +344,8 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 ├── src/graph/impls/ocl_v2/tp_allreduce.cl  ← the reduction kernel (codegen
 │                                          reads .cl from the ocl_v2 root only)
 ├── src/plugin/ops/tp_{allreduce,gather}.cpp       ← op → primitive
-└── tests/unit/module_tests/ze/tp_collectives_test.cpp
+├── tests/unit/module_tests/ze/tp_collectives_test.cpp
+└── tests/functional/tp/, shared_tests_instances/behavior/tp/  ← GPU TP tests, the L3 suite for GPU
 ```
 
 The collective ops themselves (`TPAllReduce`, `TPGather`) live in
@@ -541,11 +549,11 @@ another model to the group fails.
 
 The schedule is chosen per recording from the world size and the payload:
 
-| Schedule          | When                                                    | Steps       | Per-rank traffic |
-|-------------------|---------------------------------------------------------|-------------|------------------|
-| pair              | `N == 2`                                                | 1 exchange  | one payload      |
-| recursive halving | `N` a power of two and payload ≤ `GPU_TP_HALVING_MAX_BYTES` | `2·log2(N)` | `1.5·S`     |
-| ring              | otherwise                                               | `2·(N-1)`   | `1.5·S`          |
+| Schedule          | When                                                    | Steps       | Per-rank traffic   |
+|-------------------|---------------------------------------------------------|-------------|--------------------|
+| pair              | `N == 2`                                                | 1 exchange  | one payload        |
+| recursive halving | `N` a power of two and payload ≤ `GPU_TP_HALVING_MAX_BYTES` | `2·log2(N)` | `2·(N-1)/N·S` |
+| ring              | otherwise                                               | `2·(N-1)`   | `2·(N-1)/N·S`     |
 
 Halving and the ring move the same bytes; what halving buys is fewer steps and
 fewer round trips, which is what decode-sized payloads are made of. At prompt
@@ -560,8 +568,10 @@ transfers zeros on the validated driver.
 
 The gather collects every rank's `rows x slice` matrix as a column band of
 rank 0's output. The root publishes the output's address and allocation id in
-the rendezvous, and every rank copies its band straight there: one contiguous
-copy for a single row, one region copy otherwise. There is no gather staging.
+the rendezvous, and every rank copies its band straight there: one plain copy
+per row. A region copy did the same in one command, but left the first bytes
+of a band row stale on the root about once in 500 calls (L3 conformance stress,
+0 in 9000 with a copy per row). There is no gather staging.
 
 A peer may write the root's output only once the root's queue has reached the
 gather. Before that, the memory pool may still have the same memory under an
@@ -863,6 +873,13 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
 - Models with linear-attention state (PagedGatedDeltaNet, PagedCausalConv1D,
   PagedSelectiveSSM, `*_state_table.*` inputs) are rejected.
 - All ranks of a group run in one process.
+- Every rank has to run its collectives in one order. With the collectives on
+  one chain (the residual stream of a sequential block) that is given; with
+  collectives on parallel branches (attention and MLP in parallel, as in GPT-J
+  or Falcon) it holds only while the device plugin rewrites every rank model
+  alike. A rewrite that depends on a rank's constants (a multiplication by one
+  removed on one rank) can reorder them; the GPU plugin then fails the first
+  call (`ranks disagree on call ...`) instead of mixing them up.
 - A failed collective is terminal. The device queues may still hold
   unfinished work, so the group refuses every later call rather than
   running on top of unknown state; the compiled model has to be rebuilt.

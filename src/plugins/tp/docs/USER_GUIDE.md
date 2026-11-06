@@ -10,7 +10,8 @@ two or more Intel discrete GPUs using **Megatron-style tensor parallelism**:
 - O/down MatMul weights are sharded row-wise; the partial sums are
   reduced across ranks via in-graph AllReduce.
 - The vocabulary projection is split along the vocabulary axis and the
-  slices are gathered into rank 0, whose outputs the caller reads.
+  slices are gathered into rank 0, whose outputs the caller reads. A
+  vocabulary the number of ranks does not divide stays whole on every rank.
 - LayerNorm, RoPE, attention softmax, residual add, and embedding lookup
   are replicated on every rank.
 - KV-cache shapes and head counts are adjusted so each rank only stores the
@@ -93,8 +94,6 @@ output = request.get_output_tensor().data
 
 ## Configuration Properties
 
-| Property                   | Type                       | Default     | Description                                                                                                                    |
-|----------------------------|----------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------|
 The rank devices are part of the device name, as for `HETERO`:
 `"TP:GPU.0,GPU.1,GPU.2,GPU.3"` runs one rank per listed device, in rank order
 (the list is `ov::device::priorities`). At least two devices of one device type
@@ -107,7 +106,7 @@ pair, each listed once). Only GPU devices can host ranks today.
 |----------------------------|------------|---------|------------------------------------------------------------------------------------------|
 | `TP_STRATEGY`              | string     | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
 | `COLLECTIVE_BACKEND`       | string     | `AUTO`  | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
-| `COMMUNICATION_TIMEOUT_MS` | `uint32_t` | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever. |
+| `COMMUNICATION_TIMEOUT_MS` | `int`      | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
 | `ov_internal_tp_comm_buffer_size` | `size_t` | `0` | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
 
 A collective needs all ranks to participate. If one rank never arrives or its
@@ -149,9 +148,10 @@ the rank count as `ov_internal_tp_world_size`.
 `request.get_profiling_info()` returns **rank 0's** per-op profile, not an
 average over ranks. Use it to spot ops that dominate the per-step cost,
 typically attention SDPA or the largest column/row-parallel MatMuls. The
-collectives themselves do not appear there as a separate entry; for those see
-[DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables), which needs a
-build with `-DENABLE_TP_DEBUG_CAPS=ON`.
+collectives themselves do not appear there as a separate entry; their
+measurements are the GPU plugin's `OV_GPU_TP_PROFILING` (a build with
+`-DENABLE_DEBUG_CAPS=ON`), and the TP plugin's own timings are ITT tasks, see
+[DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables).
 
 ## Model Caching
 
@@ -218,7 +218,7 @@ cache.allocate(0, blocks, /*zero_initialize=*/false);  // bound to every infer r
 - **Architecture coverage.** The plugin recognizes attention and MLP blocks by
   their structure, then proves that the split computes what the model does. A
   block it recognizes only partly fails the compilation with a message naming
-  the node (`TP sharding verification failed at node ...`) instead of producing
+  the node (`[TP] Sharding verification failed at node ...`) instead of producing
   wrong output. A weight fed from a live parameter rather than a constant (a LoRA
   adapter) is not supported.
 - **Quantized weights.** A quantized weight is cut on quantization-group
@@ -257,9 +257,10 @@ The plugin failed to load, or was never built. Check:
 - `LD_LIBRARY_PATH` includes the runtime libs and the L0 loader is
   reachable.
 
-### `[TP] Need at least 2 devices, got 1`
+### `TP requires at least 2 devices, got 1`
 
-Only one Intel GPU is visible. Verify with `clinfo -l` or the L0 sysman tools.
+The device name lists fewer than two rank devices (`"TP"` alone lists none). Name
+them: `"TP:GPU.0,GPU.1"`; `core.get_available_devices()` shows which exist.
 
 ### Compilation fails on rank > 0 with an out-of-memory error
 
@@ -294,8 +295,9 @@ remainder goes to the first ranks, one unit each. The model runs.
 
 It costs latency, though. Every layer ends in a collective, so the ranks that
 got an extra head do more work while the rest wait at the barrier, and the
-whole model moves at their pace. The percentage in the message is how much
-longer those ranks have to work; the warning only appears past roughly 10%.
+whole model moves at their pace. The percentage in the message is the share of
+their time the other ranks spend waiting (one head out of the busier ranks'
+heads); the warning only appears above 10%.
 
 Choose a number of devices that divides the KV head count to make it go away.
 
@@ -322,8 +324,8 @@ driver-level problem. Raise `COMMUNICATION_TIMEOUT_MS` for very large
 payloads on slow interconnects. The compiled model is not reusable after an
 abort.
 
-For a trace of what each rank was doing, build with
-`-DENABLE_TP_DEBUG_CAPS=ON` and set `OV_TP_VERBOSE=LOG_TRACE`.
+For a trace of what each rank's collectives were doing, build with
+`-DENABLE_DEBUG_CAPS=ON` and set `OV_GPU_TP_VERBOSE=LOG_TRACE`.
 
 ## Pointers
 

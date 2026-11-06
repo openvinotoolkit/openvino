@@ -28,8 +28,9 @@ Produces `bin/intel64/Release/libopenvino_tp_plugin.so` and
 registers `TP` in `plugins.xml`.
 
 The TP plugin's debug option tier needs `-DENABLE_TP_DEBUG_CAPS=ON` (implied by
-`-DENABLE_DEBUG_CAPS=ON`). Without it the verbosity and profiling options do
-not exist at all, and the code they guard folds away. The collectives' debug
+`-DENABLE_DEBUG_CAPS=ON`). Without it the debug options do not exist at all,
+and the code they guard folds away. They are read from the environment
+(`OV_` + the key) or a config file only, never as properties. The collectives' debug
 options (`GPU_TP_*`) follow the GPU plugin's own switch,
 `ENABLE_GPU_DEBUG_CAPS`.
 
@@ -157,7 +158,7 @@ should; they exist to price a part of the pipeline by removing it.
 | `OV_GPU_TP_FORCE_SYNC_COLLECTIVE=1`  | Take collectives off the spliced model queue onto their own queue with a full drain.                                                                          |
 |                                      | Results stay correct; this is the one switch here that does not break them. Use it to measure what splicing buys.                                             |
 | `OV_TP_DISABLE_LM_HEAD_SHARDING=1`   | Leave the vocabulary projection unsharded, dropping the gather.                                                                                               |
-|                                      | Results stay correct; the setting is part of the configuration a cache entry is keyed by.                                                                    |
+|                                      | Results stay correct. Not part of the cache key: with `ov::cache_dir` an entry compiled without it is loaded as it is.                                       |
 | `OV_TP_SHARD_ONLY=1`                 | **Wrong by construction.** Compile one rank's shard with every collective stripped, to measure the upper bound a rank could reach if communication were free. |
 | `OV_GPU_TP_SKIP_COLLECTIVE=1`        | **Wrong by construction.** Return from every AllReduce without doing anything. The difference against a normal run is the whole cost of the collective.       |
 
@@ -249,7 +250,10 @@ Field semantics:
 
 ## Tests
 
-Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
+Each layer is tested where it lives: the TP plugin's two binaries under `tests/`
+test L1 and L5 and name no device; the collective contract (L3) is a shared
+suite every device plugin runs for itself; the GPU's collectives (L4) have their
+own suites in intel_gpu.
 
 ### `ov_tp_unit_tests`
 
@@ -261,32 +265,51 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 | `TPRankPasses/*`                          | Rank models on 2/3/4 ranks: weights, collectives, KV-cache variables, PagedAttention head counts, fewer KV heads than ranks, fused projections | no |
 | `TPAnalyzerModels`                        | Real IRs listed in `OV_TP_TEST_MODELS` (paths separated by `:`): every rank model on 2 and 4 ranks; skipped without the variable      | no         |
 
-### `ov_gpu_unit_tests` (intel_gpu, built with `ENABLE_TP`)
-
-| Suite                                     | What it covers                                                                                                                          | Needs GPUs |
-|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `TPCollectivesTest`                 | AllReduce and gather correctness on f16/bf16/f32 with the model's `tp_allreduce.cl`; one f32 rounding per step; all ranks bitwise equal; recording reuse across shifting pointers, sizes and dtypes; scratch growth; chunking through a fixed staging; in-place operation; | yes, >=2   |
-|                                           | allocation churn; wider worlds; ring and halving agreeing on the same payload and the ceiling where one flips to the other;             |            |
-|                                           | the spliced path matching the blocking one; timeout, abort and watchdog behaviour                                                       |            |
-
 ### `ov_tp_func_tests`
+
+The TP plugin end to end. The rank devices are of type `OV_TP_TEST_DEVICE`
+(`GPU` when unset), the first ones `available_devices` lists; backend names and
+support reasons come from the device plugin's own queries
+(`tests/functional/rank_devices.hpp`).
 
 | Suite                     | What it covers                                                                                                                           |
 |---------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| `TP/TPAccuracyTest` | Сompiles the same synthetic block on one GPU and on TP, feeds both the same input and compares outputs.                              |
+| `TP/TPAccuracyTest`       | Compiles the same synthetic block on one rank device and on TP, feeds both the same input and compares outputs.                          |
 |                           | Parametrized over world size {2, 3, 4} and precision {f16, f32};                                                                         |
 |                           | Precision is pinned on both sides, because left alone the GPU picks f16 and one ULP there is the same magnitude as a real sharding error |
-| `TPPagedAttentionTest` | PagedAttention path at world size 2 through `ov::plugin_managed_cache`: offered only for PA models, the model-level group,  |
-|                           | allocate/reallocate/deallocate, available memory following the allocation, a failed reallocation keeping the cache, cache ports      |
-|                           | refused, no inference without a cache; prefill and two-step accuracy against a single GPU (requests created before and after the  |
-|                           | allocation, a reallocation in between), copy_blocks and zero_blocks checked through decode numerics                                |
-| `TPSerializationTest`  | export/import round-trip, cache entries per topology                                                                                     |
-| `TPContextTest`        | The rank contexts through the collective contract, without the TP plugin: two ranks reducing through their contexts, and the refusals -- |
-|                           | a collective without a TP context, a collective of another rank, a second model on the channel, a context on the wrong device,           |
-|                           | unsupported parameters, an unknown backend, a device listed twice; the backend and support queries; a fixed staging; device memory statistics |
+| `TPPagedAttentionTest`    | PagedAttention path at world size 2 through `ov::plugin_managed_cache`: offered only for PA models, the model-level group,                |
+|                           | allocate/reallocate/deallocate, available memory following the allocation, a failed reallocation keeping the cache, cache ports          |
+|                           | refused, no inference without a cache; prefill and two-step accuracy against a single device (requests created before and after the    |
+|                           | allocation, a reallocation in between), copy_blocks and zero_blocks checked through decode numerics                                    |
+| `TPSerializationTest`     | export/import round-trip, cache entries per topology and per rank property, foreign and truncated blobs, weightless caching             |
+| `TPDeviceNameTest`        | The device name and the config, refused before any device is touched: too few devices, mixed types, empty entries, several streams, linear attention, unknown strategy |
+| `TPDevicePropertiesTest`  | Properties reaching the ranks, the device plugin's refusals with its reasons, the named backend, host tensors of the TP context, two TP models over the same devices |
+| `TPOptionsTest`, `TPOptionsOnDevicesTest` | The listed options, the timeout validation, a fixed staging and input staging end to end, `reset_state`; with TP debug caps the unsharded LM head and the sharding-state dump |
 
-The unit suites need no GPU at all; `TPCollectivesTest` and
-every functional suite skip when the machine has fewer GPUs than the world size they ask for.
+### The collective contract: `TPCollectiveContractTest` (shared)
+
+`src/tests/functional/plugin/shared/{include,src}/behavior/tp/collective_contract.*`:
+the device-plugin obligations D1-D11 and the op contract, driven through the
+`ov::tp::internal` properties only -- TP contexts from `create_context()`,
+hand-sharded rank models with `TPAllReduce` / `TPGather`, no TP plugin. A
+device plugin that wants to take TP ranks instantiates it with its device type
+and world sizes; intel_gpu does in
+`tests/functional/shared_tests_instances/behavior/tp/collective_contract.cpp`
+(`ov_gpu_func_tests`, `smoke_TP/TPCollectiveContractTest.*`, 2-4 ranks). What
+a device may or may not support (MAX / MIN, other groups, the gather, several
+ranks on one device) is checked as "computed exactly or refused".
+
+### intel_gpu (built with `ENABLE_TP`)
+
+| Binary / suite                            | What it covers                                                                                                                          | Needs GPUs |
+|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `ov_gpu_unit_tests` `TPCollectivesTest`   | AllReduce and gather correctness on f16/bf16/f32 with the model's `tp_allreduce.cl`; one f32 rounding per step; all ranks bitwise equal; recording reuse across shifting pointers, sizes and dtypes; scratch growth; chunking through a fixed staging; in-place operation; | yes, >=2   |
+|                                           | allocation churn; wider worlds; ring and halving agreeing on the same payload and the ceiling where one flips to the other;             |            |
+|                                           | the spliced path matching the blocking one; timeout, abort and watchdog behaviour                                                       |            |
+| `ov_gpu_func_tests` `GPUTPContextTest`    | What the GPU adds to the contract: the `L0_P2P` backend, `GPU_TP_*` options as context parameters, its limits (one channel, one model per channel, SUM only, group 0 only), ranks disagreeing on the staging size, `memory_statistics`, and its messages | yes, >=2 |
+
+The unit suites need no device at all; the others skip when the machine has
+fewer devices than the world size they ask for.
 
 ### Running them
 
@@ -294,7 +317,7 @@ The binaries are built into `bin/intel64/<CONFIG>`; the TP ones register with
 CTest under the `TP` label:
 
 ```bash
-cmake --build . --target ov_tp_unit_tests ov_tp_func_tests ov_gpu_unit_tests -j$(nproc)
+cmake --build . --target ov_tp_unit_tests ov_tp_func_tests ov_gpu_unit_tests ov_gpu_func_tests -j$(nproc)
 ctest -L TP
 ```
 
@@ -310,14 +333,18 @@ cd bin/intel64/Release
 OV_TP_TEST_MODELS=/path/a.xml:/path/b.xml ./ov_tp_unit_tests --gtest_filter='TPAnalyzerModels*'
 ./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.*'
 ./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.RingAndHalvingAgree'
+./ov_gpu_func_tests --gtest_filter='*TPCollectiveContractTest*:GPUTPContextTest.*'
 
-# Parametrized suites carry the parameter in the name: world2/3/4, f16/f32.
+# Parametrized suites carry the parameter in the name: world2/3/4, f16/f32, ranks=2/3/4.
 ./ov_tp_func_tests --gtest_filter='*world4*'
 ./ov_tp_func_tests --gtest_filter='TP/TPAccuracyTest.*/world2_f16'
 
 # Chasing something intermittent:
 ./ov_tp_func_tests --gtest_filter='*world4*' --gtest_repeat=20 --gtest_break_on_failure
 ```
+
+Do not run the unit and the functional binaries in one command: a crashed
+collective may leave the devices in a state the next binary inherits.
 
 The binaries are set up differently, which matters when a run fails to
 start at all:
@@ -328,9 +355,9 @@ start at all:
 - `ov_gpu_unit_tests` links the intel_gpu runtime statically and talks to
   Level Zero and OpenCL directly; `TPCollectivesTest` is in it only in a
   build with `ENABLE_TP` on the Level Zero runtime.
-- `ov_tp_func_tests` goes through `ov::Core` and needs both
-  `openvino_tp_plugin` and `openvino_intel_gpu_plugin` present and
-  registered.
+- `ov_tp_func_tests` goes through `ov::Core` and needs `openvino_tp_plugin`
+  and the rank devices' plugin present and registered.
+- `ov_gpu_func_tests` has the TP suites only in a build with `ENABLE_TP`.
 
 ## Level Zero Pitfalls
 
@@ -442,9 +469,9 @@ In order of frequency:
    may write staging only; the owning rank copies into its output. The gather
    is the one exception: peers write the root's output, and only after
    waiting for the root's `ready`, signalled from the root's queue at the
-   gather. Check with 10+
+   gather, one plain copy per row (a region copy left stale bytes on the root). Check with 10+
    processes x 5 iterations on four ranks and compare output hashes; a
-   difference that disappears with `TP_FORCE_SYNC_COLLECTIVE` points here.
+   difference that disappears with `OV_GPU_TP_FORCE_SYNC_COLLECTIVE` points here.
 
 ### "The collective costs more than it should"
 
@@ -499,8 +526,8 @@ both are inserted by `TPInsertCollectives`. To add a third:
 3. Implement constructors, `validate_and_infer_types`,
    `clone_with_new_inputs`, `visit_attributes`. The two existing ops
    are good templates.
-4. Add an OCL primitive in
-   `src/plugins/intel_gpu/src/graph/impls/ocl/`. Keep the primitive POD:
+4. Add a primitive in `src/plugins/intel_gpu/src/graph/` and its impl in
+   `src/plugins/intel_gpu/src/graph/impls/ocl_v2/tp/`. Keep the primitive POD:
    carry `collective_id` (from `ProgramBuilder::next_tp_collective_ordinal()`),
    `rank` and `world_size` as attributes and call the collective through
    `instance.get_network().get_tp_channel()`. Teach `Graph::bind_collectives`
