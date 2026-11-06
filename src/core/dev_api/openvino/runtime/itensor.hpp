@@ -10,10 +10,11 @@
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 
-class OPENVINO_API ITensor : public std::enable_shared_from_this<ITensor> {
+class OPENVINO_API ITensor : public std::enable_shared_from_this<ITensor>, public util::IMemoryHints {
 public:
     /**
      * @brief Set new shape for tensor
@@ -116,6 +117,10 @@ public:
      * @param dst destination tensor
      */
     virtual void copy_to(const std::shared_ptr<ov::ITensor>& dst) const;
+
+    /** @brief Residency hints, no-op by default; override when the implementation can release or fetch its memory. */
+    void hint_evict() noexcept override;
+    util::PrefetchToken hint_prefetch() noexcept override;
 
 protected:
     virtual ~ITensor();
