@@ -119,6 +119,10 @@ void mark_runtime_skippable_nodes::run(program& p) {
             auto prim = impl_params->typed_desc<strided_slice>();
             auto begin = prim->begin;
             auto strides = prim->strides;
+            // Runtime strides may reverse the input without changing its shape.
+            if (strides.empty()) {
+                return;
+            }
             auto begin_mask = prim->begin_mask;
             if (prim->end_mask.empty() || !prim->new_axis_mask.empty() || !prim->shrink_axis_mask.empty() || !prim->ellipsis_mask.empty() ||
                 (!all_zeroes(begin) && !all_ones(begin_mask)) || !all_ones(strides)) {
