@@ -65,12 +65,12 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
             continue;
         }
 
-        NPUW_ASSERT(m_subrequests[subm_idx_from]);  // prod request is created
-        NPUW_ASSERT(m_subrequests[subm_idx_to]);    // cons request is created
+        NPUW_ASSERT(m_subrequests.at(subm_idx_from));  // prod request is created
+        NPUW_ASSERT(m_subrequests.at(subm_idx_to));    // cons request is created
         NPUW_ASSERT(m_subrequests[subm_idx_from]._ptr != m_subrequests[subm_idx_to]._ptr);
 
-        const auto& iport = m_subrequests[subm_idx_to]->get_compiled_model()->inputs()[port_idx_to];
-        const auto& oport = m_subrequests[subm_idx_from]->get_compiled_model()->outputs()[port_idx_from];
+        const auto& iport = m_subrequests[subm_idx_to]->get_compiled_model()->inputs().at(port_idx_to);
+        const auto& oport = m_subrequests[subm_idx_from]->get_compiled_model()->outputs().at(port_idx_from);
         const auto& tensor = m_subrequests[subm_idx_from]->get_tensor(oport);
         LOG_DEBUG("Set Subgraph[" << subm_idx_to << "]/" << iport << " to Subgraph[" << subm_idx_from << "]/" << oport);
         m_subrequests[subm_idx_to]->set_tensor(iport, tensor);
