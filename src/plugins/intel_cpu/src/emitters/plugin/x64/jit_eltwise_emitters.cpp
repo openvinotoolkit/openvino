@@ -960,12 +960,61 @@ void jit_power_dynamic_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                    get_vec_length());
 }
 
+namespace {
+// Compares packed i32 values and sets each result to 1 or 0. x64 only provides integer "equal" and "greater", so other
+// predicates are built by the callers from swapped operands and a negated result.
+template <x64::cpu_isa_t isa, typename Vmm>
+void emit_i32_compare(x64::jit_generator_t* h,
+                      const Opmask& k_mask,
+                      const Vmm& dst,
+                      const Vmm& lhs,
+                      const Vmm& rhs,
+                      const Vmm& aux,
+                      bool is_equal,
+                      bool negate) {
+    if constexpr (isa == x64::avx512_core) {
+        if (is_equal) {
+            h->vpcmpeqd(k_mask, lhs, rhs);
+        } else {
+            h->vpcmpgtd(k_mask, lhs, rhs);
+        }
+        if (negate) {
+            h->knotw(k_mask, k_mask);
+        }
+        h->vpternlogd(aux, aux, aux, 0xFF);
+        h->vpsrld(dst | k_mask | h->T_z, aux, 31);
+    } else {
+        if constexpr (isa == x64::sse41) {
+            h->movups(aux, lhs);
+            if (is_equal) {
+                h->pcmpeqd(aux, rhs);
+            } else {
+                h->pcmpgtd(aux, rhs);
+            }
+        } else {
+            if (is_equal) {
+                h->vpcmpeqd(aux, lhs, rhs);
+            } else {
+                h->vpcmpgtd(aux, lhs, rhs);
+            }
+        }
+        if (negate) {
+            h->uni_vpcmpeqd(dst, dst, dst);
+            h->uni_vpxor(dst, dst, aux);
+        } else {
+            h->uni_vmovups(dst, aux);
+        }
+        h->uni_vpsrld(dst, dst, 31);
+    }
+}
+}  // namespace
+
 /// EQUAL ///
 jit_equal_emitter::jit_equal_emitter(x64::jit_generator_t* host,
                                      x64::cpu_isa_t host_isa,
-                                     [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                     ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+                                     const std::shared_ptr<ov::Node>& node,
+                                     [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 jit_equal_emitter::jit_equal_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
@@ -979,7 +1028,7 @@ size_t jit_equal_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1004,6 +1053,11 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_compare<isa>(h, k_mask, vmm_dst, vmm_src0, vmm_src1, vmm_aux0, true, false);
+        return;
+    }
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1034,9 +1088,9 @@ size_t jit_equal_emitter::aux_vecs_count() const {
 /// NOT_EQUAL ///
 jit_not_equal_emitter::jit_not_equal_emitter(x64::jit_generator_t* host,
                                              x64::cpu_isa_t host_isa,
-                                             [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                             ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+                                             const std::shared_ptr<ov::Node>& node,
+                                             [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 jit_not_equal_emitter::jit_not_equal_emitter(x64::jit_generator_t* host,
@@ -1052,7 +1106,7 @@ size_t jit_not_equal_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_not_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_not_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1077,6 +1131,11 @@ void jit_not_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_compare<isa>(h, k_mask, vmm_dst, vmm_src0, vmm_src1, vmm_aux0, true, true);
+        return;
+    }
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1107,9 +1166,9 @@ size_t jit_not_equal_emitter::aux_vecs_count() const {
 /// GREATER ///
 jit_greater_emitter::jit_greater_emitter(x64::jit_generator_t* host,
                                          x64::cpu_isa_t host_isa,
-                                         [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                         ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+                                         const std::shared_ptr<ov::Node>& node,
+                                         [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 jit_greater_emitter::jit_greater_emitter(x64::jit_generator_t* host,
@@ -1125,7 +1184,7 @@ size_t jit_greater_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1150,6 +1209,11 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_compare<isa>(h, k_mask, vmm_dst, vmm_src0, vmm_src1, vmm_aux0, false, false);
+        return;
+    }
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1180,9 +1244,9 @@ size_t jit_greater_emitter::aux_vecs_count() const {
 /// GREATER_EQUAL ///
 jit_greater_equal_emitter::jit_greater_equal_emitter(x64::jit_generator_t* host,
                                                      x64::cpu_isa_t host_isa,
-                                                     [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                                     ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+                                                     const std::shared_ptr<ov::Node>& node,
+                                                     [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 jit_greater_equal_emitter::jit_greater_equal_emitter(x64::jit_generator_t* host,
@@ -1198,7 +1262,7 @@ size_t jit_greater_equal_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_greater_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1223,6 +1287,11 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_compare<isa>(h, k_mask, vmm_dst, vmm_src1, vmm_src0, vmm_aux0, false, true);
+        return;
+    }
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1253,9 +1322,9 @@ size_t jit_greater_equal_emitter::aux_vecs_count() const {
 /// LESS ///
 jit_less_emitter::jit_less_emitter(x64::jit_generator_t* host,
                                    x64::cpu_isa_t host_isa,
-                                   [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                   ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+                                   const std::shared_ptr<ov::Node>& node,
+                                   [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 jit_less_emitter::jit_less_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
@@ -1269,7 +1338,7 @@ size_t jit_less_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1293,6 +1362,11 @@ void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     auto vmm_dst = Vmm(out_vec_idxs[0]);
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_compare<isa>(h, k_mask, vmm_dst, vmm_src1, vmm_src0, vmm_aux0, false, false);
+        return;
+    }
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
@@ -1323,9 +1397,9 @@ size_t jit_less_emitter::aux_vecs_count() const {
 /// LESS_EQUAL ///
 jit_less_equal_emitter::jit_less_equal_emitter(x64::jit_generator_t* host,
                                                x64::cpu_isa_t host_isa,
-                                               [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                               ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {
+                                               const std::shared_ptr<ov::Node>& node,
+                                               [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
 jit_less_equal_emitter::jit_less_equal_emitter(x64::jit_generator_t* host,
@@ -1341,7 +1415,7 @@ size_t jit_less_equal_emitter::get_inputs_num() const {
 
 std::set<std::vector<element::Type>> jit_less_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_less_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1367,6 +1441,11 @@ void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
     auto vmm_aux1 = Vmm(aux_vec_idxs[1]);
+
+    if (exec_prc_ == ov::element::i32) {
+        emit_i32_compare<isa>(h, k_mask, vmm_dst, vmm_src0, vmm_src1, vmm_aux0, false, true);
+        return;
+    }
 
     if (isa == x64::sse41) {
         h->movups(vmm_aux0, vmm_src0);
