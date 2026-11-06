@@ -88,6 +88,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Dis
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_ternocl_int2, true, "Enable/Disable the TernOCL implementation of FullyConnected with ternary (u2) weights; when disabled the stock kernels are used")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_rms_rope_fusion, true, "Enable/Disable the pass which folds per-head Q/K RMSNorm into RoPE")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, ternocl_int2_int8_prefill, false, "TernOCL ternary FullyConnected: run M > 8 on the int2 x int8 DPAS GEMM, quantizing activations to int8 per 128-group")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, gguf_prefill_path, std::string(""), "FullyConnectedGGUF: path for 8 or more activation rows. Empty: by device, \"scratch\": decode to f16 + oneDNN matmul, \"gemv\": matrix-vector kernel")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, record_replay, false, "Enable level-zero command list through record and replay for static models")
 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
