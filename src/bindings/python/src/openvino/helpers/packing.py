@@ -37,17 +37,15 @@ def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
     elif type == Type.u6:
         return _pack_linear(array, 6)
     
-    assert type in [Type.u1, Type.u2, Type.u4, Type.i4, Type.nf4, Type.f4e2m1], "Packing algorithm for the" "data types stored in 1, 2 or 4 bits"
+    num_bits = _bits_per_value(type)
 
-    minimum_regular_dtype = np.int8 if type == Type.i4 else np.uint8
+    # A signed-integer packed type needs a two's complement container.
+    minimum_regular_dtype = np.int8 if _is_signed_codes(type) else np.uint8
     casted_to_regular_type = array.astype(dtype=minimum_regular_dtype, casting="unsafe")
     if not np.array_equal(casted_to_regular_type, array):
         raise RuntimeError(f'The conversion of array "{array}" to dtype' f' "{casted_to_regular_type}" results in rounding')
 
     data_size = casted_to_regular_type.size
-    num_bits = type.bitwidth
-
-    assert num_bits < 8 and 8 % num_bits == 0, "Packing algorithm for the" "data types stored in 1, 2 or 4 bits"
     num_values_fitting_into_uint8 = 8 // num_bits
     pad = (-data_size) % num_values_fitting_into_uint8
 
@@ -88,14 +86,15 @@ def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.
     elif type == Type.u6:
         return _unpack_linear(array, 6, shape)
     
-    assert type in [Type.u1, Type.u2, Type.u4, Type.i4, Type.nf4, Type.f4e2m1], "Unpacking algorithm for the" "data types stored in 1, 2 or 4 bits"
+    num_bits = _bits_per_value(type)
     if type == Type.u1:
         return np.resize(np.unpackbits(array.view(np.uint8)), list(shape))
 
-    unpacked = _unpack_linear(array, type.bitwidth, shape)
-    if type == Type.i4:
-        # Sign-extend: codes 8..15 are -8..-1
-        return (unpacked.astype(np.int8) << 4) >> 4
+    unpacked = _unpack_linear(array, num_bits, shape)
+    if _is_signed_codes(type):
+        # Sign-extend: the top bit of a num_bits code is its sign
+        shift = 8 - num_bits
+        return (unpacked.astype(np.int8) << shift) >> shift
     return unpacked
 
 
@@ -118,6 +117,20 @@ def _check_range(array: np.ndarray, type: Type) -> None:
             f"The values of the {array.dtype} array with shape {array.shape} (min {min_value}, max {max_value}) "
             f"are out of the {type.get_type_name()} range [{low}, {high}]"
         )
+
+
+def _bits_per_value(type: Type) -> int:
+    """The bit width of a packed type the standard bit packing handles, whose width divides a byte."""
+    num_bits = type.bitwidth
+    assert num_bits and num_bits < 8 and 8 % num_bits == 0, (
+        "The standard bit packing handles a packed type whose width divides 8 bits"
+    )
+    return num_bits
+
+
+def _is_signed_codes(type: Type) -> bool:
+    """Whether a packed type's values are two's complement: they need a signed container and sign extension."""
+    return type.integral_number and type.signed
 
 
 def _pack_linear(array: np.ndarray, bits: int) -> np.ndarray:
