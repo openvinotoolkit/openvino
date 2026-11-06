@@ -390,6 +390,12 @@ the first 20, then a count at the end: `[TP][CHECK] AllReduce outputs compared a
 calls, 0 differ`). Both drain the queue at every check: Llama-3.1-8B TP4, 1024-token prompt, TTFT
 755 ms and TPOT 9.6 ms with the checksum instead of 90 ms and 6.7 ms.
 
+The tensors themselves come from the GPU plugin's dump, which works on every rank: with
+`OV_GPU_DUMP_TENSORS_PATH=<dir>/`, `OV_GPU_DUMP_LAYER_NAMES="tpallreduce:tp_allreduce/<projection name>"`
+and `OV_GPU_DUMP_ITERATIONS=<n>` every rank writes the collective's input (`src0`, its partial sum) and
+output (`dst0`, the sum). The ranks' files differ by their network id, in rank order
+(`program1_network1_*` is rank 0, `program3_network2_*` rank 1 on two ranks).
+
 In order of frequency:
 
 1. **Memcpy enqueued on the wrong rank's list.** L0 silently drops transfers
