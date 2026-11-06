@@ -11,6 +11,20 @@ namespace ov::intel_gpu {
 
 /// Add dynamic quantization node and fuse it with KV cache operation
 ///
+/// A conservative static-heuristic fallback for CVS-190235, not a general K outlier detector or a root-cause fix:
+/// compression is skipped when a detected K projection bias has max|bias| above a fixed limit, and only for the
+/// configuration with evidence of failure (f16 compute, int8 KV-cache, non-IMMAD device and statically known
+/// grouped-query attention). Other configurations keep the requested compression.
+/// The limit is empirical, not a quantization-safety criterion. A large absolute bias does not by itself imply a
+/// wide per-row range (e.g. a uniform offset), a small bias can still yield K outliers via weights and inputs, and
+/// later scaling, normalization and RoPE are not analyzed. The check ignores per-head grouping.
+/// Bias analysis follows layout-only data edges (Convert, Reshape, Transpose, Squeeze, Unsqueeze, Broadcast),
+/// plain RoPE input 0 and Concat branches, stopping at MatMul/FullyConnected projections. Auxiliary
+/// inputs are excluded. Channel-selecting operations (Split, VariadicSplit, Slice, StridedSlice, Gather, sliced
+/// or fused-QKV RoPE variants) are treated as unknown because the bias of the whole projection cannot be
+/// attributed to K without tracking output ports and static channel mapping. Unknown paths and budget
+/// exhaustion retain the existing compression behavior and are reported through GPU debug logging.
+///
 ///                  ┌───────────┐         ┌─────────────┐                               ┌───────────┐            ┌─────────────┐
 ///                  │  New Key  │         │  New Value  │                               │  New Key  │            │  New Value  │
 ///                  └──────┬────┘         └──────┬──────┘                               └──────┬────┘            └──────┬──────┘
