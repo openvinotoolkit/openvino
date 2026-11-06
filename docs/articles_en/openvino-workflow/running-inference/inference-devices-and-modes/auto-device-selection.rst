@@ -234,46 +234,26 @@ The code samples on this page assume following import(Python)/using (C++) are in
 Pre-compiling the Model for Other Devices
 +++++++++++++++++++++++++++++++++++++++++
 
-``ov::intel_auto::compile_for_all`` asks AUTO to warm up cache blobs for eligible candidate devices in the
-background after AUTO is ready to serve inference. A *candidate device* is a device AUTO may select: the list comes
-from ``ov::device::priorities`` or the device string (for example, ``AUTO:GPU,NPU``); when neither is specified,
-AUTO discovers its usual eligible devices. The *selected device* is the device AUTO is ready to serve inference on
-after startup compilation attempts and retries. A *cache blob* is the compiled-model data stored for a device, and
-*cache warm-up* is the background compilation that asks Core to validate or create that data. Warm-up does not
-switch the current compiled model to another device.
-The benefit is on a later ``compile_model`` call when AUTO selects a device whose blob is now cached.
+Enable ``ov::intel_auto::compile_for_all`` to prepare cached models for other eligible devices, including CPU,
+in the background after the execution device is ready. This can speed up later ``compile_model`` calls;
+it does not change the current execution device. Candidates come from ``ov::device::priorities`` or the device
+string; plain ``AUTO`` uses its usual eligible devices.
 
-For example, with ``AUTO:GPU,NPU``, AUTO warms candidates other than the selected device. With plain ``AUTO``, it
-uses AUTO's usual eligible candidates, including CPU when CPU is among those candidates. Core validates and reuses
-compatible existing blobs; invalid or incompatible blobs may be rebuilt.
+* Requires ``ov::cache_dir`` or ``ov::cache_path``. Without either, ``compile_model`` throws unless the property
+  is ignored in cumulative throughput mode or because ``ov::cache_blob_id`` is set for AUTO or any candidate.
+* Ignored in ``CUMULATIVE_THROUGHPUT`` mode, with ``ov::cache_blob_id``, or when no other candidate exists at
+  scheduling initialization. In the last case, cache settings are validated first and fallbacks remain unchanged.
+* When active, disables ``ov::intel_auto::enable_startup_fallback`` and ``ov::intel_auto::enable_runtime_fallback``
+  at initialization, even if startup retries later remove all warm-up candidates. This may increase first-inference
+  latency and prevents retrying a failed inference on another device.
+* Skips devices with caching disabled or a single-file cache path (``*.bin``). Warm-up failures are logged as warnings.
+  Core reuses compatible cache blobs and may rebuild invalid ones.
 
-The following cache settings and ignore rules apply:
+Warm-up compiles one device at a time and releases each temporary compiled model. Background compilation adds
+memory overhead, including a private clone for in-memory models. Destroying the AUTO compiled model cancels pending warm-ups
+and waits for any compilation already in progress.
 
-* Set ``ov::cache_dir`` or ``ov::cache_path``. Otherwise ``compile_model`` throws, except when the property is
-  ignored before cache validation in cumulative throughput mode or when ``ov::cache_blob_id`` is set. See
-  :doc:`Model Caching Overview <../optimize-inference/optimizing-latency/model-caching-overview>` for cache settings.
-* The property is ignored in ``CUMULATIVE_THROUGHPUT`` mode and when ``ov::cache_blob_id`` is configured for AUTO
-  or any candidate device. A device configured with a single-file cache path (``*.bin``) is skipped with a warning.
-  Devices with caching disabled are also skipped.
-* If there is no candidate other than the initially selected device when AUTO initializes scheduling, the property
-  is ignored after cache configuration is validated, and the startup/runtime fallback settings remain unchanged.
-  Otherwise, AUTO disables
-  ``ov::intel_auto::enable_startup_fallback`` and ``ov::intel_auto::enable_runtime_fallback`` for this compile.
-  They remain disabled even if startup compilation retries later remove all remaining warm-up candidates.
-  Consequently, AUTO does not use CPU helper-device startup acceleration or retry a failed inference on another
-  device. This can increase first-inference latency when the default CPU-accelerated path would otherwise overlap
-  compilation on the selected device.
-* A warm-up compilation failure is logged as a warning; it does not fail the selected device's compile. On a later
-  call, AUTO can compile normally if that device is selected, with Core reusing or rebuilding its cache as needed.
-
-Warm-up is best-effort background work. The current implementation serializes warm-up jobs on a plugin-wide worker
-and compiles one candidate at a time, discarding each temporary compiled model after Core handles its cache. When
-supported without changing the cache identity, it may lower host-task priority and reduce compilation threads;
-these scheduling choices are implementation details, not guarantees about exact thread counts. For an in-memory
-model, AUTO keeps a private model clone while warm-up is queued or running. Peak memory during compilation is
-additional; other AUTO features, such as dynamic device selection, can retain their own models independently.
-Destroying the corresponding AUTO compiled model stops pending warm-ups and waits for an in-flight compilation,
-so destruction can block until that compilation finishes.
+See :doc:`Model Caching Overview <../optimize-inference/optimizing-latency/model-caching-overview>` for cache settings.
 
 .. tab-set::
 
