@@ -437,6 +437,26 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         return params;
     }
 
+    // The past cache of a 4-bit KV cache is packed (head_size / 2 bytes per row) while the layout compiled for the
+    // ReadValue still carries head_size: the shape agnostic concat would bake the unpacked row length into its kernel and
+    // copy the old rows with a wrong pitch whenever the cache is reallocated. Follow the (packed) output instead.
+    static layout get_past_kv_layout(const kernel_impl_params& impl_param) {
+        auto past_layout = impl_param.input_layouts[0];
+        if (!impl_param.typed_desc<kv_cache>()->compressed) {
+            return past_layout;
+        }
+        auto shape = past_layout.get_partial_shape();
+        const auto& packed_shape = impl_param.output_layouts[0].get_partial_shape();
+        const auto last = shape.size() - 1;
+        if (shape.size() == packed_shape.size() && shape[last].is_static() && packed_shape[last].is_static() &&
+            ov::element::Type(impl_param.get_program().get_config().get_kv_cache_precision()).bitwidth() == 4 &&
+            shape[last].get_length() == packed_shape[last].get_length() * 2) {
+            shape[last] = packed_shape[last];
+            past_layout.set_partial_shape(shape);
+        }
+        return past_layout;
+    }
+
     static kernel_params_t get_concat_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<kv_cache>();
         auto params = get_default_params<kernel_selector::concatenation_params>(impl_param, is_shape_agnostic);
@@ -445,7 +465,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         const auto inputs_count = 2;
         params.inputs.resize(inputs_count);
         for (size_t i = 0; i < inputs_count; ++i) {
-            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+            params.inputs[i] = convert_data_tensor(i == 0 ? get_past_kv_layout(impl_param) : impl_param.input_layouts[i]);
         }
 
         params.axis = convert_axis(axis, impl_param.get_output_layout().get_rank());
@@ -666,7 +686,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
         auto& params = static_cast<kernel_params_t&>(*_kernels_data[concat_stage].params);
         const auto inputs_count = 2;
         for (size_t i = 0; i < inputs_count; ++i) {
-            params.inputs[i] = convert_data_tensor(impl_param.input_layouts[i]);
+            params.inputs[i] = convert_data_tensor(i == 0 ? get_past_kv_layout(impl_param) : impl_param.input_layouts[i]);
         }
         params.outputs[0] = convert_data_tensor(impl_param.output_layouts[0]);
 
