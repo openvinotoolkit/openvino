@@ -64,6 +64,15 @@ void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& sr
     srcTensor->copy_to(dstTensor);
 }
 
+void align_element_type_with_user_tensor(const std::shared_ptr<intel_npu::ZeroTensor>& levelZeroTensor,
+                                         const ov::element::Type& userTensorElementType) {
+    // corner case for boolean inputs as compiler maps them to u8
+    if (userTensorElementType == ov::element::boolean &&
+        levelZeroTensor->get_element_type() == ov::element::u8) {
+        levelZeroTensor->set_element_type(userTensorElementType);
+    }
+}
+
 void check_element_type_against_port(const ov::element::Type& portElementType,
                                      const ov::element::Type& tensorElementType) {
     OPENVINO_ASSERT(intel_npu::zeroUtils::sameStorage(portElementType, tensorElementType),
@@ -600,10 +609,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
             }
 
             const auto& userTensorElementType = tensor->get_element_type();
-            if (userTensorElementType == ov::element::boolean &&
-                levelZeroTensor->get_element_type() == ov::element::u8) {
-                levelZeroTensor->set_element_type(userTensorElementType);
-            }
+            align_element_type_with_user_tensor(levelZeroTensor, userTensorElementType);
         }
 
         if (_pipelineIsCreated && updateCommandListArg && !_dynamicBatchValueChanged) {
@@ -624,9 +630,7 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
         }
 
         const auto& userTensorElementType = tensor->get_element_type();
-        if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
-            levelZeroTensor->set_element_type(userTensorElementType);
-        }
+        align_element_type_with_user_tensor(levelZeroTensor, userTensorElementType);
     }
 }
 
@@ -711,12 +715,8 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
                     auto& levelZeroTensor = get_level_zero_input(foundPort.idx, i);
                     levelZeroTensor = allocate_tensor(foundPort.idx, INPUT);
 
-                    // corner case for boolean inputs as compiler maps them to u8
                     const auto& userTensorElementType = tensors.at(i)->get_element_type();
-                    if (userTensorElementType == ov::element::boolean &&
-                        levelZeroTensor->get_element_type() == ov::element::u8) {
-                        levelZeroTensor->set_element_type(userTensorElementType);
-                    }
+                    align_element_type_with_user_tensor(levelZeroTensor, userTensorElementType);
                 }
 
                 if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
@@ -748,10 +748,7 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
             }
 
             const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
-            if (userTensorElementType == ov::element::boolean &&
-                levelZeroTensor->get_element_type() == ov::element::u8) {
-                levelZeroTensor->set_element_type(userTensorElementType);
-            }
+            align_element_type_with_user_tensor(levelZeroTensor, userTensorElementType);
         }
     } else {
         // If command list updates are not supported, fallback to copying tensors every time.
@@ -761,9 +758,7 @@ void ZeroInferRequest::sync_zero_tensors_with_graph(const ZeroInferRequest::Foun
         }
 
         const auto& userTensorElementType = tensors.at(SINGLE_TENSOR)->get_element_type();
-        if (userTensorElementType == ov::element::boolean && levelZeroTensor->get_element_type() == ov::element::u8) {
-            levelZeroTensor->set_element_type(userTensorElementType);
-        }
+        align_element_type_with_user_tensor(levelZeroTensor, userTensorElementType);
     }
 }
 
