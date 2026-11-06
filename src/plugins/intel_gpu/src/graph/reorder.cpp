@@ -51,7 +51,7 @@ layout reorder_inst::calc_output_layout(reorder_node const& node, kernel_impl_pa
 
         CLDNN_ERROR_MESSAGE(desc->id, "Reordering between winograd weights and data formats is unsupported");
     } else if (ifmt == format::image_2d_rgba) {
-        return odt == data_types::bf16 ? layout(data_types::bf16, format::bfyx, input_layout.get_tensor(), op) : layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
+        return cldnn::one_of(odt, {data_types::bf16, data_types::f8e4m3, data_types::f8e5m2}) ? layout(odt, format::bfyx, input_layout.get_tensor(), op) : layout(data_types::f16, format::bfyx, input_layout.get_tensor(), op);
     }
 
     // transformation of data from standard to winograd

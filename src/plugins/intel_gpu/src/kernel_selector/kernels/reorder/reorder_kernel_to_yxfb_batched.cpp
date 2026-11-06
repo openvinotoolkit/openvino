@@ -11,9 +11,15 @@ ParamsKey ReorderKernel_to_yxfb_batched::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::F8E4M3);
+    k.EnableInputDataType(Datatype::F8E5M2);
+    k.EnableInputDataType(Datatype::F8E8M0);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F8E4M3);
+    k.EnableOutputDataType(Datatype::F8E5M2);
+    k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableOutputLayout(DataLayout::yxfb);

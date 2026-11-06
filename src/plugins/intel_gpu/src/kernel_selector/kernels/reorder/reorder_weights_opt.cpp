@@ -219,12 +219,7 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
         }
     }
 
-    jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.input.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.input.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.input.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.input.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.output.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
-    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.output.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.output.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.output.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
 
