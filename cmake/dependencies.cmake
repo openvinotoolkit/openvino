@@ -154,10 +154,10 @@ function(ov_download_tbb)
     elseif(APPLE AND AARCH64)
         # build oneTBB with export MACOSX_DEPLOYMENT_TARGET=11.0
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.13.4-mac-arm64-canary.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.13.4-mac-arm64-canary-4.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "0e4aaaa10efe8e4e1e208360461f57e9bff1b5584daab142d19a50b98a12e8d7"
+                SHA256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
                 USE_NEW_LOCATION TRUE)
     elseif(RISCV64)
         RESOLVE_DEPENDENCY(TBB
