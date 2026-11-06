@@ -2,16 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <intel_gpu/primitives/activation.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/custom_gpu_primitive.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+
 #include "graph/include/primitive_inst.h"
 #include "test_utils.h"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/eltwise.hpp>
-#include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/custom_gpu_primitive.hpp>
-#include <intel_gpu/primitives/crop.hpp>
-#include <intel_gpu/primitives/concatenation.hpp>
-#include <intel_gpu/primitives/activation.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -42,8 +45,8 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
 
     std::string kernel_code =
         R"__krnl(
@@ -54,37 +57,26 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        {custom_gpu_primitive::arg_input, 0},
-        {custom_gpu_primitive::arg_input, 1 },
-        {custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
-    std::vector<size_t> gws = { output_layout.count() };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0},
+                                                              {custom_gpu_primitive::arg_input, 1},
+                                                              {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::yxfb, {2, 2, 2, 2}};
+    std::vector<size_t> gws = {output_layout.count()};
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(custom_gpu_primitive(
-        "user_kernel",
-        { input_info("input"), input_info("input2") },
-        { kernel_code },
-        entry_point,
-        parameters,
-        "-cl-mad-enable",
-        { output_layout },
-        gws));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("input"), input_info("input2")},
+                                      {kernel_code},
+                                      entry_point,
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      gws));
 
-    set_values(input, {
-        1.f,   0.f, 5.f, 1.5f,
-        2.f,   0.f, 6.f, 5.2f,
-        3.f,  0.5f, 7.f, 12.f,
-        4.f, -0.5f, 8.f,  8.f
-    });
+    set_values(input, {1.f, 0.f, 5.f, 1.5f, 2.f, 0.f, 6.f, 5.2f, 3.f, 0.5f, 7.f, 12.f, 4.f, -0.5f, 8.f, 8.f});
 
-    set_values(input2, {
-        0.5f,   2.5f,  0.5f,  2.5f,
-         5.f,   7.f,    2.f,   4.f,
-        15.f,  17.f,    8.f,  10.f,
-        -2.f,  6.5f,  -0.5f, -2.5f });
+    set_values(input2, {0.5f, 2.5f, 0.5f, 2.5f, 5.f, 7.f, 2.f, 4.f, 15.f, 17.f, 8.f, 10.f, -2.f, 6.5f, -0.5f, -2.5f});
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -97,10 +89,7 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
 
     auto output = outputs.at("user_kernel").get_memory();
 
-    float answers[16] = { 1.5f, 2.5f,   5.5f,    4.f,
-                          7.f,   7.f,    8.f,   9.2f,
-                          18.f,17.5f,   15.f,   22.f,
-                          2.f,   6.f,   7.5f,  5.5f };
+    float answers[16] = {1.5f, 2.5f, 5.5f, 4.f, 7.f, 7.f, 8.f, 9.2f, 18.f, 17.5f, 15.f, 22.f, 2.f, 6.f, 7.5f, 5.5f};
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
@@ -109,9 +98,93 @@ TEST(custom_gpu_primitive_f32, add_basic_in2x2x2x2) {
     }
 }
 
-template<data_types DType>
-void add_basic_in2x2x2x2_with_reorder()
-{
+TEST(custom_gpu_primitive_bf16, software_conversion_rounding_nan_and_overflow) {
+    auto& engine = get_test_engine();
+
+    constexpr size_t value_count = 28;
+    auto input = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 1, value_count}});
+
+    const std::string kernel_code = R"__krnl(
+        #ifndef OPENVINO_TEST_BF16_SOFTWARE_FALLBACK_SELECTED
+        #error The production BF16 software fallback was not selected
+        #endif
+
+        __kernel void convert_bf16_software(const __global uint* input_bits, __global uint* output_bits) {
+            const uint idx = get_global_id(0);
+            output_bits[idx] = ((uint)_convert_bfloat16_as_ushort(as_float(input_bits[idx]))) << 16;
+        }
+    )__krnl";
+    const std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        {custom_gpu_primitive::arg_input, 0},
+        {custom_gpu_primitive::arg_output, 0},
+    };
+    const layout output_layout = {data_types::i32, format::bfyx, {1, 1, 1, value_count}};
+
+    topology topology;
+    topology.add(input_layout("input_bits", input->get_layout()));
+    topology.add(custom_gpu_primitive("bf16_software_conversion",
+                                      {input_info("input_bits")},
+                                      {kernel_code},
+                                      "convert_bf16_software",
+                                      parameters,
+                                      "-DOPENVINO_TEST_FORCE_BF16_SOFTWARE_CONVERSION=1",
+                                      {output_layout},
+                                      {value_count}));
+
+    const std::array<uint32_t, value_count> input_bits = {{0x3f807fffU,    // positive below halfway
+                                                           0x3f808000U,    // positive tie, even mantissa stays
+                                                           0x3f808001U,    // positive above halfway
+                                                           0x3f818000U,    // positive tie, odd mantissa rounds up
+                                                           0xbf807fffU,    // negative below halfway
+                                                           0xbf808000U,    // negative tie, even mantissa stays
+                                                           0xbf808001U,    // negative above halfway
+                                                           0xbf818000U,    // negative tie, odd mantissa rounds up
+                                                           0x7f800000U,    // positive infinity
+                                                           0xff800000U,    // negative infinity
+                                                           0x00000000U,    // positive zero
+                                                           0x80000000U,    // negative zero
+                                                           0x7f800001U,    // positive signaling NaN, payload in discarded bits
+                                                           0xff800001U,    // negative signaling NaN, payload in discarded bits
+                                                           0x7fc12345U,    // positive quiet NaN with retained payload
+                                                           0xffc12345U,    // negative quiet NaN with retained payload
+                                                           0x7fff8000U,    // positive NaN near sign boundary
+                                                           0xffff8000U,    // negative NaN near sign boundary
+                                                           0x7f7f7fffU,    // positive finite value below overflow tie
+                                                           0x7f7f8000U,    // positive finite overflow tie
+                                                           0xff7f7fffU,    // negative finite value below overflow tie
+                                                           0xff7f8000U,    // negative finite overflow tie
+                                                           0x00007fffU,    // positive subnormal below tie
+                                                           0x00008000U,    // positive subnormal tie
+                                                           0x00008001U,    // positive subnormal above tie
+                                                           0x80007fffU,    // negative subnormal below tie
+                                                           0x80008000U,    // negative subnormal tie
+                                                           0x80008001U}};  // negative subnormal above tie
+    {
+        auto input_ptr = mem_lock<int32_t, mem_lock_type::write>(input, get_test_stream());
+        for (size_t i = 0; i < value_count; ++i) {
+            std::memcpy(&input_ptr[i], &input_bits[i], sizeof(input_bits[i]));
+        }
+    }
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input_bits", input);
+    const auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    const auto output = outputs.at("bf16_software_conversion").get_memory();
+    const std::array<uint16_t, value_count> expected_bits = {0x3f80, 0x3f80, 0x3f81, 0x3f82, 0xbf80, 0xbf80, 0xbf81, 0xbf82, 0x7f80, 0xff80,
+                                                             0x0000, 0x8000, 0x7fc0, 0xffc0, 0x7fc1, 0xffc1, 0x7fff, 0xffff, 0x7f7f, 0x7f80,
+                                                             0xff7f, 0xff80, 0x0000, 0x0000, 0x0001, 0x8000, 0x8000, 0x8001};
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < value_count; ++i) {
+        uint32_t output_bits = 0;
+        std::memcpy(&output_bits, &output_ptr[i], sizeof(output_bits));
+        EXPECT_EQ(output_bits, static_cast<uint32_t>(expected_bits[i]) << 16) << "lane " << i;
+    }
+}
+
+template <data_types DType>
+void add_basic_in2x2x2x2_with_reorder() {
     //  Input2   : 2x2x2
     //  Input  : 2x2x2x2
     //  Output : 2x2x2x2
@@ -137,12 +210,11 @@ void add_basic_in2x2x2x2_with_reorder()
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
 
     std::string data_type_string = "float";
-    switch (DType)
-    {
+    switch (DType) {
     case data_types::i32:
         data_type_string = "int";
         break;
@@ -153,44 +225,33 @@ void add_basic_in2x2x2x2_with_reorder()
         throw std::runtime_error("Test does not support this data format!");
     }
 
-    std::string kernel_code =
-        "__kernel void add_kernel(const __global " + data_type_string + "* input0, const __global " + data_type_string + "* input1, __global " + data_type_string + "* output)\n" +
-        "   {\n" +
-        "       const unsigned idx = get_global_id(0);\n" +
-        "       output[idx] = input0[idx] + input1[idx];\n" +
-        "   }\n";
+    std::string kernel_code = "__kernel void add_kernel(const __global " + data_type_string + "* input0, const __global " + data_type_string +
+                              "* input1, __global " + data_type_string + "* output)\n" + "   {\n" + "       const unsigned idx = get_global_id(0);\n" +
+                              "       output[idx] = input0[idx] + input1[idx];\n" + "   }\n";
     std::string entry_point = "add_kernel";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_input, 1 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { DType, format::yxfb,{ 2, 2, 2, 2 } };
-    std::vector<size_t> gws = { output_layout.count() };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0},
+                                                              {custom_gpu_primitive::arg_input, 1},
+                                                              {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {DType, format::yxfb, {2, 2, 2, 2}};
+    std::vector<size_t> gws = {output_layout.count()};
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(reorder("to_int1", input_info("input"), { DType, format::yxfb,{ 2,2,2,2 } }));
-    topology.add(reorder("to_int2", input_info("input2"), { DType, format::yxfb,{ 2,2,2,2 } }));
-    topology.add(custom_gpu_primitive(
-        "user_kernel",
-        { input_info("to_int1"), input_info("to_int2") },
-        { kernel_code },
-        entry_point,
-        parameters,
-        "-cl-mad-enable",
-        { output_layout },
-        gws));
-    topology.add(reorder("to_float", input_info("user_kernel"), { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } }));
+    topology.add(reorder("to_int1", input_info("input"), {DType, format::yxfb, {2, 2, 2, 2}}));
+    topology.add(reorder("to_int2", input_info("input2"), {DType, format::yxfb, {2, 2, 2, 2}}));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("to_int1"), input_info("to_int2")},
+                                      {kernel_code},
+                                      entry_point,
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      gws));
+    topology.add(reorder("to_float", input_info("user_kernel"), {data_types::f32, format::yxfb, {2, 2, 2, 2}}));
 
-    set_values(input, {
-        1.f,   0.f, 5.f, 1.f,
-        2.f,   0.f, 6.f, 5.f,
-        3.f,  0.f, 7.f, 12.f,
-        4.f,  0.f, 8.f,  8.f
-    });
+    set_values(input, {1.f, 0.f, 5.f, 1.f, 2.f, 0.f, 6.f, 5.f, 3.f, 0.f, 7.f, 12.f, 4.f, 0.f, 8.f, 8.f});
 
-    set_values(input2, {
-        0.f,   2.f,  0.f,  2.f,
-        5.f,   7.f,    2.f,   4.f,
-        15.f,  17.f,    8.f,  10.f,
-        -2.f,  6.f,  0.f, -2.f });
+    set_values(input2, {0.f, 2.f, 0.f, 2.f, 5.f, 7.f, 2.f, 4.f, 15.f, 17.f, 8.f, 10.f, -2.f, 6.f, 0.f, -2.f});
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -203,15 +264,11 @@ void add_basic_in2x2x2x2_with_reorder()
 
     auto output = outputs.at("to_float").get_memory();
 
-    float answers[16] = { 1.f, 2.f,   5.f,    3.f,
-        7.f,   7.f,    8.f,   9.f,
-        18.f,17.f,   15.f,   22.f,
-        2.f,   6.f,   8.f,  6.f };
+    float answers[16] = {1.f, 2.f, 5.f, 3.f, 7.f, 7.f, 8.f, 9.f, 18.f, 17.f, 15.f, 22.f, 2.f, 6.f, 8.f, 6.f};
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
-    for (int i = 0; i < 16; i++)
-    {
+    for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
@@ -221,7 +278,7 @@ void add_basic_in2x2x2x2_with_reorder()
 TEST(custom_gpu_primitive_f32, impl_is_not_cpu_and_producer_stays_in_device_memory) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 4 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 4, 4}});
 
     std::string kernel_code =
         R"__krnl(
@@ -231,23 +288,20 @@ TEST(custom_gpu_primitive_f32, impl_is_not_cpu_and_producer_stays_in_device_memo
                 output[idx] = input0[idx];
             }
         )__krnl";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        { custom_gpu_primitive::arg_input, 0 },
-        { custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::bfyx, { 1, 1, 4, 4 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::bfyx, {1, 1, 4, 4}};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(eltwise("producer", { input_info("input"), input_info("input") }, eltwise_mode::sum));
-    topology.add(custom_gpu_primitive(
-        "user_kernel",
-        { input_info("producer") },
-        { kernel_code },
-        "copy_kernel",
-        parameters,
-        "-cl-mad-enable",
-        { output_layout },
-        { output_layout.count() }));
+    topology.add(eltwise("producer", {input_info("input"), input_info("input")}, eltwise_mode::sum));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("producer")},
+                                      {kernel_code},
+                                      "copy_kernel",
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      {output_layout.count()}));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -261,8 +315,7 @@ TEST(custom_gpu_primitive_f32, impl_is_not_cpu_and_producer_stays_in_device_memo
     if (engine.supports_allocation(allocation_type::usm_device)) {
         auto producer_inst = network.get_primitive("producer");
         ASSERT_NE(producer_inst->output_memory_ptr(), nullptr);
-        EXPECT_NE(producer_inst->output_memory_ptr()->get_allocation_type(),
-                  allocation_type::usm_host);
+        EXPECT_NE(producer_inst->output_memory_ptr()->get_allocation_type(), allocation_type::usm_host);
     }
 }
 
@@ -300,8 +353,8 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
 
     std::string kernel_code =
         R"__krnl(
@@ -312,35 +365,18 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
-    std::vector<size_t> gws = { output_layout.count() };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::yxfb, {2, 2, 2, 2}};
+    std::vector<size_t> gws = {output_layout.count()};
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::sum));
-    topology.add(custom_gpu_primitive(
-        "user_kernel",
-        { input_info("eltwise") },
-        { kernel_code },
-        entry_point,
-        parameters,
-        "-cl-mad-enable",
-        { output_layout },
-        gws));
+    topology.add(eltwise("eltwise", {input_info("input"), input_info("input2")}, eltwise_mode::sum));
+    topology.add(custom_gpu_primitive("user_kernel", {input_info("eltwise")}, {kernel_code}, entry_point, parameters, "-cl-mad-enable", {output_layout}, gws));
 
-    set_values(input, {
-        1.f,   0.f, 5.f, 1.5f,
-        2.f,   0.f, 6.f, 5.2f,
-        3.f,  0.5f, 7.f, 12.f,
-        4.f, -0.5f, 8.f,  8.f
-    });
+    set_values(input, {1.f, 0.f, 5.f, 1.5f, 2.f, 0.f, 6.f, 5.2f, 3.f, 0.5f, 7.f, 12.f, 4.f, -0.5f, 8.f, 8.f});
 
-    set_values(input2, {
-        0.5f,   2.5f,  0.5f,  2.5f,
-        5.f,   7.f,    2.f,   4.f,
-        15.f,  17.f,    8.f,  10.f,
-        -2.f,  6.5f,  -0.5f, -2.5f });
+    set_values(input2, {0.5f, 2.5f, 0.5f, 2.5f, 5.f, 7.f, 2.f, 4.f, 15.f, 17.f, 8.f, 10.f, -2.f, 6.5f, -0.5f, -2.5f});
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -353,16 +389,11 @@ TEST(custom_gpu_primitive_f32, eltwise_add_basic_in2x2x2x2) {
 
     auto output = outputs.at("user_kernel").get_memory();
 
-    float answers[16] =
-      { 2.5f,  3.5f,  6.5f,   5.f,
-         8.f,   8.f,   9.f, 10.2f,
-        19.f, 18.5f,  16.f,  23.f,
-         3.f,   7.f,  8.5f,  6.5f };
+    float answers[16] = {2.5f, 3.5f, 6.5f, 5.f, 8.f, 8.f, 9.f, 10.2f, 19.f, 18.5f, 16.f, 23.f, 3.f, 7.f, 8.5f, 6.5f};
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
-    for (int i = 0; i < 16; i++)
-    {
+    for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
@@ -393,8 +424,8 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
+    auto input2 = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
 
     std::string kernel_code =
         R"__krnl(
@@ -405,35 +436,19 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
-    std::vector<size_t> gws = { output_layout.count() };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::yxfb, {2, 2, 2, 2}};
+    std::vector<size_t> gws = {output_layout.count()};
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(custom_gpu_primitive(
-        "user_kernel",
-        { input_info("input") },
-        { kernel_code },
-        entry_point,
-        parameters,
-        "-cl-mad-enable -DSCALAR=1",
-        { output_layout },
-        gws));
-    topology.add(eltwise("eltwise", { input_info("user_kernel"), input_info("input2") }, eltwise_mode::sum));
+    topology.add(
+        custom_gpu_primitive("user_kernel", {input_info("input")}, {kernel_code}, entry_point, parameters, "-cl-mad-enable -DSCALAR=1", {output_layout}, gws));
+    topology.add(eltwise("eltwise", {input_info("user_kernel"), input_info("input2")}, eltwise_mode::sum));
 
-    set_values(input, {
-        1.f,   0.f, 5.f, 1.5f,
-        2.f,   0.f, 6.f, 5.2f,
-        3.f,  0.5f, 7.f, 12.f,
-        4.f, -0.5f, 8.f,  8.f
-    });
+    set_values(input, {1.f, 0.f, 5.f, 1.5f, 2.f, 0.f, 6.f, 5.2f, 3.f, 0.5f, 7.f, 12.f, 4.f, -0.5f, 8.f, 8.f});
 
-    set_values(input2, {
-        0.5f,   2.5f,  0.5f,  2.5f,
-        5.f,   7.f,    2.f,   4.f,
-        15.f,  17.f,    8.f,  10.f,
-        -2.f,  6.5f,  -0.5f, -2.5f });
+    set_values(input2, {0.5f, 2.5f, 0.5f, 2.5f, 5.f, 7.f, 2.f, 4.f, 15.f, 17.f, 8.f, 10.f, -2.f, 6.5f, -0.5f, -2.5f});
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -446,16 +461,11 @@ TEST(custom_gpu_primitive_f32, add_eltwise_basic_in2x2x2x2) {
 
     auto output = outputs.at("eltwise").get_memory();
 
-    float answers[16] =
-    { 2.5f,  3.5f,  6.5f,   5.f,
-        8.f,   8.f,   9.f, 10.2f,
-        19.f, 18.5f,  16.f,  23.f,
-        3.f,   7.f,  8.5f,  6.5f };
+    float answers[16] = {2.5f, 3.5f, 6.5f, 5.f, 8.f, 8.f, 9.f, 10.2f, 19.f, 18.5f, 16.f, 23.f, 3.f, 7.f, 8.5f, 6.5f};
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
-    for (int i = 0; i < 16; i++)
-    {
+    for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
 }
@@ -486,7 +496,7 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
 
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {2, 2, 2, 2}});
 
     std::string kernel_code1 =
         R"__krnl(
@@ -506,36 +516,29 @@ TEST(custom_gpu_primitive_f32, two_kernels_with_same_entry_point_basic_in2x2x2x2
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::yxfb,{ 2, 2, 2, 2 } };
-    std::vector<size_t> gws = { output_layout.count() };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::yxfb, {2, 2, 2, 2}};
+    std::vector<size_t> gws = {output_layout.count()};
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(custom_gpu_primitive(
-        "user_kernel1",
-        { input_info("input") },
-        { kernel_code1 },
-        entry_point,
-        parameters,
-        "-cl-mad-enable -DSCALAR=1",
-        { output_layout },
-        gws));
-    topology.add(custom_gpu_primitive(
-        "user_kernel2",
-        { input_info("user_kernel1") },
-        { kernel_code2 },
-        entry_point,
-        parameters,
-        "-cl-mad-enable -DSCALAR=3",
-        { output_layout },
-        gws));
+    topology.add(custom_gpu_primitive("user_kernel1",
+                                      {input_info("input")},
+                                      {kernel_code1},
+                                      entry_point,
+                                      parameters,
+                                      "-cl-mad-enable -DSCALAR=1",
+                                      {output_layout},
+                                      gws));
+    topology.add(custom_gpu_primitive("user_kernel2",
+                                      {input_info("user_kernel1")},
+                                      {kernel_code2},
+                                      entry_point,
+                                      parameters,
+                                      "-cl-mad-enable -DSCALAR=3",
+                                      {output_layout},
+                                      gws));
 
-    set_values(input, {
-        1.f,   0.f, 5.f, 1.5f,
-        2.f,   0.f, 6.f, 5.2f,
-        3.f,  0.5f, 7.f, 12.f,
-        4.f, -0.5f, 8.f,  8.f
-    });
+    set_values(input, {1.f, 0.f, 5.f, 1.5f, 2.f, 0.f, 6.f, 5.2f, 3.f, 0.5f, 7.f, 12.f, 4.f, -0.5f, 8.f, 8.f});
 
     network network(engine, topology, get_test_default_config(engine));
 
@@ -559,8 +562,8 @@ template <typename T>
 void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::u8, format::yxfb,{ 2, 2, 2, 2 } });
+    auto input = engine.allocate_memory({data_types::u8, format::yxfb, {2, 2, 2, 2}});
+    auto input2 = engine.allocate_memory({data_types::u8, format::yxfb, {2, 2, 2, 2}});
 
     std::string kernel_code =
         R"__krnl(
@@ -571,35 +574,26 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
             }
         )__krnl";
     std::string entry_point = "add_kernel";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = { { custom_gpu_primitive::arg_input, 0 },{ custom_gpu_primitive::arg_input, 1 },{ custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::u8, format::yxfb,{ 2, 2, 2, 2 } };
-    std::vector<size_t> gws = { output_layout.count() };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0},
+                                                              {custom_gpu_primitive::arg_input, 1},
+                                                              {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::u8, format::yxfb, {2, 2, 2, 2}};
+    std::vector<size_t> gws = {output_layout.count()};
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(custom_gpu_primitive(
-        "user_kernel",
-        { input_info("input"), input_info("input2") },
-        { kernel_code },
-        entry_point,
-        parameters,
-        "-cl-mad-enable",
-        { output_layout },
-        gws));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("input"), input_info("input2")},
+                                      {kernel_code},
+                                      entry_point,
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      gws));
 
-    set_values<T>(input, {
-          1,   0,   5,    1,
-        200, 100, 160,  150,
-        130,   0, 175,   12,
-          4, 100,   8,  180
-    });
+    set_values<T>(input, {1, 0, 5, 1, 200, 100, 160, 150, 130, 0, 175, 12, 4, 100, 8, 180});
 
-    set_values<T>(input2, {
-         0,  2,  0,  2,
-        55, 75, 20,  4,
-        15, 17, 80, 10,
-         2, 60,  0, 20
-    });
+    set_values<T>(input2, {0, 2, 0, 2, 55, 75, 20, 4, 15, 17, 80, 10, 2, 60, 0, 20});
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
@@ -612,12 +606,7 @@ void test_custom_gpu_primitive_u8_add_basic_in2x2x2x2(bool is_caching_test) {
 
     auto output = outputs.at("user_kernel").get_memory();
 
-    T answers[16] = {
-          1,   2,   5,   3,
-        255, 175, 180, 154,
-        145,  17, 255,  22,
-          6, 160,   8, 200
-    };
+    T answers[16] = {1, 2, 5, 3, 255, 175, 180, 154, 145, 17, 255, 22, 6, 160, 8, 200};
 
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
@@ -634,7 +623,6 @@ TEST(export_import_custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
     test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>(true);
 }
 
-
 // INPUT0_OFFSET is documented as "the number of elements from the start of the tensor to
 // the first valid element, bypassing the lower padding", with the padding and pitch arrays
 // always ordered as BFYX. Logical b1 f1 y4 x3 with lower padding y=1 x=2 is padded to
@@ -643,8 +631,7 @@ TEST(export_import_custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
 TEST(custom_gpu_primitive_f32, input_offset_matches_spatial_lower_padding) {
     auto& engine = get_test_engine();
 
-    auto in_layout = layout{ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 4 },
-                             padding({0, 0, 1, 2}, {0, 0, 0, 0}) };
+    auto in_layout = layout{data_types::f32, format::bfyx, tensor{1, 1, 3, 4}, padding({0, 0, 1, 2}, {0, 0, 0, 0})};
     auto input = engine.allocate_memory(in_layout);
 
     std::vector<float> vals(in_layout.get_linear_size());
@@ -660,15 +647,12 @@ TEST(custom_gpu_primitive_f32, input_offset_matches_spatial_lower_padding) {
                 output[1] = input0[INPUT0_OFFSET];
             }
         )__krnl";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        { custom_gpu_primitive::arg_input, 0 },
-        { custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::bfyx, { 1, 1, 2, 1 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::bfyx, {1, 1, 2, 1}};
 
     topology topology;
     topology.add(input_layout("input", in_layout));
-    topology.add(custom_gpu_primitive("user_kernel", { input_info("input") }, { kernel_code },
-        "probe_kernel", parameters, "-cl-mad-enable", { output_layout }, { 1 }));
+    topology.add(custom_gpu_primitive("user_kernel", {input_info("input")}, {kernel_code}, "probe_kernel", parameters, "-cl-mad-enable", {output_layout}, {1}));
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
@@ -686,8 +670,8 @@ TEST(custom_gpu_primitive_f32, input_offset_matches_spatial_lower_padding) {
 TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_feature_axis) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 2 } });
-    set_values(input, { 0.f, 1.f, 10.f, 11.f, 20.f, 21.f, 30.f, 31.f });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 4, 1, 2}});
+    set_values(input, {0.f, 1.f, 10.f, 11.f, 20.f, 21.f, 30.f, 31.f});
 
     std::string kernel_code =
         R"__krnl(
@@ -697,17 +681,21 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_feature_
                 output[idx] = input0[INPUT0_OFFSET + idx];
             }
         )__krnl";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        { custom_gpu_primitive::arg_input, 0 },
-        { custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::bfyx, { 1, 2, 1, 2 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::bfyx, {1, 2, 1, 2}};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     // features [2, 4) of the parent tensor
     topology.add(crop("crop", input_info("input"), tensor(1, 2, 1, 2), tensor(0, 2, 0, 0)));
-    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
-        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("crop")},
+                                      {kernel_code},
+                                      "copy_kernel",
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      {output_layout.count()}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -716,12 +704,11 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_feature_
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
-        << "a custom layer input should not block in-place cropping";
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized()) << "a custom layer input should not block in-place cropping";
 
     auto output = outputs.at("user_kernel").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
-    std::vector<float> expected = { 20.f, 21.f, 30.f, 31.f };
+    std::vector<float> expected = {20.f, 21.f, 30.f, 31.f};
     for (size_t i = 0; i < expected.size(); i++)
         ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
 }
@@ -731,7 +718,7 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_feature_
 TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_spatial_axis) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 4 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, tensor{1, 1, 3, 4}});
     std::vector<float> vals(12);
     for (size_t i = 0; i < vals.size(); i++)
         vals[i] = static_cast<float>(i);
@@ -745,17 +732,21 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_spatial_
                 output[idx] = input0[INPUT0_OFFSET + idx];
             }
         )__krnl";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        { custom_gpu_primitive::arg_input, 0 },
-        { custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::bfyx, tensor{ 1, 1, 3, 3 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::bfyx, tensor{1, 1, 3, 3}};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     // rows [1, 4) of the parent tensor
     topology.add(crop("crop", input_info("input"), tensor(1, 1, 3, 3), tensor(0, 0, 0, 1)));
-    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
-        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("crop")},
+                                      {kernel_code},
+                                      "copy_kernel",
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      {output_layout.count()}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -764,8 +755,7 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_spatial_
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
-        << "a custom layer input should not block in-place cropping";
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized()) << "a custom layer input should not block in-place cropping";
 
     auto output = outputs.at("user_kernel").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
@@ -779,8 +769,8 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_spatial_
 TEST(custom_gpu_primitive_f32, custom_layer_producer_blocks_in_place_concat) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
-    set_values(input, { 0.f, 1.f, 10.f, 11.f });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 2, 1, 2}});
+    set_values(input, {0.f, 1.f, 10.f, 11.f});
 
     std::string kernel_code =
         R"__krnl(
@@ -790,18 +780,28 @@ TEST(custom_gpu_primitive_f32, custom_layer_producer_blocks_in_place_concat) {
                 output[idx] = input0[idx] + ADDEND;
             }
         )__krnl";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        { custom_gpu_primitive::arg_input, 0 },
-        { custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::bfyx, { 1, 2, 1, 2 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::bfyx, {1, 2, 1, 2}};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(custom_gpu_primitive("k1", { input_info("input") }, { kernel_code },
-        "add_kernel", parameters, "-cl-mad-enable -DADDEND=100.0f", { output_layout }, { output_layout.count() }));
-    topology.add(custom_gpu_primitive("k2", { input_info("input") }, { kernel_code },
-        "add_kernel", parameters, "-cl-mad-enable -DADDEND=200.0f", { output_layout }, { output_layout.count() }));
-    topology.add(concatenation("concat", { input_info("k1"), input_info("k2") }, 1));
+    topology.add(custom_gpu_primitive("k1",
+                                      {input_info("input")},
+                                      {kernel_code},
+                                      "add_kernel",
+                                      parameters,
+                                      "-cl-mad-enable -DADDEND=100.0f",
+                                      {output_layout},
+                                      {output_layout.count()}));
+    topology.add(custom_gpu_primitive("k2",
+                                      {input_info("input")},
+                                      {kernel_code},
+                                      "add_kernel",
+                                      parameters,
+                                      "-cl-mad-enable -DADDEND=200.0f",
+                                      {output_layout},
+                                      {output_layout.count()}));
+    topology.add(concatenation("concat", {input_info("k1"), input_info("k2")}, 1));
     // the concat must not be the network output, or it is excluded from fusing for that
     // reason alone and the test would pass without exercising anything
     topology.add(activation("act", input_info("concat"), activation_func::abs));
@@ -817,7 +817,7 @@ TEST(custom_gpu_primitive_f32, custom_layer_producer_blocks_in_place_concat) {
 
     auto output = outputs.at("act").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
-    std::vector<float> expected = { 100.f, 101.f, 110.f, 111.f, 200.f, 201.f, 210.f, 211.f };
+    std::vector<float> expected = {100.f, 101.f, 110.f, 111.f, 200.f, 201.f, 210.f, 211.f};
     for (size_t i = 0; i < expected.size(); i++)
         ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
 }
@@ -826,8 +826,8 @@ TEST(custom_gpu_primitive_f32, custom_layer_producer_blocks_in_place_concat) {
 TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_batch_axis) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 1, 2, 1 } });
-    set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {4, 1, 2, 1}});
+    set_values(input, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f});
 
     std::string kernel_code =
         R"__krnl(
@@ -837,17 +837,21 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_batch_ax
                 output[idx] = input0[INPUT0_OFFSET + idx];
             }
         )__krnl";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        { custom_gpu_primitive::arg_input, 0 },
-        { custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::bfyx, { 2, 1, 2, 1 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::bfyx, {2, 1, 2, 1}};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     // batches [2, 4) of the parent tensor
     topology.add(crop("crop", input_info("input"), tensor(2, 1, 2, 1), tensor(2, 0, 0, 0)));
-    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
-        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("crop")},
+                                      {kernel_code},
+                                      "copy_kernel",
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      {output_layout.count()}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -856,12 +860,11 @@ TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_batch_ax
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
-        << "a custom layer input should not block in-place cropping";
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized()) << "a custom layer input should not block in-place cropping";
 
     auto output = outputs.at("user_kernel").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
-    std::vector<float> expected = { 4.f, 5.f, 6.f, 7.f };
+    std::vector<float> expected = {4.f, 5.f, 6.f, 7.f};
     for (size_t i = 0; i < expected.size(); i++)
         ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
 }
@@ -875,7 +878,7 @@ TEST(custom_gpu_primitive_f32, documented_pitch_indexing_reads_non_contiguous_in
     auto& engine = get_test_engine();
 
     // b2 f4 y1 x2, value == linear bfyx index
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 4, 2, 1 } });
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 4, 2, 1}});
     std::vector<float> vals(16);
     for (size_t i = 0; i < vals.size(); i++)
         vals[i] = static_cast<float>(i);
@@ -904,17 +907,21 @@ TEST(custom_gpu_primitive_f32, documented_pitch_indexing_reads_non_contiguous_in
                 output[out_id] = input0[in_id];
             }
         )__krnl";
-    std::vector<custom_gpu_primitive::arg_desc> parameters = {
-        { custom_gpu_primitive::arg_input, 0 },
-        { custom_gpu_primitive::arg_output, 0 } };
-    layout output_layout = { data_types::f32, format::bfyx, { 2, 2, 2, 1 } };
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {{custom_gpu_primitive::arg_input, 0}, {custom_gpu_primitive::arg_output, 0}};
+    layout output_layout = {data_types::f32, format::bfyx, {2, 2, 2, 1}};
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     // features [2, 4) of both batches
     topology.add(crop("crop", input_info("input"), tensor(2, 2, 2, 1), tensor(0, 2, 0, 0)));
-    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
-        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+    topology.add(custom_gpu_primitive("user_kernel",
+                                      {input_info("crop")},
+                                      {kernel_code},
+                                      "copy_kernel",
+                                      parameters,
+                                      "-cl-mad-enable",
+                                      {output_layout},
+                                      {output_layout.count()}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -923,13 +930,12 @@ TEST(custom_gpu_primitive_f32, documented_pitch_indexing_reads_non_contiguous_in
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
-        << "a custom layer input should not block in-place cropping";
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized()) << "a custom layer input should not block in-place cropping";
 
     auto output = outputs.at("user_kernel").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     // b0 -> features 2,3 == parent 4,5,6,7 ; b1 -> parent 12,13,14,15
-    std::vector<float> expected = { 4.f, 5.f, 6.f, 7.f, 12.f, 13.f, 14.f, 15.f };
+    std::vector<float> expected = {4.f, 5.f, 6.f, 7.f, 12.f, 13.f, 14.f, 15.f};
     for (size_t i = 0; i < expected.size(); i++)
         ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
 }
