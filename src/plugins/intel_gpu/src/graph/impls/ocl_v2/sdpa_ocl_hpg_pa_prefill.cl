@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// xe_hpg (DG2) PA PREFILL kernel, f16 head 64 / 128 / 256 (k == v), with or without a sliding window, a sink and
-// token_type_ids (HPG_PA_PREFILL, set by the host: SDPAOclGenerator's hpg_pa_prefill_ok()). Included by sdpa_ocl.cl in place of its own
-// kernel, after the config and loader headers. The loop is sdpa_ocl.cl's (online softmax over workgroup key tiles, causal
-// and window bounds, S_max_slm / S_sum_slm exchange); what differs is built around the SG8 operand forms that keep DG2's
-// DPAS fed:
+// xe_hpg (DG2) PA PREFILL kernel, f16 head 64 / 96 / 128 / 256 / 512 (k == v), with or without a sliding window, a sink and
+// token_type_ids, which also serves plain SDPA without causality, with or without an attention mask (HPG_PA_PREFILL, set
+// by the host: SDPAOclGenerator's hpg_pa_prefill_ok() / hpg_plain_prefill_ok()). Included by sdpa_ocl.cl in place of its
+// own kernel, after the config and loader headers. The loop is sdpa_ocl.cl's (online softmax over workgroup key tiles,
+// causal and window bounds, S_max_slm / S_sum_slm exchange); what differs is built around the SG8 operand forms that keep
+// DG2's DPAS fed:
 //  - KQ is DPAS(Q, K): A = Q from Q_slm (staged so one ulong4 SLM block read is the operand), B = K straight from the
 //    input (lane = key, 16 depth halves per lane: one 32 B read per key row, no repacking). The scores come out
 //    lane = key; a per-subgroup 8 x 8 SLM transpose turns them to lane = query for the mask and softmax.
@@ -21,21 +22,34 @@
 // sink logit, sum = 1 in one subgroup), and an image group is bidirectional (the causal bound reaches the end of the group
 // of the workgroup's last query, the window start the start of the group it cuts, and a key in a query's own group is
 // never masked).
+// Plain SDPA takes its rows from the 4D layout (batch = get_group_id(2), a workgroup per 32 queries, q and k from the
+// arguments) and has no causal bound: every workgroup visits all k keys, and only those past k are masked. A mask is added
+// in the raw score domain, as in sdpa_ocl.cl, 8 keys of the lane's query row at a time (no tile skips it).
 // Out-of-range rows are clamped to the last valid key or query, so no read leaves the subsequence, and their scores are
 // masked to -INFINITY (P = 0 times a finite V). The design and its measurements: "xe_hpg PA PREFILL kernel" in
 // docs/sdpa_ocl.md.
 
 // The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score
-// tile is the KQ query tile), and each holds 16 or 32 value columns of the head (hpg_pa_prefill_tiling()).
-#if !(SG8 && IS_PAGED_ATTENTION && IS_PREFILL && K_HEAD_SIZE == V_HEAD_SIZE && K_HEAD_SIZE == D_MAX && \
+// tile is the KQ query tile), and each holds 16 or 32 value columns of the head (hpg_pa_prefill_tiling()). The head need not
+// be a power of two (96) nor a multiple of 16: plain SDPA at head 72 (HPG_TAIL = 8) has a last depth tile of 8 depths (K and
+// Q read 16 B there and the rest is zero) and a last value subgroup of 8 columns, which reads the 16 columns that end the
+// head and stores its upper 8 (sv_col below), so no load leaves the head.
+#define HPG_TAIL (K_HEAD_SIZE % DPAS_K)
+#if !(SG8 && IS_PREFILL && K_HEAD_SIZE == V_HEAD_SIZE && (HPG_TAIL == 0 || HPG_TAIL == DPAS_K / 2) && \
       kq_sg_tile_queries == 16 && sv_sg_tile_scores == 16 && sv_sg_per_wg_scores == kq_sg_per_wg_queries && \
       sv_sg_per_wg_values == kq_sg_per_wg_keys && (sv_sg_tile_values == 16 || sv_sg_tile_values == 32) && \
-      sv_sg_tile_values * sv_sg_per_wg_values == V_HEAD_SIZE)
+      sv_sg_tile_values * sv_sg_per_wg_values == V_HEAD_SIZE + HPG_TAIL)
 #  error "sdpa_ocl_hpg_pa_prefill.cl: the host gate (hpg_pa_prefill_ok()) and this kernel disagree on the shape or the tiling"
 #endif
-#if WITH_ATTN_MASK || defined(HAS_SCALAR_ATTN_MASK) || defined(STATIC_SCALAR_ATTN_MASK_VALUE) || WITH_SCALE || \
-    defined(KV_COMPRESSED) || MICRO_MATH || !IS_CAUSAL || INPUT0_IS_BF16
+// A static scalar mask (plain SDPA only, finite: hpg_plain_prefill_ok()) adds the same value to every score of a row, which
+// the softmax ignores, so the kernel leaves it out.
+#if defined(HAS_SCALAR_ATTN_MASK) || (defined(STATIC_SCALAR_ATTN_MASK_VALUE) && IS_PAGED_ATTENTION) || WITH_SCALE || \
+    defined(KV_COMPRESSED) || MICRO_MATH || INPUT0_IS_BF16 || (IS_PAGED_ATTENTION && !IS_CAUSAL) || \
+    (!IS_PAGED_ATTENTION && (IS_CAUSAL || defined(HAS_SINK_INPUT)))
 #  error "sdpa_ocl_hpg_pa_prefill.cl: an op the host gate (hpg_pa_prefill()) should have sent to the generic kernel"
+#endif
+#if HPG_TAIL && IS_PAGED_ATTENTION
+#  error "sdpa_ocl_hpg_pa_prefill.cl: a head that is not a multiple of 16 is plain SDPA's (the K page reads have no tail)"
 #endif
 #if !defined(HPG_PA_V_LEAD) || HPG_PA_V_LEAD < 1 || HPG_PA_V_LEAD > sv_key_blocks
 #  error "sdpa_ocl_hpg_pa_prefill.cl: HPG_PA_V_LEAD must be 1..sv_key_blocks"
@@ -81,6 +95,12 @@ SDPA_OCL_INLINE void FUNC(hpg_kq)(__private float8 (*scores)[kq_query_blocks], c
         #pragma unroll
         for (int mb = 0; mb < kq_key_blocks; ++mb) {
             const int row = min(key_base + mb * DPAS_ROWS + (int)lane, causal_k - 1);
+    #if HPG_TAIL
+            // The last tile's upper 8 depths are past the head (the next head's, or past the buffer): zeros.
+            if (db == DKS_ACTIVE - 1)
+                k_b[mb] = as_int8((uint8)(vload4(0, (const __global uint *)(K + (size_t)row * ldk + db * DPAS_K)), (uint4)0));
+            else
+    #endif
             k_b[mb] = as_int8(vload8(0, (const __global uint *)(K + (size_t)row * ldk + db * DPAS_K)));
         }
         #pragma unroll
@@ -113,6 +133,39 @@ SDPA_OCL_INLINE void FUNC(hpg_v_rows)(const __global half *V, const uint ldv, co
     *even = HPG_V_LOAD((const __global uint *)(V + (size_t)even_row * ldv + col));
     *odd = HPG_V_LOAD((const __global uint *)(V + (size_t)odd_row * ldv + col));
 }
+
+#if WITH_ATTN_MASK
+// The mask of keys key0..key0 + 7 for this lane's query: row 0 of a per-key mask and key 0 of a per-query one (the selects
+// fold when MSK_D2 / MSK_D3 are literals), 0 past the mask's rows or keys (such a row is not stored, such a key is masked
+// by k_mask). dword_ok: a row of whole dwords, read with one 16 B load (key0 is a multiple of 8).
+SDPA_OCL_INLINE float8 FUNC(hpg_mask8)(OPTIONAL_SHAPE_INFO_ARG const __global half *msk, const int query, int key0,
+                                       const bool dword_ok) {
+    #if defined(NEG_SG8) && NEG_SG8 == 11
+    const int row = 0;  // negative control: the first query's row (smoke_sdpa_hpg_rows must fail its full-mask cases)
+    #else
+    const int row = (MSK_D2 == 1) ? 0 : query;
+    #endif
+    #if defined(NEG_SG8) && NEG_SG8 == 13
+    key0 ^= DPAS_ROWS;  // negative control: the two 8-key halves of each 16-key block swapped (every mask case must fail)
+    #endif
+    half8 mv = (half8)0.0f;
+    if (row < MSK_D2) {
+        const __global half *p = msk + MSK_OFF(0, 0, row, 0);
+        if (MSK_D3 == 1) {
+            mv = (half8)p[0];
+        } else if (key0 + DPAS_ROWS <= MSK_D3) {
+            mv = dword_ok ? as_half8(vload4(0, (const __global uint *)(p + key0))) : vload8(0, p + key0);
+        } else {
+            #pragma unroll
+            for (int kk = 0; kk < DPAS_ROWS; ++kk) {
+                if (key0 + kk < MSK_D3)
+                    mv[kk] = p[key0 + kk];
+            }
+        }
+    }
+    return convert_float8(mv);
+}
+#endif
 
 // acc[qb][vb] += V^T P over the sv_key_blocks key blocks of the tile, with V HPG_PA_V_LEAD blocks ahead in a ring
 // (the caller fills slots 0..HPG_PA_V_LEAD - 1 with blocks 0..HPG_PA_V_LEAD - 1).
@@ -164,7 +217,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const global QRY_DATA_T *Q,
         const global VAL_DATA_T *V,
         global OUTPUT_TYPE *A,
+#if IS_PAGED_ATTENTION
         const __global INPUT3_TYPE* subsequence_begins,
+#endif
+#if WITH_ATTN_MASK
+        const global half *msk,
+#endif
 #ifdef HAS_SINK_INPUT
         const global SINK_DATA_T *sink_ptr,
 #endif
@@ -172,8 +230,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const __global int* token_type_ids,
         const int token_type_ids_count,
 #endif
+#if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping)
+#else
+        const int d, const int k, const int q)
+#endif
 {
+#if IS_PAGED_ATTENTION
     const uint query_block_idx = get_group_id(0) << 1;
     const uint block_start_pos = blocked_indexes_start_and_gws_mapping[query_block_idx];
     const uint gws_mapping = blocked_indexes_start_and_gws_mapping[query_block_idx + 1];
@@ -182,6 +245,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const int q = subsequence_end - subsequence_begin;
     const int k = q;
     const int wg_j0 = block_start_pos - subsequence_begin;
+#else
+    const int wg_j0 = get_group_id(0) * kq_wg_tile_queries;
+    const uint b1 = get_group_id(2);  // batch
+#endif
 
     const uint lane = get_sub_group_local_id();
     const uint sg_ij = get_local_id(1);
@@ -198,6 +265,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const uint sg_j_sv = sg_ij % sv_sg_per_wg_values;
     const int sg_i0_sv = sg_i_sv * sv_sg_tile_scores;
     const uint sg_j0_sv = sg_j_sv * sv_sg_tile_values;
+#if HPG_TAIL
+    // The value columns this subgroup reads: the last one's start moves back to the last 16 of the head.
+    const uint sv_col = min(sg_j0_sv, (uint)(V_HEAD_SIZE - sv_sg_tile_values));
+#else
+    const uint sv_col = sg_j0_sv;
+#endif
 
 #ifdef STATIC_SCALE_VALUE
     #if INVERT_SCALE
@@ -209,17 +282,22 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     float scale = native_recip(sqrt(convert_float(K_HEAD_SIZE)));
 #endif
     scale *= 1.4426950408889634f;  // log2(e): the softmax runs on exp2
-#ifdef HAS_SINK_INPUT
-    // The sink logit in the raw score domain (divided by the attention scale), with sdpa_ocl.cl's inverse scale.
+#if defined(HAS_SINK_INPUT) || WITH_ATTN_MASK
+    // The sink logit and the mask enter the raw score domain (divided by the attention scale), with sdpa_ocl.cl's inverse
+    // scale.
     #if defined(STATIC_SCALE_VALUE) && INVERT_SCALE
-    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * convert_float(STATIC_SCALE_VALUE);
+    const float iscale = convert_float(STATIC_SCALE_VALUE);
     #elif defined(STATIC_SCALE_VALUE)
-    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * convert_float(STATIC_SCALE_VALUE_INV);
+    const float iscale = convert_float(STATIC_SCALE_VALUE_INV);
     #else
-    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * sqrt(convert_float(K_HEAD_SIZE));
+    const float iscale = sqrt(convert_float(K_HEAD_SIZE));
     #endif
 #endif
+#ifdef HAS_SINK_INPUT
+    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * iscale;
+#endif
 
+#if IS_PAGED_ATTENTION
     const uint ldq = K_HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
     const uint ldk = K_HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
     const uint ldv = V_HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
@@ -228,13 +306,62 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     K += (size_t)subsequence_begin * ldk + b0_kv * K_HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
     V += (size_t)subsequence_begin * ldv + b0_kv * V_HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     A += (size_t)subsequence_begin * lda + b0 * V_HEAD_SIZE;
+#else
+    // The host admits only layouts whose head dimension is innermost and unpadded, so every row starts at a multiple
+    // of the (even) head size.
+    const uint ldq = QRY_S2;
+    const uint ldk = KEY_S2;
+    const uint ldv = VAL_S2;
+    const uint lda = DST_S2;
+    // Q, K and V each read their own broadcast batch (1 or the output's), as in sdpa_ocl.cl: BROADCAST_{Q,K,V}_BATCH is
+    // set where that batch is not statically the output's.
+    #if BROADCAST_Q_BATCH
+    const uint b1_q = (QRY_D0 == 1) ? 0 : b1;
+    #else
+    const uint b1_q = b1;
+    #endif
+    #if BROADCAST_K_BATCH
+    const uint b1_k = (KEY_D0 == 1) ? 0 : b1;
+    #else
+    const uint b1_k = b1;
+    #endif
+    #if BROADCAST_V_BATCH
+    const uint b1_v = (VAL_D0 == 1) ? 0 : b1;
+    #else
+    const uint b1_v = b1;
+    #endif
+    Q += QRY_OFF(b1_q, b0, 0, 0) + INPUT0_OFFSET;
+    #if defined(NEG_SG8) && NEG_SG8 == 10
+    // Negative control: K / V of batch 0, KV head 0 (smoke_sdpa_hpg_rows must fail its cases with two batches or KV heads).
+    K += KEY_OFF(0, 0, 0, 0) + INPUT1_OFFSET;
+    V += VAL_OFF(0, 0, 0, 0) + INPUT2_OFFSET;
+    #else
+    K += KEY_OFF(b1_k, b0_kv, 0, 0) + INPUT1_OFFSET;
+    V += VAL_OFF(b1_v, b0_kv, 0, 0) + INPUT2_OFFSET;
+    #endif
+    A += DST_OFF(b1, b0, 0, 0, 0);
+    #if WITH_ATTN_MASK
+        #if defined(NEG_SG8) && NEG_SG8 == 12
+    // Negative control: the mask of batch 0, head 0 (smoke_sdpa_hpg_rows must fail its cases with a mask per batch or head).
+        #else
+    msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
+        #endif
+    #endif
+#endif
     // A dynamic padding is taken on trust by the host (dword_token_matrix_ok()); Q's is checked here, where a row 2 B off
-    // costs two ushort loads per dword once per workgroup (an unaligned dword load returns wrong data without an error).
+    // costs two ushort loads per dword once per workgroup (an unaligned dword load returns wrong data without an error), and
+    // so is the mask's (an odd key count per row takes two-byte loads).
 #if defined(NEG_SG8) && NEG_SG8 == 4
-    // Not a negative control: forces the fallback so the PA suites cover it (they must still PASS).
+    // Not a negative control: forces the fallbacks so the suites cover them (they must still PASS).
     const bool q_dword_ok = false;
+    #if WITH_ATTN_MASK
+    const bool mask_dword_ok = false;
+    #endif
 #else
     const bool q_dword_ok = ((ldq & 1u) == 0) && ((as_long(Q) & 3) == 0);
+    #if WITH_ATTN_MASK
+    const bool mask_dword_ok = (MSK_D2 == 1 || (MSK_S2 & 1) == 0) && ((as_long(msk) & 3) == 0);
+    #endif
 #endif
 #if BIDIR_MASK
     // As in sdpa_ocl.cl: workgroup-uniform, false for an empty token_type_ids (never read then), and the buffer holds one
@@ -265,13 +392,25 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     // Q staging, one (query block, depth-tile pair) per subgroup step: lane l reads 32 halves of query row
     // wg_j0 + 8 q_block + l (clamped to q - 1), and adjacent lanes trade halves so that the ulong4 block read in hpg_kq()
-    // gives component = query, lane = depth pair.
-    for (int tile = sg_ij; tile < q_blocks * (DKS_ACTIVE / 2); tile += sg_per_wg) {
+    // gives component = query, lane = depth pair. With an odd tile count the last pair is the last tile alone, of 16 or (head
+    // 72) 8 depths, zero past them.
+    for (int tile = sg_ij; tile < q_blocks * ((DKS_ACTIVE + 1) / 2); tile += sg_per_wg) {
         const int q_block = tile % q_blocks;
         const int db = (tile / q_blocks) * 2;
         const int query = min(wg_j0 + q_block * SUBGROUP_SIZE + (int)lane, q - 1);
         const global QRY_DATA_T *q_row = Q + (size_t)query * ldq + db * DPAS_K;
         uint16 qq;
+#if DKS_ACTIVE % 2
+        if (db == DKS_ACTIVE - 1) {
+            uint8 last = (uint8)0;
+    #if HPG_TAIL
+            last.lo = q_dword_ok ? vload4(0, (const global uint *)q_row) : as_uint4(vload8(0, (const global ushort *)q_row));
+    #else
+            last = q_dword_ok ? vload8(0, (const global uint *)q_row) : as_uint8(vload16(0, (const global ushort *)q_row));
+    #endif
+            qq = (uint16)(last, (uint8)0);
+        } else
+#endif
         if (q_dword_ok) {
             qq = vload16(0, (const global uint *)q_row);
         } else {
@@ -280,6 +419,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         }
         #pragma unroll
         for (int half_db = 0; half_db < 2; ++half_db) {
+#if DKS_ACTIVE % 2
+            if (db + half_db == DKS_ACTIVE)
+                break;
+#endif
             const uint8 src = half_db ? qq.hi : qq.lo;
             uint8 out;
             #pragma unroll
@@ -322,8 +465,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
+#if IS_CAUSAL
     // Causal bound: no query of the workgroup needs a key past its last query (or past the end of its image group).
     int causal_k = min(k, wg_j0 + kq_wg_tile_queries);
+#else
+    const int causal_k = k;
+#endif
 #if BIDIR_MASK
     {
         const int wg_q_end = causal_k - 1;
@@ -397,9 +544,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             k_mask[ii] = (key_base + ii * SUBGROUP_SIZE + (int)lane < causal_k) ? 0.0f : -INFINITY;
 
         float alpha[kq_query_blocks];
+#if !WITH_ATTN_MASK
         // Uniform per subgroup: a tile wholly below the diagonal (every key <= the subgroup's first query, and all keys
         // < k) and inside the window of the subgroup's last query has nothing to mask.
-        if (key_base + kq_sg_tile_keys - 1 <= wg_j0 + sg_j0_kq && key_base + kq_sg_tile_keys <= k
+        if (
+#if IS_CAUSAL
+            key_base + kq_sg_tile_keys - 1 <= wg_j0 + sg_j0_kq &&
+#endif
+            key_base + kq_sg_tile_keys <= k
 #if SLIDING_WINDOW_SIZE
             && key_base > wg_j0 + sg_j0_kq + kq_sg_tile_queries - 1 - HPG_PA_WINDOW
 #endif
@@ -414,36 +566,51 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         lmax = fmax(lmax, S_tile[mb][qb][mm]);
                 __builtin_IB_atomic_max_local_f32(&S_max_slm[sg_j0_kq + qb * SUBGROUP_SIZE + lane], lmax);
             }
-        } else {
+        } else
+#endif
+        {
             #pragma unroll
             for (int qb = 0; qb < kq_query_blocks; ++qb) {
+#if IS_CAUSAL || WITH_ATTN_MASK
                 const int query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + (int)lane;
+#endif
+#if IS_CAUSAL
                 // Every key of the tile <= the block's first query (and in the window of its last): only the k_mask term
                 // is left.
                 const int block_query0 = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE;
                 const bool causal_block_clear = key_base + kq_sg_tile_keys - 1 <= block_query0
-#if SLIDING_WINDOW_SIZE
+    #if SLIDING_WINDOW_SIZE
                                                 && key_base > block_query0 + SUBGROUP_SIZE - 1 - HPG_PA_WINDOW
-#endif
+    #endif
                     ;
+#endif
                 float lmax = -INFINITY;
                 #pragma unroll
                 for (int mb = 0; mb < kq_key_blocks; ++mb) {
+#if WITH_ATTN_MASK
+                    const float8 mask8 = FUNC_CALL(hpg_mask8)(OPTIONAL_SHAPE_INFO_TENSOR msk, query, key_base + mb * DPAS_ROWS,
+                                                              mask_dword_ok) * iscale;
+#endif
                     #pragma unroll
                     for (int mm = 0; mm < DPAS_ROWS; ++mm) {
                         const int key_rel = mb * DPAS_ROWS + mm;
                         float s = S_tile[mb][qb][mm] +
                                   sub_group_broadcast(k_mask[key_rel / SUBGROUP_SIZE], key_rel % SUBGROUP_SIZE);
-#if BIDIR_MASK
+#if WITH_ATTN_MASK
+                        s += mask8[mm];
+#endif
+#if IS_CAUSAL  // plain SDPA masks only the keys past k (k_mask)
+    #if BIDIR_MASK
                         if (!causal_block_clear && (uint)(key_base + key_rel - keep_begin[qb]) >= keep_len[qb])
-#elif SLIDING_WINDOW_SIZE
+    #elif SLIDING_WINDOW_SIZE
                         // 0 <= query - key < window as one unsigned compare: the two signed ones (key > query, key <=
                         // query - window) spilled 2.5 KB on DG2 (IGC 2.41).
                         if (!causal_block_clear && (uint)(query - key_base - key_rel) >= (uint)HPG_PA_WINDOW)
-#else
+    #else
                         if (!causal_block_clear && key_base + key_rel > query)
-#endif
+    #endif
                             s = -INFINITY;
+#endif
                         S_tile[mb][qb][mm] = s;
                         lmax = fmax(lmax, s);
                     }
@@ -499,12 +666,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         HPG_V_T v_odd[HPG_PA_V_LEAD];
         #pragma unroll
         for (int pb = 0; pb < HPG_PA_V_LEAD; ++pb)
-            FUNC_CALL(hpg_v_rows)((const global half *)V, ldv, k0 + pb * DPAS_K, causal_k, sg_j0_sv, lane, &v_even[pb],
-                                  &v_odd[pb]);
+            FUNC_CALL(hpg_v_rows)((const global half *)V, ldv, k0 + pb * DPAS_K, causal_k, sv_col, lane,
+                                  &v_even[pb], &v_odd[pb]);
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
-        FUNC_CALL(hpg_sv)(A_tile, S_slm + P_SLM_OFF(0, sg_i_sv * sv_score_blocks), (const global half *)V, ldv, k0,
-                          causal_k, sg_j0_sv, lane, v_even, v_odd);
+        FUNC_CALL(hpg_sv)(A_tile, S_slm + P_SLM_OFF(0, sg_i_sv * sv_score_blocks), (const global half *)V, ldv,
+                          k0, causal_k, sv_col, lane, v_even, v_odd);
     }
 
     #pragma unroll
@@ -519,12 +686,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
         for (int cd = 0; cd < sv_value_blocks; ++cd) {
             const half8 o = convert_half8(A_tile[r][cd] * inv_l);
+#if HPG_TAIL && defined(NEG_SG8) && NEG_SG8 == 18
+            // Negative control: the last value subgroup stores its block unshifted (smoke_sdpa_hpg_rows must fail every head-72
+            // case).
+            if (row < q && sg_j0_sv + cd * SUBGROUP_SIZE < V_HEAD_SIZE)
+                vstore4(as_uint4(o), 0, (global uint *)(A + (size_t)row * lda + sg_j0_sv + cd * SUBGROUP_SIZE));
+#elif HPG_TAIL
+            if (row < q && sv_col + cd * SUBGROUP_SIZE >= sg_j0_sv)  // the last subgroup's lower block belongs to the one before
+                vstore4(as_uint4(o), 0, (global uint *)(A + (size_t)row * lda + sv_col + cd * SUBGROUP_SIZE));
+#else
             if (row < q)
                 vstore4(as_uint4(o), 0, (global uint *)(A + (size_t)row * lda + sg_j0_sv + cd * SUBGROUP_SIZE));
+#endif
         }
     }
 }
 
+#undef HPG_TAIL
 #undef P_SLM_OFF
 #undef HPG_PA_WINDOW
 #undef HPG_V_T

@@ -19,6 +19,7 @@
 #include "../utils/kernel_generator.hpp"
 // clang-format on
 #    include <algorithm>
+#    include <cmath>
 #    include <iostream>
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -895,13 +896,15 @@ bool dword_token_matrix_ok(const layout& l) {
     return token_matrix_bytes(l, first_head, token_stride) && first_head % 4 == 0 && token_stride % 4 == 0;
 }
 
-// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) serves f16 head 64, 128 and 256 (k == v), with or without a
-// sliding window, a sink and token_type_ids, but without alibi or a runtime scale, on dword-aligned Q / K / V rows; every
-// other PA PREFILL takes the generic kernel. Not head 512: its 512 x 16 tiling (32 x 1 subgroups) left one 8 x 8
-// accumulator tile of a random subgroup as garbage in about one run in ten on DG2 (IGC 2.41, cause not found).
+// The xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) serves f16 head 64, 96, 128, 256 and 512 (k == v), with or
+// without a sliding window, a sink and token_type_ids, but without alibi or a runtime scale, on dword-aligned Q / K / V rows;
+// every other PA PREFILL takes the generic kernel. At head 512 the S*V loop is near the IGC hazard of "xe_hpg follow-ups" in
+// the docs (one 8 x 8 accumulator tile garbage with a dynamic K / V padding): the driver's IGC 2.41.5 miscompiles a V lead of
+// 4 there, and the SDPA_OCL_NEG_SG8=4 fallback build, not the default.
 // SDPA_OCL_HPG_PA_PREFILL=0 turns it off for A/B, and a SDPA_OCL_KQ_* override does too (it tiles the generic kernel).
 bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
-    const bool head_ok = k_head_size == v_head_size && (k_head_size == 64 || k_head_size == 128 || k_head_size == 256);
+    const bool head_ok =
+        k_head_size == v_head_size && (k_head_size == 64 || k_head_size == 96 || k_head_size == 128 || k_head_size == 256 || k_head_size == 512);
     if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<paged_attention>() || !head_ok) {
         return false;
     }
@@ -921,10 +924,62 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, siz
     return params.output_layouts[0].data_type == data_types::f16;
 }
 
+const layout* runtime_scale_layout(const kernel_impl_params& params);  // with the scale jit below
+
+// The same kernel serves plain SDPA (the PREFILL stage, q > 1) without causality, a runtime scalar mask, a runtime scale, a
+// sink or a compressed / indirect KV cache (flux, vision encoders), at the same heads and head 72 (phi-4-multimodal's vision
+// encoder; half a depth tile and half a value block past 64, plain SDPA only), when Q, K, V and the output are rank-4 f16
+// tensors whose head dimension is innermost and unpadded: every row then starts at a multiple of the head size (a crop
+// view of a fused QKV tensor pads another axis). A tensor mask must be f16, bfyx and unpadded (the kernel reads 8 keys of
+// a row with one load and adds no padding offset, as sdpa_ocl.cl). A static scalar mask is admitted when finite: it adds the
+// same value to every score of a row, which the softmax ignores (CLIP's vision encoder has 0, e.g. in phi-3.5-vision), so the
+// kernel leaves it out. SDPA_OCL_HPG_PLAIN_PREFILL=0 turns it off for A/B.
+bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
+    const bool head_ok = k_head_size == v_head_size &&
+                         (k_head_size == 64 || k_head_size == 72 || k_head_size == 96 || k_head_size == 128 || k_head_size == 256 || k_head_size == 512);
+    if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<scaled_dot_product_attention>() || !head_ok) {
+        return false;
+    }
+    if (env_int("SDPA_OCL_HPG_PLAIN_PREFILL", 1) == 0 || kq_override_requested()) {
+        return false;
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    // A sliding window too: the kernel's window code is the PA one, which assumes causality (plain SDPA applies the window
+    // with IS_CAUSAL only, and with a mask the mask holds it).
+    if (desc->is_causal || (desc->attn_mask_val.has_value() && !std::isfinite(*desc->attn_mask_val)) ||
+        has_scalar_runtime_attn_mask_input(params) || runtime_scale_layout(params) != nullptr ||
+        desc->has_sink_input || desc->is_kv_compressed || desc->indirect_axis != -1 || desc->sliding_window != 0) {
+        return false;
+    }
+    if (sdpa_has_runtime_attn_mask_input(params)) {
+        const auto& mask = params.input_layouts[ScaledDotProductAttentionInputIdx::ATTN_MASK];
+        if (mask.data_type != data_types::f16 || mask.format != format::bfyx || mask.data_padding || mask.data_padding.is_dynamic()) {
+            return false;
+        }
+    }
+    const auto head_innermost = [](const std::vector<int64_t>& order) {
+        return order.empty() || extend_order_in_num_heads_dim(order)[3] == 3;
+    };
+    if (!head_innermost(desc->input_q_transpose_order) || !head_innermost(desc->input_k_transpose_order) ||
+        !head_innermost(desc->input_v_transpose_order) || !head_innermost(desc->output_transpose_order)) {
+        return false;
+    }
+    const auto rows_ok = [](const layout& l) {
+        return l.data_type == data_types::f16 && l.get_partial_shape().size() == 4 && format::is_simple_data_format(l.format) &&
+               axis_unpadded(l, ChannelName::X);
+    };
+    return rows_ok(params.input_layouts[0]) && rows_ok(params.input_layouts[1]) && rows_ok(params.input_layouts[2]) &&
+           rows_ok(params.output_layouts[0]);
+}
+
 // Its tiling, by head size (keys x queries per workgroup, measured per call against sdpa_micro on DG2 in real models):
 // 32 x 16 subgroup tiles, 4 x 2 at head 64 (128 x 32; 0.96-1.01x sdpa_micro at 1K tokens, where sdpa_micro's own 64 x 128
-// was 1.24x) and 8 x 2 at head 128 (256 x 32, "xe_hpg PA PREFILL kernel" in the docs); 16 x 16 subgroup tiles, 16 x 2 at
-// head 256 (256 x 32, sdpa_micro's: 1.13x at 1K tokens), where 32 value columns per S*V subgroup spilled 4.7-9.4 KB.
+// was 1.24x), 5 x 2 at head 72 (160 x 32, 80 value columns, the last 8 past the head) and 6 x 2 at head 96 (192 x 32: a key
+// subgroup per 16 value columns, as at 128) and 8 x 2 at head 128 (256 x 32,
+// "xe_hpg PA PREFILL kernel" in the docs); 16 x 16 subgroup tiles, 16 x 2 at
+// head 256 (256 x 32, sdpa_micro's: 1.13x at 1K tokens), where 32 value columns per S*V subgroup spilled 4.7-9.4 KB, and
+// 32 x 1 at head 512 (512 x 16: 0.90-0.91x sdpa_micro at 1K tokens in gemma-4-e2b, 0.94-0.96x in flux.1-schnell's VAE),
+// where 32 x 16 subgroup tiles of 16 x 1 with 32 value columns spilled 6 KB and were 2.2x.
 // Each S*V subgroup holds the queries of its KQ subgroup and head / kq_sg_per_wg_keys value columns.
 // SDPA_OCL_HPG_PA_TILE_KEYS / _PER_WG_KEYS / _PER_WG_QUERIES replace a value for A/B; a tiling the kernel is not written
 // for throws.
@@ -933,15 +988,16 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size) {
     t.subgroup_size = static_cast<int>(get_subgroup_size(gpu_arch::xe_hpg));
     t.kq_sg_tile_keys = head_size <= 128 ? 32 : 16;
     t.kq_sg_tile_queries = 16;
-    t.kq_sg_per_wg_keys = head_size == 64 ? 4 : (head_size == 128 ? 8 : 16);
-    t.kq_sg_per_wg_queries = 2;
+    t.kq_sg_per_wg_keys = head_size == 64 ? 4 : head_size == 72 ? 5 : head_size == 96 ? 6 : head_size == 128 ? 8 : head_size == 512 ? 32 : 16;
+    t.kq_sg_per_wg_queries = head_size == 512 ? 1 : 2;
     t.kq_sg_tile_keys = env_int("SDPA_OCL_HPG_PA_TILE_KEYS", t.kq_sg_tile_keys);
     t.kq_sg_per_wg_keys = env_int("SDPA_OCL_HPG_PA_PER_WG_KEYS", t.kq_sg_per_wg_keys);
     t.kq_sg_per_wg_queries = env_int("SDPA_OCL_HPG_PA_PER_WG_QUERIES", t.kq_sg_per_wg_queries);
     t.large_grf = true;
     t.micro_math = false;  // the kernel has one softmax rounding, sdpa_ocl's default
     t.hpg_pa_prefill = true;
-    const bool split = (t.kq_sg_tile_keys == 16 || t.kq_sg_tile_keys == 32) && solve_sv_split(t, head_size);
+    // The value columns round up to 16 (head 72: 80), the kernel's S*V subgroups' width.
+    const bool split = (t.kq_sg_tile_keys == 16 || t.kq_sg_tile_keys == 32) && solve_sv_split(t, (head_size + 15) / 16 * 16);
     OPENVINO_ASSERT(split && t.sv_sg_tile_scores == t.kq_sg_tile_queries && t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys &&
                         (t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) && tiling_fits_device(gpu_arch::xe_hpg, head_size, t),
                     "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling (", t.kq_sg_tile_keys, ", ", t.kq_sg_per_wg_keys, ", ",
@@ -988,8 +1044,10 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
         plain_shape.n_keys = aligned_seq_length(params, 1).get_length();
         plain_shape.q_len = aligned_seq_length(params, 0).get_length();
     }
+    const bool hpg_prefill = is_prefill && (is_pa ? hpg_pa_prefill_ok(params, p.k_head_size, p.v_head_size)
+                                                  : hpg_plain_prefill_ok(params, p.k_head_size, p.v_head_size));
     p.tiling =
-        (is_pa && is_prefill && hpg_pa_prefill_ok(params, p.k_head_size, p.v_head_size))
+        hpg_prefill
             ? hpg_pa_prefill_tiling(p.k_head_size)
             : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads, plain_prefill, plain_shape, plain_decode);
     return p;
@@ -1207,7 +1265,11 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // fail a sharp-softmax test. 4 is the positive twin: it forces the unaligned-K fallback, which must still pass. 5 = full 2D mask read
     // with the SG16 lane width, 6 = per-key mask broadcast one lane off (both must fail the mask tests). 7 = the sink counted by
     // every subgroup, 8 = qq_bias read transposed, 9 = the sliding window one 16-key block short (each must fail its PA feature
-    // test). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
+    // test), 10 = plain SDPA K / V of batch 0, KV head 0 in the xe_hpg PREFILL kernel (must fail smoke_sdpa_hpg_rows), and in its
+    // mask 11 = the first query's row, 12 = the mask of batch 0, head 0, 13 = the 8-key halves of each 16-key block swapped (each
+    // must fail the smoke_sdpa_hpg_rows mask cases it can see), and 18 = head 72's last value subgroup stores its columns
+    // unshifted (must fail every head-72 case of smoke_sdpa_hpg_rows). Absent unless asked for, so the default jit (and every
+    // SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);

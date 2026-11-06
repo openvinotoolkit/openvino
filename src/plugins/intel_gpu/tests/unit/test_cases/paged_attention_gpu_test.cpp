@@ -599,7 +599,9 @@ std::vector<paged_attention_test_params> prefill_hpg_cases(int head, std::vector
 
 std::vector<paged_attention_test_params> prefill_heads_cases() {
     std::vector<paged_attention_test_params> cases;
-    for (const auto& [head, edges] : std::vector<std::pair<int, std::vector<int>>>{{64, {127, 128, 129}}, {256, {}}, {512, {16, 511, 512}}}) {
+    // Head 96 (192-key tiles) is appended so the indices of the others stay.
+    for (const auto& [head, edges] : std::vector<std::pair<int, std::vector<int>>>{{64, {127, 128, 129}}, {256, {}}, {512, {16, 511, 512}},
+                                                                                  {96, {191, 192, 193}}}) {
         const auto head_cases = prefill_hpg_cases(head, edges);
         cases.insert(cases.end(), head_cases.begin(), head_cases.end());
     }
