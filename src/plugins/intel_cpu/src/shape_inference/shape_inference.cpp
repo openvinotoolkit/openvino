@@ -80,6 +80,7 @@
 #include "max_pool_shape_inference.hpp"
 #include "memory_accessor.hpp"
 #include "multinomial_shape_inference.hpp"
+#include "ngram_hash_function_shape_inference.hpp"
 #include "nms_shape_inference.hpp"
 #include "nv12_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
@@ -151,6 +152,7 @@
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/multinomial.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/nv12_to_bgr.hpp"
@@ -759,6 +761,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     //
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUCell, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::AUGRUSequence, ShapeInferTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::NGramHashFunction, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::RMSNorm, ShapeInferTA, util::bit::mask(1)),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::SelectiveSSM, ShapeInferTA, util::bit::mask()),

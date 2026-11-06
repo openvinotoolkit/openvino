@@ -78,6 +78,7 @@
 #include "transformations/common_optimizations/matmul_const_transposes_extraction.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/ngram_hash_function_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
@@ -473,6 +474,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     ov::pass::Manager decompression_handling_manager("CPU:DecompressionHandling");
     decompression_handling_manager.set_per_pass_validation(false);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::InitNodeInfo);
+    // Match before no-op elimination can remove a zero-offset Add from a valid hash block.
+    CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::NGramHashFunctionFusion);
     const bool useLpt = !defaultPrecisions.empty();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::CompressedGatherTransformation);
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager, ov::pass::MarkShapeOfSubgraphs);
@@ -619,6 +622,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
+
+    // Fuses int64 n-gram hashes (all orders) into one NGramHashFunction that keeps the int64 math inside its kernel,
+    // before ConvertPrecision would otherwise downcast the products/xors to i32.
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::NGramHashFunctionFusion);
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);
