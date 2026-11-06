@@ -146,12 +146,9 @@ void propagate_constants::run(program& p) {
                 const bool was_dynamic = dynamic_nodes.count(outputs[i].first) != 0;
                 replace_with_data(p, *outputs[i].first, outputs[i].second, cache_info[i], was_dynamic, reselection_targets);
             }
-            // Weights read by no other node are freed here, before the next subgraph allocates its outputs. The
-            // topology that ProgramBuilder keeps until build_program returns shares the data primitive, so its
-            // memory reference is dropped as well.
+            // Weights read by no other node are freed here, before the next subgraph allocates its outputs
             for (auto* input : inputs) {
                 if (input->get_users().empty() && !input->is_output()) {
-                    std::const_pointer_cast<data>(input->as<data>().get_primitive())->mem.reset();
                     p.remove_if_dangling(*input);
                 }
             }
