@@ -13,6 +13,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -38,6 +39,59 @@ namespace {
         }
     }
 } // namespace
+
+NormalizeL2LastAxisToFeature::NormalizeL2LastAxisToFeature() {
+    auto pattern = ov::pass::pattern::wrap_type<ov::op::v0::NormalizeL2>();
+    matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& matcher) {
+        const auto normalize = ov::as_type_ptr<ov::op::v0::NormalizeL2>(matcher.get_match_root());
+        if (!normalize || transformation_callback(normalize)) {
+            return false;
+        }
+
+        const auto& partial_shape = normalize->get_input_partial_shape(0);
+        const auto type = normalize->get_input_element_type(0);
+        if (!partial_shape.is_static() || (partial_shape.size() != 3 && partial_shape.size() != 4) ||
+            (type != ov::element::f16 && type != ov::element::f32) ||
+            normalize->get_eps_mode() != ov::op::EpsMode::ADD) {
+            return false;
+        }
+        const auto axes_node = ov::as_type_ptr<ov::op::v0::Constant>(normalize->get_input_node_shared_ptr(1));
+        if (!axes_node) {
+            return false;
+        }
+        const auto axes = axes_node->cast_vector<int64_t>();
+        if (axes.size() != 1 || (axes[0] != -1 && axes[0] != static_cast<int64_t>(partial_shape.size() - 1))) {
+            return false;
+        }
+        const auto shape = partial_shape.to_shape();
+        if (ov::shape_size(shape) == 0) {
+            return false;
+        }
+
+        const std::vector<int64_t> feature_shape{ static_cast<int64_t>(ov::shape_size(shape) / shape.back()),
+                                                  static_cast<int64_t>(shape.back()),
+                                                  1,
+                                                  1 };
+        const auto input_pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 4 }, feature_shape);
+        const auto input_reshape = std::make_shared<ov::op::v1::Reshape>(normalize->input_value(0), input_pattern, false);
+        const auto feature_axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 1 }, { 1 });
+        const auto feature_normalize = std::make_shared<ov::op::v0::NormalizeL2>(input_reshape,
+            feature_axis,
+            normalize->get_eps(),
+            normalize->get_eps_mode());
+        const auto output_pattern = ov::op::v0::Constant::create(ov::element::i64,
+            ov::Shape{ shape.size() },
+            std::vector<int64_t>(shape.begin(), shape.end()));
+        const auto output_reshape = std::make_shared<ov::op::v1::Reshape>(feature_normalize, output_pattern, false);
+        input_reshape->set_friendly_name(normalize->get_friendly_name() + "/to_feature");
+        feature_normalize->set_friendly_name(normalize->get_friendly_name() + "/feature_normalize");
+        output_reshape->set_friendly_name(normalize->get_friendly_name());
+        ov::copy_runtime_info(normalize, { input_reshape, feature_normalize, output_reshape });
+        ov::replace_node(normalize, output_reshape);
+        return true;
+        };
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pattern, "NormalizeL2LastAxisToFeatureGPU"), callback);
+}
 
 NormalizeL2Decomposition::NormalizeL2Decomposition(bool use_fp32_reducesum) {
     auto normalize_l2_pattern = ov::pass::pattern::wrap_type<ov::op::v0::NormalizeL2>();
