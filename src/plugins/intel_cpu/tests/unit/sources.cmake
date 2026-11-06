@@ -41,6 +41,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/permute_slice_n_interpolation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/readvalue_subgraph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa_gqa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/swap_convert_transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/adaptive_avg_pool_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/adaptive_max_pool_shape_inference_test.cpp
@@ -279,6 +280,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/transformations/permute_slice_n_interpolation.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/readvalue_subgraph.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/state_concat_sdpa_gqa.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/swap_convert_transpose.cpp)
     group_source_files(unit_src_custom_shape_infer
         ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/adaptive_avg_pool.cpp
