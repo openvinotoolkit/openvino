@@ -61,12 +61,42 @@ async function checkIfPathExists(path) {
  * @param {string} filename - The filename of result file.
  * @param {string} destination - The destination path of result file.
  * @param {string} [proxy=null] - (Optional) The proxy URL.
+ * @param {number} [retries=2] - (Optional) Number of retries on timeout/transient errors.
  * @returns {Promise<string>} - Path to downloaded file.
  */
-function downloadFile(url, destination, filename, proxy = null) {
+async function downloadFile(url, destination, filename, proxy = null, retries = 2) {
+  const timeout = 30000;
+  const retryDelay = 3000;
+
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      return await downloadFileAttempt(url, destination, filename, proxy, timeout);
+    } catch (error) {
+      if (attempt > retries) throw error;
+
+      console.warn(
+        `Attempt ${attempt} of ${retries + 1} to download '${url}' failed: ${error}. ` +
+          `Retrying in ${retryDelay} ms...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+    }
+  }
+}
+
+/**
+ * Perform a single attempt to download file by URL and save it to the destination path.
+ *
+ * @function downloadFileAttempt
+ * @param {string} url - The file URL.
+ * @param {string} destination - The destination path of result file.
+ * @param {string} filename - The filename of result file.
+ * @param {string|null} proxy - (Optional) The proxy URL.
+ * @param {number} timeout - Request timeout in milliseconds.
+ * @returns {Promise<string>} - Path to downloaded file.
+ */
+function downloadFileAttempt(url, destination, filename, proxy, timeout) {
   console.log(`Downloading file by link: ${url} to ${destination}` + `with filename: ${filename}`);
 
-  const timeout = 30000;
   const fullPath = path.resolve(destination, filename);
   const file = createWriteStream(fullPath);
 
