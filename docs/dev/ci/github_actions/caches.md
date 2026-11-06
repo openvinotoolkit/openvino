@@ -129,7 +129,7 @@ To add new resources, contact a member of the CI team for assistance.
 Builds can share compiled objects through ccache's remote storage on the shared drive
 by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache)
 to `file:///mount/caches/ccache/shared`. The RISC-V GNU build in
-[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) is the pilot user.
+[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) and RISC-V with Conan in [`linux_riscv_conan.yml`](./../../../../.github/workflows/linux_riscv_conan.yml) are the pilot users.
 Old entries are evicted together with the rest of `/mount/caches/ccache` by the
 `Cleanup_ccache_lin` job in
 [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
