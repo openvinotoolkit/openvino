@@ -4719,6 +4719,86 @@ TEST(GGUFOps, ViewNonDenseSliceOfDenseSource) {
     }
 }
 
+// Vcur [hd=3, nh=2, T] carved out of a fused 18-wide QKV row and viewed as [hd * nh, T], captured
+// at a decode step (T = 1). The token stride belongs to the operand's runtime axis, not to heads.
+TEST(GGUFOps, ViewOfStridedViewWithSingletonTokenCapture) {
+    auto builder = SingleOpBuilder()
+                       .op("GGML_OP_VIEW")
+                       .input("x", ov::element::f32, {1, -1, 2, 3})
+                       .output("out", ov::element::f32, {1, 1, 1, 6})
+                       .attr("view_input_strides", std::vector<int64_t>{4, 12, 72, 72})
+                       .attr("view_output_strides", std::vector<int64_t>{4, 72, 72, 72})
+                       .attr("view_offset_bytes", int64_t{0})
+                       .attr("output_dynamic_axis", 2);
+    auto model = build_captured_op(builder, {{"x", {1, 1, 2, 3}}});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t tokens : {1u, 4u}) {
+        SCOPED_TRACE(tokens);
+        std::vector<float> values(tokens * 6);
+        std::iota(values.begin(), values.end(), 0.0f);
+        request.set_tensor("x", make_f32_tensor({1, tokens, 2, 3}, values));
+        request.infer();
+        ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 1, tokens, 6}));
+        expect_near(request.get_output_tensor(), values, 0.0f, 0.0f);
+    }
+}
+
+// A per-expert slice of [F=4, n_expert=3, T] viewed as [F, T]: the runtime token axis moves from
+// ggml dim 2 to dim 1, so the view cannot be paired axis by axis with its operand.
+TEST(GGUFOps, ViewPerExpertSliceMovesDynamicAxis) {
+    for (int64_t expert : {0, 2}) {
+        SCOPED_TRACE(expert);
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_VIEW")
+                           .input("x", ov::element::f32, {1, -1, 3, 4})
+                           .output("out", ov::element::f32, {1, 1, 1, 4})
+                           .attr("view_input_strides", std::vector<int64_t>{4, 16, 48, 48})
+                           .attr("view_output_strides", std::vector<int64_t>{4, 48, 48, 48})
+                           .attr("view_offset_bytes", int64_t{16} * expert)
+                           .attr("output_dynamic_axis", 2);
+        auto model = build_captured_op(builder, {{"x", {1, 1, 3, 4}}});
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {1u, 3u}) {
+            SCOPED_TRACE(tokens);
+            std::vector<float> values(tokens * 12), expected;
+            std::iota(values.begin(), values.end(), 0.0f);
+            for (size_t t = 0; t < tokens; ++t)
+                for (size_t f = 0; f < 4; ++f)
+                    expected.push_back(values[t * 12 + expert * 4 + f]);
+            request.set_tensor("x", make_f32_tensor({1, tokens, 3, 4}, values));
+            request.infer();
+            ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 1, tokens, 4}));
+            expect_near(request.get_output_tensor(), expected, 0.0f, 0.0f);
+        }
+    }
+}
+
+// A static operand fixes the extent of the view's runtime axis, so the strided slice keeps static bounds.
+TEST(GGUFOps, ViewStaticOperandSlicesDynamicAxisStatically) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_VIEW")
+                     .input("x", ov::element::f32, {1, 1, 3, 4})
+                     .output("out", ov::element::f32, {1, 1, 1, 4})
+                     .attr("view_input_strides", std::vector<int64_t>{4, 16, 48, 48})
+                     .attr("view_output_strides", std::vector<int64_t>{4, 48, 48, 48})
+                     .attr("view_offset_bytes", int64_t{16})
+                     .attr("output_dynamic_axis", 2)
+                     .build();
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    std::vector<float> values(12);
+    std::iota(values.begin(), values.end(), 0.0f);
+    request.set_tensor("x", make_f32_tensor({1, 1, 3, 4}, values));
+    request.infer();
+    ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 1, 1, 4}));
+    expect_near(request.get_output_tensor(), std::vector<float>{4, 5, 6, 7}, 0.0f, 0.0f);
+}
+
 TEST(GGUFOps, ViewKvCacheRuntimeBounds) {
     const size_t streams = 2, cells = 3, width = 4, heads = 2, head_size = 2;
     std::vector<float> cache(streams * cells * width);

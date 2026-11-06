@@ -180,7 +180,8 @@ std::vector<int64_t> to_logical_view(const ov::Shape& src_shape,
                                      const ov::Shape& dst_shape,
                                      const std::vector<int64_t>& dst_strides,
                                      int64_t byte_offset,
-                                     int dynamic_axis) {
+                                     int dynamic_axis,
+                                     int src_dynamic_axis) {
     const size_t src_rank = src_shape.size();
     const size_t dst_rank = dst_shape.size();
     std::vector<int64_t> extent(src_rank), logical(src_rank);
@@ -216,6 +217,15 @@ std::vector<int64_t> to_logical_view(const ov::Shape& src_shape,
     std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
         return src_strides[a] > src_strides[b];
     });
+    // A runtime source axis captured with one element (a decode step's token axis) still moves. As
+    // the outermost source dim it carries the view's token stride; otherwise that stride would be
+    // folded into the next inner dim (heads of a fused QKV row) and select the wrong elements.
+    if (src_dynamic_axis >= 0 && static_cast<size_t>(src_dynamic_axis) < src_rank) {
+        const size_t g = src_rank - 1 - static_cast<size_t>(src_dynamic_axis);
+        if (extent[g] == 1 && src_strides[g] > 0 && (order.empty() || src_strides[g] > src_strides[order.front()])) {
+            order.insert(order.begin(), g);
+        }
+    }
     const auto to_logical = [&](int64_t bytes, int64_t& out) {
         out = 0;
         for (size_t k = 0; k < order.size(); ++k) {
@@ -675,6 +685,21 @@ OutputVector translate_view(const NodeContext& context) {
             }
             byte_offset = byte_offset / block_bytes * block_size;
         }
+        // The operand's single runtime axis, if any; it may have been captured with one element.
+        int src_dynamic_axis = -1;
+        const auto live_input = raw_input.get_partial_shape();
+        if (live_input.rank().is_static() && static_cast<size_t>(live_input.rank().get_length()) == src_shape.size()) {
+            int dynamic_count = 0;
+            for (int64_t i = 0; i < live_input.rank().get_length(); ++i) {
+                if (live_input[i].is_dynamic()) {
+                    src_dynamic_axis = static_cast<int>(i);
+                    ++dynamic_count;
+                }
+            }
+            if (dynamic_count != 1) {
+                src_dynamic_axis = -1;
+            }
+        }
         const int dynamic_axis = context.get_attribute<int>("output_dynamic_axis", -1);
         FRONT_END_OP_CONVERSION_CHECK(dynamic_axis >= -1 && dynamic_axis < static_cast<int>(dst_shape.size()),
                                       "Invalid VIEW output_dynamic_axis");
@@ -801,7 +826,10 @@ OutputVector translate_view(const NodeContext& context) {
                 }
             }
 
-            if (valid && remaining == 0) {
+            // Axes are paired by position, so a view that moves the operand's runtime axis (a per-expert
+            // slice viewing [F, n_expert, T] as [F, T]) is left to the grid paths below.
+            const bool same_dynamic_axis = dynamic_axis < 0 || src_dynamic_axis < 0 || src_dynamic_axis == dynamic_axis;
+            if (valid && remaining == 0 && same_dynamic_axis) {
                 std::vector<int64_t> begin(src_shape.size());
                 std::vector<int64_t> end(src_shape.size());
                 std::vector<int64_t> step(src_shape.size());
@@ -811,7 +839,8 @@ OutputVector translate_view(const NodeContext& context) {
                     begin[ov_axis] = starts[ggml_dim];
                     step[ov_axis] = steps[ggml_dim];
                     end[ov_axis] = begin[ov_axis] + step[ov_axis] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1) + 1;
-                    if (static_cast<int>(ov_axis) == dynamic_axis) {
+                    // A static operand fixes the extent, so its static bounds are exact.
+                    if (static_cast<int>(ov_axis) == dynamic_axis && !live_input.is_static()) {
                         FRONT_END_OP_CONVERSION_CHECK(
                             begin[ov_axis] == 0 && step[ov_axis] == 1 && dst_shape[ov_axis] == src_shape[ov_axis],
                             "Dynamic strided VIEW requires explicit runtime slice bounds");
@@ -829,7 +858,7 @@ OutputVector translate_view(const NodeContext& context) {
             }
         }
 
-        if (is_dense(src_shape, src_strides) && src_strides[0] > 0 && byte_offset >= 0 &&
+        if (is_dense(src_shape, src_strides, src_dynamic_axis) && src_strides[0] > 0 && byte_offset >= 0 &&
             byte_offset % src_strides[0] == 0) {
             auto grid_view = materialize_grid_view(raw_input,
                                                    dst_shape,
@@ -846,8 +875,13 @@ OutputVector translate_view(const NodeContext& context) {
         // [hd * nh, T]): the operand is the source's logical tensor, so re-express the view's byte strides and
         // offset as element strides over that dense logical tensor and select it as a grid view.
         if (src_shape.size() == src_strides.size() && dst_shape.size() == dst_strides.size() && byte_offset >= 0) {
-            const auto logical_strides =
-                to_logical_view(src_shape, src_strides, dst_shape, dst_strides, byte_offset, dynamic_axis);
+            const auto logical_strides = to_logical_view(src_shape,
+                                                         src_strides,
+                                                         dst_shape,
+                                                         dst_strides,
+                                                         byte_offset,
+                                                         dynamic_axis,
+                                                         src_dynamic_axis);
             if (!logical_strides.empty()) {
                 const int64_t element_size = logical_strides.back();
                 std::vector<int64_t> strides(logical_strides.begin(), logical_strides.end() - 2);

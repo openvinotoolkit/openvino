@@ -470,6 +470,7 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         ext->register_pass(manager);
     }
     manager.register_pass<pass::LowerSetRowsStateless>();
+    manager.register_pass<pass::SliceSharedKVReads>();
 
     manager.register_pass<ov::pass::ConvertConvertLike>();
     // The lowered ConvertLikes are frequently no-ops (k/v already share q's precision). Drop them:

@@ -4,17 +4,21 @@
 
 #include "pass/lower_set_rows_stateless.hpp"
 
+#include <map>
 #include <memory>
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/set_rows_op.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
@@ -89,6 +93,62 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
 
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(set_rows_pattern, "gguf::LowerSetRowsStateless"),
                      callback);
+}
+
+namespace {
+
+// The token read emitted by translate_kv_view: VariadicSplit(cache, 1, Concat(length, -1)) with the tail unused.
+std::shared_ptr<ov::op::v0::Concat> kv_read_lengths(const std::shared_ptr<ov::op::v1::VariadicSplit>& split) {
+    const auto axis = ov::as_type_ptr<ov::op::v0::Constant>(split->get_input_node_shared_ptr(1));
+    const auto lengths = ov::as_type_ptr<ov::op::v0::Concat>(split->get_input_node_shared_ptr(2));
+    if (!is_kvcache_4d_shape(split->get_input_partial_shape(0)) || !axis || shape_size(axis->get_shape()) != 1 ||
+        axis->cast_vector<int64_t>()[0] != 1 || !lengths || lengths->get_input_size() != 2 ||
+        split->get_output_size() != 2 || !split->output(1).get_target_inputs().empty()) {
+        return nullptr;
+    }
+    const auto tail = ov::as_type_ptr<ov::op::v0::Constant>(lengths->get_input_node_shared_ptr(1));
+    if (!tail || tail->cast_vector<int64_t>() != std::vector<int64_t>{-1}) {
+        return nullptr;
+    }
+    return lengths;
+}
+
+}  // namespace
+
+bool SliceSharedKVReads::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    std::map<ov::Output<ov::Node>, std::vector<std::shared_ptr<ov::op::v1::VariadicSplit>>> reads;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto split = ov::as_type_ptr<ov::op::v1::VariadicSplit>(node); split && kv_read_lengths(split)) {
+            reads[split->input_value(0)].push_back(split);
+        }
+    }
+    bool changed = false;
+    for (const auto& [cache, splits] : reads) {
+        if (splits.size() < 2) {
+            continue;
+        }
+        for (const auto& split : splits) {
+            const auto i64 = [](std::vector<int64_t> v) {
+                return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
+            };
+            const auto& shape = cache.get_partial_shape();
+            const int64_t heads = shape[2].get_length(), head_size = shape[3].get_length();
+            // Slicing the [1, ctx, heads * head_size] rows, not the 4D cache, is what keeps SDPA on its optimized
+            // kernel.
+            auto rows = std::make_shared<ov::op::v1::Reshape>(cache, i64({1, -1, heads * head_size}), false);
+            auto slice = std::make_shared<ov::op::v8::Slice>(rows,
+                                                             i64({0}),
+                                                             kv_read_lengths(split)->input_value(0),
+                                                             i64({1}),
+                                                             i64({1}));
+            auto tokens = std::make_shared<ov::op::v1::Reshape>(slice, i64({1, -1, heads, head_size}), false);
+            tokens->set_friendly_name(split->get_friendly_name());
+            ov::copy_runtime_info(split, {rows, slice, tokens});
+            split->output(0).replace(tokens->output(0));
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 }  // namespace ov::frontend::gguf::pass

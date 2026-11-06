@@ -139,6 +139,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_shared_linear_inputs.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_simplify_activation_shapes.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_slice_shared_kv_reads.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_hadamard_sign_folding.cpp"
 )
 
