@@ -251,6 +251,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_decompress_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_strided_inputs_outputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matrix_nms_zero_boxes.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/mean_pooling_f16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/merge_transpose_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
@@ -260,6 +261,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_permute_conv_permute_reshape_act.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/rope_angles_f16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/sdpa_group_beam_search.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/seq_native_order.cpp
@@ -749,6 +751,7 @@ set(TMP_LIST_OF_ARM_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/matmul_weights_decompression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/paged_attn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/pooling_fq.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/reduce_f16_layout.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/reorder_deconv_nhwc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/stateful_sdpa_bool_mask.cpp
 )
@@ -794,6 +797,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_decompress_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matmul_strided_inputs_outputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/matrix_nms_zero_boxes.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/mean_pooling_f16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/merge_transpose_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/ngram.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/not_fused_conv_simple_op.cpp
@@ -803,6 +807,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_permute_conv_permute_reshape_act.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/rope_angles_f16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/sdpa_group_beam_search.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/seq_native_order.cpp

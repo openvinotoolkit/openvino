@@ -88,6 +88,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
+#include "transformations/fp16_compression/disable_fp16_comp_rope_angles.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
@@ -569,6 +570,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 #else
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
+        // Runtime RoPE angle tables (integer positions -> ... -> Sin/Cos) are kept in f32: the f16 angles are not exact
+        // beyond a few thousand positions. Must run before ConvertPrecision, which applies the marks.
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::DisableFP16CompForRopeAngles);
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
@@ -1212,8 +1216,8 @@ void Transformations::PostLpt() {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkRopeInputsToKeepInMixedPrecision);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkFloatingPointRange);
     }
-    // Only bf16 needs the rope markup: under f16 the angle chain is already kept precise by
-    // ConvertPrecision, and marking it there regresses accuracy.
+    // Under f16, the runtime RoPE angle chains are kept in f32 by DisableFP16CompForRopeAngles before ConvertPrecision.
+    // The LTX-Video and CumSum-Sin markups below are for bf16, which is enforced per node after the transformations.
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
