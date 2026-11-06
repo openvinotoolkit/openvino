@@ -49,6 +49,12 @@ if(OV_GPU_RT STREQUAL "ZE")
     list(APPEND COMMON_LINK_LIBRARIES openvino::zero_loader)
 endif()
 
+# Embedded (/Z7) debug info makes this static library exceed the 4 GB archive limit (LNK1248),
+# so keep debug info in a PDB (/Zi) for the graph library and its backend object libraries.
+if(MSVC AND CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
+    string(REPLACE "Embedded" "ProgramDatabase" OV_GPU_GRAPH_DEBUG_INFORMATION_FORMAT "${CMAKE_MSVC_DEBUG_INFORMATION_FORMAT}")
+endif()
+
 define_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL BRIEF_DOCS "All link libs" FULL_DOCS "Link libraries collection from all backends")
 set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL "")
 
@@ -88,6 +94,10 @@ macro(ov_gpu_add_backend_target)
                 ${TARGET_INCLUDES}
         ${ARG_BYPASS}
     )
+
+    if(OV_GPU_GRAPH_DEBUG_INFORMATION_FORMAT)
+        set_target_properties(${ARG_NAME} PROPERTIES MSVC_DEBUG_INFORMATION_FORMAT "${OV_GPU_GRAPH_DEBUG_INFORMATION_FORMAT}")
+    endif()
 
     get_property(CURRENT_LIBS GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
     list(APPEND CURRENT_LIBS ${ARG_LINK_LIBRARIES})
@@ -156,6 +166,10 @@ ov_add_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+if(OV_GPU_GRAPH_DEBUG_INFORMATION_FORMAT)
+    set_target_properties(${TARGET_NAME} PROPERTIES MSVC_DEBUG_INFORMATION_FORMAT "${OV_GPU_GRAPH_DEBUG_INFORMATION_FORMAT}")
+endif()
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
