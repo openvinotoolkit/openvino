@@ -54,6 +54,7 @@ DEFAULT_COUNTER_KEYS = {
         "not_run": "JS_TESTS_NOT_RUN",
     },
 }
+DEFAULT_COUNTER_KEYS["windows"] = DEFAULT_COUNTER_KEYS["cpp"]
 
 
 def _apply_common_env(args: argparse.Namespace) -> None:

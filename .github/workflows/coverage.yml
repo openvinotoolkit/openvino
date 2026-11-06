@@ -1,6 +1,7 @@
 name: Code coverage
 run-name: ${{ github.event_name == 'schedule' && 'Code coverage - Nightly' || 'Code coverage' }}
 on:
+  pull_request:
   schedule:
     # run daily at 00:00 UTC
     - cron: '0 0 * * *'
@@ -13,6 +14,11 @@ on:
         default: true
       run-gpu-tests:
         description: 'Build with GPU support and run the GPU coverage lanes'
+        type: boolean
+        required: false
+        default: true
+      run-npu-tests:
+        description: 'Build Windows VS2022 coverage and run NPU unit tests (hardware and offline)'
         type: boolean
         required: false
         default: true
@@ -44,7 +50,7 @@ env:
 jobs:
   Docker:
     name: Coverage Docker Images
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
@@ -71,7 +77,7 @@ jobs:
   Build:
     name: Coverage Build Artifacts
     needs: Docker
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
@@ -104,13 +110,191 @@ jobs:
         -DENABLE_OV_TF_FRONTEND=ON
         -DENABLE_OV_TF_LITE_FRONTEND=ON
         -DENABLE_INTEL_NPU=OFF
-        ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
-        ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
+
+  BuildWindows:
+    name: Coverage Windows Build Artifacts
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-npu-tests }}
+    uses: ./.github/workflows/job_build_windows.yml
+    with:
+      runner: 'aks-win-16-cores-32gb-build'
+      cmake-build-parallel-level: '15'
+      affected-components: '{"JS_API":false}'
+      build-type: 'Release'
+      target-branch: ${{ github.base_ref || github.ref_name }}
+      build-variant: 'vs2022'
+      build-additional-python-wheels: false
+      enable-coverage: true
+      save-cache: >-
+        ${{ github.event_name == 'pull_request' ||
+            ((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+             github.ref == format('refs/heads/{0}', github.event.repository.default_branch)) }}
+      cmake-options: >-
+        -G 'Ninja Multi-Config'
+        -DENABLE_PYTHON=ON
+        -DENABLE_WHEEL=OFF
+        -DENABLE_TESTS=ON
+        -DENABLE_INTEL_NPU=ON
+        -DENABLE_INTEL_CPU=ON
+        -DENABLE_INTEL_GPU=OFF
+        -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        -DENABLE_STRICT_DEPENDENCIES=OFF
+        -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
+
+  CoverageWindows:
+    name: Coverage Windows (${{ matrix.lane }})
+    needs: BuildWindows
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-npu-tests }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: npu
+            runner: '["self-hosted", "Windows", "npu", "coverage"]'
+            ca-bundle: 'C:\certs\IntelProxyRootCA.crt'
+          - lane: npu-offline
+            runner: '["aks-win-4-cores-8gb-test"]'
+            ca-bundle: ''
+    runs-on: ${{ fromJSON(matrix.runner) }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/.tmp/windows-package-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
+      WINDOWS_ARTIFACT_DIR: ${{ github.workspace }}/.tmp/windows-results-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.lane }}
+      COVERAGE_LANE: ${{ matrix.lane }}
+      CA_CERTS: ${{ matrix.ca-bundle }}
+      NODE_EXTRA_CA_CERTS: ''
+      PYTHONUTF8: '1'
+    steps:
+      - name: Configure corporate proxy certificates
+        if: ${{ env.CA_CERTS != '' }}
+        run: |
+          if (!(Test-Path -LiteralPath $env:CA_CERTS -PathType Leaf)) {
+            throw "Corporate proxy CA bundle not found: $env:CA_CERTS"
+          }
+          foreach ($variable in @('SSL_CERT_FILE', 'CURL_CA_BUNDLE', 'REQUESTS_CA_BUNDLE', 'NODE_EXTRA_CA_CERTS')) {
+            "$variable=$env:CA_CERTS" >> $env:GITHUB_ENV
+          }
+
+      - name: Checkout sources
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          self-hosted-runner: 'true'
+          use-pip-proxy: ${{ matrix.lane == 'npu-offline' }}
+
+      - name: Prepare Windows coverage tools
+        run: |
+          python -m pip install -r .github/actions/coverage_toolkit/requirements-ci.txt
+          if ($LASTEXITCODE -ne 0) { throw "Cannot install coverage reporting dependencies" }
+          if (Test-Path "$env:INSTALL_DIR") { throw "Coverage package directory already exists: $env:INSTALL_DIR" }
+          New-Item -ItemType Directory -Path "$env:INSTALL_DIR" | Out-Null
+          New-Item -ItemType Directory -Force -Path .tmp/windows-coverage | Out-Null
+
+          $collector = Get-Command Microsoft.CodeCoverage.Console.exe -ErrorAction SilentlyContinue
+          if ($collector) {
+            $collectorPath = $collector.Source
+          } else {
+            $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+            if (!(Test-Path $vswhere)) { throw "Install Microsoft.CodeCoverage.Console on this runner" }
+            $candidates = @(& $vswhere -latest -products '*' -find 'Common7\IDE\Extensions\Microsoft\CodeCoverage.Console\Microsoft.CodeCoverage.Console.exe')
+            if ($LASTEXITCODE -ne 0 -or $candidates.Count -ne 1) {
+              throw "Cannot locate Microsoft.CodeCoverage.Console in Visual Studio"
+            }
+            $collectorPath = $candidates[0]
+          }
+          "COVERAGE_COLLECTOR=$collectorPath" >> $env:GITHUB_ENV
+
+      - name: Download Windows package
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_package_windows_coverage
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download Windows tests
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_tests_windows_coverage
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download Windows symbols
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: openvino_pdb_windows_coverage
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Download coverage build identity
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          name: coverage_build_windows
+          path: ${{ env.INSTALL_DIR }}
+
+      - name: Run Windows NPU coverage
+        run: |
+          foreach ($archive in @('openvino_package.zip', 'openvino_tests.zip', 'openvino_pdb.zip')) {
+            Expand-Archive -LiteralPath "$env:INSTALL_DIR/$archive" -DestinationPath "$env:INSTALL_DIR" -Force
+          }
+          . "$env:INSTALL_DIR/setupvars.ps1" -python_version 3.11
+          Get-CimInstance Win32_PnPSignedDriver |
+            Where-Object { $_.DeviceName -match 'NPU|Neural' } |
+            Select-Object DeviceName, DriverVersion, DriverProviderName |
+            ConvertTo-Json | Set-Content .tmp/windows-coverage/drivers.json
+          python .github/actions/coverage_toolkit/windows_coverage.py `
+            --workspace "$env:GITHUB_WORKSPACE" --install-dir "$env:INSTALL_DIR" `
+            --collector "$env:COVERAGE_COLLECTOR" --lane "$env:COVERAGE_LANE"
+          if ($LASTEXITCODE -ne 0) { throw "Windows coverage failed" }
+
+      - name: Verify Windows coverage outputs
+        run: |
+          foreach ($file in @('windows-coverage.xml', 'windows-coverage-stats.env', 'windows-test-durations.csv')) {
+            if (!(Test-Path -LiteralPath $file)) { throw "Missing Windows coverage output: $file" }
+          }
+          if (!(Select-String -Path windows-coverage-stats.env -Pattern '^CXX_TESTS_PASSED=1$' -Quiet)) {
+            throw "Windows coverage did not complete successfully"
+          }
+
+      - name: Collect Windows results
+        id: windows_artifact
+        if: ${{ always() }}
+        run: |
+          python .github/actions/coverage_toolkit/ci_reports.py collect-suite-results `
+            --workspace "$env:GITHUB_WORKSPACE" --suite windows `
+            --profile "$env:COVERAGE_LANE" --lane "$env:COVERAGE_LANE" `
+            --artifact-dir "$env:WINDOWS_ARTIFACT_DIR" `
+            --outputs-file "$env:GITHUB_OUTPUT"
+          if ($LASTEXITCODE -ne 0) { throw "Cannot collect Windows coverage results" }
+
+      - name: Upload Windows results
+        if: ${{ always() && steps.windows_artifact.outcome == 'success' }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ${{ steps.windows_artifact.outputs['artifact-name'] }}
+          path: ${{ steps.windows_artifact.outputs.dir }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          overwrite: true
+
+      - name: Remove working copy of instrumented package
+        if: ${{ always() }}
+        run: |
+          if (Test-Path -LiteralPath "$env:INSTALL_DIR") {
+            Remove-Item -LiteralPath "$env:INSTALL_DIR" -Recurse -Force
+          }
 
   CoverageCpp:
     name: Coverage C++ (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -228,7 +412,7 @@ jobs:
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -412,7 +596,7 @@ jobs:
   CoveragePython:
     name: Coverage Python (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -551,7 +735,7 @@ jobs:
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -744,7 +928,7 @@ jobs:
   CoverageJS:
     name: Coverage JS (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -884,8 +1068,8 @@ jobs:
 
   CoverageSummary:
     name: Coverage Summary
-    if: ${{ always() && needs.Build.result == 'success' }}
-    needs: [Build, CoverageCpp, CoverageCppGpu, CoveragePython, CoveragePythonGpu, CoverageJS]
+    if: ${{ always() && (needs.Build.result == 'success' || needs.BuildWindows.result == 'success') }}
+    needs: [Build, BuildWindows, CoverageWindows, CoverageCpp, CoverageCppGpu, CoveragePython, CoveragePythonGpu, CoverageJS]
     outputs:
       upload_matrix_json: ${{ steps.coverage_files.outputs['upload-matrix-json'] || '[]' }}
     runs-on: ubuntu-latest
@@ -897,22 +1081,32 @@ jobs:
           submodules: 'false'
 
       - name: Download C++ artifacts
+        if: ${{ needs.Build.result == 'success' }}
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           pattern: coverage-cpp-*
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
+        if: ${{ needs.Build.result == 'success' }}
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
+        if: ${{ needs.Build.result == 'success' }}
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
+
+      - name: Download Windows artifacts
+        if: ${{ needs.BuildWindows.result == 'success' }}
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          pattern: coverage-windows-*
+          path: ${{ github.workspace }}/artifacts/windows
 
       - name: Install coverage Python dependencies
         uses: ./.github/actions/coverage_toolkit
@@ -925,9 +1119,10 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           RUN_CPU_TESTS: ${{ github.event.inputs.run-cpu-tests || '' }}
           RUN_GPU_TESTS: ${{ github.event.inputs.run-gpu-tests || '' }}
+          RUN_NPU_TESTS: ${{ github.event.inputs.run-npu-tests || '' }}
         run: |
           selected_lanes='none'
-          if [[ "$EVENT_NAME" == 'schedule' || "$EVENT_NAME" == 'pull_request' ]]; then
+          if [[ "$EVENT_NAME" == 'schedule' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           elif [[ "$RUN_CPU_TESTS" == 'true' && "$RUN_GPU_TESTS" == 'true' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
@@ -935,6 +1130,13 @@ jobs:
             selected_lanes='cpu'
           elif [[ "$RUN_GPU_TESTS" == 'true' ]]; then
             selected_lanes='igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
+          fi
+          if [[ "$EVENT_NAME" == 'schedule' || "$EVENT_NAME" == 'pull_request' || "$RUN_NPU_TESTS" == 'true' ]]; then
+            if [[ "$selected_lanes" == 'none' ]]; then
+              selected_lanes='npu,npu-offline'
+            else
+              selected_lanes="${selected_lanes},npu,npu-offline"
+            fi
           fi
           echo "selected_lanes=${selected_lanes}" >> "$GITHUB_OUTPUT"
 

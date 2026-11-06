@@ -54,7 +54,7 @@ include(cmake/features.cmake)
 # These options are shared with 3rdparty plugins by means of developer package
 include(cmake/dependencies.cmake)
 
-if(ENABLE_COVERAGE)
+if(ENABLE_COVERAGE AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     include(cmake/coverage.cmake)
 endif()
 

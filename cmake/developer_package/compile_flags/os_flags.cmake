@@ -32,7 +32,7 @@ endif()
 # checks that the toolchain supports the requested CMAKE_CXX_STANDARD
 include(compile_flags/cxx_standard)
 
-if(ENABLE_COVERAGE)
+if(ENABLE_COVERAGE AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(--coverage)
     ov_add_compiler_flags(-fprofile-update=atomic)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
@@ -132,7 +132,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # PDB related flags
     #
 
-    if(ENABLE_PDB_IN_RELEASE)
+    if(ENABLE_PDB_IN_RELEASE AND NOT ENABLE_COVERAGE)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
 
@@ -141,10 +141,20 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG")
     endif()
 
-    # need to set extra flags after /DEBUG to ensure that binary size is not bloated
-    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
-    set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
-    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
+    if(ENABLE_COVERAGE)
+        # Native Microsoft coverage requires fixups and distinct functions for static instrumentation.
+        # Embed compiler symbols for ccache; the linker still generates a full PDB.
+        ov_add_compiler_flags(/Z7)
+        foreach(target_type EXE SHARED MODULE)
+            string(APPEND CMAKE_${target_type}_LINKER_FLAGS " /PROFILE")
+            string(APPEND CMAKE_${target_type}_LINKER_FLAGS_RELEASE " /DEBUG:FULL /OPT:REF /OPT:NOICF /INCREMENTAL:NO")
+        endforeach()
+    else()
+        # need to set extra flags after /DEBUG to ensure that binary size is not bloated
+        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
+        set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /OPT:REF /OPT:ICF")
+    endif()
 
 elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     #

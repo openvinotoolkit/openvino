@@ -36,6 +36,16 @@ on:
         type: boolean
         required: false
         default: false
+      enable-coverage:
+        description: 'Prepare MSVC binaries and PDBs for native coverage; isolate coverage artifacts from regular packages'
+        type: boolean
+        required: false
+        default: false
+      save-cache:
+        description: 'Save and clean the compiler cache on non-push runs as well'
+        type: boolean
+        required: false
+        default: false
       cmake-build-parallel-level:
         description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
         type: string
@@ -58,7 +68,7 @@ jobs:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}${{ inputs.enable-coverage && '_coverage' || '' }}\\${{ inputs.target-branch }}"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
       CCACHE_SLOPPINESS: pch_defines,time_macros
@@ -74,6 +84,7 @@ jobs:
       ARTIFACTS_SHARE: "C:\\mount\\build-artifacts"
       MANIFEST_PATH: "${{ github.workspace }}\\manifest.yml"
       PRODUCT_TYPE: "public_windows_${{ inputs.build-variant }}_${{ inputs.build-type }}"
+      ARTIFACT_SUFFIX: ${{ inputs.enable-coverage && '_windows_coverage' || '' }}
       # Hard-coded at workflow call site; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
@@ -86,6 +97,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Clone OpenVINO Contrib
+        if: ${{ !inputs.enable-coverage }}
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
@@ -112,7 +124,7 @@ jobs:
         with:
           repos: |
             ${{ env.OPENVINO_REPO }}
-            ${{ env.OPENVINO_CONTRIB_REPO }}
+            ${{ !inputs.enable-coverage && env.OPENVINO_CONTRIB_REPO || '' }}
           product_type: ${{ env.PRODUCT_TYPE }}
           target_arch: 'x86_64'
           build_type: ${{ inputs.build-type }}
@@ -159,13 +171,13 @@ jobs:
         uses: ./openvino/.github/actions/cache
         if: ${{ inputs.build-type != 'Debug' }}
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: ${{ (github.event_name == 'push' || inputs.save-cache) && 'true' || 'false' }}
+          cleanup-always: ${{ (github.event_name == 'push' || inputs.save-cache) && 'true' || 'false' }}
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache${{ env.ARTIFACT_SUFFIX }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+            ${{ runner.os }}-${{ runner.arch }}-ccache${{ env.ARTIFACT_SUFFIX }}
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -184,7 +196,7 @@ jobs:
 
       - name: CMake configure
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }} ${{ inputs.enable-coverage && '-DENABLE_COVERAGE=ON -DENABLE_PDB_IN_RELEASE=ON' || '' }}
         run: |
           $cmakeOptions = "$env:CMAKE_OPTIONS"
           $splitCmakeOptions = $cmakeOptions.Split(" ")
@@ -347,6 +359,20 @@ jobs:
           }
           Compress-Archive @compress
 
+      - name: Record coverage build identity
+        if: ${{ inputs.enable-coverage }}
+        env:
+          BUILD_VARIANT: ${{ inputs.build-variant }}
+        run: |
+          $commit = git -C "$env:OPENVINO_REPO" rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw "Cannot determine coverage build commit" }
+          @{
+            commit = $commit.Trim()
+            source_root = $env:OPENVINO_REPO
+            build_type = $env:CMAKE_BUILD_TYPE
+            toolchain = $env:BUILD_VARIANT
+          } | ConvertTo-Json | Set-Content "$env:BUILD_DIR/coverage-build.json"
+
       # Setup Python 3.11 as the default one
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -393,6 +419,7 @@ jobs:
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       - name: Cmake & Build - OpenVINO Contrib
+        if: ${{ !inputs.enable-coverage }}
         run: |
           cmake -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} `
                 -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
@@ -407,51 +434,59 @@ jobs:
         if: always()
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: compile_commands_windows_${{ inputs.build-type }}
+          name: compile_commands_windows_${{ inputs.build-type }}${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
       - name: Upload OpenVINO package
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_package
+          name: openvino_package${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO wheels
-        if: ${{ inputs.build-type != 'Debug' }}
+        if: ${{ inputs.build-type != 'Debug' && (!inputs.enable-coverage || inputs.build-additional-python-wheels) }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_wheels
+          name: openvino_wheels${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO tests package
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_tests
+          name: openvino_tests${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/openvino_tests.zip
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO developer package
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_developer_package
+          name: openvino_developer_package${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/developer_package.zip
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO PDB package
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_pdb
+          name: openvino_pdb${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
+          if-no-files-found: 'error'
+
+      - name: Upload coverage build identity
+        if: ${{ inputs.enable-coverage }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: coverage_build_windows
+          path: ${{ env.BUILD_DIR }}/coverage-build.json
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO js package
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_js_package
+          name: openvino_js_package${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/openvino_js_package.zip
           if-no-files-found: 'error'
 
@@ -459,13 +494,13 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
-          name: openvino_node_npm_package
+          name: openvino_node_npm_package${{ env.ARTIFACT_SUFFIX }}
           path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.zip
           if-no-files-found: 'error'
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
+        if: ${{ !inputs.enable-coverage }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
