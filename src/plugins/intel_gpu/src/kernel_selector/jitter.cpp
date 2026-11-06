@@ -45,6 +45,11 @@ public:
         return jit_term;
     }
 
+    JitTerm ne(const JitTerm& rhs) const {
+        JitTerm jit_term {"(" + text + "!=" + rhs.str() + ")"};
+        return jit_term;
+    }
+
     JitTerm lt(const JitTerm& rhs) const {
         JitTerm jit_term {"(" + text + "<" + rhs.str() + ")"};
         return jit_term;
@@ -1350,7 +1355,8 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         case ActivationFunction::SIGN:
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
-                    ternary(input.gt(zero), one, ternary(input.eq(zero), zero, neg(one))).str()));
+                    ternary(input.ne(input), input,
+                            ternary(input.gt(zero), one, ternary(input.eq(zero), zero, neg(one)))).str()));
             break;
         case ActivationFunction::RECIPROCAL:
             jitConstants.AddConstant(MakeJitConstant(macro_def, (one / input).str()));
