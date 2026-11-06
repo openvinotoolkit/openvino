@@ -40,7 +40,6 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         openvino::zero_loader
         openvino::npu_zero_utils
-        openvino::runtime
         openvino::util
         openvino::npu_al
 )
