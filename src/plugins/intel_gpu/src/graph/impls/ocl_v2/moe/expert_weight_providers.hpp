@@ -47,6 +47,9 @@ public:
 
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    bool is_resident(uint32_t /*expert*/) const override {
+        return true;
+    }
 };
 
 // Offload (OTD) provider: expert weights live on disk and are streamed on demand
@@ -80,6 +83,9 @@ public:
     void fill_routed_weight_views(cldnn::moe_weights& weights, RoutedWeightViews& views) override;
     std::optional<ExpertSlotLease> try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& stream) override;
     size_t acquire_one(uint32_t expert, cldnn::stream& stream) override;
+    bool is_resident(uint32_t expert) const override {
+        return _cache->contains(expert);
+    }
 
     LRUCache& cache() {
         return *_cache;
