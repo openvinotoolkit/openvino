@@ -17,17 +17,17 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-// sdpa_micro reads the per-token token_type_ids group bounds precomputed by the pa_tt_bounds stage
-// (internal buffer 4, right after the micro-kernel buffer 3). Not used with scores output or adaptive RKV,
-// which add internal buffers before that index.
-inline bool pa_micro_uses_tt_bounds(const paged_attention& desc) {
-    return desc.has_token_type_ids && !desc.has_scores_output() && !desc.has_adaptive_rkv;
-}
-
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 // Kernel used for MIXED stage with few query tokens per subsequence (speculative decoding)
 enum class GQAMultiTokensKernel : uint8_t { NONE = 0, SMALL_Q = 1, FALLBACK = 2 };
+
+// Split-K partition size of the 2nd+ token path, and the type its softmax intermediates
+// (exp_sums / max_logits / tmp_out) are stored in. Every stage-0 kernel that feeds
+// paged_attention_opt.cl's SDPA_STAGE_1 finalization must agree with it on both, and the internal
+// buffers are sized from them -- hence one definition here rather than one per implementation file.
+inline constexpr size_t pa_seq_len_partition_size = 256;
+inline constexpr ov::element::Type pa_softmax_accumulator_type = ov::element::f32;
 
 struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
@@ -41,7 +41,13 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     bool use_micro_sdpa = false;
     bool use_gqa_kernel = false;
     GQAMultiTokensKernel gqa_multi_tokens_kernel = GQAMultiTokensKernel::NONE;
+    // GENERATE stage runs sdpa_ocl_decode instead of pa_single_token / pa_gqa_single_token. Kept
+    // separate from use_micro_sdpa on purpose: that flag also suppresses the exp_sums / max_logits /
+    // tmp_out internal buffers (get_internal_buffer_descs), which sdpa_ocl_decode needs.
+    bool use_ocl_decode = false;
     size_t query_block_size = 16;
+    // PREFILL runs the xe_hpg PA PREFILL kernel, whose query blocks are dispatched heaviest / lightest alternately.
+    bool pair_query_blocks = false;
 };
 
 struct PagedAttentionOpt : public ImplementationManager {

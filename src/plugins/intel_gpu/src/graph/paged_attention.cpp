@@ -66,7 +66,13 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
 
     // Both INT4 and INT8 BY_CHANNEL use {0,1,3,2} dim order (block_size at dim[3]).
-    const auto block_size_idx = desc->has_xattention ? 2 : 3;
+    // Token-major K uses {0,1,2,3}, so block_size moves to dim[2] as for XAttention.
+    // A token-major BY_CHANNEL page keeps the SAME size (k_head_size * (block_size + 4)), so
+    // expected_block_size above is still the adjusted 20 -- it just moves from dim 3 to dim 2 with the
+    // rest of the token-major dim order. The layout decided once in transformations_pipeline.cpp is read
+    // back off the PHYSICAL cache shape.
+    const bool k_token_major = !desc->has_xattention && cldnn::paged_attention::k_cache_token_major(key_cache_ps, expected_block_size);
+    const auto block_size_idx = (desc->has_xattention || k_token_major) ? 2 : 3;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "

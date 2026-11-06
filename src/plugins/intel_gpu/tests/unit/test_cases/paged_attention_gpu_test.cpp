@@ -4,7 +4,25 @@
 
 #include "paged_attention_gpu_test.h"
 
-class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
+#include "dpas_backend_test_helper.h"
+
+namespace {
+// The HpgTier bits of the PA primitive run_gpu_inference() builds for `p` (see tests::pa_hpg_tiers).
+uint32_t pa_hpg_tiers(const paged_attention_test_params& p) {
+    const bool token_type_ids = p.token_type_ids.has_value() || p.empty_token_type_ids || (p.has_sink_input && p.force_flashattn_v2);
+    const bool features = p.has_sink_input || token_type_ids || p.has_qq_bias || p.sliding_window_size != 0 || p.k_head_size != p.v_head_size ||
+                          p.runtime_scale_multiplier.has_value();
+    auto cache = tests::pa_cache::f16;
+    if (p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4) {
+        cache = tests::pa_cache::u4;
+    } else if (p.kv_cache_compression) {
+        cache = p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL ? tests::pa_cache::i8_by_channel : tests::pa_cache::i8_by_token;
+    }
+    return tests::pa_hpg_tiers(features, cache);
+}
+}  // namespace
+
+class paged_attention_test: public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
 
@@ -12,15 +30,24 @@ TEST_P(paged_attention_test, basic) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+// Keep the original suite name so existing PR #37377 repro filters remain valid. The assertion below pins the
+// DPAS MIXED kernel (sdpa_ocl, on its lane), so the test cannot silently exercise the pa_multi_token fallback instead.
 class paged_attention_u4_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
-    if (!tests::get_test_engine().get_device_info().supports_immad)
-        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
-
     auto p = GetParam();
+    const auto backend = tests::expected_dpas_backend(tests::get_test_engine(), true, pa_hpg_tiers(p));
+    if (backend == tests::dpas_backend::none)
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
+    // sdpa_ocl reads only the token-major u4 page: on a d-major one (OV_GPU_PA_K_TOKEN_MAJOR=0) this lane has no DPAS MIXED
+    // kernel to pin.
+    if (!pam.k_cache_token_major())
+        GTEST_SKIP() << "d-major K page (OV_GPU_PA_K_TOKEN_MAJOR=0): sdpa_ocl does not read it, the MIXED fallback runs";
+    if (!pa_dpas_kernel_enabled_by_config())
+        GTEST_SKIP() << "OV_GPU_ENABLE_SDPA_MICRO=0: no DPAS MIXED kernel to pin, the MIXED fallback runs";
 
     for (size_t sequence = 0; sequence < pam.subsequence_descs.size(); ++sequence) {
         std::fill(pam.query_data[sequence].begin(), pam.query_data[sequence].end(), ov::float16{8.0f});
@@ -50,8 +77,9 @@ TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    ASSERT_NE(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
-        << "Regression must exercise micro SDPA: " << dump_info.get_entries();
+    const char* mixed_kernel = "sdpa_ocl_mixed";
+    ASSERT_NE(dump_info.get_entries().find(mixed_kernel), std::string::npos)
+        << "Regression must exercise " << mixed_kernel << ": " << dump_info.get_entries();
 
     this->tolerance = 1e-2f;
     const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
@@ -62,7 +90,11 @@ INSTANTIATE_TEST_SUITE_P(
     regression_paged_attention_u4_mixed_micro,
     paged_attention_u4_mixed_micro_test,
     ::testing::Values(
+        // Keep past_len=34 first so the existing .../0 reproducer remains stable.
         paged_attention_test_params{{{25, 34}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        paged_attention_test_params{{{25, 33}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        paged_attention_test_params{{{25, 47}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        paged_attention_test_params{{{25, 48}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
         paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 
 
@@ -82,9 +114,8 @@ TEST_P(paged_attention_h256_mixed_qtile64_test, matches_cpu_reference) {
     ASSERT_NE(pa_inst, nullptr);
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
-    const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    ASSERT_NE(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
-        << "Cases must run micro SDPA to cover the h256 MIXED q tile 64 config: " << dump_info.get_entries();
+    // These cases pinned sdpa_micro's h256 MIXED q tile 64 config; with sdpa_micro removed they check the h256 MIXED
+    // result of whichever kernel serves it.
 
     // 8-bit caches keep the tolerance the fixture already uses for 8-bit compression
     // (run_gpu_inference in paged_attention_gpu_test.h: 25e-3 for i8/u8, 75e-3 for int4);
@@ -187,6 +218,530 @@ INSTANTIATE_TEST_SUITE_P(
     regression_paged_attention_swa_partition_finalization,
     paged_attention_swa_partition_finalization_test,
     ::testing::Values(paged_attention_test_params{{{1, 511}, {1, 512}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));
+
+// A 241..256-token window makes the host dispatch 2 GENERATE partitions (it sizes for ceil(SWA/16) + 1 pages),
+// while a sequence whose own window fits one partition is skipped by the finalization, so the kernel has to write
+// that sequence's output directly. With the harness data the reference output stays below the compressed-cache
+// tolerances, so an unwritten output (zeros or stale memory) would pass the value check: poison the output with
+// NaN and run again, so that any element nothing writes fails.
+class paged_attention_swa_one_partition_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_swa_one_partition_test, writes_output_directly) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    const auto pa_output = pa_inst->output_memory_ptr(0);
+    ASSERT_NE(pa_output, nullptr);
+    {
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::write> out(pa_output, tests::get_test_stream());
+        std::fill(out.begin(), out.end(), std::numeric_limits<ov::float16>::quiet_NaN());
+    }
+
+    result.outputs = result.network->execute();
+    // The poison only proves something if the second run kept the same output memory (true for GENERATE, which
+    // never reallocates at an unchanged shape; a MIXED case would need is_the_same_buffer() instead).
+    ASSERT_EQ(pa_inst->output_memory_ptr(0).get(), pa_output.get());
+
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+// Instantiated under smoke_paged_attention so that every gtest group selecting smoke_paged_attention/* runs it.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_swa_one_partition_test,
+    ::testing::Values(
+        // seq 0 (1024 tokens) has an effective length of exactly 256; seq 1 (527) needs both partitions.
+        paged_attention_test_params{{{1, 1023}, {1, 526}}, 2, 2, 64, 64, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},                           // i8, head 64 (reduction store)
+        paged_attention_test_params{{{1, 1023}, {1, 526}}, 2, 2, 64, 64, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},   // u4, head 64 (reduction store)
+        paged_attention_test_params{{{1, 1023}, {1, 526}}, 8, 2, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}, // u4 GQA, head 128 (direct store)
+        paged_attention_test_params{{{1, 1023}}, 8, 2, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));                                     // i8 GQA, one sequence is enough
+
+// A runtime (non-constant) scale input. Every other case gives the primitive a constant scale, which the kernels
+// take as a jit literal, so the scale memory they read otherwise was never exercised. The multiplier makes the
+// scale 64 / sqrt(k_head_size) (8.0 for head 64, exact in f16); see paged_attention_test_params.
+class paged_attention_runtime_scale_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_runtime_scale_test, matches_reference) {
+    auto p = GetParam();
+    const auto& info = tests::get_test_engine().get_device_info();
+    const bool generate = std::all_of(p.subsequences.begin(), p.subsequences.end(), [](const SubsequenceDescriptor& s) {
+        return s.num_tokens == 1;
+    });
+    // Below Xe2 the opt multi-token kernel (pa_sdpa_opt) types a runtime scale as INPUT3_TYPE (sdpa_opt.cl SCALE_TYPE;
+    // see "Known issues" in docs/sdpa_ocl.md). Real models give a constant scale. Whatever runs on Xe2+ reads it right.
+    // A pre-Xe2 device that takes the sdpa_ocl lane reads it right for PREFILL/MIXED only: GENERATE stays on pa_single_token.
+    if (!(info.arch >= cldnn::gpu_arch::xe2 || (!generate && cldnn::paged_attention::sdpa_ocl_selected(info))))
+        GTEST_SKIP() << "a runtime scale is only read correctly by sdpa_ocl / sdpa_ocl_decode";
+    execute(p, true);
+}
+
+namespace {
+paged_attention_test_params with_runtime_scale(paged_attention_test_params p) {
+    p.runtime_scale_multiplier = 64.0f;
+    return p;
+}
+}  // namespace
+
+// Instantiated under smoke_paged_attention so that every gtest group selecting smoke_paged_attention/* runs it.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_runtime_scale_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        // MIXED, PREFILL and GENERATE of an uncompressed cache.
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        with_runtime_scale(paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        // GQA with a compressed cache.
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {1, 515}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    }));
+
+// Feature-axis padding of the rank-2 query / key / value inputs that is NOT a multiple of 64 B. sdpa_ocl may read
+// such an input with 2D block IO only where its gate can prove the base and the pitch (see "Block2d rules" in
+// docs/sdpa_ocl.md); DYNAMIC_INPUT_PAD only ever padded the query by whole heads, which is aligned by construction.
+//
+// All pads are in f16 elements: 32 = 64 B (aligned control), 8 = 16 B (the granularity the base fixup repairs),
+// 2 = 4 B (breaks the pitch % 16 rule as well). "After only" keeps the base of token 0 aligned; with a 16 B-multiple pitch it moves
+// the base of the later tokens (MIXED) but is harmless in a single-sequence PREFILL.
+// On the old gate only a token stride that is not a multiple of 16 B, and a base 2 B off, gave wrong values on Arc Pro B70.
+// Dynamic: the compile-time layout says only "padded", as for a crop view in a dynamic-shape model.
+class paged_attention_feature_pad_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+namespace {
+// The suite only means something where sdpa_ocl serves PREFILL / MIXED; elsewhere the multi-token kernel is
+// pa_sdpa_opt, which has its own padding handling. The lane alone is not enough: xe_hpg with
+// TEST_USE_SDPA_OCL_HPG=1 and no tier ready is on the lane, yet every op still runs the opt kernels.
+bool sdpa_ocl_serves_prefill_mixed(uint32_t hpg_tiers = 0) {
+    return tests::expected_dpas_backend(tests::get_test_engine(), true, hpg_tiers) == tests::dpas_backend::ocl;
+}
+}  // namespace
+
+TEST_P(paged_attention_feature_pad_test, matches_reference) {
+    if (!sdpa_ocl_serves_prefill_mixed())
+        GTEST_SKIP() << "the block2d gate belongs to sdpa_ocl, which serves PREFILL / MIXED on Xe2 only";
+    auto p = GetParam();
+    execute(p, true);
+}
+
+namespace {
+paged_attention_test_params with_input_pads(paged_attention_test_params p, input_feature_pads pads) {
+    p.input_pads = pads;
+    return p;
+}
+
+// {q, k, v} pads, one common value for the inputs that are padded.
+constexpr bool DYNAMIC_PAD = true;
+constexpr bool STATIC_PAD = false;
+input_feature_pads pads_qkv(int before, int after, bool dynamic) {
+    return input_feature_pads{{before, after}, {before, after}, {before, after}, dynamic};
+}
+input_feature_pads pads_q(int before, int after, bool dynamic) {
+    return input_feature_pads{{before, after}, {}, {}, dynamic};
+}
+input_feature_pads pads_kv(int before, int after, bool dynamic) {
+    return input_feature_pads{{}, {before, after}, {before, after}, dynamic};
+}
+}  // namespace
+
+namespace {
+// The harness data (N(0, 0.1)) makes q.k ~ 0.08, an almost uniform softmax, in which a misread Q or K row barely moves the
+// output: only V is observed. Every case therefore also runs with a gain that sharpens the softmax (constant scale).
+constexpr float SHARP_SOFTMAX_GAIN = 128.0f;
+
+paged_attention_test_params sharp_softmax(paged_attention_test_params p) {
+    p.logit_scale_gain = SHARP_SOFTMAX_GAIN;
+    return p;
+}
+
+std::vector<paged_attention_test_params> feature_pad_cases() {
+    // PREFILL: one sequence of 36 new tokens. MIXED: a 1-token step, a fresh prompt and a prompt continuation.
+    auto prefill = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{36, 0}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    auto mixed = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    auto mixed_i8 = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, heads, kv_heads, head, head, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+
+    std::vector<paged_attention_test_params> cases = {
+        // 0-1: aligned control (64 B pads): must pass with and without the gate fix.
+        with_input_pads(prefill(2, 2, 64), pads_qkv(32, 32, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(32, 32, DYNAMIC_PAD)),
+        // 2-5: dynamic 16 B pads, PREFILL: Q only (Q and A have no base fixup), K/V only, all three, and after-only. Case 5 keeps a
+        // 64 B aligned base and a 16 B-multiple pitch at subsequence_begin 0, so it is a control; its MIXED twin (case 8) moves the base.
+        with_input_pads(prefill(2, 2, 64), pads_q(8, 8, DYNAMIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_kv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_qkv(0, 8, DYNAMIC_PAD)),
+        // 6-8: dynamic 16 B pads, MIXED: K/V only reaches the current-token surfaces (Kc/Vc).
+        with_input_pads(mixed(2, 2, 64), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_kv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(0, 8, DYNAMIC_PAD)),
+        // 9-12: static pads: 16 B (the fixup tier can repair it) and 4 B (nothing can, so the gate must refuse block IO).
+        with_input_pads(prefill(2, 2, 64), pads_qkv(8, 8, STATIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_qkv(2, 2, STATIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(8, 8, STATIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(2, 2, STATIC_PAD)),
+        // 13-14: a dynamic 4 B pad on Q alone: Q takes the scalar path, whatever the pad.
+        with_input_pads(prefill(2, 2, 64), pads_q(2, 2, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_q(2, 2, DYNAMIC_PAD)),
+        // 15-16: GQA at head 128, and a compressed cache (MIXED still reads the raw f16 Kc/Vc for the new tokens). What the
+        // cache writer stores from the padded key is checked by paged_attention_key_pad_cache_test.
+        with_input_pads(prefill(8, 2, 128), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(mixed_i8(2, 2, 64), pads_qkv(8, 8, DYNAMIC_PAD)),
+    };
+
+    // 17-33: the same cases with a sharp softmax.
+    const size_t base_count = cases.size();
+    for (size_t i = 0; i < base_count; i++)
+        cases.push_back(sharp_softmax(cases[i]));
+
+    // 34-: pads that move the base by 32 B and 48 B while the pitch stays a multiple of 64 B (ld = 160 elements), so only
+    // the base is off; sharp softmax only.
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(24, 8, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(24, 8, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_q(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_kv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_kv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(16, 16, STATIC_PAD))));
+
+    // 42-49: what the device enforces, on the old gate: a token stride that is not a multiple of 16 B gives wrong values, a base
+    // 4 B off does not ((2, 6) has a 272 B stride), a base 2 B off does. Q takes the scalar path with these pads; K/V take the
+    // fixup tier when the padding is dynamic and the scalar path when it is static and not a multiple of 16 B. Sharp softmax only.
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(2, 6, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(2, 6, DYNAMIC_PAD))));
+    for (const auto& pads : {pads_q(0, 2, DYNAMIC_PAD), pads_q(2, 6, DYNAMIC_PAD), pads_q(1, 7, DYNAMIC_PAD), pads_kv(2, 6, DYNAMIC_PAD)})
+        cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads)));
+    for (const auto& pads : {pads_qkv(0, 2, STATIC_PAD), pads_qkv(2, 6, STATIC_PAD)})
+        cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads)));
+
+    // 50-: static controls: 64 B pads (the strict tier holds), and a 64 B start with a 352 B stride (strict refuses on the stride, the
+    // fixup tier takes it). Then one KV head: the fixup widens the surface by up to 48 B, which can exceed the pitch (160 B here).
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(32, 32, STATIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(32, 32, STATIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(32, 16, STATIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(4, 1, 64), pads_qkv(8, 8, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(4, 1, 64), pads_qkv(8, 8, DYNAMIC_PAD))));
+    return cases;
+}
+
+std::vector<paged_attention_test_params> feature_pad_residual_cases() {
+    auto prefill = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{36, 0}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    auto mixed = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    return {
+        sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(0, 2, DYNAMIC_PAD))),  // stride 260 B
+        sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(0, 2, DYNAMIC_PAD))),    // stride 260 B, Kc / Vc
+        sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_kv(0, 2, DYNAMIC_PAD))),   // stride 260 B, K / V alone
+        sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(1, 7, DYNAMIC_PAD))),  // start 2 B off
+    };
+}
+}  // namespace
+
+// Instantiated under smoke_paged_attention so that every gtest group selecting smoke_paged_attention/* runs it.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_feature_pad_test,
+    ::testing::ValuesIn(feature_pad_cases()));
+
+// The cache writer (pa_kv_cache_update_ref.cl) with a padded key input: every token it stores must be the input row
+// read at the padded pitch. The output does not show a wrong write here -- MIXED reads the new tokens from the key input
+// (Kc), and the basic rows do not observe the cache bytes (docs/sdpa_ocl.md "Test coverage gaps") -- so this dequantizes
+// the K cache back (read_key_from_cache(), either page layout) and compares every stored token with its input. The i8
+// BY_CHANNEL requantize of a partially filled block ({10, 34}: 10 new tokens from slot 2) stepped by the unpadded row
+// until 2026-11-06; the unpadded, u4 BY_CHANNEL and i8 BY_TOKEN cases are controls.
+class paged_attention_key_pad_cache_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_key_pad_cache_test, cache_matches_input) {
+    auto p = GetParam();
+    // The output check belongs to sdpa_ocl's padded-input gates (as in paged_attention_feature_pad_test); the cache check
+    // holds on every device.
+    execute(p, sdpa_ocl_serves_prefill_mixed());
+    ASSERT_NE(this->last_key_cache_mem, nullptr);
+
+    auto& pam = *this->pam;
+    const bool is_int4 = p.kv_cache_precision == ov::element::u4;
+    // Each stored token went through one or two roundings to the block's channel (BY_CHANNEL) or the token's (BY_TOKEN)
+    // step: range / 255 for i8, range / 15 for u4, with N(0, 0.1) data. A token read from the wrong row is off by ~0.1.
+    const float tol = is_int4 ? 0.08f : 0.01f;
+    PagedAttentionReference reference(pam);
+    for (size_t s = 0; s < pam.subsequence_descs.size(); s++) {
+        const auto& desc = pam.subsequence_descs[s];
+        const int total = desc.past_len + desc.num_tokens;
+        const auto cached = reference.read_key_from_cache(this->last_key_cache_mem, s, total);  // [kv_head][token][dim]
+        const auto& input = pam.key_data[s];                                                    // [token][kv_head][dim]
+        for (int t = 0; t < total; t++) {
+            for (int h = 0; h < pam.num_kv_heads; h++) {
+                for (int d = 0; d < pam.k_head_size; d++) {
+                    const float got = cached[(static_cast<size_t>(h) * total + t) * pam.k_head_size + d];
+                    const float want = input[(static_cast<size_t>(t) * pam.num_kv_heads + h) * pam.k_head_size + d];
+                    ASSERT_NEAR(got, want, tol) << "subsequence " << s << " token " << t << " (past_len " << desc.past_len
+                                                << ") kv head " << h << " dim " << d;
+                }
+            }
+        }
+    }
+}
+
+namespace {
+std::vector<paged_attention_test_params> key_pad_cache_cases() {
+    // {1, 34}: one new token at slot 2; {25, 0}: a fresh prompt; {10, 34}: 10 new tokens from slot 2 (the requantize).
+    auto mixed = [](ov::internal::CacheQuantMode mode, ov::element::Type precision) {
+        auto p = paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, mode, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+        p.kv_cache_precision = precision;
+        return p;
+    };
+    const auto i8_bc = mixed(ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::i8);
+    const auto u4_bc = mixed(ov::internal::CacheQuantMode::BY_CHANNEL, ov::element::u4);
+    const auto i8_bt = mixed(ov::internal::CacheQuantMode::BY_TOKEN, ov::element::i8);
+    return {
+        // 0: unpadded control. 1-3: i8 BY_CHANNEL with a padded key (dynamic 16 B, static 16 B, static 4 B pads).
+        i8_bc,
+        with_input_pads(i8_bc, pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(i8_bc, pads_qkv(8, 8, STATIC_PAD)),
+        with_input_pads(i8_bc, pads_kv(2, 2, STATIC_PAD)),
+        // 4-5: controls, the same pads on the u4 BY_CHANNEL and i8 BY_TOKEN writers.
+        with_input_pads(u4_bc, pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(i8_bt, pads_qkv(8, 8, DYNAMIC_PAD)),
+    };
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_key_pad_cache,
+    paged_attention_key_pad_cache_test,
+    ::testing::ValuesIn(key_pad_cache_cases()));
+
+// PA PREFILL at head 128: the xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) on xe_hpg with the sdpa_ocl lane, the
+// generic kernels elsewhere. Lengths around its 32-query and 256-key workgroup tiles, several subsequences per call (its
+// workgroups are dispatched out of order), GQA and MQA, padded rows, and every case again with a sharp softmax, which a
+// misread Q or K row cannot pass.
+class paged_attention_prefill_h128_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_prefill_h128_test, matches_reference) {
+    auto p = GetParam();
+    // As in paged_attention_feature_pad_test: padded rows are sdpa_ocl's gate to get right (sdpa_micro misreads the 2 B one).
+    if (p.input_pads.has_value() && !sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
+        GTEST_SKIP() << "the padded cases check the gates of sdpa_ocl, which does not serve this op here";
+    execute(p, true);
+}
+
+namespace {
+std::vector<paged_attention_test_params> prefill_h128_cases() {
+    auto prefill = [](std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads) {
+        return paged_attention_test_params{ subsequences, heads, kv_heads, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    std::vector<paged_attention_test_params> cases = {
+        prefill({{1, 0}}, 2, 2),
+        prefill({{7, 0}}, 2, 2),
+        prefill({{31, 0}}, 2, 2),
+        prefill({{32, 0}}, 2, 2),
+        prefill({{33, 0}}, 2, 2),
+        prefill({{255, 0}}, 2, 2),
+        prefill({{256, 0}}, 2, 2),
+        prefill({{257, 0}}, 2, 2),
+        prefill({{600, 0}}, 2, 2),
+        prefill({{17, 0}, {256, 0}, {33, 0}}, 2, 2),
+        prefill({{300, 0}, {1, 0}, {64, 0}, {129, 0}}, 2, 2),
+        prefill({{130, 0}, {77, 0}}, 8, 2),   // GQA
+        prefill({{100, 0}, {40, 0}}, 4, 1),   // MQA
+        prefill({{513, 0}}, 32, 8),
+        with_input_pads(prefill({{70, 0}, {200, 0}}, 2, 2), pads_qkv(2, 2, STATIC_PAD)),   // 4 B: still dword rows
+        with_input_pads(prefill({{70, 0}, {200, 0}}, 2, 2), pads_qkv(1, 1, STATIC_PAD)),   // 2 B: the generic kernel
+        with_input_pads(prefill({{70, 0}, {200, 0}}, 8, 2), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_runtime_scale(prefill({{70, 0}, {200, 0}}, 2, 2)),                              // the generic kernel
+    };
+    const size_t base_count = cases.size();
+    for (size_t i = 0; i < base_count; i++) {
+        if (!cases[i].runtime_scale_multiplier.has_value())  // exclusive with logit_scale_gain
+            cases.push_back(sharp_softmax(cases[i]));
+    }
+    return cases;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_prefill_h128,
+    paged_attention_prefill_h128_test,
+    ::testing::ValuesIn(prefill_h128_cases()));
+
+// The dynamic K/V paddings the host cannot prove: the fixup tier takes a dynamic padding on trust ("Block2d rules" in
+// docs/sdpa_ocl.md), so a token stride that is not a multiple of 16 B, or a start of the first head that is not a multiple
+// of 4 B, still reads wrong values. Kept to reproduce that, not to pass: run with --gtest_also_run_disabled_tests.
+class paged_attention_feature_pad_residual_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_feature_pad_residual_test, DISABLED_matches_reference) {
+    auto p = GetParam();
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_feature_pad_residual_test,
+    ::testing::ValuesIn(feature_pad_residual_cases()));
+
+// k_head_size != v_head_size.
+//
+// The MIXED stage is the load-bearing case: the token-major BY_CHANNEL K page is read by sdpa_ocl, or by the MIXED
+// fallback (pa_multi_token in paged_attention_opt.cl) where choose_dpas_backend()'s k != v check
+// (SDPAOclGenerator::supports_head_sizes) refuses the pair. When the page was d-major-only in that fallback and the
+// layout rule and the gate disagreed, a rejected shape came back as NaN rather than as a slower result.
+//
+// PREFILL is covered for completeness (it runs sdpa_ocl_prefill, or pa_sdpa_opt off the raw KEY
+// input) and GENERATE asserts that sdpa_ocl_decode, which was already k/v-split, keeps working.
+//
+// Off the sdpa_ocl lane these cases run pa_multi_token, on the d-major page selected there.
+
+class paged_attention_kv_head_size_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_kv_head_size_test, matches_reference) {
+    auto p = GetParam();
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_kv_head_size,
+    paged_attention_kv_head_size_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        // MIXED (2nd token + 1st token + part of 1st token), which is the stage that regressed.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // v > k, so the S*V split is re-derived upwards rather than downwards.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // k >= 72 with v <= 32: the tuned KQ tiling (query tile 32) admits no legal S*V split here,
+        // so this is the only coverage of choose_config()'s tier-2 fallback. Without it that branch
+        // is dead code.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // PREFILL.
+        paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{36, 0}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // GENERATE (one new token per subsequence) -- sdpa_ocl_decode.
+        paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // GQA, so the query-block stride (kq_wg_tile_queries) is exercised with heads_num > kv_heads_num.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 8, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+    }));
+
+// Companion to the suite above: proves the MIXED k != v cases are actually served by sdpa_ocl.
+// Without this, a future gate change could route them back to pa_multi_token and the accuracy tests
+// would go green only because the reference happens to agree on the fallback's layout.
+class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
+    // Off the sdpa_ocl lane the k != v MIXED cases run pa_multi_token, so there is no sdpa_ocl kernel to assert on.
+    auto p = GetParam();
+    if (!sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
+        GTEST_SKIP() << "sdpa_ocl is not this device's DPAS kernel (pre-Xe2 without TEST_USE_SDPA_OCL_HPG=1 or a ready tier, or no oneDNN)";
+
+    ASSERT_TRUE(this->pam.has_value());
+    if (!this->pam->k_cache_token_major())
+        GTEST_SKIP() << "d-major K page (OV_GPU_PA_K_TOKEN_MAJOR=0): sdpa_ocl does not read it, the MIXED fallback runs";
+    if (!pa_dpas_kernel_enabled_by_config())
+        GTEST_SKIP() << "OV_GPU_ENABLE_SDPA_MICRO=0: sdpa_ocl is off, the MIXED fallback runs";
+
+    auto result = run_gpu_inference(*this->pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
+    ASSERT_NE(dump_info.get_entries().find("sdpa_ocl"), std::string::npos)
+        << "k_head_size != v_head_size MIXED must run sdpa_ocl, not the d-major pa_multi_token "
+           "fallback: " << dump_info.get_entries();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_kv_head_size_uses_sdpa_ocl,
+    paged_attention_kv_head_size_uses_sdpa_ocl_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+    }));
+
+// Every reader of a PA stage reads the token-major K page, the opt kernels (paged_attention_opt.cl) included: the plugin
+// makes the page token-major whatever the op (paged_attention::k_token_major_rule()), so an op sdpa_ocl or
+// sdpa_ocl_decode refuses lands on paged_attention_opt.cl with it. Force the page token-major on any device and check
+// the result. Without a DPAS reader on this device or for this op (the BY_CHANNEL cases on a non-Xe2 device, or
+// OV_GPU_ENABLE_SDPA_MICRO=0 / TEST_USE_SDPA_OCL_DECODE=0) these run paged_attention_opt.cl; with one, sdpa_ocl /
+// sdpa_ocl_decode.
+class paged_attention_by_channel_tm_any_reader_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_by_channel_tm_any_reader_test, matches_reference) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    // OV_GPU_PA_K_TOKEN_MAJOR=0 runs the same cases on the d-major page: the control.
+    this->pam->force_k_cache_token_major = cldnn::paged_attention::k_token_major_switch() != cldnn::paged_attention::k_layout_switch::d_major;
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_by_channel_tm_any_reader,
+    paged_attention_by_channel_tm_any_reader_test,
+    ::testing::Values(
+        paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},                          // i8 GENERATE
+        paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},                          // i8 MIXED
+        paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},  // u4 GENERATE
+        paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},  // u4 MIXED
+        // The same with a sharp softmax: the harness data alone hardly observes a misread K row (sharp_softmax()).
+        sharp_softmax(paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}),
+        sharp_softmax(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4})));
+
+// A scores output is refused by sdpa_ocl and sdpa_ocl_decode on every device, so these always run paged_attention_opt.cl
+// (decode, pa_multi_token) on the token-major page of every kind, plus the scores stages.
+class paged_attention_tm_opt_reader_scores_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_tm_opt_reader_scores_test, matches_reference) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    // OV_GPU_PA_K_TOKEN_MAJOR=0 runs the same cases on the d-major page: the control.
+    this->pam->force_k_cache_token_major = cldnn::paged_attention::k_token_major_switch() != cldnn::paged_attention::k_layout_switch::d_major;
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_tm_opt_reader_scores,
+    paged_attention_tm_opt_reader_scores_test,
+    ::testing::Values(
+        paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},  // f16 GENERATE
+        paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},  // f16 MIXED
+        paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},   // i8 BY_TOKEN GENERATE
+        paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},   // i8 BY_TOKEN MIXED
+        paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},  // i8 BY_CHANNEL GENERATE
+        paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},  // i8 BY_CHANNEL MIXED
+        paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},  // u4 GENERATE
+        paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},  // u4 MIXED
+        // u4 head 128 (the dual-nibble V read, as head 64). NOT covered: a u4 V head whose packed row (V / 2) is not a
+        // multiple of 16 (48, 80, 112), i.e. the scalar u4 V read: this harness lays the u4 V row out as V / 2 + 4 bytes
+        // where the kernels pad it to a multiple of 16 (PACKED_V_HEAD_SIZE), so every reader, on either page layout,
+        // returns inf/NaN there.
+        paged_attention_test_params{{{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},  // u4 GENERATE head 128
+        paged_attention_test_params{{{8, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},  // u4 MIXED head 128
+        // The same with a sharp softmax: the harness data alone hardly observes a misread K row (sharp_softmax()).
+        sharp_softmax(paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}),
+        sharp_softmax(paged_attention_test_params{{{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}),
+        sharp_softmax(paged_attention_test_params{{{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}),
+        sharp_softmax(paged_attention_test_params{{{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}),
+        sharp_softmax(paged_attention_test_params{{{8, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4})));
 
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
@@ -372,6 +927,80 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_s
     paged_attention_test_params{ {{64, 0}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false },
 }));
 
+// ------------------------------------------------------------------ attention sinks (gpt-oss)
+// A sink is one extra per-head logit whose value vector is ZERO: it enlarges the softmax denominator
+// and changes nothing else. PagedAttentionReference now models exactly that (a sink score column
+// concatenated before the softmax, plus a matching zero V row), so these cases are a VALUE check --
+// unlike paged_attention_sink_v2_effect_test above, which only asserts that the output moved.
+//
+// The sink VALUE has to be chosen against the denominator or the test is vacuous. Query/key data
+// here is N(0, 0.1), so at scale 1/sqrt(head_size) the logits are ~0.01 and every exp(s - m) is ~1,
+// which puts the denominator at ~kv_len. sink = log(kv_len) therefore lands the sink at ~50% of it,
+// and the per-head spread walks that across ~18%..82%: far above the comparison tolerance, and
+// DIFFERENT per head, so a kernel that reads the wrong head's sink cannot pass either.
+//
+// force_flashattn_v2 is deliberately left off. It also sets has_token_type_ids, which makes
+// can_use_sdpa_ocl_for reject every stage but PREFILL -- these cases need to reach sdpa_ocl in
+// MIXED too.
+static paged_attention_test_params with_sinks(paged_attention_test_params p) {
+    int kv_len = 0;
+    for (const auto& s : p.subsequences)
+        kv_len = std::max(kv_len, s.num_tokens + s.past_len);
+
+    static const float spread[4] = {-1.5f, -0.5f, 0.5f, 1.5f};
+    std::vector<ov::float16> sinks(p.num_heads);
+    for (int h = 0; h < p.num_heads; h++)
+        sinks[h] = ov::float16(std::log(static_cast<float>(kv_len)) + spread[h % 4]);
+
+    p.has_sink_input = true;
+    p.sink_values = sinks;
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink, paged_attention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    /* PREFILL: sdpa_ocl reads the K/V INPUTS, never the cache */
+    with_sinks(paged_attention_test_params{ {{128, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    /* PREFILL, GQA and a head size where D_MAX > HEAD_SIZE (48 -> 64), so the scalar fallbacks run */
+    with_sinks(paged_attention_test_params{ {{64, 0}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{64, 0}}, 4, 4, 48, 48, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    /* PREFILL, i8 cache in both quant modes -- exercises sdpa_ocl's dequant paths with a sink */
+    with_sinks(paged_attention_test_params{ {{128, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{128, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    /* PREFILL with a sliding window that cuts earlier key tiles (gpt-oss: sink + SWA on alternate layers) */
+    with_sinks(paged_attention_test_params{ {{700, 0}}, 8, 2, 64, 64, 16, 128, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+    /* PREFILL: two prompts in one batch, so the query-block mapping hands out blocks from both */
+    with_sinks(paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, ENABLE_FA_V2, false, 0, {}, false }),
+
+    /* GENERATE: one partition */
+    with_sinks(paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: 516 keys > SEQ_LEN_PARTITION_SIZE, so the sink must land in partition 0 ONLY and the
+       finalization has to merge three partitions around it. This is THE case for the partition-0
+       contract; a sink counted per partition triples its weight here and passes at {1, 34}. */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: GQA, multi-partition, head 128 -- the M>1 path where each row needs ITS OWN head's sink */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: GQA group 7 is not a power of two, so the last workgroup of each group runs with
+       head leftovers and the sink index has to be clamped exactly like the Q load's */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 28, 4, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: sliding window, which drops the fully-masked prefix from the partition COUNT --
+       partition 0 then starts mid-sequence and still has to be the one carrying the sink */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 300, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* GENERATE: i8 cache, both quant modes */
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+
+    /* MIXED: 2nd token + 1st token + part of a 1st token in one batch. past_len is arbitrary AND
+       differs per subsequence, so the causal bound and the sink seed interact -- and, since
+       PA_CUR_KV_F16, so does the point where sdpa_ocl switches from the K/V CACHE to the raw f16 K/V:
+       these are the cases where BOTH sides of that split run in one dispatch. */
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    /* MIXED: i8 cache, both quant modes */
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    with_sinks(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+}));
+
 static paged_attention_test_params make_zero_key_regression_params(const ov::element::Type& kv_cache_precision) {
     paged_attention_test_params p{{{32, 0}},
                                   32,
@@ -501,6 +1130,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{512, 0}}, 2, 2, 64, 32, 16, 20, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
     paged_attention_test_params{ {{10, 0}, {30, 0}}, 2, 2, 64, 64, 16, 8, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token + 2nd token
     paged_attention_test_params{ {{128, 0}, {256, 0}}, 2, 2, 48, 64, 16, 128, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, PER_BLOCK_ROTATION, ENABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    // d_max 64 / 128 / 256 / 512 PREFILL tilings (128 / 256 / 128 / 256-key tiles): windows that cut earlier key tiles, one that never cuts, head 96. Uncompressed,
+    // so the 2e-3 tolerance applies (a compressed cache relaxes it to 25e-3, which a missing window mask passes).
+    paged_attention_test_params{ {{1000, 0}}, 8, 2, 128, 128, 16, 300, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{700, 0}, {300, 0}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    paged_attention_test_params{ {{600, 0}}, 8, 2, 128, 128, 16, 4096, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{520, 0}}, 4, 4, 96, 96, 16, 100, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token
+    paged_attention_test_params{ {{900, 0}}, 8, 2, 64, 64, 16, 200, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token, d_max 64 tiling
+    paged_attention_test_params{ {{600, 0}}, 8, 4, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token, d_max 256 tiling
+    paged_attention_test_params{ {{700, 0}}, 8, 4, 256, 256, 16, 200, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token, d_max 256 tiling
+    paged_attention_test_params{ {{600, 0}}, 8, 1, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token, d_max 512 tiling
+    paged_attention_test_params{ {{700, 0}}, 8, 2, 512, 512, 16, 200, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token, d_max 512 tiling
     paged_attention_test_params{ {{1, 10}}, 2, 2, 64, 64, 16, 4, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
     paged_attention_test_params{ {{5, 10}}, 2, 2, 64, 64, 16, 2, DISABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token
     paged_attention_test_params{ {{248, 16}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION,ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // mixed: prefix caching
@@ -576,6 +1216,49 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     // Sizing the dispatch from the longest sequence drops those 15 tokens, the newest ones it must attend.
     paged_attention_test_params{ {{1, 2047}, {1, 1038}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // multi-seq SWA decode, mixed block alignment
     paged_attention_test_params{ {{1, 1023}, {1, 526}}, 2, 2, 64, 64, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // same, non-GQA
+    paged_attention_test_params{ {{1, 1024}}, 2, 2, 64, 64, 16, 32, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // decode, past_len=1024 >> sw=32
+    paged_attention_test_params{ {{1, 2048}}, 8, 2, 128, 128, 16, 512, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode, Gemma4-like config (sw=512)
+    paged_attention_test_params{ {{1, 4096}}, 8, 2, 128, 128, 16, 512, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode, triggers GQA kernel path (context>=4096)
+    paged_attention_test_params{ {{1, 2048}}, 8, 2, 128, 128, 16, 512, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode + KV compression + SWA
+    paged_attention_test_params{ {{1, 1024}, {1, 2048}}, 8, 2, 128, 128, 16, 512, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // multi-seq GQA decode with SWA
+
+    /* GENERATE-stage head-size and shape coverage (f16, no scores) -- the head sizes the pre-existing
+       2nd-token cases never exercise. Appended at the end so existing case indices stay stable. */
+    paged_attention_test_params{ {{1, 300}}, 2, 2, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, head 32 (page pitch exactly 64B)
+    paged_attention_test_params{ {{1, 300}}, 2, 2, 48, 48, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, head 48 (96B pitch fails the 2D block rule -> scalar fallback)
+    paged_attention_test_params{ {{1, 300}}, 2, 2, 96, 96, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, head 96
+    paged_attention_test_params{ {{1, 300}}, 2, 2, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, head 256
+    paged_attention_test_params{ {{1, 24}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, head 512
+    paged_attention_test_params{ {{1, 4200}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token, GQA 32/8 long context (17 partitions)
+    paged_attention_test_params{ {{1, 34}, {1, 1008}, {1, 10}}, 4, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 2nd token batch, per-sequence partition counts differ (1/4/1)
+    // d_max 512 PREFILL tiling without MICRO_MATH (uncompressed, 2e-3): two sequences whose lengths end inside a 256-key tile,
+    // and a sharp softmax, under which the online-softmax rescale dominates the error.
+    paged_attention_test_params{ {{300, 0}, {457, 0}}, 8, 2, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // 1st token + 1st token
+    sharp_softmax(paged_attention_test_params{ {{600, 0}}, 8, 1, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // 1st token
+    // u4 MIXED tilings (sdpa_ocl solve_pa_mixed_tiling()): d_max 256 with 8 heads (256-key x 32-query workgroup) and with 16
+    // (128 x 64), d_max 512 and d_max 128; past lengths over several key tiles, query counts ending inside a query block. Only
+    // the sharp rows catch a misread K or V nibble (the near-uniform softmax of the plain rows averages it away).
+    paged_attention_test_params{ {{100, 300}}, 8, 2, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4, head 256, 8 heads
+    sharp_softmax(paged_attention_test_params{ {{100, 300}}, 8, 2, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
+    paged_attention_test_params{ {{130, 70}, {65, 400}}, 16, 4, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4, head 256, 16 heads
+    sharp_softmax(paged_attention_test_params{ {{130, 70}, {65, 400}}, 16, 4, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
+    paged_attention_test_params{ {{100, 300}}, 8, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // mixed u4, head 512
+    sharp_softmax(paged_attention_test_params{ {{100, 300}}, 8, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
+    sharp_softmax(paged_attention_test_params{ {{90, 520}}, 32, 8, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }), // mixed u4, head 128
+    // f16 d-major K page in MIXED (sdpa_ocl's 32-bit transpose read, permuted depth): the MIXED tilings and the d_max 64 table
+    // tiling, head 96 (3 windows), past lengths and totals that end inside a page. Only the sharp rows catch a misread K.
+    sharp_softmax(paged_attention_test_params{ {{100, 300}}, 8, 2, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // mixed f16, head 256, 8 heads
+    sharp_softmax(paged_attention_test_params{ {{130, 70}, {65, 400}}, 16, 4, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // mixed f16, head 256, 16 heads
+    sharp_softmax(paged_attention_test_params{ {{100, 300}}, 8, 2, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // mixed f16, head 512
+    sharp_softmax(paged_attention_test_params{ {{90, 520}}, 32, 8, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // mixed f16, head 128
+    sharp_softmax(paged_attention_test_params{ {{77, 333}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // mixed f16, head 64
+    sharp_softmax(paged_attention_test_params{ {{50, 211}}, 8, 8, 96, 96, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }), // mixed f16, head 96
+    // u4 GENERATE on sdpa_ocl_decode's low-register layout (q_tiling_for()): kv group 8 at head 512 (gemma-4-26b global
+    // layers, M 1 -> 8 with V twin pairing) and at head 256 (gemma-4-e2b, M 2 -> 8); 3 partitions, last page partial.
+    paged_attention_test_params{ {{1, 600}}, 16, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token u4, head 512, 16/2
+    sharp_softmax(paged_attention_test_params{ {{1, 600}}, 16, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
+    paged_attention_test_params{ {{1, 600}}, 8, 1, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }, // 2nd token u4, head 256, 8/1
+    sharp_softmax(paged_attention_test_params{ {{1, 600}}, 8, 1, 256, 256, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 }),
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
@@ -912,6 +1595,39 @@ INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::v
 
     // multi sequence with different qq bias patterns
     paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
+
+    // GENERATE (decode) with qq_bias, no scores output. GENERATE is one new token per sequence, so the
+    // tree mask is the 1x1 identity and the result is the plain causal one. Where the BY_CHANNEL K page is
+    // token-major (paged_attention::k_token_major_rule(); EAGLE3's pa_kv_cache_reorder reads it too)
+    // these run sdpa_ocl_decode, elsewhere pa_single_token; smoke_qq_bias_d_major below runs the same cases on the
+    // d-major page everywhere.
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
+    paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
+
+    // MIXED with qq_bias, no scores output. The tree mask covers only the NEW tokens, so past_len
+    // contributes keys that are never masked by qq_bias. sdpa_ocl on the token-major page, pa_multi_token on the
+    // d-major one (smoke_qq_bias_d_major below).
+    paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{8, 34}, {64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8, 0}) },
+}));
+
+// The BY_CHANNEL qq_bias cases of smoke_qq_bias on a d-major K page, which the plugin now only creates off the sdpa_ocl
+// lane, so pa_single_token (GENERATE) and pa_multi_token (MIXED) keep their qq_bias coverage on every device. Every
+// consumer reads the layout off the cache shape, so the forced page needs nothing else.
+class qq_bias_d_major_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(qq_bias_d_major_test, basic) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    pam.force_k_cache_token_major = false;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_qq_bias_d_major, qq_bias_d_major_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
+    paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
+    paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8}) },
+    paged_attention_test_params{ {{8, 34}, {64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8, 0}) },
 }));
 
 // Test memory is typically zero-filled, so a kernel that reads rows past the context or skips a write can still match
@@ -949,6 +1665,9 @@ private:
 
         const bool int4 = pam->is_int4_kv_cache();
         const bool key_by_token = p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN;
+        // Token-major pages (k_cache_token_major()): an uncompressed K row is [block_size][head_size], and the u4 V page
+        // keeps its per-token scale/zp in trailing arrays. The by-token K comp follows the data in both layouts.
+        const bool token_major = pam->k_cache_token_major();
         const size_t bs = p.block_size, kv_heads = p.num_kv_heads, kh = p.k_head_size, vh = p.v_head_size;
         for (size_t i = 0; i < p.subsequences.size(); ++i) {
             const size_t valid_rows = static_cast<size_t>(p.subsequences[i].past_len + p.subsequences[i].num_tokens) % bs;
@@ -961,7 +1680,7 @@ private:
                     // key: [blocks, kv_heads, head_size (+ per-token scale/zp), block_size]
                     if (!p.kv_cache_compression) {
                         for (size_t d = 0; d < kh; ++d)
-                            put_nan(k.data(), ((block_head * kh + d) * bs + t) * f16);
+                            put_nan(k.data(), (token_major ? (block_head * bs + t) * kh + d : (block_head * kh + d) * bs + t) * f16);
                     } else if (key_by_token) {
                         const size_t data_rows = int4 ? kh / 2 : kh;
                         put_nan(k.data(), block_head * (data_rows + 2 * f16) * bs + data_rows * bs + t * f16);
@@ -971,7 +1690,9 @@ private:
                         for (size_t d = 0; d < vh; ++d)
                             put_nan(v.data(), ((block_head * bs + t) * vh + d) * f16);
                     } else if (int4) {
-                        put_nan(v.data(), (block_head * bs + t) * (vh / 2 + 2 * f16) + vh / 2);
+                        put_nan(
+                            v.data(),
+                            token_major ? block_head * bs * (vh / 2 + 2 * f16) + bs * vh / 2 + t * f16 : (block_head * bs + t) * (vh / 2 + 2 * f16) + vh / 2);
                     } else {
                         put_nan(v.data(), block_head * bs * (vh + 2 * f16) + bs * vh + t * f16);
                     }
@@ -995,7 +1716,8 @@ private:
 
 // Speculative decoding MIXED step with GQA: subsequences of at most 16 query tokens go to pa_small_q_opt.cl on DPAS
 // platforms when the KV group size divides 8 and query tokens x context is large enough, otherwise to the GQA
-// multi-token path of paged_attention_opt.cl.
+// multi-token path of paged_attention_opt.cl -- or to sdpa_ocl for a token-major K page where sdpa_ocl serves MIXED
+// (select_gqa_multi_tokens_kernel()).
 class paged_attention_gqa_multi_tokens_test : public paged_attention_gqa_multi_tokens_test_base {};
 TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
     auto p = GetParam();
@@ -1016,7 +1738,11 @@ TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
         max_context_len = std::max(max_context_len, static_cast<size_t>(s.past_len + s.num_tokens));
     }
     const bool prefer_fallback = max_tokens * max_tokens * max_context_len <= 64 * 1024;
-    const std::string expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt" : "_gqa_multi_tokens_fallback";
+    const bool tm_page = pam.k_cache_token_major();
+    const bool sdpa_ocl_mixed = sdpa_ocl_serves_prefill_mixed() && pa_dpas_kernel_enabled_by_config();
+    const std::string expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt"
+                                        : tm_page && sdpa_ocl_mixed     ? "sdpa_ocl_mixed"
+                                                                        : "_gqa_multi_tokens_fallback";
     auto pa_inst = result.network->get_primitive("paged_attention");
     ASSERT_NE(pa_inst, nullptr);
     const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
@@ -1119,6 +1845,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
     // Controls: a single partition, and enough subgroups for every head
     make_gqa_multi_tokens_params({{8, 35}}, 6, 2, 32),
     make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 64),
+
+    // Sharp softmax per cache layout: with the plain data a misread K or a permuted V head dim stays within tolerance.
+    // Token-major pages on the Xe2+ sdpa_ocl lane, every cache precision (OV_GPU_PA_K_TOKEN_MAJOR=0 runs them d-major).
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128)),
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 35}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN)),
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL)),
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 291}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
+    sharp_softmax(make_gqa_multi_tokens_params({{16, 40}}, 4, 2, 64, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
 }));
 
 // Accuracy-only coverage for the default-mode GQA multi-token decode path. Unlike
@@ -1642,3 +2376,180 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_by_channel_large_head, kv_cache_by_chann
     paged_attention_test_params{ {{1, 10}, {1, 14}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 },
 }));
 
+// Verifies the CONTENT of the rotated K cache, which the end-to-end output comparison does not pin
+// down: pa_kv_cache_rotate rewrites cache slots in place, and an indexing bug there (e.g. a kernel
+// assuming a d-major page against a token-major cache) rotates the wrong pairs of slots. Reading the
+// cache back and comparing against the CPU reference rotation localises such a bug to the rotate
+// kernel instead of leaving it to surface as an output mismatch somewhere downstream.
+class kv_cache_rotation_content_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(kv_cache_rotation_content_test, verify_rotated_cache_content) {
+    auto p = GetParam();
+
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam_ref = *this->pam;
+
+    // Snapshot the unrotated key data before the GPU run mutates the cache, then apply the reference
+    // rotation to that snapshot -- pam.key_data itself is what the harness wrote into the cache.
+    auto expected_key_data = pam_ref.key_data;
+
+    auto result = run_gpu_inference(pam_ref, p);
+    PagedAttentionReference ref(pam_ref);
+    const auto reference = ref.get_reference(result.key_cache_mem);
+    this->compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+
+    ASSERT_FALSE(pam_ref.rotated_block_indices.empty())
+        << "test case rotates nothing -- it cannot detect a rotate-kernel bug";
+
+    for (size_t seq_idx = 0; seq_idx < p.subsequences.size(); seq_idx++) {
+        const auto& sd = p.subsequences[seq_idx];
+        const int total_tokens = sd.num_tokens + sd.past_len;
+
+        const auto blocks_start = pam_ref.block_indices_begins[seq_idx];
+        const auto blocks_end = pam_ref.block_indices_begins[seq_idx + 1];
+
+        for (auto it = pam_ref.block_indices.begin() + blocks_start; it != pam_ref.block_indices.begin() + blocks_end; ++it) {
+            auto rot_it = std::find(pam_ref.rotated_block_indices.begin(), pam_ref.rotated_block_indices.end(), *it);
+            if (rot_it == pam_ref.rotated_block_indices.end())
+                continue;
+            const int index = static_cast<int>(std::distance(pam_ref.rotated_block_indices.begin(), rot_it));
+            ref.rotate_block_for_test(expected_key_data[seq_idx],
+                                      pam_ref.rotation_deltas,
+                                      pam_ref.rotation_trig_lut,
+                                      index,
+                                      *rot_it - blocks_start,
+                                      p.num_kv_heads,
+                                      p.k_head_size,
+                                      p.block_size,
+                                      p.rotation_config.per_block);
+        }
+
+        auto cached_key = ref.read_key_from_cache(result.key_cache_mem, seq_idx, total_tokens);
+
+        // A compressed cache round-trips f16 -> quantize (harness fill) -> dequant/rotate/requantize
+        // (rotate kernel) -> dequant (read_key_from_cache), so the comparison carries two
+        // quantization steps rather than pure f16 rounding. The wider u4 tolerance covers those two
+        // 4-bit steps while remaining well below the O(1) error produced by a wrong token/channel
+        // stride or nibble axis.
+        const float tolerance = p.kv_cache_compression ? (pam_ref.is_int4_kv_cache() ? 2.5e-1f : 2.5e-2f) : 2e-3f;
+
+        // Only the past_len prefix lives in the cache in rotated form; the rotate kernel runs before
+        // kv_cache_update writes the new tokens, and only fully-occupied past blocks are rotated.
+        for (int token_idx = 0; token_idx < sd.past_len; token_idx++) {
+            for (int head_idx = 0; head_idx < p.num_kv_heads; head_idx++) {
+                for (int dim = 0; dim < p.k_head_size; dim++) {
+                    const size_t cache_offset = static_cast<size_t>(head_idx) * total_tokens * p.k_head_size +
+                                                static_cast<size_t>(token_idx) * p.k_head_size + dim;
+                    const size_t input_offset = static_cast<size_t>(token_idx) * p.num_kv_heads * p.k_head_size +
+                                                static_cast<size_t>(head_idx) * p.k_head_size + dim;
+
+                    ASSERT_NEAR(static_cast<float>(cached_key[cache_offset]),
+                                static_cast<float>(expected_key_data[seq_idx][input_offset]),
+                                tolerance)
+                        << " seq=" << seq_idx << " token=" << token_idx << " head=" << head_idx << " dim=" << dim;
+                }
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_rotation_content, kv_cache_rotation_content_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // past_len must be >= 2 * block_size for any block to be rotated (see PagedAttentionManager:
+    // only odd, fully-occupied past blocks are picked), so these all use past_len >= 32.
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{1, 128}}, 2, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    // GQA, and a head size the 2D-block path cannot use (48 -> 96 B pitch), to keep both K read paths covered.
+    paged_attention_test_params{ {{4, 96}}, 8, 2, 48, 48, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    // i8 BY_TOKEN. Without these, compressed rotate is UNOBSERVED: the basic suite's end-to-end output
+    // comparison cannot pin down rotated cache content (rung 3 -- 39 rotation cases passed with a
+    // rotate kernel that paired the wrong tokens), and every other case in this suite is uncompressed.
+    // Head 128 exercises the block-read K path, head 32 the scalar fallback (32 B pitch).
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{34, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{4, 96}}, 8, 2, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    // BY_CHANNEL page coverage. On a token-major page MIXED exercises sdpa_ocl and GENERATE sdpa_ocl_decode.
+    // With OV_GPU_PA_K_TOKEN_MAJOR=0 (or off the sdpa_ocl lane), the same cases validate the
+    // legacy d-major rotate path before the fallback attention kernels consume it.
+    paged_attention_test_params{ {{4, 96}}, 2, 2, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 },
+    paged_attention_test_params{ {{4, 96}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::u4 },
+    paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::u4 },
+}));
+
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// Which kernel PREFILL and MIXED dispatch: sdpa_ocl on its lane (Xe2+ XMX), the opt kernels elsewhere -- one choice
+// per device. On top of that, in MIXED sdpa_ocl refuses every d-major K page (it reads the token-major page only). The
+// second test runs the same case through program save/load, which rebuilds the impl from its default ctor plus the
+// saved stage order, so the dispatch must not depend on state only the params ctor had. (Both sides run in one process,
+// so this does not cover an environment change between export and import.)
+class paged_attention_dpas_backend_test : public PagedAttentionTest<paged_attention_test_params> {
+public:
+    void check_dispatch(bool is_caching_test) {
+        auto p = GetParam();
+        ASSERT_TRUE(this->pam.has_value());
+        auto& pam = *this->pam;
+
+        const bool prefill = std::all_of(p.subsequences.begin(), p.subsequences.end(), [](const SubsequenceDescriptor& s) {
+            return s.past_len == 0;
+        });
+        auto backend = tests::expected_dpas_backend(engine, true, pa_hpg_tiers(p));
+        if (backend == tests::dpas_backend::ocl && !prefill && !pam.k_cache_token_major()) {
+            backend = tests::dpas_backend::none;
+        }
+        std::string expected;
+        switch (backend) {
+        case tests::dpas_backend::ocl:
+            expected = prefill ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed";
+            break;
+        case tests::dpas_backend::none:
+            expected = prefill ? "sdpa_opt__multi_tokens" : "paged_attention_opt__multi_tokens";
+            break;
+        }
+
+        pam.is_caching_test = is_caching_test;
+        auto result = run_gpu_inference(pam, p);
+        auto pa_inst = result.network->get_primitive("paged_attention");
+        ASSERT_NE(pa_inst, nullptr);
+        auto* impl = pa_inst->get_impl();
+        ASSERT_NE(impl, nullptr);
+        const auto entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+        EXPECT_NE(entries.find(expected), std::string::npos) << "expected " << expected << ", dispatched: " << entries;
+        if (backend != tests::dpas_backend::ocl) {
+            EXPECT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        }
+
+        const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+        compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+    }
+};
+
+TEST_P(paged_attention_dpas_backend_test, dispatches_lane_kernel) {
+    check_dispatch(false);
+}
+
+TEST_P(paged_attention_dpas_backend_test, dispatches_lane_kernel_after_load) {
+    check_dispatch(true);
+}
+
+// All-zero (text-only) token_type_ids: every kernel's result is plain causal, only the routing differs.
+static paged_attention_test_params with_text_token_type_ids(paged_attention_test_params p) {
+    int tokens = 0;
+    for (const auto& s : p.subsequences)
+        tokens += s.num_tokens;
+    p.token_type_ids = std::vector<int>(tokens, 0);
+    return p;
+}
+
+// Shapes of smoke_paged_attention basic/31, /37, /78, /80 and /132.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_dpas_backend_selection,
+    paged_attention_dpas_backend_test,
+    ::testing::Values(
+        paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                                          // f16 PREFILL
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                   // f16 MIXED
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                   // i8 BY_CHANNEL MIXED
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                   // i8 BY_CHANNEL MIXED, k != v
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 },  // u4 BY_CHANNEL MIXED
+        with_text_token_type_ids(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false })));  // f16 MIXED + token_type_ids
+#endif
