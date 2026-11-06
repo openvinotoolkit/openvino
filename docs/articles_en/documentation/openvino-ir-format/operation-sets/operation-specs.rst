@@ -173,6 +173,7 @@ Operation Specifications
    PriorBox-8 <operation-specs/detection/prior-box-8>
    Proposal-1 <operation-specs/detection/proposal-1>
    Proposal-4 <operation-specs/detection/proposal-4>
+   QSAPrepare-17 <operation-specs/sequence/qsa-prepare-17>
    RandomUniform-8 <operation-specs/generation/random-uniform-8>
    Range-1 <operation-specs/generation/range-1>
    Range-4 <operation-specs/generation/range-4>
@@ -229,6 +230,8 @@ Operation Specifications
    SoftSign-9 <operation-specs/activation/softsign-9>
    SpaceToBatch-2 <operation-specs/movement/space-to-batch-2>
    SpaceToDepth-1 <operation-specs/movement/space-to-depth-1>
+   SparseAttention-17 <operation-specs/sequence/sparse-attention-17>
+   SparseAttentionIndexer-17 <operation-specs/sequence/sparse-attention-indexer-17>
    SparseFillEmptyRows-16 <operation-specs/sparse/fill-empty-rows-16>
    Split-1 <operation-specs/movement/split-1>
    Sqrt-1 <operation-specs/arithmetic/sqrt-1>
