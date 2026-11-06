@@ -587,8 +587,9 @@ ov::Output<ov::Node> ov::pass::GroupQueryAttentionDecomposition::resize_kv_to_ca
     const ov::Output<ov::Node>& buffer,
     const ov::Output<ov::Node>& total_sequence_length) {
     // Skip building the Slice/Broadcast/Concat growth entirely when it would be a no-op: a statically-sized
-    // buffer that already covers both past_rows and a constant total_sequence_length never needs trimming or
-    // filler, so the result is just the buffer unchanged.
+    // buffer that's already EXACTLY capacity rows never needs trimming or filler, so the result is just the
+    // buffer unchanged. A buffer bigger than capacity must still go through the Slice below to trim it down
+    // (not just "already covers" -- that would wrongly return an oversized buffer as-is).
     const auto& buffer_ps = buffer.get_partial_shape();
     if (buffer_ps.rank().is_static() && buffer_ps[2].is_static()) {
         const auto past_rows_const = ov::util::get_constant_from_source(past_rows);
@@ -596,7 +597,7 @@ ov::Output<ov::Node> ov::pass::GroupQueryAttentionDecomposition::resize_kv_to_ca
         if (past_rows_const && total_const) {
             const auto capacity =
                 std::max(past_rows_const->cast_vector<int64_t>().at(0), total_const->cast_vector<int64_t>().at(0));
-            if (capacity <= buffer_ps[2].get_length()) {
+            if (capacity == buffer_ps[2].get_length()) {
                 return buffer;
             }
         }
