@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 74,
+  "total": 75,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -755,6 +755,17 @@
       "category": "Flaky Test",
       "signature_hash": "decbd93c2f5708ce",
       "commit_sha": "152520467d0379f3a62558ef7defc57435344340"
+    },
+    {
+      "investigation_id": "2026-11-06-06-46-28-943-42166627607",
+      "run_id": "42166627607",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42166627607",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-11-06T06:46:28Z",
+      "title": "Upload Test Results fails with FinalizeArtifact ECONNREFUSED after PyTorch Layer Tests pass",
+      "category": "Network",
+      "signature_hash": "0c33a04c2cbe783c",
+      "commit_sha": "77915ab634872d6a62ac7b40583584090677abce"
     }
   ]
 }

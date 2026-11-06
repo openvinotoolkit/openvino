@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-06-06-46-28-943-42166627607",
+  "timestamp": "2026-11-06T06:46:28Z",
+  "run_id": "42166627607",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42166627607",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "commit_sha": "77915ab634872d6a62ac7b40583584090677abce",
+  "pr_number": "39480",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39480",
+  "author": null,
+  "category": "Network",
+  "title": "Upload Test Results fails with FinalizeArtifact ECONNREFUSED after PyTorch Layer Tests pass",
+  "signature": "Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "0c33a04c2cbe783c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Pytorch Layer Tests / PyTorch Layer Tests",
+      "conclusion": "failure",
+      "symptom": "All 13286 PyTorch layer tests passed, but the 'Upload Test Results' step failed finalizing the artifact upload with ECONNREFUSED, failing the job and the overall gha_overall_status check."
+    },
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure failed because sccache's Azure blob cache backend returned an InvalidUri error, breaking the compiler ABI check; explicitly marked non-blocking (CVS-189849) so it does not affect overall workflow status."
+    }
+  ],
+  "key_errors": [
+    "= 13286 passed, 486 skipped, 38 xfailed, 1 xpassed, 132 warnings in 433.73s (0:07:13) =\nUploaded bytes 274151\nFinished uploading artifact content to blob storage!\n##[error]Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED",
+    "fatal: unable to access 'https://github.com/openvinotoolkit/openvino/': Failed to connect to github.com port 443 after 17 ms: Couldn't connect to server",
+    "sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server...\" }\nCMake Error: The C compiler \"/usr/bin/cc\" is not able to compile a simple test program."
+  ],
+  "root_cause": "The PyTorch Layer Tests job completed all tests successfully (13286 passed) and fully uploaded the test-results artifact content to blob storage, but the subsequent FinalizeArtifact API call failed with ECONNREFUSED, and the following git cleanup step also failed to reach github.com on port 443. Both errors point to a transient outbound network/connectivity disruption on the AKS-hosted self-hosted runner reaching GitHub's Actions backend and github.com, not a problem with the test code or the PR under test. This is a recurrence of a previously observed pattern (first seen 2026-11-05) where artifact finalization intermittently fails with ECONNREFUSED on these runners. The separate C++20 build failure is an unrelated, independently non-blocking sccache Azure cache outage (also network-related) that does not affect overall workflow status.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a transient GitHub Actions runner network connectivity issue (ECONNREFUSED on the Actions Results API and github.com) unrelated to code changes in PR #39480.",
+  "recommended_actions": [
+    "No code changes needed for PR #39480 - the test suite itself passed completely.",
+    "Monitor the aks-linux-4-cores-16gb runner pool / Actions Results API for recurring ECONNREFUSED failures during artifact finalization; escalate to GitHub Actions infra/runner-hosting team if frequency increases.",
+    "Consider enabling automatic retry-on-failure for the upload-artifact action step (ababushk/upload-artifact) to reduce false-positive job failures from transient network blips.",
+    "Separately track the sccache Azure blob cache InvalidUri error (C++20 non-blocking build) with the storage/cache-ops team; it does not affect this job's conclusion but recurs."
+  ],
+  "prevention_strategies": "Add retry/backoff wrapping around artifact upload finalization steps, and treat isolated ECONNREFUSED/network failures in post-job cleanup as non-fatal where tests already passed, to avoid marking otherwise-green jobs as failed due to transient infra connectivity blips.",
+  "historical_context": "Matches an existing pattern (signature_hash 0c33a04c2cbe783c, first observed 2026-11-05 on run 42029379851) of 'Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED' during artifact uploads. Related but distinct Network-category patterns also exist for ECONNREFUSED on CreateArtifact, ENOTFOUND, EAI_AGAIN, and ArtifactService timeouts, indicating recurring GitHub Actions artifact-service connectivity instability affecting this runner pool."
+}
