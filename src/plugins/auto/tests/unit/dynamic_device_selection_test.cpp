@@ -1228,7 +1228,8 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactiv
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_kept) {
-    config.insert(ov::device::properties("CPU", ov::cache_dir("")));
+    // The mock Core handles nested device properties, not the DEVICE_PROPERTIES_CPU shorthand.
+    config.insert(ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::cache_dir("")}}}));
     switch_between_devices(true);
     EXPECT_EQ(m_cpu_compile_count.load(), 1);
 }
