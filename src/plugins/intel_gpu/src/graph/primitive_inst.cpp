@@ -3475,6 +3475,14 @@ bool primitive_inst::is_valid_fusion() const {
         return true;
     }
 
+    // GNK FCs have no other implementation to fall back to: if the impl rejects these runtime shapes (e.g. an epilogue
+    // operand that needs broadcasting), run the fused chain as separate primitives.
+    if (get_node().is_type<fully_connected>() &&
+        get_node().as<fully_connected>().get_primitive()->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK && _impl && _impl->m_manager &&
+        !_impl->m_manager->support_shapes(*_impl_params)) {
+        LOG_AND_RETURN_FALSE(_node);
+    }
+
     if (get_node().is_type<fully_connected>() || get_node().is_type<gemm>() || get_node().is_type<convolution>()) {
         if (_impl_params->input_layouts[0].count() == 0 || _impl_params->input_layouts[1].count() == 0) {
             LOG_AND_RETURN_FALSE(_node);
