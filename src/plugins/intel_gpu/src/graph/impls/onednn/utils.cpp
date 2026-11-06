@@ -121,46 +121,6 @@ dnnl::memory::dims convert_layout(const cldnn::layout& l, size_t dims, bool is_g
     return res;
 }
 
-namespace {
-void normalize_gemm_dims(dnnl::memory::dims& res, size_t dims, bool batched_dims_can_be_removed) {
-    const size_t effective_rank = std::min(dims, res.size());
-    if (effective_rank > 4) {
-        const auto original = res;
-        const size_t fold_count = effective_rank - 4;
-        for (size_t i = 0; i < fold_count; i++) {
-            int64_t tmp;
-            if (ov::util::mul_overflow(res[i + 1], res[i], tmp)) {
-                // On overflow, skip the folding and keep the original dimensions unchanged
-                res = original;
-                return;
-            }
-            res[i + 1] = tmp;
-        }
-        res.erase(res.begin(), res.begin() + fold_count);
-    }
-    if (res.size() == 4 && batched_dims_can_be_removed) {
-        res.erase(res.begin(), res.begin() + 2);
-    }
-}
-}  // namespace
-
-dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batched_dims_can_be_removed) {
-    auto sizes = t.sizes(default_fmt_for_dims(dims));
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-
-    normalize_gemm_dims(res, dims, batched_dims_can_be_removed);
-    return res;
-}
-
-dnnl::memory::dims convert_gemm_dims(const std::vector<ov::Dimension::value_type>& sizes,
-                                     size_t dims,
-                                     bool batched_dims_can_be_removed) {
-    dnnl::memory::dims res(sizes.begin(), sizes.end());
-
-    normalize_gemm_dims(res, dims, batched_dims_can_be_removed);
-    return res;
-}
-
 dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     switch (l.get_partial_shape().size()) {
     case 2:
