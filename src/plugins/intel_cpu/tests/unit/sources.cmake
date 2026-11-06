@@ -35,6 +35,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_rms_norm_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp
@@ -197,6 +198,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/lowered/buffer_allocation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/convert_matmul_test_3d_weight.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/convert_to_interaction.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/mlp_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/x64/qkv_proj_fusion_test.cpp
 )
 
@@ -273,6 +275,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_rms_norm_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp

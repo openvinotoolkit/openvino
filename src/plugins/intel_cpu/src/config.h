@@ -60,6 +60,8 @@ struct Config {
     float fcSparseWeiDecompressionRate = 1.0F;
     uint64_t fcDynamicQuantizationGroupSize = 32;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
+    float activationsScaleFactor = -1.0F;
+    bool activationsScaleFactorSetExplicitly = false;
     bool kvCachePrecisionSetExplicitly = false;
     bool keyCachePrecisionSetExplicitly = false;
     bool valueCachePrecisionSetExplicitly = false;
