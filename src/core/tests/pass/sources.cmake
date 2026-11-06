@@ -10,6 +10,7 @@ set(OV_CORE_TESTS_PASS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/serialization/custom_ops.cpp
     ${CMAKE_CURRENT_LIST_DIR}/serialization/deterministicity.cpp
     ${CMAKE_CURRENT_LIST_DIR}/serialization/from_model.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/serialization/quantized_sdpa_operands.cpp
     ${CMAKE_CURRENT_LIST_DIR}/serialization/rt_info_serialization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/serialization/serialize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/serialization/tensor_iterator.cpp

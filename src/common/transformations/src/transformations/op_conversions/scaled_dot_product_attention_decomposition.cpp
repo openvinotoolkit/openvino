@@ -32,6 +32,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -71,6 +72,14 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
+    // An integer key or value is converted to the query's type, as the op specification defines.
+    // ConvertLike keeps following the query when its type is only refined after this pass.
+    if (ov::op::util::is_sdpa_integer_kv_type(key.get_element_type())) {
+        key = register_new_node<v1::ConvertLike>(key, query);
+    }
+    if (ov::op::util::is_sdpa_integer_kv_type(value.get_element_type())) {
+        value = register_new_node<v1::ConvertLike>(value, query);
+    }
     auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
     auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
     auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
