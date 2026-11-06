@@ -45,6 +45,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -64,6 +65,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/denormals.hpp"
 #include "utils/graph_serializer/deserializer.hpp"
+#include "utils/graph_serializer/hsm_reader_handler.hpp"
 #include "utils/graph_serializer/serializer.hpp"
 #include "utils/precision_support.h"
 #include "weights_cache.hpp"
@@ -556,6 +558,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::enable_weightless)::value_type{engConfig.enableWeightless};
     }
 
+    if (name == ov::internal::emit_hsm_format) {
+        return engConfig.exportHsmFormat;
+    }
+
     return get_ro_property(name, options);
 }
 
@@ -629,6 +635,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             ov::PropertyName{ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO},
 #endif
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+            ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(),
                              ov::PropertyMutability::RO}};
@@ -840,12 +847,34 @@ static void read_header(std::istream& model_stream) {
     model_stream.seekg(-remaining_unread_bytes, std::ios_base::cur);
 }
 
+static HsmModelDeserializer::Sections read_hsm_sections(const ov::runtime::hsm::Reader& reader,
+                                                        std::shared_ptr<ov::AlignedBuffer> source_blob) {
+    HsmReaderHandler handler{std::move(source_blob)};
+    HsmReaderHandler::check_manifest(reader);
+    handler.read_sections(reader);
+    return {std::move(handler.model_struct), std::move(handler.weights)};
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
+
+    const auto blob_start = model_stream.tellg();
+    if (auto reader = ov::runtime::hsm::Reader::open(model_stream)) {
+        HsmModelDeserializer deserializer(read_hsm_sections(*reader, nullptr),
+                                          get_core(),
+                                          decrypt,
+                                          decrypt_from_string,
+                                          origin_weights_path);
+        return deserialize_model(deserializer, config);
+    }
+
+    // Not an HSM container: rewind and read the legacy layout.
+    model_stream.clear();
+    model_stream.seekg(blob_start);
 
     read_header(model_stream);
 
@@ -863,25 +892,32 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     const auto origin_weights_path = get_origin_weights_path(config);
 
     size_t total_bytes = model_tensor.get_byte_size();
-    size_t offset = 0;
 
     // `const_cast` intentionally used as AlignedBuffer requires non-const pointer
     // but is used as read-only in deserializer
     auto* base_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
 
-    validate_runtime_requirements(base_ptr, total_bytes, offset);
+    if (auto reader = ov::runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(base_ptr), total_bytes)) {
+        auto source_blob = std::make_shared<ov::SharedBuffer<ov::Tensor>>(base_ptr, total_bytes, model_tensor);
+        HsmModelDeserializer deserializer(read_hsm_sections(*reader, std::move(source_blob)),
+                                          get_core(),
+                                          decrypt,
+                                          decrypt_from_string,
+                                          origin_weights_path);
+        return deserialize_model(deserializer, config);
+    }
 
-    auto* model_data_ptr = base_ptr + offset;
-    size_t remaining_bytes = total_bytes - offset;
+    size_t offset = 0;
+    validate_runtime_requirements(base_ptr, total_bytes, offset);
     std::shared_ptr<ov::AlignedBuffer> model_buffer =
-        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, remaining_bytes, model_tensor);
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(base_ptr + offset, total_bytes - offset, model_tensor);
 
     ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
     return deserialize_model(deserializer, config);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer,
+std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializerBase& deserializer,
                                                               const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
