@@ -66,21 +66,11 @@ void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& sr
 
 void check_element_type_against_port(const ov::element::Type& portElementType,
                                      const ov::element::Type& tensorElementType) {
-    if ((portElementType == ov::element::Type_t::boolean || tensorElementType == ov::element::Type_t::boolean) &&
-        portElementType != tensorElementType) {
-        // Exception case for boolean treated as u8 in the NPU driver
-        OPENVINO_ASSERT(portElementType == ov::element::Type_t::u8 || tensorElementType == ov::element::Type_t::u8,
-                        "The tensor element type is not corresponding with output element type (",
-                        tensorElementType,
-                        " != ",
-                        portElementType);
-    } else {
-        OPENVINO_ASSERT(portElementType == tensorElementType,
-                        "The tensor element type is not corresponding with output element type (",
-                        tensorElementType,
-                        " != ",
-                        portElementType);
-    }
+    OPENVINO_ASSERT(intel_npu::zeroUtils::sameStorage(portElementType, tensorElementType),
+                    "The tensor element type is not corresponding with output element type (",
+                    tensorElementType,
+                    " != ",
+                    portElementType);
 }
 
 void check_shape_against_port(const ov::PartialShape& portPartialShape,
