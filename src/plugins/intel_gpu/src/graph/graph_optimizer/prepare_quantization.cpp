@@ -619,7 +619,7 @@ std::vector<program_node*> cldnn::reorder_fc_decompression_params_if_needed(full
 }
 
 static void optimize_weights_decompression_parameters(fully_connected_node& fc_node, program& p) {
-    // u2: the scale/zp layout depends on the selected impl (CM needs bfyx [N, G]); decided in select_preferred_formats.
+    // u2: whether scale/zp need a reorder depends on the selected impl (CM takes them as they are); decided in select_preferred_formats.
     if (defer_u2_decompression_reorder(fc_node))
         return;
 
