@@ -24,7 +24,7 @@
 //   S f16[OC] -> Reshape[OC,1,1] -------------------------------> Multiply
 //     -> Reshape[OC,IC] -> Transpose{1,0} -> MatMul(transpose_b=false)
 //
-// and the expected result is the optimum-intel layout:
+// (the zero point and scale may also be per-tensor, i.e. [1]) and the expected result is the optimum-intel layout:
 //
 //   W u8[OC,IC] -> Convert -+
 //   Z u8[OC,1]  -> Convert -+-> Subtract -> Multiply(S f16[OC,1]) -> MatMul(transpose_b=true)
@@ -71,10 +71,10 @@ std::shared_ptr<Model> getModel(const ChainOptions& opt = {}) {
     return std::make_shared<Model>(matmul, ParameterVector{act});
 }
 
-std::shared_ptr<Model> getModelRef() {
+std::shared_ptr<Model> getModelRef(size_t zerop_size = OC, size_t scale_size = OC) {
     auto weight = std::make_shared<v0::Constant>(element::u8, Shape{OC, IC}, 3);
-    auto zerop = std::make_shared<v0::Constant>(element::u8, Shape{OC, 1}, 1);
-    auto scale = std::make_shared<v0::Constant>(element::f16, Shape{OC, 1}, 0.5f);
+    auto zerop = std::make_shared<v0::Constant>(element::u8, Shape{zerop_size, 1}, 1);
+    auto scale = std::make_shared<v0::Constant>(element::f16, Shape{scale_size, 1}, 0.5f);
 
     auto cvt_w = std::make_shared<v0::Convert>(weight, element::f16);
     auto cvt_z = std::make_shared<v0::Convert>(zerop, element::f16);
@@ -130,16 +130,19 @@ TEST_F(CanonicalizeLMHeadDQLayoutTest, Negative_NonU8Weight) {
     model = getModel(opt);
 }
 
-TEST_F(CanonicalizeLMHeadDQLayoutTest, Negative_PerTensorZeroPoint) {
+// A per-tensor zero point / scale broadcasts against [OC,1,IC] the same way after the rewrite.
+TEST_F(CanonicalizeLMHeadDQLayoutTest, PerTensorZeroPoint) {
     ChainOptions opt;
     opt.zerop_shape = {1};
     model = getModel(opt);
+    model_ref = getModelRef(/*zerop_size=*/1, OC);
 }
 
-TEST_F(CanonicalizeLMHeadDQLayoutTest, Negative_PerTensorScale) {
+TEST_F(CanonicalizeLMHeadDQLayoutTest, PerTensorScale) {
     ChainOptions opt;
     opt.scale_shape = {1};
     model = getModel(opt);
+    model_ref = getModelRef(OC, /*scale_size=*/1);
 }
 
 TEST_F(CanonicalizeLMHeadDQLayoutTest, Negative_PlainMatMul) {

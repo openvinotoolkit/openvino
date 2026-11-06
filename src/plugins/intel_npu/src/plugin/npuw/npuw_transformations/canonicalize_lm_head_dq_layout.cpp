@@ -26,24 +26,30 @@ CanonicalizeLMHeadDQLayout::CanonicalizeLMHeadDQLayout() {
     namespace v0 = ov::op::v0;
     namespace v1 = ov::op::v1;
 
-    // The symbols OC / IC are shared by all the predicates below, so the pattern also enforces
-    // that weight, zero point and scale are per-channel along the same OC dimension.
-    auto weight_m = wrap_type<v0::Constant>(type_matches(element::u8) && shape_matches("OC, 1, IC"));
+    // Static shapes only; '?' is a plain wildcard, no symbols are bound or required.
+    auto weight_m = wrap_type<v0::Constant>(type_matches(element::u8) && shape_matches("?, 1, ?"));
     auto cvt_w_m = wrap_type<v0::Convert>({weight_m});
 
-    // The zero point is reshaped to [OC,1,1] either before or after the Convert.
-    auto zerop_m = wrap_type<v0::Constant>(type_matches(element::u8) && shape_matches("OC"));
-    auto zerop_rs_pre_m = wrap_type<v1::Reshape>({zerop_m, wrap_const()}, shape_matches("OC, 1, 1"));
+    // The zero point is reshaped [d] -> [d,1,1] either before or after the Convert.
+    auto zerop_m = wrap_type<v0::Constant>(type_matches(element::u8) && rank_equals(1));
+    auto zerop_rs_pre_m = wrap_type<v1::Reshape>({zerop_m, wrap_const()}, shape_matches("?, 1, 1"));
     auto cvt_z_pre_m = wrap_type<v0::Convert>({zerop_rs_pre_m});
     auto cvt_z_post_m = wrap_type<v0::Convert>({zerop_m});
-    auto zerop_rs_post_m = wrap_type<v1::Reshape>({cvt_z_post_m, wrap_const()}, shape_matches("OC, 1, 1"));
+    auto zerop_rs_post_m = wrap_type<v1::Reshape>({cvt_z_post_m, wrap_const()}, shape_matches("?, 1, 1"));
     auto sub_m = wrap_type<v1::Subtract>({cvt_w_m, cvt_z_pre_m | zerop_rs_post_m});
 
-    auto scale_m = wrap_type<v0::Constant>(type_matches_any({element::f16, element::f32}) && shape_matches("OC"));
-    auto scale_rs_m = wrap_type<v1::Reshape>({scale_m, wrap_const()}, shape_matches("OC, 1, 1"));
+    auto scale_m = wrap_type<v0::Constant>(type_matches_any({element::f16, element::f32}) && rank_equals(1));
+    auto scale_rs_m = wrap_type<v1::Reshape>({scale_m, wrap_const()}, shape_matches("?, 1, 1"));
     auto mul_m = wrap_type<v1::Multiply>({sub_m, scale_rs_m});
 
-    auto weight_rs_m = wrap_type<v1::Reshape>({mul_m, wrap_const()}, shape_matches("OC, IC"));
+    // Reshape [OC,1,IC] -> [OC,IC]: drops the unit middle dimension, nothing else.
+    const auto drops_unit_dim = [](const Output<Node>& out) {
+        const auto& in_shape = out.get_node()->get_input_partial_shape(0);
+        const auto& out_shape = out.get_partial_shape();
+        return in_shape.is_static() && out_shape.is_static() && in_shape.size() == 3 && out_shape.size() == 2 &&
+               in_shape[1] == 1 && in_shape[0] == out_shape[0] && in_shape[2] == out_shape[1];
+    };
+    auto weight_rs_m = wrap_type<v1::Reshape>({mul_m, wrap_const()}, ov::pass::pattern::op::Predicate(drops_unit_dim));
     auto transpose_m = wrap_type<v1::Transpose>({weight_rs_m, wrap_type<v0::Constant>(value_matches("1, 0"))});
     auto matmul_m =
         wrap_type<v0::MatMul>({any_input(), transpose_m}, {{"transpose_a", false}, {"transpose_b", false}});
@@ -71,9 +77,9 @@ CanonicalizeLMHeadDQLayout::CanonicalizeLMHeadDQLayout() {
         // Subtract requires equal types of its inputs, so both Converts target the Subtract's type.
         const auto dq_type = sub->get_output_element_type(0);
         auto new_cvt_w = std::make_shared<v0::Convert>(reshaped(qweight, {OC, IC}), dq_type);
-        auto new_cvt_z = std::make_shared<v0::Convert>(reshaped(qzerop, {OC, 1}), dq_type);
+        auto new_cvt_z = std::make_shared<v0::Convert>(reshaped(qzerop, {qzerop->get_shape()[0], 1}), dq_type);
         auto new_sub = std::make_shared<v1::Subtract>(new_cvt_w, new_cvt_z);
-        auto new_mul = std::make_shared<v1::Multiply>(new_sub, reshaped(qscale, {OC, 1}));
+        auto new_mul = std::make_shared<v1::Multiply>(new_sub, reshaped(qscale, {qscale->get_shape()[0], 1}));
         auto new_matmul = std::make_shared<v0::MatMul>(matmul->input_value(0), new_mul, false, true);
 
         ov::copy_runtime_info(ov::NodeVector{sub, mul}, ov::NodeVector{new_cvt_w, new_cvt_z, new_sub, new_mul});

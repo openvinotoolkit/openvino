@@ -51,8 +51,10 @@ namespace ov::npuw {
  * data buffer is shared, not copied. The Reshape on the zero point may be placed either before
  * or after its Convert.
  *
- * Applied only when the weight, zero point and scale are per-channel along the first (OC)
- * dimension and the chain has exactly the shape above; any other graph is left untouched.
+ * The zero point and scale are reshaped from [d] to [d,1], where d is OC (per-channel) or 1
+ * (per-tensor); the original graph's broadcast against [OC,1,IC] guarantees that, so no
+ * per-channel check or shape symbol is needed. Applied only to static shapes; any other
+ * graph is left untouched.
  */
 class CanonicalizeLMHeadDQLayout : public ov::pass::MatcherPass {
 public:
