@@ -145,6 +145,12 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/wrap_interpolate_into_transposes_test.cpp
 )
 
+set(CONDITIONAL_COMPILATION_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/conditional_compilation/cc_collect.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/conditional_compilation/cc_off.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/conditional_compilation/cc_on.cpp
+)
+
 set(CONTROL_FLOW_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/control_flow/unroll_if_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/control_flow/unroll_loop_test.cpp
@@ -309,6 +315,7 @@ set(TRANSPOSE_SINKING_TESTS_HDRS
 set(OV_TRANSFORMATIONS_TESTS_SRCS
     ${TESTS_ROOT_SRCS}
     ${COMMON_OPTIMIZATIONS_TESTS_SRCS}
+    ${CONDITIONAL_COMPILATION_TESTS_SRCS}
     ${CONTROL_FLOW_TESTS_SRCS}
     ${DECOMPOSITIONS_TESTS_SRCS}
     ${FP16_COMPRESSION_TESTS_SRCS}
