@@ -157,14 +157,12 @@ size_t jit_load_emitter::aux_gprs_count() const {
 void jit_load_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     // offset in load emitter is the offset of src gpr register, should be parsed from in_idxs.
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
     } else {
-        OV_CPU_JIT_EMITTER_THROW("is performed on unsupported isa(at least x64::sse41).");
+        OV_CPU_JIT_EMITTER_THROW("is performed on unsupported isa (expected x64::avx2 or x64::avx512_core).");
     }
 }
 
@@ -178,7 +176,7 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
         OV_CPU_JIT_EMITTER_THROW("have unexpected number of elements to load.");
     }
 
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Ymm, Zmm>;
 
     // pure load
     if (src_prc_ == dst_prc_) {
@@ -728,7 +726,7 @@ inline bool jit_store_emitter::is_saturation() const {
     return mode_ == arithmetic_mode::saturation;
 }
 
-// case for SSE and AVX2 when we should use AND to truncate values
+// case for AVX2 when we should use AND to truncate values
 inline bool jit_store_emitter::is_truncation_emulation() const {
     return !mayiuse(cpu::x64::avx512_core) && !is_saturation() && src_prc_ != dst_prc_ &&
            any_of(dst_prc_, ov::element::u16, ov::element::i16, ov::element::u8, ov::element::i8);
@@ -762,11 +760,6 @@ size_t jit_store_emitter::aux_vecs_count() const {
         count++;
     }
 
-    // for data swapping to avoid using Xmm(0) as I/O xmm for jit_uni_vcvtneps2bf16
-    if ((host_isa_ == cpu::x64::sse41) && (src_prc_ == ov::element::f32 && dst_prc_ == ov::element::bf16)) {
-        count++;
-    }
-
     // zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and
     // restore status)
     if (mayiuse(cpu::x64::avx512_core) && any_of(dst_prc_, ov::element::u8, ov::element::u16)) {
@@ -790,14 +783,12 @@ void jit_store_emitter::emit_data() const {
 void jit_store_emitter::emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     // offset in store emitter is the offset of dst gpr register, should be parsed from out_idxs.
     const int offset = out_idxs.size() == 2 ? out_idxs[1] : 0;
-    if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         emit_isa<cpu::x64::avx2>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         emit_isa<cpu::x64::avx512_core>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);
     } else {
-        OV_CPU_JIT_EMITTER_THROW("is performed on unsupported isa(at least x64::sse41).");
+        OV_CPU_JIT_EMITTER_THROW("is performed on unsupported isa (expected x64::avx2 or x64::avx512_core).");
     }
 }
 
@@ -808,12 +799,12 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_d
         OV_CPU_JIT_EMITTER_THROW("only support input precision of FP32 or I32 or the same precision as output.");
     }
     if ((src_prc_ == ov::element::f32) || (src_prc_ == ov::element::i32)) {
-        if ((isa == cpu::x64::sse41 && store_num_ > 4) || (isa == cpu::x64::avx2 && store_num_ > 8) ||
+        if ((isa == cpu::x64::avx2 && store_num_ > 8) ||
             (isa == cpu::x64::avx512_core && store_num_ > 16) || store_num_ < 0) {
             OV_CPU_JIT_EMITTER_THROW("has unexpected number of values to store.");
         }
     }
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == cpu::x64::avx2, Ymm, Zmm>;
 
     data_idx = in_vec_idx;
     data_reg_updated = false;
@@ -1301,18 +1292,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (src_prc_ == ov::element::f32) {
                 xmm = Xmm(aux_vec_idxs[0]);
             }
-            // For sse41 mask register has to be Xmm(0) so we cannot use Xmm(0) as I/O vmm in uni_vcvtneps2bf16_
-            if (host_isa_ == cpu::x64::sse41 && src_prc_ == ov::element::f32) {
-                auto xmm_aux1 = Xmm(aux_vec_idxs[1]);
-                h->uni_vmovups(xmm_aux1, vmm);
-                uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())},
-                                              {static_cast<size_t>(vmm.getIdx())},
-                                              {static_cast<size_t>(xmm.getIdx())});
-                h->uni_vmovups(xmm, vmm);
-                h->uni_vmovups(vmm, xmm_aux1);  // return original data to src vmm
-            } else {
-                uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(xmm.getIdx())});
-            }
+            uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(xmm.getIdx())});
 
             data_idx = xmm.getIdx();
             store_bytes<Vmm>(reg, offset, store_num * 2);

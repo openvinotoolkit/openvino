@@ -741,7 +741,6 @@ INSTANTIATE_TEST_SUITE_P(Conv_3D_GEMM_I8_dilated,
 
 /* ============= Convolution planar params (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams_Jit_Planar_3D = {
-        // sse42 is not supported
         conv_avx2_planar_3D,
         conv_avx512_planar_3D,
 };

@@ -157,11 +157,6 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
 
             load_vector(vmm_val, ptr[reg_src], jcp_.src_dt);
             uni_vfmadd231ps(vmm_sqr_sum, vmm_val, vmm_val);
-            if (isa == cpu::x64::sse41 && jcp_.is_blk) {
-                int sse42_offset = 4;
-                load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                uni_vfmadd231ps(vmm_sqr_sum, vmm_val, vmm_val);
-            }
 
             add(reg_src, reg_src_stride);
             sub(reg_work_amount, 1);
@@ -174,9 +169,7 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
             uni_vmovups(ptr[reg_modulo], vmm_sqr_sum);
         } else {
             // hsum+store
-            if (isa == cpu::x64::sse41) {
-                hsum_store(vmm_sqr_sum);
-            } else if (isa == cpu::x64::avx2) {
+            if (isa == cpu::x64::avx2) {
                 auto ymm_sqr_sum = Xbyak::Ymm(vmm_sqr_sum.getIdx());
                 vextractf128(xmm_aux1, ymm_sqr_sum, 0);
                 vextractf128(xmm_aux2, ymm_sqr_sum, 1);
@@ -199,8 +192,7 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -322,8 +314,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -494,7 +485,6 @@ private:
             blk_size = 8;
             simd_w = 4;
         }
-        bool is_sse42 = (isa == cpu::x64::sse41);
 
         if (jcp_.across_spatial) {
             uni_vbroadcastss(vmm_fused_factor, ptr[reg_fused_factor]);
@@ -515,17 +505,6 @@ private:
                 }
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
-                if (is_sse42) {
-                    int sse42_offset = 4;
-                    load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);  // bc once
-                    if (attr_.post_ops_.len() != 0) {
-                        add(reg_oc_off, sse42_offset * sizeof(float));
-                        apply_post_ops(jcp_.dst_dt, 0);
-                        sub(reg_oc_off, sse42_offset * sizeof(float));
-                    }
-                    store_vector(ptr[reg_dst + sse42_offset * jcp_.dst_data_size], vmm_val, jcp_.dst_dt);
-                }
                 add(reg_src, blk_size * jcp_.src_data_size);
                 add(reg_dst, blk_size * jcp_.dst_data_size);
 
@@ -554,16 +533,6 @@ private:
                 }
                 store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
 
-                if (is_sse42) {
-                    int sse42_offset = 4;
-                    load_vector(vmm_val, ptr[reg_src + sse42_offset * jcp_.src_data_size], jcp_.src_dt);
-                    uni_vmulps(vmm_val, vmm_val, vmm_fused_factor);  // bc once
-                    if (attr_.post_ops_.len() != 0) {
-                        apply_post_ops(jcp_.dst_dt, 0);
-                        add(reg_oc_off, vlen);  // vlen is related isa
-                    }
-                    store_vector(ptr[reg_dst + sse42_offset * jcp_.dst_data_size], vmm_val, jcp_.dst_dt);
-                }
                 add(reg_src, src_stride);
                 add(reg_dst, dst_stride);
 
@@ -642,15 +611,9 @@ private:
                 vpmovusdb(op, vmm_dst);
             } else {
                 uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                }
+                vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    movd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
         } else if (dst_dt == memory::data_type::s8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -658,15 +621,9 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vpermq(ymm_dst, ymm_dst, 0x08);
-                }
+                vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
-                if (isa != cpu::x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    movd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
         }
     }
@@ -870,7 +827,7 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (any_of(ov::element::f16, inputPrecision, outputPrecision) && ov::with_cpu_x86_sse42()) {
+    if (any_of(ov::element::f16, inputPrecision, outputPrecision) && ov::with_cpu_x86_avx2()) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 
@@ -915,9 +872,9 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
 
     impl_desc_type impl_type = impl_desc_type::unknown;
 
-    // only plain layout support when w/o sse42
+    // only plain layout support when w/o avx2
     if (getInputShapeAtPort(DATA).getRank() == 4 && !attrs.cornerCase) {
-        if (ov::with_cpu_x86_sse42()) {
+        if (ov::with_cpu_x86_avx2()) {
             pushDesc(LayoutType::nspc, impl_type);
             if (ov::with_cpu_x86_avx512_core()) {
                 pushDesc(LayoutType::nCsp16c, impl_type);
@@ -1102,11 +1059,6 @@ public:
             blk_size = 8;
             normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::avx2>>(jcp);
             normalize_kernel = std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::avx2>>(jcp, *kernel_attrs.get());
-        } else if (ov::with_cpu_x86_sse42()) {
-            blk_size = jcp.is_blk ? 8 : 4;
-            normalize_modulo_kernel = std::make_shared<jit_uni_normalize_modulo_kernel_f32<cpu::x64::sse41>>(jcp);
-            normalize_kernel =
-                std::make_shared<jit_uni_normalize_kernel_f32<cpu::x64::sse41>>(jcp, *kernel_attrs.get());
         } else {
             OPENVINO_THROW("Jit Executor for NormalizeL2 cannot create kernels!");
         }
@@ -1643,7 +1595,7 @@ std::shared_ptr<NormalizeL2::NormalizeL2Executor> NormalizeL2::NormalizeL2Execut
         return std::make_shared<NormalizeL2CornerCaseExecutor<in_data_t, out_data_t>>(dims);
 #if defined(OPENVINO_ARCH_X86_64)
     }
-    if (ov::with_cpu_x86_sse42()) {
+    if (ov::with_cpu_x86_avx2()) {
         return std::make_shared<NormalizeL2JitExecutor<in_data_t, out_data_t>>(attrs, kernel_attrs, dims);
 #endif
     }

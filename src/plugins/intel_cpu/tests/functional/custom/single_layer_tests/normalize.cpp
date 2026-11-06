@@ -274,12 +274,11 @@ const std::vector<std::vector<int64_t>> axes_4D = {
 std::vector<CPUSpecificParams> getCPUSpecificParams() {
     std::vector<CPUSpecificParams> result;
     result.push_back(CPUSpecificParams({nchw}, {nchw}, {}, {}));
-    if (with_cpu_x86_sse42()) {
+    if (with_cpu_x86_avx2()) {
         result.push_back(CPUSpecificParams({nhwc}, {nhwc}, {}, {}));
+        result.push_back(CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}));
         if (with_cpu_x86_avx512f()) {
             result.push_back(CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}));
-        } else {
-            result.push_back(CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}));
         }
     }
     return result;

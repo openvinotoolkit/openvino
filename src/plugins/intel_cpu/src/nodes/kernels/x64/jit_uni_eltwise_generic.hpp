@@ -41,11 +41,8 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public dnnl::imp
     void generate() override;
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     Xbyak::Reg64 get_src_reg(int idx) {
         return Xbyak::Reg64(r8.getIdx() + idx);

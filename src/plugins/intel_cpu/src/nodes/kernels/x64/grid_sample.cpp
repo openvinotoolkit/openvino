@@ -169,7 +169,7 @@ void GridSampleKernel<x64::avx512_core>::initVectors() {
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::initVectors() {
     auto rAux = getReg64();
 
@@ -196,8 +196,7 @@ void GridSampleKernel<isa>::initVectors() {
 
     if (jcp.interpolationMode != GridSampleInterpolationMode::BICUBIC) {
         if (any_of(jcp.paddingMode, GridSamplePaddingMode::BORDER, GridSamplePaddingMode::ZEROS) &&
-            ((isa == x64::avx2 && jcp.interpolationMode == GridSampleInterpolationMode::NEAREST) ||
-             any_of(isa, x64::avx, x64::sse41))) {
+            ((isa == x64::avx2 && jcp.interpolationMode == GridSampleInterpolationMode::NEAREST))) {
             vZeros = getVmm();
             uni_vpxor(vZeros, vZeros, vZeros);
         }
@@ -237,7 +236,7 @@ void GridSampleKernel<isa>::initVectors() {
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2
 void GridSampleKernel<isa>::process() {
     regWorkAmount = getReg64();
 
@@ -275,7 +274,7 @@ void GridSampleKernel<isa>::process() {
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2
 void GridSampleKernel<isa>::spatialLoop() {
     auto vHCoord = getVmm();
     auto vWCoord = getVmm();
@@ -303,7 +302,7 @@ void GridSampleKernel<isa>::spatialLoop() {
     tail();
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2
 void GridSampleKernel<isa>::interpolation(const Vmm& vWCoord, const Vmm& vHCoord, bool tail) {
     if (jcp.interpolationMode == GridSampleInterpolationMode::BILINEAR) {
         bilinearInterpolation(vWCoord, vHCoord, tail);
@@ -314,7 +313,7 @@ void GridSampleKernel<isa>::interpolation(const Vmm& vWCoord, const Vmm& vHCoord
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2
 void GridSampleKernel<isa>::tail() {
     Xbyak::Label lEnd;
     cmp(regWorkAmount, 0);
@@ -377,54 +376,6 @@ void GridSampleKernel<x64::avx2>::getCoordinates(const Vmm& vHCoord, const Vmm& 
     vperm2f128(vHCoord, vHCoord, vAux, 0B00110000);  // Extract Y component
 
     add(regGrid, vlen);
-}
-
-template <x64::cpu_isa_t isa>  // Works for AVX, SSE41
-void GridSampleKernel<isa>::getCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
-    auto vAux = getVmm();
-    Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
-    Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
-    Xbyak::Xmm xmmAux(vAux.getIdx());
-    const uint64_t xmmVlen = x64::cpu_isa_traits_t<x64::sse41>::vlen;
-
-    uni_vmovups(xmmWCoord, ptr[regGrid]);
-    uni_vpshufd(xmmWCoord, xmmWCoord, 0xD8);
-    shufpd(xmmHCoord, xmmWCoord, 0x2);
-
-    add(regGrid, xmmVlen);
-
-    uni_vmovups(xmmAux, ptr[regGrid]);
-    uni_vpshufd(xmmAux, xmmAux, 0xD8);
-    shufpd(xmmWCoord, xmmAux, 0x0);
-    shufpd(xmmHCoord, xmmAux, 0x3);
-
-    add(regGrid, xmmVlen);
-
-    if (isa == x64::avx) {
-        Xbyak::Ymm ymmWCoord(vWCoord.getIdx());
-        Xbyak::Ymm ymmHCoord(vHCoord.getIdx());
-
-        vperm2f128(ymmWCoord, ymmWCoord, ymmWCoord, 0x1);
-        vperm2f128(ymmHCoord, ymmHCoord, ymmHCoord, 0x1);
-
-        // Here is movups + pshufd instead of vpshufd for two reasons:
-        // 1. vpshufd zeroes the rest ov YMM.
-        // 2. pshufd does not work with not aligned address.
-        movups(xmmWCoord, ptr[regGrid]);
-        pshufd(xmmWCoord, xmmWCoord, 0xD8);
-        shufpd(xmmHCoord, xmmWCoord, 0x2);
-
-        add(regGrid, xmmVlen);
-
-        uni_vpshufd(xmmAux, ptr[regGrid], 0xD8);
-        shufpd(xmmWCoord, xmmAux, 0x0);
-        shufpd(xmmHCoord, xmmAux, 0x3);
-
-        add(regGrid, xmmVlen);
-
-        vperm2f128(ymmWCoord, ymmWCoord, ymmWCoord, 0x1);
-        vperm2f128(ymmHCoord, ymmHCoord, ymmHCoord, 0x1);
-    }
 }
 
 template <>
@@ -534,112 +485,7 @@ void GridSampleKernel<x64::avx2>::getTailCoordinates(const Vmm& vHCoord, const V
     L(lEnd);
 }
 
-template <>
-void GridSampleKernel<x64::avx>::getTailCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
-    Xbyak::Label lLoop2End;
-    Xbyak::Label lEnd;
-
-    Xbyak::Xmm xmmWCoord(vWCoord.getIdx());
-    Xbyak::Xmm xmmHCoord(vHCoord.getIdx());
-
-    auto rGridRest = getReg64();
-    mov(rGridRest, regWorkAmount);
-    sal(rGridRest, 0x1);  // multiply by gridShape[3] == 2
-
-    for (size_t i = 0; i < dataElPerVec; i++) {
-        cmp(rGridRest, 0);
-        jle(lEnd, T_NEAR);
-
-        if (gridTypeSize == 4) {
-            pinsrd(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
-        } else if (gridTypeSize == 2) {
-            pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
-        }
-
-        add(regGrid, gridTypeSize);
-        dec(rGridRest);
-    }
-
-    cmp(rGridRest, 0);
-    jle(lEnd, T_NEAR);
-
-    vperm2f128(vWCoord, vWCoord, vWCoord, 0x1);
-    vperm2f128(vHCoord, vHCoord, vHCoord, 0x1);
-
-    for (size_t i = 0; i < dataElPerVec; i++) {
-        cmp(rGridRest, 0);
-        jle(lLoop2End, T_NEAR);
-
-        if (gridTypeSize == 4) {
-            pinsrd(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
-        } else if (gridTypeSize == 2) {
-            pinsrw(i % 2 == 0 ? xmmWCoord : xmmHCoord, ptr[regGrid], i / 2);
-        }
-
-        add(regGrid, gridTypeSize);
-        dec(rGridRest);
-    }
-
-    L(lLoop2End);
-    vperm2f128(vWCoord, vWCoord, vWCoord, 0x1);
-    vperm2f128(vHCoord, vHCoord, vHCoord, 0x1);
-
-    L(lEnd);
-}
-
-template <>
-void GridSampleKernel<x64::sse41>::getTailCoordinates(const Vmm& vHCoord, const Vmm& vWCoord) {
-    Xbyak::Label lRest;
-    Xbyak::Label lHShuf;
-    Xbyak::Label lGridShift;
-    Xbyak::Label lEnd;
-    auto rAux = getReg64();
-
-    mov(rAux, regWorkAmount);
-    sal(rAux, 0x1);  // Multiply by gridShape[3] == 2
-    cmp(regWorkAmount, dataElPerVec / 2);
-    jl(lRest, T_NEAR);
-    {
-        // Here is movups + pshufd instead of pshufd due to
-        // pshufd does not work with not aligned address.
-        movups(vWCoord, ptr[regGrid]);
-        pshufd(vWCoord, vWCoord, 0B11011000);
-        shufpd(vHCoord, vWCoord, 0B00000010);
-
-        add(regGrid, vlen);
-        sub(rAux, dataElPerVec);
-        cmp(rAux, 0);
-        jle(lHShuf, T_NEAR);
-
-        auto vAux = getVmm();
-        load(vAux, ptr[regGrid], rAux, dataTypeSize);
-        pshufd(vAux, vAux, 0B11011000);
-        shufpd(vWCoord, vAux, 0x0);         // Extract X component
-        shufpd(vHCoord, vAux, 0B00000011);  // Extract Y component
-
-        jmp(lGridShift, T_NEAR);
-        L(lHShuf);
-        shufpd(vHCoord, vHCoord, 0B00000001);  // Extract Y component
-        jmp(lEnd, T_NEAR);
-    }
-    L(lRest);
-    {
-        load(vWCoord, ptr[regGrid], rAux, dataTypeSize);
-        pshufd(vWCoord, vWCoord, 0B11011000);  // Extract X component
-        shufpd(vHCoord, vWCoord, 0B00000010);  // Extract Y component
-        shufpd(vHCoord, vHCoord, 0B00000001);
-    }
-
-    L(lGridShift);
-    if (dataTypeSize > 1) {
-        sal(rAux, dataTypeShift);  // Multiply by source data type size.
-    }
-    add(regGrid, rAux);
-
-    L(lEnd);
-}
-
-template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2
 void GridSampleKernel<isa>::denormalizeRawCoordinates(const Vmm& vWCoord, const Vmm& vHCoord) {
     if (jcp.alignCorners) {
         if (vWDenormCoefF.isInitialized()) {
@@ -720,49 +566,7 @@ void GridSampleKernel<x64::avx512_core>::zerosPadding(const Vmask& kDst, const V
     zerosPaddingH(kDst, vHCoord, kDst);
 }
 
-template <>
-void GridSampleKernel<x64::sse41>::zerosPaddingW(const Vmask& kDst, const Vmm& vWCoord) {
-    auto vAux = getVmm();
-
-    if (vSrcWidthF.isInitialized()) {
-        uni_vcmpps(vAux, vWCoord, vSrcWidthF, CMP_LT_PS);  // vWCoord < vSrcWidthF
-    } else {
-        auto rAux = getReg64();
-        mov(rAux, ptr[regParams + GET_OFF(srcWidthF)]);
-        uni_vcmpps(vAux, vWCoord, ptr[rAux], CMP_LT_PS);  // vWCoord < vSrcWidthF
-    }
-
-    uni_vpxor(kDst, kDst, kDst);
-    uni_vcmpps(kDst, kDst, vWCoord, CMP_LE_PS);  // vWCoord >= vZeros
-    uni_vpand(kDst, kDst, vAux);                 // vZeros <= vWCoord < vSrcWidthF
-}
-
-template <>
-void GridSampleKernel<x64::sse41>::zerosPaddingH(const Vmask& kDst, const Vmm& vHCoord, const Vmask& kMaskW) {
-    auto vAux = getVmm();
-
-    if (vSrcHeightF.isInitialized()) {
-        uni_vcmpps(vAux, vHCoord, vSrcHeightF, CMP_LT_PS);  // vHCoord < vSrcHeightF
-    } else {
-        auto rAux = getReg64();
-        mov(rAux, ptr[regParams + GET_OFF(srcHeightF)]);
-        uni_vcmpps(vAux, vHCoord, ptr[rAux], CMP_LT_PS);  // vHCoord < vSrcHeightF
-    }
-
-    uni_vmovups(kDst, kMaskW);
-    uni_vpand(kDst, kDst, vAux);  // vHCoord < vSrcHeightF && vZeros <= vWCoord < vSrcWidthF
-    uni_vpxor(vAux, vAux, vAux);
-    uni_vcmpps(vAux, vAux, vHCoord, CMP_LE_PS);  // vHCoord >= vZeros
-    uni_vpand(kDst, kDst, vAux);                 // vZeros <= vHCoord < vSrcHeightF && vZeros <= vWCoord < vSrcWidthF
-}
-
-template <>
-void GridSampleKernel<x64::sse41>::zerosPadding(const Vmask& kDst, const Vmm& vHCoord, const Vmm& vWCoord) {
-    zerosPaddingW(kDst, vWCoord);
-    zerosPaddingH(kDst, vHCoord, kDst);
-}
-
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::zerosPaddingW(const Vmask& kDst, const Vmm& vCoord) {
     auto vAux = getVmm();
     Vmm vZerosTmp;
@@ -787,7 +591,7 @@ void GridSampleKernel<isa>::zerosPaddingW(const Vmask& kDst, const Vmm& vCoord) 
     uni_vandps(kDst, kDst, vAux);                    // vZeros <= vWCoord < vSrcWidthF
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::zerosPaddingH(const Vmask& kDst, const Vmm& vCoord, const Vmask& kMaskW) {
     auto vAux = getVmm();
     Vmm vZerosTmp;
@@ -813,7 +617,7 @@ void GridSampleKernel<isa>::zerosPaddingH(const Vmask& kDst, const Vmm& vCoord, 
     uni_vandps(kDst, kDst, vAux);
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::zerosPadding(const Vmask& kDst, const Vmm& vHCoord, const Vmm& vWCoord) {
     bool releaseZeroVec = false;
     if (!vZeros.isInitialized()) {
@@ -839,7 +643,7 @@ void GridSampleKernel<x64::avx512_core>::borderPadding(const Vmm& vCoordDst, con
     vrangeps(vCoordDst, vCoordDst, vZeros, 0x1);  // vWCoord < vZeros
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::borderPadding(const Vmm& vCoordDst, const Vmm& vCoordOrigin, const coord dim) {
     auto rAux = getReg64();
     auto vAux = getVmm();
@@ -874,17 +678,8 @@ void GridSampleKernel<isa>::borderPadding(const Vmm& vCoordDst, const Vmm& vCoor
     if (vZeros.isInitialized()) {
         uni_vcmpps(vAux, vCoordDst, vZeros, 0x6);  // vCoord >= vZeros
     } else {
-        if (isa == x64::sse41) {
-            if (!vAux1.isInitialized()) {
-                vAux1 = getVmm();
-                vSub1F = vAux1;
-            }
-            uni_vpxor(vSub1F, vSub1F, vSub1F);
-            uni_vcmpps(vAux, vCoordDst, vSub1F, 0x6);  // vCoord >= vZeros
-        } else {
-            uni_vpxor(vAux, vAux, vAux);
-            uni_vcmpps(vAux, vCoordDst, vAux, 0x6);  // vCoord >= vZeros
-        }
+        uni_vpxor(vAux, vAux, vAux);
+        uni_vcmpps(vAux, vCoordDst, vAux, 0x6);  // vCoord >= vZeros
     }
     uni_vandps(vCoordDst, vCoordDst, vAux);
 }
@@ -933,7 +728,7 @@ void GridSampleKernel<x64::avx512_core>::reflectionPadding(const Vmm& vCoordDst,
     uni_vmovups(vCoordDst | kAux, vAux);
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::reflectionPadding(const Vmm& vCoordDst, const Vmm& vCoordOrigin, const coord dim) {
     auto rAux = getReg64();
     auto vAux0 = getVmm();
@@ -945,12 +740,7 @@ void GridSampleKernel<isa>::reflectionPadding(const Vmm& vCoordDst, const Vmm& v
         // x' = abs(x) % D21 - D21
         static const unsigned absMask[8] =
             {0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff};
-        if (isa == x64::sse41) {
-            static const unsigned* absPtr = absMask + (reinterpret_cast<int64_t>(absMask) % 16) / sizeof(unsigned);
-            mov(rAux, reinterpret_cast<uintptr_t>(absPtr));
-        } else {
-            mov(rAux, reinterpret_cast<uintptr_t>(absMask));
-        }
+        mov(rAux, reinterpret_cast<uintptr_t>(absMask));
         uni_vandps(vCoordDst, vCoordOrigin, ptr[rAux]);  // abs(x)
 
         Vmm vMul2Sub1;
@@ -1127,115 +917,7 @@ void GridSampleKernel<x64::avx2>::bicubicCoefficients(const Vmm& vCoef, const Vm
     }
 }
 
-template <>
-void GridSampleKernel<x64::avx>::bicubicCoefficients(const Vmm& vCoef, const Vmm& vDDim, const uint8_t idx) {
-    static const size_t elPerVec = x64::cpu_isa_traits_t<x64::avx>::vlen / sizeof(float);
-    static const float const_0_75[elPerVec] = {-0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F};
-    static const float const_1_25[elPerVec] = {1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F};
-    static const float const_1_50[elPerVec] = {1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F};
-    static const float const_2_00[elPerVec] = {2.F, 2.F, 2.F, 2.F, 2.F, 2.F, 2.F, 2.F};
-    static const float const_2_25[elPerVec] = {2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F};
-
-    auto rAux = getReg64();
-    auto vAux = getVmm();
-
-    if (idx == 0) {
-        uni_vmovups(vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_2_00));
-        uni_vfnmadd132ps(vCoef, vOnesF, ptr[rAux]);
-        uni_vmulps(vAux, vDDim, vDDim);
-        uni_vaddps(vCoef, vCoef, vAux);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vmulps(vCoef, vCoef, ptr[rAux]);
-    } else if (idx == 1) {
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_25));
-        uni_vmulps(vCoef, vDDim, ptr[rAux]);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_2_25));
-        uni_vsubps(vCoef, vCoef, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        uni_vfmadd132ps(vCoef, vOnesF, vDDim);
-    } else if (idx == 2) {
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_25));
-        uni_vmulps(vAux, vDDim, ptr[rAux]);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_50));
-        uni_vmovups(vCoef, ptr[rAux]);
-        uni_vsubps(vCoef, vCoef, vAux);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vsubps(vCoef, vCoef, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-    } else if (idx == 3) {
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vmulps(vCoef, vDDim, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        uni_vmulps(vAux, vCoef, vDDim);
-        uni_vsubps(vCoef, vCoef, vAux);
-    }
-}
-
-template <>
-void GridSampleKernel<x64::sse41>::bicubicCoefficients(const Vmm& vCoef, const Vmm& vDDim, const uint8_t idx) {
-    static const size_t elToAllocate = 2 * x64::cpu_isa_traits_t<x64::sse41>::vlen / sizeof(float);
-    // Allocation with a margin for address alignment.
-    static const float c_0_75[elToAllocate] = {-0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F};
-    static const float c_1_25[elToAllocate] = {1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F};
-    static const float c_1_50[elToAllocate] = {1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F};
-    static const float c_2_00[elToAllocate] = {2.F, 2.F, 2.F, 2.F, 2.F, 2.F, 2.F, 2.F};
-    static const float c_2_25[elToAllocate] = {2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F};
-    // Address alignment for XMM.
-    static const float* const_0_75 = c_0_75 + (reinterpret_cast<int64_t>(c_0_75) % 16) / sizeof(float);
-    static const float* const_1_25 = c_1_25 + (reinterpret_cast<int64_t>(c_1_25) % 16) / sizeof(float);
-    static const float* const_1_50 = c_1_50 + (reinterpret_cast<int64_t>(c_1_50) % 16) / sizeof(float);
-    static const float* const_2_00 = c_2_00 + (reinterpret_cast<int64_t>(c_2_00) % 16) / sizeof(float);
-    static const float* const_2_25 = c_2_25 + (reinterpret_cast<int64_t>(c_2_25) % 16) / sizeof(float);
-
-    auto rAux = getReg64();
-    auto vAux = getVmm();
-
-    if (idx == 0) {
-        uni_vmovups(vAux, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_2_00));
-        uni_vmulps(vAux, vAux, ptr[rAux]);
-        uni_vsubps(vAux, vAux, vOnesF);
-        uni_vmovups(vCoef, vDDim);
-        uni_vmulps(vCoef, vCoef, vCoef);
-        uni_vsubps(vCoef, vCoef, vAux);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vmulps(vCoef, vCoef, ptr[rAux]);
-    } else if (idx == 1) {
-        uni_vmovups(vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_25));
-        uni_vmulps(vCoef, vCoef, ptr[rAux]);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_2_25));
-        uni_vsubps(vCoef, vCoef, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        uni_vfmadd132ps(vCoef, vOnesF, vDDim);
-    } else if (idx == 2) {
-        uni_vmovups(vAux, vDDim);
-        uni_vmulps(vAux, vDDim, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_25));
-        uni_vmulps(vAux, vAux, ptr[rAux]);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vaddps(vAux, vAux, ptr[rAux]);
-        uni_vmovups(vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_50));
-        uni_vmulps(vCoef, vCoef, ptr[rAux]);
-        uni_vsubps(vCoef, vCoef, vAux);
-        uni_vmulps(vCoef, vCoef, vDDim);
-    } else if (idx == 3) {
-        uni_vmovups(vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vmulps(vCoef, vCoef, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        uni_vmovups(vAux, vCoef);
-        uni_vmulps(vAux, vAux, vDDim);
-        uni_vsubps(vCoef, vCoef, vAux);
-    }
-}
-
-template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX512, AVX2
 void GridSampleKernel<isa>::nearestInterpolation(const Vmm& vWCoord, const Vmm& vHCoord, bool tail) {
     const auto& vSrcShift = vWCoord;
     const auto& vAux = vHCoord;
@@ -1460,7 +1142,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm& vHCoord, bool tail) {
     auto vWRound = getVmm();
     auto vHRound = getVmm();
@@ -1503,12 +1185,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         {
             auto rAux = getReg64();
             static const float onesArr[8] = {1.F, 1.F, 1.F, 1.F, 1.F, 1.F, 1.F, 1.F};
-            if (isa == x64::sse41) {
-                static const float* onesPtr = onesArr + (reinterpret_cast<int64_t>(onesArr) % 16) / sizeof(float);
-                mov(rAux, reinterpret_cast<uintptr_t>(onesPtr));
-            } else {
-                mov(rAux, reinterpret_cast<uintptr_t>(onesArr));
-            }
+            mov(rAux, reinterpret_cast<uintptr_t>(onesArr));
             uni_vmovups(vAux, ptr[rAux]);
         }
         shift00 = vWRound;
@@ -1608,12 +1285,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vAux, vAux);
         }
-        if (isa == x64::avx2) {
-            uni_vfmsub231ps(vQ0, vAux, vDX);  // q0 = -q0 + dx * v01
-        } else {
-            uni_vmulps(vAux, vAux, vDX);
-            uni_vaddps(vQ0, vQ0, vAux);
-        }
+        uni_vfmsub231ps(vQ0, vAux, vDX);  // q0 = -q0 + dx * v01
 
         // (y + 1; x + 1)
         if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
@@ -1654,17 +1326,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         }
 
         // q1 = -(v10 - dx * v10)
-        if (isa == x64::avx2) {
-            uni_vfmsub213ps(vQ1, vDX, vQ1);
-        } else {
-            uni_vmulps(vGatherMask, vQ1, vDX);
-            if (isa == x64::avx) {
-                uni_vsubps(vQ1, vGatherMask, vQ1);
-            } else {
-                uni_vsubps(vGatherMask, vGatherMask, vQ1);
-                uni_vmovups(vQ1, vGatherMask);
-            }
-        }
+        uni_vfmsub213ps(vQ1, vDX, vQ1);
         uni_vfmsub231ps(vQ1, vAux, vDX);  // q1 = -q1 + dx * v11
         // Res = q0 + dy * (q1 - q0)
         uni_vsubps(vQ1, vQ1, vQ0);
@@ -1847,7 +1509,7 @@ void GridSampleKernel<x64::avx512_core>::bicubicInterpolation(const Vmm& vWCoord
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::bicubicInterpolation(const Vmm& vWCoord, const Vmm& vHCoord, bool tail) {
     auto vHTop = getVmm();
     auto vWLeft = getVmm();
@@ -2120,64 +1782,30 @@ void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc)
         return;
     }
 
-    if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
-        auto rAux = getReg64();
-        static const auto val = static_cast<float>(dataTypeSize);
-        static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
-        mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
-        uni_vmulps(vDst, vSrc, ptr[rAux]);
-        uni_vcvtps2dq(vDst, vDst);
-    } else {
-        uni_vcvtps2dq(vDst, vSrc);
-        if (dataTypeSize > 1) {
-            uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
-        }
-    }
+    uni_vcvtps2dq(vDst, vSrc);
+    uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
 }
 
 template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, const Vmm& vWCoord, const Vmm& vWidth) {
     if (vDst.getIdx() == vWCoord.getIdx()) {
-        if (any_of(isa, x64::avx512_core, x64::avx2)) {
-            uni_vfmadd231ps(vDst, vHCoord, vWidth);
-        } else {
-            auto vTmp = getVmm();
-            uni_vmulps(vTmp, vHCoord, vWidth);
-            uni_vaddps(vDst, vWCoord, vTmp);
-        }
+        uni_vfmadd231ps(vDst, vHCoord, vWidth);
     } else if (vDst.getIdx() == vHCoord.getIdx()) {
         uni_vfmadd132ps(vDst, vWCoord, vWidth);
     } else if (vDst.getIdx() == vWidth.getIdx()) {
         uni_vfmadd132ps(vDst, vWCoord, vHCoord);
     } else {
-        if (any_of(isa, x64::avx2, x64::avx512_core)) {
-            uni_vmovups(vDst, vWCoord);
-            uni_vfmadd231ps(vDst, vHCoord, vWidth);
-        } else {
-            uni_vmulps(vDst, vHCoord, vWidth);
-            uni_vaddps(vDst, vDst, vWCoord);
-        }
+        uni_vmovups(vDst, vWCoord);
+        uni_vfmadd231ps(vDst, vHCoord, vWidth);
     }
 
-    if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
-        if (dataTypeSize > 1) {
-            auto rAux = getReg64();
-            const auto val = static_cast<float>(dataTypeSize);
-            static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
-            mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
-            uni_vmulps(vDst, vDst, ptr[rAux]);
-        }
-        uni_vcvtps2dq(vDst, vDst);
-    } else {
-        uni_vcvtps2dq(vDst, vDst);
-        if (dataTypeSize > 1) {
-            uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
-        }
+    uni_vcvtps2dq(vDst, vDst);
+    if (dataTypeSize > 1) {
+        uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
     }
 }
 
 template class GridSampleKernel<x64::avx512_core>;
 template class GridSampleKernel<x64::avx2>;
-template class GridSampleKernel<x64::sse41>;
 
 }  // namespace ov::intel_cpu::kernel

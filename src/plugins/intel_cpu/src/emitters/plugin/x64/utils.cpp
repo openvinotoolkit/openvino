@@ -47,7 +47,7 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
 }
 
 template <cpu_isa_t isa,
-          std::enable_if_t<any_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core), bool> = true>
+          std::enable_if_t<any_of(isa, cpu_isa_t::avx2, cpu_isa_t::avx512_core), bool> = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
@@ -77,8 +77,6 @@ struct regs_to_spill {
 
 std::vector<Xbyak::Reg> get_regs_to_spill(cpu_isa_t isa, const std::set<snippets::Reg>& live_regs) {
     switch (isa) {
-    case cpu_isa_t::sse41:
-        return regs_to_spill<cpu_isa_t::sse41>::get(live_regs);
     case cpu_isa_t::avx2:
         return regs_to_spill<cpu_isa_t::avx2>::get(live_regs);
     case cpu_isa_t::avx512_core:
@@ -255,9 +253,6 @@ cpu_isa_t EmitABIRegSpills::get_isa() {
     }
     if (mayiuse(cpu_isa_t::avx2)) {
         return cpu_isa_t::avx2;
-    }
-    if (mayiuse(cpu_isa_t::sse41)) {
-        return cpu_isa_t::sse41;
     }
     OV_CPU_JIT_EMITTER_THROW("unsupported isa");
 }

@@ -179,7 +179,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
             resCPUParams.push_back(CPUSpecificParams{{ndhwc, x}, {ndhwc, ncdhw}, {}, {}});
             if (with_cpu_x86_avx512f()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x}, {nCdhw16c, ncdhw}, {}, {}});
-            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+            } else if (with_cpu_x86_avx2()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x}, {nCdhw8c, ncdhw}, {}, {}});
             }
         } else if (dims == "4D") {
@@ -187,7 +187,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
             resCPUParams.push_back(CPUSpecificParams{{nhwc, x}, {nhwc, nchw}, {}, {}});
             if (with_cpu_x86_avx512f()) {
                 resCPUParams.push_back(CPUSpecificParams{{nChw16c, x}, {nChw16c, nchw}, {}, {}});
-            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+            } else if (with_cpu_x86_avx2()) {
                 resCPUParams.push_back(CPUSpecificParams{{nChw8c, x}, {nChw8c, nchw}, {}, {}});
             }
         } else {
@@ -195,7 +195,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
             resCPUParams.push_back(CPUSpecificParams{{nwc, x}, {nwc, ncw}, {}, {}});
             if (with_cpu_x86_avx512f()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCw16c, x}, {nCw16c, ncw}, {}, {}});
-            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+            } else if (with_cpu_x86_avx2()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCw8c, x}, {nCw8c, ncw}, {}, {}});
             }
         }
@@ -205,7 +205,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
             resCPUParams.push_back(CPUSpecificParams{{ndhwc, x}, {ndhwc}, {}, {}});
             if (with_cpu_x86_avx512f()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x}, {nCdhw16c}, {}, {}});
-            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+            } else if (with_cpu_x86_avx2()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x}, {nCdhw8c}, {}, {}});
             }
         } else if (dims == "4D") {
@@ -213,7 +213,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
             resCPUParams.push_back(CPUSpecificParams{{nhwc, x}, {nhwc}, {}, {}});
             if (with_cpu_x86_avx512f()) {
                 resCPUParams.push_back(CPUSpecificParams{{nChw16c, x}, {nChw16c}, {}, {}});
-            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+            } else if (with_cpu_x86_avx2()) {
                 resCPUParams.push_back(CPUSpecificParams{{nChw8c, x}, {nChw8c}, {}, {}});
             }
         } else {
@@ -221,7 +221,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::string dims = "3D", s
             resCPUParams.push_back(CPUSpecificParams{{nwc, x}, {nwc}, {}, {}});
             if (with_cpu_x86_avx512f()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCw16c, x}, {nCw16c}, {}, {}});
-            } else if (with_cpu_x86_avx2() || with_cpu_x86_sse42()) {
+            } else if (with_cpu_x86_avx2()) {
                 resCPUParams.push_back(CPUSpecificParams{{nCw8c, x}, {nCw8c}, {}, {}});
             }
         }
