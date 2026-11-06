@@ -856,11 +856,13 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
                                        return device.device_name == device_name;
                                    });
     const ov::AnyMap no_config;
-    if (CacheWarmupManager::get_cache_location(*m_context->m_ov_core,
-                                               info != m_context->m_device_priorities_initial.end() ? info->config
-                                                                                                    : no_config,
-                                               device_name)
-            .empty()) {
+    const auto& device_config =
+        info != m_context->m_device_priorities_initial.end()
+            ? info->config
+            : (m_context->m_low_power_device && m_context->m_low_power_device->device_name == device_name
+                   ? m_context->m_low_power_device->config
+                   : no_config);
+    if (CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name).empty()) {
         return;
     }
     auto& workers = m_worker_requests[device_name];
