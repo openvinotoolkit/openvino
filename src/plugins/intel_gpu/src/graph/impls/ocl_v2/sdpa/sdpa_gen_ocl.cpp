@@ -1272,8 +1272,9 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the odd V row of a pair read at/past k (each must fail
     // smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases); on an i8 BY_TOKEN page 19 = the K comp of tokens
     // 0..7 for both 8-key groups of a page, 20 = the V scales of a lane's two keys swapped, 21 = the V zps of the next key
-    // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm). Absent unless asked
-    // for, so the default jit (and every SG16 jit) is unchanged.
+    // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm), and on an i8 BY_CHANNEL
+    // page 23 = the (scale, zp) pairs of a lane's two channels swapped, 24 = scale and zp of a pair swapped (each must fail
+    // its BY_CHANNEL cases). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);

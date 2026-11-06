@@ -843,17 +843,25 @@ SDPA_OCL_INLINE void FUNC(k_tile_gather)(__private ushort8 *k_raw, const __globa
 
 #if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_I8 && !USE_1D_BLOCK_IO_K_PA_U4 && IS_PA_KV_COMPRESSED
 #if SG8
-// SG8 i8 BY_TOKEN K page (the BY_CHANNEL / u4 pages stop at sdpa_ocl_config.cl's tripwire): the KQ A operand is an int8
-// (component kk = key key_base + mb * DPAS_ROWS + kk, lane = the dword of channels c0 = db * DPAS_K + 2 lane and c0 + 1, the
-// low half c0). A row block is DPAS_ROWS == SUBGROUP_SIZE keys, i.e. one key group of pa_k_comp_by_token(), so key kk's
-// (scale, zp) is that group's lane kk. The token-major page holds a key's channels side by side, so a lane reads its channel
-// pair as one ushort (c0 is even and the row pitch is the head size, so it is 2 B aligned). The dequant is (q - zp) * scale
-// in half, as the SG16 gather; a key at/past k has scale and zp 0, so its slot dequantizes to 0 whatever it holds, and a
-// channel at/past d is 0.
+// SG8 i8 K page, token-major (the u4 page stops at sdpa_ocl_config.cl's tripwire): the KQ A operand is an int8 (component
+// kk = key key_base + mb * DPAS_ROWS + kk, lane = the dword of channels c0 = db * DPAS_K + 2 lane and c0 + 1, the low half
+// c0). The page holds a key's channels side by side, so a lane reads its channel pair as one ushort (c0 is even and the row
+// pitch is the head size, so it is 2 B aligned). The dequant is (q - zp) * scale in half, as the SG16 gather; a channel
+// at/past d is 0.
+//  - BY_TOKEN: a row block is DPAS_ROWS == SUBGROUP_SIZE keys, i.e. one key group of pa_k_comp_by_token(), so key kk's
+//    (scale, zp) is that group's lane kk; a key at/past k has scale and zp 0, so its slot dequantizes to 0 whatever it holds.
+//  - BY_CHANNEL: the page's comp is one (scale, zp) dword per channel, so a lane reads the dwords of its two channels, the
+//    same for every key of the row block, here rather than in pa_k_comp_by_channel() (one dword per lane, lane == channel,
+//    the SG16 A operand): hoisted out of the depth loop, which SG8 does not unroll, they would sit in private memory. A row
+//    block at/past k took page 0, whose comp is arbitrary (a NaN would survive the -INFINITY add of k_mask), so it reads none
+//    and stays 0; the keys of a valid row block at/past k read finite bytes of their own page and k_mask drops them.
 SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private int8 *k_raw, const __global KEY_DATA_T *K,
-                                              const __private uint *k_page, const __private half *k_pa_sc_lane,
-                                              const __private half *k_pa_zp_lane, const size_t b0_kv, const int key_base,
-                                              const int k, const int d, const int db, const size_t lane, const int lane_i) {
+                                              const __private uint *k_page,
+#if !IS_PA_K_BY_CHANNEL
+                                              const __private half *k_pa_sc_lane, const __private half *k_pa_zp_lane,
+#endif
+                                              const size_t b0_kv, const int key_base, const int k, const int d, const int db,
+                                              const size_t lane, const int lane_i) {
     const int c0 = db * DPAS_K + 2 * lane_i;
     const bool c0_ok = c0 < d;
     const bool c1_ok = c0 + 1 < d;
@@ -862,22 +870,46 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private int8 *k_raw, const __glo
         const size_t mb_page_base = PA_K_PAGE_OFF(k_page[mb], b0_kv) + (size_t)c0 * PA_K_HIDDEN_STRIDE;
         // key_base is a multiple of PAGED_ATTENTION_BLOCK_SIZE, so the row block's first token is a constant.
         const int tok0 = (mb * DPAS_ROWS) % PAGED_ATTENTION_BLOCK_SIZE;
+#if IS_PA_K_BY_CHANNEL
+        const bool mb_valid = key_base + mb * DPAS_ROWS < k;
+        const __global uint *mb_comp = (const __global uint *)(K + PA_K_PAGE_OFF(k_page[mb], b0_kv) + PA_K_COMP_OFF);
+    #if defined(NEG_SG8) && NEG_SG8 == 23
+        // Negative control: the pairs of the two channels swapped.
+        const uint cc0 = (mb_valid && c1_ok) ? mb_comp[c0 + 1] : 0u;
+        const uint cc1 = (mb_valid && c0_ok) ? mb_comp[c0] : 0u;
+    #else
+        const uint cc0 = (mb_valid && c0_ok) ? mb_comp[c0] : 0u;
+        const uint cc1 = (mb_valid && c1_ok) ? mb_comp[c0 + 1] : 0u;
+    #endif
+    #if defined(NEG_SG8) && NEG_SG8 == 24
+        // Negative control: scale and zp of a pair swapped (the BY_TOKEN comp keeps them in two arrays).
+        const half2 ch_sc = (half2)(as_half2(cc0).s1, as_half2(cc1).s1);
+        const half2 ch_zp = (half2)(as_half2(cc0).s0, as_half2(cc1).s0);
+    #else
+        const half2 ch_sc = (half2)(as_half2(cc0).s0, as_half2(cc1).s0);
+        const half2 ch_zp = (half2)(as_half2(cc0).s1, as_half2(cc1).s1);
+    #endif
+#endif
         #pragma unroll
         for (int kk = 0; kk < DPAS_ROWS; ++kk) {
+#if !IS_PA_K_BY_CHANNEL
             const int krel = mb * DPAS_ROWS + kk;
             // Collectives, so outside every per-lane guard; krel is an unroll constant and they fold.
-            const half k_sc = sub_group_broadcast(k_pa_sc_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
-            const half k_zp = sub_group_broadcast(k_pa_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+            const half2 ch_sc = (half2)sub_group_broadcast(k_pa_sc_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+            const half2 ch_zp = (half2)sub_group_broadcast(k_pa_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+#endif
             const uint pair =
                 c0_ok ? (uint)*(const __global ushort *)(K + mb_page_base + (size_t)(tok0 + kk) * PA_K_TOKEN_STRIDE) : 0u;
-            const half q0 = (half)(char)(pair & 0xFFu);
-            const half q1 = (half)(char)(pair >> 8);
-            half2 deq = (half2)(c0_ok ? PA_DEQ(q0, k_zp, k_sc) : (half)0.0h, c1_ok ? PA_DEQ(q1, k_zp, k_sc) : (half)0.0h);
 #if defined(NEG_SG8) && NEG_SG8 == 22
             // Negative control: the two channels of the dword swapped.
-            deq = deq.s10;
+            const half2 q = (half2)((half)(char)(pair >> 8), (half)(char)(pair & 0xFFu));
+#else
+            const half2 q = (half2)((half)(char)(pair & 0xFFu), (half)(char)(pair >> 8));
 #endif
-            k_raw[mb][kk] = as_int(deq);
+            // A channel at/past d is 0, not -zp * scale (BY_TOKEN's pair is the key's, not 0); c1 at/past d (an odd d)
+            // read a byte of the next row.
+            const half2 deq = PA_DEQ(q, ch_zp, ch_sc);
+            k_raw[mb][kk] = as_int((half2)(c0_ok ? deq.s0 : (half)0.0h, c1_ok ? deq.s1 : (half)0.0h));
         }
     }
 }

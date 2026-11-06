@@ -2947,15 +2947,23 @@ TEST_P(paged_attention_mixed_tm_test, matches_reference) {
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_mixed_tm, paged_attention_mixed_tm_test, ::testing::ValuesIn(mixed_hpg_heads_cases()));
 
 namespace {
-// Compressed caches on forced token-major pages (plan P7b-P7d, the reference's S8a-S8c cases): MIXED reads the past from the
-// compressed page (and, on SG8, the new tokens too), PREFILL the f16 inputs. Every case distorts K and V per token
-// (comp_stress) so that the scale or zp of a wrong token fails, and has a sharp softmax so that a wrong K is seen. On an i8
-// BY_TOKEN cache SDPA_OCL_NEG_SG8=19 / 20 / 21 / 22 must fail them (the PREFILL-only case 13 excepted: it reads no page).
+// Compressed caches on forced token-major pages (plan P7b-P7d, the reference's S8a-S8c cases): i8 BY_TOKEN (cases 0-16) and
+// i8 BY_CHANNEL (17-30). MIXED reads the past from the compressed page (and, on SG8, the new tokens too), PREFILL the f16
+// inputs. Every case distorts K (per token, or per channel for BY_CHANNEL) and V per token (comp_stress) so that the scale or
+// zp of a wrong token or channel fails, and has a sharp softmax so that a wrong K is seen. SDPA_OCL_NEG_SG8=19 / 20 / 21 / 22
+// must fail the BY_TOKEN cases and 20 / 21 / 22 / 23 / 24 the BY_CHANNEL ones (the PREFILL-only cases 13 and 27 excepted:
+// they read no page).
 paged_attention_test_params
 comp_case(std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads, int k_head, int v_head, int window = 0, int stress = 3) {
     auto p = sharp_softmax(feature_case(std::move(subsequences), heads, kv_heads, k_head, v_head, window));
     p.kv_cache_compression = ENABLE_CACHE_COMPRESSION;
     p.key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    p.comp_stress = stress;
+    return p;
+}
+
+paged_attention_test_params by_channel(paged_attention_test_params p, int stress = 6) {
+    p.key_cache_quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL;
     p.comp_stress = stress;
     return p;
 }
@@ -2979,6 +2987,20 @@ std::vector<paged_attention_test_params> comp_hpg_cases() {
         comp_case({{2, 70}, {5, 21}}, 2, 2, 64, 64),            // 14 two subsequences
         comp_case({{5, 43}}, 2, 2, 64, 32),                     // 15 k != v
         with_sinks(comp_case({{50, 200}}, 8, 2, 64, 64)),       // 16 a sink
+        by_channel(comp_case({{3, 21}}, 2, 2, 64, 64)),                     // 17 BY_CHANNEL: the last page partly written
+        by_channel(comp_case({{3, 27}}, 2, 2, 64, 64)),                     // 18
+        by_channel(comp_case({{3, 32}}, 2, 2, 64, 64)),                     // 19 a page boundary
+        by_channel(comp_case({{3, 27}}, 2, 2, 64, 64), 4),                  // 20 K distorted only
+        by_channel(comp_case({{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64)),  // 21
+        by_channel(comp_case({{4, 50}}, 8, 2, 128, 128)),                   // 22 GQA
+        by_channel(comp_case({{40, 600}}, 8, 2, 128, 128)),                 // 23 a long past
+        by_channel(comp_case({{4, 50}}, 2, 2, 96, 96)),                     // 24
+        by_channel(comp_case({{4, 50}}, 2, 2, 256, 256)),                   // 25
+        by_channel(comp_case({{6, 50}}, 2, 2, 64, 64, 24)),                 // 26 a sliding window
+        by_channel(comp_case({{100, 0}}, 8, 2, 128, 128)),                  // 27 PREFILL only
+        with_sinks(by_channel(comp_case({{50, 200}}, 8, 2, 64, 64))),       // 28 a sink
+        by_channel(comp_case({{4, 50}}, 4, 1, 512, 512)),                   // 29
+        by_channel(comp_case({{5, 43}}, 2, 2, 64, 32)),                     // 30 k != v
     };
 }
 }  // namespace
