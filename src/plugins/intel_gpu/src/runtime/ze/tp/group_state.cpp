@@ -20,7 +20,7 @@
 // Verbosity travels with the options, so the collectives log the same way whoever created the context.
 #define TP_GROUP_LOG(level)                \
     if (m_options.verbosity >= (level)) \
-    ::cldnn::ze::tp::log_stream()
+    ::cldnn::ze::tp::LogLine{}.stream()
 
 namespace cldnn {
 namespace ze {

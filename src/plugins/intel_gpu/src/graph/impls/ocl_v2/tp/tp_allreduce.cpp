@@ -90,7 +90,7 @@ public:
         if (channel.options().verbosity >= ov::log::Level::INFO) {
             static std::once_flag reported;
             std::call_once(reported, [&] {
-                cldnn::ze::tp::log_stream() << "[TP] collective rides "
+                cldnn::ze::tp::LogLine{}.stream() << "[TP] collective rides "
                                             << (async ? "in the model queue" : "on its own queue (synchronous)")
                                             << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order) << std::endl;
             });

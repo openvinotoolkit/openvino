@@ -10,6 +10,7 @@
 #include <iostream>
 #include <ostream>
 #include <sstream>
+#include <string>
 
 #include "openvino/core/log_util.hpp"
 
@@ -19,6 +20,23 @@ namespace tp {
 inline std::ostream& log_stream() {
     return std::cout;
 }
+
+/// Writes one message whole to std::cout or the TP_LOG_TO_FILE file, flushed. Defined with the config.
+void write_log(const std::string& message);
+
+/// One diagnostic message, written in one piece when the statement ends: the rank threads log concurrently.
+class LogLine {
+public:
+    ~LogLine() {
+        write_log(m_message.str());
+    }
+    std::ostringstream& stream() {
+        return m_message;
+    }
+
+private:
+    std::ostringstream m_message;
+};
 
 /// Collects one message and hands it to the core logger on destruction.
 /// Used for the few warnings that report a real configuration problem and so
@@ -174,7 +192,7 @@ private:
 #    define TP_DEBUG_GLOBAL_OPT(option, release_value) (ov::tp::TPConfig::get_##option())
 
 #    define TP_LOG_RAW(level) \
-        if (ov::tp::TPConfig::verbosity() >= (level)) ov::tp::log_stream()
+        if (ov::tp::TPConfig::verbosity() >= (level)) ov::tp::LogLine{}.stream()
 
 #else
 
@@ -205,4 +223,4 @@ private:
 #define TP_WARN_ALWAYS ov::tp::AlwaysWarn{}.stream()
 
 /// Measurement output. Printed whenever profiling is on, whatever the verbosity.
-#define TP_REPORT ov::tp::log_stream()
+#define TP_REPORT ov::tp::LogLine{}.stream()

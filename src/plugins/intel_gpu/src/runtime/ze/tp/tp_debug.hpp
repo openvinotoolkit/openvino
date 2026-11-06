@@ -8,19 +8,34 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <mutex>
 #include <ostream>
 #include <sstream>
+#include <string>
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/log_util.hpp"
 
 namespace cldnn {
 namespace ze {
 namespace tp {
 
-/// Where the collectives' diagnostics and measurement reports go.
-inline std::ostream& log_stream() {
-    return std::cout;
-}
+/// One message of the collectives' diagnostics, written whole when the statement ends -- the ranks log
+/// concurrently -- to the GPU plugin's verbose stream (OV_GPU_LOG_TO_FILE or the standard output).
+class LogLine {
+public:
+    ~LogLine() {
+        static std::mutex mutex;
+        std::lock_guard<std::mutex> lock(mutex);
+        ov::intel_gpu::get_verbose_stream() << m_message.str() << std::flush;
+    }
+    std::ostringstream& stream() {
+        return m_message;
+    }
+
+private:
+    std::ostringstream m_message;
+};
 
 /// Collects one message and hands it to the core logger on destruction. For the
 /// few warnings that report a real configuration problem and so have to reach
@@ -140,4 +155,4 @@ private:
 #define TP_WARN_ALWAYS ::cldnn::ze::tp::AlwaysWarn{}.stream()
 
 /// Measurement output. Printed whenever profiling is on, whatever the verbosity.
-#define TP_REPORT ::cldnn::ze::tp::log_stream()
+#define TP_REPORT ::cldnn::ze::tp::LogLine{}.stream()

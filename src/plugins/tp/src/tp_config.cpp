@@ -4,8 +4,12 @@
 
 #include "tp/tp_config.hpp"
 
+#include <fstream>
+#include <iostream>
+#include <mutex>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -14,6 +18,24 @@
 
 namespace ov {
 namespace tp {
+
+void write_log(const std::string& message) {
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+    const auto path = TP_DEBUG_GLOBAL_OPT(log_to_file, std::string{});
+    if (!path.empty()) {
+        // Opened at the first message; a later change of the option is not followed.
+        static std::ofstream file(path);
+        if (file) {
+            file << message << std::flush;
+            return;
+        }
+        static bool reported = false;
+        if (!std::exchange(reported, true))
+            std::cout << "[TP] Cannot write TP_LOG_TO_FILE '" << path << "', logging to the standard output\n";
+    }
+    std::cout << message << std::flush;
+}
 
 std::vector<std::string> TPConfig::requested_device_names() const {
     const auto& list = get_priorities();

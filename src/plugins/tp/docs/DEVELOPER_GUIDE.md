@@ -128,6 +128,11 @@ Verbosity and profiling are deliberately separate: raising the verbosity to see
 what a run is doing should not start timing it, and asking for timings should
 not require guessing which log level carries them.
 
+Both sides write every message whole, so lines of concurrently logging ranks do not interleave.
+`OV_TP_LOG_TO_FILE=<file>` sends the plugin's messages and reports there instead of the standard
+output; the collectives follow the GPU plugin's own `OV_GPU_LOG_TO_FILE=<file>`. Give the two
+different files.
+
 ### Diagnostics that break the results
 
 Also debug-tier. Each one makes the model compute something other than what it

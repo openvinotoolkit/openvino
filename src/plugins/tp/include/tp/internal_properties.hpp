@@ -86,6 +86,9 @@ static constexpr Property<uint64_t> input_stage_max_bytes{"TP_INPUT_STAGE_MAX_BY
 /// Verbosity of the plugin's diagnostics.
 static constexpr Property<ov::log::Level> verbose{"TP_VERBOSE"};
 
+/// File the plugin's diagnostics and measurement reports go to instead of the standard output.
+static constexpr Property<std::string> log_to_file{"TP_LOG_TO_FILE"};
+
 /// Performance profiling configurable via ProfilingMode.
 static constexpr Property<ProfilingMode> profiling{"TP_PROFILING"};
 
