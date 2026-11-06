@@ -16,6 +16,7 @@
 #include "openvino/core/log_util.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/log.hpp"
 #include "perf_counters.hpp"
@@ -101,9 +102,11 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
 
-    // Check that all Matchers in MatcherPasses has type bases root node
+    // Collect root types, including alternatives of Or patterns. An untyped
+    // alternative still requires the fallback that tries every matcher.
     bool all_roots_has_type = true;
     std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
+    std::vector<std::shared_ptr<Node>> roots;
     for (size_t matcher_index = 0; matcher_index < m_matchers.size(); ++matcher_index) {
         // Skip passes that are disabled
         if (pass_config->is_disabled(m_matchers[matcher_index]->get_type_info()))
@@ -115,32 +118,29 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             break;
         }
 
-        auto root = matcher->get_pattern_value().get_node_shared_ptr();
-        // pattern::op::AnyOutput operation automatically appends for multi output operations inside
-        // Matcher and to gen actual root node we need to take it's parent.
-        if (auto any_type = ov::as_type_ptr<pattern::op::AnyOutput>(root)) {
-            root = any_type->input_value(0).get_node_shared_ptr();
-        }
-
-        // if root is an operation from opset or has pattern::op::WrapType type then we can extract
-        // it's type
-        // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
-        // and default algorithm is used.
-        if (auto p = std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
-            if (auto any_type = ov::as_type_ptr<ov::pass::pattern::op::WrapType>(p)) {
-                for (const auto& root_type_info : any_type->get_wrapped_types()) {
+        roots.push_back(matcher->get_pattern_value().get_node_shared_ptr());
+        while (!roots.empty()) {
+            auto root = std::move(roots.back());
+            roots.pop_back();
+            if (auto any_output = ov::as_type_ptr<pattern::op::AnyOutput>(root)) {
+                roots.push_back(any_output->input_value(0).get_node_shared_ptr());
+            } else if (auto or_pattern = ov::as_type_ptr<pattern::op::Or>(root)) {
+                for (const auto& input : or_pattern->input_values()) {
+                    roots.push_back(input.get_node_shared_ptr());
+                }
+            } else if (auto wrap_type = ov::as_type_ptr<pattern::op::WrapType>(root)) {
+                for (const auto& root_type_info : wrap_type->get_wrapped_types()) {
                     type_to_matcher[root_type_info].push_back(matcher_index);
                 }
-            } else {
+            } else if (std::dynamic_pointer_cast<pattern::op::Pattern>(root)) {
                 all_roots_has_type = false;
                 break;
+            } else {
+                type_to_matcher[root->get_type_info()].push_back(matcher_index);
             }
-        } else {
-            type_to_matcher[root->get_type_info()].push_back(matcher_index);
         }
-
-        // TODO: traverse parents for root_type_info in order to register complete list of matchers
-        // including ones triggered by parent type info.
+        if (!all_roots_has_type)
+            break;
     }
 
     // This lambda preforms execution of particular MatcherPass on given node.
@@ -219,6 +219,9 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
             }
 
             std::sort(matcher_passes_to_run.begin(), matcher_passes_to_run.end());
+            // Alternatives can share a type or match both a derived type and its parent.
+            matcher_passes_to_run.erase(std::unique(matcher_passes_to_run.begin(), matcher_passes_to_run.end()),
+                                        matcher_passes_to_run.end());
 
             // TODO: type_to_matcher with just collected list of matchers to enable
             // fast processing at the next time when node with the same type will be processed
