@@ -1045,6 +1045,31 @@ TEST(HsmReaderStreamTest, read_sections_dispatches_same_handler_type_as_memory_b
     EXPECT_EQ(extension.last_payload, "device-specific-payload");
 }
 
+TEST(HsmReaderStreamTest, section_read_reports_a_throwing_stream_as_a_failed_read) {
+    static_assert(noexcept(std::declval<const hsm::Section&>().read(nullptr)), "Section::read must not throw");
+
+    const auto tag = hsm::SectionTag::make_device_tag(1, false);
+    const auto blob = make_container({{make_pointer_entry(fake_device_id, tag), "unreadable-payload"}});
+    ::testing::NiceMock<MockStreamBuf> buf(blob);
+    {
+        ::testing::InSequence seq;
+        EXPECT_CALL(buf, xsgetn).Times(2);                        // open()'s header + manifest reads
+        EXPECT_CALL(buf, xsgetn).WillOnce(::testing::Return(0));  // the payload read
+        EXPECT_CALL(buf, xsgetn).Times(::testing::AnyNumber());
+    }
+    std::istream stream(&buf);
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader.has_value());
+    stream.exceptions(std::ios::failbit | std::ios::badbit);
+
+    const auto section = reader->section(fake_device_id, tag.id());
+    ASSERT_TRUE(section.has_value());
+    std::vector<std::byte> destination(section->size());
+    bool read_ok = true;
+    EXPECT_NO_THROW(read_ok = section->read(destination.data()));
+    EXPECT_FALSE(read_ok);
+}
+
 TEST(HsmReaderStreamTest, read_sections_skips_an_entry_whose_bounds_validate_but_whose_read_fails) {
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, hsm::SectionTag::make_device_tag(1, false)), "unreadable-payload"},
