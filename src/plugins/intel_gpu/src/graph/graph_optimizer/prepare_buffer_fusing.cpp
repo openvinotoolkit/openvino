@@ -571,16 +571,19 @@ bool crop_in_place_optimization::match(const program_node& node,
 
     // Dynamic VariadicSplit sub-views feeding another crop can form chained
     // padded views that are unsafe for the current in-place optimization.
-    // VariadicSplit shape inference also requires constant axis and split lengths.
+    // when input0 is dynamic, allow input2 to be dynamic but static rank, and do_runtime_in_place_crop should give correct layout
+    // VariadicSplit shape inference also requires constant axis.
     const auto& crop_node = node.as<crop>();
-    const bool has_crop_user =
-        std::any_of(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
-            return user->is_type<crop>();
-        });
-    if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
-        ((dyn_aware && has_crop_user) ||
-         !crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
-        return false;
+    if (crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) {
+        const bool has_crop_user =
+            std::any_of(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+                return user->is_type<crop>();
+            });
+        const auto is_input_dynamic = crop_node.get_dependency(0).is_dynamic();
+        if ((dyn_aware && has_crop_user) || !crop_node.get_dependency(1).is_constant() ||
+            !(is_input_dynamic ? crop_node.get_input_layout(2).is_static() : crop_node.get_dependency(2).is_constant()))
+            return false;
+    }
 
     if (!node.get_users().empty()) {
         GPU_DEBUG_IF(node.get_config().get_disable_runtime_buffer_fusing() && dyn_aware) {
