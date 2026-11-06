@@ -80,9 +80,13 @@ TEST(SdpaOclPredicates, DecodeReaderAvailableTruthTable) {
     for (auto a : kArchs) {
         for (bool immad : kBools) {
             for (bool dec : kBools) {
-                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " decode=" << dec);
-                // No HPG term: the signature has none, which pins the reader to Xe2+ whatever the lane switch says.
-                EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(make_info(a, immad), dec), dec && immad && xe2_plus(a));
+                for (bool hpg : kBools) {
+                    SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " decode=" << dec
+                                                    << " hpg=" << hpg);
+                    // Xe2+ (SG16), and xe_hpg on its opt-in lane (SG8); no oneDNN term.
+                    const bool want = dec && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg));
+                    EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(make_info(a, immad), dec, hpg), want);
+                }
             }
         }
     }
@@ -97,20 +101,23 @@ TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
             EXPECT_EQ(pa::sdpa_ocl_arch_ok(info), pa::sdpa_ocl_arch_ok(info, pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::sdpa_ocl_selected(info), pa::sdpa_ocl_selected(info, pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(info),
-                      pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_enabled()));
+                      pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_enabled(), pa::sdpa_ocl_hpg_enabled()));
         }
     }
 }
 
-// The landmine row: with TEST_USE_SDPA_OCL_HPG=1 sdpa_ocl_selected(xe_hpg) is true, yet no GENERATE reader reads a
-// token-major page there, so the page must stay d-major. The expectation looks at no kernel switch: the layout is
-// static per device and config (TEST_USE_SDPA_OCL_DECODE=0 or OV_GPU_ENABLE_SDPA_MICRO=0 only move the reads to
-// paged_attention_opt.cl, which reads the token-major page too).
+// The landmine row: with TEST_USE_SDPA_OCL_HPG=1 both sdpa_ocl_selected(xe_hpg) and its SG8 GENERATE reader are there,
+// yet sdpa_ocl's MIXED does not read every kind of token-major page on SG8, so the page must stay d-major. The
+// expectation looks at no kernel switch: the layout is static per device and config (TEST_USE_SDPA_OCL_DECODE=0 or
+// OV_GPU_ENABLE_SDPA_MICRO=0 only move the reads to paged_attention_opt.cl, which reads the token-major page too).
 TEST(SdpaOclPredicates, TokenMajorRuleTruthTable) {
     SCOPED_TRACE(env_trace());
     if (kOneDnn && pa::sdpa_ocl_hpg_enabled()) {
-        // Positive control: the landmine is armed (the old one-predicate check would have said yes here).
+        // Positive control: the landmine is armed (a check of the two readers alone would say yes here).
         ASSERT_TRUE(pa::sdpa_ocl_selected(make_info(gpu_arch::xe_hpg, true)));
+        if (pa::sdpa_ocl_decode_enabled()) {
+            ASSERT_TRUE(pa::sdpa_ocl_decode_reader_available(make_info(gpu_arch::xe_hpg, true)));
+        }
     }
     for (auto a : kArchs) {
         for (bool immad : kBools) {

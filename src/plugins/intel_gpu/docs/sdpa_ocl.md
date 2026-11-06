@@ -1938,6 +1938,43 @@ the control) 0.993-0.997 with identical output MD5s. The opt kernel against this
 1.00-1.09, minicpm4-0.5b 1.02-1.14, gpt-oss-20b 1.02-1.34. First-token latency within 1% except 32-token prompts
 (0.98-1.03). phi-3.5's outputs differ between the iterations of one prompt in every build, so MD5 is no oracle there.
 
+### xe_hpg reader (SG8)
+
+On xe_hpg (`TEST_USE_SDPA_OCL_HPG=1`) `SDPAOclDecodeGenerator` compiles `sdpa_ocl_hpg_decode.cl`, which
+`sdpa_ocl_decode.cl` includes in place of its own kernel when `SUBGROUP_SIZE` is 8 (the SG16 text is unchanged). The
+contract, the partition and window arithmetic, the work split and the dequant identities are the SG16 kernel's; the
+operand forms are DG2's SG8 DPAS (N = 8, A one int = two depth halves per lane, B int8, C float), and there is no 2D
+block IO, so every read is a per-lane one:
+
+- KQ: A = Q, lane l holding head dims (2l, 2l + 1) of each tile; B = K, lane = key, one 32 B (f16) / 16 B (i8) / 8 B (u4)
+  read of the token-major row. A 16-token page is two DPAS per tile (keys `lane` and `lane + 8`), so a lane holds two
+  scores per page. The BY_CHANNEL (scale, zp) pairs of a tile are two dwords per lane (channels 2l, 2l + 1), loaded
+  per page and tile; their scale rides into the A operand and the zero-point correction accumulates per lane in the
+  KQ loop (the SG16 kernel's `K_COMP_PER_READ` form).
+- S*V: A = P, lane l holding keys (2l, 2l + 1) of the page read back from `slm_p`; B = V in VNNI order, dword j = keys
+  (2j, 2j + 1) of the lane's head dim, read down the page rows. The V scale of keys 2l, 2l + 1 multiplies the
+  probabilities; the zp of every key of the page is read by every lane (one uniform address per key).
+- The page of a chunk is one load of its block-table entry at a uniform address, as `pa_v_pages` does for the SG8
+  MIXED reader (above): the SG16 form, a per-lane load of page `lane` and `sub_group_broadcast`, gave wrong pages on
+  DG2 under some code shapes there, and a partition's 16 pages do not fit one lane each anyway.
+- `SG_PER_WG` is 8 (the cross-subgroup combine reduces one value per subgroup over the 8 lanes); M comes from
+  `sg8_grf_estimate()`, the plain layout's count with the doubled Q and score shares, against the same budget of
+  112; the low-register layout, block IO and the V prefetch are not written for SG8. u4 adds 8 for the nibble
+  unpacks: u4 head 128 at M = 4 estimated 106 and spilled 224 bytes, so it runs M = 2. The S*V page loop is unrolled
+  by 4 (`SV_CHUNK_UNROLL`), not whole: whole, i8 BY_CHANNEL head 128 at M = 4 (also estimated 106) spilled 0, 1184
+  or 12160 bytes depending only on how the page index was read, because IGC hoisted the V reads of many pages at
+  once. Every variant of `smoke_paged_attention_decode_tm` compiles without spill.
+- The u4 V row pitch stays the page writer's (`Align(v_head / 2, 16)`), not the reader's subgroup.
+
+The layout rule does not make xe_hpg pages token-major yet (`k_token_major_device()` keeps an Xe2+ term), because
+`sdpa_ocl`'s MIXED does not read every kind of token-major page on SG8; until then the reader runs only on a page a
+test forces token-major (`smoke_paged_attention_decode_tm`: f16, i8 BY_TOKEN, i8 BY_CHANNEL and u4 BY_CHANNEL, heads
+64-512, k != v, kv groups 1 / 2 / 3 / 4 / 8, page and partition edges, window, sink, runtime scale, dynamic padding,
+each also with a sharp softmax). `SDPA_OCL_NEG_SG8=30..35` break it on purpose and fail 26 / 34 / 20 / 2 / 4 / 5 of
+the 51 cases. The compressed tolerances (25e-3 for i8, 75e-3 for u4) hide some of them: 32 fails only f16 cases, 33 only
+the sharp i8 BY_CHANNEL heads 64 / 128 (u4 reads its pairs with the same line), 34 the four sharp i8 BY_TOKEN cases.
+Its speed is not measured yet.
+
 ## Debug and bisection switches
 
 All are read on the host when the kernel is compiled.
@@ -1963,7 +2000,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_HPG_PA_TILE_KEYS` / `_PER_WG_KEYS` / `_PER_WG_QUERIES` | xe_hpg PA PREFILL kernel tiling (16 / 32 keys per subgroup tile, subgroups along keys / queries); a tiling the kernel is not written for throws |
 | `SDPA_OCL_HPG_PA_KQ_UNROLL` | xe_hpg PA PREFILL kernel: unroll of the KQ depth loop (default whole up to head 128, 2 at 256; `0` = whole) |
 | `SDPA_OCL_SG8_KQ_UNROLL` / `SDPA_OCL_SG8_SV_UNROLL` | xe_hpg generic kernel: unroll of the KQ depth loop / S*V key loop (default 1 = not unrolled, `0` = unrolled whole, which spills) |
-| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback, and the unaligned-Q staging of the xe_hpg PA PREFILL kernel (must pass, but for the IGC hazard cases in "xe_hpg follow-ups"); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests); `10` reads plain-SDPA K / V of batch 0, KV head 0 in the PREFILL kernel (must fail `smoke_sdpa_hpg_rows`); `11` / `12` / `13` break the mask of the xe_hpg PREFILL kernel, `18` its head-72 output columns (above) |
+| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback, and the unaligned-Q staging of the xe_hpg PA PREFILL kernel (must pass, but for the IGC hazard cases in "xe_hpg follow-ups"); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests); `10` reads plain-SDPA K / V of batch 0, KV head 0 in the PREFILL kernel (must fail `smoke_sdpa_hpg_rows`); `11` / `12` / `13` break the mask of the xe_hpg PREFILL kernel, `18` its head-72 output columns (above); `30` reads key `lane` for both halves of a page, `31` swaps the S*V key pair, `32` reads the page of chunk % 8 (pages 8-15 of a partition wrong), `33` swaps the BY_CHANNEL pairs, `34` drops the BY_TOKEN K zero point, `35` gives both keys of a pair the even key's V scale in the SG8 decode reader (each must fail `smoke_paged_attention_decode_tm`) |
 | `OV_GPU_ARCH_OVERRIDE` | Debug caps only: report another arch (`xe_hpg`, `xe2`, ...) so its host code runs on this device (dump only) |
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
@@ -1973,7 +2010,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_CAUSAL_SKIP` | PREFILL causal tile skip ("Paged-attention PREFILL: short prompts", "Plain-SDPA causal tile skip"): `0`/`1` forces it off/on (default on for PA at `d_max` 128 / 256 / 512, for plain `is_causal` f16 `d_max` 128, and as the KQ branch alone for plain non-causal table-tile stages without a mask) |
 | `SDPA_OCL_MICRO_MATH` | `0` / `1` forces `sdpa_micro` rounding off / on for PA prefill (default on except the `d_max` 512 tile and on xe_hpg) |
 | `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
-| `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths |
+| `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths (on xe_hpg only `_M` and `_SG_PER_WG` up to 8) |
 | `SDPA_OCL_DECODE_LOW_REG` | Decode low-register layout: `0`/`1` forces it off/on (bit-identical either way) |
 | `SDPA_OCL_DECODE_V_PAGE_1D`, `_K_LANE_TILES` | Decode per-lane pages: `0` restores the V byte gather and the head-dim split; K tiles per per-lane load, 1 / 2 / 4 dividing the tile count (bit-identical) |
 | `OV_GPU_PA_K_TOKEN_MAJOR` | K cache layout ("Paged-attention cache layouts"): `0` every page d-major (MIXED then runs `pa_multi_token`, GENERATE the opt kernels), unset the rule. `1` and `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` are retired and rejected |
