@@ -74,6 +74,20 @@ TEST(NPUWContinuation, KeepRuleRoundsDownToChunk) {
     EXPECT_EQ(c.propose(1500), 1024u);
 }
 
+TEST(NPUWContinuation, KeepRuleGrantsZeroBelowFloor) {
+    // A sliding window cache can resume from 2048 on, the window that ends at the
+    // start of the last prefill chunk. An older keep becomes a full prefill.
+    auto c = make_enabled();
+    c.commit_prefill(3000u, 2048u);
+    c.publish_generate(3050u);
+    EXPECT_EQ(c.propose(3050), 2048u);
+
+    c.commit_prefill(3000u, 2048u);
+    c.publish_generate(3050u);
+    EXPECT_EQ(c.propose(1500), 0u);
+    EXPECT_EQ(c.pending(), 0u);
+}
+
 TEST(NPUWContinuation, SubChunkHistoryGrantsZeroAndArmsReset) {
     auto c = make_after_prefill(1000u, 1u);
     EXPECT_EQ(c.propose(1000), 0u);
