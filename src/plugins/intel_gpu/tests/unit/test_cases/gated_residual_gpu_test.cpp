@@ -1512,6 +1512,10 @@ TEST_P(gated_residual_decomposed_read_test, fuses_and_matches_reference) {
     }
     const bool with_write_gate = std::get<0>(GetParam());
     const bool static_rows = std::get<1>(GetParam());
+    if (static_rows && !get_test_engine().get_device_info().supports_immad) {
+        // Without immad a static f16 ReduceSum is converted to a Pooling before the fusion runs; dynamic shapes are not.
+        GTEST_SKIP() << "static-shape GatedResidual fusion is not available without immad";
+    }
 
     const size_t C = kBranches;
     const size_t D = 64;
