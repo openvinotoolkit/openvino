@@ -26,12 +26,20 @@ namespace ov::util {
 
 ParallelReadStreamBuf::ParallelReadStreamBuf(const std::filesystem::path& path,
                                              std::streamoff header_offset,
-                                             size_t threshold)
+                                             size_t threshold,
+                                             size_t stream_size)
     : m_path(path),
       m_file_offset(header_offset),
       m_header_offset(header_offset),
       m_threshold(threshold) {
-    get_file_handle_and_size(path, m_file_offset, m_handle, m_file_size);
+    get_file_handle_and_size(path, m_file_offset, m_handle, m_read_end_offset);
+    if (stream_size != static_cast<size_t>(-1)) {
+        if (stream_size > static_cast<uint64_t>(m_read_end_offset - m_header_offset)) {
+            close_file_handle(m_handle);
+            throw std::out_of_range("ParallelReadStreamBuf region exceeds file size");
+        }
+        m_read_end_offset = m_header_offset + static_cast<std::streamoff>(stream_size);
+    }
 }
 
 ParallelReadStreamBuf::~ParallelReadStreamBuf() {
@@ -59,11 +67,11 @@ std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n)
         n -= from_buf;
     }
 
-    if (n <= 0 || m_file_offset >= m_file_size) {
+    if (n <= 0 || m_file_offset >= m_read_end_offset) {
         return total;
     }
 
-    const std::streamoff remaining = m_file_size - m_file_offset;
+    const std::streamoff remaining = m_read_end_offset - m_file_offset;
     const std::streamsize to_read = static_cast<std::streamsize>((std::min)(static_cast<std::streamoff>(n), remaining));
 
     const size_t bytes = static_cast<size_t>(to_read);
@@ -89,7 +97,7 @@ std::streamsize ParallelReadStreamBuf::xsgetn(char_type* dst, std::streamsize n)
 
 // underflow: called for single-char peek / non-bulk reads (e.g. std::getline)
 ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
-    if (m_file_offset >= m_file_size) {
+    if (m_file_offset >= m_read_end_offset) {
         return traits_type::eof();
     }
     if (!m_underflow_buf) {
@@ -98,7 +106,7 @@ ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
     // Read a batch of up to UNDERFLOW_BUF bytes so that character-by-character
     // consumers (std::getline, operator>>) don't issue one pread per char.
     const size_t to_read =
-        static_cast<size_t>((std::min)(static_cast<std::streamoff>(UNDERFLOW_BUF), m_file_size - m_file_offset));
+        static_cast<size_t>((std::min)(static_cast<std::streamoff>(UNDERFLOW_BUF), m_read_end_offset - m_file_offset));
     // Prefetch fast path: fill the underflow buffer from the prefetched window
     // if possible, avoiding a pread per 8 KiB chunk of character-by-character
     // consumption (operator>>, std::getline).
@@ -118,7 +126,7 @@ ParallelReadStreamBuf::int_type ParallelReadStreamBuf::underflow() {
 ParallelReadStreamBuf::pos_type ParallelReadStreamBuf::seekoff(off_type off,
                                                                std::ios_base::seekdir way,
                                                                std::ios_base::openmode /* which */) {
-    // All internal positions (m_file_offset, m_file_size, m_header_offset) are
+    // All internal positions (m_file_offset, m_read_end_offset, m_header_offset) are
     // absolute byte offsets from the start of the file.  The public-facing
     // stream positions are *logical* offsets: 0 == header_offset in the file.
     std::streamoff new_pos = 0;
@@ -134,16 +142,16 @@ ParallelReadStreamBuf::pos_type ParallelReadStreamBuf::seekoff(off_type off,
         // tell would force the next read to re-issue a pread for data that is
         // already buffered, breaking interleaved getline()+tellg() patterns.
         if (off == 0) {
-            if (new_pos < m_header_offset || new_pos > m_file_size)
+            if (new_pos < m_header_offset || new_pos > m_read_end_offset)
                 return pos_type(off_type(-1));
             return pos_type(new_pos - m_header_offset);
         }
     } else {
-        new_pos = m_file_size + off;  // stays absolute
+        new_pos = m_read_end_offset + off;  // stays absolute
     }
 
-    // Reject seeks before the logical stream start or past the file end.
-    if (new_pos < m_header_offset || new_pos > m_file_size) {
+    // Reject seeks outside the exposed region.
+    if (new_pos < m_header_offset || new_pos > m_read_end_offset) {
         return pos_type(off_type(-1));
     }
 
@@ -167,7 +175,7 @@ ParallelReadStreamBuf::pos_type ParallelReadStreamBuf::seekpos(pos_type pos, std
 
 std::streamsize ParallelReadStreamBuf::showmanyc() {
     // Report both buffered characters (in the get area) and remaining
-    // bytes in the underlying file.
+    // bytes in the exposed region.
     // Per [streambuf.virt.get]/6: return -1 when the next call to
     // underflow() would return traits_type::eof() (i.e. stream truly
     // exhausted).  Return 0 when availability is unknown.  Here both
@@ -177,7 +185,7 @@ std::streamsize ParallelReadStreamBuf::showmanyc() {
     if (gptr() != nullptr && egptr() != nullptr && egptr() > gptr()) {
         buffered = static_cast<std::streamsize>(egptr() - gptr());
     }
-    std::streamoff remaining_off = m_file_size - m_file_offset;
+    std::streamoff remaining_off = m_read_end_offset - m_file_offset;
     if (remaining_off < 0) {
         remaining_off = 0;
     }
@@ -200,11 +208,11 @@ bool ParallelReadStreamBuf::prefetch(std::streamsize size) {
     const std::streamoff ahead = (gptr() != nullptr) ? static_cast<std::streamoff>(egptr() - gptr()) : 0;
     const std::streamoff abs_begin = m_file_offset - ahead;
 
-    if (abs_begin < 0 || abs_begin >= m_file_size) {
+    if (abs_begin < 0 || abs_begin >= m_read_end_offset) {
         return false;
     }
 
-    const std::streamoff remaining = m_file_size - abs_begin;
+    const std::streamoff remaining = m_read_end_offset - abs_begin;
     const size_t to_load = static_cast<size_t>((std::min)(static_cast<std::streamoff>(size), remaining));
     if (to_load == 0) {
         return false;
