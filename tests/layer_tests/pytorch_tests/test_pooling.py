@@ -209,6 +209,25 @@ class TestPooling(PytorchLayerTest):
             actual = compiled((data.numpy(),))[0]
             np.testing.assert_allclose(actual, traced(data).numpy(), rtol=1e-4, atol=1e-4)
 
+    @pytest.mark.parametrize("kernel_size,expected_op", [([1280, 1280], "ReduceMean"), ([9, 7], "ReduceMean"),
+                                                         ([9, 2], "AvgPool"), ([7, 7], "AvgPool")])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_oversized_kernel_static_single_window(self, kernel_size, expected_op, count_include_pad,
+                                                            ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=kernel_size, stride=None, padding=0,
+                                     ceil_mode=True, count_include_pad=count_include_pad)
+        example = torch.randn(1, 2, 7, 7)
+        ov_model = ov.convert_model(model, example_input=example, input=[ov.PartialShape(list(example.shape))])
+        op_types = [node.get_type_name() for node in ov_model.get_ordered_ops()]
+        other_op = "AvgPool" if expected_op == "ReduceMean" else "ReduceMean"
+        assert expected_op in op_types and other_op not in op_types, op_types
+        compiled = ov.Core().compile_model(ov_model, ie_device, {"INFERENCE_PRECISION_HINT": "f32"})
+        with torch.no_grad():
+            expected = model(example).numpy()
+        np.testing.assert_allclose(compiled((example.numpy(),))[0], expected, rtol=1e-4, atol=1e-4)
+
     @pytest.mark.parametrize("kernel_size,stride,padding,count_include_pad", [
         (2, 2, 0, False),
         (3, 2, 1, True),

@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <numeric>
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
@@ -14,6 +15,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/pad.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -83,10 +85,22 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     auto pads_end = pads;
     bool extended = false;
     std::vector<bool> sliced(kernel.size(), false);
-    if (dims < 3 && rounding_type == RoundingType::CEIL_TORCH && strides.size() == kernel.size() &&
-        pads.size() == kernel.size()) {
-        const auto& shape = input.get_partial_shape();
-        const bool has_spatial_dims = shape.rank().is_static() && shape.size() == kernel.size() + 2;
+    const auto& shape = input.get_partial_shape();
+    const bool has_spatial_dims = shape.rank().is_static() && shape.size() == kernel.size() + 2;
+    const bool is_supported = dims < 3 && rounding_type == RoundingType::CEIL_TORCH &&
+                              strides.size() == kernel.size() && pads.size() == kernel.size();
+    // A kernel covering every static unpadded axis yields a single window, so reduce instead of scanning the kernel.
+    bool single_window = is_supported && has_spatial_dims;
+    bool oversized = false;
+    for (size_t i = 0; i < kernel.size() && single_window; ++i) {
+        const auto& dim = shape[i + 2];
+        const auto k = static_cast<int64_t>(kernel[i]);
+        single_window = pads[i] == 0 && dim.is_static() && dim.get_length() > 0 && dim.get_length() <= k &&
+                        dim.get_length() + static_cast<int64_t>(strides[i]) > k;
+        oversized = oversized || (single_window && dim.get_length() < k);
+    }
+    single_window = single_window && oversized;
+    if (is_supported && !single_window) {
         for (size_t i = 0; i < kernel.size(); ++i) {
             const auto min_padded_length =
                 has_spatial_dims ? shape[i + 2].get_min_length() + 2 * static_cast<int64_t>(pads[i]) : 0;
@@ -145,13 +159,21 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
         auto pads_const = v0::Constant::create(element::i64, Shape{explicit_pads.size()}, explicit_pads);
         input = context.mark_node(std::make_shared<v12::Pad>(input, pads_const, pads_const, PadMode::CONSTANT));
     }
-    Output<Node> res = context.mark_node(std::make_shared<v14::AvgPool>(input,
-                                                                        strides,
-                                                                        pads_begin,
-                                                                        pads_end,
-                                                                        kernel,
-                                                                        exclude_pad || extended,
-                                                                        rounding_type));
+    Output<Node> res;
+    if (single_window) {
+        std::vector<int64_t> spatial_axes(kernel.size());
+        std::iota(spatial_axes.begin(), spatial_axes.end(), 2);
+        auto axes = v0::Constant::create(element::i64, Shape{spatial_axes.size()}, spatial_axes);
+        res = context.mark_node(std::make_shared<v1::ReduceMean>(input, axes, true));
+    } else {
+        res = context.mark_node(std::make_shared<v14::AvgPool>(input,
+                                                               strides,
+                                                               pads_begin,
+                                                               pads_end,
+                                                               kernel,
+                                                               exclude_pad || extended,
+                                                               rounding_type));
+    }
     if (slice_axes_const) {
         const auto& axes_shape = slice_axes_const->get_shape();
         auto zeros = v0::Constant::create(element::i64, axes_shape, {0});
