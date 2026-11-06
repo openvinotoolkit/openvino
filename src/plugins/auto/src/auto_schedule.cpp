@@ -849,6 +849,20 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     if (cached == m_dynamic_compiled_models.end()) {
         return;
     }
+    // Without a cache for this device, a released model would need a full recompilation.
+    const auto info = std::find_if(m_context->m_device_priorities_initial.begin(),
+                                   m_context->m_device_priorities_initial.end(),
+                                   [&](const DeviceInformation& device) {
+                                       return device.device_name == device_name;
+                                   });
+    const ov::AnyMap no_config;
+    if (CacheWarmupManager::get_cache_location(*m_context->m_ov_core,
+                                               info != m_context->m_device_priorities_initial.end() ? info->config
+                                                                                                    : no_config,
+                                               device_name)
+            .empty()) {
+        return;
+    }
     auto& workers = m_worker_requests[device_name];
     auto& idle_workers = m_idle_worker_requests[device_name];
     std::vector<std::pair<int, WorkerInferRequest*>> popped;
@@ -858,8 +872,8 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     }
     // a worker that is not idle is still running, keep the device
     if (popped.size() != workers.size()) {
-        for (const auto& idle_worker : popped) {
-            idle_workers.try_push(idle_worker);
+        for (auto idle_worker : popped) {
+            idle_workers.try_push(std::move(idle_worker));
         }
         return;
     }
