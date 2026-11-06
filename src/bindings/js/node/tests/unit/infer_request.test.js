@@ -6,7 +6,13 @@ const fs = require("node:fs/promises");
 const { addon: ov } = require("../..");
 const assert = require("assert");
 const { describe, it, before, beforeEach } = require("node:test");
-const { testModels, isModelAvailable, lengthFromShape, generateImage } = require("../utils.js");
+const {
+  testModels,
+  isModelAvailable,
+  lengthFromShape,
+  generateImage,
+  sleep,
+} = require("../utils.js");
 
 describe("ov.InferRequest tests", () => {
   const { testModelFP32 } = testModels;
@@ -169,6 +175,80 @@ describe("ov.InferRequest tests", () => {
     assert.strictEqual(await infer(namedInputs(inputNames.toReversed())), 8);
     assert.strictEqual(await infer(positionalInputs(inputNames)), 8);
     assert.strictEqual(await infer(positionalInputs(inputNames.toReversed())), -8);
+  });
+
+  it("inferAsync() of an independent request does not wait for another request", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const size = 2048;
+    const dims = `<dim>${size}</dim><dim>${size}</dim>`;
+    const parameter = (id, name) => `
+      <layer id="${id}" name="${name}" type="Parameter" version="opset1">
+        <data shape="${size},${size}" element_type="f32" />
+        <output><port id="0" precision="FP32" names="${name}">${dims}</port></output>
+      </layer>`;
+    const matMulXml = `<?xml version="1.0"?>
+      <net name="MatMulModel" version="11">
+        <layers>
+          ${parameter(0, "a")}
+          ${parameter(1, "b")}
+          <layer id="2" name="matmul" type="MatMul" version="opset1">
+            <data transpose_a="false" transpose_b="false" />
+            <input><port id="0" precision="FP32">${dims}</port><port id="1" precision="FP32">${dims}</port></input>
+            <output><port id="2" precision="FP32" names="out">${dims}</port></output>
+          </layer>
+          <layer id="3" name="result" type="Result" version="opset1">
+            <input><port id="0" precision="FP32">${dims}</port></input>
+          </layer>
+        </layers>
+        <edges>
+          <edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+          <edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+          <edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+        </edges>
+      </net>`;
+    // A single-threaded f32 MatMul keeps the first request busy much longer than the second one.
+    const slowModel = core.compileModelSync(core.readModelSync(Buffer.from(matMulXml)), "CPU", {
+      INFERENCE_NUM_THREADS: 1,
+      INFERENCE_PRECISION_HINT: "f32",
+    });
+    const fastModel = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
+    const matrix = new ov.Tensor(ov.element.f32, [size, size], new Float32Array(size * size));
+    const vector = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(1));
+    const finished = [];
+
+    const slow = slowModel
+      .createInferRequest()
+      .inferAsync([matrix, matrix])
+      .then(() => finished.push("slow"));
+    await sleep(10);
+    await fastModel
+      .createInferRequest()
+      .inferAsync([vector, vector])
+      .then(() => finished.push("fast"));
+    await slow;
+
+    assert.deepStrictEqual(finished, ["fast", "slow"]);
+  });
+
+  it("concurrent inferAsync() calls on one request return their own results", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const compiled = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
+    const inferRequest = compiled.createInferRequest();
+    const values = Array.from({ length: 16 }, (_, i) => i);
+
+    const results = await Promise.all(
+      values.map((value) => {
+        const tensor = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(value));
+        return inferRequest.inferAsync([tensor, tensor]);
+      }),
+    );
+
+    assert.deepStrictEqual(
+      results.map((result) => Object.values(result)[0].data[0]),
+      values.map((value) => 2 * value),
+    );
   });
 
   describe("BigInt InferRequest support", () => {

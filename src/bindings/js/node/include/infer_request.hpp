@@ -5,15 +5,18 @@
 #pragma once
 #include <napi.h>
 
+#include <memory>
+#include <mutex>
 #include <thread>
 
 #include "node/include/helper.hpp"
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
-    TsfnContext(Napi::Env env, const ov::InferRequest& infer_request)
+    TsfnContext(Napi::Env env, const ov::InferRequest& infer_request, std::shared_ptr<std::mutex> infer_mutex)
         : deferred(Napi::Promise::Deferred::New(env)),
-          _ir(infer_request) {};
+          _ir(infer_request),
+          _infer_mutex(std::move(infer_mutex)) {};
 
     std::thread native_thread;
 
@@ -21,6 +24,7 @@ struct TsfnContext {
     Napi::ThreadSafeFunction tsfn;
 
     ov::InferRequest _ir;
+    std::shared_ptr<std::mutex> _infer_mutex;
     ParsedInputData _inputs;
     std::map<std::string, ov::Tensor> result;
 };
@@ -124,6 +128,9 @@ public:
 
 private:
     ov::InferRequest _infer_request;
+    /// Serializes inferAsync() calls on this request. Shared with the worker thread,
+    /// which can outlive this object.
+    std::shared_ptr<std::mutex> _infer_mutex = std::make_shared<std::mutex>();
 };
 
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context);
