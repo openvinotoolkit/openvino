@@ -902,7 +902,11 @@ bool dword_token_matrix_ok(const layout& l) {
 // the docs (one 8 x 8 accumulator tile garbage with a dynamic K / V padding): the driver's IGC 2.41.5 miscompiles a V lead of
 // 4 there, and the SDPA_OCL_NEG_SG8=4 fallback build, not the default.
 // SDPA_OCL_HPG_PA_PREFILL=0 turns it off for A/B, and a SDPA_OCL_KQ_* override does too (it tiles the generic kernel).
-bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, size_t v_head_size) {
+// It serves PA MIXED (!is_prefill) at the same heads on f16 caches, without token_type_ids or qq_bias: it reads every key
+// from the token-major pages (the only ones sdpa_ocl's MIXED reads; PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it
+// off a d-major page, where the stage only compiles) and of the inputs only Q. SDPA_OCL_HPG_PA_MIXED=0 turns MIXED off for
+// A/B (the generic kernel).
+bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t k_head_size, size_t v_head_size) {
     const bool head_ok =
         k_head_size == v_head_size && (k_head_size == 64 || k_head_size == 96 || k_head_size == 128 || k_head_size == 256 || k_head_size == 512);
     if (params.get_device_info().arch != gpu_arch::xe_hpg || !params.is_type<paged_attention>() || !head_ok) {
@@ -914,6 +918,16 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, size_t k_head_size, siz
     const auto desc = params.typed_desc<paged_attention>();
     if (desc->has_alibi || !desc->scale_val.has_value()) {
         return false;
+    }
+    if (!is_prefill) {
+        if (env_int("SDPA_OCL_HPG_PA_MIXED", 1) == 0 || desc->has_token_type_ids || desc->has_qq_bias) {
+            return false;
+        }
+        const auto& kc = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+        const auto& vc = params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE];
+        const auto& q = params.input_layouts[PagedAttentionInputIdx::QUERY];
+        return kc.data_type == data_types::f16 && vc.data_type == data_types::f16 && q.data_type == data_types::f16 &&
+               dword_token_matrix_ok(q) && params.output_layouts[0].data_type == data_types::f16;
     }
     for (const size_t idx : {PagedAttentionInputIdx::QUERY, PagedAttentionInputIdx::KEY, PagedAttentionInputIdx::VALUE}) {
         const auto& l = params.input_layouts[idx];
@@ -1044,10 +1058,10 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
         plain_shape.n_keys = aligned_seq_length(params, 1).get_length();
         plain_shape.q_len = aligned_seq_length(params, 0).get_length();
     }
-    const bool hpg_prefill = is_prefill && (is_pa ? hpg_pa_prefill_ok(params, p.k_head_size, p.v_head_size)
-                                                  : hpg_plain_prefill_ok(params, p.k_head_size, p.v_head_size));
+    const bool hpg_fast = is_pa ? hpg_pa_prefill_ok(params, is_prefill, p.k_head_size, p.v_head_size)
+                                : is_prefill && hpg_plain_prefill_ok(params, p.k_head_size, p.v_head_size);
     p.tiling =
-        hpg_prefill
+        hpg_fast
             ? hpg_pa_prefill_tiling(p.k_head_size)
             : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads, plain_prefill, plain_shape, plain_decode);
     return p;
@@ -1268,9 +1282,12 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // test), 10 = plain SDPA K / V of batch 0, KV head 0 in the xe_hpg PREFILL kernel (must fail smoke_sdpa_hpg_rows), and in its
     // mask 11 = the first query's row, 12 = the mask of batch 0, head 0, 13 = the 8-key halves of each 16-key block swapped (each
     // must fail the smoke_sdpa_hpg_rows mask cases it can see), and 18 = head 72's last value subgroup stores its columns
-    // unshifted (must fail every head-72 case of smoke_sdpa_hpg_rows). On a token-major page in MIXED: 36 = the two keys of a K
-    // pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the odd V row of a pair read at/past k (each must fail
-    // smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases); on an i8 BY_TOKEN page 19 = the K comp of tokens
+    // unshifted (must fail every head-72 case of smoke_sdpa_hpg_rows), and in its PA MIXED 14 = the two 8-key halves of each K
+    // page swapped, 15 = the past ignored by the causal bound, 16 = V of adjacent pages swapped (each must fail the
+    // smoke_paged_attention_mixed_tm cases it can see). In the generic kernel's MIXED on a token-major page (f16 with
+    // SDPA_OCL_HPG_PA_MIXED=0): 36 = the two keys of a K pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the
+    // odd V row of a pair read at/past k (each must fail smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases);
+    // on an i8 BY_TOKEN page 19 = the K comp of tokens
     // 0..7 for both 8-key groups of a page, 20 = the V scales of a lane's two keys swapped, 21 = the V zps of the next key
     // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm), on an i8 BY_CHANNEL
     // page 23 = the (scale, zp) pairs of a lane's two channels swapped, 24 = scale and zp of a pair swapped (each must fail
@@ -1744,7 +1761,7 @@ bool SDPAOclGenerator::uses_hpg_pa_prefill(const kernel_impl_params& params) {
     if (params.get_device_info().arch != gpu_arch::xe_hpg) {
         return false;
     }
-    return hpg_pa_prefill_ok(params, qkv_head_size(params, 1), qkv_head_size(params, 2));
+    return hpg_pa_prefill_ok(params, true, qkv_head_size(params, 1), qkv_head_size(params, 2));
 }
 
 bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size) {
