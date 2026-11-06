@@ -91,7 +91,7 @@ namespace llm {
 enum class PrefillHint { DYNAMIC, STATIC };
 enum class GenerateHint { FAST_COMPILE, BEST_PERF };
 enum class AttentionHint { DYNAMIC, STATIC, PYRAMID, HFA };
-enum class MoEHint { DENSE, HOST_ROUTED, DEVICE_ROUTED };
+enum class MoEHint { DENSE, HOST_ROUTED, DEVICE_ROUTED, FUSED };
 }  // namespace llm
 }  // namespace npuw
 
@@ -266,6 +266,8 @@ struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::MoEHint> {
             return ValueType::HOST_ROUTED;
         } else if (val == "DEVICE_ROUTED") {
             return ValueType::DEVICE_ROUTED;
+        } else if (val == "FUSED") {
+            return ValueType::FUSED;
         }
         OPENVINO_THROW("Unsupported MoE hint provided: ", val);
     }
@@ -278,6 +280,8 @@ struct NPUWStringEnumOptionTraits<::intel_npu::npuw::llm::MoEHint> {
             return "HOST_ROUTED";
         case ValueType::DEVICE_ROUTED:
             return "DEVICE_ROUTED";
+        case ValueType::FUSED:
+            return "FUSED";
         default:
             OPENVINO_THROW("Can't convert provided MoE hint : ", int(val), " to string.");
         }

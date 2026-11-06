@@ -4,6 +4,7 @@
 
 #include "model_builder_moe.hpp"
 
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -141,18 +142,17 @@ ov::Output<ov::Node> BatchedMoEFFN::weighted_expert_sum(const ov::Output<ov::Nod
 GPTOSSMoEFFN::GPTOSSMoEFFN(size_t hs, size_t is, size_t ne, size_t k, ov::element::Type prec, WeightFn wf)
     : BatchedMoEFFN(hs, is, ne, k, prec, std::move(wf), concat_shape) {
     using C = ov::opset11::Constant;
-    int32_t is_i = static_cast<int32_t>(is);
 
     // Use i32 for shape/axis/step constants matching real GPT-OSS HuggingFace export.
-    slice_step = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{1});
+    // Real export interleaves gate/up on the last axis: gate = x[0::2], up = x[1::2].
+    slice_step = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{2});
     slice_axis2 = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{2});
     slice_start_0 = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{0});
-    slice_stop_is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{is_i});
-    slice_start_is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{is_i});
-    slice_stop_2is = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{static_cast<int32_t>(2 * is_i)});
-    min_const = C::create(prec, ov::Shape{1}, std::vector<float>{20.0f});
-    swish_beta = C::create(prec, ov::Shape{}, std::vector<float>{1.0f});
-    clamp_add_zero = C::create(prec, ov::Shape{1}, std::vector<float>{0.0f});
+    slice_start_1 = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{1});
+    slice_stop = C::create(ov::element::i32, ov::Shape{1}, std::vector<int32_t>{std::numeric_limits<int32_t>::max()});
+    min_const = C::create(prec, ov::Shape{1}, std::vector<float>{7.0f});
+    swish_beta = C::create(prec, ov::Shape{}, std::vector<float>{1.702f});
+    clamp_add_one = C::create(prec, ov::Shape{1}, std::vector<float>{1.0f});
     sl_start = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 0});
     sl_step_r = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 1});
     sl_axes = C::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{0, 1});
@@ -207,19 +207,18 @@ ov::Output<ov::Node> GPTOSSMoEFFN::operator()(const ov::Output<ov::Node>& input,
     auto gu_add = std::make_shared<ov::opset11::Add>(gu_mm, gu_bias);
     gu_add->set_friendly_name(name + ".expert.gate_up_add");
 
-    auto act_slice = std::make_shared<ov::op::v8::Slice>(gu_add, slice_start_0, slice_stop_is, slice_step, slice_axis2);
+    auto act_slice = std::make_shared<ov::op::v8::Slice>(gu_add, slice_start_0, slice_stop, slice_step, slice_axis2);
     act_slice->set_friendly_name(name + ".expert.slice_act");
     auto act_min = std::make_shared<ov::opset11::Minimum>(act_slice, min_const);
     act_min->set_friendly_name(name + ".expert.minimum");
     auto act_swish = std::make_shared<ov::op::v4::Swish>(act_min, swish_beta);
     act_swish->set_friendly_name(name + ".expert.swish");
 
-    auto gate_slice =
-        std::make_shared<ov::op::v8::Slice>(gu_add, slice_start_is, slice_stop_2is, slice_step, slice_axis2);
+    auto gate_slice = std::make_shared<ov::op::v8::Slice>(gu_add, slice_start_1, slice_stop, slice_step, slice_axis2);
     gate_slice->set_friendly_name(name + ".expert.slice_gate");
-    auto gate_clamp = std::make_shared<ov::op::v0::Clamp>(gate_slice, -20.0f, 20.0f);
+    auto gate_clamp = std::make_shared<ov::op::v0::Clamp>(gate_slice, -7.0f, 7.0f);
     gate_clamp->set_friendly_name(name + ".expert.clamp");
-    auto gate_add = std::make_shared<ov::opset11::Add>(gate_clamp, clamp_add_zero);
+    auto gate_add = std::make_shared<ov::opset11::Add>(gate_clamp, clamp_add_one);
     gate_add->set_friendly_name(name + ".expert.gate_add");
 
     auto merged = std::make_shared<ov::opset11::Multiply>(act_swish, gate_add);

@@ -113,6 +113,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/device_routed_moe_transform.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/gather_to_2d_gather.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/gather_to_2d_gather.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/llm_moe.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/llm_moe.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation_utils.hpp
