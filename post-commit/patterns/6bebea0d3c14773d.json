@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "AssertionError comparing with framework result in test_tf_Inv TestComplexInv test_complex_inv CPU FP16 precision numeric mismatch on complex tensor division|Flaky Test",
+  "signature_hash": "6bebea0d3c14773d",
+  "title": "test_tf_Inv TestComplexInv::test_complex_inv fails on CPU FP16 numeric accuracy mismatch for complex Inv op",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-06T18:27:49Z",
+  "last_seen": "2026-11-06T18:27:49Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42264669337"
+  ],
+  "affected_commits": [
+    "caa59b5b8a3874d2b7cb0651a56e99a9f38dc450"
+  ],
+  "recent_timestamps": [
+    "2026-11-06T18:27:49Z"
+  ]
+}

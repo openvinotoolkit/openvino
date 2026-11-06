@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-06-18-27-49-838-42264669337",
+  "timestamp": "2026-11-06T18:27:49Z",
+  "run_id": "42264669337",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42264669337",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "caa59b5b8a3874d2b7cb0651a56e99a9f38dc450",
+  "pr_number": "39236",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39236",
+  "author": null,
+  "category": "Flaky Test",
+  "title": "test_tf_Inv TestComplexInv::test_complex_inv fails on CPU FP16 numeric accuracy mismatch for complex Inv op",
+  "signature": "AssertionError comparing with framework result in test_tf_Inv TestComplexInv test_complex_inv CPU FP16 precision numeric mismatch on complex tensor division|Flaky Test",
+  "signature_hash": "6bebea0d3c14773d",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "TF FE pytest step failed one test: test_tf_Inv.py::TestComplexInv::test_complex_inv[input_shape=[3,4,5,6]] with AssertionError comparing ie_res vs framework result"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregate status-check job exits 1 because the TensorFlow Layer Tests job it depends on failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED .../tensorflow_tests/test_tf_Inv.py::TestComplexInv::test_complex_inv[ ie_device:CPU - precision:FP16 - params:{'input_shape': [3, 4, 5, 6]} ] - AssertionError: Comparing with Framework failed: ie_res={'Imag:0': array([[[[-2.85400391e-01, -1.73339844e-02, ...",
+    "##[error]Process completed with exit code 1. (ci/gha_overall_status_linux_arm64, caused solely by exit 1 propagating the TensorFlow Layer Tests failure)"
+  ],
+  "root_cause": "The single failing test, TestComplexInv::test_complex_inv with input_shape [3,4,5,6], exercises TensorFlow's complex-valued Inv (reciprocal) op lowered to OpenVINO's CPU FP16 execution path. The test uses randomly generated complex input data on each run and compares against the TensorFlow framework reference with a fixed numeric tolerance. Complex division (1/z) is numerically unstable when |z| is small, and FP16 has roughly 3 decimal digits of precision versus FP32; small denominators amplify rounding error multiplicatively, occasionally pushing the FP16 CPU result outside the test's comparison tolerance even though no functional bug exists in the Inv implementation. All 23 other complex/FP16 tests in the same run (Eye, FloorDiv, CropAndResize, UnaryOps, etc.) passed, and this exact failing parametrization has not been seen in prior post-commit investigations, which is consistent with an intermittent precision-tolerance issue driven by random test-data seeding rather than a deterministic code regression introduced by the PR in this push (#39236, which only touches CPU/AArch64/RV64 Snippets kernel emitter register-pool logic and has no connection to the TensorFlow frontend Inv translator).",
+  "reproduction_steps": "cd src/frontends/tensorflow/tests (or install/tests/layer_tests in a built package) and run: `python -m pytest tensorflow_tests/test_tf_Inv.py::TestComplexInv::test_complex_inv -k \"input_shape0\" --ie_device=CPU --precision=FP16 -v` repeatedly (the test generates random input data each run, so failure is not guaranteed to reproduce on the first try); if it does not reproduce, try with a fixed numpy random seed around values that produce near-zero complex magnitudes to force the precision edge case.",
+  "recommended_actions": [
+    "File/track a ticket against the TensorFlow Inv (complex) layer test to either widen the FP16 comparison tolerance for this op or clip/avoid near-zero magnitude inputs in the generated test data.",
+    "Re-run the TensorFlow Layer Tests job for this commit to confirm the failure is transient before treating it as a regression blocking master.",
+    "If the failure recurs with increasing frequency (tracked via this pattern's `count`), escalate to the TensorFlow Frontend / CPU plugin owners to review FP16 numerical accuracy of the Inv (reciprocal) kernel for complex inputs."
+  ],
+  "prevention_strategies": "Add a fixed/seeded random generator (or exclude near-zero-magnitude complex samples) for test_tf_Inv's TestComplexInv input generation so FP16 comparisons are deterministic and don't intermittently exceed tolerance; consider a looser, precision-aware tolerance specifically for FP16 complex ops where relative error is inherently amplified by near-singular divisions.",
+  "historical_context": "No prior post-commit investigation matches this exact test or TensorFlow complex Inv op; this is the first recorded occurrence of this signature. Similar sporadic single-test FP16/accuracy-tolerance mismatches have been seen before for other ops (e.g., smoke_tf2_keras_lstm, smoke_Snippets_Eltwise_TwoResults_Dynamic, Keras RNG seed tolerance), all categorized as Flaky Test and none requiring code changes to date."
+}
