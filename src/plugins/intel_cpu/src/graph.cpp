@@ -1654,6 +1654,15 @@ static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
     return numaNodeId;
 }
 
+void Graph::releaseMemory() {
+    m_context->releaseMemory();
+    for (const auto& node : graphNodes) {
+        if (node) {
+            node->releaseMemory();
+        }
+    }
+}
+
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
     const int numaId = GetNumaNodeId(m_context);
