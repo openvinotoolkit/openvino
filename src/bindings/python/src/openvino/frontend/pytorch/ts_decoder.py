@@ -165,6 +165,9 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
                 freeze_by_default = True
             else:
                 pt_module, example_inputs = patch_none_example(pt_module, example_inputs)
+                # the wrapper drops inputs that are None in the example, so its signature has to name the inputs
+                input_params = inspect.signature(pt_module.forward if hasattr(
+                    pt_module, "forward") else pt_module.__call__).parameters
                 input_parameters, input_signature, pt_module, self._input_is_list = prepare_example_inputs_and_model(
                     example_inputs, input_params, pt_module)
 
