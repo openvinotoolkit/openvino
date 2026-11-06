@@ -219,6 +219,8 @@ private:
     void detach_memory();
     std::string global_mem_device() const;
     std::string funcall_mem_device(const std::size_t idx) const;
+    std::string exec_device(const std::size_t idx) const;
+    std::string weights_bank_device(const std::size_t idx) const;
 
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
