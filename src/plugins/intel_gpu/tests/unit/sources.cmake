@@ -362,6 +362,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/stateless_kv_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/swoosh_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/swish_with_clamp_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_fc_decompression_params_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_matmul_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sdpa_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_split_fusion_test.cpp
@@ -489,6 +490,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swoosh_fusion.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swiglu_fusion_with_clamp.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swiglu_fusion_with_clamp.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/transpose_fc_decompression_params.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/transpose_fc_decompression_params.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/transpose_fusion.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/transpose_fusion.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.cpp

@@ -377,8 +377,9 @@ TEST_F(CheckModelCacheOnednnConvAZP, ActivationZeroPointRestoredFromCache) {
     ov::test::utils::compare(orig_req.get_output_tensor(), new_req.get_output_tensor(), compiled_model.output().get_element_type());
 }
 
-TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
-    ov::test::MatMulDecompressionShapeParams shape_params{{{}, {{1, 4, 16}}}, {1, 16, 32}};
+std::shared_ptr<ov::Model> make_matmul_decompression_model(const ov::test::MatMulDecompressionShapeParams& shape_params,
+                                                           const ov::element::Type& weights_dtype,
+                                                           const std::string& name) {
     auto dynShape = shape_params.data_shape.first;
     if (dynShape.rank() == 0) {
         dynShape = shape_params.data_shape.second.front();
@@ -387,7 +388,7 @@ TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
     const auto weights_subgraph = ov::test::utils::initMatMulDecompressionSubgraph(shape_params.weights_shape,
                                                                                    shape_params.decompression_group_size,
                                                                                    ov::element::f32,
-                                                                                   model_dtype,
+                                                                                   weights_dtype,
                                                                                    ov::element::f32,
                                                                                    ov::element::dynamic,
                                                                                    true,
@@ -400,7 +401,18 @@ TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
     for (const auto& output : matmul->outputs()) {
         results.push_back(std::make_shared<ov::op::v0::Result>(output));
     }
-    model = std::make_shared<ov::Model>(results, params, "MatmulWeightsDecompression");
+    return std::make_shared<ov::Model>(results, params, name);
+}
+
+TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
+    model = make_matmul_decompression_model({{{}, {{1, 4, 16}}}, {1, 16, 32}}, model_dtype, "MatmulWeightsDecompression");
+    OV_ASSERT_NO_THROW(run());
+}
+
+// Grouped scale / zero point [N, groups] with transposed weights: the plugin changes their layout for
+// FullyConnectedCompressed, which a weightless cache load must reproduce
+TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulGroupedWeightsDecompression) {
+    model = make_matmul_decompression_model({{{}, {{1, 4, 128}}}, {128, 64}, 32}, model_dtype, "MatmulGroupedWeightsDecompression");
     OV_ASSERT_NO_THROW(run());
 }
 

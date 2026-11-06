@@ -205,6 +205,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/stateless_kv_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/swoosh_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/swiglu_fusion_with_clamp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/transpose_fc_decompression_params.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/transpose_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.cpp
 )

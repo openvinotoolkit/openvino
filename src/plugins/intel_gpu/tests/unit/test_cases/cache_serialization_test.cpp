@@ -409,3 +409,56 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     // Weightless caching must serialize metadata instead of reading that full layout.
     EXPECT_LT(serialized_size(partial_data), serialized_size(plain_data));
 }
+
+// A constant stored transposed (and possibly converted) relative to its weights-file data is rebuilt from that data
+// on a weightless cache load. The model constant may have another rank than the stored one ([N, G, 1] before the FC
+// compression reshape).
+TEST(cache_serialization, weightless_transpose_is_replayed_on_load) {
+    auto& engine = get_test_engine();
+    const size_t N = 8, G = 4;
+    const size_t bin_offset = 64;
+
+    for (const auto& original_shape : {ov::Shape{N, G}, ov::Shape{N, G, 1}}) {
+        for (const auto original_type : {ov::element::f32, ov::element::f16}) {
+            std::vector<float> original_values(N * G);
+            for (size_t i = 0; i < original_values.size(); ++i)
+                original_values[i] = static_cast<float>(i) + 0.5f;
+            auto original = ov::op::v0::Constant::create(original_type, original_shape, original_values);
+            original->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(original->get_byte_size(), bin_offset, original_type);
+            auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(original)}, ov::ParameterVector{});
+
+            // [G, N] f16, as the compiled model holds it
+            const layout transposed_layout({static_cast<int64_t>(G), static_cast<int64_t>(N)}, data_types::f16, format::bfyx);
+            auto mem = engine.allocate_memory(transposed_layout);
+            std::vector<ov::float16> expected(N * G);
+            for (size_t n = 0; n < N; ++n)
+                for (size_t g = 0; g < G; ++g)
+                    expected[g * N + n] = ov::float16(original_values[n * G + g]);
+            set_values(mem, expected);
+
+            data saved("transposed", mem);
+            saved.cache_info->set_constant_info(bin_offset, original->get_byte_size(), original_type, ov::element::f16, ov::Shape{G, N});
+            saved.cache_info->apply_transpose({1, 0});
+
+            membuf mem_buf;
+            {
+                std::ostream out_mem(&mem_buf);
+                BinaryOutputBuffer ob(out_mem);
+                ob.set_stream(get_test_stream_ptr().get());
+                saved.save(ob);
+            }
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib(in_mem, engine);
+            data loaded;
+            loaded.load(ib);
+            loaded.load_weights(ib, std::make_shared<WeightsMemory>(model), nullptr);
+
+            ASSERT_EQ(loaded.mem->get_layout(), transposed_layout);
+            mem_lock<ov::float16, mem_lock_type::read> actual(loaded.mem, get_test_stream());
+            for (size_t i = 0; i < expected.size(); ++i)
+                ASSERT_EQ(static_cast<float>(actual[i]), static_cast<float>(expected[i]))
+                    << "original shape " << original_shape << " type " << original_type << " index " << i;
+        }
+    }
+}
