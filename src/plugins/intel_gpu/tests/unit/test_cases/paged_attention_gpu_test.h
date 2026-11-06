@@ -884,6 +884,62 @@ struct PagedAttentionManager {
         return memory;
     }
 
+    // NaN in every f16 cache slot no past token fills: the new tokens' slots (which the cache update writes before the
+    // attention reads them) and the tail of each subsequence's last page, which nothing writes. A reader that loads whole
+    // pages must clear the tail's scores by an assignment: -INFINITY added to a NaN score stays NaN.
+    void poison_unwritten_cache_slots(cldnn::memory::ptr key_cache, cldnn::memory::ptr value_cache) {
+        OPENVINO_ASSERT(!kv_cache_compression, "poison_cache_tail takes f16 caches only");
+        const bool k_token_major = k_cache_token_major();
+        const auto nan = std::numeric_limits<ov::float16>::quiet_NaN();
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read_write> k(key_cache, test_stream);
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read_write> v(value_cache, test_stream);
+        for (size_t i = 0; i < subsequence_descs.size(); i++) {
+            for (int b = block_indices_begins[i]; b < block_indices_begins[i + 1]; b++) {
+                const size_t page = static_cast<size_t>(block_indices[b]);
+                for (int t = 0; t < block_size; t++) {
+                    if ((b - block_indices_begins[i]) * block_size + t < subsequence_descs[i].past_len)
+                        continue;
+                    for (int h = 0; h < num_kv_heads; h++) {
+                        const size_t k_page = (page * num_kv_heads + h) * k_head_size * block_size;
+                        for (int d = 0; d < k_head_size; d++)
+                            k[k_page + (k_token_major ? t * k_head_size + d : d * block_size + t)] = nan;
+                        const size_t v_page = (page * num_kv_heads + h) * block_size * v_head_size;
+                        for (int d = 0; d < v_head_size; d++)
+                            v[v_page + t * v_head_size + d] = nan;
+                    }
+                }
+            }
+        }
+    }
+
+    // The K cache slots past each subsequence's keys (the tail of its last page) that are NaN after the run: the poison
+    // proves something only if it is still there when the attention reads the page.
+    size_t count_nan_cache_tail(cldnn::memory::ptr key_cache, size_t& tail_slots) {
+        const bool k_token_major = k_cache_token_major();
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> k(key_cache, test_stream);
+        size_t nan_count = 0;
+        tail_slots = 0;
+        for (size_t i = 0; i < subsequence_descs.size(); i++) {
+            const int keys = subsequence_descs[i].past_len + subsequence_descs[i].num_tokens;
+            for (int b = block_indices_begins[i]; b < block_indices_begins[i + 1]; b++) {
+                const size_t page = static_cast<size_t>(block_indices[b]);
+                for (int t = 0; t < block_size; t++) {
+                    if ((b - block_indices_begins[i]) * block_size + t < keys)
+                        continue;
+                    for (int h = 0; h < num_kv_heads; h++) {
+                        const size_t k_page = (page * num_kv_heads + h) * k_head_size * block_size;
+                        for (int d = 0; d < k_head_size; d++) {
+                            tail_slots++;
+                            nan_count += std::isnan(static_cast<float>(k[k_page + (k_token_major ? t * k_head_size + d : d * block_size + t)])) ? 1 : 0;
+                        }
+                    }
+                }
+            }
+        }
+        return nan_count;
+    }
+
+
     cldnn::memory::ptr get_past_lens_memory() {
         return get_memory_from_vec(past_lens);
     }
@@ -2328,6 +2384,8 @@ public:
             result.key_cache_mem = pam.get_key_cache_memory();
         }
         result.value_cache_mem = pam.get_value_cache_memory();
+        if (p.poison_cache_tail)
+            pam.poison_unwritten_cache_slots(result.key_cache_mem, result.value_cache_mem);
 
         auto past_lens_mem = pam.get_past_lens_memory();
         auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
@@ -3457,6 +3515,9 @@ struct paged_attention_test_params {
     // query by head sizes. The pads are not multiples of 64 B on purpose: the 2D block IO gates in sdpa_ocl must not
     // assume an aligned base or pitch for a padded rank-2 input.
     std::optional<input_feature_pads> input_pads = std::nullopt;
+
+    // NaN in the cache slots no past token fills (PagedAttentionManager::poison_unwritten_cache_slots()), f16 caches only.
+    bool poison_cache_tail = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;

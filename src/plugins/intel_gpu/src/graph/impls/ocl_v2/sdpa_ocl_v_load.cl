@@ -18,7 +18,11 @@ SDPA_OCL_INLINE void FUNC(pa_v_pages)(__private uint *v_blk, const __global INPU
     // read another block), and which shapes failed moved with unrelated edits of the S*V loop.
     #pragma unroll
     for (int cp = 0; cp < sv_key_blocks; ++cp) {
+#if defined(NEG_SG8) && NEG_SG8 == 37
+        const int key = k0 + (cp ^ 1) * DPAS_K;  // negative control: the V pages of adjacent blocks swapped
+#else
         const int key = k0 + cp * DPAS_K;
+#endif
         v_blk[cp] = (key < k) ? block_indices[base_block_index + key / PAGED_ATTENTION_BLOCK_SIZE] : 0u;
     }
 #else
@@ -631,7 +635,11 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_gather)(__private int8 *vb, const __global V
                     vv[0] = V[v_page_base +
                               (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value];
                 }
+#if defined(NEG_SG8) && NEG_SG8 == 38
+                if (true) {  // negative control: the odd row of a pair read at/past k too
+#else
                 if (key1 < k) {
+#endif
                     vv[1] = V[v_page_base +
                               (size_t)(key1 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value];
                 }
