@@ -3197,6 +3197,17 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     };
 
     const auto& device_info = _engine.get_device_info();
+    GPU_DEBUG_IF(node.is_dynamic_output_layout() && !out_layout.is_static()) {
+        const auto element_size = data_type_traits::size_of(out_layout.data_type);
+        size_t max_shape_bytes = element_size;
+        for (const auto dim : out_layout.get_partial_shape().get_max_shape()) {
+            OPENVINO_ASSERT(dim == 0 || max_shape_bytes <= device_info.max_global_mem_size / dim,
+                            node.id(),
+                            ": dynamic output upper bound exceeds device memory: ",
+                            out_layout.to_short_string());
+            max_shape_bytes *= dim;
+        }
+    }
     auto layout = out_layout.clone_with_other_shape(out_layout.get_partial_shape().get_max_shape());
     bool usm_device_allocatable = true;
     const auto& total_device_input_mem_size = std::accumulate(impl_params.input_layouts.begin(), impl_params.input_layouts.end(), (uint64_t)0, device_mem_acc);
