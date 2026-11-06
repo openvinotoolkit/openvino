@@ -55,6 +55,7 @@ std::vector<std::string> TPConfig::resolve_device_names() const {
     OPENVINO_ASSERT(names.size() >= 2,
                     "TP requires at least 2 devices, got ",
                     names.size(),
+                    names.empty() ? std::string{} : " (\"" + get_priorities() + "\")",
                     ". List them in the device name, e.g. \"TP:GPU.0,GPU.1\".");
     device_type(names);
     return names;

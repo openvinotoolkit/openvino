@@ -33,7 +33,21 @@ TEST(TPDeviceNameTest, RequiresAtLeastTwoDevices) {
     ov::Core core;
     const auto model = make_transformer_block(BlockConfig{});
     OV_EXPECT_THROW(core.compile_model(model, "TP"), ov::Exception, HasSubstr("at least 2 devices, got 0"));
-    OV_EXPECT_THROW(core.compile_model(model, "TP:" + named(0)), ov::Exception, HasSubstr("at least 2 devices, got 1"));
+    OV_EXPECT_THROW(core.compile_model(model, "TP:"), ov::Exception, HasSubstr("at least 2 devices, got 0"));
+    OV_EXPECT_THROW(core.compile_model(model, "TP:" + named(0)),
+                    ov::Exception,
+                    HasSubstr("at least 2 devices, got 1 (\"" + named(0) + "\")"));
+    // A device id on TP itself becomes the list; the message shows what was understood.
+    OV_EXPECT_THROW(core.compile_model(model, "TP.0"), ov::Exception, HasSubstr("got 1 (\"0\")"));
+}
+
+// Other virtual devices cannot host ranks: their names do not share one device type with the rest,
+// or their plugin has no collectives.
+TEST(TPDeviceNameTest, RejectsVirtualDevicesAsRanks) {
+    ov::Core core;
+    const auto model = make_transformer_block(BlockConfig{});
+    for (const std::string list : {"HETERO:" + named(0) + "," + named(1), "TP:" + named(0) + "," + named(1)})
+        OV_EXPECT_THROW(core.compile_model(model, "TP:" + list), ov::Exception, HasSubstr("one device type"));
 }
 
 TEST(TPDeviceNameTest, RejectsMixedDeviceTypes) {
@@ -150,6 +164,25 @@ TEST_F(TPDevicePropertiesTest, RejectsAGroupTheDevicePluginCannotServe) {
     OV_EXPECT_THROW(core.compile_model(model, "TP:" + rank_device(0) + "," + rank_device(0)),
                     ov::Exception,
                     HasSubstr(repeated));
+    // The same device under its default name.
+    const auto aliased = support(core, {rank_device_type(), rank_device(0)}, ov::tp::auto_backend);
+    EXPECT_NE(aliased, "");
+    OV_EXPECT_THROW(core.compile_model(model, "TP:" + rank_device_type() + "," + rank_device(0)),
+                    ov::Exception,
+                    HasSubstr(aliased));
+}
+
+// Device names the device plugin does not know: refused with its reason before anything is compiled.
+TEST_F(TPDevicePropertiesTest, RejectsDevicesThatDoNotExist) {
+    ov::Core core;
+    const auto model = make_transformer_block(BlockConfig{});
+    for (const auto& missing : {rank_device_type() + ".99", rank_device_type() + ".-1", rank_device_type() + ".x"}) {
+        const auto reason = support(core, {rank_device(0), missing}, ov::tp::auto_backend);
+        ASSERT_NE(reason, "") << missing;
+        OV_EXPECT_THROW(core.compile_model(model, "TP:" + rank_device(0) + "," + missing),
+                        ov::Exception,
+                        HasSubstr(reason));
+    }
 }
 
 // With rank 0's device all but full, the rank weights do not fit: the compilation stops before

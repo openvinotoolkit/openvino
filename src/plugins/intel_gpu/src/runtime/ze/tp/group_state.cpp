@@ -6,6 +6,7 @@
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "openvino/runtime/tp/collective_contract.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -484,7 +485,20 @@ void GroupState::ensure_staging(Staging& s,
 
         ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
         void* fresh = nullptr;
-        ZE_THROW(ov::zeMemAllocDevice(m_shared->context, &mad, need, 256, device(rank), &fresh));
+        const auto result = ov::zeMemAllocDevice(m_shared->context, &mad, need, 256, device(rank), &fresh);
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                        "[GPU][TP] rank ",
+                        rank,
+                        " cannot grow its collective staging to ",
+                        need,
+                        " bytes for a message of ",
+                        payload_bytes,
+                        " bytes: Level Zero error 0x",
+                        std::hex,
+                        static_cast<uint32_t>(result),
+                        ". A fixed ",
+                        ov::tp::internal::comm_buffer_size.name(),
+                        " splits large messages instead");
         {
             std::lock_guard<std::mutex> lock(m_staging_mutex);
             if (s.base) {
@@ -518,8 +532,18 @@ std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& s
                     " bytes");
     ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
     void* base = nullptr;
-    ZE_THROW(ov::zeMemAllocDevice(shared->context, &mad, bytes, 256, shared->devices[static_cast<std::size_t>(rank)],
-                                  &base));
+    const auto result =
+        ov::zeMemAllocDevice(shared->context, &mad, bytes, 256, shared->devices[static_cast<std::size_t>(rank)], &base);
+    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS,
+                    "[GPU][TP] rank ",
+                    rank,
+                    " cannot allocate its collective staging of ",
+                    bytes,
+                    " bytes (",
+                    ov::tp::internal::comm_buffer_size.name(),
+                    "): Level Zero error 0x",
+                    std::hex,
+                    static_cast<uint32_t>(result));
     // The deleter holds the context, which must outlive the allocation.
     return std::shared_ptr<void>(base, [shared](void* p) {
         ov::zeMemFree(shared->context, p);

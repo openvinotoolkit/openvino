@@ -85,11 +85,13 @@ private:
     /// `device_names` with the configured backend; throws its reason if not.
     void check_collective_support(const std::vector<std::string>& device_names, const TPConfig& config) const;
 
-    /// Throws, with the fewest devices that would do, when a rank's weights alone exceed its
-    /// device's free memory. Skipped when the device plugin does not report its memory.
+    /// Throws, with the fewest devices that would do, when a rank's weights and fixed collective
+    /// staging exceed its device's free memory, or the staging its largest allocation. Skipped
+    /// when the device plugin does not report its memory.
     void check_rank_memory(const ov::Model& analyzed,
                            const std::vector<std::string>& device_names,
-                           uint32_t shard_degree) const;
+                           uint32_t shard_degree,
+                           size_t staging) const;
 
     /// The UUIDs of the devices, which identify a device across its names.
     std::vector<std::string> device_uuids(const std::vector<std::string>& device_names) const;

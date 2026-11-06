@@ -202,6 +202,16 @@ TEST_F(GPUTPContextTest, RejectsASecondModelOnTheChannel) {
                     HasSubstr("already bound to a model"));
 }
 
+// A staging the device cannot allocate is named in the error rather than left to a Level Zero code.
+TEST_F(GPUTPContextTest, ExplainsAStagingItCannotAllocate) {
+    auto group = InProcessExchange::create_group(2, std::chrono::milliseconds{5000});
+    auto params = rank_params(group, 0);
+    params[ov::tp::internal::comm_buffer_size.name()] = size_t{1} << 60;
+    OV_EXPECT_THROW(core.create_context("GPU.0", params),
+                    ov::Exception,
+                    HasSubstr("rank 0 cannot allocate its collective staging of 1152921504606846976 bytes"));
+}
+
 // The ranks check at the first binding that they were given the same fixed staging.
 TEST_F(GPUTPContextTest, RejectsRanksThatDisagreeOnTheStagingSize) {
     auto group = InProcessExchange::create_group(2, std::chrono::milliseconds{5000});

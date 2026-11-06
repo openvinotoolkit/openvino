@@ -445,25 +445,41 @@ void Plugin::check_collective_support(const std::vector<std::string>& device_nam
 
 void Plugin::check_rank_memory(const ov::Model& analyzed,
                                const std::vector<std::string>& device_names,
-                               uint32_t shard_degree) const {
+                               uint32_t shard_degree,
+                               size_t staging) const {
     const auto type = TPConfig::device_type(device_names);
     const auto internal = get_core()->get_property(type, ov::internal::supported_properties);
     if (!ov::util::contains(internal, ov::tp::internal::device_memory.name()))
         return;
 
-    const auto weights = rank_weights(analyzed, shard_degree);
+    // The fixed staging is allocated with the rank contexts, before any weight: it counts as kept whole.
+    auto weights = rank_weights(analyzed, shard_degree);
+    weights.replicated += staging;
+    for (auto& bytes : weights.per_rank)
+        bytes += staging;
+    const std::string what = staging == 0 ? " for its weights" : " for its weights and collective staging";
     uint64_t min_free = std::numeric_limits<uint64_t>::max();
     std::ostringstream failure;
     for (size_t rank = 0; rank < device_names.size(); ++rank) {
         const auto memory = get_core()
                                 ->get_property(device_names[rank], ov::tp::internal::device_memory.name(), {})
                                 .as<ov::tp::internal::DeviceMemory>();
+        OPENVINO_ASSERT(staging <= memory.max_allocation,
+                        "[TP] ",
+                        ov::tp::internal::comm_buffer_size.name(),
+                        " of ",
+                        staging,
+                        " bytes is more than ",
+                        device_names[rank],
+                        " allocates at once (",
+                        memory.max_allocation,
+                        " bytes)");
         const uint64_t free = memory.total > memory.used ? memory.total - memory.used : 0;
         min_free = std::min(min_free, free);
-        TP_LOG_INFO << "[TP] Rank " << rank << " weights: at least " << gib(weights.per_rank[rank]) << ", "
+        TP_LOG_INFO << "[TP] Rank " << rank << what << ": at least " << gib(weights.per_rank[rank]) << ", "
                     << device_names[rank] << " has " << gib(free) << " free of " << gib(memory.total) << std::endl;
         if (weights.per_rank[rank] > free && failure.tellp() == 0) {
-            failure << "rank " << rank << " needs at least " << gib(weights.per_rank[rank]) << " for its weights, "
+            failure << "rank " << rank << " needs at least " << gib(weights.per_rank[rank]) << what << ", "
                     << device_names[rank] << " has " << gib(free) << " free of " << gib(memory.total);
         }
     }
@@ -537,7 +553,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const size_t num_collectives = shard_only ? 0 : count_collectives(*analyzed);
     log_analysis(*report, num_collectives);
     warn_on_kv_imbalance(*report, shard_degree);
-    check_rank_memory(*analyzed, device_names, shard_degree);
+    check_rank_memory(*analyzed, device_names, shard_degree, shard_only ? 0 : cfg.get_comm_buffer_size());
 
     // A shard stripped of its collectives runs alone, on an ordinary context.
     const auto rank_contexts =

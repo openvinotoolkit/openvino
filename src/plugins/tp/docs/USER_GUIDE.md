@@ -102,6 +102,23 @@ the collectives is the device plugin's answer, asked before anything is
 compiled (GPU: Level Zero devices of one driver with peer access between every
 pair, each listed once). Only GPU devices can host ranks today.
 
+What the list is checked for, before anything is compiled:
+
+| Input | Result |
+|---|---|
+| fewer than two entries (`TP`, `TP:`, `TP:GPU.0`, `TP.0`) | `TP requires at least 2 devices, got N ("<list>")` |
+| an empty entry (`TP:GPU.0,,GPU.1`) | refused, naming the list |
+| two device types (`TP:GPU.0,CPU`), another virtual device (`TP:HETERO:GPU.0,GPU.1`) | `all rank devices must have one device type` |
+| a device type without collectives (`TP:CPU,CPU`, `TP:AUTO,AUTO`) | `the CPU plugin does not support tensor-parallel collectives` |
+| a device type nobody registered (`TP:NPU.0,NPU.1` without an NPU plugin) | the core's `Device with "NPU" name is not registered` |
+| a device that does not exist (`TP:GPU.0,GPU.6`, `GPU.-1`, `GPU.x`) | the device plugin's reason: `device GPU.6 of the group does not exist` |
+| one device twice, also by another name (`TP:GPU.0,GPU.0`, `TP:GPU,GPU.0`) | the device plugin's reason: `device GPU.0 appears in the group more than once` |
+| weights (and a fixed staging) that do not fit a device | see [Troubleshooting](#tp-the-model-does-not-fit-even-split-over-n-devices) |
+
+Entries are trimmed of spaces; names are case-sensitive, like every OpenVINO
+device name. `ov_internal_tp_comm_buffer_size` larger than a device allocates
+at once is refused by name; below 512 bytes the GPU refuses it as too small.
+
 | Property                   | Type       | Default | Description                                                                              |
 |----------------------------|------------|---------|------------------------------------------------------------------------------------------|
 | `TP_STRATEGY`              | string     | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |

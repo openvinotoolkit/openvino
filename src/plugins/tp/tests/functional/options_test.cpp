@@ -127,6 +127,15 @@ TEST_F(TPOptionsOnDevicesTest, ACommBufferSizeReachesTheRankContexts) {
     expect_same_bits(whole, chunked);
 }
 
+// A staging no device can allocate is refused by name before any context exists.
+TEST_F(TPOptionsOnDevicesTest, RejectsAStagingLargerThanADeviceAllocates) {
+    OV_EXPECT_THROW(core.compile_model(make_transformer_block(BlockConfig{}),
+                                       tp_device(world_size),
+                                       {{ov::tp::internal::comm_buffer_size.name(), size_t{1} << 60}}),
+                    ov::Exception,
+                    HasSubstr("ov_internal_tp_comm_buffer_size of 1152921504606846976 bytes is more than"));
+}
+
 // Inputs copied through plugin-owned host memory or handed over as they are: the same result.
 TEST_F(TPOptionsOnDevicesTest, InputStagingDoesNotChangeTheResult) {
     const BlockConfig config;
