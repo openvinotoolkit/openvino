@@ -2869,3 +2869,79 @@ std::vector<paged_attention_test_params> decode_tm_cases() {
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_decode_tm, paged_attention_decode_tm_test, ::testing::ValuesIn(decode_tm_cases()));
+
+namespace {
+// PA MIXED on a forced token-major K page, the layout the xe_hpg pages take once the layout rule admits xe_hpg; until
+// then nothing else runs sdpa_ocl's SG8 token-major MIXED readers on DG2. Past lengths on and off a page boundary, new
+// tokens around a 32-query tile, keys around 128 / 256-key tiles, a long past (the VLM steps of qwen3-vl and
+// phi-4-multimodal), batches that mix MIXED, PREFILL and one-token subsequences, GQA / MQA, sliding windows that start in
+// the past, and a sink, all with a sharp softmax and mostly GQA (with matching head counts the Q of a new token is the K of
+// a past one). The poisoned cases put NaN in every slot past the past tokens first: the cache update writes the new ones,
+// and the tail of the last page stays NaN (checked after the run), so a reader that loads whole pages must clear those
+// scores by an assignment, not by adding -INFINITY.
+std::vector<paged_attention_test_params> mixed_hpg_cases(int head) {
+    auto mixed = [head](std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads, int window = 0) {
+        return sharp_softmax(feature_case(std::move(subsequences), heads, kv_heads, head, head, window));
+    };
+    std::vector<paged_attention_test_params> cases = {
+        mixed({{40, 600}}, 8, 2),
+        mixed({{32, 256}}, 8, 2),
+        mixed({{33, 255}}, 4, 1),
+        mixed({{7, 5}}, 4, 2),  // one page
+        mixed({{1, 34}, {25, 0}, {10, 34}}, 8, 2),
+        mixed({{17, 300}, {64, 0}, {3, 1000}, {100, 77}}, 8, 2),
+        mixed({{256, 1100}}, 8, 2),
+        mixed({{16, 4900}}, 8, 2),
+        mixed({{48, 1000}}, 32, 8),
+        mixed({{130, 200}, {40, 31}}, 8, 2),
+        mixed({{100, 40}, {64, 513}}, 4, 1),
+        mixed({{40, 600}}, 8, 2, 17),
+        mixed({{100, 300}}, 8, 2, 256),
+        mixed({{64, 1000}}, 4, 1, 100),
+        mixed({{20, 30}}, 8, 2, 1),
+        mixed({{40, 600}}, 8, 2, 5000),  // wider than the keys
+        with_sinks(mixed({{50, 200}}, 8, 2)),
+        with_sinks(mixed({{64, 300}, {1, 200}, {33, 0}}, 8, 2, 40)),
+    };
+    for (auto p : {mixed({{17, 300}, {3, 1000}, {100, 77}}, 8, 2), mixed({{40, 601}}, 4, 1, 100), with_sinks(mixed({{9, 70}}, 8, 2))}) {
+        p.poison_cache_tail = true;
+        cases.push_back(p);
+    }
+    return cases;
+}
+
+std::vector<paged_attention_test_params> mixed_hpg_heads_cases() {
+    std::vector<paged_attention_test_params> cases;
+    for (const int head : {64, 128, 256, 96, 512}) {
+        const auto head_cases = mixed_hpg_cases(head);
+        cases.insert(cases.end(), head_cases.begin(), head_cases.end());
+    }
+    return cases;
+}
+}  // namespace
+
+class paged_attention_mixed_tm_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_mixed_tm_test, matches_reference) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    if (!sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
+        GTEST_SKIP() << "sdpa_ocl does not serve this PA op here, and no other MIXED kernel reads a token-major K page";
+    this->pam->force_k_cache_token_major = true;
+    auto result = run_gpu_inference(*this->pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    ASSERT_NE(pa_inst->get_impl(), nullptr);
+    const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "kernels: " << entries;
+    if (p.poison_cache_tail) {
+        size_t tail_slots = 0;
+        const size_t nan_count = this->pam->count_nan_cache_tail(result.key_cache_mem, tail_slots);
+        ASSERT_GT(tail_slots, 0u) << "a poisoned case needs a page tail";
+        ASSERT_EQ(nan_count, tail_slots) << "the NaN page tail did not survive the run";
+    }
+    const auto reference = PagedAttentionReference(*this->pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_mixed_tm, paged_attention_mixed_tm_test, ::testing::ValuesIn(mixed_hpg_heads_cases()));

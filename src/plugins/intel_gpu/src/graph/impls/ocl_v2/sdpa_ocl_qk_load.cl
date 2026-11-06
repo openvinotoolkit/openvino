@@ -928,8 +928,14 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private int8 *k_raw, const __globa
             const __global uint *row = (const __global uint *)(K + mb_page_base + tok * PA_K_TOKEN_STRIDE);
             const uint w0 = keep0 ? row[0] : 0u;
             const uint w1 = keep1 ? row[PA_K_TOKEN_STRIDE / 2] : 0u;
+#if defined(NEG_SG8) && NEG_SG8 == 36
+            // negative control: the two keys of a pair swapped
+            k_raw[mb][key_offset] = as_int(w1);
+            k_raw[mb][key_offset + 1] = as_int(w0);
+#else
             k_raw[mb][key_offset] = as_int(w0);
             k_raw[mb][key_offset + 1] = as_int(w1);
+#endif
         }
     }
 }
