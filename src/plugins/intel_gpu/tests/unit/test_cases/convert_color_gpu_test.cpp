@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/reference/utils/convert_color_util.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 #include "opencl_helper_instance.hpp"
@@ -32,26 +33,14 @@ void createReferenceDataNV12(const T* arg_y, const T* arg_uv, U* out_ptr,
                 auto uv_index = (h / 2) * image_w + (w / 2) * 2;
                 auto u_val = static_cast<float>(uv_ptr[uv_index]);
                 auto v_val = static_cast<float>(uv_ptr[uv_index + 1]);
-                auto c = y_val - 16.f;
-                auto d = u_val - 128.f;
-                auto e = v_val - 128.f;
-                auto clip = [](float a) -> U {
-                    if (std::is_integral<U>()) {
-                        return static_cast<U>(std::min(std::max(std::round(a), 0.f), 255.f));
-                    } else {
-                        return static_cast<U>(std::min(std::max(a, 0.f), 255.f));
-                    }
-                };
-                auto b = clip(1.164f * c + 2.018f * d);
-                auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
-                auto r = clip(1.164f * c + 1.596f * e);
+                auto [r, g, b] = ov::reference::yuv_pixel_to_rgb<U>(y_val, u_val, v_val);
 
                 if (to_rgb) {
-                    out[y_index * 3] = r;
+                    out[y_index * 3]     = r;
                     out[y_index * 3 + 1] = g;
                     out[y_index * 3 + 2] = b;
                 } else {
-                    out[y_index * 3] = b;
+                    out[y_index * 3]     = b;
                     out[y_index * 3 + 1] = g;
                     out[y_index * 3 + 2] = r;
                 }
@@ -450,23 +439,6 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     checkStatus(clReleaseMemObject(nv12_image), "clReleaseMemObject");
 }
 
-template <typename T>
-std::tuple<T, T, T> yuv_pixel_to_rgb(float y_val, float u_val, float v_val) {
-    auto c = y_val - 16.f;
-    auto d = u_val - 128.f;
-    auto e = v_val - 128.f;
-    auto clip = [](float a) -> T {
-        if (std::is_integral<T>()) {
-            return static_cast<T>(std::min(std::max(std::round(a), 0.f), 255.f));
-        } else {
-            return static_cast<T>(std::min(std::max(a, 0.f), 255.f));
-        }
-    };
-    auto b = clip(1.164f * c + 2.018f * d);
-    auto g = clip(1.164f * c - 0.391f * d - 0.813f * e);
-    auto r = clip(1.164f * c + 1.596f * e);
-    return std::tuple<T, T, T>{r, g, b};
-}
 
 template <typename T, typename U>
 void createReferenceDataI420(const T* arg_y, const T* arg_u, const T* arg_v, U* out_ptr,
@@ -485,7 +457,7 @@ void createReferenceDataI420(const T* arg_y, const T* arg_u, const T* arg_v, U* 
                 auto u_val = static_cast<float>(u_ptr[uv_index]);
                 auto v_val = static_cast<float>(v_ptr[uv_index]);
 
-                const auto& [r, g, b] = yuv_pixel_to_rgb<U>(y_val, u_val, v_val);
+                const auto& [r, g, b] = ov::reference::yuv_pixel_to_rgb<U>(y_val, u_val, v_val);
                 if (rgb_color_format) {
                     out[y_index * 3] = r;
                     out[y_index * 3 + 1] = g;
