@@ -67,8 +67,10 @@ size_t get_elements_capacity(const element::Type& type, const size_t memory_size
 
 bool can_compute_byte_strides(const element::Type& type, const Shape& shape) {
     const auto bitwidth = type.bitwidth();
-    return bitwidth >= bits_per_byte || (bitwidth > 0 && (bits_per_byte % bitwidth) == 0 && !shape.empty() &&
-                                         (shape.back() * bitwidth) % bits_per_byte == 0);
+    size_t row_bits;
+    return bitwidth >= bits_per_byte ||
+           (bitwidth > 0 && (bits_per_byte % bitwidth) == 0 && !shape.empty() &&
+            !mul_overflow<size_t>(shape.back(), bitwidth, row_bits) && row_bits % bits_per_byte == 0);
 }
 
 Strides get_dense_byte_strides(const element::Type& type, const Shape& shape) {
@@ -78,11 +80,14 @@ Strides get_dense_byte_strides(const element::Type& type, const Shape& shape) {
         strides.back() = shape.back() == 0 ? 0 : type.size();
 
         if (strides.size() > 1) {
-            const auto row_byte_size =
-                bitwidth < bits_per_byte ? shape.back() * bitwidth / bits_per_byte : shape.back() * type.size();
-            strides[strides.size() - 2] = row_byte_size;
+            auto& row_byte_size = strides[strides.size() - 2];
+            const auto is_sub_byte = bitwidth < bits_per_byte;
+            OPENVINO_ASSERT(!mul_overflow<size_t>(shape.back(), is_sub_byte ? bitwidth : type.size(), row_byte_size));
+            if (is_sub_byte) {
+                row_byte_size /= bits_per_byte;
+            }
             for (auto i = strides.size() - 2; i > 0; --i) {
-                strides[i - 1] = strides[i] * shape[i];
+                OPENVINO_ASSERT(!mul_overflow<size_t>(strides[i], shape[i], strides[i - 1]));
             }
         }
     }
@@ -93,7 +98,9 @@ Shape get_byte_memory_shape(const element::Type& type, const Shape& shape) {
     auto byte_shape = shape;
     const auto bitwidth = type.bitwidth();
     if (bitwidth < bits_per_byte && !byte_shape.empty()) {
-        byte_shape.back() = byte_shape.back() * bitwidth / bits_per_byte;
+        auto& last_dim = byte_shape.back();
+        OPENVINO_ASSERT(!mul_overflow<size_t>(last_dim, bitwidth, last_dim));
+        last_dim /= bits_per_byte;
     }
     return byte_shape;
 }

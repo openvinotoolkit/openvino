@@ -885,6 +885,7 @@ TEST_F(OVTensorTest, roiLpCopyToZeroExtentMiddleDimDoesNotHang) {
     OV_ASSERT_NO_THROW(src.copy_to(dst));
     EXPECT_EQ(dst.get_shape(), ov::Shape({2, 0, 8}));
     EXPECT_EQ(dst.get_byte_size(), 0u);
+    EXPECT_EQ(dst.get_strides(), ov::Strides({0, 4, 1}));
 }
 
 TEST_F(OVTensorTest, roiLpInnerDimSliceThrows) {
