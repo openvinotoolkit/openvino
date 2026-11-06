@@ -103,6 +103,10 @@ struct TPConfig : public ov::PluginConfig {
         return TP_DEBUG_OPT(*this, disable_lm_head_sharding, false);
     }
 
+    std::string dump_sharding_states() const {
+        return TP_DEBUG_OPT(*this, dump_sharding_states, std::string{});
+    }
+
     bool shard_only() const {
         return TP_DEBUG_OPT(*this, shard_only, false);
     }

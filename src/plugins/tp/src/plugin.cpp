@@ -5,7 +5,9 @@
 #include "plugin.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
+#include <filesystem>
 #include <istream>
 #include <memory>
 #include <streambuf>
@@ -210,6 +212,20 @@ void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
                        << report.unclaimed_bytes / (1024 * 1024) << " MiB each rank); the first is '"
                        << report.unclaimed.front() << "'";
     }
+}
+
+/// `<directory>/tp_sharding_states_<model>_<N>ranks.txt`, the directory created; empty when not asked for.
+std::string sharding_states_file(const TPConfig& cfg, const ov::Model& model, uint32_t world_size) {
+    const auto directory = cfg.dump_sharding_states();
+    if (directory.empty())
+        return {};
+    std::string name = model.get_friendly_name();
+    std::replace_if(name.begin(), name.end(), [](unsigned char c) { return !std::isalnum(c) && c != '-'; }, '_');
+    std::filesystem::create_directories(directory);
+    const auto file = std::filesystem::path(directory) /
+                      ("tp_sharding_states_" + name + "_" + std::to_string(world_size) + "ranks.txt");
+    TP_REPORT << "[TP] Writing the sharding states to " << file.string() << std::endl;
+    return file.string();
 }
 
 size_t count_collectives(const ov::Model& model) {
@@ -433,9 +449,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto analyzed = model->clone();
     auto report = std::make_shared<TPAnalysisReport>();
     {
+        TPAnalyzerConfig analyzer_config{shard_degree, !cfg.disable_lm_head_sharding()};
+        analyzer_config.dump_sharding_states = sharding_states_file(cfg, *model, shard_degree);
         ov::pass::Manager manager("TP analysis");
-        manager.register_pass<TPLayerAnalyzer>(TPAnalyzerConfig{shard_degree, !cfg.disable_lm_head_sharding()},
-                                               report);
+        manager.register_pass<TPLayerAnalyzer>(analyzer_config, report);
         manager.run_passes(analyzed);
     }
     const size_t num_collectives = shard_only ? 0 : count_collectives(*analyzed);

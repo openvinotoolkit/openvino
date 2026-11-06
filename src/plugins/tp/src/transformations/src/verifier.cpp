@@ -287,21 +287,64 @@ std::optional<std::pair<int64_t, Layout>> map_reshape(const ov::PartialShape& in
 
 class Verifier {
 public:
-    explicit Verifier(size_t world_size) : m_world_size(world_size) {}
+    Verifier(size_t world_size, std::ostream* dump) : m_world_size(world_size), m_dump(dump) {}
 
     void run(const ov::Model& model) {
         for (const auto& node : model.get_ordered_ops()) {
             if (const auto read = ov::as_type_ptr<ov::op::util::ReadValueBase>(node))
                 m_variables[read->get_variable_id()] = source_state(*node);
         }
-        for (const auto& node : model.get_ordered_ops())
+        if (m_dump)
+            *m_dump << "# <op> \"<name>\" <output shape>: <state> from <the node that created the state>\n";
+        size_t replicated = 0;
+        for (const auto& node : model.get_ordered_ops()) {
             m_states[node.get()] = outputs(*node);
+            if (m_dump && !write(*node))
+                ++replicated;
+        }
+        if (m_dump)
+            *m_dump << "# " << replicated << " other nodes are Replicated\n# Verified\n";
     }
 
 private:
     size_t m_world_size;
+    std::ostream* m_dump;
     std::unordered_map<const ov::Node*, std::vector<State>> m_states;
     std::map<std::string, State> m_variables;
+
+    /// Writes a node that is split somewhere or annotated; false for the rest.
+    bool write(const ov::Node& node) const {
+        const auto& states = m_states.at(&node);
+        const auto* shard = get_shard(node);
+        const auto* role = get_role(node);
+        const bool split = std::any_of(states.begin(), states.end(), [](const State& s) {
+            return s.kind != State::REPLICATED;
+        });
+        if (!split && !shard && !role)
+            return false;
+        auto& out = *m_dump;
+        // A state created by the node itself does not name it twice.
+        const auto own = " from " + node_name(node);
+        const auto state = [&](const State& s) {
+            auto text = describe(s);
+            if (text.size() >= own.size() && text.compare(text.size() - own.size(), own.size(), own) == 0)
+                text.resize(text.size() - own.size());
+            return text;
+        };
+        out << node_name(node);
+        if (states.size() == 1) {
+            out << " " << node.get_output_partial_shape(0) << ": " << state(states[0]);
+        } else {
+            for (size_t i = 0; i < states.size(); ++i)
+                out << "\n    output " << i << " " << node.get_output_partial_shape(i) << ": " << state(states[i]);
+        }
+        if (role)
+            out << "\n    tp_role: " << role->to_string();
+        if (shard)
+            out << "\n    tp_shard: " << shard->to_string();
+        out << "\n";
+        return true;
+    }
 
     // ---- helpers ---------------------------------------------------------------------------------
 
@@ -332,6 +375,8 @@ private:
             message << "\n  " << i << " " << node.get_input_partial_shape(i) << ": " << describe(input(node, i));
         message << "\nOutput shape " << (node.get_output_size() ? node.get_output_partial_shape(0) : ov::PartialShape{})
                 << ". The block around it is not fully recognized by any TP block pass.";
+        if (m_dump)
+            *m_dump << "# Failed\n" << message.str() << "\n";
         OPENVINO_THROW(message.str());
     }
 
@@ -1095,7 +1140,7 @@ private:
 }  // namespace
 
 bool TPShardingVerifier::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    Verifier(m_world_size).run(*model);
+    Verifier(m_world_size, m_dump).run(*model);
     return false;
 }
 

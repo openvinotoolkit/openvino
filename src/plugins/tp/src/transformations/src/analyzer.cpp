@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <fstream>
 #include <unordered_set>
 
 #include "block_utils.hpp"
@@ -65,7 +66,18 @@ bool TPLayerAnalyzer::run_on_model(const std::shared_ptr<ov::Model>& model) {
             m_report->unclaimed_bytes += weight_bytes(node);
         }
     }
-    TPShardingVerifier(m_config.world_size).run_on_model(model);
+
+    std::ofstream dump;
+    if (!m_config.dump_sharding_states.empty()) {
+        dump.open(m_config.dump_sharding_states);
+        OPENVINO_ASSERT(dump, "[TP] Cannot write the sharding states to '", m_config.dump_sharding_states, "'");
+        dump << "# Sharding states of '" << model->get_friendly_name() << "' on " << m_config.world_size << " ranks\n"
+             << "# Blocks: " << m_report->attention_blocks << " attention, " << m_report->mlp_blocks << " MLP, LM head "
+             << (m_report->lm_head ? "split" : "whole") << "\n";
+        for (const auto& name : m_report->unclaimed)
+            dump << "# Whole on every rank, claimed by no block pass: " << name << "\n";
+    }
+    TPShardingVerifier(m_config.world_size, dump.is_open() ? &dump : nullptr).run_on_model(model);
     return true;
 }
 

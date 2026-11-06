@@ -116,6 +116,13 @@ so the guarded code folds away instead of costing a branch.
 | `OV_GPU_TP_PROFILING=ALL`     | Both of the above.                                                                                                                                          |                                                      |
 | `OV_TP_DUMP_PERIOD=N`         | Inference calls between two dumps of the plugin's dispatch block.                                                                                           | Almost always worth setting to some small number:    |
 | `OV_GPU_TP_DUMP_PERIOD=N`     | Rank-0 collectives between two reports of the collectives. Unset means one report per collective.                                                           | by default, the output is overloaded with info       |
+| `OV_TP_DUMP_SHARDING_STATES=<dir>` | `compile_model` writes `tp_sharding_states_<model>_<N>ranks.txt`: the blocks found, the linear layers left whole, then every node of the analyzed model that is split or annotated with its state (Split layout per rank, Partial, rank-dependent sizes), where the state comes from, and its `tp_role` / `tp_shard`. On a verification failure the states up to the failing node, then the error. | A model fails the verification, or a new block pass is being written. |
+
+The analyzed model and the rank models before their device compilation are not a TP option: the pass
+manager serializes them, `OV_ENABLE_SERIALIZE_TRACING="TPLayerAnalyzer,TPInsertCollectives"` writes
+the analyzed model with its `tp_shard` / `tp_role` attributes, then rank 0..N-1 with their collectives,
+named after the models' unique names (`Model<K>`) in that order, into the working directory. Each comes
+with the full weights.
 
 Verbosity and profiling are deliberately separate: raising the verbosity to see
 what a run is doing should not start timing it, and asking for timings should
@@ -432,6 +439,7 @@ To support a new pattern:
    Choose the segments' units so that every rank gets whole heads / groups.
 2. Run the verifier on the new block (it runs inside the analyzer). If it names an op type
    without a rule, add the rule to `verifier.cpp` with a unit test of both a proof and a refusal.
+   `OV_TP_DUMP_SHARDING_STATES` shows how the states travel up to the node it stops at.
 3. Add the block to `BlockConfig` in `tests/common/tp_test_models.hpp`, a rank-model test in
    `tests/unit/rank_passes_test.cpp`, and a GPU accuracy test in
    `tests/functional/accuracy_test.cpp` -- the only test that shows the numbers are right.

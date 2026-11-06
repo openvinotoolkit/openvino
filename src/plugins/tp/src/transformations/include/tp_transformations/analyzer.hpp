@@ -19,6 +19,8 @@ struct TPAnalyzerConfig {
     size_t world_size = 2;
     /// Split the vocabulary projection and gather it into rank 0.
     bool shard_lm_head = true;
+    /// File to write the verifier's sharding states to; empty: none.
+    std::string dump_sharding_states;
 };
 
 /// What the analysis found, for the plugin's log.

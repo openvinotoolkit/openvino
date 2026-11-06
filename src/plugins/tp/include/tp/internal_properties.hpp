@@ -98,6 +98,9 @@ static constexpr Property<uint64_t> dump_period{"TP_DUMP_PERIOD"};
 /// baked into an exported blob.
 static constexpr Property<bool> disable_lm_head_sharding{"TP_DISABLE_LM_HEAD_SHARDING"};
 
+/// Directory where compile_model writes the sharding verifier's state of every split or annotated node.
+static constexpr Property<std::string> dump_sharding_states{"TP_DUMP_SHARDING_STATES"};
+
 // -----------------------------------------------------------------------------
 // Properties below produce silently wrong results. They exist to bisect
 // where a discrepancy comes from, never to run a model.

@@ -86,6 +86,39 @@ TEST(TPShardingVerifierTest, RejectsAPartialSumOutsideATPAllReduce) {
                           HasSubstr("Partial from MatMul \"row\", a contraction over a split axis")));
 }
 
+TEST(TPShardingVerifierTest, DumpsEverySplitOrAnnotatedNode) {
+    auto x = input();
+    auto act = std::make_shared<ov::op::v4::Swish>(column(x));
+    act->set_friendly_name("act");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{row(act)}, ov::ParameterVector{x});
+    std::ostringstream dump;
+    TPShardingVerifier(2, &dump).run_on_model(model);
+
+    const auto text = dump.str();
+    EXPECT_THAT(text, HasSubstr("MatMul \"column\" [1,?,32]: Split(axis 2 r0:[0,16) r1:[16,32)) from Constant"));
+    EXPECT_THAT(text, HasSubstr("\n    tp_role: COLUMN_PARALLEL NONE group -1 by test\n"));
+    EXPECT_THAT(text, HasSubstr("Swish \"act\" [1,?,32]: Split(axis 2 r0:[0,16) r1:[16,32))"));
+    // The row-parallel projection's Partial sum is Replicated past its TPAllReduce.
+    EXPECT_THAT(text, HasSubstr("MatMul \"row\" [1,?,16]: Replicated\n    tp_role: ROW_PARALLEL ALL_REDUCE group 0 by test\n"));
+    EXPECT_THAT(text, HasSubstr("\n    tp_shard: COLUMN_PARALLEL axis 0 segments [32/8] by test\n"));
+    // Parameter and Result.
+    EXPECT_THAT(text, HasSubstr("# 2 other nodes are Replicated\n# Verified\n"));
+}
+
+TEST(TPShardingVerifierTest, DumpsTheStatesUpToAFailure) {
+    auto x = input();
+    auto act = std::make_shared<ov::op::v4::Swish>(row(column(x), /*role=*/false));
+    act->set_friendly_name("act");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{act}, ov::ParameterVector{x});
+    std::ostringstream dump;
+    EXPECT_THROW(TPShardingVerifier(2, &dump).run_on_model(model), ov::Exception);
+
+    const auto text = dump.str();
+    EXPECT_THAT(text, HasSubstr("MatMul \"row\" [1,?,16]: Partial from MatMul \"row\""));
+    EXPECT_THAT(text, HasSubstr("# Failed\n[TP] Sharding verification failed at node \"act\" (Swish)"));
+    EXPECT_THAT(text, ::testing::Not(HasSubstr("# Verified")));
+}
+
 TEST(TPShardingVerifierTest, RejectsASplitModelOutput) {
     auto x = input();
     OV_EXPECT_THROW(verify({column(x)}, {x}),
