@@ -465,6 +465,20 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
         # when used in python api should be able to handle names with spaces
         assert argv.output == ["first na me", "second name"]
 
+    def test_output_post_parsing_7(self):
+        args = {'input_model': os.path.dirname(__file__),
+                'input': "input_1[1,2,3]",
+                'output_model': os.getcwd() + "model.xml",
+                'output': ("first", "second")}
+
+        argv = args_to_argv(**args)
+
+        argv.is_python_api_used = True
+        argv = arguments_post_parsing(argv)
+        # a tuple of names should unpack the same way a list does, not get wrapped
+        # whole into a single-element list
+        assert argv.output == ["first", "second"]
+
     def test_raises_output_post_parsing_1(self):
         args = {'input_model': os.path.dirname(__file__),
                 'input': "input_1[1,2,3]",
