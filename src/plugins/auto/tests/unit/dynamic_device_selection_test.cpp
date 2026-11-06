@@ -11,6 +11,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <filesystem>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -1129,5 +1130,65 @@ TEST_F(AutoDynamicDeviceSelectionTest, streams_are_not_forced_without_the_per_in
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     EXPECT_EQ(recorder.streams("GPU.0"), -100);
+}
+
+class AutoDynamicInactiveDeviceReleaseTest : public AutoDynamicDeviceSelectionTest {
+public:
+    void SetUp() override {
+        AutoDynamicDeviceSelectionTest::SetUp();
+        ON_CALL(*core, get_property(_, StrEq(ov::cache_dir.name()), _))
+            .WillByDefault(Return(ov::Any(std::string("test_cache_dir"))));
+        ON_CALL(*core, get_property(_, StrEq(ov::cache_path.name()), _))
+            .WillByDefault(Return(ov::Any(std::filesystem::path())));
+        config.erase(ov::device::priorities.name());
+        config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
+        config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _))
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&) {
+                ++m_gpu0_compile_count;
+                return mockExeNetworkActual;
+            });
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&) {
+                ++m_cpu_compile_count;
+                return mockExeNetwork;
+            });
+    }
+
+    // GPU.0 is the initial device; CPU is the one that goes inactive and is never warmed up
+    void switch_between_devices(bool compile_for_all) {
+        if (compile_for_all) {
+            config.insert(ov::intel_auto::compile_for_all(true));
+        }
+        expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU"});
+        std::shared_ptr<ov::ICompiledModel> compiled_model;
+        OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+        run_inferences(compiled_model, 3);
+    }
+
+    std::atomic<int> m_gpu0_compile_count{0};
+    std::atomic<int> m_cpu_compile_count{0};
+};
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_compiled_again_when_selected_again) {
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, initial_device_is_never_released) {
+    switch_between_devices(true);
+    EXPECT_EQ(m_gpu0_compile_count.load(), 1);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_kept_without_compile_for_all) {
+    switch_between_devices(false);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_EQ(m_gpu0_compile_count.load(), 1);
 }
 }  // namespace ov::test
