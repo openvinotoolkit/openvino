@@ -8,8 +8,10 @@
 #include <cctype>
 #include <cstring>
 #include <filesystem>
+#include <iomanip>
 #include <istream>
 #include <memory>
+#include <sstream>
 #include <streambuf>
 #include <string>
 #include <vector>
@@ -30,6 +32,7 @@
 #include "openvino/util/container_util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
@@ -226,6 +229,21 @@ std::string sharding_states_file(const TPConfig& cfg, const ov::Model& model, ui
                       ("tp_sharding_states_" + name + "_" + std::to_string(world_size) + "ranks.txt");
     TP_REPORT << "[TP] Writing the sharding states to " << file.string() << std::endl;
     return file.string();
+}
+
+size_t constant_bytes(const ov::Model& model) {
+    size_t bytes = 0;
+    for (const auto& node : model.get_ops()) {
+        if (const auto c = ov::as_type_ptr<ov::op::v0::Constant>(node))
+            bytes += c->get_byte_size();
+    }
+    return bytes;
+}
+
+std::string mib(size_t bytes) {
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(1) << static_cast<double>(bytes) / (1024.0 * 1024.0);
+    return out.str();
 }
 
 size_t count_collectives(const ov::Model& model) {
@@ -467,16 +485,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     for (uint32_t rank = 0; rank < rank_count; ++rank) {
         // Passes 2 and 3 on a clone that shares the constant data.
         auto rank_model = analyzed->clone();
+        auto stats = std::make_shared<TPShardingStats>();
         {
             ov::pass::Manager manager("TP rank " + std::to_string(rank));
-            manager.register_pass<TPWeightShardingPass>(rank, shard_degree);
+            manager.register_pass<TPWeightShardingPass>(rank, shard_degree, stats);
             manager.register_pass<TPInsertCollectives>(rank, shard_degree);
             manager.run_passes(rank_model);
         }
         strip_annotations(*rank_model);
 
         TP_LOG_INFO << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
-                    << num_collectives << " collectives" << std::endl;
+                    << num_collectives << " collectives, " << mib(constant_bytes(*rank_model))
+                    << " MiB of constants; weights cut: " << stats->views << " views, " << stats->copies
+                    << " copies (" << mib(stats->copied_bytes) << " MiB copied), " << stats->runtime_slices
+                    << " runtime slices" << std::endl;
 
         if (shard_only) {
             strip_collectives(rank_model);

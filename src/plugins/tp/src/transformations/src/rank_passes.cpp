@@ -25,7 +25,8 @@ namespace {
 /// original buffer; anything else is copied.
 std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::op::v0::Constant>& c,
                                                      int64_t axis,
-                                                     const std::vector<Range>& ranges) {
+                                                     const std::vector<Range>& ranges,
+                                                     TPShardingStats& stats) {
     const auto& shape = c->get_shape();
     const auto et = c->get_element_type();
     OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int64_t>(shape.size()),
@@ -77,7 +78,11 @@ std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::o
             }
         }
         sliced = std::make_shared<ov::op::v0::Constant>(et, out_shape, buffer.data());
+        ++stats.copies;
+        stats.copied_bytes += buffer.size();
     }
+    if (view)
+        ++stats.views;
 
     sliced->get_rt_info() = c->get_rt_info();  // decompression markers
     // The weightless cache reads a constant back from the model's .bin, where only a contiguous
@@ -113,6 +118,7 @@ ov::Output<ov::Node> runtime_slice(const ov::Output<ov::Node>& source, int64_t a
 }  // namespace
 
 bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    TPShardingStats stats;
     for (const auto& node : model->get_ordered_ops()) {
         const auto* annotation = get_shard(*node);
         if (!annotation)
@@ -124,6 +130,7 @@ bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model)
             input.replace_source_output(runtime_slice(input.get_source_output(),
                                                       annotation->axis,
                                                       rank_ranges(annotation->segments, m_rank, m_world_size)));
+            ++stats.runtime_slices;
         }
 
         for (const auto& key : annotation->rt_keys) {
@@ -152,12 +159,17 @@ bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model)
             }
             replacement = ov::op::v0::Constant::create(constant->get_element_type(), constant->get_shape(), data);
         } else {
-            replacement = slice_constant(constant, annotation->axis, rank_ranges(annotation->segments, m_rank, m_world_size));
+            replacement = slice_constant(constant,
+                                         annotation->axis,
+                                         rank_ranges(annotation->segments, m_rank, m_world_size),
+                                         stats);
         }
         replacement->get_rt_info().erase(ShardAnnotation::get_type_info_static());
         constant->output(0).replace(replacement->output(0));
     }
     model->validate_nodes_and_infer_types();
+    if (m_stats)
+        *m_stats = stats;
     return true;
 }
 

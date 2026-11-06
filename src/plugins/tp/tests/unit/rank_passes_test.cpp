@@ -101,6 +101,19 @@ TEST_P(TPRankPassesTest, CutsEveryWeightAtCompileTime) {
         EXPECT_EQ(count_ops_of_type(rank_model, slice), 0u);
 }
 
+TEST_P(TPRankPassesTest, CountsHowItCutTheWeights) {
+    auto analyzed = make_transformer_block(BlockConfig{});
+    analyze(analyzed, GetParam());
+    auto model = analyzed->clone();
+    auto stats = std::make_shared<TPShardingStats>();
+    TPWeightShardingPass(0, GetParam(), stats).run_on_model(model);
+    // Column-parallel weights are cut along their outermost axis, row-parallel ones are not.
+    EXPECT_GT(stats->views, 0u);
+    EXPECT_GT(stats->copies, 0u);
+    EXPECT_GT(stats->copied_bytes, 0u);
+    EXPECT_EQ(stats->runtime_slices, 0u);
+}
+
 TEST_P(TPRankPassesTest, InsertsOneAllReducePerRowParallelProjection) {
     BlockConfig dense;
     dense.gated_mlp = false;
