@@ -9,6 +9,8 @@ set(OV_TENSORFLOW_LITE_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/convert_sparse_incomplete.cpp
     ${CMAKE_CURRENT_LIST_DIR}/convert_tricky_models.cpp
     ${CMAKE_CURRENT_LIST_DIR}/convert_unsupported.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom_graph_iterator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/extract_subgraph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/library_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_extension.cpp
     ${CMAKE_CURRENT_LIST_DIR}/quantization.cpp
@@ -22,6 +24,7 @@ set(TENSORFLOW_GEN_SCRIPTS
     ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_2in_2out.py
     ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_bad_buffer_size.py
     ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_bad_header.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_decoder_null_and_empty_buffer.py
     ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_densify.py
     ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_dequantize.py
     ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_malformed_indices.py
