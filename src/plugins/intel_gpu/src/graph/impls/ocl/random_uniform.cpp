@@ -32,6 +32,24 @@ struct random_uniform_impl : typed_primitive_impl_ocl<random_uniform> {
         }
     }
 
+    event::ptr execute_impl(const std::vector<event::ptr>& events, random_uniform_inst& instance) override {
+        // RandomUniform must produce a new sequence on every execution: pass the current Philox state
+        // as runtime scalars, re-set kernel arguments (static graphs set them only once), then advance the state.
+        if (!instance.can_be_optimized()) {
+            OPENVINO_ASSERT(_kernel_data.kernels.size() == 1 && _kernel_data.kernels[0].params.scalars.size() == 3,
+                            "[GPU] RandomUniform kernel expects 3 runtime scalars (global_seed, n_state, counter_state)");
+            auto& scalars = _kernel_data.kernels[0].params.scalars;
+            scalars[0].v.u64 = instance.get_global_seed();
+            scalars[1].v.u64 = instance.get_n_state();
+            scalars[2].v.u64 = instance.get_counter_state();
+            parent::set_arguments_impl(instance);
+        }
+
+        auto ev = parent::execute_impl(events, instance);
+        instance.advance_state(instance.get_output_layout().count());
+        return ev;
+    }
+
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<random_uniform>();
