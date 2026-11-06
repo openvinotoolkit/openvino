@@ -247,7 +247,6 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
                   "Tags::runtime_requirements value changed");
     static_assert(static_cast<uint32_t>(hsm::Tags::weights) == 4, "Tags::weights value changed");
     static_assert(static_cast<uint32_t>(hsm::Tags::compiled_options) == 5, "Tags::compiled_options value changed");
-
     SUCCEED();
 }
 
