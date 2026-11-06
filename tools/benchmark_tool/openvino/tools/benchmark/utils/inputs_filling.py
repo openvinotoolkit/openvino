@@ -345,7 +345,7 @@ def get_image_info_tensors(image_sizes, layer):
     return im_infos
 
 def get_random_4bit_tensor(shape, element_type, rs):
-    pack_shape = [x for x in shape]
+    pack_shape = list(shape) if shape else [1]
     pack_shape[-1] = pack_shape[-1]*element_type.bitwidth
     rand_data = (rs.uniform(0, 15, list(pack_shape)) >= 7).astype(int).flatten()
     rr = np.packbits(rand_data)
@@ -388,9 +388,9 @@ def fill_tensors_with_random(layer):
                 ov_tensor = Tensor(rs.uniform(rand_min, rand_max, list(shape)).astype(dtype))
         else:
             if is_4bit:
-                ov_tensor = get_random_4bit_tensor([1], layer.element_type, rs)
+                ov_tensor = get_random_4bit_tensor([], layer.element_type, rs)
             elif is_bf16:
-                ov_tensor = get_random_bf16_tensor([1], rand_min, rand_max, rs)
+                ov_tensor = get_random_bf16_tensor([], rand_min, rand_max, rs)
             else:
                 ov_tensor = Tensor(np.ndarray([], dtype, np.array(rs.uniform(rand_min, rand_max)).astype(dtype)))
         input_tensors.append(ov_tensor)
