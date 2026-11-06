@@ -240,6 +240,40 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
     }
     std::shared_ptr<ov::Node> op_bk = op->clone_with_new_inputs(new_inputs);
 
+    // Shape rule for each output, saved with the model cache (the op itself is not serialized): the input whose
+    // dynamic dims the output takes, and the output's static dims. First choice: the one input with exactly the
+    // output's shape. Else: an input that is dynamic at every position where the output is dynamic.
+    std::vector<int> outShapeSrc(op->get_output_size(), -1);
+    std::vector<int64_t> outStaticDims;
+    for (size_t o = 0; o < op->get_output_size(); o++) {
+        const auto& ps = op->get_output_partial_shape(o);
+        int found = -1, matches = 0;
+        for (size_t i = 0; i < op->get_input_size(); i++) {
+            if (op->get_input_partial_shape(i) == ps) {
+                if (found < 0)
+                    found = static_cast<int>(i);
+                matches++;
+            }
+        }
+        if (matches == 1)
+            outShapeSrc[o] = found;
+        if (ps.rank().is_dynamic())
+            continue;
+        for (size_t i = 0; outShapeSrc[o] < 0 && i < op->get_input_size(); i++) {
+            const auto& in = op->get_input_partial_shape(i);
+            if (in.rank().is_dynamic())
+                continue;
+            bool ok = true;
+            for (size_t d = 0; d < ps.size(); d++)
+                if (ps[d].is_dynamic() && (d >= in.size() || in[d].is_static()))
+                    ok = false;
+            if (ok)
+                outShapeSrc[o] = static_cast<int>(i);
+        }
+        for (size_t d = 0; d < ps.size(); d++)
+            outStaticDims.push_back(ps[d].is_static() ? ps[d].get_length() : -1);
+    }
+
     auto customPrim = cldnn::custom_gpu_primitive(genericLayerName,
                                                   reordered_inputs,
                                                   {layerTitle, defineTitle, layerDefines, customLayer->KernelSource()},
@@ -252,7 +286,9 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
                                                   op_bk,
                                                   iidx,
                                                   customLayer->GlobalSizeRules(),
-                                                  customLayer->LocalSizeRules());
+                                                  customLayer->LocalSizeRules(),
+                                                  outShapeSrc,
+                                                  outStaticDims);
     p.add_primitive(*op, customPrim);
 
     for (size_t i = 0; i < outputLayouts.size(); i++) {

@@ -97,6 +97,33 @@ private:
             }
 
             auto op = impl_param.typed_desc<custom_gpu_primitive>()->op;
+            if (!op) {  // model loaded from the cache: the original op is not serialized, use the recorded shape rule
+                const auto prim = impl_param.typed_desc<custom_gpu_primitive>();
+                const auto& src = prim->output_shape_src;
+                const auto& sdims = prim->output_static_dims;
+                OPENVINO_ASSERT(src.size() == output_layouts.size(),
+                                "[GPU] Custom layer ", prim->id, " loaded from the cache has no output shape rule");
+                size_t off = 0;
+                for (size_t i = 0; i < output_layouts.size(); i++) {
+                    OPENVINO_ASSERT(src[i] >= 0 && static_cast<size_t>(src[i]) < inp_sz,
+                                    "[GPU] Custom layer ", prim->id, " loaded from the cache: output ", i,
+                                    " has no input to take its dynamic dims from");
+                    const auto in_shape = impl_param.get_input_layout(src[i]).get_shape();
+                    const size_t rank = output_layouts[i].get_partial_shape().size();
+                    OPENVINO_ASSERT(off + rank <= sdims.size(),
+                                    "[GPU] Custom layer ", prim->id, " loaded from the cache: no static dims for output ", i);
+                    ov::Shape s(rank);
+                    for (size_t d = 0; d < rank; d++) {
+                        const int64_t v = sdims[off + d];
+                        OPENVINO_ASSERT(v >= 0 || d < in_shape.size(),
+                                        "[GPU] Custom layer ", prim->id, " loaded from the cache: bad dim ", d, " of output ", i);
+                        s[d] = v >= 0 ? static_cast<size_t>(v) : in_shape[d];
+                    }
+                    off += rank;
+                    output_layouts[i].set_partial_shape(s);
+                }
+                return;
+            }
             auto new_op = op->clone_with_new_inputs(new_inputs);
             new_op->validate_and_infer_types();
             OPENVINO_ASSERT(output_layouts.size() == new_op->get_output_size(), "Output size should keep align.");
