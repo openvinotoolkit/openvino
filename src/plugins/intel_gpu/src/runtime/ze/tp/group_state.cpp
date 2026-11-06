@@ -118,6 +118,30 @@ CollectiveStats::CollectiveStats(int world_size) {
     // The only running minimum, so it cannot start at zero.
     seg_min_ns.assign(n, Counter{~uint64_t{0}});
     last_exit.assign(n, std::chrono::steady_clock::time_point{});
+    ar_calls.assign(n, Counter{});
+}
+
+void CollectiveStats::start_window() {
+    // ahead_now is a live gauge, last_exit / dev_last_* carry over to the next collective.
+    for (auto* c : {&ph1_ns,           &ph2_ns,           &late_ns,          &last_count,     &seg_ns,
+                    &seg_max_ns,       &seg_count,        &p2_gate_ns,       &p2_rec_ns,      &p2_wait_ns,
+                    &p2_reset_ns,      &p2_append_ns,     &p2_rec_count,     &p2_wait_count,  &p2_block_count,
+                    &p2_dev_ns,        &p2_dev_max_ns,    &p2_dev_count,     &p2_dev_max_cid, &dev_gap_ns,
+                    &dev_gap_count,    &dev_bytes,        &n_pair,           &n_ring,         &n_halving,
+                    &gather_barrier_ns, &gather_append_ns, &gather_calls,    &gather_spliced, &gather_records,
+                    &gather_dev_ns,    &gather_dev_max_ns, &gather_dev_count, &gather_bytes,  &ahead_sum,
+                    &ahead_max,        &ahead_count,      &p2_dev_hist,      &ar_calls}) {
+        for (auto& counter : *c)
+            counter.v.store(0, std::memory_order_relaxed);
+    }
+    for (auto& counter : seg_min_ns)
+        counter.v.store(~uint64_t{0}, std::memory_order_relaxed);
+    for (auto* c : {&record_ns, &splice_ns, &prep_ns, &tail_ns, &rebuilds, &records, &chunked_calls, &chunks,
+                    &max_chunks, &rec_drain_ns, &rec_reset_ns, &rec_build_ns, &rec_close_ns, &gather_close_ns,
+                    &scratch_stall_ns, &ar_bytes, &dev_call_max}) {
+        c->v.store(0, std::memory_order_relaxed);
+    }
+    dev_call_min.v.store(~uint64_t{0}, std::memory_order_relaxed);
 }
 
 GroupState::GroupState(TPL0SharedContextPtr shared,
@@ -925,6 +949,10 @@ void GroupState::note_collective_done(int rank) {
     if (!(m_options.profiling_host || m_options.profiling_device) || rank != 0) {
         return;
     }
+    // An inference runs every collective of the model once.
+    if (++m_rank0_collectives % static_cast<uint64_t>(m_num_collectives) != 0) {
+        return;
+    }
     if (!m_dump_period.due()) {
         return;
     }
@@ -932,18 +960,30 @@ void GroupState::note_collective_done(int rank) {
 }
 
 void GroupState::emit_report() {
-    const uint64_t calls = m_dump_period.calls();
+    const uint64_t first = m_reported_inferences + 1;
+    m_reported_inferences = m_dump_period.calls();
+    const auto& st = m_stats;
+    const uint64_t calls = st.ar_calls[0].get();
+    TP_REPORT << "[TP][REPORT] inferences " << first << ".." << m_reported_inferences << ": " << calls
+              << " AllReduce calls on rank 0, payload mean "
+              << (calls ? static_cast<double>(st.ar_bytes.get()) / 1024.0 / static_cast<double>(calls) : 0.0)
+              << " KiB" << std::endl;
     if (m_options.profiling_host) {
-        report_host_ranks(calls);
-        report_host_totals(calls);
+        report_host_ranks();
+        report_host_totals();
     }
     if (m_options.profiling_device) {
-        report_device(calls);
+        report_device();
     }
+    // Each report covers its own inferences only, so a prefill and a decode step are told apart.
+    m_stats.start_window();
+    std::lock_guard<std::mutex> lock(m_mailbox.mtx);
+    m_stats.spread_ns = 0;
 }
 
-void GroupState::report_host_ranks(uint64_t calls) {
+void GroupState::report_host_ranks() {
     const auto& st = m_stats;
+    const uint64_t calls = std::max<uint64_t>(1, st.ar_calls[0].get());
     const double c = static_cast<double>(calls);
     auto us = [c](uint64_t v) {
         return static_cast<double>(v) / 1.0e3 / c;
@@ -986,8 +1026,9 @@ void GroupState::report_host_ranks(uint64_t calls) {
     }
 }
 
-void GroupState::report_host_totals(uint64_t calls) {
+void GroupState::report_host_totals() {
     const auto& st = m_stats;
+    const uint64_t calls = std::max<uint64_t>(1, st.ar_calls[0].get());
     const double c = static_cast<double>(calls);
     auto tms = [](uint64_t ns) {
         return static_cast<double>(ns) / 1.0e6;
@@ -1050,24 +1091,23 @@ void GroupState::report_host_totals(uint64_t calls) {
     }
 }
 
-void GroupState::report_device(uint64_t calls) {
+void GroupState::report_device() {
     const auto& st = m_stats;
-    const double c = static_cast<double>(calls);
     uint64_t total_samples = 0;
     for (int r = 0; r < m_world_size; ++r) {
         total_samples += st.p2_dev_count[r].get();
     }
     if (total_samples == 0) {
-        // A completion event is read when the same list is spliced again, two
-        // instances later, so the first numbers appear on the third instance.
-        TP_REPORT << "[TP][RANK|dev] calls=" << calls
-                  << ": no samples yet -- device timings start after a"
-                     " collective has run three times"
+        // A completion event is read when the same list is spliced again: the first numbers appear one or two
+        // inferences later.
+        TP_REPORT << "[TP][RANK|dev] no samples yet -- a collective's device time is read when it runs again"
                   << std::endl;
         return;
     }
+    const double c = static_cast<double>(total_samples) / static_cast<double>(m_world_size);
 
-    TP_REPORT << "[TP][RANK|dev] calls=" << calls << " schedule=" << (m_world_size > 2 ? "ring/halving" : "pair")
+    TP_REPORT << "[TP][RANK|dev] of the calls handed over in inferences " << st.dev_call_min.get() + 1 << ".."
+              << st.dev_call_max.get() + 1 << " schedule=" << (m_world_size > 2 ? "ring/halving" : "pair")
               << " world=" << m_world_size << std::endl;
     uint64_t all_bytes = 0;
     uint64_t all_ns = 0;

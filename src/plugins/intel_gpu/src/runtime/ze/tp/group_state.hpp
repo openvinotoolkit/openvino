@@ -171,7 +171,16 @@ struct CollectiveStats {
     Counter gather_close_ns;
     Counter scratch_stall_ns;
 
+    // The window's AllReduce calls, the divisor of the per-call host figures, and rank 0's payload.
+    CounterVec ar_calls;
+    Counter ar_bytes;
+    // Calls (one per inference) the window's device samples belong to: read when a recording is reused, they lag.
+    Counter dev_call_min{~uint64_t{0}};
+    Counter dev_call_max;
+
     explicit CollectiveStats(int world_size);
+    /// Zeroes what a report covers; keeps the state carried from one collective to the next.
+    void start_window();
 };
 
 /// \brief The collective resources of one TP group in a process, shared by
@@ -499,9 +508,9 @@ private:
     void release_all_waits();
 
     void emit_report();
-    void report_host_ranks(uint64_t calls);
-    void report_host_totals(uint64_t calls);
-    void report_device(uint64_t calls);
+    void report_host_ranks();
+    void report_host_totals();
+    void report_device();
 
     TPL0SharedContextPtr m_shared;
     int m_world_size{0};
@@ -548,7 +557,9 @@ private:
     std::vector<RecordingResources> m_made_ahead;  // [collective * N + rank]
 
     CollectiveStats m_stats;
-    DumpPeriod m_dump_period;
+    DumpPeriod m_dump_period;  ///< in inferences: every collective of the model once
+    uint64_t m_rank0_collectives = 0;
+    uint64_t m_reported_inferences = 0;
 
     // GPU_TP_VALIDATE_ALLREDUCE_OUTPUT.
     struct OutputCheck {

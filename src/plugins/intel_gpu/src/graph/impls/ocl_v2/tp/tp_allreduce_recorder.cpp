@@ -736,6 +736,8 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                     st.dev_last_end_ticks[rank] = kt.global.kernelEnd;
                     st.dev_last_cid[rank] = collective_id;
                     st.dev_bytes[rank].add(splice.bytes);
+                    st.dev_call_min.keep_min(splice.call);
+                    st.dev_call_max.keep_max(splice.call);
                     if (group.profiling_csv()) {
                         std::ostringstream row;
                         row << "device," << rank << "," << collective_id << "," << splice.call << ",," << splice.bytes
@@ -788,6 +790,12 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     }
     abort_guard.armed = false;
 
+    if (measure_host || measure_dev) {
+        st.ar_calls[rank].bump();
+        if (rank == 0) {
+            st.ar_bytes.add(payload_bytes);
+        }
+    }
     if (measure_host) {
         const auto t2 = clk::now();
         if (rank == 0) {

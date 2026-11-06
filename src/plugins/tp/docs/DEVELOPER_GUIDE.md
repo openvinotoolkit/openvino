@@ -114,7 +114,7 @@ so the guarded code folds away instead of costing a branch.
 | `OV_GPU_TP_PROFILING=DEVICE`  | Device-side numbers: how long the collective owns the model queue, bytes moved, effective bandwidth, and what share of device time the collectives take.    | Only when the device-side numbers are the question.  |
 |                               | Adds a kernel-timestamp query per collective, so host figures from such a run are not comparable with a HOST run -- which is why it does not print them.    |                                                      |
 | `OV_GPU_TP_PROFILING=ALL`     | Both of the above.                                                                                                                                          |                                                      |
-| `OV_GPU_TP_DUMP_PERIOD=N`     | Rank-0 collectives between two reports of the collectives. Unset means one report per collective.                                                           | Almost always: by default the output is overloaded. |
+| `OV_GPU_TP_DUMP_PERIOD=N`     | Inferences per report of the collectives (an inference runs every collective of the model once). Each report covers only its own N inferences. Unset: one report per inference. | `1` to see a prefill and a decode step apart; larger to average a steady decode. |
 | `OV_GPU_TP_DUMP_PROFILING_DATA_PATH=<dir>` | With `OV_GPU_TP_PROFILING` set: `tp_collectives_<N>ranks_<k>.csv`, a row per AllReduce call and rank -- `host` rows (HOST): schedule, bytes, how late the rank arrived, rendezvous and hand-over time; `device` rows (DEVICE): the queue time of the call's splice and the model's device time since the previous collective, read when the recording is reused (the last call of each collective has none). `call` is the collective's call number, one per inference, so per-inference and per-rank sums are a group-by. | Stragglers, a step that is slower than the others, anything an average hides. HOST costs nothing measurable; ALL with the CSV +0.3 ms TPOT on TP4. |
 | `OV_TP_DUMP_SHARDING_STATES=<dir>` | `compile_model` writes `tp_sharding_states_<model>_<N>ranks.txt`: the blocks found, the linear layers left whole, then every node of the analyzed model that is split or annotated with its state (Split layout per rank, Partial, rank-dependent sizes), where the state comes from, and its `tp_role` / `tp_shard`. On a verification failure the states up to the failing node, then the error. | A model fails the verification, or a new block pass is being written. |
 
@@ -161,10 +161,11 @@ should; they exist to price a part of the pipeline by removing it.
 | `OV_TP_SHARD_ONLY=1`                 | **Wrong by construction.** Compile one rank's shard with every collective stripped, to measure the upper bound a rank could reach if communication were free. |
 | `OV_GPU_TP_SKIP_COLLECTIVE=1`        | **Wrong by construction.** Return from every AllReduce without doing anything. The difference against a normal run is the whole cost of the collective.       |
 
-Profile output anatomy (one block per dump period; unset means every call, so
-the collectives' block below appears once per collective):
+Profile output anatomy (one block per `GPU_TP_DUMP_PERIOD` inferences, covering those inferences only;
+per-call figures are divided by the window's AllReduce calls):
 
 ```
+[TP][REPORT] inferences A..B: N AllReduce calls on rank 0, payload mean …KiB
 [TP][RANK|host] calls=…  arrival spread=…us/call
 [TP][RANK|host]   rank N: late=…us arrived_last=…%  ph1=…us ph2=…us  segment mean=…us min=…us max=…us
 [TP][RANK|host]     ph1 staging check=…us  ph2 split: record=…us(Nx) evt_wait=…us evt_reset=…us(Nx, blocked Nx) append=…us rest=…us
@@ -175,7 +176,7 @@ the collectives' block below appears once per collective):
 [TP][TOTAL|host]   record breakdown: records=… per-record=…ms (drain=… reset=… append=… close=…)
 [TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB generation=… grows=… allocations=… stall=…ms fixed=…MB
 [TP][TOTAL|host]   gather rank N: calls=… spliced=… records=… barrier=…us append=…us close=…ms total
-[TP][RANK|dev] calls=… schedule=… world=…
+[TP][RANK|dev] of the calls handed over in inferences A..B schedule=… world=…
 [TP][RANK|dev]   rank N: queue busy mean=…us max=…us(cid N)  sent=…MB/call effective=… GB/s (N samples)
 [TP][RANK|dev]     queue busy under: p50=…us p90=…us p99=…us
 [TP][RANK|dev]     between collectives: model=…us -> collectives own …% of device time (N gaps)
@@ -188,6 +189,13 @@ The tags say what the numbers are about and where they came from.
 rank 0's aggregate and exists to price the collective as a whole. `host` means
 a host clock, `dev` means GPU kernel timestamps -- the `dev` lines appear only
 under `GPU_TP_PROFILING=DEVICE` or `ALL`.
+
+One prefill and one decode step apart: `OV_GPU_TP_PROFILING=ALL OV_GPU_TP_DUMP_PERIOD=1`. The
+report of inference 1 is the prefill (payload in MiB), the following ones are decode steps (KiB);
+the payload mean tells them apart again after a new prompt. A collective's device time is read when
+its recording runs again, so the `dev` lines of a report are about an earlier inference, which they
+name (`of the calls handed over in inferences 1..1` in the report of inference 2 is the prefill).
+The CSV's `call` is the same inference numbered from 0.
 
 Field semantics:
 
