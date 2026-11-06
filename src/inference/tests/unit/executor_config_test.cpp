@@ -1420,6 +1420,125 @@ ExecutorConfigTestCase _streams_info_table_cores_limit_false_2 = {
     {},
 };
 
+// Test case for LP efficient cores only (Lunar Lake scenario)
+// Simulates: taskset -c 4-7 where proc_type_table shows ALL=4, MAIN=0, EFFICIENT=0, LP=4, HT=0
+// GPU compilation asks for multiple ANY_CORE streams
+ExecutorConfigTestCase _lp_ecore_only_streams_2_threads_2 = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},  // ALL_PROC=4, MAIN=0, EFFICIENT=0, LP=4, HT=0
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, -1},
+    },
+    2,
+    2,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    {},
+    {
+        {2, LP_EFFICIENT_CORE_PROC, 2, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _lp_ecore_only_streams_4_threads_1 = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, -1},
+    },
+    4,
+    1,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    {},
+    {
+        {4, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _lp_ecore_only_streams_1_threads_4 = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, -1},
+    },
+    1,
+    4,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, ALL_PROC, 4, 0, 0},
+        {0, LP_EFFICIENT_CORE_PROC, 4, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _lp_ecore_only_streams_1_threads_4_ecore = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, -1},
+    },
+    1,
+    4,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
+    false,
+    false,
+    true,
+    {},
+    {
+        {1, LP_EFFICIENT_CORE_PROC, 4, 0, 0},
+    },
+    {},
+};
+
+ExecutorConfigTestCase _lp_ecore_only_streams_2_threads_1 = {
+    {
+        {4, 0, 0, 4, 0, 0, 0},
+    },
+    {
+        {0, 0, 0, 0, LP_EFFICIENT_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, LP_EFFICIENT_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, LP_EFFICIENT_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, LP_EFFICIENT_CORE_PROC, 3, -1},
+    },
+    2,
+    1,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    false,
+    false,
+    true,
+    {},
+    {
+        {2, LP_EFFICIENT_CORE_PROC, 1, 0, 0},
+    },
+    {},
+};
+
 TEST_P(ExecutorConfigTest, ExecutorConfig) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
@@ -1460,6 +1579,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
                                          _pecore_streams_info_table_1,
                                          _pecore_streams_info_table_2,
                                          _streams_info_table_cores_limit_false_1,
-                                         _streams_info_table_cores_limit_false_2));
+                                         _streams_info_table_cores_limit_false_2,
+                                         _lp_ecore_only_streams_2_threads_2,
+                                         _lp_ecore_only_streams_4_threads_1,
+                                         _lp_ecore_only_streams_1_threads_4,
+                                         _lp_ecore_only_streams_1_threads_4_ecore,
+                                         _lp_ecore_only_streams_2_threads_1));
 #endif
 }  // namespace
