@@ -261,7 +261,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Token-only lookups move to the embedding model. FixEmbdAxis replaces them, keeping names.
     std::string embedding_name, per_layer_name;
     int64_t per_layer_count = 0;
-    if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
+    if (m_mode != InputMode::IDS_TO_LOGITS) {
         for (const auto& node : operations) {
             const auto& rt_info = node->get_rt_info();
             if (rt_info.count("gguf.token_embedding")) {
@@ -295,7 +295,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     self_correcting_axis_manager.run_passes(model);
 
     std::shared_ptr<v0::Parameter> inputs_embeds, per_layer_inputs;
-    if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
+    if (m_mode != InputMode::IDS_TO_LOGITS) {
         // rt_info can propagate to helper nodes, so rediscover the lookups by name.
         const auto find_boundary = [&](const std::string& name) {
             std::shared_ptr<ov::Node> found;
@@ -375,7 +375,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     name_output(input_ids, "input_ids");
     auto attention_mask = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
     name_output(attention_mask, "attention_mask");
-    const bool multimodal_positions = inputs_embeds && model->get_rt_info().count(gguf_imrope_key());
+    const bool multimodal_positions =
+        m_mode == InputMode::EMBEDS_TO_LOGITS && model->get_rt_info().count(gguf_imrope_key());
     auto position_ids =
         make_shared<v0::Parameter>(ov::element::i64,
                                    multimodal_positions ? ov::PartialShape{4, -1, -1} : ov::PartialShape{-1, -1});
@@ -805,10 +806,21 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
     // so removing it is safe.
     ov::ParameterVector kept{input_ids, attention_mask, position_ids};
+    for (const auto& name : contract.sequence_inputs) {
+        auto parameter = find_parameter(model, name);
+        OPENVINO_ASSERT(parameter && parameter->get_partial_shape().rank() == 3,
+                        "[GGUF] declared sequence input must be a rank-3 parameter: ",
+                        name);
+        kept.push_back(parameter);
+    }
     for (const auto& p : {inputs_embeds, per_layer_inputs, token_type_ids})
         if (p)
             kept.push_back(p);
-    model->add_parameters(kept);
+    for (const auto& parameter : kept) {
+        const auto& parameters = model->get_parameters();
+        if (std::find(parameters.begin(), parameters.end(), parameter) == parameters.end())
+            model->add_parameters({parameter});
+    }
     const auto params_snapshot = model->get_parameters();  // copy: remove_parameter mutates the list
     for (const auto& p : params_snapshot) {
         if (p != beam_idx && std::find(kept.begin(), kept.end(), p) == kept.end())

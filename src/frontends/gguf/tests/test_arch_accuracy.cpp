@@ -49,10 +49,88 @@
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/util/common_util.hpp"
 #include "quant/gguf.hpp"
+#include "transformations/convert_precision.hpp"
 #include "utils.hpp"
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST(GGUFQwenMtpAccuracy, PrefillDecodeAndHiddenStatesMatchGgmlCpu) {
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    for (const auto mode : {Extension::InputMode::IDS_TO_LOGITS, Extension::InputMode::EMBEDS_TO_LOGITS_TEXT}) {
+        SCOPED_TRACE(static_cast<int>(mode));
+        ov::frontend::gguf::FrontEnd frontend;
+        auto extension = std::make_shared<Extension>(mode, "mtp");
+        frontend.add_extension(extension);
+        auto model = ov_gguf_test::reload_ir_model(frontend.convert(frontend.load(temporary.path)));
+        ov::pass::ConvertPrecision(ov::element::Type_t::f16, ov::element::Type_t::f32).run_on_model(model);
+        for (const auto& operation : model->get_ops()) {
+            for (const auto& output : operation->outputs())
+                EXPECT_NE(output.get_element_type(), ov::element::f16) << operation->get_friendly_name();
+        }
+        EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 32}));
+        EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
+        ov::Core core;
+        const auto compile = [&](const std::shared_ptr<ov::Model>& graph) {
+            return core
+                .compile_model(graph,
+                               "CPU",
+                               ov::hint::inference_precision(ov::element::f32),
+                               ov::hint::dynamic_quantization_group_size(0),
+                               ov::hint::kv_cache_precision(ov::element::f32))
+                .create_infer_request();
+        };
+        auto request = compile(model);
+        for (const auto& state : request.query_state())
+            EXPECT_EQ(state.get_state().get_element_type(), ov::element::f32);
+        ov::InferRequest lookup;
+        if (extension->get_embedding_model())
+            lookup = compile(extension->get_embedding_model());
+        int64_t offset = 0;
+        for (size_t step = 0; step < 3; ++step) {
+            SCOPED_TRACE(step);
+            const auto& hidden = ov_gguf_test::npz_array(arrays, "hidden_input_" + std::to_string(step));
+            const auto length = hidden.shape[1];
+            ov::Tensor ids(ov::element::i64, {1, length}), positions(ov::element::i64, {1, length});
+            ov::Tensor mask(ov::element::i64, {1, static_cast<size_t>(offset) + length});
+            ov::Tensor beam(ov::element::i32, {1});
+            beam.data<int32_t>()[0] = 0;
+            std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+            for (size_t i = 0; i < length; ++i) {
+                ids.data<int64_t>()[i] = offset + i + 1;
+                positions.data<int64_t>()[i] = offset + i;
+            }
+            if (lookup) {
+                lookup.set_tensor("input_ids", ids);
+                lookup.infer();
+                request.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+            } else {
+                request.set_tensor("input_ids", ids);
+            }
+            request.set_tensor("hidden_states", ov::Tensor(ov::element::f32, hidden.shape, hidden.data<float>()));
+            request.set_tensor("attention_mask", mask);
+            request.set_tensor("position_ids", positions);
+            request.set_tensor("beam_idx", beam);
+            request.infer();
+            for (const auto& [output, key] :
+                 {std::pair{"logits", "logits_"}, {"last_hidden_state", "hidden_output_"}}) {
+                SCOPED_TRACE(output);
+                const auto& expected = ov_gguf_test::npz_array(arrays, std::string(key) + std::to_string(step));
+                const auto actual = request.get_tensor(output);
+                const bool logits = std::string(output) == "logits";
+                const ov::Shape shape = logits ? ov::Shape{1, 1, 32} : expected.shape;
+                EXPECT_EQ(actual.get_shape(), shape);
+                const auto* reference = expected.data<float>() + (logits ? expected.num_vals - 32 : 0);
+                ov_gguf_test::expect_nmse_below(
+                    ov_gguf_test::nmse(actual.data<const float>(), reference, actual.get_size()),
+                    1e-5);
+            }
+            offset += length;
+        }
+    }
+}
 
 TEST(GGUFAFMoE, MissingAndZeroRoutingUseSigmoidDefaults) {
     using namespace ov::frontend::gguf;
