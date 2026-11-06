@@ -26,6 +26,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "ov_ops/tp_collective.hpp"
 
 using namespace ov;
 
@@ -626,6 +627,22 @@ TEST_F(SharedTransformationTestsF, SharedRelu) {
 
         auto concat = std::make_shared<v0::Concat>(OutputVector{op_1, op_1}, 0);
         model_ref = std::make_shared<ov::Model>(OutputVector{concat}, ParameterVector{data});
+    }
+}
+
+// Each collective is a call every rank joins; merging two on one rank would leave the others waiting.
+TEST_F(SharedTransformationTestsF, CollectivesAreNotShared) {
+    {
+        auto data = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 64});
+        auto op_0 = std::make_shared<ov::op::internal::TPAllReduce>(data, 0, 2, 0, ov::op::internal::ReduceOp::SUM);
+        auto op_1 = std::make_shared<ov::op::internal::TPAllReduce>(data, 0, 2, 0, ov::op::internal::ReduceOp::SUM);
+        auto gather_0 = std::make_shared<ov::op::internal::TPGather>(data, 0, 2, 0, -1);
+        auto gather_1 = std::make_shared<ov::op::internal::TPGather>(data, 0, 2, 0, -1);
+
+        auto concat = std::make_shared<v0::Concat>(OutputVector{op_0, op_1}, 0);
+        auto gathers = std::make_shared<v0::Concat>(OutputVector{gather_0, gather_1}, 0);
+        model = std::make_shared<ov::Model>(OutputVector{concat, gathers}, ParameterVector{data});
+        manager.register_pass<ov::pass::SharedOpOptimization>();
     }
 }
 

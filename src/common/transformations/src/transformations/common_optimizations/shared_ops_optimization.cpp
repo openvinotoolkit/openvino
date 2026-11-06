@@ -10,6 +10,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "ov_ops/tp_collective.hpp"
 
 using namespace std;
 using namespace ov;
@@ -103,6 +104,9 @@ bool nodes_are_equal(const std::shared_ptr<Node>& lhs,
     if (!lhs->get_control_dependents().empty() || !lhs->get_control_dependencies().empty())
         return false;
     if (!rhs->get_control_dependents().empty() || !rhs->get_control_dependencies().empty())
+        return false;
+    // a collective is a call the other ranks join: merging two on one rank leaves that rank a call short
+    if (ov::is_type<ov::op::internal::TPCollectiveBase>(lhs))
         return false;
     // skip comparing rt_info. example: fused_name may have different strings
     // compare inputs: should be same Output<Node> or equal constants
