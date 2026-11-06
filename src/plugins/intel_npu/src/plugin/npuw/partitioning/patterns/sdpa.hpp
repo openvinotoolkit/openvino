@@ -129,6 +129,17 @@ public:
     ShapeOfParameter();
 };
 
+// Folds a ShapeOf that directly consumes a Concat (e.g. a KV-cache Concat also feeding a
+// ShapeOf computing the current total KV length for some other graph-level use) into a
+// constant, once the Concat's output shape is fully static/bound. Without this, that extra
+// ShapeOf consumer can prevent a Concat from being cleanly isolated into its own private
+// SDPA subgraph downstream (e.g. by DuplicateSharedKVConcat / HFA decomposition).
+class ShapeOfConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::ShapeOfConcat");
+    ShapeOfConcat();
+};
+
 class RegularizeSDPA : public ov::pass::ModelPass {
     bool m_run_broadcast_pattern = false;
 

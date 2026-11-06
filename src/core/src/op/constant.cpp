@@ -291,25 +291,16 @@ void Constant::set_unused_bits(void* buffer) const {
         const auto num_elements = shape_size(m_shape);
 
         if (element::is_bit_type(m_element_type)) {
-            constexpr size_t storage_unit_byte_size = 1;
-            const auto not_aligned_elements = num_elements % (8 / m_element_type.bitwidth());
-            const uint8_t not_used_bits_mask = element::is_lsb_packed(m_element_type)
-                                                   ? 0xff << (m_element_type.bitwidth() * not_aligned_elements)
-                                                   : 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
-            reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= ~not_used_bits_mask;
+            // Mask off the unused tail bits of the last byte, fully unused bytes are not allocated.
+            if (const auto tail_bits = ((num_elements % 8) * m_element_type.bitwidth()) % 8) {
+                const uint8_t used_bits_mask = element::is_lsb_packed(m_element_type)
+                                                   ? static_cast<uint8_t>(0xffU >> (8 - tail_bits))
+                                                   : static_cast<uint8_t>(0xffU << (8 - tail_bits));
+                reinterpret_cast<uint8_t*>(buffer)[byte_size - 1] &= used_bits_mask;
+            }
         } else if (element::is_nibble_type(m_element_type) && (num_elements % 2)) {
             constexpr size_t storage_unit_byte_size = 1;
             reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= 0x0FU;
-        } else if (element::is_split_bit_type(m_element_type)) {
-            constexpr size_t storage_unit_byte_size = 3;
-            const auto num_values = (24U / m_element_type.bitwidth());
-            const auto not_aligned_elements = num_elements % num_values;
-            const uint16_t not_used_upper_mask = ~(0xffff >> (not_aligned_elements * (16U / num_values)));
-
-            auto ptr = reinterpret_cast<uint8_t*>(buffer) + (byte_size - storage_unit_byte_size);
-            ptr[0] &= not_used_upper_mask >> 8U;
-            ptr[1] &= not_used_upper_mask & 0x00ff;
-            ptr[2] &= ~(0xff >> (not_aligned_elements * (8U / num_values)));
         }
     }
 }

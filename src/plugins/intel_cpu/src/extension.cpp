@@ -123,6 +123,8 @@
 #elif defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    include "transformations/snippets/riscv64/op/brgemm_cpu.hpp"
 #endif
 
 namespace {
@@ -236,6 +238,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::LoadConvertTruncation>>())
     OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertSaturation>>())
     OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertTruncation>>())
+    OP_EXTENSION_RISCV64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCPU>>())
     // clang-format on
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),

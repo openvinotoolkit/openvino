@@ -8,6 +8,7 @@
 #include "kernel.hpp"
 #include "kernel_args.hpp"
 #include "execution_config.hpp"
+#include "command_recorder.hpp"
 
 #include <memory>
 #include <vector>
@@ -55,6 +56,10 @@ public:
     virtual void finish() const = 0;
     virtual void wait() = 0;
 
+    /// @brief Get the command recorder associated with the stream.
+    /// @return Command recorder object or nullptr if not supported.
+    virtual command_recorder::ptr get_recorder() const { return nullptr; }
+
     virtual void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) = 0;
     virtual event::ptr enqueue_kernel(kernel& kernel,
                                       const kernel_arguments_desc& args_desc,
@@ -62,23 +67,18 @@ public:
                                       std::vector<event::ptr> const& deps,
                                       bool is_output_event = false) = 0;
     virtual event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output_event = false) = 0;
-    virtual void enqueue_barrier() = 0;
+    /// @brief Enqueue a barrier that blocks all following commands.
+    /// @param deps A vector of events that the barrier should wait for.
+    /// @note If deps is empty, the barrier will wait for all previously enqueued commands to complete.
+    virtual void enqueue_barrier(const std::vector<event::ptr>& deps = {}) = 0;
     virtual event::ptr group_events(std::vector<event::ptr> const& deps) = 0;
     virtual void wait_for_events(const std::vector<event::ptr>& events) = 0;
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
-#ifdef ENABLE_MLIR_FOR_GPU
-    // Wraps an already existing native event handle (i.e. cl_event for OpenCL) into cldnn::event
-    virtual event::ptr create_base_event(void* /*handle*/) { return nullptr; }
-#endif
     virtual std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const = 0;
     virtual event::ptr aggregate_events(const std::vector<event::ptr>& events, bool group = false, bool is_output = false);
 
     QueueTypes get_queue_type() const { return m_queue_type; }
-#ifdef ENABLE_MLIR_FOR_GPU
-    // Returns the handle to the underlying stream object (e.g. cl_command_queue for OpenCL)
-    virtual void* get_native_handle() const { return nullptr; }
-#endif
     SyncMethods get_sync_method() const { return m_sync_method; }
 
     static SyncMethods get_expected_sync_method(const ExecutionConfig& config);

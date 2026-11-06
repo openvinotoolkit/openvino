@@ -15,6 +15,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "partitioning/patterns/fold_const.hpp"
 #include "serialization.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -30,10 +31,77 @@ auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     for (const auto& [key, value] : rhs) {
         if (auto it = lhs.find(key); it != lhs.end()) {
-            it->second = value;
+            if (key == ::intel_npu::COMPILATION_MODE_PARAMS::key()) {
+                it->second = ov::npuw::util::merge_compilation_mode_params(it->second.as<std::string>(),
+                                                                           value.as<std::string>());
+            } else {
+                it->second = value;
+            }
         } else {
             lhs.emplace(key, value);
         }
+    }
+}
+
+struct NPUDesc {
+    std::string arch;
+    int64_t max_tiles = -1;
+};
+
+std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
+    if (!plugin || !plugin->get_core()) {
+        return std::nullopt;
+    }
+    NPUDesc desc;
+    try {
+        const auto all_devices = plugin->get_core()->get_property("NPU", ov::available_devices);
+        if (all_devices.empty()) {
+            return std::nullopt;
+        }
+        desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+        desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("Flux2CompiledModel: failed to query NPU capabilities: " << ex.what());
+        return std::nullopt;
+    }
+    return std::make_optional(std::move(desc));
+}
+
+// Architecture-aware NPU tile configuration
+void set_max_tiles_based_on_arch(ov::AnyMap& config, const std::optional<NPUDesc>& npudesc) {
+    if (!npudesc.has_value()) {
+        return;
+    }
+    LOG_DEBUG("Flux2CompiledModel: NPU arch " << npudesc->arch << ", max tiles " << npudesc->max_tiles);
+
+    // Use the reported architecture when available; otherwise keep AUTO_DETECT.
+    const std::string npu_platform = (npudesc->arch != ov::intel_npu::Platform::AUTO_DETECT)
+                                         ? ov::intel_npu::Platform::standardize(npudesc->arch)
+                                         : npudesc->arch;
+
+    bool set_npu_tiles = false;
+    std::string arch_added_compilation_param;
+    if (npu_platform == ov::intel_npu::Platform::NPU3720) {
+        // Keep baseline settings
+    } else if (npu_platform == ov::intel_npu::Platform::NPU4000) {
+        set_npu_tiles = true;
+        arch_added_compilation_param = "optimization-level=3";
+    } else if (npu_platform == ov::intel_npu::Platform::NPU5010 || npu_platform == ov::intel_npu::Platform::NPU5020) {
+        set_npu_tiles = true;
+    } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
+        arch_added_compilation_param = "performance-hint-override=latency";
+    } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
+        // Keep baseline settings
+    } else {
+        LOG_WARN("Flux2CompiledModel: unknown NPU platform " << npu_platform << ". Default config will be used.");
+    }
+
+    if (set_npu_tiles && npudesc->max_tiles > 0) {
+        config[std::string(ov::intel_npu::tiles.name())] = npudesc->max_tiles;
+    }
+    if (!arch_added_compilation_param.empty()) {
+        merge_config_with(config,
+                          {{std::string(::intel_npu::COMPILATION_MODE_PARAMS::key()), arch_added_compilation_param}});
     }
 }
 
@@ -137,7 +205,9 @@ Flux2Submodel detect_submodel(const std::shared_ptr<ov::Model>& model) {
 }
 
 // Build the effective config: NPU device base < per-submodel defaults < user properties.
-ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
+ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model,
+                               const std::shared_ptr<const ov::IPlugin>& plugin,
+                               const ov::AnyMap& properties) {
     const auto role = detect_submodel(model);
     if (role == Flux2Submodel::UNKNOWN) {
         LOG_WARN("Flux2CompiledModel could not identify the Flux.2-klein submodel; "
@@ -155,6 +225,9 @@ ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model, const ov
         {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "NO"},
     };
     merge_config_with(config, submodel_config(role));
+    // Compile newer NPU generations across all tiles (mirrors LLMCompiledModel).
+    set_max_tiles_based_on_arch(config, extract_npu_descriptor(plugin));
+
     // User-provided properties take precedence over the defaults above.
     merge_config_with(config, properties);
     return config;
@@ -164,8 +237,9 @@ ov::AnyMap with_flux2_defaults(const std::shared_ptr<ov::Model>& model, const ov
 
 ov::npuw::Flux2CompiledModel::PreparedState ov::npuw::Flux2CompiledModel::prepare(
     const std::shared_ptr<ov::Model>& model,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
-    auto prepared_properties = with_flux2_defaults(model, properties);
+    auto prepared_properties = with_flux2_defaults(model, plugin, properties);
     model->set_friendly_name(model->get_friendly_name() + "_flux2");
 
     if (cfg_get<::intel_npu::NPUW_PLAN>(prepared_properties).empty()) {
@@ -190,7 +264,7 @@ ov::npuw::Flux2CompiledModel::Flux2CompiledModel(const std::shared_ptr<ov::Model
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
                                                  const ov::AnyMap& properties,
                                                  CompiledModelFactory factory)
-    : Flux2CompiledModel(prepare(model, properties), plugin, std::move(factory)) {}
+    : Flux2CompiledModel(prepare(model, plugin, properties), plugin, std::move(factory)) {}
 
 ov::npuw::Flux2CompiledModel::Flux2CompiledModel(PreparedState prepared,
                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -202,12 +276,7 @@ ov::npuw::Flux2CompiledModel::Flux2CompiledModel(PreparedState prepared,
 
 void ov::npuw::Flux2CompiledModel::export_model(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
-    write(stream, NPUW_SERIALIZATION_INDICATOR);
-    write(stream, NPUW_FLUX2_COMPILED_MODEL_INDICATOR);
-    write(stream, OPENVINO_VERSION_MAJOR);
-    write(stream, OPENVINO_VERSION_MINOR);
-    write(stream, OPENVINO_VERSION_PATCH);
-    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    write_header(stream, NPUW_FLUX2_COMPILED_MODEL_INDICATOR);
     m_compiled_model->export_model(stream);
 }
 
@@ -220,40 +289,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::Flux2CompiledModel::import_m
 
     using namespace ov::npuw::s11n;
 
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    read(stream, serialization_indicator);
-    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR);
-
-    ov::npuw::s11n::IndicatorType flux2_indicator;
-    read(stream, flux2_indicator);
-    NPUW_ASSERT(flux2_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR);
-
-    int vmajor, vminor, vpatch;
-    std::string s11n_version;
-    read(stream, vmajor);
-    read(stream, vminor);
-    read(stream, vpatch);
-    read(stream, s11n_version);
-
-    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("Flux2 blob was serialized with a different OV version (",
-                       vmajor,
-                       '.',
-                       vminor,
-                       '.',
-                       vpatch,
-                       " / NPUW s11n ",
-                       s11n_version,
-                       "); current is ",
-                       OPENVINO_VERSION_MAJOR,
-                       '.',
-                       OPENVINO_VERSION_MINOR,
-                       '.',
-                       OPENVINO_VERSION_PATCH,
-                       " / NPUW s11n ",
-                       NPUW_SERIALIZATION_VERSION);
-    }
+    read_and_check_header(stream, NPUW_FLUX2_COMPILED_MODEL_INDICATOR, "Flux2CompiledModel");
 
     // The rest of the stream is the inner CompiledModel ORC blob.
     // After import it is fully self-contained; no outer Flux2 wrapper is needed

@@ -4,6 +4,7 @@
 
 #include "low_precision/pad.hpp"
 
+#include <cmath>
 #include <memory>
 
 #include "itt.hpp"
@@ -42,6 +43,9 @@ PadTransformation::PadTransformation(const Params& params) : LayerTransformation
 }
 
 namespace {
+    // Input port of PadBase carrying the pad value (arg_pad_value).
+    constexpr size_t padValueInputIndex = 3;
+
     bool hasPositiveIndexes(const std::shared_ptr<ov::op::util::PadBase>& pad) {
         const auto padsBegin = pad->get_pads_begin();
         const auto padsEnd = pad->get_pads_end();
@@ -51,6 +55,27 @@ namespace {
         return std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
                std::any_of(padsEnd.begin(), padsEnd.end(), pred);
     }
+
+    // Returns true when every constant Pad value is finite and fits the requested precision.
+    // Types without configured limits are checked only for finite values.
+    bool padValueIsRepresentable(const std::shared_ptr<ov::op::util::PadBase>& pad, const element::Type& precision) {
+        const auto padValue = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(padValueInputIndex));
+        if (padValue == nullptr) {
+            return false;
+        }
+
+        const auto limits = NetworkHelper::getPrecisionLimits(precision);
+
+        const auto values = padValue->cast_vector<float>();
+
+        return std::all_of(values.begin(), values.end(), [&limits](const float value) {
+            const bool isFinite = std::isfinite(value);
+            const bool isWithinPrecisionLimits = !limits.has_value() ||
+                                                 (static_cast<double>(value) >= limits->first &&
+                                                  static_cast<double>(value) <= limits->second);
+            return isFinite && isWithinPrecisionLimits;
+        });
+    }
 } // namespace
 
 bool PadTransformation::transform(ov::pass::pattern::Matcher& m) {
@@ -59,7 +84,7 @@ bool PadTransformation::transform(ov::pass::pattern::Matcher& m) {
     }
 
     const auto pad = ov::as_type_ptr<ov::op::util::PadBase>(NetworkHelper::separateInStandaloneBranch(m.get_match_root(), defaultPrecisions));
-    const auto padConstant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(3));
+    const auto padConstant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(padValueInputIndex));
     const auto padConstantValue = padConstant->cast_vector<float>()[0];
 
     const auto padsBegin = pad->get_pads_begin();
@@ -165,7 +190,7 @@ bool PadTransformation::transform(ov::pass::pattern::Matcher& m) {
 
     // we must convert pad value in low precision
     const auto convertedZero = ov::opset1::Constant::create(dequantization.data.get_element_type(), Shape{}, { padConstantValue });
-    pad->set_argument(3, convertedZero);
+    pad->set_argument(padValueInputIndex, convertedZero);
 
     const auto newOperation = moveDequantizationAfter(pad, dequantization);
 
@@ -193,6 +218,11 @@ bool PadTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const 
 
     const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
     if (dequantization.empty()) {
+        return false;
+    }
+
+    if (mode == op::PadMode::CONSTANT &&
+        !padValueIsRepresentable(pad, dequantization.data.get_element_type())) {
         return false;
     }
 
@@ -266,7 +296,7 @@ bool PadTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const 
             return false;
         }
 
-        const auto constant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(3));
+        const auto constant = ov::as_type_ptr<ov::opset1::Constant>(pad->get_input_node_shared_ptr(padValueInputIndex));
         const auto constantValue = constant->cast_vector<float>()[0];
         if (constantValue != 0.f && !padAndDqByTheSameDimension(dequantization.multiplyConstant)) {
             return false;

@@ -481,21 +481,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             // Target Static Shape is empty
             std::regex(R"(.*proposal_params/.*)"),
-            // Quantized models unsupported
-            std::regex(R"(.*Quantized.*)"),
-            std::regex(R"(.*smoke_Snippets_MatMul.*)"),
-            std::regex(R"(.*smoke_Snippets_MatMult.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
-            std::regex(R"(.*smoke_Snippets_Dyn.*Mat.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA.*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
-            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
-            std::regex(R"(.*smoke_Snippets_FQDecomposition.*Swish.*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
-            std::regex(R"(.*_enforceSnippets=1.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
@@ -511,6 +501,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)"),
             // Compressed weights are not supported
             std::regex(R"(smoke_MatMulSharedCompressedWeights.*)"),
+            std::regex(R"(smoke_MatMulGroupedWeightsDecompressionBRGEMM.*)"),
             std::regex(R"(smoke_Model_Distribution_MatMulSharedCompressedWeights.*)"),
             std::regex(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)"),
             // Issue: 170863
@@ -619,7 +610,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(smoke_ExportImportTest/ExportOptimalNumStreams.OptimalNumStreams/.*)"));
             // by calc abs_threshold with expected value
             patterns.emplace_back(std::regex(R"(.*smoke_GatherCompressedWeights_basic/GatherWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
-            patterns.emplace_back(std::regex(R"(.*smoke_Interaction/IntertactionCPUTest.CompareWithRefs.*Prc=i32.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_(amx|sym_amx|corner_cases_amx)/MatmulWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_EnforcePrecision_bf16/EnforcePrecisionTest.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHABF16_4D/MHA.CompareWithRefImpl/.*\[1.58.16.34\]_IS\[1\]=\[1.58.16.34\]_IS\[2\]=\[1.1.1.58\]_IS\[3\]=\[1.58.16.34\].*)"));

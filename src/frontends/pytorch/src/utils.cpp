@@ -12,12 +12,15 @@
 #include "openvino/frontend/sequence_mark.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_promote_types.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -44,9 +47,7 @@
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 using namespace ov::op;
 
@@ -330,6 +331,18 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
     return input_tensor;
 };
 
+Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
+    if (!context.input_is_none(dtype_port)) {
+        return apply_dtype(context, dtype_port, input_tensor);
+    }
+    if (context.has_attribute("dtype")) {
+        // Export passes the keyword-only dtype as an attribute already resolved to an OpenVINO type.
+        return context.mark_node(
+            std::make_shared<v0::Convert>(input_tensor, context.get_attribute<element::Type>("dtype")));
+    }
+    return input_tensor;
+};
+
 PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
@@ -572,6 +585,18 @@ bool is_python_scalar_input(const NodeContext& context, size_t index) {
     return context.get_input_type(index).is<type::PyScalar>();
 }
 
+std::string normalize_op_type(const std::string& op_type) {
+    constexpr std::string_view fx_prefix = "aten.";
+    if (op_type.compare(0, fx_prefix.size(), fx_prefix) != 0) {
+        return op_type;
+    }
+    const auto overload = op_type.find('.', fx_prefix.size());
+    if (overload == std::string::npos) {
+        return op_type;
+    }
+    return "aten::" + op_type.substr(fx_prefix.size(), overload - fx_prefix.size());
+}
+
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,
@@ -657,6 +682,32 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     auto dummy_const = context.mark_node(v0::Constant::create(element::f32, Shape({}), {0.5}))->output(0);
     align_eltwise_input_types(context, x, dummy_const, false, true);
     return x;
+}
+
+element::Type get_input_element_type(const NodeContext& context, size_t idx) {
+    auto type = context.get_input(static_cast<int>(idx)).get_element_type();
+    if (type.is_dynamic()) {
+        type = context.get_input_from_visible_context(idx).get_element_type();
+    }
+    if (type.is_dynamic()) {
+        const auto decoded = simplified_type_interpret(context.get_input_type(idx));
+        if (decoded.is<element::Type>()) {
+            type = decoded.as<element::Type>();
+        }
+    }
+    return type;
+}
+
+Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
+    if (x.get_element_type().is_static() && x.get_element_type().is_integral_number()) {
+        return x;
+    }
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, x));
+    auto is_negative = context.mark_node(std::make_shared<v1::Less>(x, zero));
+    auto ceil = context.mark_node(std::make_shared<v0::Ceiling>(x));
+    auto floor = context.mark_node(std::make_shared<v0::Floor>(x));
+    return context.mark_node(std::make_shared<v1::Select>(is_negative, ceil, floor));
 }
 
 Output<Node> get_input_as_i32(const NodeContext& context, size_t idx) {
@@ -1011,6 +1062,35 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
     }
 }
 
+OutputVector build_meshgrid(ov::pass::NodeRegistry& rg, OutputVector inputs, const std::string& indexing) {
+    const bool xy = indexing == "xy" && inputs.size() >= 2;
+    if (xy) {
+        std::swap(inputs[0], inputs[1]);
+    }
+    NodeVector cat_shapes;
+    NodeVector reshapes;
+    auto const_neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
+    auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        auto reshaped_input = rg.make<v1::Reshape>(inputs[i], const_neg_1, false);
+        auto shape = rg.make<v3::ShapeOf>(reshaped_input, element::i32);
+        cat_shapes.push_back(shape);
+        NodeVector cat_inputs(inputs.size(), const_1);
+        cat_inputs[i] = shape;
+        auto input_cat = rg.make<v0::Concat>(cat_inputs, 0);
+        reshapes.push_back(rg.make<v1::Reshape>(reshaped_input, input_cat, false));
+    }
+    auto cat = rg.make<v0::Concat>(cat_shapes, 0);
+    OutputVector outputs;
+    for (const auto& reshape : reshapes) {
+        outputs.push_back(rg.make<v3::Broadcast>(reshape, cat, ov::op::BroadcastType::BIDIRECTIONAL));
+    }
+    if (xy) {
+        std::swap(outputs[0], outputs[1]);
+    }
+    return outputs;
+}
+
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis) {
     // First dimension of output tensor is the product of [d_0, ... d_{axis-1}] dimensions of
     // input tensor. The last dimension is the product of the rest of input tensor dimensions:
@@ -1154,6 +1234,11 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         cum_adv_index = rg.make<v1::Add>(cum_adv_index, adv_index);
         multiplier = rg.make<v1::Multiply>(multiplier, input_dims->output(input_id));
     }
+    if (adv_idx_count > 1 && std::all_of(advanced_ids.begin(), advanced_ids.end(), [&](size_t id) {
+            return masked_indices[id].get_partial_shape().rank() == 0;
+        })) {
+        cum_adv_index = rg.make<v0::Squeeze>(cum_adv_index, zero);
+    }
     std::shared_ptr<Node> gather = rg.make<v8::Gather>(flatten_input, cum_adv_index, zero);
     OutputVector concat_dims;
     // check if all advanced indices are consecutive.
@@ -1250,6 +1335,4 @@ OutputVector wrap_complex(const NodeContext& context,
     return results;
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

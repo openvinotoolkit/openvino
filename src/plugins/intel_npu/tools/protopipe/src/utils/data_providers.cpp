@@ -54,10 +54,9 @@ CircleBuffer::CircleBuffer(cv::Mat mat): CircleBuffer(std::vector<cv::Mat>{mat})
 }
 
 void CircleBuffer::pull(cv::Mat& mat) {
-    m_buffer[m_pos++].copyTo(mat);
-    if (m_pos == m_buffer.size()) {
-        m_pos = 0;
-    }
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_buffer[m_pos].copyTo(mat);
+    m_pos = (m_pos + 1) % m_buffer.size();
 }
 
 cv::GMatDesc CircleBuffer::desc() {

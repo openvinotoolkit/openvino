@@ -422,8 +422,10 @@ TEST_F(WeightShareExtensionTest, get_buffer_by_mmap_oob_throws) {
     weight_sharing::Context ctx;
     auto mmap = ov::load_mmap_object(weights_path);
     ASSERT_TRUE(mmap);
+    const auto mmap_id = mmap->get_id();
+    ASSERT_TRUE(mmap_id.has_value());
     const weight_sharing::DataID const_id = 0;
-    ctx.m_weight_registry[mmap->get_id()][const_id] = {0, 0x1000000000ULL, element::f32};
+    ctx.m_weight_registry[mmap_id.value()][const_id] = {0, 0x1000000000ULL, element::f32};
 
     OV_EXPECT_THROW(weight_sharing::get_buffer(ctx, mmap, const_id), ov::Exception, testing::_);
 }

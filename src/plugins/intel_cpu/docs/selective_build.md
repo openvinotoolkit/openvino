@@ -14,7 +14,7 @@ OV_SWITCH(intel_cpu, OpNameExecute, ctx, precision,
           OV_CASE(ov::element::i32, int32_t))
 ```
 
-**`OV_CPU_INSTANCE_*`** — architecture/backend guards for executor implementation lists, defined in [`src/utils/arch_macros.h`](../src/utils/arch_macros.h): `OV_CPU_INSTANCE_COMMON`, `OV_CPU_INSTANCE_X64`, `OV_CPU_INSTANCE_ARM64`, `OV_CPU_INSTANCE_ACL`, `OV_CPU_INSTANCE_ACL32`, `OV_CPU_INSTANCE_ACL64`, `OV_CPU_INSTANCE_DNNL`, `OV_CPU_INSTANCE_DNNL_X64`, `OV_CPU_INSTANCE_DNNL_ARM64`, `OV_CPU_INSTANCE_MLAS_X64`, `OV_CPU_INSTANCE_MLAS_ARM64`, `OV_CPU_INSTANCE_RISCV64`, `OV_CPU_INSTANCE_KLEIDIAI`. Each wraps an `ExecutorImplementation` so code for unavailable platforms is compiled away.
+**`OV_CPU_INSTANCE_*`** — architecture/backend guards for executor implementation lists, defined in [`src/utils/arch_macros.h`](../src/utils/arch_macros.h): `OV_CPU_INSTANCE_COMMON`, `OV_CPU_INSTANCE_X64`, `OV_CPU_INSTANCE_ARM64`, `OV_CPU_INSTANCE_ACL`, `OV_CPU_INSTANCE_ACL32`, `OV_CPU_INSTANCE_ACL64`, `OV_CPU_INSTANCE_DNNL`, `OV_CPU_INSTANCE_DNNL_X64`, `OV_CPU_INSTANCE_DNNL_ARM64`, `OV_CPU_INSTANCE_MLAS_X64`, `OV_CPU_INSTANCE_MLAS_ARM64`, `OV_CPU_INSTANCE_RISCV64`, `OV_CPU_INSTANCE_KLEIDIAI`. Each wraps an `ExecutorImplementation` so code for unavailable platforms is compiled away — see [executors/README.md](../src/nodes/executors/README.md#getimplementations-and-the-ov_cpu_instance-macros) for the full macro-to-condition table and how they're used in `getImplementations()`.
 
 For the OpenVINO-wide conditional-compilation guide see [docs/dev/conditional_compilation.md](../../../../docs/dev/conditional_compilation.md).
 

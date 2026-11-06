@@ -18,11 +18,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 
 namespace {
 // Helper function to extract a dimension from a shape tensor at given index
@@ -109,8 +105,4 @@ ov::OutputVector gather_nd(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("GatherND", OPSET_SINCE(1), ai_onnx::opset_1::gather_nd);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

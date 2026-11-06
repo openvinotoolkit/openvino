@@ -22,10 +22,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_unsorted_segment_sum_op(const NodeContext& node) {
     default_op_checks(node, 3, {"UnsortedSegmentSum"});
     auto data = node.get_input(0);
@@ -102,7 +99,4 @@ OutputVector translate_unsorted_segment_sum_op(const NodeContext& node) {
     return {unsorted_segment_sum};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

@@ -19,10 +19,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
-namespace op {
+namespace ov::frontend::jax::op {
 
 using namespace ov::op;
 
@@ -184,7 +181,4 @@ OutputVector translate_dot_general(const NodeContext& context) {
     return {matmul};
 };
 
-}  // namespace op
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax::op

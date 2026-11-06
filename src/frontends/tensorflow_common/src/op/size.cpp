@@ -14,10 +14,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 ov::OutputVector translate_size_op(const NodeContext& node) {
     // Size operation computes a number of elements in the input tensor
@@ -57,7 +54,4 @@ ov::OutputVector translate_size_op(const NodeContext& node) {
     return {size};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

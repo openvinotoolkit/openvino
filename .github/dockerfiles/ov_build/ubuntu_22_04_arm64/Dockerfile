@@ -23,46 +23,46 @@ RUN apt-get update && \
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     apt-get update && \
     apt-get install \
-        curl \
-        git \
-        ca-certificates \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Pythons
-        python3.9-dev \
-        python3.9-venv \
-        python3.9-distutils \
-        python3.10-dev \
-        python3.10-venv \
-        python3.10-distutils \
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
-        python3.12-dev \
-        python3.12-venv \
-        python3.13-dev \
-        python3.13-venv \
-        python3.14-nogil \
-        python3.14-venv \
-        python3.14-dev \
-        libhdf5-dev \
-        # For Java API
-        default-jdk \
-        # Compiler, required for multi-isa build
-        gcc-11 \
-        g++-11 \
-        # JS API
-        xvfb \
-        libgtk-3-0 \
-        libgbm1 \
-        # ONNX Runtime
-        language-pack-en \
-        # For clang-tidy validation
-        clang-format-18 \
-        clang-tidy-18 \
-        && \
+    curl \
+    git \
+    ca-certificates \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Pythons
+    python3.9-dev \
+    python3.9-venv \
+    python3.9-distutils \
+    python3.10-dev \
+    python3.10-venv \
+    python3.10-distutils \
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils \
+    python3.12-dev \
+    python3.12-venv \
+    python3.13-dev \
+    python3.13-venv \
+    python3.14-nogil \
+    python3.14-venv \
+    python3.14-dev \
+    libhdf5-dev \
+    # For Java API
+    default-jdk \
+    # Compiler, required for multi-isa build
+    gcc-11 \
+    g++-11 \
+    # JS API
+    xvfb \
+    libgtk-3-0 \
+    libgbm1 \
+    # ONNX Runtime
+    language-pack-en \
+    # For clang-tidy validation
+    clang-format-18 \
+    clang-tidy-18 \
+    && \
     # Remove apt cache
     rm -rf /var/lib/apt/lists/*
 
@@ -77,7 +77,7 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 30 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 30
 
 # Install sccache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
@@ -114,7 +114,7 @@ RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Install Node
-ENV NODE_VERSION=21.7.3
+ENV NODE_VERSION=22.23.2
 ENV NVM_DIR=/.nvm
 RUN mkdir -p $NVM_DIR
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash

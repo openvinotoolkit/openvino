@@ -10,10 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
-namespace op {
+namespace ov::frontend::jax::op {
 
 using namespace ov::op;
 
@@ -30,7 +27,4 @@ OutputVector translate_broadcast_in_dim(const NodeContext& context) {
     return {std::make_shared<v3::Broadcast>(x, shape, broadcast_dimensions, BroadcastType::EXPLICIT)};
 };
 
-}  // namespace op
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax::op

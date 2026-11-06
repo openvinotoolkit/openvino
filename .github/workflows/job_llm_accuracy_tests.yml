@@ -88,7 +88,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.12'
-          pip-cache-path: '/mnt/caches/pip'
+          pip-cache-path: ${{ inputs.use-pip-proxy && '' || '/mnt/caches/pip' }}
           set-pip-install-path: 'false'
           self-hosted-runner: true
           use-pip-proxy: ${{ inputs.use-pip-proxy }}

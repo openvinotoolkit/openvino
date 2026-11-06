@@ -10,7 +10,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
-#ifdef WIN32
+#ifdef _WIN32
 #    include <process.h>
 #endif
 #include "gtest/gtest.h"
@@ -43,7 +43,7 @@ int main(int argc, char** argv, char** envp) {
     }
     oss << std::endl;
 
-#ifdef WIN32
+#ifdef _WIN32
     oss << "Process id: " << _getpid() << std::endl;
 #else
     oss << "Process id: " << getpid() << std::endl;

@@ -31,6 +31,10 @@ struct space_to_depth_impl : typed_primitive_impl_ocl<space_to_depth> {
                                kernel_selector::SpaceToDepthMode::DEPTH_FIRST;
 
         params.block_size = primitive->block_size;
+        params.grouped = primitive->grouped;
+        params.factor_t = primitive->factor_t;
+        params.factor_s = primitive->factor_s;
+        params.output_channels = primitive->output_channels;
 
         return params;
     }

@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "utils/device_telemetry.hpp"
@@ -92,24 +93,24 @@ TEST(DeviceMonitorTest, telemetry_client_low_power_mode_is_safe) {
 #endif
 }
 
-// TelemetryClient::utilization must never throw and must return a value within
-// [0.0, 100.0] when available, or std::nullopt otherwise. On builds without the
-// telemetry backend it consistently returns std::nullopt.
-TEST(DeviceMonitorTest, telemetry_client_utilization_is_safe) {
+// TelemetryClient::utilizations must never throw and must return values within
+// [0.0, 100.0] when available. On builds without the telemetry backend it consistently
+// returns an empty map.
+TEST(DeviceMonitorTest, telemetry_client_utilizations_is_safe) {
     device_monitor::TelemetryClient client;
-    std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = client.utilization("CPU"));
-    if (utilization.has_value()) {
-        EXPECT_GE(utilization.value(), 0.0f);
-        EXPECT_LE(utilization.value(), 100.0f);
+    std::unordered_map<std::string, float> utilizations;
+    ASSERT_NO_THROW(utilizations = client.utilizations({{"CPU", ""}}));
+    for (const auto& [device_name, utilization] : utilizations) {
+        EXPECT_GE(utilization, 0.0f);
+        EXPECT_LE(utilization, 100.0f);
     }
 }
 
-TEST(DeviceMonitorTest, telemetry_client_unknown_device_returns_nullopt) {
+TEST(DeviceMonitorTest, telemetry_client_unknown_device_is_excluded) {
     device_monitor::TelemetryClient client;
-    std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = client.utilization("UNKNOWN_DEVICE"));
-    EXPECT_FALSE(utilization.has_value());
+    std::unordered_map<std::string, float> utilizations;
+    ASSERT_NO_THROW(utilizations = client.utilizations({{"UNKNOWN_DEVICE", ""}}));
+    EXPECT_EQ(utilizations.count("UNKNOWN_DEVICE"), 0u);
 }
 
 #ifdef OV_AUTO_ENABLE_IPF
@@ -122,36 +123,37 @@ public:
     MOCK_METHOD(void, unregister_event, (const std::string&), (override));
 };
 
-TEST(DeviceMonitorTest, telemetry_client_reports_nullopt_when_ipf_invalid) {
+TEST(DeviceMonitorTest, telemetry_client_reports_unavailable_when_ipf_invalid) {
     auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
     EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(false));
     EXPECT_CALL(*mock, get_node(::testing::_)).Times(0);
     EXPECT_CALL(*mock, register_event(::testing::_, ::testing::_)).Times(0);
 
     device_monitor::TelemetryClient client(std::move(mock));
-    EXPECT_FALSE(client.utilization("CPU").has_value());
+    EXPECT_FALSE(client.is_available());
+    EXPECT_TRUE(client.utilizations({{"CPU", ""}}).empty());
     EXPECT_FALSE(client.is_low_power_mode().has_value());
 }
 
-TEST(DeviceMonitorTest, telemetry_client_utilization_returns_parsed_value_for_cpu) {
+TEST(DeviceMonitorTest, telemetry_client_utilizations_returns_parsed_value_for_cpu) {
     auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
     EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
     EXPECT_CALL(*mock, get_node(std::string("Platform.Features.AISelector")))
         .WillOnce(::testing::Return(R"({"Performance": {"CPUUtilization": 42.5}, "Status": "Online"})"));
 
     device_monitor::TelemetryClient client(std::move(mock));
-    const auto utilization = client.utilization("CPU");
-    ASSERT_TRUE(utilization.has_value());
-    EXPECT_FLOAT_EQ(utilization.value(), 42.5f);
+    const auto utilizations = client.utilizations({{"CPU", ""}});
+    ASSERT_EQ(utilizations.count("CPU"), 1u);
+    EXPECT_FLOAT_EQ(utilizations.at("CPU"), 42.5f);
 }
 
-TEST(DeviceMonitorTest, telemetry_client_utilization_returns_nullopt_when_query_fails) {
+TEST(DeviceMonitorTest, telemetry_client_utilizations_empty_when_query_fails) {
     auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
     EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
     EXPECT_CALL(*mock, get_node(::testing::_)).WillOnce(::testing::Return(""));
 
     device_monitor::TelemetryClient client(std::move(mock));
-    EXPECT_FALSE(client.utilization("CPU").has_value());
+    EXPECT_TRUE(client.utilizations({{"CPU", ""}}).empty());
 }
 
 TEST(DeviceMonitorTest, telemetry_client_is_low_power_mode_reflects_initial_gear) {
@@ -207,6 +209,27 @@ TEST(DeviceMonitorTest, telemetry_client_unregisters_event_on_destruction_when_r
     }
 }
 
+TEST(DeviceMonitorTest, utilization_values_are_parsed_from_one_snapshot) {
+    const std::string snapshot = R"({
+        "Performance": {
+            "CPUUtilization": 12.5,
+            "NPUUtilization": 37.5
+        },
+        "Status": "Online"
+    })";
+
+    const auto utilizations = device_monitor::utilization_from_snapshot(
+        snapshot,
+        std::vector<std::pair<std::string, std::string>>{{"CPU", ""}, {"NPU", ""}});
+
+    ASSERT_EQ(utilizations.count("CPU"), 1u);
+    ASSERT_EQ(utilizations.count("NPU"), 1u);
+    EXPECT_FLOAT_EQ(utilizations.at("CPU"), 12.5f);
+    EXPECT_FLOAT_EQ(utilizations.at("NPU"), 37.5f);
+}
+#endif
+
+#ifdef OV_AUTO_ENABLE_IPF
 TEST(DeviceMonitorTest, parse_utilization_uses_gpu_fallback_for_igpu) {
     const std::string aiselector_json = R"({
         "Performance": {

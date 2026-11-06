@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "graph/include/primitive_inst.h"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/custom_gpu_primitive.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -209,6 +213,56 @@ void add_basic_in2x2x2x2_with_reorder()
     for (int i = 0; i < 16; i++)
     {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    }
+}
+
+// custom_gpu_primitive_impl enqueues an OpenCL kernel, so it must not report itself as a
+// CPU impl: that places its own output, and every producer feeding it, in usm_host.
+TEST(custom_gpu_primitive_f32, impl_is_not_cpu_and_producer_stays_in_device_memory) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 4, 4 } });
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void copy_kernel(const __global float* input0, __global float* output)
+            {
+                const unsigned idx = get_global_id(0);
+                output[idx] = input0[idx];
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, { 1, 1, 4, 4 } };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("producer", { input_info("input"), input_info("input") }, eltwise_mode::sum));
+    topology.add(custom_gpu_primitive(
+        "user_kernel",
+        { input_info("producer") },
+        { kernel_code },
+        "copy_kernel",
+        parameters,
+        "-cl-mad-enable",
+        { output_layout },
+        { output_layout.count() }));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    network.execute();
+
+    auto custom_inst = network.get_primitive("user_kernel");
+    ASSERT_NE(custom_inst->get_impl(), nullptr);
+    EXPECT_FALSE(custom_inst->get_impl()->is_cpu());
+    EXPECT_FALSE(custom_inst->get_impl()->requires_lockable_input());
+
+    if (engine.supports_allocation(allocation_type::usm_device)) {
+        auto producer_inst = network.get_primitive("producer");
+        ASSERT_NE(producer_inst->output_memory_ptr(), nullptr);
+        EXPECT_NE(producer_inst->output_memory_ptr()->get_allocation_type(),
+                  allocation_type::usm_host);
     }
 }
 
@@ -578,4 +632,304 @@ TEST(custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
 
 TEST(export_import_custom_gpu_primitive_u8, add_basic_in2x2x2x2) {
     test_custom_gpu_primitive_u8_add_basic_in2x2x2x2<unsigned char>(true);
+}
+
+
+// INPUT0_OFFSET is documented as "the number of elements from the start of the tensor to
+// the first valid element, bypassing the lower padding", with the padding and pitch arrays
+// always ordered as BFYX. Logical b1 f1 y4 x3 with lower padding y=1 x=2 is padded to
+// y5 x5, giving pitches {25,25,5,1} and an offset of 5*1 + 1*2 = 7. Indexing the padding
+// array in the wrong axis order yields 11 instead.
+TEST(custom_gpu_primitive_f32, input_offset_matches_spatial_lower_padding) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout{ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 4 },
+                             padding({0, 0, 1, 2}, {0, 0, 0, 0}) };
+    auto input = engine.allocate_memory(in_layout);
+
+    std::vector<float> vals(in_layout.get_linear_size());
+    for (size_t i = 0; i < vals.size(); i++)
+        vals[i] = static_cast<float>(i);
+    set_values(input, vals);
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void probe_kernel(const __global float* input0, __global float* output)
+            {
+                output[0] = (float)(INPUT0_OFFSET);
+                output[1] = input0[INPUT0_OFFSET];
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, { 1, 1, 2, 1 } };
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(custom_gpu_primitive("user_kernel", { input_info("input") }, { kernel_code },
+        "probe_kernel", parameters, "-cl-mad-enable", { output_layout }, { 1 }));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("user_kernel").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> ptr(output, get_test_stream());
+    ASSERT_EQ(ptr[0], 7.f) << "INPUT0_OFFSET does not match the lower padding";
+    ASSERT_EQ(ptr[1], 7.f) << "a kernel honouring INPUT0_OFFSET read the wrong element";
+}
+
+// An in-place crop keeps the parent buffer and expresses the crop as padding on the view.
+// A kernel that honours INPUT0_OFFSET must therefore still read the cropped data, and the
+// crop must remain optimized out. Feature axis first.
+TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_feature_axis) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 4, 1, 2 } });
+    set_values(input, { 0.f, 1.f, 10.f, 11.f, 20.f, 21.f, 30.f, 31.f });
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void copy_kernel(const __global float* input0, __global float* output)
+            {
+                const unsigned idx = get_global_id(0);
+                output[idx] = input0[INPUT0_OFFSET + idx];
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, { 1, 2, 1, 2 } };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    // features [2, 4) of the parent tensor
+    topology.add(crop("crop", input_info("input"), tensor(1, 2, 1, 2), tensor(0, 2, 0, 0)));
+    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
+        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
+        << "a custom layer input should not block in-place cropping";
+
+    auto output = outputs.at("user_kernel").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    std::vector<float> expected = { 20.f, 21.f, 30.f, 31.f };
+    for (size_t i = 0; i < expected.size(); i++)
+        ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
+}
+
+// The same on a spatial axis, where the offset covers a non-zero Y padding and so depends
+// on the padding array being read in the documented BFYX order.
+TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_spatial_axis) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 4 } });
+    std::vector<float> vals(12);
+    for (size_t i = 0; i < vals.size(); i++)
+        vals[i] = static_cast<float>(i);
+    set_values(input, vals);
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void copy_kernel(const __global float* input0, __global float* output)
+            {
+                const unsigned idx = get_global_id(0);
+                output[idx] = input0[INPUT0_OFFSET + idx];
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, tensor{ 1, 1, 3, 3 } };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    // rows [1, 4) of the parent tensor
+    topology.add(crop("crop", input_info("input"), tensor(1, 1, 3, 3), tensor(0, 0, 0, 1)));
+    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
+        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
+        << "a custom layer input should not block in-place cropping";
+
+    auto output = outputs.at("user_kernel").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < 9; i++)
+        ASSERT_EQ(output_ptr[i], static_cast<float>(i + 3)) << "element " << i;
+}
+
+// An in-place concatenation writes offset padding onto its predecessors output layouts,
+// which a kernel would have to honour through OUTPUT0_OFFSET. custom_gpu_primitive is not
+// listed in available_pred, so that does not happen today; this pins the current behaviour.
+TEST(custom_gpu_primitive_f32, custom_layer_producer_blocks_in_place_concat) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 2 } });
+    set_values(input, { 0.f, 1.f, 10.f, 11.f });
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void add_kernel(const __global float* input0, __global float* output)
+            {
+                const unsigned idx = get_global_id(0);
+                output[idx] = input0[idx] + ADDEND;
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, { 1, 2, 1, 2 } };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(custom_gpu_primitive("k1", { input_info("input") }, { kernel_code },
+        "add_kernel", parameters, "-cl-mad-enable -DADDEND=100.0f", { output_layout }, { output_layout.count() }));
+    topology.add(custom_gpu_primitive("k2", { input_info("input") }, { kernel_code },
+        "add_kernel", parameters, "-cl-mad-enable -DADDEND=200.0f", { output_layout }, { output_layout.count() }));
+    topology.add(concatenation("concat", { input_info("k1"), input_info("k2") }, 1));
+    // the concat must not be the network output, or it is excluded from fusing for that
+    // reason alone and the test would pass without exercising anything
+    topology.add(activation("act", input_info("concat"), activation_func::abs));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_FALSE(network.get_primitive("concat")->can_be_optimized());
+
+    auto output = outputs.at("act").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    std::vector<float> expected = { 100.f, 101.f, 110.f, 111.f, 200.f, 201.f, 210.f, 211.f };
+    for (size_t i = 0; i < expected.size(); i++)
+        ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
+}
+
+// Batch axis, completing the b/f/y/x coverage of the INPUT0_OFFSET terms.
+TEST(custom_gpu_primitive_f32, conforming_kernel_reads_in_place_crop_on_batch_axis) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 4, 1, 2, 1 } });
+    set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f });
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void copy_kernel(const __global float* input0, __global float* output)
+            {
+                const unsigned idx = get_global_id(0);
+                output[idx] = input0[INPUT0_OFFSET + idx];
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, { 2, 1, 2, 1 } };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    // batches [2, 4) of the parent tensor
+    topology.add(crop("crop", input_info("input"), tensor(2, 1, 2, 1), tensor(2, 0, 0, 0)));
+    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
+        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
+        << "a custom layer input should not block in-place cropping";
+
+    auto output = outputs.at("user_kernel").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    std::vector<float> expected = { 4.f, 5.f, 6.f, 7.f };
+    for (size_t i = 0; i < expected.size(); i++)
+        ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
+}
+
+// A feature crop with batch > 1 leaves the cropped region NON-CONTIGUOUS: each batch slice
+// starts at a different offset into the parent. Adding INPUT0_OFFSET to a flat index is not
+// enough here, so this uses the full pitch-based addressing the CustomLayer documentation
+// prescribes, on both the input and the output. This is the case that decides whether the
+// emitted macros are actually sufficient to consume an in-place view.
+TEST(custom_gpu_primitive_f32, documented_pitch_indexing_reads_non_contiguous_in_place_crop) {
+    auto& engine = get_test_engine();
+
+    // b2 f4 y1 x2, value == linear bfyx index
+    auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 4, 2, 1 } });
+    std::vector<float> vals(16);
+    for (size_t i = 0; i < vals.size(); i++)
+        vals[i] = static_cast<float>(i);
+    set_values(input, vals);
+
+    std::string kernel_code =
+        R"__krnl(
+            __kernel void copy_kernel(const __global float* input0, __global float* output)
+            {
+                const unsigned idx = get_global_id(0);
+                const unsigned x_size = OUTPUT0_DIMS[3];
+                const unsigned y_size = OUTPUT0_DIMS[2];
+                const unsigned f_size = OUTPUT0_DIMS[1];
+
+                const unsigned x = idx % x_size;
+                const unsigned y = (idx / x_size) % y_size;
+                const unsigned f = (idx / (x_size * y_size)) % f_size;
+                const unsigned b = idx / (x_size * y_size * f_size);
+
+                const unsigned in_id = b * INPUT0_PITCHES[0] + f * INPUT0_PITCHES[1] +
+                                       y * INPUT0_PITCHES[2] + x * INPUT0_PITCHES[3] +
+                                       INPUT0_OFFSET;
+                const unsigned out_id = b * OUTPUT0_PITCHES[0] + f * OUTPUT0_PITCHES[1] +
+                                        y * OUTPUT0_PITCHES[2] + x * OUTPUT0_PITCHES[3] +
+                                        OUTPUT0_OFFSET;
+                output[out_id] = input0[in_id];
+            }
+        )__krnl";
+    std::vector<custom_gpu_primitive::arg_desc> parameters = {
+        { custom_gpu_primitive::arg_input, 0 },
+        { custom_gpu_primitive::arg_output, 0 } };
+    layout output_layout = { data_types::f32, format::bfyx, { 2, 2, 2, 1 } };
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    // features [2, 4) of both batches
+    topology.add(crop("crop", input_info("input"), tensor(2, 2, 2, 1), tensor(0, 2, 0, 0)));
+    topology.add(custom_gpu_primitive("user_kernel", { input_info("crop") }, { kernel_code },
+        "copy_kernel", parameters, "-cl-mad-enable", { output_layout }, { output_layout.count() }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_TRUE(network.get_primitive("crop")->can_be_optimized())
+        << "a custom layer input should not block in-place cropping";
+
+    auto output = outputs.at("user_kernel").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    // b0 -> features 2,3 == parent 4,5,6,7 ; b1 -> parent 12,13,14,15
+    std::vector<float> expected = { 4.f, 5.f, 6.f, 7.f, 12.f, 13.f, 14.f, 15.f };
+    for (size_t i = 0; i < expected.size(); i++)
+        ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
 }

@@ -22,10 +22,7 @@
 
 using namespace ::ONNX_NAMESPACE;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace transform {
+namespace ov::frontend::onnx::transform {
 namespace {
 TypeProto get_input_type(const std::string& name, GraphProto& graph) {
     for (const auto& input : graph.input()) {
@@ -75,10 +72,7 @@ void function_expand_and_remove_original_node(const NodeProto& node,
 }
 
 }  // namespace
-}  // namespace transform
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::transform
 
 void ov::frontend::onnx::transform::expand_onnx_functions(ModelProto& model_proto) {
     auto graph_proto = model_proto.mutable_graph();

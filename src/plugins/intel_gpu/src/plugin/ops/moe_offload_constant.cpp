@@ -4,6 +4,14 @@
 
 #include "moe_offload_constant.hpp"
 
+#include <algorithm>
+#include <functional>
+#include <limits>
+#include <unordered_set>
+#include <vector>
+
+#include "openvino/op/util/multi_subgraph_base.hpp"
+
 namespace ov::intel_gpu {
 
 // Input indices 3..11 are routed expert weights/scales/zps (WEIGHT_0..ZP_2).
@@ -14,25 +22,150 @@ static constexpr size_t ROUTED_INPUT_END = 11;
 static constexpr size_t SHARED_INPUT_START = 12;
 static constexpr size_t SHARED_INPUT_END = 21;
 
+bool is_otd_capable_moe(const ov::Node* node) {
+    if (const auto* moe = ov::as_type<const ov::op::internal::MOECompressed>(node)) {
+        return moe->get_config().expert_type == ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU;
+    }
+    return false;
+}
+
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op) {
-    const auto users = op->get_output_target_inputs(0);
-    for (const auto& input : users) {
+    const auto target_inputs = op->get_output_target_inputs(0);
+    bool has_moe_consumer = false;
+    bool has_non_otd_moe = false;
+    bool has_routed = false;
+    bool has_shared = false;
+    bool has_other_consumer = false;
+
+    for (const auto& input : target_inputs) {
         const auto* node = input.get_node();
-        if (ov::is_type<ov::op::internal::MOECompressed>(node)) {
-            auto idx = input.get_index();
-            if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END) {
-                return MoEConstantRole::RoutedExpert;
+        if (const auto* moe = ov::as_type<const ov::op::internal::MOECompressed>(node)) {
+            has_moe_consumer = true;
+            if (moe->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
+                has_non_otd_moe = true;
+            } else {
+                const auto idx = input.get_index();
+                if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END) {
+                    has_routed = true;
+                } else if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END) {
+                    has_shared = true;
+                } else {
+                    has_other_consumer = true;
+                }
             }
-            if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END) {
-                return MoEConstantRole::SharedExpert;
+        } else {
+            has_other_consumer = true;
+        }
+    }
+
+    if (!has_moe_consumer) {
+        return MoEConstantRole::NotMoE;
+    }
+    if (has_non_otd_moe) {
+        return MoEConstantRole::NotOffloadableMoE;
+    }
+    if (has_shared) {
+        return MoEConstantRole::AlwaysResidentSharedExpert;
+    }
+    if (has_routed) {
+        if (has_other_consumer) {
+            return MoEConstantRole::NotOffloadableRoutedExpert;
+        }
+        return MoEConstantRole::OffloadableRoutedExpert;
+    }
+    return MoEConstantRole::NotOffloadableMoE;
+}
+
+bool is_moe_otd_eligible(const ov::Node* node) {
+    std::vector<const ov::Node*> pending{node};
+    std::unordered_set<const ov::Node*> visited;
+    while (!pending.empty()) {
+        const auto* current = pending.back();
+        pending.pop_back();
+        if (!visited.insert(current).second)
+            continue;
+        if (!is_otd_capable_moe(current) || current->get_input_size() <= ROUTED_INPUT_END)
+            return false;
+        for (size_t index = ROUTED_INPUT_START; index <= ROUTED_INPUT_END; ++index) {
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(current->input_value(index).get_node_shared_ptr());
+            if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert)
+                return false;
+            // Propagate resident fallback across MoEs sharing routed constants.
+            for (const auto& consumer : constant->get_output_target_inputs(0)) {
+                pending.push_back(consumer.get_node());
             }
         }
     }
-    return MoEConstantRole::NotMoE;
+    return true;
+}
+
+bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op) {
+    if (get_moe_constant_role(op) != MoEConstantRole::OffloadableRoutedExpert)
+        return false;
+    const auto consumers = op->get_output_target_inputs(0);
+    return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+        return is_moe_otd_eligible(consumer.get_node());
+    });
 }
 
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
     return get_moe_constant_role(op) != MoEConstantRole::NotMoE;
+}
+
+uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio) {
+    OPENVINO_ASSERT(offload_ratio <= 100, "OFFLOAD_RATIO must be in the range [0, 100]");
+
+    uint64_t resident_bytes = 0;
+    bool has_moe = false;
+    std::unordered_set<const ov::Node*> visited;
+    std::function<void(const ov::Model&)> collect_resident_bytes = [&](const ov::Model& current_model) {
+        for (const auto& node : current_model.get_ops()) {
+            has_moe = has_moe || is_otd_capable_moe(node.get());
+            if (auto subgraph_op = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+                for (const auto& subgraph : subgraph_op->get_functions())
+                    collect_resident_bytes(*subgraph);
+            }
+
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            if (!constant || !visited.insert(constant.get()).second)
+                continue;
+
+            const auto role = get_moe_constant_role(constant);
+            if (role == MoEConstantRole::NotMoE)
+                continue;
+
+            uint64_t constant_resident_bytes = constant->get_byte_size();
+            if (offload_ratio > 0 && is_moe_constant_offloadable(constant)) {
+                const auto& shape = constant->get_shape();
+                if (shape.empty() || shape[0] == 0)
+                    continue;
+
+                const size_t resident_experts = std::max<size_t>(1, shape[0] * (100 - offload_ratio) / 100);
+                const uint64_t bytes_per_expert =
+                    constant_resident_bytes / shape[0] + (constant_resident_bytes % shape[0] != 0 ? 1 : 0);
+                constant_resident_bytes = bytes_per_expert * resident_experts;
+            }
+
+            OPENVINO_ASSERT(constant_resident_bytes <= std::numeric_limits<uint64_t>::max() - resident_bytes, "MoE resident weight size overflows uint64_t");
+            resident_bytes += constant_resident_bytes;
+        }
+    };
+
+    collect_resident_bytes(model);
+    return has_moe ? resident_bytes : 0;
+}
+
+void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes) {
+    if (offload_ratio == 0 || device_memory_bytes == 0)
+        return;
+
+    const uint64_t resident_bytes = get_model_resident_constant_bytes(model, offload_ratio);
+    OPENVINO_ASSERT(resident_bytes <= device_memory_bytes,
+                    "[GPU] Resident model constants require at least ",
+                    resident_bytes,
+                    " bytes, exceeding the device global memory size of ",
+                    device_memory_bytes,
+                    " bytes. Increase OFFLOAD_RATIO or use a GPU with more memory.");
 }
 
 PartialUploadLogState& get_partial_upload_log_state() {
@@ -40,7 +173,8 @@ PartialUploadLogState& get_partial_upload_log_state() {
     return state;
 }
 
-PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
+PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
+                                             const ExecutionConfig& config,
                                              const std::shared_ptr<ov::op::v0::Constant>& op,
                                              const ov::Shape& const_shape,
                                              cldnn::data_types out_dtype,
@@ -48,15 +182,15 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              const cldnn::layout& const_layout) {
     PartialUploadDesc desc;
 
-    const size_t otd_ratio = p.get_config().get_offload_ratio();
+    const size_t otd_ratio = config.get_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
-    // ratio=0 (all resident) or ratio=100 (all on disk, invalid) → no partial upload.
-    const bool partial_moe_const_upload = otd_ratio > 0 && otd_ratio < 100 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
+    // ratio=0 keeps all experts resident; positive ratios enable partial upload.
+    const bool partial_moe_const_upload = otd_ratio > 0 && is_moe_constant_offloadable(op);
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }
 
-    // otd_ratio is the % on disk; GPU-resident experts = total * (100 - ratio) / 100
+    // otd_ratio is the % on disk; GPU-resident experts = max(1, total * (100 - ratio) / 100)
     const size_t resident_expert_num = std::max<size_t>(1, const_shape[0] * (100 - otd_ratio) / 100);
 
     desc.enabled = true;
@@ -64,19 +198,20 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
     desc.upload_shape[0] = std::min<size_t>(const_shape[0], resident_expert_num);
 
     auto upload_layout = cldnn::layout(desc.upload_shape, out_dtype, const_format);
-    auto upload_mem = p.get_engine().allocate_memory(upload_layout, false);
+    auto upload_mem = engine.allocate_memory(upload_layout, engine.get_preferred_memory_allocation_type(), false);
     // Reinterpret the smaller physical allocation as the full constant layout so the
     // graph sees the expected shape/layout. This is safe because:
     // 1. constant.cpp marks this data node with skip_device_transfer=true (partial_upload.enabled),
     //    so no host→device memcpy of the full size occurs.
     // 2. At runtime, OTD loads on-demand into the first `resident_expert_num` slots only.
-    // 3. Model cache serialization uses weightless caching (bin_offset metadata) for these
-    //    constants — it never reads the buffer contents via mem->buffer_ptr(). OTD requires
-    //    weights_path to be set, which enables weightless caching for all data nodes.
+    // 3. Weightless cache serialization uses bin_offset metadata for these constants and
+    //    never reads the buffer contents via mem->buffer_ptr(). OTD provides weights_path,
+    //    but does not enable weightless caching itself.
+    // TODO: Support serialization of OTD partial allocations without weightless caching.
     OPENVINO_ASSERT(upload_layout.bytes_count() <= const_layout.bytes_count(),
                     "Partial upload layout (", upload_layout.bytes_count(),
                     " bytes) exceeds full constant layout (", const_layout.bytes_count(), " bytes)");
-    desc.memory = p.get_engine().reinterpret_buffer(*upload_mem, const_layout);
+    desc.memory = engine.reinterpret_buffer(*upload_mem, const_layout);
     desc.upload_bytes = upload_layout.bytes_count();
 
     get_partial_upload_log_state().log(op->get_friendly_name(),

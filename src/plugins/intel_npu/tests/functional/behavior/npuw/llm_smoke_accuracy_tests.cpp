@@ -78,8 +78,7 @@ public:
         try {
             core->register_plugin(std::string(cpu_plugin_file_name) + OV_BUILD_POSTFIX, "CPU");
         } catch (ov::Exception& ex) {
-            if (std::string{ex.what()}.find("Device with \"CPU\"  is already registered in the OpenVINO Runtime")
-                == std::string::npos) {
+            if (std::string{ex.what()}.find("is already registered as device \"CPU\"") == std::string::npos) {
                 throw ex;
             }
         }

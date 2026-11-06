@@ -18,11 +18,7 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
     auto alpha_node = node.get_attribute_as_constant<float>("alpha", 1.0f);
     auto zero = v0::Constant::create(alpha_node->get_element_type(), ov::Shape{}, {0.0f});
@@ -41,8 +37,4 @@ ov::OutputVector celu(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(x_max, min_node)};
 }
 ONNX_OP("Celu", OPSET_SINCE(1), ai_onnx::opset_1::celu);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

@@ -358,13 +358,13 @@ void RegionYolo::createPrimitive() {
     jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
     block_size = 1;
-    if (mayiuse(x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::avx512_core>>(jcp);
         block_size = 16;
-    } else if (mayiuse(x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::avx2>>(jcp);
         block_size = 8;
-    } else if (mayiuse(x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::sse41>>(jcp);
         block_size = 4;
     }

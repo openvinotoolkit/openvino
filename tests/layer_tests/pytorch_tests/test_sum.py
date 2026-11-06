@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestSum(PytorchLayerTest):
@@ -76,15 +76,7 @@ class TestSum(PytorchLayerTest):
             def forward_out(self, x, out):
                 x = x.to(self.input_dtype)
                 if self.axes is None and self.keep_dims is None:
-                     if self.dtype is None:
-                        return torch.sum(x, out=out), out
-                     else:
-                         return torch.sum(x, out=out, dtype=self.dtype), out
-                if self.axes is None and self.keep_dims is None:
-                    if self.dtype is not None:
-                        return torch.sum(x, dtype=self.dtype, out=out), out
-                    else:
-                        return torch.sum(x, out=out), out
+                    return torch.sum(x, dim=None, dtype=self.dtype, out=out), out
                 if self.axes is not None and self.keep_dims is None:
                     if self.dtype is not None:
                         return torch.sum(x, self.axes, dtype=self.dtype, out=out), out
@@ -102,7 +94,7 @@ class TestSum(PytorchLayerTest):
     @pytest.mark.parametrize("axes,keep_dims",
                              [(None, None), (None, False), (-1, None), (1, None), ((2, 3), False), ((3, 2), True)])
     @pytest.mark.parametrize("dtype", [None, "float32", "int64"])
-    @pytest.mark.parametrize("out", [skip_if_export(True), False])
+    @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("input_dtype", ["float32", "uint8", "bool", "int64"])
     @pytest.mark.nightly
     @pytest.mark.precommit

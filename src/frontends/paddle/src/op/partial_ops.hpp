@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 
 NamedOutputs partial_ops(const NodeContext& node, const std::string type) {
     auto x = node.get_ng_inputs("X");
@@ -38,7 +35,4 @@ NamedOutputs partial_ops(const NodeContext& node, const std::string type) {
                                               {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

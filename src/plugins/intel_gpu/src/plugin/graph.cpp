@@ -26,6 +26,7 @@
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/grouped_matmul.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
 #include "dynamic_quantize_inst.h"
 #include "grouped_matmul_inst.h"
 #include "fully_connected_inst.h"
@@ -79,11 +80,11 @@ std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
 
 namespace ov::intel_gpu {
 
-Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id, ov::internal::WeightSharingCtxPtr weight_sharing_ctx)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
+    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, weight_sharing_ctx);
     m_config = program_builder->get_config();
 
     build(program_builder->get_compiled_program());
@@ -94,6 +95,7 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     profilingIDs = program_builder->profiling_ids;
     perfMap = program_builder->perfMap;
     m_input_layouts = program_builder->get_input_layouts();
+    m_weight_sharing_source_buffers = program_builder->get_weight_sharing_source_buffers();
 }
 
 Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
@@ -225,6 +227,24 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     } else {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
+
+    std::vector<cldnn::tensor_conversion_key> conversion_keys;
+    for (const auto& variable : m_network->get_variables_info()) {
+        const auto& info = variable.second;
+        const bool special_kv_state = std::any_of(info.m_primitives.begin(), info.m_primitives.end(),
+            [](const cldnn::primitive* primitive) {
+                const auto* kv = dynamic_cast<const cldnn::kv_cache*>(primitive);
+                return kv != nullptr && (kv->compressed || kv->indirect);
+            });
+        if (special_kv_state)
+            continue;
+
+        const auto source_type = info.m_user_specified_type == ov::element::dynamic
+                                     ? info.m_layout.data_type
+                                     : static_cast<ov::element::Type_t>(info.m_user_specified_type);
+        conversion_keys.emplace_back(source_type, info.m_layout.data_type);
+    }
+    program->prepare_tensor_conversions(conversion_keys);
 
     std::string dry_run_path = GPU_DEBUG_VALUE_OR(m_config.get_dry_run_path(), "");
     std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(m_config.get_dump_graphs_path(), "");

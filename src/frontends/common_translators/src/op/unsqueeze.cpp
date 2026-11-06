@@ -15,9 +15,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace common_translators {
+namespace ov::frontend::common_translators {
 
 OutputVector translate_unsqueeze(const NodeContext& context) {
     num_inputs_check(context, 2, 2, true);
@@ -51,6 +49,4 @@ OutputVector translate_unsqueeze(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace common_translators
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::common_translators

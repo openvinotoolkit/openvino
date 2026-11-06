@@ -767,6 +767,7 @@ void Snapshot::earlyRegroup() {
                 HNDL_MOE(Qwen3Router);
                 HNDL_MOE(Gemma4Expert);
                 HNDL_MOE(Gemma4Router);
+                HNDL_MOE(BatchedExpert);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
