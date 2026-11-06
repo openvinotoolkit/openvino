@@ -37,26 +37,26 @@ size_t jit_emitter::get_vec_length() const {
     if (host_isa_ == cpu::x64::avx2) {
         return 32;
     }
-    return 16;
+    OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
 }
 
 void jit_emitter::push_vec(const Xbyak::Address& addr, size_t vec_idx) const {
-    if (host_isa_ == cpu::x64::sse41) {
-        h->uni_vmovups(addr, Xmm(vec_idx));
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         h->uni_vmovups(addr, Ymm(vec_idx));
-    } else {
+    } else if (host_isa_ == cpu::x64::avx512_core) {
         h->uni_vmovups(addr, Zmm(vec_idx));
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
 void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address& addr) const {
-    if (host_isa_ == cpu::x64::sse41) {
-        h->uni_vmovups(Xmm(vec_idx), addr);
-    } else if (host_isa_ == cpu::x64::avx2) {
+    if (host_isa_ == cpu::x64::avx2) {
         h->uni_vmovups(Ymm(vec_idx), addr);
-    } else {
+    } else if (host_isa_ == cpu::x64::avx512_core) {
         h->uni_vmovups(Zmm(vec_idx), addr);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
 }
 
@@ -88,33 +88,6 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
 
     for (auto idx : pool_vec_idxs) {
         aux_vec_idxs.push_back(idx);
-    }
-
-    // For sse41 mask register has to be Xmm(0)
-    if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
-        size_t idx = 0;
-        if (is_vec_input) {
-            OV_CPU_JIT_EMITTER_ASSERT(std::find(in_idxs.begin(), in_idxs.end(), idx) == in_idxs.end(),
-                                      "Xmm(0) cannot be input register in SSE41");
-        }
-        if (is_vec_output) {
-            OV_CPU_JIT_EMITTER_ASSERT(std::find(out_idxs.begin(), out_idxs.end(), idx) == out_idxs.end(),
-                                      "Xmm(0) cannot be output register in SSE41");
-        }
-        if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) == aux_vec_idxs.end()) {
-            aux_vec_idxs.push_back(idx);
-            preserved_vec_idxs.push_back(idx);
-        }
-
-        // moving mask vector at the beginning of aux vectors list to simplify further processing
-        for (size_t& aux_vec_idx : aux_vec_idxs) {
-            if (aux_vec_idx == 0) {
-                size_t tmp = aux_vec_idxs[0];
-                aux_vec_idxs[0] = aux_vec_idx;
-                aux_vec_idx = tmp;
-                break;
-            }
-        }
     }
 
     for (size_t idx = 0; idx < get_max_vecs_count(); idx++) {

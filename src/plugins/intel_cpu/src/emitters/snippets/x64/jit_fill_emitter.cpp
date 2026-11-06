@@ -6,11 +6,11 @@
 
 #include <xbyak/xbyak.h>
 
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 #include "emitters/plugin/x64/jit_emitter.hpp"
@@ -59,9 +59,7 @@ size_t jit_fill_emitter::aux_gprs_count() const {
 }
 
 void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
-        emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
-    } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
+    if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
         emit_isa<dnnl::impl::cpu::x64::avx2>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
         emit_isa<dnnl::impl::cpu::x64::avx512_core>(in, out);
@@ -72,8 +70,7 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    using Vmm = typename dnnl::impl::utils::
-        conditional3<isa == dnnl::impl::cpu::x64::sse41, Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
+    using Vmm = std::conditional_t<isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>;
 
     auto src_vmm = Vmm(in[0]);
     auto dst_vmm = Vmm(out[0]);
@@ -111,15 +108,10 @@ void jit_fill_emitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
         h->mov(Reg64(aux_gpr_idxs[0]), tail_mask);
         h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
         h->vblendmps(dst_vmm | k_mask, src_vmm, table_val("value"));
-    } else if (any_of(host_isa_, dnnl::impl::cpu::x64::avx2, dnnl::impl::cpu::x64::sse41)) {
+    } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
         uint8 imm = 1;
         imm = ~((imm << offset) - imm);  // shift load_num bit
-        if (host_isa_ == dnnl::impl::cpu::x64::sse41 && src_vmm.getIdx() != dst_vmm.getIdx()) {
-            h->uni_vmovups(dst_vmm, src_vmm);
-            h->uni_vblendps(dst_vmm, dst_vmm, table_val("value"), imm);
-        } else {
-            h->uni_vblendps(dst_vmm, src_vmm, table_val("value"), imm);
-        }
+        h->uni_vblendps(dst_vmm, src_vmm, table_val("value"), imm);
     }
 }
 

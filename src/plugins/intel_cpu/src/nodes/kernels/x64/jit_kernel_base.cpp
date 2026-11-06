@@ -5,6 +5,7 @@
 #include "jit_kernel_base.hpp"
 
 #include <xbyak/xbyak.h>
+#include <xbyak/xbyak_util.h>
 
 #include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -26,198 +27,118 @@ JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa)
       vlen(x64::isa_max_vlen(isa)) {}
 
 void JitKernelBase::uni_vfmsub132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tFMA)) {
         vfmsub132ps(v_dst, v_src, op);
-    } else if (isValidIsa(x64::avx)) {
+    } else if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         assert(v_dst.getIdx() != v_src.getIdx());
         vmulps(v_dst, v_dst, op);
         vsubps(v_dst, v_dst, v_src);
     } else {
-        assert(v_dst.getIdx() != v_src.getIdx());
-        mulps(v_dst, op);
-        subps(v_dst, v_src);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vfmsub132ps' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vfnmadd132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tFMA)) {
         vfnmadd132ps(v_dst, v_src, op);
-    } else if (isValidIsa(x64::avx)) {
+    } else if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         assert(v_dst.getIdx() != v_src.getIdx());
         vmulps(v_dst, v_dst, op);
         vsubps(v_dst, v_src, v_dst);
     } else {
-        assert(v_dst.getIdx() != v_src.getIdx());
-        mulps(v_dst, op);
-        subps(v_src, v_dst);
-        movups(v_dst, v_src);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vfnmadd132ps' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vfmsub231ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tFMA)) {
         vfmsub231ps(v_dst, v_src, op);
-    } else if (isValidIsa(x64::avx)) {
+    } else if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         assert(!v_dst.isEqualIfNotInherited(op));
         vmulps(v_src, v_src, op);
         vsubps(v_dst, v_src, v_dst);
     } else {
-        assert(!v_dst.isEqualIfNotInherited(op));
-        mulps(v_src, op);
-        subps(v_src, v_dst);
-        movups(v_dst, v_src);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vfmsub231ps' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpaddd(v_dst, v_src, op);
-    } else if (isValidIsa(x64::avx)) {
-        Xbyak::Xmm xmmDst(v_dst.getIdx());
-        vmovups(v_dst, v_src);
-        if (op.isYMM()) {
-            Xbyak::Ymm ymmOp(op.getIdx());
-            Xbyak::Xmm xmmOp(op.getIdx());
-            paddd(xmmDst, xmmOp);
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-            vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
-            paddd(xmmDst, xmmOp);
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-            vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
-        } else if (op.isMEM()) {
-            const int vlen = x64::cpu_isa_traits_t<x64::sse41>::vlen;
-            paddd(xmmDst, op.getAddress());
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-            paddd(xmmDst, ptr[op.getAddress().getRegExp() + vlen]);
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-        } else {
-            OPENVINO_THROW("Not supported operand type.");
-        }
-    } else if (isValidIsa(x64::sse41)) {
-        assert(v_dst.getIdx() != v_src.getIdx());
-        paddd(v_dst, op);
     } else {
-        OPENVINO_THROW("Not defined behavior for instruction 'vpaddd' in current instructions set.");
+        OPENVINO_THROW("Not defined behavior for instruction 'vpaddd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpaddq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpaddq(v_dst, v_src, op);
     } else {
-        if (v_dst.getIdx() != v_src.getIdx()) {
-            movups(v_dst, v_src);
-        }
-        paddq(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'vpaddd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpsubd(v_dst, v_src, op);
-    } else if (isValidIsa(x64::avx)) {
-        Xbyak::Xmm xmmDst(v_dst.getIdx());
-        vmovups(v_dst, v_src);
-        if (op.isYMM()) {
-            Xbyak::Ymm ymmOp(op.getIdx());
-            Xbyak::Xmm xmmOp(op.getIdx());
-            psubd(xmmDst, xmmOp);
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-            vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
-            psubd(xmmDst, xmmOp);
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-            vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
-        } else if (op.isMEM()) {
-            const int vlen = x64::cpu_isa_traits_t<x64::sse41>::vlen;
-            psubd(xmmDst, op.getAddress());
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-            psubd(xmmDst, ptr[op.getAddress().getRegExp() + vlen]);
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-        } else {
-            OPENVINO_THROW("Not supported operand type.");
-        }
-    } else if (isValidIsa(x64::sse41)) {
-        assert(v_dst.getIdx() != v_src.getIdx());
-        psubd(v_dst, op);
     } else {
-        OPENVINO_THROW("Not defined behavior for instruction 'vpsubd' in current instructions set.");
+        OPENVINO_THROW("Not defined behavior for instruction 'vpsubd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vsubpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vsubpd(v_dst, v_src, op);
     } else {
-        if (v_dst.getIdx() != v_src.getIdx()) {
-            movups(v_dst, v_src);
-        }
-        subpd(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'vsubpd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vmulpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vmulpd(v_dst, v_src, op);
     } else {
-        if (v_dst.getIdx() != v_src.getIdx()) {
-            movups(v_dst, v_src);
-        }
-        mulpd(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'vmulpd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpmuludq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpmuludq(v_dst, v_src, op);
     } else {
-        if (v_dst.getIdx() != v_src.getIdx()) {
-            movups(v_dst, v_src);
-        }
-        pmuludq(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'vpmuludq' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vdivps(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op1, const Xbyak::Operand& op2) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vdivps(v_dst, op1, op2);
     } else {
-        if (!v_dst.isEqualIfNotInherited(op1)) {
-            movups(v_dst, op1);
-        }
-        divps(v_dst, op2);
+        OPENVINO_THROW("Not defined behavior for instruction 'vdivps' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vdivpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vdivpd(v_dst, v_src, op);
     } else {
-        if (v_dst.getIdx() != v_src.getIdx()) {
-            movups(v_dst, v_src);
-        }
-        divpd(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'vdivpd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vandps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vandps(v_dst, vSrs, op);
     } else {
-        if (!v_dst.isEqualIfNotInherited(vSrs)) {
-            movups(v_dst, vSrs);
-        }
-        andps(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'vandps' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vandnps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vandnps(v_dst, vSrs, op);
     } else {
-        if (!v_dst.isEqualIfNotInherited(vSrs)) {
-            movups(v_dst, vSrs);
-        }
-        andnps(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'vandnps' in SSE/AVX only set.");
     }
 }
 
@@ -251,31 +172,14 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
         pxor(v_dst, v_dst);  // Don't use vpxor. It zeros the rest of the YMM register.
     }
 
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         if (!useMask) {
             uni_vpcmpeqd(vReadMask, vReadMask, vReadMask);
         }
 
         vpgatherdd(v_dst, ptr[rSrcPtr + vSrcShift], vReadMask);
     } else {
-        auto rAux = getReg64();
-        auto r32Aux = Xbyak::Reg32(rAux.getIdx());
-        const uint8_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / sizeof(int);
-
-        for (uint8_t i = 0; i < elPerVec; i++) {
-            Xbyak::Label lLoopNext;
-            if (useMask) {
-                uni_vpextrd(r32Aux, vReadMask, i);
-                cmp(r32Aux, 0);  // TODO: check significant bit
-                je(lLoopNext, T_NEAR);
-            }
-            uni_vpextrd(r32Aux, vSrcShift, i);
-            pinsrd(v_dst, ptr[rSrcPtr + rAux], i);
-
-            if (useMask) {
-                L(lLoopNext);
-            }
-        }
+        OPENVINO_THROW("Not defined behavior for instruction 'vandnps' in SSE/AVX only set.");
     }
 }
 
@@ -288,7 +192,7 @@ void JitKernelBase::gatherdd(const Xbyak::Ymm& v_dst,
     OPENVINO_ASSERT(v_dst.getIdx() != vSrcShift.getIdx() && v_dst.getIdx() != vReadMask.getIdx() &&
                         vSrcShift.getIdx() != vReadMask.getIdx(),
                     "Any pair of the index, mask, or destination registers cannot be the same.");
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         if (!useMask) {
             uni_vpcmpeqd(vReadMask, vReadMask, vReadMask);
         }
@@ -298,94 +202,65 @@ void JitKernelBase::gatherdd(const Xbyak::Ymm& v_dst,
 
         vpgatherdd(v_dst, ptr[rSrcPtr + vSrcShift], vReadMask);
     } else {
-        auto xmmDst = Xbyak::Xmm(v_dst.getIdx());
-        auto xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx());
-        auto xmmReadMask = Xbyak::Xmm(vReadMask.getIdx());
-        for (uint8_t i = 0; i < 2; i++) {
-            gatherdd(xmmDst, rSrcPtr, xmmSrcShft, xmmReadMask, useMask, zeroFill);
-
-            vperm2f128(v_dst, v_dst, v_dst, 0x1);
-            vperm2f128(vSrcShift, vSrcShift, vSrcShift, 0x1);
-            if (useMask) {
-                vperm2f128(vReadMask, vReadMask, vReadMask, 0x1);
-            }
-        }
+        OPENVINO_THROW("Not defined behavior for instruction 'gatherdd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpbroadcastq(const Xbyak::Xmm& x, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpbroadcastq(x, op);
     } else {
-        movsd(x, op);
-        shufpd(x, x, 0x0);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vpbroadcastq' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpbroadcastd(const Xbyak::Xmm& x, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpbroadcastd(x, op);
-    } else if (isValidIsa(x64::avx)) {
-        if (op.isMEM()) {
-            vbroadcastss(x, op.getAddress());
-        } else {
-            vmovss(x, x, op);
-            vpshufd(x, x, 0x0);
-        }
     } else {
-        movss(x, op);
-        pshufd(x, x, 0x0);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vpbroadcastd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpbroadcastd(const Xbyak::Ymm& x, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpbroadcastd(x, op);
     } else {
-        if (op.isMEM()) {
-            vbroadcastss(x, op.getAddress());
-        } else {
-            const Xbyak::Xmm t(x.getIdx());
-            if (!t.isEqualIfNotInherited(op)) {
-                vmovss(t, t, op);
-            }
-            vinsertf128(x, x, t, 1);
-            vshufps(x, x, x, 0);
-        }
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vpbroadcastd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vroundpd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op, const uint8_t imm) {
-    if (isValidIsa(x64::avx512_core)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX512F) && m_cpu.has(Xbyak::util::Cpu::tAVX512VL)) {
         vrndscalepd(v_dst, op, imm & 0x3);
-    } else if (isValidIsa(x64::avx)) {
+    } else if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vroundpd(v_dst, op, imm);
     } else {
-        roundpd(v_dst, op, imm);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vroundpd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vcvtdq2pd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vcvtdq2pd(v_dst, op);
     } else {
-        cvtdq2pd(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vcvtdq2pd' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vcvtpd2dq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vcvtpd2dq(v_dst, op);
     } else {
-        cvtpd2dq(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vcvtpd2dq' in SSE/AVX only set.");
     }
 }
 
 void JitKernelBase::uni_vpmovzxdq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op) {
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vpmovzxdq(v_dst, op);
     } else {
-        pmovzxdq(v_dst, op);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vpmovzxdq' in SSE/AVX only set.");
     }
 }
 
@@ -393,13 +268,10 @@ void JitKernelBase::uni_vshufpd(const Xbyak::Xmm& v_dst,
                                 const Xbyak::Xmm& v_src,
                                 const Xbyak::Operand& op,
                                 uint8_t imm) {
-    if (isValidIsa(x64::avx)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         vshufpd(v_dst, v_src, op, imm);
     } else {
-        if (v_dst.getIdx() != v_src.getIdx()) {
-            movups(v_dst, v_src);
-        }
-        shufpd(v_dst, op, imm);
+        OPENVINO_THROW("Not defined behavior for instruction 'uni_vshufpd' in SSE/AVX only set.");
     }
 }
 
@@ -655,33 +527,12 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
                              const bool useMask,
                              const bool zeroFill) {
     Xbyak::Label lEnd;
-    if (isValidIsa(x64::avx2)) {
+    if (m_cpu.has(Xbyak::util::Cpu::tAVX2)) {
         auto vAux = RegistersPool::Reg<Xbyak::Ymm>(registersPool);
         gatherdd(vAux, rSrc, vSrcShift, vReadMask, useMask, zeroFill);
         store(ptr[rDst], vAux, rToStoreNum, sizeof(int));
-    } else if (isValidIsa(x64::avx)) {
-        const uint8_t typeSize = sizeof(int);
-        const uint8_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
-        auto xmmReadMask = Xbyak::Xmm(vReadMask.getIdx());
-        auto xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx());
-        for (uint8_t i = 0; i < 2; i++) {
-            memMovDD(rDst, rSrc, xmmReadMask, xmmSrcShft, rToStoreNum, useMask, zeroFill);
-
-            if (i == 0) {
-                cmp(rToStoreNum, elPerXmm);
-                jle(lEnd, T_NEAR);
-                sub(rToStoreNum, elPerXmm);
-                add(rDst, typeSize * elPerXmm);
-            } else {
-                add(rToStoreNum, elPerXmm);
-                sub(rDst, typeSize * elPerXmm);
-            }
-
-            vperm2f128(vSrcShift, vSrcShift, vSrcShift, 0x1);
-            if (useMask) {
-                vperm2f128(vReadMask, vReadMask, vReadMask, 0x1);
-            }
-        }
+    } else {
+        OPENVINO_THROW("Not defined behavior for instruction 'memMovDD' in SSE/AVX only set.");
     }
     L(lEnd);
 }

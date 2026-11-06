@@ -51,8 +51,6 @@ protected:
     float alpha{0.F};
     float beta{0.F};
 
-    std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::sse41>>
-        eltwise_injector_sse42;
     std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::avx2>> eltwise_injector_avx2;
     std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::avx512_core>>
         eltwise_injector_avx512_core;

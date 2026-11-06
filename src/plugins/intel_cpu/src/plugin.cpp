@@ -248,6 +248,9 @@ static std::string getDeviceFullName() {
 
 Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpecialSetup) {
     set_device_name("CPU");
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    OPENVINO_ASSERT(ov::with_cpu_x86_avx2(), "CPU plugin requires AVX2 and above support.");
+#endif
 #if defined(OPENVINO_ARCH_X86_64)
     // Initialize Xbyak::util::Cpu object on Pcore for hybrid cores machine
     get_executor_manager()->execute_task_by_streams_executor(ov::hint::SchedulingCoreType::PCORE_ONLY, [] {
