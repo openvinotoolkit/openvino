@@ -120,21 +120,6 @@ dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     }
 }
 
-int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank) {
-    const auto& pshape = param_layout.get_partial_shape();
-    const auto rank = static_cast<int64_t>(pshape.size());
-    // 1D [N] holds only OC; point past it so get_dim() hits the padded 1 (one IFM group).
-    if (rank <= 1)
-        return rank;
-    const auto logical_rank = std::min<int64_t>(rank, std::max<int64_t>(2, static_cast<int64_t>(weights_rank)));
-    // Extra dims are either legacy trailing padding (all 1) or leading broadcast dims.
-    const bool trailing_padded = std::all_of(pshape.begin() + logical_rank, pshape.end(), [](const ov::Dimension& d) {
-        return d.is_static() && d.get_length() == 1;
-    });
-    const int64_t base = trailing_padded ? 0 : rank - logical_rank;
-    return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
-}
-
 int64_t get_compressed_weights_rank(const layout& weights_layout) {
     const auto& shape = weights_layout.get_partial_shape();
     const auto rank = std::count_if(shape.begin(), shape.end(), [](const ov::Dimension& d) {
@@ -143,14 +128,23 @@ int64_t get_compressed_weights_rank(const layout& weights_layout) {
     return std::max<int64_t>(2, rank);
 }
 
+int64_t get_ngroups(const layout& weights_layout, const layout& compressed_layout, bool weights_transposed) {
+    const auto weights_rank = get_compressed_weights_rank(weights_layout);
+    const auto ifm_dim_idx = weights_transposed ? (weights_rank - 1) : (weights_rank - 2);
+    const auto oc_dim_idx = weights_transposed ? (weights_rank - 2) : (weights_rank - 1);
+    const auto ifm = std::max<int64_t>(1, weights_layout.get_dim(ifm_dim_idx));
+    const auto oc = std::max<int64_t>(1, weights_layout.get_dim(oc_dim_idx));
+    const auto batch = std::max<int64_t>(1, static_cast<int64_t>(weights_layout.count()) / (ifm * oc));
+    return std::max<int64_t>(1, static_cast<int64_t>(compressed_layout.count()) / (oc * batch));
+}
+
 std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
                                              const layout& scale_layout,
-                                             bool weights_transposed,
-                                             bool transpose_b_scale) {
+                                             bool weights_transposed) {
     const auto weights_rank = get_compressed_weights_rank(weights_layout);
     const int64_t ifm = weights_layout.get_dim(weights_transposed ? weights_rank - 1 : weights_rank - 2);
-    const int64_t ngroups = scale_layout.get_dim(get_ifm_dim_idx(scale_layout, transpose_b_scale, weights_rank));
-    return {ngroups, ngroups != 0 ? ifm / ngroups : ifm};
+    const int64_t ngroups = get_ngroups(weights_layout, scale_layout, weights_transposed);
+    return {ngroups, ifm / ngroups};
 }
 
 bool is_supported_scale_group(int64_t ngroups, int64_t group_size) {
