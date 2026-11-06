@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "compressed_weights_pattern.hpp"
+#include "graph/impls/cm/fully_connected_woq_u2_gnk.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -28,7 +29,10 @@
 namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 
-ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed() {
+ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyConnectedCompressed(const cldnn::device_info& device_info,
+                                                                                                 bool cm_jit_supported)
+    : m_device_info(device_info),
+      m_cm_jit_supported(cm_jit_supported) {
     auto data_m = any_input();
     auto bias_m = any_input();
 
@@ -138,6 +142,53 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             ov::copy_weightless_cache_attr(node, result);
             return result;
         };
+
+        // [G, N, gs] -> Transpose{1, 0, 2} -> Reshape [N, G * gs] u2 weights can be passed to the CM kernel as is (scale / zp [G, N])
+        // instead of being permuted to NK. The weights may be a constant or a Parameter. Otherwise the permute path below applies.
+        bool is_gnk_u2 = false;
+        if (has_transpose_before_reshape && !pattern_map.count(weights_reshape_m) && fc->get_transpose_b() && weight_ptr->get_output_partial_shape(0).is_static() &&
+            weight_ptr->get_output_shape(0).size() == 3) {
+            const auto order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(transpose_const_m).get_node_shared_ptr());
+            const auto& w = weight_ptr->get_output_shape(0);
+            const auto& reshaped = pattern_map.at(transpose_before_reshape_m).get_node()->get_output_partial_shape(0);
+            is_gnk_u2 = order && order->cast_vector<int64_t>() == std::vector<int64_t>{1, 0, 2} && reshaped.is_static() && reshaped.size() == 2 &&
+                        reshaped[0].get_length() == static_cast<int64_t>(w[1]) && reshaped[1].get_length() == static_cast<int64_t>(w[0] * w[2]);
+        }
+        const bool has_zp = pattern_map.count(subtract_m) > 0;
+        const auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
+        const auto zp_const = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_const_m).get_node_shared_ptr()) : nullptr;
+        if (is_gnk_u2 && scale_const && zp_const &&
+            cm::woq_u2_accepts_gnk(m_device_info,
+                                   m_cm_jit_supported,
+                                   weight_ptr->get_element_type(),
+                                   weight_ptr->get_output_partial_shape(0),
+                                   scale_const->get_element_type(),
+                                   scale_const->get_output_partial_shape(0),
+                                   has_zp,
+                                   zp_const->get_element_type(),
+                                   zp_const->get_output_partial_shape(0))) {
+            const auto& w_shape = weight_ptr->get_output_shape(0);
+            auto to_gn = [&](const std::shared_ptr<ov::op::v0::Constant>& constant) {
+                auto reshaped = std::make_shared<ov::op::v0::Constant>(*constant, ov::Shape{w_shape[0], w_shape[1]});
+                ov::copy_weightless_cache_attr(constant, reshaped);
+                return reshaped;
+            };
+            const auto gnk_zp = convert_zp_const(to_gn(zp_const));
+            auto gnk_fc = std::make_shared<op::FullyConnectedCompressed>(fc->input_value(0),
+                                                                         weight_ptr,
+                                                                         pattern_map.at(bias_m),
+                                                                         to_gn(scale_const),
+                                                                         gnk_zp,
+                                                                         fc->get_output_type(),
+                                                                         true,
+                                                                         false,
+                                                                         false,
+                                                                         op::FcWeightsLayout::GNK);
+            gnk_fc->set_friendly_name(fc->get_friendly_name());
+            ov::copy_runtime_info(m.get_matched_nodes(), ov::NodeVector{gnk_zp, gnk_fc});
+            ov::replace_node(fc, gnk_fc);
+            return true;
+        }
 
         const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
         const auto& scale = has_transpose_before_reshape
