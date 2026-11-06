@@ -108,6 +108,10 @@ include(type_prop/sources.cmake)
 include(visitors/sources.cmake)
 include(xml_util/sources.cmake)
 
+if(ENABLE_OV_EXPERIMENTAL)
+    include(${OpenVINO_SOURCE_DIR}/src/core/experimental/tests/sources.cmake)
+endif()
+
 ov_add_test_target(
     NAME ${TARGET_NAME}
     SOURCES
@@ -119,9 +123,11 @@ ov_add_test_target(
         ${OV_CORE_TESTS_TYPE_PROP_SRCS}
         ${OV_CORE_TESTS_VISITORS_SRCS}
         ${OV_CORE_TESTS_XML_UTIL_SRCS}
+        ${OV_CORE_TESTS_EXPERIMENTAL_SRCS}
     INCLUDES
         $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${OV_CORE_TESTS_EXPERIMENTAL_INCLUDES}
     DEPENDENCIES
         ${UNIT_TESTS_DEPENDENCIES}
 

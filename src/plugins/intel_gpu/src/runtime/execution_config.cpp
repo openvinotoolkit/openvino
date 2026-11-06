@@ -36,6 +36,11 @@
 #include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
+#if defined(OPENVINO_EXPERIMENTAL)
+#    include "openvino/op/experimental/block_sparse_attention.hpp"
+#    include "openvino/op/experimental/draft_block_mask.hpp"
+#endif
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
 #endif
@@ -83,6 +88,13 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
         ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
         return true;
     }
+
+#if defined(OPENVINO_EXPERIMENTAL)
+    if (ov::is_type<ov::op::experimental::BlockSparseAttention>(op) ||
+        ov::is_type<ov::op::experimental::DraftBlockMask>(op)) {
+        return true;
+    }
+#endif
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
         const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
