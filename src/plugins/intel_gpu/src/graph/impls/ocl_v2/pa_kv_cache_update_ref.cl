@@ -307,7 +307,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
         #define VLOAD CAT(vload, READ_SIZE)
         IN_DATA_VEC cache_data_vec_decompressed;
         for (int j = 0; j < new_tokens_num; ++j) {
-            INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + j * K_HEAD_SIZE * KV_HEADS_NUM + hidden_idx);
+            INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + j * in_data_pitch + hidden_idx);
             cache_data_vec_decompressed[token_pos_in_block + j] = new_token;
             max_value = fmax(max_value, new_token);
             min_value = fmin(min_value, new_token);
