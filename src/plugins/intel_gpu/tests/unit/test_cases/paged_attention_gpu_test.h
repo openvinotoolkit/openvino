@@ -1112,6 +1112,42 @@ struct PagedAttentionManager {
         return scale_multiplier * static_cast<float>(1.f / std::sqrt(k_head_size));
     }
 
+    // paged_attention_test_params::comp_stress: bit 0 distorts the K inputs, bit 1 the V inputs, per token (data layout
+    // [token][kv_head][head]). The two 8-token halves of a 16-token page get amplitudes 4x apart and each token its own
+    // amplitude and offset (golden-ratio sequences), so every token of a compressed page has a very different scale and zp;
+    // V is also reversed and negated so that it does not follow K. Runs before the caches are built, so the cache writer
+    // and the reference see the same data.
+    void apply_kv_comp_stress(int mask) {
+        const auto frac = [](double x) {
+            return x - std::floor(x);
+        };
+        for (size_t s = 0; s < key_data.size(); ++s) {
+            const size_t tokens = key_data[s].size() / (static_cast<size_t>(num_kv_heads) * k_head_size);
+            for (size_t pos = 0; pos < tokens; ++pos) {
+                const bool hi = ((pos / 8) % 2) != 0;
+                for (int h = 0; h < num_kv_heads; ++h) {
+                    if (mask & 1) {
+                        const float a = static_cast<float>((hi ? 2.0 : 0.5) * (1.0 + frac(pos * 0.6180339887498949)));
+                        const float o = static_cast<float>((hi ? 0.4 : -0.4) * (0.5 + frac(pos * 0.7548776662466927)));
+                        ov::float16* r = key_data[s].data() + (pos * num_kv_heads + h) * k_head_size;
+                        for (int d = 0; d < k_head_size; ++d)
+                            r[d] = ov::float16(static_cast<float>(r[d]) * a + o);
+                    }
+                    if (mask & 2) {
+                        const float a = static_cast<float>((hi ? 0.5 : 2.0) * (1.0 + frac(pos * 0.5698402909980532)));
+                        const float o = static_cast<float>((hi ? -0.5 : 0.5) * (0.5 + frac(pos * 0.6180339887498949)));
+                        ov::float16* r = value_data[s].data() + (pos * num_kv_heads + h) * v_head_size;
+                        std::vector<float> t(v_head_size);
+                        for (int d = 0; d < v_head_size; ++d)
+                            t[d] = static_cast<float>(r[v_head_size - 1 - d]);
+                        for (int d = 0; d < v_head_size; ++d)
+                            r[d] = ov::float16(-t[d] * a + o);
+                    }
+                }
+            }
+        }
+    }
+
 private:
     template <typename T>
     cldnn::memory::ptr get_memory_from_vec(std::vector<T>& input_data) {
@@ -2215,6 +2251,8 @@ public:
                 std::fill(sequence_key_data.begin(), sequence_key_data.end(), ov::float16{0.0f});
             }
         }
+        if (p.comp_stress)
+            pam->apply_kv_comp_stress(p.comp_stress);
     }
 
     std::vector<ov::float16> get_output_data() {
@@ -3518,6 +3556,11 @@ struct paged_attention_test_params {
 
     // NaN in the cache slots no past token fills (PagedAttentionManager::poison_unwritten_cache_slots()), f16 caches only.
     bool poison_cache_tail = false;
+
+    // Per-token affine distortion of the K (bit 0) and V (bit 1) inputs, PagedAttentionManager::apply_kv_comp_stress(): the
+    // two 8-token halves of a 16-token page get amplitudes 4x apart and every token its own offset, so a compressed cache
+    // holds a very different scale / zp per token. Without it a comp read of the wrong token moves the output by < 0.003.
+    int comp_stress = 0;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
