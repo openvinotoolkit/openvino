@@ -4,6 +4,7 @@
 
 #include <gmock/gmock.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -873,6 +874,19 @@ TEST_F(OVTensorTest, roiLpCopyToExceedsDestinationCapacityThrows) {
     OV_EXPECT_THROW(src.copy_to(dst), ov::Exception, _);
 }
 
+TEST_F(OVTensorTest, roiLpCopyToZeroExtentMiddleDimDoesNotHang) {
+    ov::Tensor owner{ov::element::i4, {2, 3, 8}};
+    ov::Tensor src;
+    OV_ASSERT_NO_THROW(src = ov::Tensor(owner, {0, 0, 0}, {2, 0, 8}));
+    ASSERT_EQ(src.get_shape(), ov::Shape({2, 0, 8}));
+    ASSERT_EQ(src.get_strides(), ov::Strides({12, 4, 1}));
+
+    ov::Tensor dst{ov::element::i4, {1}};
+    OV_ASSERT_NO_THROW(src.copy_to(dst));
+    EXPECT_EQ(dst.get_shape(), ov::Shape({2, 0, 8}));
+    EXPECT_EQ(dst.get_byte_size(), 0u);
+}
+
 TEST_F(OVTensorTest, roiLpInnerDimSliceThrows) {
     ov::Tensor t{ov::element::i4, {2, 8}};
     OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t, {0, 0}, {2, 4}}),
@@ -937,6 +951,42 @@ TEST_F(OVTensorTest, roiLpDirectStridedViewRowTooSmallThrows) {
     std::vector<uint8_t> buffer(2 * 10 * row_bytes);
     const ov::Strides bad_strides{2 * 10 * row_bytes, 10 * row_bytes, row_bytes - 1, 1};
     OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {1, 2, 10, 512}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewWrongPlaceholderStrideThrows) {
+    constexpr size_t row_bytes = 8 * 4 / 8;  // i4, 8 elements per row -> 4 bytes
+    std::vector<uint8_t> buffer(2 * row_bytes);
+    const ov::Strides bad_strides{row_bytes, 2};  // last stride must be the dense placeholder (1), not 2
+    OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {2, 8}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiLpDirectStridedViewWrongPlaceholderStride3DThrows) {
+    constexpr size_t row_bytes = 8 * 4 / 8;  // i4, 8 elements per row -> 4 bytes
+    std::vector<uint8_t> buffer(2 * 4 * row_bytes);
+    const ov::Strides bad_strides{4 * row_bytes, row_bytes, 2};  // last stride must be 1, not 2
+    OV_EXPECT_THROW((ov::Tensor(ov::element::i4, {2, 4, 8}, buffer.data(), bad_strides)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, stridedViewSetShapeRejectsUnalignedSubByteShape) {
+    constexpr size_t row_bytes = 8 * 4 / 8;
+    std::vector<uint8_t> buffer(2 * row_bytes);
+    ov::Tensor t{ov::element::i4, {2, 8}, buffer.data(), ov::Strides{row_bytes, 1}};
+    // shrinking the last dimension to 1 element (4 bits) is no longer byte-aligned
+    OV_EXPECT_THROW(t.set_shape({2, 1}), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiSetShapeRejectsUnalignedSubByteInnerDim) {
+    ov::Tensor owner{ov::element::i4, {4, 8}};
+    ov::Tensor roi{owner, {0, 0}, {2, 8}};
+    // shrinking the last dimension to 1 element (4 bits) is no longer byte-aligned
+    OV_EXPECT_THROW(roi.set_shape({2, 1}), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, roiSetShapeRejectsUnalignedSubByteInnerDimWithRankExpansion) {
+    ov::Tensor owner{ov::element::i4, {4, 8}};
+    ov::Tensor roi{owner, {0, 0}, {2, 8}};
+    // expanding rank must not bypass the innermost byte-alignment check
+    OV_EXPECT_THROW(roi.set_shape({1, 2, 1}), ov::Exception, _);
 }
 
 TEST_F(OVTensorTest, makeRangeRoiBlobWrongSize) {

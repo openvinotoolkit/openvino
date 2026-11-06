@@ -273,6 +273,10 @@ public:
         OPENVINO_ASSERT(m_shape.size() == m_strides.size());
 
         const auto is_sub_byte = get_element_type().bitwidth() < 8;
+        const auto has_dense_inner_stride = !is_sub_byte || m_strides.back() == shape_strides.back();
+        OPENVINO_ASSERT(has_dense_inner_stride,
+                        "Sub-byte tensor must keep the default innermost byte stride, got: ",
+                        m_strides);
         for (size_t i = 0; i < m_strides.size(); ++i) {
             OPENVINO_ASSERT(shape_strides[i] <= m_strides[i],
                             "shape stride: ",
@@ -311,6 +315,8 @@ public:
                             i,
                             " is not compatible.");
         }
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(get_element_type(), new_shape);
+        OPENVINO_ASSERT(can_compute_byte_strides, "Byte strides are not representable for shape: ", new_shape);
         m_shape = std::move(new_shape);
     }
 };
@@ -513,6 +519,8 @@ public:
             new_shape,
             " for ROI tensor! The expanding rank dimension(s) of ROI must be ones, but it is not at index: ",
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
+        const auto can_compute_byte_strides = util::can_compute_byte_strides(m_owner->get_element_type(), new_shape);
+        OPENVINO_ASSERT(can_compute_byte_strides, "Byte strides are not representable for shape: ", new_shape);
 
         m_shape = std::move(new_shape);
     }
