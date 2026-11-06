@@ -122,3 +122,20 @@ class TestTSmall(PytorchLayerTest):
             kwargs_to_prepare_input={"num_dims": num_dims, "input_dtype": input_dtype},
             use_convert_model=True,
         )
+
+
+class TestMatrixTranspose(PytorchLayerTest):
+    def _prepare_input(self, shape):
+        return (self.random.randn(*shape).astype(np.float32),)
+
+    @pytest.mark.parametrize("shape", [(3, 5), (2, 3, 5), (2, 4, 3, 5)])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_mT(self, shape, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            def forward(self, x):
+                return x.mT
+
+        self._test(Model(), "aten::mT", ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"shape": shape}, trace_model=True)
