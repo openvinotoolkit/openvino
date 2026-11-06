@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <iterator>
 #include <functional>
 #include <sstream>
 #include <fstream>
@@ -126,6 +127,41 @@ bool on_define_line(const std::string& src, size_t pos) {
     return define_pos != std::string::npos && define_pos < pos;
 }
 
+// The [begin, end) byte ranges of the comments in src, in order: a '//' comment to the end of its line, a '/* */'
+// comment to its '*/'. String and character literals are stepped over, so a '//' or '/*' inside one starts nothing.
+// An occurrence in a comment is not a kernel's request - custom kernels mention them in comments - and rewriting it
+// would end a '//' comment at the inserted directive and turn the rest of the line into code.
+std::vector<std::pair<size_t, size_t>> comment_ranges(const std::string& src) {
+    std::vector<std::pair<size_t, size_t>> ranges;
+    for (size_t i = 0; i < src.size(); ++i) {
+        const char c = src[i];
+        if (c == '"' || c == '\'') {
+            for (++i; i < src.size() && src[i] != c && src[i] != '\n'; ++i) {
+                if (src[i] == '\\') {
+                    ++i;
+                }
+            }
+        } else if (c == '/' && i + 1 < src.size() && src[i + 1] == '/') {
+            const size_t end = std::min(src.find('\n', i + 2), src.size());
+            ranges.emplace_back(i, end);
+            i = end;
+        } else if (c == '/' && i + 1 < src.size() && src[i + 1] == '*') {
+            const size_t close = src.find("*/", i + 2);
+            const size_t end = close == std::string::npos ? src.size() : close + 2;
+            ranges.emplace_back(i, end);
+            i = end - 1;
+        }
+    }
+    return ranges;
+}
+
+bool in_ranges(const std::vector<std::pair<size_t, size_t>>& ranges, size_t pos) {
+    auto it = std::upper_bound(ranges.begin(), ranges.end(), pos, [](size_t p, const std::pair<size_t, size_t>& r) {
+        return p < r.first;
+    });
+    return it != ranges.begin() && pos < std::prev(it)->second;
+}
+
 std::string redefine_directive(const std::string& arg) {
     return "\n#undef _NV_SUB_GROUP_SIZE\n#define _NV_SUB_GROUP_SIZE (" + arg + ")\n";
 }
@@ -180,9 +216,10 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
                        const std::function<std::pair<std::string, bool>(const std::smatch&)>& to_size) {
         std::string out;
         size_t last = 0;
+        const auto comments = comment_ranges(text);
         for (std::sregex_iterator it(text.begin(), text.end(), re), end; it != end; ++it) {
             const size_t pos = static_cast<size_t>(it->position());
-            if (on_define_line(text, pos)) {
+            if (on_define_line(text, pos) || in_ranges(comments, pos)) {
                 continue;
             }
             const auto [arg, keep_match] = to_size(*it);

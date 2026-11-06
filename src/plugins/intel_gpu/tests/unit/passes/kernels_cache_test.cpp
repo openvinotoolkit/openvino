@@ -335,3 +335,25 @@ TEST(nvidia_replace_reqd_sub_group_size, default_is_restored_between_entries) {
     EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_a"), "(16)");
     EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_b"), "32u");
 }
+
+TEST(nvidia_replace_reqd_sub_group_size, comments_are_skipped) {
+    // Comments may mention either spelling - custom kernels do - and must reach the compiler intact: a redefinition
+    // inserted into a '//' comment would end it there and turn the rest of the line into code.
+    const std::string line_comment = "// needs REQD_SUB_GROUP_SIZE(8) on Intel";
+    const std::string block_comment = "/* was __attribute__((intel_reqd_sub_group_size(8))) */";
+    const std::string src = "\n" + line_comment + "\n" + block_comment +
+                            "\nREQD_SUB_GROUP_SIZE(16)\n__kernel void probe(__global int* out) {}\n";
+    const std::string out = nvidia_replace_reqd_sub_group_size(src);
+
+    EXPECT_NE(out.find(line_comment + "\n"), std::string::npos);
+    EXPECT_NE(out.find(block_comment), std::string::npos);
+    // The request in the code, not the one in the comments, is the first and the one repeated at the top.
+    EXPECT_EQ(nv_sub_group_size_at(out, "needs"), "(16)");
+    EXPECT_EQ(nv_sub_group_size_at(out, "probe"), "(16)");
+    EXPECT_EQ(out.find("_NV_SUB_GROUP_SIZE (8)"), std::string::npos);
+
+    // A source that mentions a sub-group size only in comments is passed through as is.
+    const std::string comments_only =
+        "\n" + line_comment + "\n" + block_comment + "\n__kernel void probe(__global int* out) {}\n";
+    EXPECT_EQ(nvidia_replace_reqd_sub_group_size(comments_only), comments_only);
+}
