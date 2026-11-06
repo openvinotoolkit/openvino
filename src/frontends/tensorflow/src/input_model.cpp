@@ -4,8 +4,10 @@
 
 #include "input_model.hpp"
 
+#include <cstdint>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <queue>
 #include <stack>
 
@@ -303,13 +305,45 @@ void InputModel::InputModelTFImpl::load_places() {
                             op_names_with_consumers.end(),
                             std::inserter(op_names_without_consumers, op_names_without_consumers.begin()));
         for (const auto& output_name : op_names_without_consumers) {
-            auto output_place = std::make_shared<TensorPlace>(m_input_model,
-                                                              ov::PartialShape({}),
-                                                              ov::element::dynamic,
-                                                              std::vector<std::string>{output_name + ":0"});
-            // TODO: Create tensor places for each output port, ticket-129464
-            m_default_places[output_name + ":0"] = output_place;
-            m_outputs.push_back(output_place);
+            const auto decoder = m_op_places_map.at(output_name)->get_decoder();
+            size_t output_count = 1;
+            bool output_count_known = false;
+            const auto& op_type = decoder->get_op_type();
+            if (op_type == "Split" || op_type == "SplitV") {
+                const auto num_split = decoder->get_attribute("num_split");
+                if (num_split.is<int64_t>()) {
+                    const auto num_split_value = num_split.as<int64_t>();
+                    FRONT_END_GENERAL_CHECK(num_split_value > 0,
+                                            "TensorFlow Split operation must have a positive number of outputs.");
+                    FRONT_END_GENERAL_CHECK(
+                        static_cast<std::uint64_t>(num_split_value) <= std::numeric_limits<size_t>::max(),
+                        "TensorFlow Split operation has too many outputs.");
+                    output_count = static_cast<size_t>(num_split_value);
+                    output_count_known = true;
+                }
+            }
+            if (!output_count_known) {
+                for (const auto& attr_name : {"_output_shapes", "output_shapes"}) {
+                    const auto output_shapes = decoder->get_attribute(attr_name);
+                    if (output_shapes.is<std::vector<ov::PartialShape>>()) {
+                        const auto& shapes = output_shapes.as<std::vector<ov::PartialShape>>();
+                        if (!shapes.empty()) {
+                            output_count = shapes.size();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            for (size_t output_port_index = 0; output_port_index < output_count; ++output_port_index) {
+                const auto tensor_name = output_name + ":" + std::to_string(output_port_index);
+                auto output_place = std::make_shared<TensorPlace>(m_input_model,
+                                                                  ov::PartialShape({}),
+                                                                  ov::element::dynamic,
+                                                                  std::vector<std::string>{tensor_name});
+                m_default_places[tensor_name] = output_place;
+                m_outputs.push_back(output_place);
+            }
         }
         return;
     }
