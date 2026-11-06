@@ -21,37 +21,37 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
-        curl \
-        git \
-        gpg-agent \
-        tzdata \
-        libtbb2 \
-        # parallel gzip
-        pigz \
-        # Pythons
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
-        python3.12-dev \
-        python3.12-venv \
-        python3.13-dev \
-        python3.13-venv \
-        python3.14-nogil \
-        python3.14-venv \
-        python3.14-dev \
-        # For Java API
-        default-jdk \
-        # To build documentation
-        graphviz \
-        texlive \
-        liblua5.2-0 \
-        # JS API
-        xvfb \
-        libgtk-3-0 \
-        libgbm1 \
-        # ONNX Runtime
-        language-pack-en \
-        && \
+    curl \
+    git \
+    gpg-agent \
+    tzdata \
+    libtbb2 \
+    # parallel gzip
+    pigz \
+    # Pythons
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils \
+    python3.12-dev \
+    python3.12-venv \
+    python3.13-dev \
+    python3.13-venv \
+    python3.14-nogil \
+    python3.14-venv \
+    python3.14-dev \
+    # For Java API
+    default-jdk \
+    # To build documentation
+    graphviz \
+    texlive \
+    liblua5.2-0 \
+    # JS API
+    xvfb \
+    libgtk-3-0 \
+    libgbm1 \
+    # ONNX Runtime
+    language-pack-en \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -61,7 +61,7 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
@@ -69,7 +69,7 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     SCCACHE_ARCHIVE="sccache-${SCCACHE_VERSION}-x86_64-unknown-linux-musl.tar.gz" && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
-    
+
 # Install custom cmake (4.0+)
 RUN wget https://cmake.org/files/v4.1/cmake-4.1.1-linux-x86_64.sh && \
     sh cmake-4.1.1-linux-x86_64.sh --skip-license --prefix=/usr/local && \

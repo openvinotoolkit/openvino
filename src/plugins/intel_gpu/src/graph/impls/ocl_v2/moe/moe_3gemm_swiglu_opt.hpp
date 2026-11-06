@@ -41,7 +41,8 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return false;
         }
 
-        // Only support weight: u4, i4, u8, i8, u3 (u3 has no batched GEMV kernel and runs decode via OneDNN grouped GEMM)
+        // Only support weight: u4, i4, u8, i8, u3 (u3 prefill runs on OneDNN grouped GEMM, and so does its decode where the
+        // u3 batched GEMV doesn't apply)
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
             ov::element::i4,
