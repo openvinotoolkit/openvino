@@ -50,6 +50,52 @@ TEST(moe_expert_weight_provider, offload_bind_resident_buffers) {
     ASSERT_TRUE(provider.is_bound());
 }
 
+TEST(moe_expert_weight_provider, offload_bind_rejects_insufficient_physical_capacity) {
+    auto& engine = get_test_engine();
+    MOECompressed::Config config{};
+    config.num_expert = 4;
+    OffloadExpertWeightProvider provider(/*capacity=*/2, config, {}, "/nonexistent");
+
+    const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
+    const layout one_slot_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto one_slot_memory = engine.allocate_memory(one_slot_layout, true);
+    auto undersized_memory = engine.reinterpret_buffer(*one_slot_memory, full_layout);
+
+    cldnn::moe_weights undersized{};
+    undersized.gate_w = undersized_memory;
+    EXPECT_THROW(provider.bind(undersized), ov::AssertFailure);
+    EXPECT_FALSE(provider.is_bound());
+
+    const layout two_slot_layout({2, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto two_slot_memory = engine.allocate_memory(two_slot_layout, true);
+    auto sufficient_memory = engine.reinterpret_buffer(*two_slot_memory, full_layout);
+    cldnn::moe_weights sufficient{};
+    sufficient.gate_w = sufficient_memory;
+    EXPECT_NO_THROW(provider.bind(sufficient));
+    EXPECT_TRUE(provider.is_bound());
+}
+
+TEST(moe_expert_weight_provider, offload_bind_rejects_invalid_logical_sizes) {
+    auto& engine = get_test_engine();
+    MOECompressed::Config config{};
+    config.num_expert = 4;
+    const layout backing_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto backing_memory = engine.allocate_memory(backing_layout, true);
+
+    for (const size_t bytes_count : {0U, 2U, 10U}) {
+        SCOPED_TRACE(bytes_count);
+        OffloadExpertWeightProvider provider(/*capacity=*/2, config, {}, "/nonexistent");
+        const layout invalid_layout({1, 1, 1, static_cast<int64_t>(bytes_count)}, data_types::u8, format::bfyx);
+        ASSERT_EQ(invalid_layout.bytes_count(), bytes_count);
+        cldnn::moe_weights resident{};
+        resident.gate_w = engine.reinterpret_buffer(*backing_memory, invalid_layout);
+
+        EXPECT_THROW(provider.bind(resident), ov::AssertFailure);
+        EXPECT_FALSE(provider.is_bound());
+        EXPECT_FALSE(provider.cache().is_initialized());
+    }
+}
+
 TEST(moe_expert_weight_provider, resident_try_acquire_simultaneous_is_identity) {
     ResidentExpertWeightProvider provider;
     std::vector<uint32_t> experts = {3, 7, 3, 1, 7};

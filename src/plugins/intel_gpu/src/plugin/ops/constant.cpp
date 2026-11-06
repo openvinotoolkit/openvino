@@ -166,6 +166,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             return;
         }
         auto partial_upload = try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, constFormat, constLayout);
+        const auto resident_expert_num = partial_upload.get_resident_expert_num();
 
         if (partial_upload.enabled) {
             mem = partial_upload.memory;
@@ -200,7 +201,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             }
         }
         ov::wsh::Extension::hint_evict(*op);
-        auto data_prim = cldnn::data(initialconstPrimID, mem, partial_upload.enabled);
+        auto data_prim = cldnn::data(initialconstPrimID, mem, partial_upload.enabled, resident_expert_num);
         p.add_primitive(*op, data_prim);
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;

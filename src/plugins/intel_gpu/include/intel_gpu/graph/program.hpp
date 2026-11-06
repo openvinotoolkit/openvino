@@ -424,6 +424,7 @@ private:
     void replace(program_node& old_node, program_node& new_node);
 
     void init_program();
+    friend void validate_moe_partial_buffers(const program& prog);
 };
 
 }  // namespace cldnn
