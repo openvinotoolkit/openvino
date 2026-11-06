@@ -39,6 +39,18 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
     std::shared_ptr<ov::intel_gpu::op::MLIROp> op;
     shape_infer_function shape_infer_f;
 
+    // Required physical format per input (vector-index == dependency-index == MLIR function argument index).
+    // The compiled MLIR program bakes the input memref layouts in, so cldnn must deliver exactly these
+    // formats. If the format is format::any, the default format for the input rank is used.
+    std::vector<format::type> required_input_fmts;
+
+    [[nodiscard]] format::type get_required_input_format(size_t idx, size_t rank) const {
+        if (idx < required_input_fmts.size() && required_input_fmts[idx] != format::any) {
+            return required_input_fmts[idx];
+        }
+        return format::get_default_format(rank);
+    }
+
     void save(BinaryOutputBuffer& /*ob*/) const override {
         OPENVINO_THROW("[GPU] Compiled model export / model caching is not supported for models with MLIR "
                        "(Graph Compiler) subgraphs. Disable GPU_ENABLE_MLIR to use ov::cache_dir or export_model()");
