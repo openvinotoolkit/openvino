@@ -30,12 +30,21 @@ const ov::AnyMap cfg_u8_sym{
     {"KEY_CACHE_PRECISION", "u8"},
     {"VALUE_CACHE_PRECISION", "u8"},
 };
+// key and value caches with different precisions
+const ov::AnyMap cfg_u8_key{
+    {"KEY_CACHE_PRECISION", "u8"},
+    {"VALUE_CACHE_PRECISION", "f16"},
+};
+const ov::AnyMap cfg_u8_value{
+    {"KEY_CACHE_PRECISION", "f16"},
+    {"VALUE_CACHE_PRECISION", "u8"},
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                          ConcatSDPTest,
                          ::testing::Combine(::testing::Values(ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(cfg_none, cfg_u8_sym),
+                                            ::testing::Values(cfg_none, cfg_u8_sym, cfg_u8_key, cfg_u8_value),
                                             ::testing::Values(true, false),
                                             ::testing::Values<int64_t>(8),
                                             ::testing::Values<int64_t>(8)),
