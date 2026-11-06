@@ -77,7 +77,7 @@ struct paged_attention : public primitive_base<paged_attention> {
             const char* env = std::getenv("OV_GPU_PA_K_TOKEN_MAJOR");
             if (env == nullptr || env[0] == '\0')
                 return k_layout_switch::rule;
-            OPENVINO_ASSERT(!(env[0] == '1' && env[1] == '\0'),
+            OPENVINO_ASSERT(env[0] != '1' || env[1] != '\0',
                             "[GPU] OV_GPU_PA_K_TOKEN_MAJOR=1 is retired: the K page is token-major wherever the rule allows it "
                             "(unset); OV_GPU_PA_K_TOKEN_MAJOR=0 makes every K page d-major");
             OPENVINO_ASSERT(env[0] == '0' && env[1] == '\0', "[GPU] OV_GPU_PA_K_TOKEN_MAJOR must be 0 or unset, got ", env);
