@@ -264,7 +264,12 @@ SDPA_OCL_INLINE void FUNC(pa_k_comp_by_token)(__private half *k_pa_sc_lane, __pr
 #if PAGED_ATTENTION_BLOCK_SIZE > SUBGROUP_SIZE
         // A page holds PAGED_ATTENTION_BLOCK_SIZE / SUBGROUP_SIZE key groups; group kg reads its own token slice
         // (without this, group 1 of a 16-token page re-reads tokens 0..7 at SG8).
+#if defined(NEG_SG8) && NEG_SG8 == 19
+        // Negative control: that bug, every group reads tokens 0..7.
+        const int kg_tok0 = 0;
+#else
         const int kg_tok0 = (kg * SUBGROUP_SIZE) % PAGED_ATTENTION_BLOCK_SIZE;
+#endif
         k_pa_sc_lane[kg] = sc_valid ? k_comp[kg_tok0 + lane] : (half)0.0h;
         k_pa_zp_lane[kg] = sc_valid ? k_comp[PAGED_ATTENTION_BLOCK_SIZE + kg_tok0 + lane] : (half)0.0h;
 #else
@@ -837,6 +842,46 @@ SDPA_OCL_INLINE void FUNC(k_tile_gather)(__private ushort8 *k_raw, const __globa
 #endif
 
 #if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_I8 && !USE_1D_BLOCK_IO_K_PA_U4 && IS_PA_KV_COMPRESSED
+#if SG8
+// SG8 i8 BY_TOKEN K page (the BY_CHANNEL / u4 pages stop at sdpa_ocl_config.cl's tripwire): the KQ A operand is an int8
+// (component kk = key key_base + mb * DPAS_ROWS + kk, lane = the dword of channels c0 = db * DPAS_K + 2 lane and c0 + 1, the
+// low half c0). A row block is DPAS_ROWS == SUBGROUP_SIZE keys, i.e. one key group of pa_k_comp_by_token(), so key kk's
+// (scale, zp) is that group's lane kk. The token-major page holds a key's channels side by side, so a lane reads its channel
+// pair as one ushort (c0 is even and the row pitch is the head size, so it is 2 B aligned). The dequant is (q - zp) * scale
+// in half, as the SG16 gather; a key at/past k has scale and zp 0, so its slot dequantizes to 0 whatever it holds, and a
+// channel at/past d is 0.
+SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private int8 *k_raw, const __global KEY_DATA_T *K,
+                                              const __private uint *k_page, const __private half *k_pa_sc_lane,
+                                              const __private half *k_pa_zp_lane, const size_t b0_kv, const int key_base,
+                                              const int k, const int d, const int db, const size_t lane, const int lane_i) {
+    const int c0 = db * DPAS_K + 2 * lane_i;
+    const bool c0_ok = c0 < d;
+    const bool c1_ok = c0 + 1 < d;
+    #pragma unroll
+    for (int mb = 0; mb < kq_key_blocks; ++mb) {
+        const size_t mb_page_base = PA_K_PAGE_OFF(k_page[mb], b0_kv) + (size_t)c0 * PA_K_HIDDEN_STRIDE;
+        // key_base is a multiple of PAGED_ATTENTION_BLOCK_SIZE, so the row block's first token is a constant.
+        const int tok0 = (mb * DPAS_ROWS) % PAGED_ATTENTION_BLOCK_SIZE;
+        #pragma unroll
+        for (int kk = 0; kk < DPAS_ROWS; ++kk) {
+            const int krel = mb * DPAS_ROWS + kk;
+            // Collectives, so outside every per-lane guard; krel is an unroll constant and they fold.
+            const half k_sc = sub_group_broadcast(k_pa_sc_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+            const half k_zp = sub_group_broadcast(k_pa_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
+            const uint pair =
+                c0_ok ? (uint)*(const __global ushort *)(K + mb_page_base + (size_t)(tok0 + kk) * PA_K_TOKEN_STRIDE) : 0u;
+            const half q0 = (half)(char)(pair & 0xFFu);
+            const half q1 = (half)(char)(pair >> 8);
+            half2 deq = (half2)(c0_ok ? PA_DEQ(q0, k_zp, k_sc) : (half)0.0h, c1_ok ? PA_DEQ(q1, k_zp, k_sc) : (half)0.0h);
+#if defined(NEG_SG8) && NEG_SG8 == 22
+            // Negative control: the two channels of the dword swapped.
+            deq = deq.s10;
+#endif
+            k_raw[mb][kk] = as_int(deq);
+        }
+    }
+}
+#else
 // i8/u4 token-major K page whose pitch misses the host's block2d rule, addressed through PA_K_TOKEN_STRIDE /
 // PA_K_HIDDEN_STRIDE. The dequant is (q - zp) * scale in half, matching the reference; the plain-SDPA bias
 // trick only pays off over a wide transform read.
@@ -902,6 +947,7 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private ushort8 *k_raw, const __
         }
     }
 }
+#endif  // SG8
 #endif
 
 #if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_I8 && !USE_1D_BLOCK_IO_K_PA_U4 && !IS_PA_KV_COMPRESSED

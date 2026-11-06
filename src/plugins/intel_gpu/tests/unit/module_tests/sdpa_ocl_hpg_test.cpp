@@ -183,8 +183,8 @@ TEST(SdpaOclHpg, TierMaskCover) {
     EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16, PA_PREFILL));
     // The step that ports a kernel family turns its bit on (and edits this line): S6a = the plain f16 static prefill,
     // S6b = the rest of plain SDPA, S6c = plain SDPA on an i8 KV cache, S7b = PA PREFILL and MIXED on an f16 cache, S7c = the
-    // PA features.
-    constexpr uint32_t ready = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8 | PA_PREFILL | PA_MIXED_F16 | PA_FEATURES;
+    // PA features, S8a = PA on an i8 BY_TOKEN cache.
+    constexpr uint32_t ready = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8 | PA_PREFILL | PA_MIXED_F16 | PA_FEATURES | PA_I8_TOKEN;
     EXPECT_EQ(kHpgTiersReady, ready);
     if (std::getenv("SDPA_OCL_HPG_TIERS") == nullptr) {
         EXPECT_EQ(hpg_tiers_ready(), ready);
@@ -193,8 +193,8 @@ TEST(SdpaOclHpg, TierMaskCover) {
         EXPECT_TRUE(hpg_tier_ready(PLAIN_I8));
         EXPECT_TRUE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16, hpg_tiers_ready()));
         EXPECT_TRUE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16 | PA_FEATURES, hpg_tiers_ready()));
-        // Not yet: the compressed caches (plan S8a-c).
-        EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16 | PA_I8_TOKEN, hpg_tiers_ready()));
+        EXPECT_TRUE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16 | PA_I8_TOKEN, hpg_tiers_ready()));
+        // Not yet: the BY_CHANNEL caches (plan S8b-c).
         EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16 | PA_I8_CHANNEL, hpg_tiers_ready()));
         EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16 | PA_U4, hpg_tiers_ready()));
     }

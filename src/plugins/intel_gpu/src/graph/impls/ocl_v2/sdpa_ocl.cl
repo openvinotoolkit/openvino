@@ -1223,7 +1223,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                                              k0, cp, k, lane);
             #elif IS_PA_KV_COMPRESSED && IS_PA_MIXED
                 // Cache tiles only: a PA_CUR_KV_F16 tile reads plain f16 Vc, so v_zp_c stays 0.
+    #if SG8
+                // The zps of keys (2 lane, 2 lane + 1).
+                half2 v_zp_c = (half2)0.0h;
+    #else
                 half v_zp_c = (half)0.0f;
+    #endif
                 if (from_cache)
                     v_zp_c = FUNC_CALL(pa_v_comp_fold)(pA, V, v_blk[cp], k0, cp, k, b0_kv, lane);
             #endif
