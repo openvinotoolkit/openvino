@@ -1679,8 +1679,8 @@ bool per_channel_kv_supported(const kernel_impl_params& params) {
     const auto k_dt = params.input_layouts[1].data_type;
     const auto v_dt = params.input_layouts[2].data_type;
     const bool int4 = qa.quantization_dt == ov::element::u4 || qa.quantization_dt == ov::element::i4;
-    if (int4 ? !(data_type_traits::is_i8_u8(k_dt) && data_type_traits::is_i8_u8(v_dt))
-             : !(qa.quantization_dt == ov::element::i8 && k_dt == ov::element::i8 && v_dt == ov::element::i8)) {
+    if (int4 ? (!data_type_traits::is_i8_u8(k_dt) || !data_type_traits::is_i8_u8(v_dt))
+             : (qa.quantization_dt != ov::element::i8 || k_dt != ov::element::i8 || v_dt != ov::element::i8)) {
         return false;
     }
     const auto k = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
@@ -1702,8 +1702,8 @@ bool per_channel_kv_supported(const kernel_impl_params& params) {
         }
         const bool is_scale = i < 2;
         const auto dt = l.data_type;
-        if (is_scale ? !(dt == ov::element::f16 || dt == ov::element::f32 || dt == ov::element::bf16)
-                     : !(dt == ov::element::f16 || dt == ov::element::f32 || data_type_traits::is_i8_u8(dt))) {
+        if (is_scale ? (dt != ov::element::f16 && dt != ov::element::f32 && dt != ov::element::bf16)
+                     : (dt != ov::element::f16 && dt != ov::element::f32 && !data_type_traits::is_i8_u8(dt))) {
             return false;
         }
     }
