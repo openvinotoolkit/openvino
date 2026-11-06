@@ -2,12 +2,13 @@
     "schema_version": "1.0",
     "signature": "pyarrow requires numpy 2.0 or newer but older numpy installed causing importerror in datasets/pyarrow dependency chain|Dependencies",
     "signature_hash": "90d42369fa7c1efb",
-    "title": "NPU model hub tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
+    "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
     "category": "Dependencies",
-    "count": 3,
+    "count": 4,
     "first_seen": "2026-11-05T01:47:23Z",
-    "last_seen": "2026-11-05T17:44:46Z",
+    "last_seen": "2026-11-06T17:42:06Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/42251179008",
         "https://github.com/openvinotoolkit/openvino/actions/runs/42062435152",
         "https://github.com/openvinotoolkit/openvino/actions/runs/41968975085",
         "https://github.com/openvinotoolkit/openvino/actions/runs/41939333537"
@@ -16,9 +17,7 @@
         "https://github.com/openvinotoolkit/openvino/pull/39512"
     ],
     "recent_timestamps": [
-        "2026-11-05T17:44:46Z",
-        "2026-11-05T06:35:38Z",
-        "2026-11-05T01:47:23Z"
+        "2026-11-06T17:42:06Z"
     ],
     "rerun_search_string": null
 }

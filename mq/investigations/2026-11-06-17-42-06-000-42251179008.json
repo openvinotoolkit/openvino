@@ -1,0 +1,41 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-06-17-42-06-000-42251179008",
+    "timestamp": "2026-11-06T17:42:06Z",
+    "run_id": "42251179008",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42251179008",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
+    "signature": "pyarrow requires numpy 2.0 or newer but older numpy installed causing importerror in datasets/pyarrow dependency chain|Dependencies",
+    "signature_hash": "90d42369fa7c1efb",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "PyTorch Models tests / PyTorch Models tests",
+            "conclusion": "failure",
+            "symptom": "7 HF transformers model-hub tests fail during model loading: ImportError pyarrow requires NumPy 2.0 or newer, found 1.26.4"
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check fails because the PyTorch Models tests job failed"
+        }
+    ],
+    "key_errors": [
+        "File \"/venv/lib/python3.11/site-packages/datasets/arrow_dataset.py\", line 60, in <module>\n    import pyarrow as pa\n  File \"/venv/lib/python3.11/site-packages/pyarrow/__init__.py\", line 59, in <module>\n    from pyarrow.lib import (BuildInfo, CppBuildInfo, RuntimeInfo, set_timezone_db_path,\n  File \"pyarrow/lib.pyx\", line 42, in init pyarrow.lib\nImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4",
+        "===== 7 failed, 5 passed, 1725 deselected, 1 warning in 320.96s (0:05:20) ======"
+    ],
+    "root_cause": "The 'PyTorch Models Tests Not Timm or Torchvision' step pip-installs a set of HF transformer test requirements that resolve to a pyarrow build requiring NumPy>=2.0, while the environment/venv still has an older NumPy 1.26.4 pinned (likely by another dependency in the same requirements set or the pre-existing venv). When test_hf_transformers.py imports `datasets`, which imports `pyarrow`, the native pyarrow.lib extension raises ImportError because of the ABI/version mismatch. The PR under test (#39512) only modifies a benchmarks CSV doc file and is unrelated to this failure; the same signature has recurred 3 times in the last ~36 hours on unrelated PRs, confirming an environment/dependency-pinning issue rather than a PR-introduced regression.",
+    "reproduction_steps": "1. Build/obtain the openvino wheels as in job_pytorch_models_tests.yml.\n2. Install install/tests/model_hub_tests/pytorch requirements as done in CI (pip install -r requirements.txt for model_hub_tests/pytorch).\n3. Run: python3 -m pytest install/tests/model_hub_tests/pytorch -m precommit -k \"not (TestTimmConvertModel or TestTorchHubConvertModel or TestEdsrConvertModel or TestLLMModel or TestDetectron2ConvertModel or TestTorchbenchmarkConvertModel)\" -v\n4. Observe ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4 when test_hf_transformers.py imports `datasets`.",
+    "recommended_actions": [
+        "Pin a pyarrow version compatible with NumPy 1.26.x (e.g. pyarrow<18) in the model_hub_tests/pytorch requirements, OR upgrade numpy to >=2.0 in that same requirements file so pyarrow's ABI matches.",
+        "Audit src/bindings/python and model_hub_tests requirements files for conflicting numpy/pyarrow pins and align them.",
+        "Add a CI smoke check that imports `datasets`/`pyarrow` right after dependency installation to fail fast with a clear message instead of deep inside a multiprocessing worker."
+    ],
+    "prevention_strategies": "Pin compatible numpy/pyarrow versions together in all requirements files used by PyTorch model-hub tests, and add a pip check/dependency-resolution step (e.g., `pip check`) after installing test requirements to catch ABI-incompatible combinations before running tests.",
+    "historical_context": "This is the 3rd occurrence of the same pyarrow/NumPy ABI mismatch recorded in the pattern database within roughly the last 36 hours (runs 41939333537, 41968975085, 42062435152), all against PR #39512's merge-queue runs, none caused by the PR's own (docs-only) changes."
+}
