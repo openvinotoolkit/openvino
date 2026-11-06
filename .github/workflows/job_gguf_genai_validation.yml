@@ -24,7 +24,6 @@ env:
   INSTALL_DIR: ${{ github.workspace }}/install
   GENAI_DIR: ${{ github.workspace }}/genai
   BUILD_DIR: ${{ github.workspace }}/genai-build
-  HF_HOME: /mount/caches/huggingface/gguf-genai
   HF_TOKEN_PATH: /secrets/huggingface/token-secondary
   OMP_NUM_THREADS: 4
   OPENBLAS_NUM_THREADS: 4
@@ -92,6 +91,9 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
+
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
 
       - name: Install same-run OpenVINO wheel
         uses: ./.github/actions/install_ov_wheels
@@ -173,25 +175,25 @@ jobs:
           python3 -m pip install transformers==5.2.0
           python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_generated.py" --junitxml=reports/generated.xml
 
-      - name: Tiny GGUF tokenizer, string and encoded inputs, beam search, streaming and saved IR (SDPA, PA and AUTO)
+      - name: Tiny GGUF tokenizer, string and encoded inputs, beam search, streaming and saved IR (SDPA, PA and AUTO) (HuggingFace model download)
         if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
         run: |
           python3 -m pip install transformers==5.0.0
           python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_frontend.py" --junitxml=reports/frontend.xml
 
-      - name: Tiny Gemma3 image, chat, API and Optimum loading acceptance (SDPA and PA)
+      - name: Tiny Gemma3 image, chat, API and Optimum loading acceptance (SDPA and PA) (HuggingFace model download)
         if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
         run: |
           python3 -m pip install transformers==5.0.0
           python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k gemma3 --junitxml=reports/gemma3.xml
 
-      - name: Tiny Gemma4 image, video, audio, boundaries, chat, API and Optimum loading acceptance (SDPA and PA)
+      - name: Tiny Gemma4 image, video, audio, boundaries, chat, API and Optimum loading acceptance (SDPA and PA) (HuggingFace model download)
         if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
         run: |
           python3 -m pip install transformers==5.5.4
           python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k gemma4 --junitxml=reports/gemma4.xml
 
-      - name: Tiny Muse image, video, chat, API and Optimum loading acceptance (SDPA and PA)
+      - name: Tiny Muse image, video, chat, API and Optimum loading acceptance (SDPA and PA) (HuggingFace model download)
         if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
         run: |
           python3 -m pip install transformers==5.15.0
@@ -199,13 +201,13 @@ jobs:
           python3 -m pip freeze > reports/muse-dependencies.txt
           python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k muse --junitxml=reports/muse.xml
 
-      - name: Tiny Qwen3.5 image, video, chat, API and Optimum loading acceptance (SDPA and PA)
+      - name: Tiny Qwen3.5 image, video, chat, API and Optimum loading acceptance (SDPA and PA) (HuggingFace model download)
         if: ${{ !cancelled() && steps.build_genai.outcome == 'success' }}
         run: |
           python3 -m pip install transformers==5.2.0
           python3 -m pytest --noconftest -v "${GENAI_DIR}/tests/python_tests/test_gguf_mmproj_acceptance.py" -k qwen35 --junitxml=reports/qwen35.xml
 
-      - name: Real Qwen3.5 pure Q4_0 acceptance (SDPA and PA)
+      - name: Real Qwen3.5 pure Q4_0 acceptance (SDPA and PA) (HuggingFace model download)
         if: ${{ inputs.run-real-models && !cancelled() && steps.build_genai.outcome == 'success' }}
         run: |
           python3 -m pip install transformers==5.2.0

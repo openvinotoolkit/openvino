@@ -28,14 +28,12 @@ on:
 
 permissions: read-all
 
-# HF auth token + shared model cache. The rope tests download a couple dozen
+# HF auth token + proxy-backed local model cache. The rope tests download a couple dozen
 # tiny HF models per run; unauthenticated requests eventually trip HuggingFace
 # rate limits and block CI. The token lives in a file mounted into the container
 # (see container.volumes below) and is wired in via HF_TOKEN_PATH in the
-# "Setup Variables" step. HF_HUB_CACHE points at a shared drive so models are
-# fetched once and reused across runs.
+# "Setup Variables" step. Model files are cached on the runner's local disk.
 env:
-  HF_HUB_CACHE_LIN: /mnt/caches/huggingface
   HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
 
 jobs:
@@ -50,7 +48,6 @@ jobs:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro # Needed to access CA certificates
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
         - /opt/home/actions_runner/actions-runner/secrets/:/secrets:ro # HF auth token file (HF_TOKEN_PATH_LIN)
-        - /mnt/caches:/mnt/caches # Shared HF model cache (HF_HUB_CACHE_LIN)
       options: ${{ inputs.options }}
     defaults:
       run:
@@ -85,13 +82,7 @@ jobs:
           submodules: 'false'
 
       - name: Setup Variables
-        # Wire the mounted HF token file and the shared HF model cache into the
-        # environment for the rest of the job. huggingface_hub reads HF_TOKEN_PATH
-        # to authenticate downloads (avoids rate limits) and HF_HUB_CACHE /
-        # HUGGINGFACE_HUB_CACHE to reuse cached models.
         run: |
-          echo "HF_HUB_CACHE=${{ env.HF_HUB_CACHE_LIN }}" >> "$GITHUB_ENV"
-          echo "HUGGINGFACE_HUB_CACHE=${{ env.HF_HUB_CACHE_LIN }}" >> "$GITHUB_ENV"
           echo "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_LIN }}" >> "$GITHUB_ENV"
 
       - name: Download OpenVINO artifacts (package)
@@ -146,6 +137,9 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'true'
 
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
+
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
         with:
@@ -161,7 +155,7 @@ jobs:
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/transformations_actual.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope_gpu.txt
 
-      - name: OpenVINO GPU RoPE Tests
+      - name: OpenVINO GPU RoPE Tests (HuggingFace model download)
         env:
           TEST_DEVICE: GPU
           PYTHONPATH: ${{ github.workspace }}/install/tests/model_hub_tests
