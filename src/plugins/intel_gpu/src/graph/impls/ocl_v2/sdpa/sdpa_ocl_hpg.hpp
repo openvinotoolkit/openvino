@@ -31,9 +31,10 @@ enum HpgTier : uint32_t {
 
 // Bits ready on xe_hpg. PLAIN_F16_STATIC since plan S6a (the first SG8 kernel arm), PLAIN_EXT since S6b, PLAIN_I8 since S6c,
 // PA_PREFILL and PA_MIXED_F16 since S7b (the SG8 f16 page readers), PA_FEATURES since S7c, PA_I8_TOKEN since S8a (the SG8 i8
-// BY_TOKEN page readers), PA_I8_CHANNEL since S8b (the SG8 i8 BY_CHANNEL page reader); the later steps add theirs.
+// BY_TOKEN page readers), PA_I8_CHANNEL since S8b (the SG8 i8 BY_CHANNEL page reader), PA_U4 since S8c (the SG8 u4 page
+// readers and the exact u4 Kc read); the later steps add theirs.
 constexpr uint32_t kHpgTiersReady =
-    PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8 | PA_PREFILL | PA_MIXED_F16 | PA_FEATURES | PA_I8_TOKEN | PA_I8_CHANNEL;
+    PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8 | PA_PREFILL | PA_MIXED_F16 | PA_FEATURES | PA_I8_TOKEN | PA_I8_CHANNEL | PA_U4;
 
 // kHpgTiersReady, or every bit when SDPA_OCL_HPG_TIERS=all (a comma list of tier names selects some). Development only,
 // for dumping the jit of every combination: the kernels of a tier that is not ready fail to build. Read once per process.
