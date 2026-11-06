@@ -296,6 +296,49 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                                                               "None")),
                          ConvertWeightCompressedConv1x1ToMatmulTest::get_test_case_name);
 
+TEST_F(TransformationTestsF, ConvertWeightCompressedConv1x1ToMatmulWithScaleAndZeroPointParameters) {
+    manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 10, 10});
+        auto input_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        auto activation = std::make_shared<ov::op::v1::Transpose>(input, input_order);
+        auto weights = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{15, 10, 1, 1}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::i4, ov::Shape{15, 1, 1, 1});
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+        auto zero_adjusted_weights = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{15, 1, 1, 1});
+        auto dequantized_weights = std::make_shared<ov::op::v1::Multiply>(zero_adjusted_weights, scale);
+        auto convolution = std::make_shared<ov::op::v1::Convolution>(activation,
+                                                                      dequantized_weights,
+                                                                      ov::Strides{1, 1},
+                                                                      ov::CoordinateDiff{0, 0},
+                                                                      ov::CoordinateDiff{0, 0},
+                                                                      ov::Strides{1, 1},
+                                                                      ov::op::PadType::EXPLICIT);
+        auto output_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+        auto output = std::make_shared<ov::op::v1::Transpose>(convolution, output_order);
+        model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input, scale, zero_point});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 10, 10});
+        auto weights = ov::op::v0::Constant::create(ov::element::i4, ov::Shape{15, 10}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::i4, ov::Shape{15, 1, 1, 1});
+        auto zero_point_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {15, 1});
+        auto zero_point_reshape = std::make_shared<ov::op::v1::Reshape>(zero_point, zero_point_shape, false);
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point_reshape, ov::element::f16);
+        auto zero_adjusted_weights = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{15, 1, 1, 1});
+        auto scale_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {15, 1});
+        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale, scale_shape, false);
+        auto dequantized_weights = std::make_shared<ov::op::v1::Multiply>(zero_adjusted_weights, scale_reshape);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, dequantized_weights, false, true);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul},
+                                                ov::ParameterVector{input, scale, zero_point});
+    }
+}
+
 // Checked blocked cases
 class ConvertWeightCompressedConv1x1ToMatmulTest_Blocked : public TransformationTestsF {
 public:

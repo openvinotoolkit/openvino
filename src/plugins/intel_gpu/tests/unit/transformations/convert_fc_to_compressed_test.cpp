@@ -83,6 +83,47 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed2) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvertFCToCompressedWithScaleAndZeroPointParameters) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 1});
+        auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f16);
+        auto scale_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 1});
+        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale_convert, scale_shape, false);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{32, 1, 1});
+        auto zero_point_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 1});
+        auto zero_point_reshape = std::make_shared<ov::op::v1::Reshape>(zero_point, zero_point_shape, false);
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point_reshape, ov::element::f16);
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+        auto dequantized_weights = std::make_shared<ov::op::v1::Multiply>(subtract, scale_reshape);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, dequantized_weights, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, scale, zero_point});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{32, 1, 1});
+        auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f16);
+        auto scale_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 1});
+        auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale_convert, scale_shape, false);
+        auto zero_point = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{32, 1, 1});
+        auto zero_point_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 1});
+        auto zero_point_reshape = std::make_shared<ov::op::v1::Reshape>(zero_point, zero_point_shape, false);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed =
+            std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
+                input, weights, no_bias, scale_reshape, zero_point_reshape);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed},
+                                                ov::ParameterVector{input, scale, zero_point});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertFCToCompressed3) {
     {
         auto input1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, 16 });
