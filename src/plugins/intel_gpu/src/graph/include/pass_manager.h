@@ -9,6 +9,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -240,19 +241,26 @@ public:
     propagate_constants() : base_pass("propagate_constants") {}
 
 private:
-    void run(program& p) override;
-    std::list<std::tuple<primitive_id, memory::ptr, std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>>>
-    calculate(engine& engine, const ExecutionConfig& config, std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-              const std::map<primitive_type_id, bool>& onednn_impls);
-    bool has_non_const_user(program_node& node) const;
-    void handle_constant(program& prog, program_node& node);
-    void add_constant(program& prog, program_node& node);
-    void add_deps_to_tpl(program& prog, const std::vector<std::pair<program_node*, int32_t>>& node);
+    using cache_tuple = std::tuple<std::shared_ptr<weightless_cache_manager>, std::shared_ptr<layout>, std::shared_ptr<reorder>>;
 
-    bool has_non_trivial_constants = false;
-    std::list<typed_program_node<data>*> const_inputs;
-    std::vector<primitive_id> const_outputs;
-    std::set<std::shared_ptr<program_node>> nodes;
+    void run(program& p) override;
+    bool has_non_const_user(program_node& node) const;
+    bool is_read_at_inference(program_node& node) const;
+    std::vector<std::vector<program_node*>> find_constant_subgraphs(program& p) const;
+    void add_weights_rotation(program& p, program_node& node) const;
+    void build_kernels(program& p, const std::vector<std::vector<program_node*>>& subgraphs) const;
+    std::vector<std::pair<program_node*, memory::ptr>> execute_subgraph(network& net,
+                                                                        const std::vector<program_node*>& inputs,
+                                                                        const std::vector<program_node*>& subgraph) const;
+    cache_tuple get_weightless_cache_info(program_node& node) const;
+    void replace_with_data(program& p,
+                           program_node& node,
+                           memory::ptr mem,
+                           const cache_tuple& cache_info,
+                           bool was_dynamic,
+                           std::unordered_set<program_node*>& reselection_targets) const;
+    void remove_node(program& p, program_node& node) const;
+    void remove_unused_constants(program& p) const;
 };
 
 class remove_redundant_reorders : public base_pass {
