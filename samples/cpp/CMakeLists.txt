@@ -149,6 +149,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
     set(gflags_required ON)
 endif()
 
+if(NOT TARGET gflags)
+    find_package(gflags QUIET)
+endif()
+
 if(TARGET gflags)
     set(GFLAGS_TARGET gflags)
 elseif(gflags_required)
