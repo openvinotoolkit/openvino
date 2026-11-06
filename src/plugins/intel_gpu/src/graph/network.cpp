@@ -296,13 +296,6 @@ network::network(engine& engine,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor)
     : network(program::build_program(engine, topo, config, task_executor, is_internal), is_internal, true) {}
 
-network::network(engine& engine,
-                 const std::set<std::shared_ptr<program_node>>& nodes,
-                 const ExecutionConfig& config,
-                 std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
-    : network(program::build_program(engine, nodes, config, task_executor, is_internal), is_internal, true) {}
-
 network::network(program::ptr program, uint16_t stream_id)
     : network(program, program->get_engine().create_stream(program->get_config()), false, stream_id == 0) {}
 
@@ -345,14 +338,6 @@ network::ptr network::build_network(engine& engine,
                                     std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                                     bool is_internal) {
     return std::make_shared<network>(engine, topology, config, is_internal, task_executor);
-}
-
-network::ptr network::build_network(engine& engine,
-                                    const std::set<std::shared_ptr<program_node>>& nodes,
-                                    const ExecutionConfig& config,
-                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                    bool is_internal) {
-    return std::make_shared<network>(engine, nodes, config, task_executor, is_internal);
 }
 
 void network::validate_primitives() {

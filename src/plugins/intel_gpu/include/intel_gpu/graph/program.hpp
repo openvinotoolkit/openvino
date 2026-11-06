@@ -19,7 +19,6 @@
 #include <memory>
 #include <mutex>
 #include <map>
-#include <optional>
 #include <utility>
 #include <set>
 
@@ -142,13 +141,6 @@ public:
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
-
-    program(engine& engine_ref,
-            std::set<std::shared_ptr<program_node>> const& nodes,
-            const ExecutionConfig& config,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-            bool is_internal,
-            std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
 
     explicit program(engine& engine,
                 const ExecutionConfig& config = {});
@@ -274,12 +266,6 @@ public:
                              bool is_internal = false,
                              bool no_optimizations = false,
                              bool is_body_program = false);
-    static ptr build_program(engine& engine,
-                             const std::set<std::shared_ptr<program_node>>& nodes,
-                             const ExecutionConfig& config,
-                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                             bool is_internal,
-                             std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
     std::shared_ptr<tensor_conversion> get_tensor_conversion(bool create_if_not_exist = true) const;
@@ -334,8 +320,6 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal = false;
-    // Forced oneDNN impls optimization attribute
-    std::optional<std::map<primitive_type_id, bool>> _onednn_impls;
     bool _is_body_program = false;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
@@ -362,10 +346,7 @@ private:
     */
     /* build nodes internal structure based on topology */
     void prepare_nodes(topology const& topology);
-    /* build nodes internal structure based on the subset of nodes of other program  (used in propagate_constants) */
-    void prepare_nodes(std::set<std::shared_ptr<program_node>> const& nodes);
     void add_node_dependencies(program_node* node_ptr);
-    void copy_node_dependencies(program_node* dest, program_node* src);
     void build_program(bool is_internal);
     void init_graph();
     void set_options();

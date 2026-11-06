@@ -81,12 +81,6 @@ public:
             bool is_internal = false,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr);
 
-    network(engine& engine,
-            const std::set<std::shared_ptr<program_node>>& nodes,
-            const ExecutionConfig& config,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-            bool is_internal);
-
     network(program::ptr program, uint16_t stream_id = 0);
 
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
@@ -98,12 +92,6 @@ public:
                              const ExecutionConfig& config = {},
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
                              bool is_internal = false);
-
-    static ptr build_network(engine& engine,
-                             const std::set<std::shared_ptr<program_node>>& nodes,
-                             const ExecutionConfig& config,
-                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                             bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,
                                 program::ptr program,

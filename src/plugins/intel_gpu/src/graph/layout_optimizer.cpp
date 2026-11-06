@@ -1790,10 +1790,6 @@ void layout_optimizer::clear_onednn_impls_optimization_attribute() {
     _optimization_attributes.onednn_impls.clear();
 }
 
-std::map<primitive_type_id, bool> layout_optimizer::get_all_onednn_impls_optimization_attribute() {
-    return _optimization_attributes.onednn_impls;
-}
-
 bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions) {
     auto input_layout = node.get_input_layout();
     auto weights_layout = node.weights().get_output_layout();
