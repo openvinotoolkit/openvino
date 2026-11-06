@@ -1115,8 +1115,9 @@ struct PagedAttentionManager {
     // paged_attention_test_params::comp_stress: bit 0 distorts the K inputs, bit 1 the V inputs, per token (data layout
     // [token][kv_head][head]). The two 8-token halves of a 16-token page get amplitudes 4x apart and each token its own
     // amplitude and offset (golden-ratio sequences), so every token of a compressed page has a very different scale and zp;
-    // V is also reversed and negated so that it does not follow K. Runs before the caches are built, so the cache writer
-    // and the reference see the same data.
+    // V is also reversed and negated so that it does not follow K. Bit 2 distorts K per channel the same way (even and odd
+    // channels 4x apart, offsets growing with the page), so every channel of a BY_CHANNEL page has its own scale and zp. Runs
+    // before the caches are built, so the cache writer and the reference see the same data.
     void apply_kv_comp_stress(int mask) {
         const auto frac = [](double x) {
             return x - std::floor(x);
@@ -1132,6 +1133,18 @@ struct PagedAttentionManager {
                         ov::float16* r = key_data[s].data() + (pos * num_kv_heads + h) * k_head_size;
                         for (int d = 0; d < k_head_size; ++d)
                             r[d] = ov::float16(static_cast<float>(r[d]) * a + o);
+                    }
+                    if (mask & 4) {
+                        // The offset grows with the page (1x, 3x, 5x), so a channel pair misread for another channel shifts
+                        // the scores of whole pages against each other: within one page it would add a constant.
+                        const double page_gain = 1.0 + 2.0 * static_cast<double>((pos / 16) % 3);
+                        ov::float16* r = key_data[s].data() + (pos * num_kv_heads + h) * k_head_size;
+                        for (int d = 0; d < k_head_size; ++d) {
+                            const bool odd = (d % 2) != 0;
+                            const float a = static_cast<float>((odd ? 2.0 : 0.5) * (1.0 + frac(d * 0.6180339887498949)));
+                            const float o = static_cast<float>((odd ? 0.4 : -0.4) * page_gain * (0.5 + frac(d * 0.7548776662466927)));
+                            r[d] = ov::float16(static_cast<float>(r[d]) * a + o);
+                        }
                     }
                     if (mask & 2) {
                         const float a = static_cast<float>((hi ? 0.5 : 2.0) * (1.0 + frac(pos * 0.5698402909980532)));
@@ -3560,6 +3573,7 @@ struct paged_attention_test_params {
     // Per-token affine distortion of the K (bit 0) and V (bit 1) inputs, PagedAttentionManager::apply_kv_comp_stress(): the
     // two 8-token halves of a 16-token page get amplitudes 4x apart and every token its own offset, so a compressed cache
     // holds a very different scale / zp per token. Without it a comp read of the wrong token moves the output by < 0.003.
+    // Bit 2 distorts K per channel instead (even / odd channels 4x apart), for the BY_CHANNEL caches.
     int comp_stress = 0;
 };
 

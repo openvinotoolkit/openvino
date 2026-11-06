@@ -558,12 +558,13 @@
       USE_2D_BLOCK_IO_K_PA || USE_2D_BLOCK_IO_V_PA || USE_2D_BLOCK_IO_K_PA_I8 || USE_2D_BLOCK_IO_V_PA_I8
 #    error "sdpa_ocl.cl SG8: 2D block IO needs a 16-wide subgroup; the host must force every USE_2D_BLOCK_IO_* to 0 (plan S5)"
 #  endif
-// IS_PA_K_BY_CHANNEL covers u4 too (u4 is BY_CHANNEL only), so of the compressed pages SG8 MIXED reads i8 BY_TOKEN.
-#  if IS_PA_MIXED && IS_PA_K_BY_CHANNEL
-#    error "sdpa_ocl.cl SG8: pa_k_comp_by_channel reads one (scale, zp) dword per lane (lane == channel) at stride SUBGROUP_SIZE, and the u4 page readers are SG16 (plan S8b/S8c)"
+// Of the compressed pages SG8 MIXED reads the i8 ones (BY_TOKEN and BY_CHANNEL, pa_k_tile_q_gather); the u4 page readers
+// are SG16 (pa_k_tile_q_gather's u4 arm, the 1D page reads and pa_k_comp_by_channel's lane == channel pairs).
+#  if IS_PA_MIXED && IS_PA_K_U4
+#    error "sdpa_ocl.cl SG8: the u4 K / V page readers are SG16 (plan S8c)"
 #  endif
 // The contiguous K input reads (k_tile_dword, and k_tile_dword_i8 for the plain i8 cache), the f16 page gather
-// (pa_k_tile_gather) and the i8 BY_TOKEN page gather (pa_k_tile_q_gather) have an int8 A form. The Kc / Vc reads of
+// (pa_k_tile_gather) and the i8 page gather (pa_k_tile_q_gather) have an int8 A form. The Kc / Vc reads of
 // PA_CUR_KV_F16 are 2D block reads, so an SG8 compressed MIXED reads the current tokens from the cache.
 #  if IS_PA_MIXED && PA_CUR_KV_F16
 #    error "sdpa_ocl.cl SG8: the PA_CUR_KV_F16 Kc / Vc reads are 2D block reads; SG8 reads the current tokens from the cache"
