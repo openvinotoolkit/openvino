@@ -15,12 +15,12 @@ inline constexpr char int2_hadamard_signs_key[] = "int2_hadamard_signs";
 
 // Folds the graph-level input rotation of Hadamard-basis checkpoints (Bonsai 2)
 //
-//   x -> [Multiply(+-1 signs)] -> Reshape(..., K/1024, 1024) -> MatMul(H_1024)
+//   x -> [Multiply(+-1 signs)] -> Reshape(..., K/B, B) -> MatMul(H_B)
 //     -> Reshape(..., K) -> FullyConnectedCompressed(u2)
 //
-// into the FullyConnected itself, which then runs one fused sign+FWHT kernel in
-// front of its GEMV instead of three graph primitives. Only the TernOCL int2 FC
-// implementation honours the resulting primitive fields.
+// (B = 256 ... 4096) into the FullyConnected itself, which then runs one fused
+// sign+FWHT kernel in front of its GEMV instead of three graph primitives. Only
+// the TernOCL int2 FC implementation honours the resulting primitive fields.
 class FuseHadamardIntoFC : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("FuseHadamardIntoFC");

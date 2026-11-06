@@ -5,7 +5,6 @@
 #include "ternocl_int2_weights_reorder.hpp"
 
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -23,31 +22,19 @@ namespace ocl {
 
 namespace {
 
-// [N, K] u2 codes -> [K/16, N] uint32, re-encoding (code - 1) to the kernel's
-// two's-complement {0, +1, -1} = {0, 1, 3}; row 16*kb+j of column n sits at bits [2j, 2j+1].
-// The TernOCL FC impl only requests this layout for a scalar zero point of 1.
-// u2 is little-endian inside each byte, so on a little-endian host the 16 codes of one word are
-// 4 consecutive source bytes already at their output bit positions: each 2-bit field b1b0 maps
-// 00->11, 01->00, 10->01.
-// Returns false if a code is 3, which is not ternary.
-bool pack_weights(const uint8_t* src, uint32_t* dst, size_t N, size_t K) {
+// Map unsigned codes minus one to {3, 0, 1, 2}; code 2 represents +2 in the full-range kernel.
+void pack_weights(const uint8_t* src, uint32_t* dst, size_t N, size_t K) {
     constexpr uint32_t lo = 0x55555555u;
     const size_t kblocks = K / kTernoclPackFactor;
-    std::atomic<bool> ternary{true};
     ov::parallel_for(kblocks, [&](size_t kb) {
-        uint32_t invalid = 0;
         for (size_t n = 0; n < N; ++n) {
             uint32_t w;
             std::memcpy(&w, src + (n * K + kb * kTernoclPackFactor) / 4, sizeof(w));
             const uint32_t b0 = w & lo;
             const uint32_t b1 = (w >> 1) & lo;
-            invalid |= b0 & b1;
             dst[kb * N + n] = (~b0 & lo) | ((~(b0 ^ b1) & lo) << 1);
         }
-        if (invalid != 0)
-            ternary = false;
     });
-    return ternary;
 }
 
 }  // namespace
@@ -93,10 +80,7 @@ struct ternocl_int2_weights_reorder : public typed_primitive_impl<reorder> {
                         N * K / 4,
                         " B for ",
                         instance.id());
-        OPENVINO_ASSERT(pack_weights(src.data(), dst.data(), N, K),
-                        "[GPU] ternocl int2: ",
-                        instance.id(),
-                        " has a weight code outside the ternary range {-1, 0, +1}");
+        pack_weights(src.data(), dst.data(), N, K);
 
         return cpu::make_output_event(stream, instance.is_output());
     }

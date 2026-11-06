@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cmath>
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,6 +17,7 @@
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "registry/implementation_manager.hpp"
+#include "reorder_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -78,12 +79,9 @@ inline bool ternocl_scales_group_major(const layout& l, bool transpose_b_scale, 
     return d0 == G && d1 == N && l.format == format::bfyx;
 }
 
-// Weight-only-quantized FullyConnected on 2-bit ternary weights, executed by the
-// TernOCL int2 x f16 up-convert OpenCL kernels (fp16 DPAS). OpenVINO has no
-// signed 2-bit type, so ternary weights arrive as u2 codes {0,1,2} plus a zero
-// point of 1. The impl requests format::is_os_yx_isv16_ternary through its weights
-// reorder params: the weights are re-encoded to the kernel's {0,1,3} and packed by
-// TernoclInt2WeightsReorderImplementationManager when the program folds its constants.
+// u2 weights minus a uniform zero point of 1, with f16 scales per 128 weights.
+// The weights reorder maps codes {0, 1, 2, 3} to {3, 0, 1, 2}; the last code
+// represents +2 in the full-range up-convert kernel and cannot use signed-int2 DPAS.
 struct TernoclInt2FCImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("TernoclInt2FCImplementationManager")
     TernoclInt2FCImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
@@ -98,9 +96,11 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         const auto& fc_prim = fc_node.get_primitive();
         if (!node.get_program().get_config().get_enable_ternocl_int2())
             return false;
-        // The kernels use SIMD16 DPAS and 2D block loads.
-        const auto& device_info = node.get_program().get_engine().get_device_info();
-        if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad)
+        // SIMD16 DPAS and 2D block loads, validated on the OpenCL and Level Zero runtimes.
+        const auto& engine = node.get_program().get_engine();
+        const auto& device_info = engine.get_device_info();
+        const auto runtime = engine.runtime_type();
+        if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad || (runtime != runtime_types::ocl && runtime != runtime_types::ze))
             return false;
 #define TERNOCL_REJECT(reason)                                                                               \
     do {                                                                                                     \
@@ -120,9 +120,6 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
             TERNOCL_REJECT("weights are not u2");
         if (!fc_node.weights().is_type<data>())
             TERNOCL_REJECT("weights are not a constant");
-        // Ternary {-1, 0, +1} arrives as u2 codes {0, 1, 2} with a scalar zero point of 1.
-        if (!fc_prim->decompression_zero_point_scalar.has_value() || std::lround(fc_prim->decompression_zero_point_scalar.value()) != 1)
-            TERNOCL_REJECT("zero point is not the scalar 1");
 
         const auto& in_layout = fc_node.get_input_layout(0);
         const auto& out_layout = fc_node.get_output_layout(0);
@@ -165,10 +162,52 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         // One lane per output column in 16-wide sub-group blocks; the tail is clipped, not padded.
         if (N % 16 != 0)
             TERNOCL_REJECT("N is not a multiple of 16");
-        if (fc_prim->hadamard_block != 0 && (fc_prim->hadamard_block != 1024 || K % 1024 != 0))
-            TERNOCL_REJECT("hadamard block must be 1024 and divide K");
+        if (fc_prim->hadamard_block != 0 &&
+            (!fully_connected::is_supported_hadamard_block(fc_prim->hadamard_block) || K % static_cast<int64_t>(fc_prim->hadamard_block) != 0))
+            TERNOCL_REJECT("unsupported hadamard block " + std::to_string(fc_prim->hadamard_block) + " for K=" + std::to_string(K));
         if (fc_prim->hadamard_block != 0 && !fc_prim->hadamard_signs.empty() && fc_prim->hadamard_signs.size() != static_cast<size_t>(K))
             TERNOCL_REJECT("hadamard signs length differs from K");
+
+        if (fc_prim->decompression_zero_point_scalar.has_value()) {
+            if (fc_prim->decompression_zero_point_scalar.value() != 1.f)
+                TERNOCL_REJECT("zero point is not exactly 1");
+        } else {
+            const size_t zp_dep = fc_prim->bias.is_valid() ? 4 : 3;
+            if (!fc_prim->decompression_zero_point.is_valid() || zp_dep >= fc_node.get_dependencies().size())
+                TERNOCL_REJECT("no zero point");
+            const auto* zp = &fc_node.get_dependency(zp_dep);
+            while (zp->is_type<reorder>()) {
+                const auto& reorder_node = zp->as<reorder>();
+                const auto& desc = reorder_node.get_primitive();
+                if (reorder_node.get_dependencies().size() != 1 || desc->mean.is_valid() || !desc->subtract_per_feature.empty() ||
+                    !reorder_node.get_fused_primitives().empty() || reorder_node.get_output_layout(false).data_padding ||
+                    reorder_node.get_output_layout(false).data_type != reorder_node.get_input_layout(0).data_type)
+                    TERNOCL_REJECT("zero point reorder changes values");
+                zp = &reorder_node.input();
+            }
+            if (!zp->is_type<data>())
+                TERNOCL_REJECT("zero point is not constant");
+            const auto mem = zp->as<data>().get_attached_memory_ptr();
+            const auto& l = mem->get_layout();
+            if (l.is_dynamic() || l.data_padding || (l.format != format::bfyx && l.format != format::fbyx) ||
+                (l.count() != 1 && l.count() != static_cast<size_t>(N * (K / kTernoclGroupSize))))
+                TERNOCL_REJECT("unsupported zero point shape");
+            auto& stream = node.get_program().get_engine().get_service_stream();
+            bool all_one = false;
+            if (l.data_type == data_types::f16) {
+                mem_lock<ov::float16, mem_lock_type::read> values(mem, stream);
+                all_one = std::all_of(values.data(), values.data() + l.count(), [](ov::float16 v) {
+                    return static_cast<float>(v) == 1.f;
+                });
+            } else if (l.data_type == data_types::u8) {
+                mem_lock<uint8_t, mem_lock_type::read> values(mem, stream);
+                all_one = std::all_of(values.data(), values.data() + l.count(), [](uint8_t v) {
+                    return v == 1;
+                });
+            }
+            if (!all_one)
+                TERNOCL_REJECT("zero points are not uniformly 1");
+        }
 
         const size_t scale_dep = fc_prim->bias.is_valid() ? 3 : 2;
         if (!fc_prim->decompression_scale.is_valid() || scale_dep >= fc_node.get_dependencies().size())
