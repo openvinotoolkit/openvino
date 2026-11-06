@@ -23,8 +23,6 @@ using namespace sdpa_ocl_utils;
 // column set, two SG8 ones. The kernels #error if they disagree.
 constexpr size_t dpas_k = 16;
 constexpr size_t page_keys = 16;
-// The u4 V page's row pitch alignment: the page writer's (kv_cache_update), whatever subgroup the reader runs with.
-constexpr size_t u4_v_row_align = 16;
 
 size_t decode_subgroup_size(const RuntimeParams& params) {
     return params.get_device_info().arch >= gpu_arch::xe2 ? 16 : 8;
@@ -57,7 +55,7 @@ decode_config make_decode_config(const RuntimeParams& params) {
     c.compressed = c.kv_u4 || key_cache.data_type == ov::element::i8;
     c.by_channel = c.compressed && desc->is_key_by_channel;
     c.k_row_bytes = c.kv_u4 ? pa_u4_k_row_bytes(desc->k_head_size) : desc->k_head_size * ov::element::Type(key_cache.data_type).size();
-    c.v_row_bytes = c.kv_u4 ? pa_u4_v_row_bytes(desc->v_head_size, u4_v_row_align) : desc->v_head_size * ov::element::Type(value_cache.data_type).size();
+    c.v_row_bytes = c.kv_u4 ? pa_u4_v_row_bytes(desc->v_head_size, pa_u4_v_row_align) : desc->v_head_size * ov::element::Type(value_cache.data_type).size();
     // The strict rule on the page row, which narrows by itself as the cache does: f16 needs
     // head_size % 32 == 0, i8 % 64 and u4 K % 128 (u4 V is aligned up to 16). xe_hpg has no 2D block IO, and its
     // SG8 reader (sdpa_ocl_hpg_decode.cl) has neither of the compressed fallbacks below.

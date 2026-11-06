@@ -2947,7 +2947,7 @@ TEST_P(paged_attention_mixed_tm_test, matches_reference) {
         ASSERT_GT(tail_slots, 0u) << "a poisoned case needs a page tail";
         ASSERT_EQ(nan_count, tail_slots) << "the NaN page tail did not survive the run";
     }
-    const auto reference = PagedAttentionReference(*this->pam).get_reference(result.key_cache_mem);
+    const auto reference = PagedAttentionReference(*this->pam).get_reference(result.key_cache_mem, result.value_cache_mem);
     compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
 }
 
@@ -2955,12 +2955,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_mixed_tm, paged_attention_mixed_t
 
 namespace {
 // Compressed caches on forced token-major pages (plan P7b-P7e, the reference's S8a-S8c cases): i8 BY_TOKEN (cases 0-16),
-// i8 BY_CHANNEL (17-30) and padded inputs (31, 32). MIXED reads the past from the compressed page and the new tokens from the
-// f16 inputs (Kc / Vc), PREFILL the f16 inputs. Every case distorts K (per token, or per channel for BY_CHANNEL) and V per
+// i8 BY_CHANNEL (17-30), padded inputs (31, 32) and u4 BY_CHANNEL (33-47). MIXED reads the past from the compressed page and
+// the new tokens from the f16 inputs (Kc / Vc), PREFILL the f16 inputs. Every case distorts K (per token, or per channel for BY_CHANNEL) and V per
 // token (comp_stress) so that the scale or zp of a wrong token or channel fails, and has a sharp softmax so that a wrong K is
 // seen. SDPA_OCL_NEG_SG8=19 / 20 / 21 / 22 must fail the BY_TOKEN cases and 20 / 21 / 22 / 23 / 24 the BY_CHANNEL ones (the
-// PREFILL-only cases 13 and 27 excepted: they read no page), and 27 / 28 (the next token's Kc / Vc row) the MIXED cases where
-// a new token wins the sharp softmax.
+// PREFILL-only cases 13, 27 and 43 excepted: they read no page), 25 / 26 (the other nibble of the K / V bytes) and 20 / 21 /
+// 23 / 24 the u4 ones, and 27 / 28 (the next token's Kc / Vc row) the MIXED cases where a new token wins the sharp softmax.
 paged_attention_test_params
 comp_case(std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads, int k_head, int v_head, int window = 0, int stress = 3) {
     auto p = sharp_softmax(feature_case(std::move(subsequences), heads, kv_heads, k_head, v_head, window));
@@ -2973,6 +2973,16 @@ comp_case(std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_hea
 paged_attention_test_params by_channel(paged_attention_test_params p, int stress = 6) {
     p.key_cache_quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL;
     p.comp_stress = stress;
+    return p;
+}
+
+// u4 caches: BY_CHANNEL K. The reference reads the past from the caches (reference_past_from_cache): the u4 rounding of a
+// distorted V alone fails the tolerance against the f16 inputs, on every kernel. Every V head here is a multiple of 32
+// (read_value_from_cache()).
+paged_attention_test_params u4(paged_attention_test_params p, int stress = 6) {
+    p = by_channel(p, stress);
+    p.kv_cache_precision = ov::element::u4;
+    p.reference_past_from_cache = true;
     return p;
 }
 
@@ -3013,6 +3023,22 @@ std::vector<paged_attention_test_params> comp_hpg_cases() {
         // They fail with SDPA_OCL_PA_CUR_F16=0: the KV cache writer misreads such rows (docs/sdpa_ocl.md Known issues).
         with_input_pads(comp_case({{3, 27}}, 2, 2, 64, 64), pads_qkv(1, 7, DYNAMIC_PAD)),              // 31
         with_input_pads(by_channel(comp_case({{3, 27}}, 2, 2, 64, 64)), pads_qkv(0, 3, DYNAMIC_PAD)),  // 32
+        u4(comp_case({{3, 21}}, 2, 2, 64, 64)),                             // 33 u4: the last page partly written
+        u4(comp_case({{3, 27}}, 2, 2, 64, 64)),                             // 34
+        u4(comp_case({{3, 32}}, 2, 2, 64, 64)),                             // 35 a page boundary
+        u4(comp_case({{3, 27}}, 2, 2, 64, 64), 4),                          // 36 K distorted only
+        u4(comp_case({{1, 34}, {25, 0}, {10, 34}}, 4, 2, 64, 64)),          // 37
+        u4(comp_case({{4, 50}}, 8, 2, 128, 128)),                           // 38 GQA
+        u4(comp_case({{40, 600}}, 8, 2, 128, 128)),                         // 39 a long past
+        u4(comp_case({{4, 50}}, 2, 2, 96, 96)),                             // 40
+        u4(comp_case({{4, 50}}, 2, 2, 256, 256)),                           // 41
+        u4(comp_case({{6, 50}}, 2, 2, 64, 64, 24)),                         // 42 a sliding window
+        u4(comp_case({{100, 0}}, 8, 2, 128, 128)),                          // 43 PREFILL only
+        with_sinks(u4(comp_case({{50, 200}}, 8, 2, 64, 64))),               // 44 a sink
+        u4(comp_case({{4, 50}}, 4, 1, 512, 512)),                           // 45
+        u4(comp_case({{5, 43}}, 2, 2, 64, 32)),                             // 46 k != v
+        // Kc / Vc 2 B off a dword: kc_tile_u4_gather at any base (fails with SDPA_OCL_PA_CUR_F16=0, as case 31).
+        with_input_pads(u4(comp_case({{3, 27}}, 2, 2, 64, 64)), pads_qkv(1, 7, DYNAMIC_PAD)),  // 47
     };
 }
 }  // namespace

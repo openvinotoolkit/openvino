@@ -40,7 +40,7 @@ SDPA_OCL_INLINE void FUNC(pa_v_pages)(__private uint *v_blk, const __global INPU
 }
 #endif
 
-#if IS_PA_K_U4 && PA_CUR_KV_F16
+#if IS_PA_K_U4 && PA_CUR_KV_F16 && !SG8
 // Prefetch this chunk's Vc tiles ahead of the softmax, without retaining a private payload. One
 // query partition covers all value columns, so the caller runs it on one of them only and each tile
 // is prefetched once.
@@ -595,10 +595,11 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_b2d16)(__private int8 *vb, const __global VA
 
 #if IS_PA_MIXED && IS_PA_KV_COMPRESSED && !USE_2D_BLOCK_IO_V_PA_I8 && !USE_1D_BLOCK_IO_V_PA_U4
 #if SG8
-// SG8 i8 V page (u4 stops at sdpa_ocl_config.cl's BY_CHANNEL tripwire): the same B operand as the SG16 gather (lane =
-// value, component kp = keys (2 kp, 2 kp + 1) of the cp block), with the zps of key pair kp taken from lane kp of
-// pa_v_comp_fold()'s half2 (SG8 has no lanes 8..15 to broadcast a key's zp from). The broadcasts are collectives, so they
-// come first, outside the per-lane value guard.
+// SG8 compressed V page: the same B operand as the SG16 gather (lane = value, component kp = keys (2 kp, 2 kp + 1) of the cp
+// block), with the zps of key pair kp taken from lane kp of pa_v_comp_fold()'s half2 (SG8 has no lanes 8..15 to broadcast a
+// key's zp from). The broadcasts are collectives, so they come first, outside the per-lane value guard. A u4 row is
+// PA_V_ROW_ELEMS bytes in the split convention (byte b holds value b in its low nibble and b + PA_V_ROW_ELEMS in its high
+// one); an 8-value group never straddles the split, since PA_V_ROW_ELEMS is a multiple of 16, so the nibble is uniform.
 SDPA_OCL_INLINE void FUNC(pa_v_tile_q_gather)(__private int8 *vb, const __global VAL_DATA_T *V, const size_t v_page_base,
                                               const int cp_key0, const int k, const int dv, const size_t sg_j0_sv,
                                               const size_t lane, const int lane_i, const half2 v_zp_c) {
@@ -616,17 +617,34 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_q_gather)(__private int8 *vb, const __global
     for (int cd = 0; cd < sv_value_blocks; ++cd) {
         vb[cd] = (int8)0;
         const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane_i;
+#if IS_PA_K_U4
+        const int v_base = sg_j0_sv + cd * SUBGROUP_SIZE;
+    #if defined(NEG_SG8) && NEG_SG8 == 26
+        // Negative control: the other nibble, i.e. the value PA_V_ROW_ELEMS away.
+        const uint v_sh = PA_V_U4_HI(v_base) ? 0u : 4u;
+    #else
+        const uint v_sh = PA_V_U4_HI(v_base) ? 4u : 0u;
+    #endif
+        const int v_addr = PA_V_U4_COL(v_base) + lane_i;
+#endif
         if (value < dv) {
             #pragma unroll
             for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
                 const int key0 = cp_key0 + key_pair * 2;
+                const size_t row0 = v_page_base + (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * PA_V_ROW_ELEMS;
+                const size_t row1 = v_page_base + (size_t)((key0 + 1) % PAGED_ATTENTION_BLOCK_SIZE) * PA_V_ROW_ELEMS;
                 half2 vv = (half2)0.0h;
+#if IS_PA_K_U4
                 if (key0 < k)
-                    vv.s0 = (half)(char)V[v_page_base + (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value] -
-                            zp2[key_pair].s0;
+                    vv.s0 = (half)(((uint)(uchar)V[row0 + v_addr] >> v_sh) & 0x0Fu) - zp2[key_pair].s0;
                 if (key0 + 1 < k)
-                    vv.s1 = (half)(char)V[v_page_base + (size_t)((key0 + 1) % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value] -
-                            zp2[key_pair].s1;
+                    vv.s1 = (half)(((uint)(uchar)V[row1 + v_addr] >> v_sh) & 0x0Fu) - zp2[key_pair].s1;
+#else
+                if (key0 < k)
+                    vv.s0 = (half)(char)V[row0 + value] - zp2[key_pair].s0;
+                if (key0 + 1 < k)
+                    vv.s1 = (half)(char)V[row1 + value] - zp2[key_pair].s1;
+#endif
                 vb[cd][key_pair] = as_int(vv);
             }
         }
