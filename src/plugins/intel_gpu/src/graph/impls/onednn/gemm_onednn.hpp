@@ -3,8 +3,6 @@
 //
 
 #include "gemm_inst.h"
-#include "intel_gpu/primitives/activation.hpp"
-#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 
@@ -72,58 +70,6 @@ struct GemmImplementationManager : public ImplementationManager {
             !one_of(in1_layout.format.value, supported_formats) ||
             !one_of(out_layout.format.value, supported_formats))
             return false;
-
-#ifdef OV_GPU_VENDOR_NVIDIA
-        // Keep validation consistent with get_gemm_primitive_md(), which uses transformed
-        // layouts to build oneDNN descriptors.
-        std::vector<layout> in_layouts { in0_layout, in1_layout };
-        if (gemm_prim->input_size() == 3) {
-            in_layouts.emplace_back(node.get_input_layout(2));
-        }
-        in_layouts = gemm_inst::transform_input_layouts(gemm_prim, in_layouts, node.get_program().is_new_shape_infer());
-        auto transformed_out_layout = gemm_inst::transform_output_layout(gemm_prim, in_layouts, out_layout);
-
-        // cuDNN matmul doesn't support 4D/5D/6D format tags (abcd, abcde, abcdef).
-        // Reject if effective descriptor rank is greater than 3.
-        if (in_layouts[0].get_partial_shape().rank().is_static() &&
-            in_layouts[0].get_partial_shape().rank().get_length() > 3)
-            return false;
-        if (in_layouts[1].get_partial_shape().rank().is_static() &&
-            in_layouts[1].get_partial_shape().rank().get_length() > 3)
-            return false;
-        if (transformed_out_layout.get_partial_shape().rank().is_static() &&
-            transformed_out_layout.get_partial_shape().rank().get_length() > 3)
-            return false;
-
-        // cuDNN matmul only supports a limited set of activation post-ops:
-        // relu, tanh, elu, logistic (all with alpha=0), and at most one.
-        {
-            int activation_count = 0;
-            for (auto& fo : gemm_node.get_fused_primitives()) {
-                if (fo.is_type<activation>()) {
-                    auto act_prim = fo.typed_desc<activation>();
-                    auto func = act_prim->activation_function;
-                    if (func == activation_func::none)
-                        continue;
-                    if (++activation_count > 1)
-                        return false;
-                    bool supported = (func == activation_func::relu ||
-                                      func == activation_func::hyperbolic_tan ||
-                                      func == activation_func::elu ||
-                                      func == activation_func::logistic);
-                    if (!supported)
-                        return false;
-                    if (act_prim->additional_params.a != 0.0f)
-                        return false;
-                    if ((in0_layout.is_dynamic() || in1_layout.is_dynamic() || out_layout.is_dynamic()) &&
-                        func == activation_func::relu)
-                        return false;
-                } else {
-                    return false;
-                }
-            }
-        }
-#endif
 
         //format bxfy not on whitelist for fusable_output_order_onednn in gemm_inst.h what makes assert error later
         //skipped onednn implementation as ocl is faster
