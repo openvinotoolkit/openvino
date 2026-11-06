@@ -262,21 +262,26 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           converted_outputs.size(),
                                           " respectively.");
 
-            const auto get_sequence_elements = [&](size_t id) {
+            // Finds the alias entry which tracks the elements of the sequence with the given id.
+            const auto find_sequence = [&](size_t id) -> AliasInfo* {
                 std::set<size_t> visited;
                 for (auto alias = m_may_be_alias.find(id);
                      alias != m_may_be_alias.end() && visited.insert(alias->first).second;
                      alias = m_may_be_alias.find(alias->second.base_id)) {
-                    const auto& info = alias->second;
+                    auto& info = alias->second;
                     if (!info.element_ids.empty()) {
-                        return info.element_ids;
+                        return &info;
                     }
                     if (!info.same_tensor &&
                         (info.output != info.base_value || info.decoder->get_schema().find('!') == std::string::npos)) {
                         break;
                     }
                 }
-                return std::vector<size_t>{};
+                return nullptr;
+            };
+            const auto get_sequence_elements = [&](size_t id) {
+                const auto info = find_sequence(id);
+                return info ? info->element_ids : std::vector<size_t>{};
             };
             std::map<size_t, size_t> sequence_aliases;
             const auto input_sequences =
@@ -341,6 +346,21 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         if (index >= 0 && static_cast<size_t>(index) < elements.size()) {
                             unpacked_ids = {elements[index]};
                         }
+                    }
+                } else if (op_type == "aten::pop") {
+                    // The translator requires a constant index, so it is known here.
+                    int64_t index = -1;
+                    if (!context.input_is_none(1)) {
+                        index = context.const_input<int64_t>(1);
+                    }
+                    if (index < 0) {
+                        index += static_cast<int64_t>(elements.size());
+                    }
+                    if (index >= 0 && static_cast<size_t>(index) < elements.size()) {
+                        // The popped value is the list element itself, and it is removed from the list in-place.
+                        unpacked_ids = {elements[index]};
+                        auto& tracked_elements = find_sequence(first_input_id)->element_ids;
+                        tracked_elements.erase(tracked_elements.begin() + index);
                     }
                 }
             }
