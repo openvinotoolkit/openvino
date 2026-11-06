@@ -6,7 +6,20 @@
 
 // Key cache offset macros (all offsets in bytes: int8=1, half=2)
 #if KV_CACHE_COMPRESSED
-    #if KEY_CACHE_QUANT_MODE == 1  // BY_CHANNEL: per-dimension scale/zp
+    #if KEY_CACHE_QUANT_MODE == 1 && IS_KEY_TOKEN_MAJOR  // BY_CHANNEL, token-major page
+        // Layout: [num_blocks, KV_HEADS_NUM, BLOCK_SIZE+4, K_HEAD_SIZE]: the BLOCK_SIZE token rows, then one
+        // interleaved (scale, zp) half pair per channel (pa_kv_cache_update_ref.cl, BC_COMP_OFF). Same page size and
+        // base as the d-major page below.
+        #define KEY_CACHE_PAGE_OFFSET(physical_block) \
+            ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS) + \
+             head_idx * K_HEAD_SIZE * (PAGED_ATTENTION_BLOCK_SIZE + COMPRESSED_EXTRA_DIMS))
+        #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
+            (KEY_CACHE_PAGE_OFFSET(physical_block) + (token_offset) * K_HEAD_SIZE + (d))
+        #define KEY_CACHE_SCALE_OFFSET(physical_block, d) \
+            (KEY_CACHE_PAGE_OFFSET(physical_block) + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + (d) * 2 * SIZEOF_HALF)
+        #define KEY_CACHE_ZP_OFFSET(physical_block, d) \
+            (KEY_CACHE_SCALE_OFFSET(physical_block, d) + SIZEOF_HALF)
+    #elif KEY_CACHE_QUANT_MODE == 1  // BY_CHANNEL: per-dimension scale/zp
         // Layout: [num_blocks, KV_HEADS_NUM, K_HEAD_SIZE, BLOCK_SIZE+4]
         #define KEY_CACHE_OFFSET(physical_block, token_offset, d) \
             ((physical_block) * KV_HEADS_NUM * K_HEAD_SIZE * \
