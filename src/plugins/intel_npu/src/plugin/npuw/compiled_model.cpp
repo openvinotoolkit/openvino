@@ -237,7 +237,8 @@ void validate_import_devices_against_allowlist(const std::vector<std::string>& d
         }
     };
 
-    if (blob_config.has<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>()) {
+    if (blob_config.has<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>() &&
+        !blob_config.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>().empty()) {
         allowed_devices_check(blob_config.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>());
     }
 
@@ -1731,7 +1732,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
             child.expect_end();
             compiled->finalize_weights_bank();
         } else {
-            child_stream& * compiled->m_weights_bank;
+            compiled->m_weights_bank->deserialize(child_stream, [&](const std::string& device) {
+                validate_import_devices_against_allowlist({device}, compiled->m_cfg, properties);
+            });
             child.expect_end();
             compiled->reconstruct_closure();
         }

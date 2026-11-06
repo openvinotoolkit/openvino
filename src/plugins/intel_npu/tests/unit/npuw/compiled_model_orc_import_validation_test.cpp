@@ -358,12 +358,18 @@ TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputProducer) {
 std::string build_single_submodel_orc_blob(const std::string& device,
                                            bool encrypted = false,
                                            const std::optional<std::string>& embedded_devices = std::nullopt,
-                                           const std::optional<std::string>& weights_bank_alloc = std::nullopt) {
+                                           const std::optional<std::string>& weights_bank_alloc = std::nullopt,
+                                           const std::optional<std::string>& weights_bank_device = std::nullopt) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     compiled->m_dev_list = {device};
     compiled->m_cfg.update({{"NPUW_DEVICES", embedded_devices.value_or(device)}});
     if (weights_bank_alloc) {
         compiled->m_cfg.update({{"NPUW_WEIGHTS_BANK_ALLOC", *weights_bank_alloc}});
+    }
+    if (weights_bank_device) {
+        compiled->m_weights_bank = ov::npuw::weights::bank("", nullptr, "");
+        compiled->m_weights_bank->m_device_banks[*weights_bank_device].storage[0].tensor =
+            ov::Tensor(ov::element::u8, ov::Shape{1});
     }
 
     auto sub_model = make_simple_model("fake_sub");
@@ -492,6 +498,13 @@ TEST(CompiledModelOrcImportValidationTest, AcceptsExactDeviceIdInAllowlist) {
     EXPECT_EQ(import_and_count_nested_calls("GPU.0", properties), 1);
 }
 
+TEST(CompiledModelOrcImportValidationTest, AcceptsExplicitEmptyWeightsBankAllocation) {
+    const auto blob = build_single_submodel_orc_blob("NPU", false, "NPU", "");
+    const ov::AnyMap properties{{"NPUW_DEVICES", "NPU"}};
+
+    EXPECT_EQ(import_and_count_nested_calls_for_blob(blob, properties), 1);
+}
+
 TEST(CompiledModelOrcImportValidationTest, RejectsOtherDeviceIdWhenAllowlistNamesExactId) {
     const ov::AnyMap properties{{"NPUW_DEVICES", "GPU.0"}};
     EXPECT_EQ(import_and_count_nested_calls("GPU.1", properties), 0);
@@ -555,6 +568,67 @@ TEST(CompiledModelOrcImportValidationTest, DoesNotForwardAllowlistWhenCallerDidN
     const auto config = capture_submodel_import_config("NPU", std::nullopt);
 
     EXPECT_EQ(config.find("NPUW_DEVICES"), config.end());
+}
+
+void expect_weights_bank_context_calls(const std::string& device,
+                                       const ov::AnyMap& properties,
+                                       int expected_calls,
+                                       bool encrypted = false) {
+    const auto blob = build_single_submodel_orc_blob("NPU", encrypted, device, std::nullopt, device);
+    auto [plugin, core] = make_test_plugin_with_core();
+    EXPECT_CALL(*core, get_default_context(device))
+        .Times(expected_calls)
+        .WillRepeatedly(testing::Invoke([](const std::string&) -> ov::SoPtr<ov::IRemoteContext> {
+            OPENVINO_THROW("Test weights bank remote context reached");
+        }));
+
+    auto import_properties = properties;
+    if (encrypted) {
+        import_properties[ov::cache_encryption_callbacks.name()] =
+            ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor};
+    }
+    std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
+    try {
+        ov::npuw::CompiledModel::import_model(stream, plugin, import_properties);
+        FAIL() << "Expected weights bank import to throw";
+    } catch (const ov::Exception& ex) {
+        const std::string expected_message =
+            expected_calls == 0 ? "NPUW_DEVICES" : "Test weights bank remote context reached";
+        EXPECT_NE(std::string(ex.what()).find(expected_message), std::string::npos) << ex.what();
+    }
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsWeightsBankDeviceBeforeRemoteContextPlainContainer) {
+    expect_weights_bank_context_calls("GPU", {{"NPUW_DEVICES", "NPU"}}, 0);
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsWeightsBankDeviceBeforeRemoteContextEncryptedContainer) {
+    expect_weights_bank_context_calls("GPU", {{"NPUW_DEVICES", "NPU"}}, 0, true);
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsWeightsBankOtherDeviceIdWhenCallerNamesExactId) {
+    expect_weights_bank_context_calls("GPU.1", {{"NPUW_DEVICES", "NPU,GPU.0"}}, 0);
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsWeightsBankExactDeviceId) {
+    expect_weights_bank_context_calls("GPU.0", {{"NPUW_DEVICES", "NPU,GPU.0"}}, 1);
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsWeightsBankDeviceIdWhenCallerNamesWildcardDevice) {
+    expect_weights_bank_context_calls("GPU.1", {{"NPUW_DEVICES", "NPU,GPU"}}, 1);
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsWeightsBankDeviceWhenCallerOmitsDeviceList) {
+    expect_weights_bank_context_calls("GPU", {}, 1);
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsWeightsBankCpuDeviceInsideCallerDeviceList) {
+    const auto blob = build_single_submodel_orc_blob("NPU", false, "CPU", std::nullopt, "CPU");
+    auto [plugin, core] = make_test_plugin_with_core();
+    EXPECT_CALL(*core, get_default_context(testing::_)).Times(0);
+
+    std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::import_model(stream, plugin, {{"NPUW_DEVICES", "NPU,CPU"}}));
 }
 
 }  // namespace
