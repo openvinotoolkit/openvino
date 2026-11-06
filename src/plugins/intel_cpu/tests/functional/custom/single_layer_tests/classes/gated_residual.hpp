@@ -18,12 +18,14 @@
 namespace ov::test {
 
 // Describes how w_down/w_up/(w_inject) are compressed. `compressed == false` ignores every other
-// field and the weights are generated directly at `GatedResidualLayerParams`'s precision.
+// field and the weights are generated directly at `GatedResidualLayerParams`'s precision. Scales are [G, N]
+// floating-point tensors (f16 / bf16 / f32); zero points, when present, are [G, N] tensors of the weights' type.
 struct GatedResidualWeightCompression {
     bool compressed = false;
     ov::element::Type weights_precision = ov::element::dynamic;
     bool has_zero_points = false;
-    size_t group_size = 0;  // 0 == per-output-channel (one scale/zp per weight row)
+    size_t group_size = 0;  // 0 == per-output-channel (G = 1, K/G = K)
+    ov::element::Type scale_precision = ov::element::f16;
 };
 
 // Bundles the shape dimensions with precision/compression because they aren't freely combinable:

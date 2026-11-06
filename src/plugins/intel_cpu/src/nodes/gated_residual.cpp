@@ -56,9 +56,11 @@ GatedResidual::GatedResidual(const std::shared_ptr<ov::Node>& op, const GraphCon
     m_attrs.epsilon = gr->get_epsilon();
     m_attrs.norm_gain_plus_one = gr->get_norm_gain_plus_one();
     m_attrs.produce_write_gate = gr->get_produce_write_gate();
-    m_attrs.weights_compressed = gr->get_weights_compressed();
-    m_attrs.weights_have_zero_points = gr->get_weights_have_zero_points();
-    m_attrs.weight_group_size = gr->get_weight_group_size();
+    if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE) {
+        const auto layout = gr->get_read_layout();
+        OPENVINO_ASSERT(layout.has_value(), "GatedResidual (READ/FINAL_MIX) has an unexpected number of inputs");
+        m_attrs.read_layout = *layout;
+    }
 }
 
 void GatedResidual::initSupportedPrimitiveDescriptors() {
@@ -74,26 +76,27 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
         precision = ov::element::f32;
     }
 
-    // Compressed weight ports (u8/i8/u4/i4) and their f32 decompression scale/zero-point ports must
-    // keep their own native element type here. Forcing them to the data `precision` would make the
-    // graph insert an implicit value-converting Reorder on that edge -- e.g. turning a u8 weight
-    // buffer into f32, where each raw byte value v becomes the 4-byte encoding of v.0f -- silently
-    // corrupting the data the executor reads back as raw bytes.
+    // Compressed weight ports (u8/i8/u4/i4), their floating-point scale ports and their zero-point ports (the weights'
+    // type) must keep their own native element type here. Forcing them to the data `precision` would make the graph
+    // insert an implicit value-converting Reorder on that edge -- e.g. turning a u8 weight buffer into f32, where each
+    // raw byte value v becomes the 4-byte encoding of v.0f -- silently corrupting the data the executor reads back as
+    // raw bytes.
+    const auto& layout = m_attrs.read_layout;
     std::set<size_t> native_precision_ports;
-    if (m_attrs.weights_compressed) {
-        const auto cidx =
-            ov::op::internal::GatedResidual::CompressedInputIdx::compute(m_attrs.produce_write_gate,
-                                                                         m_attrs.weights_have_zero_points);
-        native_precision_ports = {ReadInputIdx::W_DOWN, ReadInputIdx::W_UP, cidx.w_down_scale, cidx.w_up_scale};
-        if (m_attrs.weights_have_zero_points) {
-            native_precision_ports.insert(cidx.w_down_zero_point);
-            native_precision_ports.insert(cidx.w_up_zero_point);
+    if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && layout.compressed) {
+        native_precision_ports = {ReadInputIdx::W_DOWN,
+                                  ReadInputIdx::SCALE_DOWN,
+                                  ReadInputIdx::W_UP,
+                                  ReadInputIdx::SCALE_UP};
+        if (layout.has_zp) {
+            native_precision_ports.insert(ReadInputIdx::ZP_DOWN);
+            native_precision_ports.insert(ReadInputIdx::ZP_UP);
         }
-        if (m_attrs.produce_write_gate) {
-            native_precision_ports.insert(ReadInputIdx::W_INJECT);
-            native_precision_ports.insert(cidx.w_inject_scale);
-            if (m_attrs.weights_have_zero_points) {
-                native_precision_ports.insert(cidx.w_inject_zero_point);
+        if (layout.write_gate) {
+            native_precision_ports.insert(layout.w_inject);
+            native_precision_ports.insert(layout.scale_inject);
+            if (layout.has_zp) {
+                native_precision_ports.insert(layout.zp_inject);
             }
         }
     }
@@ -111,27 +114,24 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
 
     if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE) {
         // The projection weights are the fused GEMM weights and, for compressed weights, their decompression scales
-        // and zero-points: all graph constants. The executor prepares them once (prepacked weights, transposed
+        // and zero-points: all graph constants. The executor prepares them once (prepacked weights, converted
         // decompression views), so non-constant inputs are not supported. Constant status is known here (it is
         // updated as graph edges are added).
         std::vector<size_t> constant_ports{ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
-        if (m_attrs.produce_write_gate) {
-            constant_ports.push_back(ReadInputIdx::W_INJECT);
+        if (layout.write_gate) {
+            constant_ports.push_back(layout.w_inject);
         }
-        if (m_attrs.weights_compressed) {
-            const auto cidx =
-                ov::op::internal::GatedResidual::CompressedInputIdx::compute(m_attrs.produce_write_gate,
-                                                                             m_attrs.weights_have_zero_points);
-            constant_ports.push_back(cidx.w_down_scale);
-            constant_ports.push_back(cidx.w_up_scale);
-            if (m_attrs.weights_have_zero_points) {
-                constant_ports.push_back(cidx.w_down_zero_point);
-                constant_ports.push_back(cidx.w_up_zero_point);
+        if (layout.compressed) {
+            constant_ports.push_back(ReadInputIdx::SCALE_DOWN);
+            constant_ports.push_back(ReadInputIdx::SCALE_UP);
+            if (layout.has_zp) {
+                constant_ports.push_back(ReadInputIdx::ZP_DOWN);
+                constant_ports.push_back(ReadInputIdx::ZP_UP);
             }
-            if (m_attrs.produce_write_gate) {
-                constant_ports.push_back(cidx.w_inject_scale);
-                if (m_attrs.weights_have_zero_points) {
-                    constant_ports.push_back(cidx.w_inject_zero_point);
+            if (layout.write_gate) {
+                constant_ports.push_back(layout.scale_inject);
+                if (layout.has_zp) {
+                    constant_ports.push_back(layout.zp_inject);
                 }
             }
         }
@@ -199,51 +199,48 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             return false;
         }
 
+        const auto mode = gr->get_mode();
         std::set<size_t> weight_ports;
-        std::set<size_t> decompression_ports;
-        if (gr->get_weights_compressed()) {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2)) {
-                errorMessage = "GatedResidual compressed weights require at least AVX2.";
+        std::set<size_t> scale_ports;
+        std::set<size_t> zero_point_ports;
+        if (mode != ov::op::internal::GatedResidual::Mode::WRITE) {
+            const auto layout = gr->get_read_layout();
+            if (!layout.has_value()) {
+                errorMessage = "GatedResidual has an unexpected number of inputs.";
                 return false;
             }
-#else
-            errorMessage = "GatedResidual compressed weights are only supported on x86-64 with AVX2.";
-            return false;
-#endif
-
-            const bool produce_write_gate = gr->get_produce_write_gate();
-            weight_ports = {ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
-            if (produce_write_gate) {
-                weight_ports.insert(ReadInputIdx::W_INJECT);
-            }
-
-            const bool has_zero_points = gr->get_weights_have_zero_points();
-            const auto cidx =
-                ov::op::internal::GatedResidual::CompressedInputIdx::compute(produce_write_gate, has_zero_points);
-            decompression_ports = {cidx.w_down_scale, cidx.w_up_scale};
-            if (has_zero_points) {
-                decompression_ports.insert(cidx.w_down_zero_point);
-                decompression_ports.insert(cidx.w_up_zero_point);
-            }
-            if (produce_write_gate) {
-                decompression_ports.insert(cidx.w_inject_scale);
-                if (has_zero_points) {
-                    decompression_ports.insert(cidx.w_inject_zero_point);
+            if (layout->compressed) {
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+                if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2)) {
+                    errorMessage = "GatedResidual compressed weights require at least AVX2.";
+                    return false;
                 }
-            }
+#else
+                errorMessage = "GatedResidual compressed weights are only supported on x86-64 with AVX2.";
+                return false;
+#endif
+                weight_ports = {ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
+                scale_ports = {ReadInputIdx::SCALE_DOWN, ReadInputIdx::SCALE_UP};
+                if (layout->has_zp) {
+                    zero_point_ports = {ReadInputIdx::ZP_DOWN, ReadInputIdx::ZP_UP};
+                }
+                if (layout->write_gate) {
+                    weight_ports.insert(layout->w_inject);
+                    scale_ports.insert(layout->scale_inject);
+                    if (layout->has_zp) {
+                        zero_point_ports.insert(layout->zp_inject);
+                    }
+                }
 
-            const size_t group_size = gr->get_weight_group_size();
-            if (group_size != 0) {
-                const size_t cd = gr->get_hc_count() * gr->get_hidden_size();
-                const size_t l = gr->get_lowrank();
-                // w_down/w_inject reduce over CD, w_up reduces over L; the CPU kernel requires at
-                // least 4 groups along whichever reduction dimension a projection uses.
-                const bool divides_evenly = cd % group_size == 0 && l % group_size == 0;
-                const bool enough_groups = cd / group_size >= 4 && l / group_size >= 4;
-                if (!divides_evenly || !enough_groups) {
-                    errorMessage = "GatedResidual compressed weight group size must evenly divide each "
-                                   "projection's reduction dimension into at least 4 groups.";
+                // Per projection the scale is [G, N] and the group size along K is K / G; the op guarantees that G
+                // divides K, so any static group count (1 == per-channel, 2, 3, ...) is valid.
+                const auto groups_static = [&](size_t scale_port) {
+                    const auto& ps = op->get_input_partial_shape(scale_port);
+                    return ps.rank().is_static() && ps[0].is_static();
+                };
+                if (!groups_static(ReadInputIdx::SCALE_DOWN) || !groups_static(ReadInputIdx::SCALE_UP) ||
+                    (layout->write_gate && !groups_static(layout->scale_inject))) {
+                    errorMessage = "GatedResidual compressed weight scales must have a static group count.";
                     return false;
                 }
             }
@@ -258,10 +255,18 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 }
                 continue;
             }
-            if (decompression_ports.count(i) != 0U) {
-                if (et != ov::element::f32) {
-                    errorMessage = "GatedResidual CPU implementation only supports f32 weight decompression "
-                                   "scales/zero-points.";
+            if (scale_ports.count(i) != 0U) {
+                if (none_of(et, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+                    errorMessage = "GatedResidual CPU implementation only supports f32/f16/bf16 weight decompression "
+                                   "scales.";
+                    return false;
+                }
+                continue;
+            }
+            if (zero_point_ports.count(i) != 0U) {
+                if (none_of(et, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4)) {
+                    errorMessage = "GatedResidual CPU implementation only supports u8/i8/u4/i4 weight decompression "
+                                   "zero-points.";
                     return false;
                 }
                 continue;

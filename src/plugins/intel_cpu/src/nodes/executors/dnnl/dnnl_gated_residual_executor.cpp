@@ -9,13 +9,14 @@
 #    include <oneapi/dnnl/dnnl_types.h>
 
 #    include <algorithm>
-#    include <cmath>
 #    include <common/primitive_hashing.hpp>
 #    include <common/utils.hpp>
 #    include <cstddef>
 #    include <cstdint>
 #    include <cstring>
+#    include <functional>
 #    include <memory>
+#    include <numeric>
 #    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_common.hpp>
 #    include <unordered_map>
@@ -38,7 +39,9 @@
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/shape.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/element_type.hpp"
+#    include "openvino/core/type/float16.hpp"
 #    include "openvino/op/gated_residual.hpp"
 #    include "openvino/runtime/system_conf.hpp"
 #    include "thread_pool_imp.hpp"
@@ -88,7 +91,8 @@ dnnl::memory::dims to_dnnl_dims(const Dims& dims) {
 
 // Mirrors DnnlPostOpsComposer::getGroupDims (src/plugins/intel_cpu/src/dnnl_postops_composer.cpp),
 // duplicated locally since that helper is a file-local `static` function. `wei_dims`/`scale_dims`
-// are the weight's and the decompression scale/zero-point tensor's logical [N,K] shapes.
+// are the weight's [N,K] shape and the decompression scale/zero-point's logical [N,G] shape (the graph port is
+// [G,N]; callers swap its dims).
 dnnl::memory::dims decompression_group_dims(const dnnl::memory::dims& wei_dims, const dnnl::memory::dims& scale_dims) {
     if (scale_dims[0] == 1 && scale_dims[1] == 1) {
         return {};
@@ -119,12 +123,10 @@ dnnl::memory::data_type decompression_zero_point_dt(dnnl::memory::data_type weig
     return dnnl::memory::data_type::s32;
 }
 
-// Builds the oneDNN native weight-decompression primitive_attr for a compressed projection. Scales
-// are always f32. Zero-points (when present) must use an integer storage type -- oneDNN's
-// weights-decompression extension rejects f32 zero-points ("could not set zero points primitive
-// attribute") -- even though this op's contract otherwise fixes zero points at f32 on the graph
-// port (see GatedResidual::CompressedInputIdx); they're rounded into decompression_zero_point_dt()'s
-// integer type in make_decompression_zero_point_memory() below before being handed to oneDNN.
+// Builds the oneDNN native weight-decompression primitive_attr for a compressed projection. Scales are always f32
+// (the graph port's f16/bf16/f32 scales are converted once). Zero-points (when present) are s32: oneDNN's
+// weights-decompression extension takes integer zero-points, and s32 works for every supported weight type; the
+// graph port's u4/i4/u8/i8 zero-points are widened once in make_decompression_zero_point_memory().
 dnnl::primitive_attr build_decompression_attr(const dnnl::memory::dims& wei_dims,
                                               const dnnl::memory::dims& scale_dims,
                                               dnnl::memory::data_type weights_dt,
@@ -140,75 +142,72 @@ dnnl::primitive_attr build_decompression_attr(const dnnl::memory::dims& wei_dims
     return attr;
 }
 
-// Wraps a rank-2 decompression scale tensor -- logically shaped [N, groups] (one row per weight
-// output channel, see GatedResidual::CompressedInputIdx) and stored row-major that way (N slow /
-// groups fast) -- in a dnnl memory view with that same logical (N, groups) shape, but PHYSICALLY
-// transposed (groups slow / N fast; i.e. element (n,g) lives at offset g*N+n, not n*groups+g).
-// oneDNN's weights-decompression scale/zero-point argument expects this groups-outer physical
-// layout (confirmed by production's DnnlPostOpsComposer::prepackDecompressionParams, which builds
-// its packed scale memory with format_tag::io over an (OC,G)-shaped desc -- 'io' places the last
-// logical dim (G) as the slow/outer physical axis) regardless of the logical (N,groups) shape used
-// for the getGroupDims/getMask math. Mixing up this physical order only matters once group count >
-// 1 on *both* axes (mask has both the N and K bits set) -- with a single axis grouped (the common
-// per-channel-only case) the two physical orders coincide, so this was easy to miss. Not zero-copy:
-// `scratch` holds the transposed copy.
-dnnl::memory make_decompression_scale_memory(PlainTensor& t, const dnnl::engine& engine, std::vector<float>& scratch) {
-    const auto dims = to_dnnl_dims(t.shape());
-    const auto n = dims[0];
-    const auto groups = dims[1];
-    const auto* src = static_cast<const float*>(t.ptr_v(0));
-    scratch.resize(static_cast<size_t>(n * groups));
-    for (int64_t ni = 0; ni < n; ni++) {
-        for (int64_t g = 0; g < groups; g++) {
-            scratch[static_cast<size_t>(g * n + ni)] = src[static_cast<size_t>(ni * groups + g)];
-        }
+size_t element_count(const MemoryPtr& mem) {
+    const auto& dims = mem->getStaticDims();
+    return std::accumulate(dims.begin(), dims.end(), size_t{1}, std::multiplies<>());
+}
+
+// Wraps a rank-2 decompression scale port -- shaped [G, N] and stored row-major that way (N contiguous), which is
+// already the groups-outer physical order oneDNN's weights-decompression scale argument expects (element (n, g) at
+// offset g * N + n) -- in a dnnl memory view with the logical (N, G) shape. The scales are floating point on the
+// graph port (f16 / bf16 / f32); `scratch` holds the f32 copy oneDNN reads.
+dnnl::memory make_decompression_scale_memory(const MemoryPtr& mem,
+                                             const dnnl::engine& engine,
+                                             std::vector<float>& scratch) {
+    const auto dims = to_dnnl_dims(mem->getStaticDims());
+    const auto groups = dims[0];
+    const auto n = dims[1];
+    const auto count = element_count(mem);
+    scratch.resize(count);
+    const auto prc = mem->getPrecision();
+    if (prc == ov::element::f32) {
+        std::copy_n(mem->getDataAs<const float>(), count, scratch.begin());
+    } else if (prc == ov::element::f16) {
+        const auto* src = mem->getDataAs<const ov::float16>();
+        std::transform(src, src + count, scratch.begin(), [](ov::float16 v) {
+            return static_cast<float>(v);
+        });
+    } else if (prc == ov::element::bf16) {
+        const auto* src = mem->getDataAs<const ov::bfloat16>();
+        std::transform(src, src + count, scratch.begin(), [](ov::bfloat16 v) {
+            return static_cast<float>(v);
+        });
+    } else {
+        OPENVINO_THROW("GatedResidual: unsupported decompression scale precision ", prc);
     }
     const dnnl::memory::desc md({n, groups}, dnnl::memory::data_type::f32, dnnl::memory::dims{1, n});
     return {md, engine, scratch.data()};
 }
 
-// Same (N, groups) logical shape / groups-outer physical transpose as make_decompression_scale_memory()
-// -- see its comment -- combined with the f32->integer dtype conversion oneDNN's weights-decompression
-// zero-points extension requires (see build_decompression_attr() / decompression_zero_point_dt()).
-// `zp_dt` must be one of {s32, u8, s8}.
-dnnl::memory make_decompression_zero_point_memory(PlainTensor& t,
+// Same logical (N, G) shape / groups-outer physical layout as make_decompression_scale_memory(). The zero-point port
+// has the weights' type (u4 / i4 packed two per byte, low nibble first, or u8 / i8); `scratch` holds the s32 copy.
+dnnl::memory make_decompression_zero_point_memory(const MemoryPtr& mem,
                                                   const dnnl::engine& engine,
-                                                  dnnl::memory::data_type zp_dt,
-                                                  std::vector<uint8_t>& scratch) {
-    const auto dims = to_dnnl_dims(t.shape());
-    const auto n = dims[0];
-    const auto groups = dims[1];
-    const auto count = static_cast<size_t>(n * groups);
-    const auto* src = static_cast<const float*>(t.ptr_v(0));
-    auto transposed_index = [n](int64_t ni, int64_t g) {
-        return static_cast<size_t>(g * n + ni);
-    };
-    if (zp_dt == dnnl::memory::data_type::u8) {
-        scratch.resize(count * sizeof(uint8_t));
-        auto* dst = reinterpret_cast<uint8_t*>(scratch.data());
-        for (int64_t ni = 0; ni < n; ni++) {
-            for (int64_t g = 0; g < groups; g++) {
-                dst[transposed_index(ni, g)] = static_cast<uint8_t>(std::lround(src[ni * groups + g]));
-            }
-        }
-    } else if (zp_dt == dnnl::memory::data_type::s8) {
-        scratch.resize(count * sizeof(int8_t));
-        auto* dst = reinterpret_cast<int8_t*>(scratch.data());
-        for (int64_t ni = 0; ni < n; ni++) {
-            for (int64_t g = 0; g < groups; g++) {
-                dst[transposed_index(ni, g)] = static_cast<int8_t>(std::lround(src[ni * groups + g]));
-            }
+                                                  std::vector<int32_t>& scratch) {
+    const auto dims = to_dnnl_dims(mem->getStaticDims());
+    const auto groups = dims[0];
+    const auto n = dims[1];
+    const auto count = element_count(mem);
+    scratch.resize(count);
+    const auto* src = mem->getDataAs<const uint8_t>();
+    const auto prc = mem->getPrecision();
+    if (prc == ov::element::u8) {
+        std::copy_n(src, count, scratch.begin());
+    } else if (prc == ov::element::i8) {
+        std::transform(src, src + count, scratch.begin(), [](uint8_t v) {
+            return static_cast<int32_t>(static_cast<int8_t>(v));
+        });
+    } else if (prc == ov::element::u4 || prc == ov::element::i4) {
+        const bool is_signed = prc == ov::element::i4;
+        for (size_t i = 0; i < count; i++) {
+            const uint8_t nibble = (i % 2 == 0) ? (src[i / 2] & 0x0FU) : (src[i / 2] >> 4U);
+            scratch[i] = is_signed ? static_cast<int32_t>(nibble) - ((nibble & 0x8U) != 0U ? 16 : 0)
+                                   : static_cast<int32_t>(nibble);
         }
     } else {
-        scratch.resize(count * sizeof(int32_t));
-        auto* dst = reinterpret_cast<int32_t*>(scratch.data());
-        for (int64_t ni = 0; ni < n; ni++) {
-            for (int64_t g = 0; g < groups; g++) {
-                dst[transposed_index(ni, g)] = static_cast<int32_t>(std::lround(src[ni * groups + g]));
-            }
-        }
+        OPENVINO_THROW("GatedResidual: unsupported decompression zero-point precision ", prc);
     }
-    const dnnl::memory::desc md({n, groups}, zp_dt, dnnl::memory::dims{1, n});
+    const dnnl::memory::desc md({n, groups}, dnnl::memory::data_type::s32, dnnl::memory::dims{1, n});
     return {md, engine, scratch.data()};
 }
 
@@ -383,7 +382,7 @@ bool GatedResidualDnnlExecutor::supports(const GatedResidualConfig& config) {
     // bf16/f16 port needs native bf16/f16 matmul support. Compressed weights are decompressed by
     // oneDNN and may still run the GEMM in f32.
     const auto prc = it->second->getPrecision();
-    if (config.attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && !config.attrs.weights_compressed) {
+    if (config.attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && !config.attrs.read_layout.compressed) {
         if ((prc == ov::element::bf16 && !mayiuse(cpu_isa_t::avx512_core_bf16)) ||
             (prc == ov::element::f16 && !mayiuse(cpu_isa_t::avx512_core_fp16))) {
             return false;
@@ -404,9 +403,9 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
       m_epsilon(attrs.epsilon),
       m_norm_gain_plus_one(attrs.norm_gain_plus_one),
       m_produce_write_gate(attrs.produce_write_gate),
-      m_weights_compressed(attrs.weights_compressed),
-      m_weights_have_zero_points(attrs.weights_have_zero_points),
-      m_weight_group_size(attrs.weight_group_size) {
+      m_weights_compressed(attrs.read_layout.compressed),
+      m_weights_have_zero_points(attrs.read_layout.has_zp),
+      m_layout(attrs.read_layout) {
     if (m_mode != Mode::WRITE && !m_weights_compressed) {
         // Every projection runs from a prepacked copy of its (constant) weights. Measured end to end on the
         // production shape, packing all three beats packing only some of them, in prefill and in decode.
@@ -415,10 +414,6 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
         m_packed[kInject].enabled = m_produce_write_gate;
     }
     m_precision = memory.at(gatedResidualSrcArg(ReadInputIdx::RESIDUAL))->getPrecision();
-    if (m_weights_compressed) {
-        m_cidx = ov::op::internal::GatedResidual::CompressedInputIdx::compute(m_produce_write_gate,
-                                                                              m_weights_have_zero_points);
-    }
 
     // The down/up/inject weight projections run through dnnl::matmul. Use bf16/f16 as the GEMM's
     // compute precision (src+weights; dst/accumulation always stays f32) only when the port
@@ -627,7 +622,7 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
     };
     const ProjectionInfo infos[3] = {{cd, m_lowrank, ReadInputIdx::W_DOWN},
                                      {m_lowrank, cd, ReadInputIdx::W_UP},
-                                     {cd, m_hc_count, ReadInputIdx::W_INJECT}};
+                                     {cd, m_hc_count, m_layout.w_inject}};
     for (size_t i = 0; i < 3; i++) {
         auto& packed = m_packed[i];
         if (!packed.enabled || !packed.ready || packed.data) {
@@ -694,7 +689,9 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
                       epilogue,
                       scale};
         if (m_weights_compressed) {
-            key.scale_dims = to_dnnl_dims(memory.at(gatedResidualSrcArg(scale_port))->getStaticDims());
+            // The scale port is [G, N]; the group-dims helpers take the logical [N, G] shape.
+            const auto port_dims = to_dnnl_dims(memory.at(gatedResidualSrcArg(scale_port))->getStaticDims());
+            key.scale_dims = {port_dims[1], port_dims[0]};
         }
         const auto& engine = m_context->getEngine();
         const auto result = m_context->getRuntimeCache()->getOrCreate(key, [&engine](const MatmulKey& k) {
@@ -736,20 +733,20 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
     gemms.down = build(CD,
                        L,
                        ReadInputIdx::W_DOWN,
-                       m_cidx.w_down_scale,
+                       ReadInputIdx::SCALE_DOWN,
                        src_dt,
                        MatmulEpilogue::ScaledSilu,
                        1.0F / static_cast<float>(C),
                        kDown);
     // The up GEMM produces the gates directly: logit -> sigmoid in the epilogue.
-    gemms.up = build(L, CD, ReadInputIdx::W_UP, m_cidx.w_up_scale, dst_dt, MatmulEpilogue::Logistic, 1.0F, kUp);
+    gemms.up = build(L, CD, ReadInputIdx::W_UP, ReadInputIdx::SCALE_UP, dst_dt, MatmulEpilogue::Logistic, 1.0F, kUp);
     if (m_produce_write_gate) {
         // The write gate 2 * sigmoid(logit / C) is the GEMM epilogue, stored at the output port's precision so
         // the valid rows can be copied to the output as-is.
         gemms.inject = build(CD,
                              C,
-                             ReadInputIdx::W_INJECT,
-                             m_cidx.w_inject_scale,
+                             m_layout.w_inject,
+                             m_layout.scale_inject,
                              DnnlExtensionUtils::ElementTypeToDataType(m_precision),
                              MatmulEpilogue::WriteGate,
                              1.0F / static_cast<float>(C),
@@ -804,42 +801,18 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
     PlainTensor w_inject;
     uint8_t* write_gate_out = nullptr;  // [rows, C] output port, contiguous ncsp at the port precision
     if (produce_write_gate) {
-        w_inject.reset(memory.at(gatedResidualSrcArg(ReadInputIdx::W_INJECT)));
+        w_inject.reset(memory.at(gatedResidualSrcArg(m_layout.w_inject)));
         write_gate_out = memory.at(gatedResidualDstArg(1))->getDataAs<uint8_t>();
     }
 
     const bool compressed = m_weights_compressed;
-    PlainTensor w_down_scale;
-    PlainTensor w_down_zp;
-    PlainTensor w_up_scale;
-    PlainTensor w_up_zp;
-    PlainTensor w_inject_scale;
-    PlainTensor w_inject_zp;
-    if (compressed) {
-        w_down_scale.reset(memory.at(gatedResidualSrcArg(m_cidx.w_down_scale)));
-        w_up_scale.reset(memory.at(gatedResidualSrcArg(m_cidx.w_up_scale)));
-        if (m_weights_have_zero_points) {
-            w_down_zp.reset(memory.at(gatedResidualSrcArg(m_cidx.w_down_zero_point)));
-            w_up_zp.reset(memory.at(gatedResidualSrcArg(m_cidx.w_up_zero_point)));
-        }
-        if (produce_write_gate) {
-            w_inject_scale.reset(memory.at(gatedResidualSrcArg(m_cidx.w_inject_scale)));
-            if (m_weights_have_zero_points) {
-                w_inject_zp.reset(memory.at(gatedResidualSrcArg(m_cidx.w_inject_zero_point)));
-            }
-        }
-    }
-
     const auto& engine = m_context->getEngine();
     const bool gemm_lowp = m_gemm_precision != ov::element::f32;
-    const auto gemm_dt = DnnlExtensionUtils::ElementTypeToDataType(m_gemm_precision);
     const size_t tile_rows = m_tile_rows;
 
     // Weight/decompression views are tile-invariant (weights_md only depends on k/n, not M, and the
     // scale/zero-point tensors are whole-tensor constants), so they're built once here instead of once
     // per tile, from the main GEMMs' descriptors.
-    const auto down_weights_dt =
-        compressed ? DnnlExtensionUtils::ElementTypeToDataType(w_down.get_precision()) : gemm_dt;
     // Packed projections use the copy prepared in update(); the others view the plain graph weights.
     dnnl::memory down_plain_mem;
     dnnl::memory up_plain_mem;
@@ -856,34 +829,24 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
     const dnnl::memory& down_weights_mem = m_packed[kDown].enabled ? m_packed[kDown].view : down_plain_mem;
     const dnnl::memory& up_weights_mem = m_packed[kUp].enabled ? m_packed[kUp].view : up_plain_mem;
     const dnnl::memory& inject_weights_mem = m_packed[kInject].enabled ? m_packed[kInject].view : inject_plain_mem;
-    const auto up_weights_dt = compressed ? DnnlExtensionUtils::ElementTypeToDataType(w_up.get_precision()) : gemm_dt;
-    dnnl::memory::data_type inject_weights_dt = gemm_dt;
-    if (produce_write_gate) {
-        inject_weights_dt = compressed ? DnnlExtensionUtils::ElementTypeToDataType(w_inject.get_precision()) : gemm_dt;
-    }
 
-    // The decompression views need a transposed (and, for zero-points, integer-converted) copy of each
+    // The decompression views need an f32 (scales) / s32 (zero-points) copy of each
     // scale/zero-point tensor. They are graph constants (enforced by the node), so that is done once.
     if (compressed && !m_decomp_ready) {
-        m_down_scale_mem = make_decompression_scale_memory(w_down_scale, engine, m_w_down_scale_f32);
-        m_up_scale_mem = make_decompression_scale_memory(w_up_scale, engine, m_w_up_scale_f32);
+        const auto port = [&memory](size_t idx) -> const MemoryPtr& {
+            return memory.at(gatedResidualSrcArg(idx));
+        };
+        m_down_scale_mem = make_decompression_scale_memory(port(ReadInputIdx::SCALE_DOWN), engine, m_w_down_scale_f32);
+        m_up_scale_mem = make_decompression_scale_memory(port(ReadInputIdx::SCALE_UP), engine, m_w_up_scale_f32);
         if (m_weights_have_zero_points) {
-            m_down_zp_mem = make_decompression_zero_point_memory(w_down_zp,
-                                                                 engine,
-                                                                 decompression_zero_point_dt(down_weights_dt),
-                                                                 m_w_down_zp_bytes);
-            m_up_zp_mem = make_decompression_zero_point_memory(w_up_zp,
-                                                               engine,
-                                                               decompression_zero_point_dt(up_weights_dt),
-                                                               m_w_up_zp_bytes);
+            m_down_zp_mem = make_decompression_zero_point_memory(port(ReadInputIdx::ZP_DOWN), engine, m_w_down_zp);
+            m_up_zp_mem = make_decompression_zero_point_memory(port(ReadInputIdx::ZP_UP), engine, m_w_up_zp);
         }
         if (produce_write_gate) {
-            m_inject_scale_mem = make_decompression_scale_memory(w_inject_scale, engine, m_w_inject_scale_f32);
+            m_inject_scale_mem =
+                make_decompression_scale_memory(port(m_layout.scale_inject), engine, m_w_inject_scale_f32);
             if (m_weights_have_zero_points) {
-                m_inject_zp_mem = make_decompression_zero_point_memory(w_inject_zp,
-                                                                       engine,
-                                                                       decompression_zero_point_dt(inject_weights_dt),
-                                                                       m_w_inject_zp_bytes);
+                m_inject_zp_mem = make_decompression_zero_point_memory(port(m_layout.zp_inject), engine, m_w_inject_zp);
             }
         }
         m_decomp_ready = true;

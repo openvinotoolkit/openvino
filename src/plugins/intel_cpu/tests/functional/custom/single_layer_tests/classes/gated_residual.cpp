@@ -147,14 +147,41 @@ void write_quantized_weight(ov::Tensor& tensor, const std::vector<int32_t>& valu
 
 struct QuantizedWeight {
     ov::Tensor weight;
-    ov::Tensor scale;
-    ov::Tensor zero_point;
+    ov::Tensor scale;                // [G, N], floating point
+    ov::Tensor zero_point;           // [G, N], the weights' type
     std::vector<float> dequantized;  // row-major [N, K]
 };
 
-// Builds a [N,K] quantized weight plus its per-(row,group) scale/zero-point tensors and the
-// corresponding dequantized float matrix (`dequantized = (quantized - zero_point) * scale`),
-// following the same convention as DnnlPostOpsComposer's weight-decompression groupDims.
+void write_scale(ov::Tensor& tensor, size_t index, float value) {
+    const auto et = tensor.get_element_type();
+    if (et == ov::element::f32) {
+        tensor.data<float>()[index] = value;
+    } else if (et == ov::element::f16) {
+        tensor.data<ov::float16>()[index] = ov::float16(value);
+    } else if (et == ov::element::bf16) {
+        tensor.data<ov::bfloat16>()[index] = ov::bfloat16(value);
+    } else {
+        OPENVINO_THROW("Unsupported scale element type: ", et);
+    }
+}
+
+float read_scale(const ov::Tensor& tensor, size_t index) {
+    const auto et = tensor.get_element_type();
+    if (et == ov::element::f32) {
+        return tensor.data<const float>()[index];
+    }
+    if (et == ov::element::f16) {
+        return static_cast<float>(tensor.data<const ov::float16>()[index]);
+    }
+    if (et == ov::element::bf16) {
+        return static_cast<float>(tensor.data<const ov::bfloat16>()[index]);
+    }
+    OPENVINO_THROW("Unsupported scale element type: ", et);
+}
+
+// Builds a [N,K] quantized weight plus its [G,N] scale / zero-point tensors (G = K / group size, N contiguous) and the
+// corresponding dequantized float matrix (`dequantized = (quantized - zero_point) * scale`). The reference uses the
+// scale as rounded to its storage type, i.e. exactly what the node reads.
 QuantizedWeight make_quantized_weight(size_t n,
                                       size_t k,
                                       const ov::test::GatedResidualWeightCompression& spec,
@@ -165,9 +192,9 @@ QuantizedWeight make_quantized_weight(size_t n,
 
     QuantizedWeight out;
     out.weight = ov::Tensor(spec.weights_precision, ov::Shape{n, k});
-    out.scale = ov::Tensor(ov::element::f32, ov::Shape{n, groups});
+    out.scale = ov::Tensor(spec.scale_precision, ov::Shape{groups, n});
     if (spec.has_zero_points) {
-        out.zero_point = ov::Tensor(ov::element::f32, ov::Shape{n, groups});
+        out.zero_point = ov::Tensor(spec.weights_precision, ov::Shape{groups, n});
     }
     out.dequantized.resize(n * k);
 
@@ -175,26 +202,28 @@ QuantizedWeight make_quantized_weight(size_t n,
     std::uniform_real_distribution<float> scale_dist(0.001F, 0.01F);
 
     std::vector<int32_t> q_values(n * k);
-    auto* scale_data = out.scale.data<float>();
-    float* zp_data = spec.has_zero_points ? out.zero_point.data<float>() : nullptr;
+    std::vector<int32_t> zp_values(spec.has_zero_points ? groups * n : 0);
 
     for (size_t row = 0; row < n; row++) {
         for (size_t g = 0; g < groups; g++) {
-            const float scale = scale_dist(rng);
-            const float zp = spec.has_zero_points ? static_cast<float>(q_dist(rng)) : 0.0F;
-            scale_data[row * groups + g] = scale;
+            write_scale(out.scale, g * n + row, scale_dist(rng));
+            const float scale = read_scale(out.scale, g * n + row);
+            const int32_t zp = spec.has_zero_points ? q_dist(rng) : 0;
             if (spec.has_zero_points) {
-                zp_data[row * groups + g] = zp;
+                zp_values[g * n + row] = zp;
             }
             for (size_t kk = 0; kk < group_width; kk++) {
                 const size_t idx = g * group_width + kk;
                 const int32_t q = q_dist(rng);
                 q_values[row * k + idx] = q;
-                out.dequantized[row * k + idx] = (static_cast<float>(q) - zp) * scale;
+                out.dequantized[row * k + idx] = static_cast<float>(q - zp) * scale;
             }
         }
     }
     write_quantized_weight(out.weight, q_values);
+    if (spec.has_zero_points) {
+        write_quantized_weight(out.zero_point, zp_values);
+    }
     return out;
 }
 
@@ -219,6 +248,7 @@ std::string GatedResidualLayerCPUTest::getTestCaseName(const testing::TestParamI
         result << "_Wcompressed=" << compression.weights_precision;
         result << "_ZP=" << compression.has_zero_points;
         result << "_GS=" << compression.group_size;
+        result << "_SP=" << compression.scale_precision;
     }
     result << "_Target=" << device;
     return result.str();
@@ -280,8 +310,8 @@ void GatedResidualLayerCPUTest::SetUp() {
         // disable_constant_folding + enable_keep_const_precision protect their native i4/u4/i8/u8
         // element type from the CPU plugin's blanket ConvertPrecision pass, which otherwise silently
         // promotes i4->i8/u4->u8 for any Constant not marked this way. The matching scale/zero-point
-        // tensors stay runtime Parameters, fed in generate_inputs() with the exact values generated
-        // here so the dequantization math matches what the CPU node will compute.
+        // tensors are graph Constants too, with the exact values generated here so the dequantization math
+        // matches what the CPU node will compute.
         std::mt19937 rng(12345);
         ov::Output<ov::Node> w_down;
         ov::Output<ov::Node> w_up;
@@ -334,6 +364,27 @@ void GatedResidualLayerCPUTest::SetUp() {
         args.push_back(w_down);
         args.push_back(w_up);
 
+        // Compressed form: scales (then zero points, when present) of w_down and w_up follow the weights, and the
+        // write-gate inputs (w_inject, its scale and zero point) come last; see GatedResidual::ReadLayout. Scale
+        // and zero-point Constants are graph constants too; zero points have the weights' type, which must survive
+        // the CPU plugin's precision conversion like the weights do.
+        const auto add_decompression_input = [&](const ov::Tensor& tensor) {
+            auto node = std::make_shared<Constant>(tensor);
+            if (tensor.get_element_type() == compression.weights_precision) {
+                ov::pass::disable_constant_folding(node);
+                ov::enable_keep_const_precision(node);
+            }
+            args.push_back(node);
+        };
+        if (compression.compressed) {
+            add_decompression_input(down_scale_tensor);
+            add_decompression_input(up_scale_tensor);
+            if (compression.has_zero_points) {
+                add_decompression_input(down_zp_tensor);
+                add_decompression_input(up_zp_tensor);
+            }
+        }
+
         if (produce_write_gate) {
             if (!compression.compressed) {
                 w_inject = make_weight(ov::Shape{hc_count, cd}, m_inject_weight_f32);
@@ -350,23 +401,7 @@ void GatedResidualLayerCPUTest::SetUp() {
                 }
             }
             args.push_back(w_inject);
-        }
-
-        if (compression.compressed) {
-            const auto add_decompression_input = [&](const ov::Tensor& tensor) {
-                args.push_back(std::make_shared<Constant>(tensor));
-            };
-            add_decompression_input(down_scale_tensor);
-            if (compression.has_zero_points) {
-                add_decompression_input(down_zp_tensor);
-            }
-
-            add_decompression_input(up_scale_tensor);
-            if (compression.has_zero_points) {
-                add_decompression_input(up_zp_tensor);
-            }
-
-            if (produce_write_gate) {
+            if (compression.compressed) {
                 add_decompression_input(inject_scale_tensor);
                 if (compression.has_zero_points) {
                     add_decompression_input(inject_zp_tensor);
@@ -381,11 +416,7 @@ void GatedResidualLayerCPUTest::SetUp() {
                                                                lowrank,
                                                                m_epsilon,
                                                                norm_gain_plus_one,
-                                                               produce_write_gate,
-                                                               ov::element::dynamic,
-                                                               compression.compressed,
-                                                               compression.has_zero_points,
-                                                               compression.group_size);
+                                                               produce_write_gate);
     }
 
     std::vector<InputShape> input_shapes;

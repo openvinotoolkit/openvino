@@ -20,11 +20,10 @@ struct GatedResidualAttrs {
     float epsilon = 1e-6F;
     bool norm_gain_plus_one = true;
     bool produce_write_gate = false;
-    // w_down/w_up/(w_inject) are u8/i8/u4/i4, with f32 scale (and optionally zero-point) ports; see
-    // ov::op::internal::GatedResidual::CompressedInputIdx for the port layout.
-    bool weights_compressed = false;
-    bool weights_have_zero_points = false;
-    size_t weight_group_size = 0;
+    // Input form of a READ / FINAL_MIX node (unused for WRITE). Compressed: w_down/w_up/(w_inject) are u8/i8/u4/i4
+    // with floating-point [G, N] scale ports and optional zero-point ports of the weight type; the group size
+    // along K is K / G. See ov::op::internal::GatedResidual::ReadLayout for the port layout.
+    ov::op::internal::GatedResidual::ReadLayout read_layout{};
 };
 
 using GatedResidualConfig = executor::Config<GatedResidualAttrs>;

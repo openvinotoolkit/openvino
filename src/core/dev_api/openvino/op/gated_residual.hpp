@@ -4,8 +4,10 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::op::internal {
@@ -42,14 +44,72 @@ public:
         FINAL_MIX = 2,  ///< model-tail mixer: READ without write-gate generation
     };
 
-    /// @brief Input indices for Mode::READ / Mode::FINAL_MIX
+    /// @brief Input indices for Mode::READ / Mode::FINAL_MIX that do not depend on the input form
     struct ReadInputIdx {
         static constexpr size_t RESIDUAL = 0;     ///< [B,T,C*D]
         static constexpr size_t NORM_WEIGHT = 1;  ///< [C*D]
         static constexpr size_t W_DOWN = 2;       ///< [L, C*D]
         static constexpr size_t W_UP = 3;         ///< [C*D, L]
-        static constexpr size_t W_INJECT = 4;     ///< [C, C*D], only when produce_write_gate
+
+        // Compressed weights (W_DOWN / W_UP are i4, u4, i8 or u8). scale/zp are [G, N] (N contiguous), unlike FC's [N,
+        // G]: one sub-group block read gives every lane the scale of its own output channel.
+        static constexpr size_t SCALE_DOWN = 4;  ///< floating-point (f16 / bf16 / f32) [G_d, L]
+        static constexpr size_t SCALE_UP = 5;    ///< floating-point (f16 / bf16 / f32) [G_u, C*D]
+        static constexpr size_t ZP_DOWN =
+            6;  ///< same type as the weights (4-bit packed) [G_d, L], only with zero points
+        static constexpr size_t ZP_UP =
+            7;  ///< same type as the weights (4-bit packed) [G_u, C*D], only with zero points
     };
+
+    /// @brief Input form of a READ / FINAL_MIX node. The write-gate inputs are always the last inputs, so their indices
+    /// depend on the form:
+    ///   floating-point weights:        residual, norm, w_down, w_up [, w_inject]
+    ///   compressed, no zero points:    residual, norm, w_down, w_up, scale_down, scale_up [, w_inject, scale_inject]
+    ///   compressed with zero points:   ... scale_up, zp_down, zp_up [, w_inject, scale_inject, zp_inject]
+    /// Zero points are all-or-nothing; without them they are 0.
+    struct ReadLayout {
+        bool compressed = false;
+        bool has_zp = false;
+        bool write_gate = false;
+        size_t input_count = 4;
+        size_t w_inject = 0;      ///< valid when write_gate
+        size_t scale_inject = 0;  ///< valid when write_gate and compressed
+        size_t zp_inject = 0;     ///< valid when write_gate, compressed and has_zp
+    };
+
+    static constexpr ReadLayout make_read_layout(bool compressed, bool has_zp, bool write_gate) {
+        ReadLayout l;
+        l.compressed = compressed;
+        l.has_zp = compressed && has_zp;
+        l.write_gate = write_gate;
+        const size_t base = compressed ? (l.has_zp ? 8 : 6) : 4;
+        l.w_inject = base;
+        l.scale_inject = base + 1;
+        l.zp_inject = base + 2;
+        l.input_count = base + (write_gate ? (compressed ? (l.has_zp ? 3 : 2) : 1) : 0);
+        return l;
+    }
+
+    /// The form selected by the input count; empty when no form has that many inputs.
+    static std::optional<ReadLayout> read_layout(size_t input_count, bool write_gate) {
+        for (const bool compressed : {false, true}) {
+            for (const bool has_zp : {false, true}) {
+                const auto l = make_read_layout(compressed, has_zp, write_gate);
+                if (l.has_zp == has_zp && l.input_count == input_count) {
+                    return l;
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::optional<ReadLayout> get_read_layout() const {
+        return read_layout(get_input_size(), m_produce_write_gate);
+    }
+
+    static bool is_compressed_weight_type(const ov::element::Type& t) {
+        return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
+    }
 
     /// @brief Input indices for Mode::WRITE
     struct WriteInputIdx {
@@ -58,26 +118,8 @@ public:
         static constexpr size_t WRITE_GATE = 2;  ///< [B,T,C]
     };
 
-    /// @brief Indices of the optional per-weight decompression inputs appended after the
-    /// ReadInputIdx inputs when `weights_compressed` is set (Mode::READ / Mode::FINAL_MIX only).
-    /// Zero-point indices are only meaningful when `has_zero_points` is true, and the inject
-    /// indices only when `produce_write_gate` is true -- `compute()` derives the right layout from
-    /// those two flags since the appended inputs shift depending on which optional inputs precede
-    /// them.
-    struct CompressedInputIdx {
-        size_t w_down_scale = 0;
-        size_t w_down_zero_point = 0;
-        size_t w_up_scale = 0;
-        size_t w_up_zero_point = 0;
-        size_t w_inject_scale = 0;
-        size_t w_inject_zero_point = 0;
-
-        static CompressedInputIdx compute(bool produce_write_gate, bool has_zero_points);
-    };
-
     GatedResidual() = default;
 
-    /// @brief READ / FINAL_MIX constructor.
     GatedResidual(const ov::OutputVector& args,
                   Mode mode,
                   size_t hc_count,
@@ -85,11 +127,7 @@ public:
                   size_t lowrank,
                   float epsilon,
                   bool norm_gain_plus_one,
-                  bool produce_write_gate,
-                  const ov::element::Type output_type = ov::element::dynamic,
-                  bool weights_compressed = false,
-                  bool weights_have_zero_points = false,
-                  size_t weight_group_size = 0);
+                  bool produce_write_gate);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -116,18 +154,6 @@ public:
     bool get_produce_write_gate() const {
         return m_produce_write_gate;
     }
-    ov::element::Type get_output_type() const {
-        return m_output_type;
-    }
-    bool get_weights_compressed() const {
-        return m_weights_compressed;
-    }
-    bool get_weights_have_zero_points() const {
-        return m_weights_have_zero_points;
-    }
-    size_t get_weight_group_size() const {
-        return m_weight_group_size;
-    }
 
 private:
     Mode m_mode = Mode::READ;
@@ -137,10 +163,6 @@ private:
     float m_epsilon = 1e-6f;
     bool m_norm_gain_plus_one = true;
     bool m_produce_write_gate = false;
-    ov::element::Type m_output_type = ov::element::dynamic;
-    bool m_weights_compressed = false;
-    bool m_weights_have_zero_points = false;
-    size_t m_weight_group_size = 0;
 };
 
 }  // namespace ov::op::internal

@@ -59,8 +59,7 @@ private:
 
     bool m_weights_compressed = false;
     bool m_weights_have_zero_points = false;
-    size_t m_weight_group_size = 0;
-    ov::op::internal::GatedResidual::CompressedInputIdx m_cidx{};
+    ov::op::internal::GatedResidual::ReadLayout m_layout{};
 
     size_t m_rows = 0;
     // Row-tile size (A+B+C = m_rbar+m_t+m_logit footprint bounded by a scratch budget, see
@@ -145,17 +144,16 @@ private:
     dnnl::memory m_inject_zp_mem;
     bool m_decomp_ready = false;
 
-    // Transposed (groups-outer, N-inner) copies of the [N, groups] decompression scale tensors --
-    // oneDNN's weights-decompression scale argument expects that physical order.
+    // f32 copies of the [G, N] decompression scale tensors (floating-point f16/bf16/f32 on the graph port) --
+    // [G, N] row-major is the groups-outer physical order oneDNN's weights-decompression scale argument expects.
     std::vector<float> m_w_down_scale_f32;
     std::vector<float> m_w_up_scale_f32;
     std::vector<float> m_w_inject_scale_f32;
 
-    // Rounded integer-dtype, transposed copies of the (f32 on the graph port) zero-point tensors, as
-    // raw bytes since the target dtype is chosen per projection.
-    std::vector<uint8_t> m_w_down_zp_bytes;
-    std::vector<uint8_t> m_w_up_zp_bytes;
-    std::vector<uint8_t> m_w_inject_zp_bytes;
+    // s32 copies of the [G, N] zero-point tensors (u4/i4 packed or u8/i8 on the graph port, the weights' type).
+    std::vector<int32_t> m_w_down_zp;
+    std::vector<int32_t> m_w_up_zp;
+    std::vector<int32_t> m_w_inject_zp;
 };
 
 }  // namespace ov::intel_cpu
