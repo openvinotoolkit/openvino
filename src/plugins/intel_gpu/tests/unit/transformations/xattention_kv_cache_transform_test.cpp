@@ -289,6 +289,8 @@ TEST_P(NormalizeMoEOutputReshapeTest, ResolvesAxisCopies) {
     auto product = std::make_shared<ov::op::v1::Multiply>(swapped ? routing : gemm, swapped ? gemm : routing);
     if (target_kind == 7) {
         product = std::make_shared<ov::op::v1::Multiply>(routing, input);
+    } else if (target_kind == 10) {
+        product = std::make_shared<ov::op::v1::Multiply>(gemm, gemm);
     }
     const auto reduction = std::make_shared<ov::op::v1::ReduceSum>(product, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}), false);
     ov::ParameterVector parameters{input, indices, routing};
@@ -349,7 +351,7 @@ TEST_P(NormalizeMoEOutputReshapeTest, ResolvesAxisCopies) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke, NormalizeMoEOutputReshapeTest, testing::Combine(testing::Bool(), testing::Bool(), testing::Range(0, 10)));
+INSTANTIATE_TEST_SUITE_P(smoke, NormalizeMoEOutputReshapeTest, testing::Combine(testing::Bool(), testing::Bool(), testing::Range(0, 11)));
 
 TEST(NormalizeMoEOutputReshapeTest, ResolvesDynamicHiddenSizeAndTarget) {
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, 8});

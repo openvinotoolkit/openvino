@@ -1,6 +1,7 @@
 # GPU plugin Level Zero support
 
 OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. When enabled, plugin will use Level Zero as GPU compute API instead of OpenCL.
+Level Zero is the better-performing runtime on Xe2 and newer Intel GPU architectures; on pre-Xe2 GPUs, it is not supported.
 
 ## Remote tensor sample
 
@@ -15,6 +16,7 @@ the underlying Level Zero context with a single `clGetContextInfo(..., CL_L0_CON
 query. This works with any plugin runtime (`OCL`, `ZE`, `COMBINED`). The `ZE` context type is
 an edge case for the Level Zero plugin running on a driver without LEO; the sample then uses its
 native handle directly.
+
 
 ## How to build with Level Zero support
 
@@ -37,3 +39,9 @@ native handle directly.
   * If you see Level Zero libraries such as `ze_loader.dll` and `ze_intel_gpu64.dll`, Level Zero is in use.
 * Use [clintercept](https://github.com/intel/opencl-intercept-layer/tree/main) to check whether any OpenCL calls are made.
   * If no OpenCL calls appear, Level Zero is in use.
+
+## Limitations
+
+* This is an experimental, single-runtime build: the resulting plugin binary talks to the GPU over Level Zero only and cannot fall back to OpenCL.
+* To ship both OpenCL and Level Zero runtimes side by side, with automatic per-device selection, see [GPU dual-runtime dispatch (COMBINED build)](gpu_dual_runtime_dispatch.md) instead.
+* For OpenCL-based remote context/tensor interop while running on the Level Zero runtime, see [Level Zero - OpenCL interoperability](blog/ze_ocl_interop_2026_3.md).
