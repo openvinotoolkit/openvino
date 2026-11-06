@@ -21,7 +21,9 @@ QSAIndexer::Config dense_config(const PagedQSAIndexer::Config& config) {
             config.indexer_rotary_dim,
             config.indexer_head_dim,
             config.epsilon,
-            config.scale};
+            config.scale,
+            config.query_norm,
+            config.query_rope};
 }
 
 }  // namespace
@@ -61,6 +63,8 @@ bool PagedQSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("indexer_head_dim", m_config.indexer_head_dim);
     visitor.on_attribute("epsilon", m_config.epsilon);
     visitor.on_attribute("scale", m_config.scale);
+    visitor.on_attribute("query_norm", m_config.query_norm);
+    visitor.on_attribute("query_rope", m_config.query_rope);
     return true;
 }
 

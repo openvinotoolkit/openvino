@@ -56,10 +56,30 @@ TEST_F(TypePropPagedQSAIndexerTest, static_shapes_and_default_scale) {
     EXPECT_EQ(op->get_index_query_heads(), 4);
     EXPECT_EQ(op->get_index_key_heads(), 2);
     EXPECT_FLOAT_EQ(op->get_config().scale, 0.25f);
+    EXPECT_TRUE(op->get_config().query_norm);
+    EXPECT_TRUE(op->get_config().query_rope);
     const auto clone = ov::as_type_ptr<PagedQSAIndexer>(op->clone_with_new_inputs(make_inputs()));
     ASSERT_NE(clone, nullptr);
     EXPECT_EQ(clone->get_output_partial_shape(0), op->get_output_partial_shape(0));
     EXPECT_FLOAT_EQ(clone->get_config().scale, op->get_config().scale);
+}
+
+TEST_F(TypePropPagedQSAIndexerTest, optional_query_processing_and_clone) {
+    for (const bool query_norm : {false, true}) {
+        for (const bool query_rope : {false, true}) {
+            auto c = config();
+            c.query_norm = query_norm;
+            c.query_rope = query_rope;
+            const auto op = make_op(make_inputs(), c);
+            const auto clone = ov::as_type_ptr<PagedQSAIndexer>(op->clone_with_new_inputs(make_inputs()));
+            ASSERT_NE(clone, nullptr);
+            EXPECT_EQ(op->get_config().query_norm, query_norm);
+            EXPECT_EQ(op->get_config().query_rope, query_rope);
+            EXPECT_EQ(clone->get_config().query_norm, query_norm);
+            EXPECT_EQ(clone->get_config().query_rope, query_rope);
+            EXPECT_EQ(clone->get_output_partial_shape(0), op->get_output_partial_shape(0));
+        }
+    }
 }
 
 TEST_F(TypePropPagedQSAIndexerTest, floating_point_precisions) {

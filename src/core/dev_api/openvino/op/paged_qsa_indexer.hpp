@@ -13,8 +13,8 @@ namespace ov::op::internal {
 
 /// \brief Produces complete-block QSA selections using the main PagedAttention page table.
 ///
-/// Queries and keys are flattened to [tokens, heads * indexer_head_dim]. The operation applies query
-/// RMSNorm and RoPE, writes raw keys and block-start RoPE rows, and incrementally builds normalized,
+/// Queries and keys are flattened to [tokens, heads * indexer_head_dim]. The operation optionally applies
+/// per-head query RMSNorm and RoPE, writes raw keys and block-start RoPE rows, and incrementally builds normalized,
 /// rotated block summaries. The three paged cache inputs are updated in place and must share the main
 /// KV page pool. Their page size must be divisible by key_block_size. Only complete blocks are selected;
 /// the sparse-attention consumer handles the causal tail.
@@ -52,7 +52,9 @@ public:
         size_t indexer_rotary_dim = 0;
         size_t indexer_head_dim = 0;
         float epsilon = 1e-6f;
-        float scale = 0.0f;  ///< 0 selects 1 / sqrt(indexer_head_dim), resolved during validation.
+        float scale = 0.0f;      ///< 0 selects 1 / sqrt(indexer_head_dim), resolved during validation.
+        bool query_norm = true;  ///< False when query RMSNorm remains outside the operation.
+        bool query_rope = true;  ///< False when query RoPE remains outside the operation.
     };
 
     PagedQSAIndexer() = default;
