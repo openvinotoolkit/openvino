@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
+  "category": "Configuration",
+  "count": 1,
+  "first_seen": "2026-11-06T11:53:20Z",
+  "last_seen": "2026-11-06T11:53:20Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42198977524"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39101"
+  ],
+  "recent_timestamps": [
+    "2026-11-06T11:53:20Z"
+  ],
+  "rerun_search_string": null
+}

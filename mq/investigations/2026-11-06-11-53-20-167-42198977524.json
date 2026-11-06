@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-06-11-53-20-167-42198977524",
+  "timestamp": "2026-11-06T11:53:20Z",
+  "run_id": "42198977524",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42198977524",
+  "workflow_name": "ci/gha_overall_status_ubuntu_24",
+  "pr_number": "39101",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39101",
+  "author": "mryzhov",
+  "category": "Configuration",
+  "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO GenAI / OpenVINO GenAI",
+      "conclusion": "failure",
+      "symptom": "sccache server fails to start (AzblobError InvalidUri) causing the GenAI/WhoWhatBench wheel build and upload steps to fail"
+    },
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Single TF2 Keras Conv3DTranspose test times out (multiprocessing.context.TimeoutError), likely flaky/perf-related and unrelated to the PR"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because upstream jobs failed"
+    }
+  ],
+  "key_errors": [
+    "sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server. RequestId:c3bac17c-a01e-00b3-04da-6d509d000000 Time:2026-11-06T10:37:41.9947988Z\" }\n   uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_24_x86_64_genai_Release/.sccache_check",
+    "##[error]No files were found with the provided path: /__w/openvino/openvino/build/*.whl. No artifacts will be uploaded.",
+    "FAILED .../test_tf2_keras_conv_3d_transpose.py::TestKerasConv3DTranspose::test_keras_conv_3D_transpose_float32[...] - multiprocessing.context.TimeoutError: OpenVINO running timed out!"
+  ],
+  "root_cause": "The GenAI reusable job (.github/workflows/job_genai.yml, changed by PR #39101) loads SCCACHE_AZURE_CONNECTION_STRING directly from /secrets/sccache/connection-string without sanitizing a trailing slash on the BlobEndpoint, unlike job_build_linux.yml which applies `sed -E 's#(^|;)(BlobEndpoint=[^;]*[^/;])/+(;|$)#\\1\\2\\3#g'` to strip it (added for OpenDAL 0.58.1/sccache 0.18.0, which no longer trims trailing slashes). The doubled slash in the endpoint produces a malformed blob URI (`.../blob.core.windows.net//sccache/...`), which Azure rejects with InvalidUri, so sccache's server fails to start, the build step aborts, and the two downstream wheel-upload steps fail because no .whl files were produced. The TF Layer Tests failure (a single timing-based Keras Conv3DTranspose test) is unrelated noise from the same run.",
+  "reproduction_steps": "Locally: set SCCACHE_AZURE_CONNECTION_STRING from the Azure sccache secret with a BlobEndpoint containing a trailing slash (e.g. BlobEndpoint=https://ghasccacheblobs.blob.core.windows.net/;...), run `sccache --zero-stats` with SCCACHE_AZURE_BLOB_CONTAINER=sccache and SCCACHE_AZURE_KEY_PREFIX=ubuntu_24_x86_64_genai_Release set, and observe the AzblobError InvalidUri. N/A for a fully isolated repro without the real Azure connection string.",
+  "recommended_actions": [
+    "Add the same trailing-slash sanitization used in job_build_linux.yml's 'Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file' step to the equivalent step in job_genai.yml (PR #39101 changed job_genai.yml but omitted this fix).",
+    "Audit other reusable job files that independently load SCCACHE_AZURE_CONNECTION_STRING (grep for '/secrets/sccache/connection-string') to ensure all of them apply the same sed sanitization, ideally by factoring it into a shared composite action instead of duplicating the inline script.",
+    "Re-run the OpenVINO GenAI job after the fix; the TF Layer Tests timeout is unrelated and can be retried/triaged separately as a possible flaky test."
+  ],
+  "prevention_strategies": "Factor the sccache Azure connection-string loading/sanitization logic into a single composite action (e.g. .github/actions/setup_sccache) used by every job that needs it, so a compatibility fix (such as the OpenDAL 0.58.1 trailing-slash change) is applied once instead of needing to be copy-pasted into every reusable job workflow.",
+  "historical_context": "A related but distinct sccache failure (ARM64 CMake 'Timed out waiting for server startup', signature_hash e78859139d383270, External Service category) has occurred twice before (PRs #38909, #39524) but is a different symptom (timeout vs. InvalidUri) and a different root cause (network/service unreachability vs. a malformed URI from a missing sanitization step). No prior occurrence of this InvalidUri/BlobEndpoint-trailing-slash signature was found in the pattern database."
+}
