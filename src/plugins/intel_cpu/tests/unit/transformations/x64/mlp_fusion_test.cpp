@@ -91,6 +91,8 @@ class MLPFusionGateUpTest : public TransformationTestsF, public WithParamInterfa
 TEST_P(MLPFusionGateUpTest, Fused) {
     disable_rt_info_check();
     disable_result_friendly_names_check();
+    // TransformationTestsF does not compare op attributes (gate_up_type, act, sizes) by default.
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     std::shared_ptr<v0::Constant> gate_up_w, down_w;
     std::shared_ptr<v0::Parameter> input;
     model = make_gate_up_mlp(GetParam(), gate_up_w, down_w, input);
@@ -113,6 +115,8 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_F(TransformationTestsF, MLPFusionGateUpSwappedHalvesFused) {
     disable_rt_info_check();
     disable_result_friendly_names_check();
+    // Without it, a fusion that emits COMBINED_GATE_UP here would still match the reference.
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
     std::shared_ptr<v0::Constant> gate_up_w, down_w;
     std::shared_ptr<v0::Parameter> input;
     // Act(h1) * h0: the gate is the second half, fused with the swapped layout.
