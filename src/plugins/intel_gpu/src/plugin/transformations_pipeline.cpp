@@ -132,6 +132,7 @@
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
 #include "plugin/transformations/remove_fq_before_dw_conv.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
+#include "plugin/transformations/move_swish_up_through_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
@@ -2027,6 +2028,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::OptimizeSubsequentReshapes>();
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();
+
+        // Must run after the reshape-shuffling passes above, so a Swish is hoisted past whatever Reshape ends up
+        // adjacent to it and lands next to its real producer (PagedCausalConv1D / FullyConnected) in time for
+        // prepare_primitive_fusing.
+        manager.register_pass<ov::intel_gpu::MoveSwishUpThroughReshape>();
 
         if (device_info.supports_immad && config.get_use_onednn()) {
             const bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();

@@ -4,6 +4,33 @@
 
 #include "include/batch_headers/common.cl"
 
+// Optional fused SWISH (SiLU) epilogue.
+//
+// Qwen3.5 / Gated-DeltaNet always applies SiLU to this conv's output, and
+// prepare_primitive_fusing folds that Swish node into this primitive. Doing it here
+// removes a standalone elementwise pass that would otherwise re-read and re-write the
+// entire [tokens, hidden] output -- on a bandwidth-limited iGPU that pass costs about as
+// much as the convolution itself, since it moves ~24 MB per layer for a 1k-token prefill
+// and already runs at the device's memory-bandwidth ceiling.
+//
+// The rounding sequence is deliberately identical to the un-fused graph: the standalone
+// activation_opt kernel reads the f16 conv output and evaluates SWISH in the OUTPUT type
+// (jitter emits `x / (1 + exp(-(beta*x)))` in OUTPUT_TYPE), so `sum` is rounded to
+// OUTPUT_TYPE FIRST and the SiLU is then evaluated in that same type. Applying SiLU to the
+// f32 accumulator would be slightly more accurate but would NOT follow the un-fused
+// rounding. One difference remains: the standalone kernel evaluates exp() on a half4
+// vector, this epilogue on a scalar half, which can differ in the last f16 bit.
+#if FUSE_SWISH
+    #define APPLY_CONV1D_EPILOGUE(acc)                                       \
+        ({                                                                   \
+            OUTPUT_TYPE _v = TO_OUTPUT_TYPE(acc);                            \
+            _v / (TO_OUTPUT_TYPE(1.0f) +                                     \
+                  exp(-(TO_OUTPUT_TYPE(FUSE_SWISH_BETA) * _v)));             \
+        })
+#else
+    #define APPLY_CONV1D_EPILOGUE(acc) TO_OUTPUT_TYPE(acc)
+#endif
+
 KERNEL(paged_causal_conv1d_ref)
 (__global INPUT0_TYPE* input_embeds,
  __global INPUT1_TYPE* conv_state_table,
@@ -115,7 +142,7 @@ KERNEL(paged_causal_conv1d_ref)
         }
 
         const int out_off = token_idx * output_token_stride + h * output_hidden_stride;
-        output_embeds[out_off] = TO_OUTPUT_TYPE(sum);
+        output_embeds[out_off] = APPLY_CONV1D_EPILOGUE(sum);
 
         const int cached_tokens = prev_nums + (t + 1);
         const int interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);

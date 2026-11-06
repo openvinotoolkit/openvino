@@ -198,6 +198,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/l2_norm_to_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/lora_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/lora_subgraph_horizontal_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/move_swish_up_through_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/normalize_l2_decomposition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/optimize_subsequent_reshapes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/preserve_single_selective_ssm_output.cpp
