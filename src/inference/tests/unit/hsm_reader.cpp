@@ -310,6 +310,7 @@ TEST(HsmReaderTest, common_sections_absent_when_manifest_is_empty) {
     EXPECT_FALSE(reader->section(hsm::model_id).has_value());
     EXPECT_FALSE(reader->section(hsm::model).has_value());
     EXPECT_FALSE(reader->section(hsm::runtime_requirements).has_value());
+    EXPECT_FALSE(reader->section(hsm::weights).has_value());
 }
 
 TEST(HsmReaderTest, runtime_requirements_section_reads_opaque_payload) {
@@ -322,6 +323,20 @@ TEST(HsmReaderTest, runtime_requirements_section_reads_opaque_payload) {
     const auto section = reader->section(hsm::runtime_requirements);
     ASSERT_TRUE(section.has_value());
     EXPECT_EQ(to_string(*section), "req-v1");  // reader hands back raw bytes only, never interprets content
+}
+
+TEST(HsmReaderTest, weights_section_reads_raw_payload_unchanged) {
+    const std::string weights_payload = "dummy-weights-data";
+
+    const auto blob = make_container({
+        {make_pointer_entry(hsm::any_device_id, hsm::weights_tag), weights_payload},
+    });
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const auto weights_section = reader->section(hsm::weights);
+    ASSERT_TRUE(weights_section.has_value());
+    EXPECT_EQ(to_string(*weights_section), weights_payload);
 }
 
 TEST(HsmReaderTest, move_constructed_reader_still_reads_sections) {
