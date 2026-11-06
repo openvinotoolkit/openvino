@@ -17,7 +17,7 @@
 #include "ocl_v2/utils/jitter.hpp"
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #    include "micro_utils.hpp"
 
 class MoE3GemmMicroGenerator : public MoEGemmOptGeneratorBase {
