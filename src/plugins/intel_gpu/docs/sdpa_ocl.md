@@ -79,7 +79,14 @@ loads: a token-major page gives the two channels of a key), the V page through t
 value). xe_hpg K pages are always d-major (`k_token_major_device()` needs Xe2+), and since 2026-11-02 the MIXED stage
 reads the token-major page only, so on xe_hpg MIXED runs `pa_multi_token`: `PA_MIXED_F16` now only lets the SG8 MIXED
 stage compile with PREFILL. Its d-major arm (the two keys of a channel in one dword, repacked with 16-bit shifts) was
-removed with it; the token-major arm is compiled there but has never run on a DG2.
+removed with it. The token-major arm runs on DG2 on a page a test forces token-major: `smoke_paged_attention_mixed_tm`
+(heads 64 / 128 / 256 / 96 / 512, 21 cases each: past lengths on and off a page boundary, new tokens around a 32-query tile,
+a long past, batches mixing MIXED, PREFILL and one-token subsequences, GQA / MQA, windows that start in the past, a
+sink, all with a sharp softmax, and three cases whose page tails are NaN) passes on the HPG lane and asserts that
+`sdpa_ocl` ran; `SDPA_OCL_NEG_SG8=36` / `37` / `38` (the two keys of a K pair swapped / the V pages of adjacent blocks
+swapped / the odd V row of a pair read past k) must fail it: 36 and 37 fail 100 of the 105 cases, 38 exactly the 15
+NaN-poisoned ones. 36 passes only the window-1 case (each query sees one key, whose softmax weight is 1 whatever K
+reads), 37 only the one-page case (12 keys: both 16-key blocks take page 0, so the swap changes nothing).
 The V page index of each 16-key block comes from one uniform load per block (`pa_v_pages`, `#if SG8`): the SG16 form,
 a per-lane load of page `lane` and `sub_group_broadcast`, loads the same entries but gave wrong pages on DG2 under
 some code shapes (MIXED with one KV head, heads 48 and 96), and which shapes failed moved with unrelated edits of the
@@ -2000,7 +2007,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_HPG_PA_TILE_KEYS` / `_PER_WG_KEYS` / `_PER_WG_QUERIES` | xe_hpg PA PREFILL kernel tiling (16 / 32 keys per subgroup tile, subgroups along keys / queries); a tiling the kernel is not written for throws |
 | `SDPA_OCL_HPG_PA_KQ_UNROLL` | xe_hpg PA PREFILL kernel: unroll of the KQ depth loop (default whole up to head 128, 2 at 256; `0` = whole) |
 | `SDPA_OCL_SG8_KQ_UNROLL` / `SDPA_OCL_SG8_SV_UNROLL` | xe_hpg generic kernel: unroll of the KQ depth loop / S*V key loop (default 1 = not unrolled, `0` = unrolled whole, which spills) |
-| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback, and the unaligned-Q staging of the xe_hpg PA PREFILL kernel (must pass, but for the IGC hazard cases in "xe_hpg follow-ups"); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests); `10` reads plain-SDPA K / V of batch 0, KV head 0 in the PREFILL kernel (must fail `smoke_sdpa_hpg_rows`); `11` / `12` / `13` break the mask of the xe_hpg PREFILL kernel, `18` its head-72 output columns (above); `30` reads key `lane` for both halves of a page, `31` swaps the S*V key pair, `32` reads the page of chunk % 8 (pages 8-15 of a partition wrong), `33` swaps the BY_CHANNEL pairs, `34` drops the BY_TOKEN K zero point, `35` gives both keys of a pair the even key's V scale in the SG8 decode reader (each must fail `smoke_paged_attention_decode_tm`) |
+| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback, and the unaligned-Q staging of the xe_hpg PA PREFILL kernel (must pass, but for the IGC hazard cases in "xe_hpg follow-ups"); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests); `10` reads plain-SDPA K / V of batch 0, KV head 0 in the PREFILL kernel (must fail `smoke_sdpa_hpg_rows`); `11` / `12` / `13` break the mask of the xe_hpg PREFILL kernel, `18` its head-72 output columns (above); `30` reads key `lane` for both halves of a page, `31` swaps the S*V key pair, `32` reads the page of chunk % 8 (pages 8-15 of a partition wrong), `33` swaps the BY_CHANNEL pairs, `34` drops the BY_TOKEN K zero point, `35` gives both keys of a pair the even key's V scale in the SG8 decode reader (each must fail `smoke_paged_attention_decode_tm`); `36` swaps the two keys of a K pair, `37` the V pages of adjacent blocks, `38` reads the odd V row of a pair past k in the generic kernel's token-major MIXED readers (each must fail `smoke_paged_attention_mixed_tm`: 36 / 37 fail 100 of 105, 38 exactly the 15 NaN-poisoned cases) |
 | `OV_GPU_ARCH_OVERRIDE` | Debug caps only: report another arch (`xe_hpg`, `xe2`, ...) so its host code runs on this device (dump only) |
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
@@ -2303,7 +2310,8 @@ stage still compiles on a d-major page, as the token-major reader, without being
   page) and non-f16 inference still give a d-major page ("Token-major K page by a static rule (2026-11-06)").
 - xe_hpg with `TEST_USE_SDPA_OCL_HPG=1`: its pages are always d-major, so MIXED runs `pa_multi_token` there; PREFILL
   keeps `sdpa_ocl`. `PA_MIXED_F16` stays in `kHpgTiersReady` (PREFILL and MIXED compile together); the SG8 MIXED stage
-  now compiles the token-major arm of `pa_k_tile_gather`, checked offline only (below), never run on a DG2.
+  now compiles the token-major arm of `pa_k_tile_gather`; it runs on DG2 only on a forced token-major page
+  (`smoke_paged_attention_mixed_tm`, "xe_hpg bring-up").
 - Checked on the B70: the kit groups U1, SEL, RULE and F2 are identical to the build before; U3
   (`OV_GPU_PA_K_TOKEN_MAJOR=0`) has no failure, and 45 token-type tests written for `sdpa_ocl` MIXED now skip there. With
   the refusal taken out on purpose, U3 fails 85 tests (wrong values and NaN from the token-major read of a d-major
