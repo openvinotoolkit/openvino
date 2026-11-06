@@ -10,6 +10,8 @@
 
 namespace ov::frontend::gguf {
 
+class SharedWeights;
+
 void prepare_graph_inputs(TensorMap& values, GgufDecoder& decoder);
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& values,
@@ -20,7 +22,8 @@ class TranslateSession {
 public:
     TranslateSession(const frontend::InputModel::Ptr& input_model,
                      const std::unordered_map<std::string, CreatorFunction>& translator_map,
-                     const std::vector<DecoderTransformationExtension::Ptr>& transformation_extensions = {});
+                     const std::vector<DecoderTransformationExtension::Ptr>& transformation_extensions = {},
+                     std::shared_ptr<SharedWeights> shared_weights = {});
 
     std::shared_ptr<Model> get_converted_model();
     std::shared_ptr<Model> translate_graph(const frontend::InputModel::Ptr& input_model);
@@ -31,6 +34,7 @@ private:
     const std::unordered_map<std::string, CreatorFunction>& m_translator_map;
     std::shared_ptr<Model> m_ov_model;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
+    std::shared_ptr<SharedWeights> m_shared_weights;
 };
 
 }  // namespace ov::frontend::gguf

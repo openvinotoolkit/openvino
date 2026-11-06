@@ -26,6 +26,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "quant/weights.hpp"
+#include "shared_weights.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::frontend::gguf::pass {
@@ -352,6 +353,9 @@ void gather_packed_rows(const std::shared_ptr<ov::Model>& model) {
 
 }  // namespace
 
+MaterializeGGUFWeights::MaterializeGGUFWeights(std::shared_ptr<SharedWeights> shared_weights)
+    : m_shared_weights(std::move(shared_weights)) {}
+
 bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool changed = false;
     for (const auto& node : model->get_ordered_ops())
@@ -383,7 +387,14 @@ bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& mode
     }
     for (const auto& node : model->get_ordered_ops())
         if (const auto weight = ov::as_type_ptr<GGUFConstant>(node)) {
-            auto materialized = weight->materialize();
+            // Raw cgraph weights only: llama.cpp converts the same weights once per graph topology.
+            const auto& source = weight->source();
+            const auto build = [&] {
+                return weight->materialize()->output(0);
+            };
+            const auto materialized = m_shared_weights && !source.native
+                                          ? m_shared_weights->get(source, build).get_node_shared_ptr()
+                                          : build().get_node_shared_ptr();
             OPENVINO_ASSERT(materialized->get_output_partial_shape(0) == weight->get_output_partial_shape(0) &&
                                 materialized->get_output_element_type(0) == weight->get_output_element_type(0),
                             "Materialized GGUF weight has unexpected shape or type: ",
