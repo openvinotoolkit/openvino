@@ -1,7 +1,7 @@
-
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include "nodes/kernels/scaled_attn/common.hpp"
@@ -329,7 +329,8 @@ void attn_acc_value_block_by_dim(float* out,
         while (dst_offset < S) {
             auto* v0 = reinterpret_cast<float*>(v + src_offset);
             for (size_t i = 0; i < group_size; i++) {
-                out[dst_offset + i] += weight[j] * (v[i + src_offset + params_offset] - v0[1]) * v0[0];
+                out[dst_offset + i] +=
+                    weight[j] * (static_cast<float>(v[i + src_offset + params_offset]) - v0[1]) * v0[0];
             }
             dst_offset += group_size;
             src_offset += group_size + params_offset;
@@ -511,15 +512,18 @@ void attn_acc_value_block_by_channel(float* out,
         }
 #endif
         for (; i < S; i++) {
-            out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
-            out[i] += weight[j + 1] * (v_data_ptr[i + (j + 1) * src_stride] - p_zps[i]) * p_scales[i];
-            out[i] += weight[j + 2] * (v_data_ptr[i + (j + 2) * src_stride] - p_zps[i]) * p_scales[i];
-            out[i] += weight[j + 3] * (v_data_ptr[i + (j + 3) * src_stride] - p_zps[i]) * p_scales[i];
+            out[i] += weight[j] * (static_cast<float>(v_data_ptr[i + j * src_stride]) - p_zps[i]) * p_scales[i];
+            out[i] +=
+                weight[j + 1] * (static_cast<float>(v_data_ptr[i + (j + 1) * src_stride]) - p_zps[i]) * p_scales[i];
+            out[i] +=
+                weight[j + 2] * (static_cast<float>(v_data_ptr[i + (j + 2) * src_stride]) - p_zps[i]) * p_scales[i];
+            out[i] +=
+                weight[j + 3] * (static_cast<float>(v_data_ptr[i + (j + 3) * src_stride]) - p_zps[i]) * p_scales[i];
         }
     }
     for (; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
-            out[i] += weight[j] * (v_data_ptr[i + j * src_stride] - p_zps[i]) * p_scales[i];
+            out[i] += weight[j] * (static_cast<float>(v_data_ptr[i + j * src_stride]) - p_zps[i]) * p_scales[i];
         }
     }
 }
@@ -1034,7 +1038,7 @@ void dot_product_block_quantized_by_channel(TA* a, uint8_t* b, float* c, const s
         sum += _mm256_cvtss_f32(vsum0);
 #endif
         for (; i < n; i++) {
-            sum += a[i] * (b[params_offset + i] - p_zps[i]) * p_scales[i];
+            sum += a[i] * (static_cast<float>(b[params_offset + i]) - p_zps[i]) * p_scales[i];
         }
         b += src_stride;
         *c++ = sum;
@@ -1597,7 +1601,7 @@ void dot_product_block_quantized_by_dims(TA* a,
             auto* b0 = reinterpret_cast<float*>(b + src_offset);
             float group_sum = 0.0F;
             for (size_t i = 0; i < group_size; i++) {
-                group_sum += a[dst_offset + i] * (b[src_offset + params_offset + i] - b0[1]);
+                group_sum += a[dst_offset + i] * (static_cast<float>(b[src_offset + params_offset + i]) - b0[1]);
             }
             sum += group_sum * b0[0];
             dst_offset += group_size;

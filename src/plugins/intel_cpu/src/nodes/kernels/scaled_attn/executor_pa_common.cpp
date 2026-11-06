@@ -67,6 +67,15 @@ JitMatMulVecAMX::JitMatMulVecAMX(int head_size, int block_size, ov::element::Typ
       m_head_size(head_size),
       m_block_size(block_size),
       m_amx_prec(amx_prec) {
+    if (m_head_size <= 0 || (m_head_size % 32) != 0) {
+        throw std::runtime_error("head size is not a positive multiple of 32");
+    }
+    if (m_head_size > kMaxHeadSize) {
+        throw std::runtime_error("head size is bigger than the supported maximum");
+    }
+    if (m_block_size <= 0 || (m_block_size % 16) != 0) {
+        throw std::runtime_error("block size is not a positive multiple of 16");
+    }
     create_kernel();
     m_tile_cfg.reset(1,
                      0,
@@ -86,38 +95,72 @@ void JitMatMulVecAMX::generate() {
     mov(reg_stride_A, m_head_size * 2);
     mov(reg_stride_BC, 4);
     const int kStep = 32;
-    if ((m_head_size % 32) != 0) {
-        throw std::runtime_error("head size is not multiple of 32");
-    }
-    if ((m_block_size % 16) != 0) {
-        throw std::runtime_error("block size is not multiple of 16");
-    }
+    // C and A take two of the eight tile registers, the other six hold query (B) tiles.
+    constexpr int kMaxResidentBTiles = 6;
     auto num_B_tiles = m_head_size / kStep;
-    if (num_B_tiles > 6) {
-        throw std::runtime_error("number of B tiles is bigger than 6");
-    }
 
     /*
                                 B(query)    head_size x 1
     A(key) matrix : block_size x head_size  C(dst) block_size x 1
     */
-    // load query into B tiles
-    for (int i = 0; i < num_B_tiles; i++) {
-        tileloadd(Xbyak::Tmm(tmmB0.getIdx() + i), ptr[reg_q_addr + reg_stride_BC + i * 64]);
+    if (num_B_tiles <= kMaxResidentBTiles) {
+        // The whole query fits in the B tiles: load it once, reuse it for every block of 16 keys.
+        for (int i = 0; i < num_B_tiles; i++) {
+            tileloadd(Xbyak::Tmm(tmmB0.getIdx() + i), ptr[reg_q_addr + reg_stride_BC + i * 64]);
+        }
+
+        for (int m = 0; m < m_block_size; m += 16) {
+            tilezero(tmmC);
+            for (int i = 0; i < num_B_tiles; i++) {
+                tileloadd(tmmA, ptr[reg_k_addr + reg_stride_A + i * 64]);
+                if (m_amx_prec == ov::element::bf16) {
+                    tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+                } else if (m_amx_prec == ov::element::f16) {
+                    tdpfp16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+                }
+            }
+            tilestored(ptr[reg_dst_addr + reg_stride_BC + m * sizeof(float)], tmmC);
+            add(reg_k_addr, m_head_size * 2 * 16);
+        }
+        ret();
+        return;
     }
 
-    for (int m = 0; m < m_block_size; m += 16) {
-        tilezero(tmmC);
-        for (int i = 0; i < num_B_tiles; i++) {
-            tileloadd(tmmA, ptr[reg_k_addr + reg_stride_A + i * 64]);
-            if (m_amx_prec == ov::element::bf16) {
-                tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
-            } else if (m_amx_prec == ov::element::f16) {
-                tdpfp16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
-            }
+    // More B tiles than registers: loop over K chunks of at most kMaxResidentBTiles tiles, balanced (224 = 7 tiles ->
+    // 4 + 3, 256 -> 4 + 4, 512 = 16 tiles -> 6 + 5 + 5). Every chunk runs the loop over the key blocks with its slice
+    // of the query resident and accumulates its partial scores into dst: the first chunk starts from zero, the others
+    // from the scores the previous chunks stored. Each key tile is still loaded exactly once. The key loop advances
+    // reg_k_addr past the whole key matrix, so every chunk restarts from the preserved reg_k_base; a 32-element tile is
+    // 64 bytes in both the query and a key row, so one cumulative offset serves both.
+    mov(reg_k_base, reg_k_addr);
+    const int num_chunks = (num_B_tiles + kMaxResidentBTiles - 1) / kMaxResidentBTiles;
+    const int base_tiles = num_B_tiles / num_chunks;
+    const int remainder = num_B_tiles % num_chunks;
+    int first_tile = 0;
+    for (int chunk = 0; chunk < num_chunks; chunk++) {
+        const int chunk_tiles = base_tiles + (chunk < remainder ? 1 : 0);
+        for (int i = 0; i < chunk_tiles; i++) {
+            tileloadd(Xbyak::Tmm(tmmB0.getIdx() + i), ptr[reg_q_addr + reg_stride_BC + (first_tile + i) * 64]);
         }
-        tilestored(ptr[reg_dst_addr + reg_stride_BC + m * sizeof(float)], tmmC);
-        add(reg_k_addr, m_head_size * 2 * 16);
+        lea(reg_k_addr, ptr[reg_k_base + first_tile * 64]);
+        for (int m = 0; m < m_block_size; m += 16) {
+            if (chunk == 0) {
+                tilezero(tmmC);
+            } else {
+                tileloadd(tmmC, ptr[reg_dst_addr + reg_stride_BC + m * sizeof(float)]);
+            }
+            for (int i = 0; i < chunk_tiles; i++) {
+                tileloadd(tmmA, ptr[reg_k_addr + reg_stride_A + i * 64]);
+                if (m_amx_prec == ov::element::bf16) {
+                    tdpbf16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+                } else if (m_amx_prec == ov::element::f16) {
+                    tdpfp16ps(tmmC, tmmA, Xbyak::Tmm(tmmB0.getIdx() + i));
+                }
+            }
+            tilestored(ptr[reg_dst_addr + reg_stride_BC + m * sizeof(float)], tmmC);
+            add(reg_k_addr, m_head_size * 2 * 16);
+        }
+        first_tile += chunk_tiles;
     }
     ret();
 }

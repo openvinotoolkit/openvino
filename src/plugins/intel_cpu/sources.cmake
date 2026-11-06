@@ -168,6 +168,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/common/offset_helper.hpp
     ${CPU_SRC_DIR}/nodes/executors/common/paged_selective_ssm_executor.cpp
     ${CPU_SRC_DIR}/nodes/executors/common/paged_selective_ssm_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/common/qsa_indexer_ref_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/common/qsa_indexer_ref_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/common/paged_qsa_indexer_ref_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/common/paged_qsa_indexer_ref_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/common/ref_convert.cpp
     ${CPU_SRC_DIR}/nodes/executors/common/ref_convert.hpp
     ${CPU_SRC_DIR}/nodes/executors/common/ref_opt_transpose.cpp
@@ -234,6 +238,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/mvn_list.hpp
     ${CPU_SRC_DIR}/nodes/executors/paged_selective_ssm_config.hpp
     ${CPU_SRC_DIR}/nodes/executors/paged_selective_ssm_implementations.cpp
+    ${CPU_SRC_DIR}/nodes/executors/qsa_indexer_config.hpp
+    ${CPU_SRC_DIR}/nodes/executors/qsa_indexer_implementations.cpp
+    ${CPU_SRC_DIR}/nodes/executors/paged_qsa_indexer_config.hpp
+    ${CPU_SRC_DIR}/nodes/executors/paged_qsa_indexer_implementations.cpp
     ${CPU_SRC_DIR}/nodes/executors/pooling.cpp
     ${CPU_SRC_DIR}/nodes/executors/pooling.hpp
     ${CPU_SRC_DIR}/nodes/executors/pooling_list.cpp
@@ -355,6 +363,12 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/xattention.hpp
@@ -411,6 +425,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/paged_causal_conv1d.h
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.cpp
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.h
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.cpp
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.h
     ${CPU_SRC_DIR}/nodes/pooling.cpp
@@ -427,6 +443,12 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/psroi_pooling.h
     ${CPU_SRC_DIR}/nodes/qkv_proj.cpp
     ${CPU_SRC_DIR}/nodes/qkv_proj.h
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.h
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_common.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_kernels.hpp
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp
     ${CPU_SRC_DIR}/nodes/range.cpp
@@ -483,6 +505,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/space_to_depth.h
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.cpp
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.h
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.h
+    ${CPU_SRC_DIR}/nodes/sparse_pa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_pa.h
     ${CPU_SRC_DIR}/nodes/split.cpp
     ${CPU_SRC_DIR}/nodes/split.h
     ${CPU_SRC_DIR}/nodes/stft.cpp
@@ -585,6 +611,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/read_value_with_subgraph.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sdpa.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sdpa.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/submodel.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/submodel.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/swish_cpu.cpp
@@ -809,6 +837,10 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/executors/x64/matmul_small.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/qsa_indexer_jit_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/qsa_indexer_jit_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/paged_qsa_indexer_jit_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/paged_qsa_indexer_jit_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/brgemm_kernel.cpp
@@ -841,6 +873,7 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/x64/rdft_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/registers_pool.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_kernels.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.hpp
@@ -852,6 +885,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/interaction.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.cpp
@@ -860,6 +895,10 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/mlp_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qkv_proj_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qsa_indexer_fusion.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qsa_indexer_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/simplify_fakequantize.hpp
