@@ -10,9 +10,12 @@
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
@@ -126,6 +129,15 @@ ov::Output<ov::Node> GroupQueryAttentionDecomposition::make_qk_norm(const ov::Ou
     return register_new_node<ov::op::internal::RMS>(input, weight, epsilon, input.get_element_type());
 }
 
+namespace {
+// StatelessKV has nothing to append to for a 0-row past; a free predicate (vs. an inline shape probe) keeps the
+// fallback condition self-documenting and easy to narrow once StatelessKV can roll a 0-row past with query_seqlens.
+bool has_empty_past(const ov::Output<ov::Node>& past_key) {
+    const auto& past_ps = past_key.get_partial_shape();
+    return past_ps.rank().is_static() && past_ps[2].is_static() && past_ps[2].get_length() == 0;
+}
+}  // namespace
+
 GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecomposition::construct_kvcache(
     const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
     const ov::Output<ov::Node>& past_key,
@@ -141,6 +153,25 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     static const std::vector<int64_t> transpose_v_order{0, 1, 3, 2};
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
+
+    // StatelessKV rolls a windowed cache by its present length, which a right-padded chunk (query_seqlens) would
+    // overstate; the generic staging path writes back only the valid rows.
+    const bool query_seqlens = node->has_query_seqlens();
+    if (query_seqlens && node->get_sliding_window_cache()) {
+        // GPU SDPA broadcasts the KV heads natively; the explicit chain groups them itself.
+        metadata.should_broadcast_kv = false;
+        return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
+                                                                             past_seqlen, current_seqlen_scalar, metadata_);
+    }
+    // A padded chunk with an empty past has nothing for StatelessKV to append to; keep the generic present sizing.
+    // A declared fixed capacity has the same problem when total_sequence_length exceeds it: StatelessKV's own
+    // shape inference only grows past a static past_rows when its update offset folds to a constant (it almost
+    // never does for a runtime seqlens_k), so it would silently keep producing a past_rows-sized buffer while the
+    // op's own shape inference (fixed up for this case) declares max(past_rows, total_sequence_length).
+    if (query_seqlens && (has_empty_past(past_key) || node->has_fixed_kv_capacity())) {
+        return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
+                                                                             past_seqlen, current_seqlen_scalar, metadata_);
+    }
 
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
@@ -160,8 +191,30 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     KVCacheOutputs outputs;
     const bool sliding_window = node->get_sliding_window_cache();
     const int64_t window_size = sliding_window ? node->get_local_window_size() : 0;
+    // StatelessKV takes the present length and writes the S new rows at present - S. A right-padded chunk writes them
+    // at its past P = total - Q, so it passes P + S; SDPA's lower-right causal mask then lets row s see keys <= P + s.
+    // present_len is purely a view/offset param (StatelessKV never copies), so honoring a declared capacity bigger
+    // than P + S here is free: max(P + S, total_sequence_length), matching the common decomposition's growing-cache
+    // capacity rule (ORT's max(past_rows, total_sequence_length)).
+    using GQAInputs = ov::op::internal::GroupQueryAttentionInputs;
+    const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
+    const bool has_total_sequence_length =
+        query_seqlens && total_seqlen_pos < node->get_input_size() &&
+        !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
+    ov::Output<ov::Node> present_len = seqlens_1d;
+    if (query_seqlens) {
+        present_len = register_new_node<v1::Add>(past_seqlen, current_seqlen_scalar)->output(0);
+        if (has_total_sequence_length) {
+            const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+            const auto total_sequence_length = register_new_node<v1::Reshape>(
+                register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
+                one,
+                false);
+            present_len = register_new_node<v1::Maximum>(present_len, total_sequence_length);
+        }
+    }
     const auto make_stateless_kv = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current, int64_t concat_axis) {
-        return register_new_node<op::StatelessKV>(past, current, seqlens_1d, concat_axis, true, window_size);
+        return register_new_node<op::StatelessKV>(past, current, present_len, concat_axis, true, window_size);
     };
 
     const auto key_cache = make_stateless_kv(past_key, key, 2);
