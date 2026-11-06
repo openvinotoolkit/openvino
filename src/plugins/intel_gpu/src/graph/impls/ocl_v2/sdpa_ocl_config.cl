@@ -481,7 +481,7 @@
 // PA_V_U4_COL folds whole 16-wide byte-column groups, which assumes the split point is one.
 #    error "sdpa_ocl.cl: u4 needs PA_V_ROW_ELEMS to be a multiple of SUBGROUP_SIZE"
 #  endif
-#  if PA_CUR_KV_F16
+#  if PA_CUR_KV_F16 && !SG8
 // The Kc read for u4 uses intel_sub_group_2d_block_read_32b_8r16x1c, whose 8r16x1c geometry is
 // hard-coded to exactly one DPAS row-block of keys (8) and one 32-channel u4 window (16 dwords).
 #    if DPAS_ROWS != 8
@@ -558,17 +558,18 @@
       USE_2D_BLOCK_IO_K_PA || USE_2D_BLOCK_IO_V_PA || USE_2D_BLOCK_IO_K_PA_I8 || USE_2D_BLOCK_IO_V_PA_I8
 #    error "sdpa_ocl.cl SG8: 2D block IO needs a 16-wide subgroup; the host must force every USE_2D_BLOCK_IO_* to 0 (plan S5)"
 #  endif
-// Of the compressed pages SG8 MIXED reads the i8 ones (BY_TOKEN and BY_CHANNEL, pa_k_tile_q_gather); the u4 page readers
-// are SG16 (pa_k_tile_q_gather's u4 arm, the 1D page reads and pa_k_comp_by_channel's lane == channel pairs).
-#  if IS_PA_MIXED && IS_PA_K_U4
-#    error "sdpa_ocl.cl SG8: the u4 K / V page readers are SG16 (plan S8c)"
+// SG8 MIXED reads every compressed page with the SG8 gathers: pa_k_tile_q_gather (i8 BY_TOKEN / BY_CHANNEL and u4, with
+// the per-channel comp read next to the bytes) and pa_v_tile_q_gather. The 1D page reads are 16-lane block reads
+// (sdpa_gen_ocl.cpp keeps them off without block IO).
+#  if USE_1D_BLOCK_IO_K_PA_U4 || USE_1D_BLOCK_IO_V_PA_U4
+#    error "sdpa_ocl.cl SG8: the 1D u4 page reads are 16-lane block reads"
 #  endif
 // The contiguous K input reads (k_tile_dword, and k_tile_dword_i8 for the plain i8 cache), the f16 page gather
-// (pa_k_tile_gather) and the i8 page gather (pa_k_tile_q_gather) have an int8 A form. PA_CUR_KV_F16 reads Kc with
-// k_tile_dword and Vc with vc_tile_gather on SG8; the permuted-depth (u4) Kc reads and the Kc / Vc base fixup are block2d
-// only.
-#  if IS_PA_MIXED && PA_CUR_KV_F16 && (PA_K_PERMUTED || BLOCK2D_KV_CUR_BASE_FIXUP)
-#    error "sdpa_ocl.cl SG8: the permuted-depth Kc read and the Kc / Vc base fixup are 2D block reads"
+// (pa_k_tile_gather) and the compressed page gather (pa_k_tile_q_gather) have an int8 A form. PA_CUR_KV_F16 reads Kc with
+// k_tile_dword (kc_tile_u4_gather in the permuted depth of a u4 cache) and Vc with vc_tile_gather on SG8; the Kc / Vc base
+// fixup is block2d only.
+#  if IS_PA_MIXED && PA_CUR_KV_F16 && BLOCK2D_KV_CUR_BASE_FIXUP
+#    error "sdpa_ocl.cl SG8: the Kc / Vc base fixup is for 2D block reads"
 #  endif
 #endif
 
