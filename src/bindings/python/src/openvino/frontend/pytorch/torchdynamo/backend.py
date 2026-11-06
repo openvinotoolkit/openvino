@@ -103,12 +103,14 @@ def fx_openvino(subgraph, example_inputs, options=None):
             model = subgraph
         else:
             decompositions = _get_decompositions(options) + get_inf_decomposition_list()
-            model = make_fx(
-                subgraph,
-                decomposition_table=get_decompositions(decompositions),
-                tracing_mode="fake",
-                _allow_non_fake_inputs=True,
-            )(*example_inputs)
+            # Without tracing(None), make_fx adds sourceless guards which Dynamo cannot build.
+            with torch._guards.tracing(None):
+                model = make_fx(
+                    subgraph,
+                    decomposition_table=get_decompositions(decompositions),
+                    tracing_mode="fake",
+                    _allow_non_fake_inputs=True,
+                )(*example_inputs)
             with torch.no_grad():
                 model.eval()
         partitioner = Partitioner(options)
