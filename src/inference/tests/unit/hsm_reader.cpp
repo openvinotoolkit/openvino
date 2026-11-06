@@ -395,27 +395,27 @@ TEST(HsmReaderTest, device_overrides_core_tag_by_reusing_it_under_its_own_device
     constexpr hsm::DeviceId other_device_id = fake_device_id + 1;
 
     const auto blob = make_container({
-        {make_pointer_entry(hsm::any_device_id, hsm::compiled_options_tag), "shared-options"},
-        {make_pointer_entry(fake_device_id, hsm::compiled_options_tag), "device-options"},
+        {make_pointer_entry(hsm::any_device_id, hsm::compile_options_tag), "shared-options"},
+        {make_pointer_entry(fake_device_id, hsm::compile_options_tag), "device-options"},
     });
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
     // One tag id, two entries - they stay distinct because lookup is always by (device, tag), never tag alone.
-    const auto shared = reader->section(hsm::Tags::compiled_options);
+    const auto shared = reader->section(hsm::Tags::compile_options);
     ASSERT_TRUE(shared.has_value());
     EXPECT_EQ(to_string(*shared), "shared-options");
 
-    const auto overridden = reader->section(fake_device_id, hsm::Tags::compiled_options);
+    const auto overridden = reader->section(fake_device_id, hsm::Tags::compile_options);
     ASSERT_TRUE(overridden.has_value());
     EXPECT_EQ(to_string(*overridden), "device-options");
 
-    EXPECT_EQ(reader->count(hsm::Tags::compiled_options), 1U);
-    EXPECT_EQ(reader->count(fake_device_id, hsm::Tags::compiled_options), 1U);
+    EXPECT_EQ(reader->count(hsm::Tags::compile_options), 1U);
+    EXPECT_EQ(reader->count(fake_device_id, hsm::Tags::compile_options), 1U);
 
     // A device that published no override of its own finds nothing under its id because section(device, tag)
     // performs an exact (device, tag) lookup; callers that want shared content must explicitly query any_device_id.
-    EXPECT_FALSE(reader->section(other_device_id, hsm::Tags::compiled_options).has_value());
+    EXPECT_FALSE(reader->section(other_device_id, hsm::Tags::compile_options).has_value());
 }
 
 TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) {

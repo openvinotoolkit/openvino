@@ -1013,14 +1013,14 @@ TEST(HsmDeferredWriterTest, handler_based_add_section_reuses_one_handler_for_sev
 }
 
 TEST(HsmDeferredWriterTest, handler_forwards_to_a_named_member_function_instead_of_inlining_logic_in_the_lambda) {
-    struct CompiledOptions {
+    struct CompileOptions {
         uint32_t version;
         float scale;
     };
 
     class OptionsHandler : public hsm::ISectionWriterHandler {
     public:
-        explicit OptionsHandler(CompiledOptions options) : m_options(options) {}
+        explicit OptionsHandler(CompileOptions options) : m_options(options) {}
 
         void handle_section(hsm::IWriter& writer) const override {
             // ForwardingEncoder is only a one-line forwarder; write_options() below is an ordinary
@@ -1047,12 +1047,12 @@ TEST(HsmDeferredWriterTest, handler_forwards_to_a_named_member_function_instead_
             sink(ov::util::as_memory_view(m_options));
         }
 
-        CompiledOptions m_options;
+        CompileOptions m_options;
     };
 
     std::stringstream stream;
     auto writer = open_writer(stream);
-    OptionsHandler handler(CompiledOptions{7, 0.5f});
+    OptionsHandler handler(CompileOptions{7, 0.5f});
     writer.add_sections({&handler});
     ASSERT_EQ(writer.finalize(), std::error_code{});
 
@@ -1061,7 +1061,7 @@ TEST(HsmDeferredWriterTest, handler_forwards_to_a_named_member_function_instead_
     const auto tag = hsm::SectionTag::make_device_tag(10, false);
     const auto section = find_entry(*container, fake_device_id, tag.id());
     ASSERT_NE(section, nullptr);
-    CompiledOptions decoded{};
+    CompileOptions decoded{};
     std::memcpy(&decoded, container->bytes.data() + section->offset, sizeof(decoded));
     EXPECT_EQ(decoded.version, 7u);
     EXPECT_FLOAT_EQ(decoded.scale, 0.5f);
