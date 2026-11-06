@@ -10,7 +10,7 @@ RUN yum groupinstall -y "Development Tools" && \
     yum install -y wget bzip2 gcc-c++ libmpc-devel mpfr-devel gmp-devel cmake ccache ninja-build make tbb-devel ocl-icd-devel opencl-headers lld
 
 # Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
