@@ -231,12 +231,12 @@ std::shared_ptr<ov::Node> build_gr_read_with_weights(const std::shared_ptr<ov::o
     return std::make_shared<ov::op::v1::Multiply>(reduced, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
 }
 
-std::shared_ptr<op::GatedResidual> run_read_fusion(const ov::Output<ov::Node>& w_down, const ov::Output<ov::Node>& w_up, bool allow_compressed) {
+std::shared_ptr<op::GatedResidual> run_read_fusion(const ov::Output<ov::Node>& w_down, const ov::Output<ov::Node>& w_up, bool systolic) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read_with_weights(residual, w_down, w_up);
     auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
     ov::pass::Manager manager;
-    manager.register_pass<GatedResidualReadFusion>(allow_compressed);
+    manager.register_pass<GatedResidualReadFusion>(systolic);
     manager.run_passes(model);
     std::shared_ptr<op::GatedResidual> found;
     for (const auto& node : model->get_ops()) {
@@ -775,11 +775,14 @@ TEST(gated_residual_geometry, systolic_kernels_lift_the_scalar_limits) {
     EXPECT_FALSE(caps::is_geometry_supported(Mode::WRITE, 3, 64, 0, false));
 }
 
-TEST(gated_residual_fusion, compressed_weights_need_the_flag) {
+TEST(gated_residual_fusion, compressed_weights_are_fused_without_systolic_arrays) {
     const size_t cd = C * D;
-    auto gr = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), false);
-    ASSERT_NE(gr, nullptr);
-    EXPECT_EQ(gr->get_input_size(), 4u) << "the decompressed f16 tensors feed the op when compression is not allowed";
+    // the scalar gr_read.cl dequantizes the compressed weights too
+    expect_compressed(run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), false),
+                      ov::element::u4,
+                      cd / 32,
+                      LQ / 32);
+    expect_compressed(run_read_fusion(make_decompressed(ov::element::u8, LQ, cd, cd), make_decompressed(ov::element::u8, cd, LQ, LQ), false), ov::element::u8, 1, 1);
 }
 
 TEST(gated_residual_fusion, compressed_rejects_unsupported_quantization) {

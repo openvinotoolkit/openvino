@@ -550,18 +550,16 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
         // W_down and W_up must be compressed the same way, otherwise the decompressed f16 tensors are used.
         ov::OutputVector weight_inputs = {w_down, w_up};
         std::optional<CompressedWeight> compressed_down;
-        if (systolic) {
-            const auto cd = match_compressed_weight(w_down, L, C * D);
-            const auto cu = match_compressed_weight(w_up, C * D, L);
-            if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp() && caps::is_matrix_compression_supported(cd->bits, L, C * D, cd->groups) &&
-                caps::is_matrix_compression_supported(cu->bits, C * D, L, cu->groups)) {
-                weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale};
-                if (cd->has_zp()) {
-                    weight_inputs.push_back(cd->zp);
-                    weight_inputs.push_back(cu->zp);
-                }
-                compressed_down = cd;
+        const auto cd = match_compressed_weight(w_down, L, C * D);
+        const auto cu = match_compressed_weight(w_up, C * D, L);
+        if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp() && caps::is_matrix_compression_supported(cd->bits, L, C * D, cd->groups) &&
+            caps::is_matrix_compression_supported(cu->bits, C * D, L, cu->groups)) {
+            weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale};
+            if (cd->has_zp()) {
+                weight_inputs.push_back(cd->zp);
+                weight_inputs.push_back(cu->zp);
             }
+            compressed_down = cd;
         }
 
         ov::NodeVector new_ops;

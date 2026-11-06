@@ -517,7 +517,8 @@ gr_run_result run_gr_read(const gr_ref_params& p,
                           const std::vector<float>& residual,
                           const std::vector<float>& gain,
                           const std::vector<memory::ptr>& weights,
-                          bool write_gate = false) {
+                          bool write_gate = false,
+                          bool force_scalar = false) {
     auto& engine = get_test_engine();
     const size_t CD = p.C * p.D;
     auto residual_mem = make_f16(engine, {static_cast<int64_t>(p.rows), static_cast<int64_t>(CD)}, residual);
@@ -535,6 +536,11 @@ gr_run_result run_gr_read(const gr_ref_params& p,
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+#ifdef GPU_DEBUG_CONFIG
+    if (force_scalar) {
+        config.set_property(ov::intel_gpu::gr_force_scalar(true));
+    }
+#endif
     network network(engine, topology, config);
     network.set_input_data("residual", residual_mem);
     auto outputs = network.execute();
@@ -559,6 +565,7 @@ struct gr_quant_case {
     bool is_signed = false;
     bool has_zp = true;
     size_t group = 0;  // see make_quant_matrix
+    bool scalar = false;  // the scalar gr_read.cl (GPU_GR_FORCE_SCALAR), which dequantizes in registers too
 };
 
 size_t scratch_limit_bytes() {
@@ -585,10 +592,15 @@ float max_abs_diff(const std::vector<T>& a, const std::vector<float>& b) {
 // The kernels dequantize in registers with the arithmetic of the decompression graph, so the result must equal the f16 path
 // fed with the decompressed weights bit for bit (same tiling, same accumulation order), and match the fp32 reference.
 TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
-    if (!gr_compression_available()) {
-        GTEST_SKIP() << "compressed GatedResidual weights need an Xe2+ systolic GPU";
-    }
     const auto tc = GetParam();
+    if (!(tc.scalar ? gr_available() : gr_compression_available())) {
+        GTEST_SKIP() << "compressed GatedResidual weights need an Xe2+ systolic GPU or the scalar kernel";
+    }
+#ifndef GPU_DEBUG_CONFIG
+    if (tc.scalar) {
+        GTEST_SKIP() << "GPU_GR_FORCE_SCALAR is a debug option";
+    }
+#endif
     gr_ref_params p;
     p.rows = tc.rows;
     p.D = tc.D;
@@ -626,17 +638,20 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
             q_weights.push_back(make_quant_zp(engine, wi));
         }
     }
-    const auto f16_run = run_gr_read(p, mode, residual, gain, f16_weights, tc.write_gate);
-    const auto q_run = run_gr_read(p, mode, residual, gain, q_weights, tc.write_gate);
+    const auto f16_run = run_gr_read(p, mode, residual, gain, f16_weights, tc.write_gate, tc.scalar);
+    const auto q_run = run_gr_read(p, mode, residual, gain, q_weights, tc.write_gate, tc.scalar);
 
     // compressed weights use the 3-dispatch pipeline unless its Rbar scratch exceeds the limit
-    const auto expected = expected_read_stages(p.rows, p.D, p.L);
+    const auto expected = tc.scalar ? std::vector<std::string>{"READ"} : expected_read_stages(p.rows, p.D, p.L);
     EXPECT_EQ(f16_run.stages, expected);
     const bool single_q = p.D % 32 == 0 && p.rows * p.C * p.D * 2 > scratch_limit_bytes();
     // The compressed single kernel has no write-gate tile: with a write gate that regime predequantizes as well.
     const bool predequant = p.rows > pd_min_rows() || (tc.write_gate && single_q);
     std::vector<std::string> expected_q;
-    if (predequant) {
+    if (tc.scalar) {
+        // one kernel, the weights are dequantized in registers
+        expected_q = expected;
+    } else if (predequant) {
         // both matrices (and W_inject) are dequantized into f16 scratch and the f16 kernels (f16 routing) run on them
         expected_q = {"DEQUANT", "DEQUANT"};
         if (tc.write_gate) {
@@ -683,7 +698,8 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
         std::cout << " gate_f16=" << max_abs_diff(f16_run.gate, ref_gate) << " gate_q=" << max_abs_diff(q_run.gate, ref_gate);
     }
     std::cout << std::endl;
-    EXPECT_LE(max_diff, 4e-3f) << "compressed and decompressed-f16 outputs differ";
+    // the scalar kernel runs the same code on both inputs: bit-exact
+    EXPECT_LE(max_diff, tc.scalar ? 0.0f : 4e-3f) << "compressed and decompressed-f16 outputs differ";
 
     if (tc.write_gate) {
         ASSERT_EQ(q_run.gate.size(), ref_gate.size());
@@ -697,7 +713,7 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
             ASSERT_NEAR(v, ref_gate[i], 2e-2f) << "write gate mismatch at " << i;
             gate_diff = std::max(gate_diff, std::abs(v - static_cast<float>(f16_run.gate[i])));
         }
-        EXPECT_LE(gate_diff, 4e-3f) << "compressed and decompressed-f16 write gates differ";
+        EXPECT_LE(gate_diff, tc.scalar ? 0.0f : 4e-3f) << "compressed and decompressed-f16 write gates differ";
     }
 }
 
@@ -854,6 +870,30 @@ std::vector<gr_quant_case> group_size_cases() {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_group_sizes, gated_residual_quant_test, ::testing::ValuesIn(group_size_cases()));
+
+/// The scalar gr_read.cl (GPU_GR_FORCE_SCALAR, as on a device without systolic arrays) dequantizes in registers too: both weight
+/// widths, group sizes, zero points, signedness, FINAL_MIX and the compressed write gate (L <= 512, C * D <= 16384).
+std::vector<gr_quant_case> scalar_cases() {
+    std::vector<gr_quant_case> cases;
+    for (const bool u4 : {true, false}) {
+        for (const size_t rows : {size_t{1}, size_t{7}, size_t{20}, size_t{40}}) {
+            for (const size_t group : {size_t{0}, size_t{64}, kPerChannel}) {
+                cases.push_back({rows, 128, 64, u4, false, false, false, true, group, true});
+            }
+        }
+        // write gate, FINAL_MIX, signed weights, no zero points, a partial row tile
+        cases.push_back({5, 64, 32, u4, false, true, false, true, 0, true});
+        cases.push_back({20, 96, 64, u4, false, true, true, false, 0, true});
+        cases.push_back({9, 64, 32, u4, true, false, true, true, 0, true});
+        cases.push_back({33, 48, 32, u4, false, false, false, false, 0, true});
+        // production widths
+        cases.push_back({17, 640, 320, u4, false, true, false, true, 0, true});
+        cases.push_back({40, 2560, 320, u4, false, false, true, true, 0, true});
+    }
+    return cases;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_scalar, gated_residual_quant_test, ::testing::ValuesIn(scalar_cases()));
 
 /// R'_c = R_c + S_c * Y
 std::vector<float> reference_write(size_t rows,

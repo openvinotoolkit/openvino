@@ -31,8 +31,8 @@ namespace ov::intel_gpu {
 class GatedResidualReadFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("GatedResidualReadFusion");
-    /// @param systolic the device runs the dpas READ kernels: lifts the geometry limits of the scalar kernel and fuses compressed
-    ///        decompression subgraphs of W_down / W_up / W_inject into the compressed forms; only valid where the impl accepts it.
+    /// @param systolic the device runs the dpas READ kernels: lifts the geometry limits of the scalar kernel. Compressed
+    ///        decompression subgraphs of W_down / W_up / W_inject are fused into the compressed forms on either kernel.
     explicit GatedResidualReadFusion(bool systolic = false);
 };
 

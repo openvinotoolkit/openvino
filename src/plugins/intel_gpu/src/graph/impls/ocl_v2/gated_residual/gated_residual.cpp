@@ -379,7 +379,14 @@ protected:
         return desc.produce_write_gate && wtype == GrWType::f16;
     }
 
-    [[nodiscard]] static Arguments read_arguments(const gated_residual& desc, const GrOp::ReadLayout& layout, GrWType wtype, bool pd = false) {
+    /// `gate_all_types`: the kernel computes the write gate for compressed weights too (the scalar kernel; the dpas kernels have the
+    /// write-gate tile for f16 weights only).
+    [[nodiscard]] static Arguments read_arguments(const gated_residual& desc,
+                                                  const GrOp::ReadLayout& layout,
+                                                  GrWType wtype,
+                                                  bool pd = false,
+                                                  bool gate_all_types = false) {
+        const bool gate = desc.produce_write_gate && (wtype == GrWType::f16 || gate_all_types);
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // residual
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // norm weight
@@ -396,15 +403,19 @@ protected:
             args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, GrOp::ReadInputIdx::ZP_DOWN, GrOp::ReadInputIdx::SCALE_DOWN)});
             args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, GrOp::ReadInputIdx::ZP_UP, GrOp::ReadInputIdx::SCALE_UP)});
         }
-        if (gate_in_kernel(desc, wtype)) {
+        if (gate) {
             if (pd) {
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WI_F16)});
             } else {
                 args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.w_inject)});
+                if (wtype != GrWType::f16) {
+                    args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.scale_inject)});
+                    args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, layout.zp_inject, layout.scale_inject)});
+                }
             }
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // mixed
-        if (gate_in_kernel(desc, wtype)) {
+        if (gate) {
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});  // write gate S
         }
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
@@ -434,11 +445,20 @@ protected:
         jit.make("GR_NV_D", gr_k_chunk(desc->hidden_size) / 16);
         jit.make("GR_NV_C", gr_k_chunk(desc->hc_count * desc->hidden_size) / 16);
         jit.make("GR_NV_L", gr_k_chunk(desc->lowrank) / 16);
+        if (gr_weight_type(params) != GrWType::f16) {
+            const size_t cd = desc->hc_count * desc->hidden_size;
+            add_wq_format_constants(jit, params);
+            jit.make("GR_RD_GSD", gr_group_size(params, GrOp::ReadInputIdx::SCALE_DOWN, cd));
+            jit.make("GR_RD_GSU", gr_group_size(params, GrOp::ReadInputIdx::SCALE_UP, desc->lowrank));
+            if (desc->produce_write_gate) {
+                jit.make("GR_RD_GSI", gr_group_size(params, gr_read_layout(params).scale_inject, cd));
+            }
+        }
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        return read_arguments(*params.typed_desc<gated_residual>(), gr_read_layout(params), GrWType::f16);
+        return read_arguments(*params.typed_desc<gated_residual>(), gr_read_layout(params), gr_weight_type(params), false, /*gate_all_types=*/true);
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -1284,7 +1304,7 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
     }
 
     // Compressed READ / FINAL_MIX: i4 / u4 / i8 / u8 W_down / W_up (and W_inject) with f16 scales and optional zero points of
-    // the weight type, dpas path only.
+    // the weight type, on the dpas kernels and on the scalar gr_read.cl.
     const size_t input_count = node.get_dependencies().size();
     std::optional<GrOp::ReadLayout> layout;
     if (desc->mode != cldnn::gated_residual::Mode::WRITE) {
@@ -1294,9 +1314,6 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         }
     }
     if (layout && layout->compressed) {
-        if (!caps::uses_dpas_read(desc->lowrank, systolic)) {
-            return false;
-        }
         const auto wt = node.get_input_layout(2).data_type;
         if (!GrOp::is_compressed_weight_type(wt) || node.get_input_layout(3).data_type != wt) {
             return false;

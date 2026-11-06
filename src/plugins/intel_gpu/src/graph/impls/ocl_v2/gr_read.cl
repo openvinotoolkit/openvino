@@ -11,6 +11,10 @@
 // JIT: GR_BRANCHES (4), GR_HIDDEN, GR_LOWRANK, GR_EPS, GR_NORM_GAIN_PLUS_ONE, GR_PRODUCE_WRITE_GATE,
 //      GR_WG_SIZE (subgroups per work-group), GR_READ_ROWS, GR_NV_D / GR_NV_C / GR_NV_L (= chunk halves / 16 of the
 //      three K loops over D, C*D and L).
+// Compressed weights (GR_W_TYPE != 0, see gr_common.cl: i4 / u4 / i8 / u8 rows [N, K] with f16 scale / zero point [G, N]) are
+// dequantized per element in registers with the arithmetic of the decompression graph, half(half(q - zp) * scale), so the results
+// are bit-identical to this kernel fed the decompressed f16 weights. JIT: GR_W_SIGNED, GR_HAS_ZP, GR_RD_GSD / GR_RD_GSU /
+// GR_RD_GSI (group size along K of W_down / W_up / W_inject).
 // Dispatch: gws = [WG * 16, ceil(rows / RB), 1], lws = [WG * 16, 1, 1].
 
 #include "gr_common.cl"
@@ -35,6 +39,30 @@
 #define GR_NK (GR_LOWRANK / 16)
 #define GR_INV_C (1.0f / (float)GR_BRANCHES)
 
+#if GR_W_TYPE == GR_WT_F16
+    #define GR_WPTR const __global ushort*
+#else
+    #define GR_WPTR const __global uchar*
+    #define GR_ROW_BYTES(k) ((k) * GR_WQ_BITS / 8)
+    #define GR_CD_RB GR_ROW_BYTES(GR_CD)
+    #define GR_UP_RB GR_ROW_BYTES(GR_LOWRANK)
+    // raw (unsigned domain) element e of a row, and its dequantized value as float; scale / zp are [G, N], n is the output channel
+    #if GR_W_TYPE == GR_WT_U4
+        #define GR_WQ_RAW(w, e) ((uint)(((w)[(e) >> 1] >> (((e) & 1) * 4)) & 0xF))
+    #else
+        #define GR_WQ_RAW(w, e) ((uint)(w)[e])
+    #endif
+    #define GR_WQ_ONE(w, scale, zp, N, GS, n, e)                                                                                  \
+        convert_float(convert_half((int)GR_WQ_FLIP(GR_WQ_RAW(w, e)) - (int)GR_WQ_ZPAT(zp, (size_t)((e) / (GS)) * (N) + (n))) * \
+                      as_half((scale)[(size_t)((e) / (GS)) * (N) + (n)]))
+    // 16 * nv elements starting at K index k, lane-interleaved like GR_LDF (element k + 16 * v + lane in component v)
+    #define GR_LDWQ_1(w, sc, zp, N, GS, n, k) GR_WQ_ONE(w, sc, zp, N, GS, n, (k) + lane)
+    #define GR_LDWQ_2(w, sc, zp, N, GS, n, k) ((float2)(GR_LDWQ_1(w, sc, zp, N, GS, n, k), GR_LDWQ_1(w, sc, zp, N, GS, n, (k) + 16)))
+    #define GR_LDWQ_4(w, sc, zp, N, GS, n, k) ((float4)(GR_LDWQ_1(w, sc, zp, N, GS, n, k), GR_LDWQ_1(w, sc, zp, N, GS, n, (k) + 16), \
+                                                       GR_LDWQ_1(w, sc, zp, N, GS, n, (k) + 32), GR_LDWQ_1(w, sc, zp, N, GS, n, (k) + 48)))
+    #define GR_LDWQ(nv, w, sc, zp, N, GS, n, k) CAT(GR_LDWQ_, nv)(w, sc, zp, N, GS, n, k)
+#endif
+
 #define GR_TH_1(r, kb) ((float)th[(r) * GR_NK + (kb)])
 #define GR_TH_2(r, kb) ((float2)((float)th[(r) * GR_NK + (kb)], (float)th[(r) * GR_NK + (kb) + 1]))
 #define GR_TH_4(r, kb) ((float4)((float)th[(r) * GR_NK + (kb)], (float)th[(r) * GR_NK + (kb) + 1], (float)th[(r) * GR_NK + (kb) + 2], (float)th[(r) * GR_NK + (kb) + 3]))
@@ -43,10 +71,20 @@
 REQD_SUB_GROUP_SIZE(16)
 KERNEL(gr_read)(const __global ushort* residual,
                 const __global ushort* norm_weight,
-                const __global ushort* w_down,
-                const __global ushort* w_up,
+                GR_WPTR w_down,
+                GR_WPTR w_up,
+#if GR_W_TYPE != GR_WT_F16
+                const __global ushort* scale_down,
+                const __global ushort* scale_up,
+                const __global uchar* zp_down,
+                const __global uchar* zp_up,
+#endif
 #if GR_PRODUCE_WRITE_GATE
-                const __global ushort* w_inject,
+                GR_WPTR w_inject,
+#if GR_W_TYPE != GR_WT_F16
+                const __global ushort* scale_inject,
+                const __global uchar* zp_inject,
+#endif
 #endif
                 __global ushort* mixed,
 #if GR_PRODUCE_WRITE_GATE
@@ -113,12 +151,32 @@ KERNEL(gr_read)(const __global ushort* residual,
 #pragma unroll
             for (uint j = 0; j < GR_NJ; j++) {
                 const uint l = min(l0 + j, (uint)(GR_NOUT - 1));
+#if GR_W_TYPE == GR_WT_F16
 #if GR_PRODUCE_WRITE_GATE
                 const __global ushort* wp = l >= GR_LOWRANK ? w_inject + (size_t)(l - GR_LOWRANK) * GR_CD : w_down + (size_t)l * GR_CD;
 #else
                 const __global ushort* wp = w_down + (size_t)l * GR_CD;
 #endif
                 const GR_FT(GR_NV_C) wf = GR_LDF(GR_NV_C, wp + k);
+#else
+#if GR_PRODUCE_WRITE_GATE
+                const bool gate_row = l >= GR_LOWRANK;
+                GR_WPTR wp = gate_row ? w_inject + (size_t)(l - GR_LOWRANK) * GR_CD_RB : w_down + (size_t)l * GR_CD_RB;
+                const __global ushort* wsc = gate_row ? scale_inject : scale_down;
+                const __global uchar* wzp = gate_row ? zp_inject : zp_down;
+                const uint wn = gate_row ? l - GR_LOWRANK : l;
+                const uint wN = gate_row ? GR_BRANCHES : GR_LOWRANK;
+                const uint wgs = gate_row ? GR_RD_GSI : GR_RD_GSD;
+#else
+                GR_WPTR wp = w_down + (size_t)l * GR_CD_RB;
+                const __global ushort* wsc = scale_down;
+                const __global uchar* wzp = zp_down;
+                const uint wn = l;
+                const uint wN = GR_LOWRANK;
+                const uint wgs = GR_RD_GSD;
+#endif
+                const GR_FT(GR_NV_C) wf = GR_LDWQ(GR_NV_C, wp, wsc, wzp, wN, wgs, wn, k);
+#endif
 #pragma unroll
                 for (uint r = 0; r < GR_READ_ROWS; r++) {
                     GR_DOT(GR_NV_C, acc[j * GR_READ_ROWS + r], wf, rv[r]);
@@ -178,10 +236,18 @@ KERNEL(gr_read)(const __global ushort* residual,
                 for (uint r = 0; r < GR_READ_ROWS; r++) {
                     a[r] = 0.0f;
                 }
+#if GR_W_TYPE == GR_WT_F16
                 const __global ushort* wrow = w_up + (size_t)(c * GR_HIDDEN + d0 + j) * GR_LOWRANK;
+#else
+                GR_WPTR wrow = w_up + (size_t)(c * GR_HIDDEN + d0 + j) * GR_UP_RB;
+#endif
 #pragma unroll
                 for (uint k = 0; k < GR_LOWRANK; k += GR_KL) {
+#if GR_W_TYPE == GR_WT_F16
                     const GR_FT(GR_NV_L) wf = GR_LDF(GR_NV_L, wrow + k);
+#else
+                    const GR_FT(GR_NV_L) wf = GR_LDWQ(GR_NV_L, wrow, scale_up, zp_up, GR_CD, GR_RD_GSU, c * GR_HIDDEN + d0 + j, k);
+#endif
 #pragma unroll
                     for (uint r = 0; r < GR_READ_ROWS; r++) {
                         const GR_FT(GR_NV_L) tv = GR_TH(GR_NV_L, r, k / 16);
