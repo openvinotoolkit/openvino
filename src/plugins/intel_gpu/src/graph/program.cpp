@@ -153,7 +153,7 @@ std::shared_ptr<ICompilationContext> program::make_compilation_context(const Exe
 }
 
 program::program(engine& engine_ref,
-                 topology const& topology,
+                 std::shared_ptr<topology> topology,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
                  std::shared_ptr<ICompilationContext> compilation_context,
@@ -173,7 +173,8 @@ program::program(engine& engine_ref,
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     GPU_DEBUG_INFO << "Program config\n" << _config.to_string();
     init_program();
-    prepare_nodes(topology);
+    prepare_nodes(*topology);
+    topology.reset();
     program_node::reset_unique_id();
     if (no_optimizations) {
         init_graph();
@@ -269,7 +270,14 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, task_executor, nullptr, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     std::make_shared<cldnn::topology>(topology),
+                                     config,
+                                     task_executor,
+                                     nullptr,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -280,7 +288,25 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, task_executor, compilation_context, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     std::make_shared<cldnn::topology>(topology),
+                                     config,
+                                     task_executor,
+                                     compilation_context,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
+}
+
+program::ptr program::build_program(engine& engine,
+                                    std::shared_ptr<topology> topology,
+                                    const ExecutionConfig& config,
+                                    std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                                    std::shared_ptr<ICompilationContext> compilation_context,
+                                    bool is_internal,
+                                    bool no_optimizations,
+                                    bool is_body_program) {
+    return std::make_shared<program>(engine, std::move(topology), config, task_executor, compilation_context, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
@@ -289,7 +315,14 @@ program::ptr program::build_program(engine& engine,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, config, nullptr, nullptr, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine,
+                                     std::make_shared<cldnn::topology>(topology),
+                                     config,
+                                     nullptr,
+                                     nullptr,
+                                     is_internal,
+                                     no_optimizations,
+                                     is_body_program);
 }
 
 program_node& program::get_node(primitive_id const& id) {

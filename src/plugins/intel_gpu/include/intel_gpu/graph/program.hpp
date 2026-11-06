@@ -134,7 +134,7 @@ public:
     using optimized_info = std::pair<primitive_id, std::vector<primitive_id>>;
 
     program(engine& engine_ref,
-            topology const& topology,
+            std::shared_ptr<topology> topology,
             const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
             std::shared_ptr<ICompilationContext> compilation_context,
@@ -266,6 +266,16 @@ public:
                              bool is_internal = false,
                              bool no_optimizations = false,
                              bool is_body_program = false);
+    // The program releases the topology once its nodes are created, so a caller that passes the only reference lets
+    // the program free the memory of primitives it removes
+    static ptr build_program(engine& engine,
+                             std::shared_ptr<topology> topology,
+                             const ExecutionConfig& config,
+                             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
+                             std::shared_ptr<ICompilationContext> compilation_context,
+                             bool is_internal,
+                             bool no_optimizations,
+                             bool is_body_program);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
     std::shared_ptr<tensor_conversion> get_tensor_conversion(bool create_if_not_exist = true) const;

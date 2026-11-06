@@ -182,7 +182,7 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     cldnn::program::ptr program;
     try {
         program = cldnn::program::build_program(m_engine,
-                                                *m_topology,
+                                                std::move(m_topology),
                                                 m_config,
                                                 get_task_executor(),
                                                 get_compilation_context(),
