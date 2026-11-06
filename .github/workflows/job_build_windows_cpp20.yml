@@ -44,6 +44,7 @@ jobs:
         shell: pwsh
     runs-on: ${{ inputs.runner }}
     env:
+      CI_DEPS_DOWNLOAD_REFERER: "${{ startsWith(inputs.runner, 'aks-') && format('GHA: {0} {1}', github.event.repository.name, github.workflow) || '' }}"
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
