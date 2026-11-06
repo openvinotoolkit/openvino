@@ -374,8 +374,8 @@ set(GPU_KERNEL_SELECTOR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/kernels/generate_proposals/generate_proposals_kernel_selector.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_base.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_opt_bilinear_zeros.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_opt_bilinear_zeros.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_opt_bilinear.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_opt_bilinear.hpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_ref.hpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/grid_sample/grid_sample_kernel_selector.cpp
@@ -875,7 +875,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/gen9_common_conv_fwd_data_f32.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/generate_proposals_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/generic_eltwise_ref.cl
-    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/grid_sample_opt_bilinear_zeros.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/grid_sample_opt_bilinear.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/grid_sample_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/grn_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/acc_type.cl
