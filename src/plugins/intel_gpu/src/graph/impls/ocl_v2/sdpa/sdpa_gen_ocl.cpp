@@ -883,11 +883,42 @@ sdpa_configuration make_sdpa_configuration(const kernel_impl_params& params) {
     return config;
 }
 
+// Head sizes and tiling. The jit, the dispatch and get_query_block_size() derive them the same way, because
+// the paged-attention query-block stride must be the jitted workgroup query tile.
+struct sdpa_ocl_problem {
+    size_t k_head_size = 0;
+    size_t v_head_size = 0;
+    size_t d_max = 0;   // k_head_size rounded up to a power of two
+    size_t vd_max = 0;  // v_head_size rounded up to a power of two
+    sdpa_ocl_config_t tiling;
+};
+
+// How the stage reads a paged-attention KV cache; all false for plain SDPA and for PA PREFILL, whose K is
+// the f16 input. MIXED reads the token-major K page only. `compressed` is keyed on the data type so that MIXED
+// always compiles: on a page it cannot read -- any d-major one (the BY_CHANNEL fields stay false there), or a
+// kind without a dequant (dequant_ok false) -- it compiles as the token-major reader, and
+// PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it off dispatch.
+struct pa_cache_desc {
+    bool compressed = false;        // IS_PA_KV_COMPRESSED: an i8/u8 cache (u4 is stored as u8)
+    bool key_by_channel = false;    // the descriptor's K quantization
+    bool u4_by_channel_tm = false;  // IS_PA_K_U4
+    bool by_channel_tm = false;     // IS_PA_K_BY_CHANNEL: i8 or u4 BY_CHANNEL, relayed token-major
+    bool dequant_ok = false;        // i8 BY_TOKEN or token-major BY_CHANNEL
+    size_t k_row_elems = 0;         // page data-row pitch in cache elements (u4: bytes)
+    size_t v_row_elems = 0;
+};
+
+pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
+                                bool is_prefill,
+                                const layout& k,
+                                const ov::element::Type& precision,
+                                const sdpa_ocl_problem& p);
+
 // A token matrix the xe_hpg PA PREFILL kernel may read with dword loads: every head starts at a multiple of 4 B and so
 // does every token. Unpadded that holds; a static padding is checked; a dynamic one is taken on trust, as the block2d
 // fixup tier does (block2d_layout_fixup_ok()): a crop view of a fused QKV tensor at head-size offsets has it. The kernel
-// checks Q's at runtime (q_dword_ok); a dynamic K / V padding 2 B off still reads wrong values (the feature_pad_residual
-// cases).
+// checks Q's at runtime (q_dword_ok); a dynamic K / V (PREFILL) or Kc / Vc (compressed MIXED) padding 2 B off still reads
+// wrong values (the feature_pad_residual cases).
 bool dword_token_matrix_ok(const layout& l) {
     if (layout_unpadded(l) || (is_token_matrix(l) && l.data_padding.is_dynamic()))
         return true;
@@ -904,8 +935,12 @@ bool dword_token_matrix_ok(const layout& l) {
 // SDPA_OCL_HPG_PA_PREFILL=0 turns it off for A/B, and a SDPA_OCL_KQ_* override does too (it tiles the generic kernel).
 // It serves PA MIXED (!is_prefill) at the same heads on f16 caches, without token_type_ids or qq_bias: it reads every key
 // from the token-major pages (the only ones sdpa_ocl's MIXED reads; PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it
-// off a d-major page, where the stage only compiles) and of the inputs only Q. SDPA_OCL_HPG_PA_MIXED=0 turns MIXED off for
-// A/B (the generic kernel).
+// off a d-major page, where the stage only compiles) and of the inputs only Q. It also serves MIXED on the compressed caches
+// sdpa_ocl's MIXED dequantizes (classify_pa_cache().dequant_ok: i8 BY_TOKEN, token-major i8 / u4 BY_CHANNEL), with the new
+// tokens from the f16 K / V inputs (PA_CUR_KV_F16; SDPA_OCL_PA_CUR_F16=0, which reads them back from the cache, takes the
+// generic kernel). It reads Kc / Vc with dword loads and no fallback, on dword_token_matrix_ok() rows: a dynamic padding is
+// taken on trust as PREFILL's K / V, and one 2 B off reads wrong values (the disabled feature_pad_residual cases).
+// SDPA_OCL_HPG_PA_MIXED=0 turns MIXED off for A/B (the generic kernel).
 bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t k_head_size, size_t v_head_size) {
     const bool head_ok =
         k_head_size == v_head_size && (k_head_size == 64 || k_head_size == 96 || k_head_size == 128 || k_head_size == 256 || k_head_size == 512);
@@ -926,8 +961,22 @@ bool hpg_pa_prefill_ok(const kernel_impl_params& params, bool is_prefill, size_t
         const auto& kc = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
         const auto& vc = params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE];
         const auto& q = params.input_layouts[PagedAttentionInputIdx::QUERY];
-        return kc.data_type == data_types::f16 && vc.data_type == data_types::f16 && q.data_type == data_types::f16 &&
-               dword_token_matrix_ok(q) && params.output_layouts[0].data_type == data_types::f16;
+        if (q.data_type != data_types::f16 || !dword_token_matrix_ok(q) || params.output_layouts[0].data_type != data_types::f16) {
+            return false;
+        }
+        if (kc.data_type == data_types::f16 && vc.data_type == data_types::f16) {
+            return true;
+        }
+        sdpa_ocl_problem p;
+        p.k_head_size = k_head_size;
+        p.v_head_size = v_head_size;
+        p.tiling.subgroup_size = static_cast<int>(get_subgroup_size(gpu_arch::xe_hpg));
+        const auto c = classify_pa_cache(params, false, kc, pa_kv_cache_precision(params), p);
+        const auto dword_rows = [](const layout& l) {
+            return l.data_type == data_types::f16 && dword_token_matrix_ok(l);
+        };
+        return c.compressed && c.dequant_ok && dword_rows(params.input_layouts[PagedAttentionInputIdx::KEY]) &&
+               dword_rows(params.input_layouts[PagedAttentionInputIdx::VALUE]) && env_int("SDPA_OCL_PA_CUR_F16", 1) != 0;
     }
     for (const size_t idx : {PagedAttentionInputIdx::QUERY, PagedAttentionInputIdx::KEY, PagedAttentionInputIdx::VALUE}) {
         const auto& l = params.input_layouts[idx];
@@ -1019,16 +1068,6 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size) {
     return t;
 }
 
-// Head sizes and tiling. The jit, the dispatch and get_query_block_size() derive them the same way, because
-// the paged-attention query-block stride must be the jitted workgroup query tile.
-struct sdpa_ocl_problem {
-    size_t k_head_size = 0;
-    size_t v_head_size = 0;
-    size_t d_max = 0;   // k_head_size rounded up to a power of two
-    size_t vd_max = 0;  // v_head_size rounded up to a power of two
-    sdpa_ocl_config_t tiling;
-};
-
 // is_prefill: the generator's stage (true for PA PREFILL and plain-SDPA multi-token). shape_agnostic: the stage
 // was (compile time: is being) built for dynamic shapes, i.e. has the SHAPE_INFO argument; the dispatch passes
 // what the compiled stage was, not what its runtime params are, so both see the same tiling.
@@ -1075,21 +1114,6 @@ bool compiled_shape_agnostic(const KernelData& kd) {
         return a.t == ArgumentDescriptor::Types::SHAPE_INFO;
     });
 }
-
-// How the stage reads a paged-attention KV cache; all false for plain SDPA and for PA PREFILL, whose K is
-// the f16 input. MIXED reads the token-major K page only. `compressed` is keyed on the data type so that MIXED
-// always compiles: on a page it cannot read -- any d-major one (the BY_CHANNEL fields stay false there), or a
-// kind without a dequant (dequant_ok false) -- it compiles as the token-major reader, and
-// PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it off dispatch.
-struct pa_cache_desc {
-    bool compressed = false;        // IS_PA_KV_COMPRESSED: an i8/u8 cache (u4 is stored as u8)
-    bool key_by_channel = false;    // the descriptor's K quantization
-    bool u4_by_channel_tm = false;  // IS_PA_K_U4
-    bool by_channel_tm = false;     // IS_PA_K_BY_CHANNEL: i8 or u4 BY_CHANNEL, relayed token-major
-    bool dequant_ok = false;        // i8 BY_TOKEN or token-major BY_CHANNEL
-    size_t k_row_elems = 0;         // page data-row pitch in cache elements (u4: bytes)
-    size_t v_row_elems = 0;
-};
 
 pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
                                 bool is_prefill,
@@ -1286,8 +1310,11 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // page swapped, 15 = the past ignored by the causal bound, 16 = V of adjacent pages swapped (each must fail the
     // smoke_paged_attention_mixed_tm cases it can see). In the generic kernel's MIXED on a token-major page (f16 with
     // SDPA_OCL_HPG_PA_MIXED=0): 36 = the two keys of a K pair swapped, 37 = the V pages of adjacent blocks swapped, 38 = the
-    // odd V row of a pair read at/past k (each must fail smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases);
-    // on an i8 BY_TOKEN page 19 = the K comp of tokens
+    // odd V row of a pair read at/past k (each must fail smoke_paged_attention_mixed_tm, 38 exactly its NaN-poisoned cases).
+    // On a compressed token-major page 19-28 below hold in the PA PREFILL kernel's MIXED (where it serves the case) and in
+    // the generic kernel's (SDPA_OCL_HPG_PA_MIXED=0, or a case the PREFILL kernel does not serve), and the PREFILL kernel
+    // adds 29 = its key loop not cut at past_len, so the new tokens are read back from the pages (must fail the u4 cases
+    // where a new token wins the sharp softmax): on an i8 BY_TOKEN page 19 = the K comp of tokens
     // 0..7 for both 8-key groups of a page, 20 = the V scales of a lane's two keys swapped, 21 = the V zps of the next key
     // pair, 22 = the two K channels of a dword swapped (each must fail smoke_paged_attention_comp_tm), on an i8 BY_CHANNEL
     // page 23 = the (scale, zp) pairs of a lane's two channels swapped, 24 = scale and zp of a pair swapped (each must fail
