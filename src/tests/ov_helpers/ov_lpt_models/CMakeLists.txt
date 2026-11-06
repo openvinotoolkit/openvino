@@ -4,17 +4,17 @@
 
 set(TARGET_NAME ov_lpt_models)
 
+include(sources.cmake)
+
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 ov_add_target(
         NAME ${TARGET_NAME}
         TYPE STATIC
-        ROOT ${PUBLIC_HEADERS_DIR}
+        SOURCES ${OV_LPT_MODELS_SOURCES}
         INCLUDES
             PUBLIC
                 "$<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>"
-        ADDITIONAL_SOURCE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             PRIVATE
                 openvino::runtime::dev
