@@ -42,7 +42,8 @@ public:
         QUANT_CHANNEL = 1 << 6,
         QUANT_GROUP = 1 << 7,
         QUANT_SYMMETRIC = 1 << 8,
-        QUANT_ASYMMETRIC = 1 << 9
+        QUANT_ASYMMETRIC = 1 << 9,
+        INFERENCE_FP16 = 1 << 10,
     };
 
 private:
