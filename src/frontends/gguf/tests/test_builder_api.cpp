@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
@@ -19,6 +20,7 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/core.hpp"
 #include "projector.hpp"
 
 using namespace ov::frontend::gguf;
@@ -658,6 +660,101 @@ TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
         graph.set_output(value);
         auto model = convert(graph.finish());
         EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{1, 1, -1, 32}));
+    }
+}
+
+TEST(GGUFBuilderAPI, GptOssExpertMixUsesSoftmaxOverSelectedExperts) {
+    constexpr size_t D = 8, F = 6, E = 4, K = 2, T = 3;
+    constexpr float alpha = 1.702f, limit = 7.f, weight_scale = 2.5f;
+    Environment env;
+    env.decoder();
+    env.integer("test.block_count", 1);
+    env.integer("test.embedding_length", D);
+    env.integer("test.expert_count", E);
+    env.integer("test.expert_used_count", K);
+    env.real("test.expert_weights_scale", weight_scale);
+    size_t seed = 0;
+    const auto filled = [&](const ov::Shape& shape) {
+        ov::Tensor t(ov::element::f32, shape);
+        for (size_t i = 0; i < t.get_size(); ++i)
+            t.data<float>()[i] = 0.4f * std::sin(0.37f * static_cast<float>(i) + 1.3f * static_cast<float>(++seed));
+        return t;
+    };
+    const std::string p = "blk.0.";
+    env.weights[p + "ffn_gate_inp.weight"] = filled({E, D});
+    env.weights[p + "ffn_gate_inp.bias"] = filled({E});
+    env.weights[p + "ffn_gate_exps.weight"] = filled({E, F, D});
+    env.weights[p + "ffn_gate_exps.bias"] = filled({E, F});
+    env.weights[p + "ffn_up_exps.weight"] = filled({E, F, D});
+    env.weights[p + "ffn_up_exps.bias"] = filled({E, F});
+    env.weights[p + "ffn_down_exps.weight"] = filled({E, D, F});
+    env.weights[p + "ffn_down_exps.bias"] = filled({E, D});
+    env.architecture("gpt-oss");
+    DecoderConfig config(env.parameters(RopeMode::Neox), env.weights);
+    ASSERT_TRUE(config.layer_is_moe(0));
+    ASSERT_TRUE(config.moe_softmax_weight);
+    ASSERT_TRUE(config.moe_swiglu_oai);
+    ASSERT_FLOAT_EQ(config.expert_weights_scale, weight_scale);
+
+    GgufGraphContext graph(env.context);
+    graph.configure_decoder(RopeMode::Neox);
+    graph.set_output(graph.decoder_ffn(0, graph.add_input("x", ov::element::f32, {1, 1, -1, D})));
+    auto model = convert(graph.finish());
+
+    const auto x = filled({1, 1, T, D});
+    ov::Core core;
+    auto request =
+        core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    request.set_input_tensor(x);
+    request.infer();
+    const auto result = request.get_output_tensor();
+
+    const auto w = [&](const std::string& name) {
+        return env.weights.at(p + name).data.data<const float>();
+    };
+    const float* xs = x.data<const float>();
+    for (size_t t = 0; t < T; ++t) {
+        const float* xt = xs + t * D;
+        std::vector<float> logits(E);
+        for (size_t e = 0; e < E; ++e) {
+            logits[e] = w("ffn_gate_inp.bias")[e];
+            for (size_t d = 0; d < D; ++d)
+                logits[e] += w("ffn_gate_inp.weight")[e * D + d] * xt[d];
+        }
+        std::vector<size_t> order(E);
+        std::iota(order.begin(), order.end(), size_t{0});
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            return logits[a] > logits[b];
+        });
+        float denom = 0.f;
+        for (size_t k = 0; k < K; ++k)
+            denom += std::exp(logits[order[k]] - logits[order[0]]);
+
+        std::vector<float> expected(D, 0.f);
+        for (size_t k = 0; k < K; ++k) {
+            const size_t e = order[k];
+            const float gate_weight = weight_scale * std::exp(logits[e] - logits[order[0]]) / denom;
+            std::vector<float> act(F);
+            for (size_t f = 0; f < F; ++f) {
+                float gate = w("ffn_gate_exps.bias")[e * F + f];
+                float up = w("ffn_up_exps.bias")[e * F + f];
+                for (size_t d = 0; d < D; ++d) {
+                    gate += w("ffn_gate_exps.weight")[(e * F + f) * D + d] * xt[d];
+                    up += w("ffn_up_exps.weight")[(e * F + f) * D + d] * xt[d];
+                }
+                gate = std::min(gate, limit);
+                up = std::clamp(up, -limit, limit);
+                act[f] = gate / (1.f + std::exp(-alpha * gate)) * (up + 1.f);
+            }
+            for (size_t d = 0; d < D; ++d) {
+                float down = w("ffn_down_exps.bias")[e * D + d];
+                for (size_t f = 0; f < F; ++f)
+                    down += w("ffn_down_exps.weight")[(e * D + d) * F + f] * act[f];
+                expected[d] += gate_weight * down;
+            }
+        }
+        for (size_t d = 0; d < D; ++d)
+            EXPECT_NEAR(result.data<const float>()[t * D + d], expected[d], 1e-5f) << "token " << t << " dim " << d;
     }
 }
 
