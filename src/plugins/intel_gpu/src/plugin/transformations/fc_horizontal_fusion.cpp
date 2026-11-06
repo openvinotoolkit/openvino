@@ -164,7 +164,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return false;
             }
             if (transpose_b != fc->get_transpose_b() || transpose_b_scale != fc->get_transpose_b_scale() ||
-                transpose_b_zp != fc->get_transpose_b_zp()) {
+                transpose_b_zp != fc->get_transpose_b_zp() || fc->get_weights_layout() == op::FcWeightsLayout::GNK) {
                 return false;
             }
             orig_n_sizes.push_back(fc->get_input_shape(weight_idx)[n_axis]);
