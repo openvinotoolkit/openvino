@@ -16,9 +16,9 @@ namespace {
 
 const auto ref = CPUSpecificParams{{}, {}, {"ref_any"}, "ref_any"};
 const auto avx512 = CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"};
-const auto avx = CPUSpecificParams{{}, {}, {"jit_avx"}, "jit_avx"};
+const auto avx2 = CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"};
 
-const std::vector<CPUSpecificParams> vecCpuConfigs = {avx, avx512};
+const std::vector<CPUSpecificParams> vecCpuConfigs = {avx2, avx512};
 
 const std::vector<maxPoolV8SpecificParams> paramsMaxV84D_ref = {
         maxPoolV8SpecificParams{ {2, 2}, {2, 2}, {2, 2}, {0, 0}, {0, 0},

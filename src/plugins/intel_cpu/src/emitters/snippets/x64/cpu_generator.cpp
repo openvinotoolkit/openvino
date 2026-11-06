@@ -410,8 +410,6 @@ size_t intel_cpu::CPUTargetMachine::get_lanes() const {
     switch (isa) {
     case dnnl::impl::cpu::x64::avx2:
         return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
-    case dnnl::impl::cpu::x64::sse41:
-        return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
     case dnnl::impl::cpu::x64::avx512_core:
         return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
     default:
@@ -444,8 +442,6 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_vec_reg_pool() const
         switch (isa) {
         case dnnl::impl::cpu::x64::avx2:
             return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx2>::n_vregs;
-        case dnnl::impl::cpu::x64::sse41:
-            return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::n_vregs;
         case dnnl::impl::cpu::x64::avx512_core:
             return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::n_vregs;
         default:

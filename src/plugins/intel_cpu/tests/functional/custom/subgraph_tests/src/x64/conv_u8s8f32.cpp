@@ -99,8 +99,7 @@ INSTANTIATE_TEST_SUITE_P(
     smoke_Conv,
     ConvU8I8FP32,
     ::testing::Combine(::testing::ValuesIn(filterCPUInfo(
-                           {CPUSpecificParams{{}, {}, {"jit_sse42"}, {"jit_sse42_I8"}},  // verify i8 SSE42 just in case
-                            CPUSpecificParams{{}, {}, {"jit_avx2"}, {"jit_avx2_I8"}},
+                           {CPUSpecificParams{{}, {}, {"jit_avx2"}, {"jit_avx2_I8"}},
                             CPUSpecificParams{{}, {}, {"brgconv_avx512"}, {"brgconv_avx512_I8"}}})),
                        ::testing::Values(fusingPReluPerTensor)),
     ConvU8I8FP32::getTestCaseName);

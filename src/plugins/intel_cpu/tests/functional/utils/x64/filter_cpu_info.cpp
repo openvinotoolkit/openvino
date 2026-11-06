@@ -59,16 +59,12 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpeci
         auto selectedTypeStr = std::get<selectedTypeIndex>(param);
         auto inputsFormat = std::get<inputFormatIndex>(param);
         if (!inputsFormat.empty() && !selectedTypeStr.empty() && selectedTypeStr == "any_type") {
-            if (ov::intel_cpu::any_of(inputsFormat[0], nCw8c, nChw8c, nCdhw8c) && !ov::with_cpu_x86_sse42())
+            if (ov::intel_cpu::any_of(inputsFormat[0], nCw8c, nChw8c, nCdhw8c) && !ov::with_cpu_x86_avx2())
                 continue;
             if (ov::intel_cpu::any_of(inputsFormat[0], nCw16c, nChw16c, nCdhw16c) && !ov::with_cpu_x86_avx512f())
                 continue;
         }
-        if (selectedTypeStr.find("jit") != std::string::npos && !ov::with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && !ov::with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("avx") != std::string::npos && !ov::with_cpu_x86_avx())
+        if (selectedTypeStr.find("jit") != std::string::npos && !ov::with_cpu_x86_avx2())
             continue;
         if (selectedTypeStr.find("avx2") != std::string::npos && !ov::with_cpu_x86_avx2())
             continue;
