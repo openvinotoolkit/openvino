@@ -52,10 +52,15 @@ TEST(type_info, compare_new_with_old_type) {
 
 TEST(type_info, check_hash_value) {
     const auto& hash_val = [](const char* name, const char* version_id) -> size_t {
-        size_t name_hash = name ? std::hash<std::string>()(std::string(name)) : 0;
-        size_t version_id_hash = version_id ? std::hash<std::string>()(std::string(version_id)) : 0;
+        const auto& hash_c_str = [](const char* str) -> uint64_t {
+            uint64_t seed = 0;
+            for (; str && *str != '\0'; ++str) {
+                seed = ov::util::u64_hash_combine(seed, static_cast<uint64_t>(static_cast<unsigned char>(*str)));
+            }
+            return seed;
+        };
         // don't use parent for hash calculation, it is not a part of type (yet)
-        return ov::util::hash_combine(std::vector<size_t>{name_hash, version_id_hash});
+        return static_cast<size_t>(ov::util::u64_hash_combine(hash_c_str(name), hash_c_str(version_id)));
     };
     ov::DiscreteTypeInfo type("type1", "version1");
     ov::DiscreteTypeInfo type_old("type1");
