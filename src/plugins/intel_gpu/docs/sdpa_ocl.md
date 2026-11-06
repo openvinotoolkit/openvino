@@ -2509,7 +2509,7 @@ keys, so its time does not depend on the token count and grows with the context.
   4 B aligned address), so a K / V input whose rows start 2 B off a dword (an odd f16 padding before the head, or
   an odd row pitch) is written to the cache wrong, on every arch. `smoke_paged_attention_comp_tm` cases 31 / 32
   pass because a compressed MIXED reads its new tokens from Kc / Vc, but fail with `SDPA_OCL_PA_CUR_F16=0`
-  (0.044 / 0.056 against 0.025); a later step reading those tokens from the cache gets the wrong values. The two
+  (0.044 / 0.055 against 0.025); a later step reading those tokens from the cache gets the wrong values. The two
   controls (the same case without the pads passes; the same padded case passes on Kc / Vc) put it in the writer,
   the alignment cause is from code reading. Found in the xe_hpg port (P7e), not fixed.
 - `sdpa_opt.cl` types a paged-attention runtime scale as `INPUT3_TYPE` (`SCALE_TYPE` follows
