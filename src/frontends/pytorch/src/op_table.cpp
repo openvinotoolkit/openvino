@@ -80,6 +80,7 @@ OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_diff);
 OP_CONVERTER(translate_deform_conv);
 OP_CONVERTER(translate_derive_index);
+OP_CONVERTER(translate_diagonal);
 OP_CONVERTER(translate_dim);
 OP_CONVERTER(translate_div);
 OP_CONVERTER(translate_div_);
@@ -511,6 +512,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::det", op::translate_linalg_det},
         {"aten::detach", op::skip_node},
         {"aten::dequantize", op::skip_node},  // we convert model to fp32 using FQ, so dequantization is not needed
+        {"aten::diagonal", op::translate_diagonal},
         {"aten::dim", op::translate_dim},
         {"aten::div", op::translate_div},
         {"aten::div_", op::translate_div_},

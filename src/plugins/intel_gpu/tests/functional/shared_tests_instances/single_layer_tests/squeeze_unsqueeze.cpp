@@ -60,4 +60,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_Basic_emptyAxes, SqueezeUnsqueezeLayerTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
+
+// Static empty tensors.
+std::map<std::vector<ov::Shape>, std::vector<std::vector<int>>> zeroDimsAxesVectors = {
+        {{{2, 0}}, {{1}, {0, 3}}},
+        {{{0, 4}}, {{0}}},
+};
+
+std::map<std::vector<ov::Shape>, std::vector<std::vector<int>>> zeroDimsEmptyAxesVectors = {
+        {{{2, 0, 1}}, {{}}},
+        {{{1, 0}}, {{}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ZeroDims, SqueezeUnsqueezeLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(prepare_cases(ov::test::utils::combineParams(zeroDimsAxesVectors))),
+                                ::testing::Values(SqueezeOpType::UNSQUEEZE),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ZeroDims_emptyAxes, SqueezeUnsqueezeLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(prepare_cases(ov::test::utils::combineParams(zeroDimsEmptyAxesVectors))),
+                                ::testing::Values(SqueezeOpType::SQUEEZE),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
 }  // namespace
