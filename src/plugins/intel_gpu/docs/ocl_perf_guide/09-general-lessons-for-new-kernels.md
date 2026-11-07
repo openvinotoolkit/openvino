@@ -18,6 +18,7 @@ Symptom → what to check first → possible causes → how to confirm. A cause 
 | Performance changes by ±tens of % regardless of source meaning | ISA diff | IGC schedule/allocation fluctuation, `inline` vs `always_inline` | Use a "no-op change" as a control via ISA SHA256 comparison (chapter 04 §4.8) |
 | 256 GRF removed the spill but is slower | The kernel's dominant cost (e.g. gather) | Halved occupancy + higher load cost | Measure GRF/tile/SG count together (chapter 04 §4.5) |
 | The ratio to the reference **drifts with problem size** (e.g. prompt length) | The clock actually reached (`act_freq`, `throttle/reasons`), time normalised by the expected growth | Power throttling (slows both arms), a working set crossing a cache size (one KV head's K/V vs L3) that only one kernel cannot hide | Repeat the size sweep at a fixed clock below the power limit; VTune miss ratio / stall reasons at both ends; a value-preserving prefetch or reorder that should remove the knee (chapter 06 §6.7) |
+| **Faster in the bench, slower (or no gap) in the model** | The model's jit and kernel row: stage (`__sa` = shape-agnostic), mask/causal/layout constants | The model runs another stage (dynamic shapes, no static compile) or another variant (causal through a mask tensor) | Dump the model's sources; bench that exact variant and mode; split the rule by op-level properties (chapter 06 §6.11) |
 | A prefetch costs more than it saves | Line requests per prefetched byte | Prefetch granularity below the cache line (64 B wide prefetch on 256 B lines: each line requested 4 times) | Stride sweep 64/128/256 B; L3-only vs L1+L3 at the same stride (chapter 02 §7.6) |
 
 ## 9.2 Where the gains came from (a sense of the ordering of effect sizes)
@@ -116,6 +117,9 @@ Once a kernel is faster than its reference, the last 10% can sit at the large-si
 | the agent shell's `grep` (a ugrep wrapper) | no match on IGC dump files that `/usr/bin/grep` matched | `command grep` (chapter 05 E29) |
 | a splice script whose saved dumps were deleted | `cannot find .cl body boundary` (`kvup_splice.sh`, `isa_ab_kvup.sh`) | take a fresh IGC dump; a ShaderDump `.cl` can hold several kernels (`//====`), cut out the target's jit section (`test/kvB/splice.sh`) and re-check that HEAD reproduces the runtime ISA |
 | a driver upgrade between baseline and experiment | every older number is stale (2026-10-26: IGC 2.36 -> 2.41 made `sdpa_micro`'s head-512 PREFILL ~40% faster and turned the KV-cache writer from 0.75-0.86x master into 1.3-1.6x) | re-measure the baseline under the installed driver; read `SPILL=`/`TPM=` on every kernel first |
+
+| the final image of a diffusion model as an accuracy oracle | 17-20 dB PSNR between any two kernels (master vs old branch too): chaotic amplification, no information | one denoiser call on identical inputs vs CPU f32 (chapter 03 §9.2) |
+| a test baseline older than a rebase | upstream tests that assert a removed kernel's name look like new FAILs | rerun the filter on HEAD, compare failure names (chapter 05 E31) |
 
 ## 9.7 Checklist for starting the next kernel
 

@@ -50,6 +50,10 @@ Entry skill: [`ocl-gpu-kernel-perf`](../../../../../.claude/skills/ocl-gpu-kerne
 | step-by-step gap-closing ladder (24x → within 3% of micro), remaining defects at short lengths/small shapes/head-count | 06 |
 | cliloader/VTune/GTPin/ocloc commands and collection modes, standalone harness, phase cycle counter, microbenchmark ceilings | 07 |
 | inline vISA syntax, LSC/DPAS messages, verifier constraints, asm accuracy verification | 08 |
+| e2e gap attribution in one run per arm: target delta x calls = e2e delta, the rest of the kernels as the control | 07 (§7.1), 06 (§6.11) |
+| the stage a dynamic model really runs (shape-agnostic forever), benching in the model's mode, the variant it really runs (causal through a mask tensor), tiling split by op-level properties | 01 (§12 7a, §6.7), 05 (E30, I), 06 (§6.11) |
+| proving a hard-coded default equals the swept configuration (output checksums) | 05 (§5.2.2 ckpt) |
+| diffusion-model accuracy oracle (one denoiser call vs CPU f32, not the image) | 03 (§9.2) |
 | bottleneck decision tree, design principles, fixed-policy gate, checklist for starting a new kernel | 09 |
 
 ## Before you read (honesty notes)

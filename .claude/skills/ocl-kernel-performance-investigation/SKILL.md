@@ -31,6 +31,8 @@ Tool commands and caveats: [07-profiling-tool-cookbook.md](../../../src/plugins/
 
 For VTune, record version, driver, Metrics Discovery version, device BDF, result directory, selected kernel, profiling mode, and event names. A nonzero exit code is not the only validity check: confirm that the result contains the intended GPU metrics and PC records. In the recorded A770 session, GTPin needed SREG allowance for low-spill variants; an exit-zero collection could otherwise contain no kernels. A fused micro binary also had an ELF function size smaller than its final native text, so source-analysis required a profiling-only metadata correction. The native text and product fuser were left unchanged.
 
+**An e2e gap against another build** (2026-11-07, chapter 06 §6.11): run the pipeline under `cliloader -d -dv` on both installs and check the equation target-kernel delta x calls = e2e delta, with the sum of every other kernel as the control (`test/sd35/cli_parse.py`). Then read the kernel row (`__sa` = shape-agnostic stage) and dump the model's jit before building a bench: the model may run another stage or variant than the one you would bench.
+
 ## Typical order that worked (DG2 24x gap, step sizes MEASURED)
 
 1. Fix the comparison (usm_device inputs, final-linked reference binary, kernel name): removed a false 38% (usm_host).

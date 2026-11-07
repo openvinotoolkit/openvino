@@ -52,6 +52,7 @@ Accuracy before timing. NaN poison + CPU double on **all rows** (sampled rows ar
 6. Distinguish evidence layers: standalone harness PASS ≠ product dispatch ≠ product gtest ≠ e2e ≠ regression gate (S6/SG16/B70). Write the coverage holes (verified head/count/padding/feature) next to the PASS table.
 7. Metrics (spill, occupancy, XMX active, bandwidth, instruction count, IPC) are clues; the verdict is a matched device-time A/B.
 8. GPU jobs run serially. Instrumentation (phase timer/GTPin) cannot be used for acceptance.
+9. **Bench what the product runs**: the stage (dynamic models may only ever run the shape-agnostic one) and the op variant (an LLM prompt causal through a mask tensor, not `is_causal`) — read them from the model's kernel row and jit before sweeping, and key a rule on op-level properties that compile time and dispatch agree on (chapter 06 §6.11).
 
 ## New-kernel start checklist
 Define the call (operation/dtype/shape/layout/mask/device/driver/cadence) → fix the reference binary → confirm it does the same work → length/shape scan table → runtime evidence (device time+geometry, SPILL/TPM, GRF/SLM) → one hypothesis·prediction → one change·control·accuracy→performance → widen the gate (short/long/boundary/head-count/cadence) → record results·failures·holes·commands → product integration is a separate step (census, gtest, byte-identity on other architectures, e2e).

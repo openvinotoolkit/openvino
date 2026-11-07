@@ -48,6 +48,10 @@ TEST_USE_SDPA_OCL_HPG=1 PA_PERF_DEVICE_MEM=1 PA_PERF_ITERS=10 \
   truncated/overwritten by a second process of the same llm_bench run, while the "Device Performance Timing" block printed to stderr was
   complete. `test/longctx/kern_an.py` (per kernel family, ms per prefill, `LAYERS=`), `sdpa_an.py` (per-call us + REG/SLM/SPILL/GWS/LWS),
   `g4_an.py` (splits a mixed-head model's sdpa lines by heads = GWS1/LWS1 and per-hash call counts).
+- **Attribute an e2e gap in one run per arm** (2026-11-07): the real pipeline command under `cliloader -d -dv` on both installs,
+  then per-kernel totals with the build hash stripped from the names (`test/sd35/cli_parse.py ref.log dev.log`). The check is an
+  equation: target-kernel delta x calls must equal the e2e delta (SD3.5: 134 us x 38 layers = 5.1 ms per step), and the sum of
+  every other kernel must match (2712.6 vs 2715.2 ms). If both hold there is one cause; if the rest moves, look there first.
 - **Per decode token, every kernel** (2026-10-28): run the same prompt twice under `cliloader -d -dv`, `-ic 1` and `-ic 129`
   (`-n 1` = warm-up + 1 iteration per prompt), subtract the per-family totals and divide by runs x 128. Prefill cancels exactly,
   so the result is the decode step split by kernel family, plus the decode-attention lines with per-call averages
@@ -239,6 +243,8 @@ Do not convert microbench throughput into overall attention speed. Microbenchmar
 6. Keep the result files (JSON/log), the exact command, the source SHA256, and the micro binary used, together. Preserve failed/excluded runs with their reasons too (to prevent retries).
 7. Bash `cd` persists in the session. Use absolute paths and run from the repository root. Filter large output (VTune progress logs, IGC `.asm` headers, `strings`).
 8. Idle gap and clock: measuring the same kernel with gaps of 0/200/1000 µs showed a consistent +0.7~5.9% difference on some shapes, but a power/frequency cause was not proven. In that case record it only as "cadence sensitivity" and do not attribute it to power. On B70 a power cause *was* measured for long real-model runs (§7.8): attribute to power only with the sampled clock and throttle reason in hand.
+9. **Check the printed resolution of an e2e metric**: llm_bench reports sub-model times in whole ms (VAE decoder "68.00 ms"), which
+   hides sub-ms changes. Time the sub-model alone: compile, first infer, settle 2 s, warm up, median of 30, one process per case.
 
 ## 7.8 GPU clock and power: the pin is a request (B70, 2026-10-24)
 

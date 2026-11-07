@@ -357,6 +357,16 @@ d_max 512 sweep (gemma-4-e2b 8/1 heads, 7 global layers; per call, micro 680 us 
 | 16, 16, 4, 4 / 16, 32, 8, 2 | 256 | all four | 5,186 / 3,413 | 68,995 / 43,147 | SPILL 17,536 / 17,024 |
 | 32, 16, 8, 4 (micro's) | 256 | all but V prefetch | 607 | 7,232 | 0.79x micro (32K 135.6 vs 162.4 ms); **not shipped**: tile_keys 32 (§13) |
 
+### 6.7 Plain SDPA `d_max` 64 / 512 (2026-11-07, B70 1800 MHz, `docs/sdpa_ocl.md` "Plain-SDPA PREFILL tiling")
+
+- `d_max` 64 without a mask: 32 x 32 subgroup tiles, 4 x 2 subgroups (128 keys x 64 queries), 256 GRF, PA loop changes, the KQ
+  branch: 0.52-0.93x the table, 0.60-0.83x `sdpa_micro` from ~300 tokens. At 128 GRF the same tile was 1.4-2.7x slower.
+- With a 2D mask (an SDPA-backend LLM prompt) every tile other than the table lost at 4K (1.06-1.21x, two 128 GRF ones
+  included); the table with the loop changes was 0.69-1.00x the table on every masked shape. The rule is split by the op's
+  mask input.
+- `d_max` 512 without a mask (a VAE's one-head attention): the table tile at 256 GRF instead of 128 (which spilled 1280 B),
+  L3 V prefetch, wide reads: 0.47-0.66x the old table; with a mask the PA `d_max` 512 workgroup (0.77-0.89x the 256 GRF table).
+
 ## 7. GRF mode and spill
 
 ### 7.1 How it is selected
@@ -550,6 +560,11 @@ The rest (Q staging `vload16` fallback, V `v_tile_gather`, alpha `sub_group_broa
 5. **Candidate grid**: (total subgroup count ≈ in the thousands) × (wgTK 64/128) × (wgTQ 32/64) × (sg_per_wg 8/16) × (GRF 128/256). Treat **GRF and tiles as a pair** (§7.2). Too few subgroups (≤ 2048) means insufficient TLP, too many (8192) means overhead (gpt-oss: 4096 optimal; ASSUMED, do not generalise, re-measure per shape).
 6. **Accuracy first**: time each candidate only after it passes the full accuracy suite (e.g. the 143-test PA). A "fast timing" from a config that violates an invariant is invalid (§4, invariant 3).
 7. **Measurement**: B70 clock locked (2800MHz), per-kernel device time (cliloader), min/avg over 3 or more passes, both real models and synthetic cases representative of the shape (head/q/k/GQA/dtype/causal). Do not use SLM/occ% as metrics. Do not promote one shape's result to a general rule (find a discriminator, like `V_TILES`).
+7a. **Tile the stage the model actually runs** (2026-11-07): an op compiled for dynamic shapes may never get a static stage (SDPA
+   is not async-compiled), so the shape-agnostic stage needs a tile that is good for every count, and a policy keyed on query /
+   key counts never reaches it. Choose by op-level properties instead (mask input, causal, head size), which compile time and
+   dispatch see alike, and dump the model's jit to learn which variant it is (an SDPA-backend LLM prompt is causal through a mask
+   tensor: `IS_CAUSAL 0`, `WITH_ATTN_MASK 1`). Chapter 06 §6.11.
 8. **Check for regressions on other shapes**: decode/generate, other heads, MIXED, other dtypes (i8/u4), other archs (DG2). Change a default only after checking accuracy + performance + dispatch + memory regressions on every path (AGENTS.md).
 9. **Record**: record failed configs too, as (config, device, result, cause hypothesis and whether it was falsified) (§13).
 
