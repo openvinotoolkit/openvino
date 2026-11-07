@@ -49,14 +49,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const bool has_transpose_before_reshape = pattern_map.count(transpose_before_reshape_m) != 0u;
         const bool has_transpose = pattern_map.count(transpose_m) != 0u;
         const auto scale_output = pattern_map.at(mul_const_m);
-        if (!scale_output.get_partial_shape().is_static()) {
-            return false;
-        }
         auto scale_shape = scale_output.get_shape();
         const bool with_zero_point = pattern_map.count(subtract_m) > 0;
-        if (with_zero_point && !pattern_map.at(sub_const_m).get_partial_shape().is_static()) {
-            return false;
-        }
         bool sub_with_convert = pattern_map.count(sub_convert_const_m) > 0;
 
         if (!fc->get_input_partial_shape(1).is_static()) {

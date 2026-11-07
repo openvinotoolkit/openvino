@@ -157,10 +157,14 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                  ((fc_prim->decompression_scale.is_valid() && idx == scale_idx) ||
                   (fc_prim->decompression_zero_point.is_valid() && idx == zp_idx));
             if (is_decompression_parameter) {
-                 in_fmts[idx] = node.get_input_layout(idx).format;
-                 GPU_DEBUG_LOG << node.id() << " : Keep scale/zp parameter format "
-                               << "at index " << idx << std::endl;
-                 continue;
+                const auto& in_layout = node.get_input_layout(idx);
+                // oneDNN binds scale/zp as a flat format_tag::a buffer, so only plain layouts can be passed through.
+                // Keep plain permutations (e.g. fbyx from prepare_quantization); reorder blocked layouts to plain.
+                in_fmts[idx] = format::is_blocked(in_layout.format) ? format::get_default_format(in_layout.get_rank())
+                                                                    : in_layout.format.value;
+                GPU_DEBUG_LOG << node.id() << " : " << (format::is_blocked(in_layout.format) ? "Reorder blocked" : "Keep plain")
+                              << " scale/zp format at index " << idx << std::endl;
+                continue;
             }
 
             auto target_format = format::get_default_format(out_rank);

@@ -187,13 +187,13 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests,
                          ConvertFCToCompressedParameterScaleZpTest::getTestCaseName);
 
 // Grouped weights with a Parameter scale followed by the extra post-reshape Multiply (mul2_m tail).
-// w: Constant u8 [8,4,16] → Convert f16 ─┐
+// w: Parameter u8 [8,4,16] → Convert f16 ─┐
 // scale: Parameter f16 [8,4,1] ──────────┴→ Multiply → Reshape [8,64] → Multiply(·, Constant [8,1]) → FullyConnected
-TEST_F(TransformationTestsF, ConvertFCToCompressedParameterScaleWithExtraMultiply) {
+TEST_F(TransformationTestsF, ConvertFCToCompressedParameterWeightsAndScaleWithExtraMultiply) {
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 64});
-        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{8, 4, 16}, {1});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{8, 4, 16});
         auto convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
         auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{8, 4, 1});
         auto mul = std::make_shared<ov::op::v1::Multiply>(convert, scale);
@@ -204,12 +204,15 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedParameterScaleWithExtraMultipl
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, extra_mul, no_bias, ov::element::f16, true);
 
-        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, scale});
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights, scale});
         manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
     }
     {
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 64});
-        auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{8, 64}, {1});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{8, 4, 16});
+        // Non-constant weights can't be folded; the [8,4,16] Parameter is reshaped to the FC weights shape [8,64].
+        auto weights_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {8, 64});
+        auto weights_reshape = std::make_shared<ov::op::v1::Reshape>(weights, weights_shape, false);
         auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{8, 4, 1});
         auto scale_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {8, 4});
         auto scale_reshape = std::make_shared<ov::op::v1::Reshape>(scale, scale_shape, false);
@@ -217,7 +220,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedParameterScaleWithExtraMultipl
         auto scaled = std::make_shared<ov::op::v1::Multiply>(scale_reshape, extra_mul_const);
         auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
-                                                                                           weights,
+                                                                                           weights_reshape,
                                                                                            no_bias,
                                                                                            scaled,
                                                                                            ov::element::f16,
@@ -225,7 +228,7 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedParameterScaleWithExtraMultipl
                                                                                            true,
                                                                                            true);
 
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input, scale});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input, weights, scale});
     }
 }
 
