@@ -96,9 +96,9 @@ inline bool get_k_token_major(const RuntimeParams& params, const char* consumer 
 }
 
 // Whether paged_attention_opt.cl reads the uncompressed token-major K page with a 2D block transpose instead of a per-lane
-// vload16 (USE_2D_BLOCK_IO_K_TM). The token-major page only exists on Xe2+ (k_token_major_device()), but the check stays
-// so the 2D block read can never be emitted for a part without it. The K row is the surface width and pitch; the page
-// base is a whole number of pages, which the pitch rule keeps 64 B aligned.
+// vload16 (USE_2D_BLOCK_IO_K_TM). The token-major page exists on Xe2+ and on xe_hpg's opt-in lane (k_token_major_device()),
+// which has no 2D block IO: the arch check keeps the 2D block read off a part without it (xe_hpg reads per lane). The K
+// row is the surface width and pitch; the page base is a whole number of pages, which the pitch rule keeps 64 B aligned.
 inline bool use_2d_block_io_k_token_major(const RuntimeParams& params) {
     if (!get_k_token_major(params, "pa_opt") || get_kv_compressed(params) || params.get_device_info().arch < gpu_arch::xe2)
         return false;

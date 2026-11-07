@@ -102,28 +102,36 @@ TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
             EXPECT_EQ(pa::sdpa_ocl_selected(info), pa::sdpa_ocl_selected(info, pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(info),
                       pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_enabled(), pa::sdpa_ocl_hpg_enabled()));
+            EXPECT_EQ(pa::k_token_major_device(info), pa::k_token_major_device(info, pa::sdpa_ocl_hpg_enabled()));
         }
     }
 }
 
-// The landmine row: with TEST_USE_SDPA_OCL_HPG=1 both sdpa_ocl_selected(xe_hpg) and its SG8 GENERATE reader are there,
-// yet sdpa_ocl's MIXED does not read every kind of token-major page on SG8, so the page must stay d-major. The
-// expectation looks at no kernel switch: the layout is static per device and config (TEST_USE_SDPA_OCL_DECODE=0 or
-// OV_GPU_ENABLE_SDPA_MICRO=0 only move the reads to paged_attention_opt.cl, which reads the token-major page too).
-TEST(SdpaOclPredicates, TokenMajorRuleTruthTable) {
-    SCOPED_TRACE(env_trace());
-    if (kOneDnn && pa::sdpa_ocl_hpg_enabled()) {
-        // Positive control: the landmine is armed (a check of the two readers alone would say yes here).
-        ASSERT_TRUE(pa::sdpa_ocl_selected(make_info(gpu_arch::xe_hpg, true)));
-        if (pa::sdpa_ocl_decode_enabled()) {
-            ASSERT_TRUE(pa::sdpa_ocl_decode_reader_available(make_info(gpu_arch::xe_hpg, true)));
+// The device part of the layout rule: Xe2+ XMX, and xe_hpg XMX on its opt-in lane, where both sdpa_ocl's SG8 MIXED and
+// its SG8 GENERATE reader read every kind of token-major page. TEST_USE_SDPA_OCL_HPG is the xe_hpg lane itself; the
+// expectation looks at no kernel switch (TEST_USE_SDPA_OCL_DECODE=0 or OV_GPU_ENABLE_SDPA_MICRO=0 only move the reads to
+// paged_attention_opt.cl, which reads the token-major page too).
+TEST(SdpaOclPredicates, TokenMajorDeviceTruthTable) {
+    for (auto a : kArchs) {
+        for (bool immad : kBools) {
+            for (bool hpg : kBools) {
+                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " hpg=" << hpg);
+                const bool want = kOneDnn && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg));
+                EXPECT_EQ(pa::k_token_major_device(make_info(a, immad), hpg), want);
+            }
         }
     }
+}
+
+// The rule on the process env: the device term above with this process's TEST_USE_SDPA_OCL_HPG, the same for every page
+// kind, d-major for any other kind or inference precision, and everywhere under OV_GPU_PA_K_TOKEN_MAJOR=0.
+TEST(SdpaOclPredicates, TokenMajorRuleTruthTable) {
+    SCOPED_TRACE(env_trace());
     for (auto a : kArchs) {
         for (bool immad : kBools) {
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
             const auto info = make_info(a, immad);
-            const bool device = kOneDnn && immad && xe2_plus(a);
+            const bool device = kOneDnn && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::k_token_major_device(info), device);
             const bool want = device && pa::k_token_major_switch() != pa::k_layout_switch::d_major;
             // The same rule for every page kind (k_token_major_kind()).

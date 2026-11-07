@@ -86,14 +86,19 @@ struct paged_attention : public primitive_base<paged_attention> {
         return value;
     }
 
-    // The devices whose K pages are token-major: Xe2+ with XMX (and oneDNN, which the sdpa_ocl lane is built with), where
-    // sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE), the kernels the layout is for, exist. Not xe_hpg yet: its opt-in
-    // lane has the SG8 GENERATE reader, but sdpa_ocl's MIXED does not read every kind of token-major page on SG8, so its
-    // pages stay d-major. Every other device keeps the upstream d-major page. The device only, not the switches that
-    // turn those kernels off (TEST_USE_SDPA_OCL_HPG, TEST_USE_SDPA_OCL_DECODE, OV_GPU_ENABLE_SDPA_MICRO): the opt
-    // kernels that serve an op they refuse read the token-major page too.
+    // The devices whose K pages are token-major: those where sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE), the kernels
+    // the layout is for, exist -- Xe2+ with XMX (and oneDNN, which the sdpa_ocl lane is built with), and xe_hpg with XMX on
+    // its opt-in lane (TEST_USE_SDPA_OCL_HPG=1), whose SG8 kernels read every kind of token-major page (the PA PREFILL
+    // kernel's and the generic kernel's MIXED, sdpa_ocl_hpg_decode.cl). On xe_hpg the opt-in is the lane itself: without
+    // it xe_hpg runs the opt kernels on the upstream d-major page, as every other device does. The layout looks at no
+    // switch that turns one of those kernels off (TEST_USE_SDPA_OCL_DECODE, OV_GPU_ENABLE_SDPA_MICRO): the opt kernels
+    // that serve an op they refuse read the token-major page too.
+    // The two-argument form is pure so a host test can walk the whole table; the one-argument form reads the process env.
+    static bool k_token_major_device(const device_info& info, bool hpg_opt_in) {
+        return sdpa_ocl_selected(info, hpg_opt_in) && sdpa_ocl_decode_reader_available(info, true, hpg_opt_in);
+    }
     static bool k_token_major_device(const device_info& info) {
-        return sdpa_ocl_selected(info, false) && sdpa_ocl_decode_reader_available(info, true, false);
+        return k_token_major_device(info, sdpa_ocl_hpg_enabled());
     }
 
     // The kinds of K page every consumer reads token-major, among them sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE): f16
@@ -185,9 +190,9 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     // Whether sdpa_ocl_decode (the GENERATE reader of a token-major K page) can serve this device: Xe2+ XMX (SG16 + 2D
     // block IO), and xe_hpg with TEST_USE_SDPA_OCL_HPG=1 (the SG8 reader, sdpa_ocl_hpg_decode.cl). It only ever reads a
-    // page that is token-major (SDPAOclDecodeGenerator::supported() checks the cache shape), which on xe_hpg the layout
-    // rule does not make yet (k_token_major_device()). Mirrors the device/switch part of supported(), which calls this
-    // itself so the two cannot drift. No oneDNN guard: the decode kernel does not need oneDNN.
+    // page that is token-major (SDPAOclDecodeGenerator::supported() checks the cache shape). Mirrors the device/switch
+    // part of supported(), which calls this itself so the two cannot drift. No oneDNN guard: the decode kernel does not
+    // need oneDNN.
     // The three-argument form is pure so a host test can walk the whole table; the one-argument form reads the process env.
     static bool sdpa_ocl_decode_reader_available(const device_info& info, bool decode_enabled, bool hpg_opt_in) {
         return decode_enabled && info.supports_immad && sdpa_ocl_arch_ok(info, hpg_opt_in);
@@ -202,7 +207,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     // paged_attention_opt.cl for GENERATE; the writer, rotate, pa_kv_reorder and the R-KV diversity kernel), so a gate
     // that refuses an op only changes which of them reads the page, and what an op refused costs is the opt kernel's
     // token-major read instead of its d-major one.
-    //   - k_token_major_device(): Xe2+ XMX.
+    //   - k_token_major_device(): Xe2+ XMX, and xe_hpg XMX with TEST_USE_SDPA_OCL_HPG=1.
     //   - an f16 inference precision (the PA op's Q/output type): sdpa_ocl_decode reads an f16 query only, and the
     //     compressed pages' comp is f16 only there. f32 and bf16 inference keep the upstream d-major page.
     //   - k_token_major_kind(): f16, i8 BY_TOKEN, i8/u4 BY_CHANNEL.

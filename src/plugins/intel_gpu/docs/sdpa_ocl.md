@@ -93,15 +93,15 @@ a per-lane load of page `lane` and `sub_group_broadcast`, loads the same entries
 some code shapes (MIXED with one KV head, heads 48 and 96), and which shapes failed moved with unrelated edits of the
 S*V loop. The PA features (`PA_FEATURES`: a sink, token_type_ids, qq_bias, a sliding window, k != v, a runtime scale)
 are lane = query code shared with SG16 and needed no SG8 arm; `smoke_paged_attention_feature_*` checks each one on an
-f16 cache with a sharp softmax and asserts that `sdpa_ocl` ran the case where it serves the op (PREFILL; MIXED runs
-`pa_multi_token` while xe_hpg pages are d-major). `PA_I8_TOKEN` (an i8 BY_TOKEN cache) has SG8 page readers in the
+f16 cache with a sharp softmax and asserts that `sdpa_ocl` ran the case where it serves the op (PREFILL, and MIXED on
+the token-major page the HPG lane makes). `PA_I8_TOKEN` (an i8 BY_TOKEN cache) has SG8 page readers in the
 generic kernel: `pa_k_tile_q_gather` reads a lane's two channels of a key as one ushort of the token-major page and
 dequantizes them with the key's (scale, zp), broadcast from lane kk of its 8-key group (`pa_k_comp_by_token`);
 `pa_v_comp_fold` folds the V scales of a lane's two keys (one dword of the comp array) into the S*V A operand and returns
 both zps as a `half2`, which `pa_v_tile_q_gather` broadcasts per key pair from lane kp. A compressed MIXED reads its new tokens from
 the f16 inputs (`PA_CUR_KV_F16`, exact, as on Xe2): Kc with `k_tile_dword` (the plain-SDPA K read, its rows shifted by
 past_len; any pitch or base, through its aligned-dword fallback) and Vc with `vc_tile_gather` (lane = value, one ushort
-per key); `SDPA_OCL_PA_CUR_F16=0` reads them back from the cache instead, a lossy round trip. Until xe_hpg pages are token-major only PREFILL runs on `sdpa_ocl`; `smoke_paged_attention_comp_tm` (cases
+per key); `SDPA_OCL_PA_CUR_F16=0` reads them back from the cache instead, a lossy round trip. `smoke_paged_attention_comp_tm` (cases
 0-16 on an i8 BY_TOKEN cache: every token of a page with its own scale and zp, a sharp softmax, partial 8-key groups, page
 boundaries, heads 64 / 96 / 128 / 256 / 512, GQA / MQA, a window, a sink, k != v) forces the page token-major and asserts
 that `sdpa_ocl` ran; `SDPA_OCL_NEG_SG8=19..22` fail 15 / 16 / 16 / 16 of them (all but the PREFILL-only case 13, and for
@@ -209,8 +209,8 @@ are unused) and of the inputs only Q, and puts the queries at key positions past
 window bounds and masks. A key's K row is a page row, so the B operand is PREFILL's one 32 B read per key row, the row
 taken from the key's page (`page_key0` per 16-key page of the subgroup tile, through the block table); `hpg_v_rows()`
 takes V rows from the page of the 16-key block, or of the last key when the block is past it. Rows are clamped to the
-last valid key as in PREFILL, so no read reaches a page slot at/past k. Until the layout rule admits xe_hpg only a page a
-test forces token-major reaches it: `smoke_paged_attention_mixed_tm` runs all 105 of its cases on it, and
+last valid key as in PREFILL, so no read reaches a page slot at/past k. `smoke_paged_attention_mixed_tm` forces the
+page token-major (as the HPG lane's layout rule makes it) and runs all 105 of its cases on it, and
 `SDPA_OCL_NEG_SG8=14` / `15` / `16` (the two 8-key halves of each K page swapped / the past ignored by the causal bound / V
 of adjacent pages swapped) fail 100 / 105 / 100 of them (14 passes the window-of-one cases, where each query sees one
 key; 16 the one-page cases). Its speed on the port is not measured yet.
@@ -1472,8 +1472,9 @@ static rule for every kind of page, `paged_attention::k_token_major_rule()`. It 
 at the ops: the page is token-major where
 
 - `k_token_major_device()`: Xe2+ with XMX and a oneDNN build, the devices that have `sdpa_ocl` (MIXED) and
-  `sdpa_ocl_decode` (GENERATE). The device only: `TEST_USE_SDPA_OCL_DECODE=0` and `OV_GPU_ENABLE_SDPA_MICRO=0` keep the
-  token-major page. Other devices (no XMX, xe_hpg, xe_hpc) keep the upstream d-major page and kernels;
+  `sdpa_ocl_decode` (GENERATE), and xe_hpg with XMX on its lane (`TEST_USE_SDPA_OCL_HPG=1`, which is what gives it
+  those kernels, SG8). No kernel switch: `TEST_USE_SDPA_OCL_DECODE=0` and `OV_GPU_ENABLE_SDPA_MICRO=0` keep the
+  token-major page. Other devices (no XMX, xe_hpg off its lane, xe_hpc) keep the upstream d-major page and kernels;
 - the inference precision is f16 (`sdpa_ocl_decode` reads an f16 query only, and the compressed pages' comp is f16 only
   there); f32 and bf16 inference keep the d-major page;
 - the page is a kind every reader reads token-major (`k_token_major_kind()`, given the configured kv-cache precision):
@@ -2040,22 +2041,27 @@ block IO, so every read is a per-lane one:
   MIXED reader (above): the SG16 form, a per-lane load of page `lane` and `sub_group_broadcast`, gave wrong pages on
   DG2 under some code shapes there, and a partition's 16 pages do not fit one lane each anyway.
 - `SG_PER_WG` is 8 (the cross-subgroup combine reduces one value per subgroup over the 8 lanes); M comes from
-  `sg8_grf_estimate()`, the plain layout's count with the doubled Q and score shares, against the same budget of
-  112; the low-register layout, block IO and the V prefetch are not written for SG8. u4 adds 8 for the nibble
-  unpacks: u4 head 128 at M = 4 estimated 106 and spilled 224 bytes, so it runs M = 2. The S*V page loop is unrolled
-  by 4 (`SV_CHUNK_UNROLL`), not whole: whole, i8 BY_CHANNEL head 128 at M = 4 (also estimated 106) spilled 0, 1184
-  or 12160 bytes depending only on how the page index was read, because IGC hoisted the V reads of many pages at
-  once. Every variant of `smoke_paged_attention_decode_tm` compiles without spill.
+  `sg8_grf_estimate()`, the plain layout's count with the doubled Q and score shares, against the same budget of 112;
+  the low-register layout, block IO and the V prefetch are not written for SG8. u4 adds 8 for the nibble unpacks: u4
+  head 128 at M = 4 estimated 106 and spilled 224 bytes, so it runs M = 2. A compressed cache runs M = 1 past 20 K
+  tiles (i8 / u4 BY_CHANNEL, head > 320) or 28 (i8 BY_TOKEN, head > 448) (`sg8_compressed_multi_q_max_k_tiles()`):
+  the count misses what grows along the row, and M = 2 spilled from there (BY_CHANNEL 384 bytes at head 384, then 128
+  more per tile, 1376 at head 512 where the count is 112; BY_TOKEN 128 at head 480, 512 at head 512), while every
+  M = 4 shape up to the budget (heads 112-192) compiled at 0 (ocloc over the dumped sources with the head defines
+  edited). The S*V page loop is unrolled by 4 (`SV_CHUNK_UNROLL`), not whole: whole, i8 BY_CHANNEL head 128 at M = 4
+  (also estimated 106) spilled 0, 1184 or 12160 bytes depending only on how the page index was read, because IGC
+  hoisted the V reads of many pages at once. Every variant of `smoke_paged_attention_decode_tm` compiles without
+  spill.
 - The u4 V row pitch stays the page writer's (`Align(v_head / 2, 16)`), not the reader's subgroup.
 
-The layout rule does not make xe_hpg pages token-major yet (`k_token_major_device()` keeps an Xe2+ term), because
-`sdpa_ocl`'s MIXED does not read every kind of token-major page on SG8; until then the reader runs only on a page a
-test forces token-major (`smoke_paged_attention_decode_tm`: f16, i8 BY_TOKEN, i8 BY_CHANNEL and u4 BY_CHANNEL, heads
-64-512, k != v, kv groups 1 / 2 / 3 / 4 / 8, page and partition edges, window, sink, runtime scale, dynamic padding,
-each also with a sharp softmax). `SDPA_OCL_NEG_SG8=30..35` break it on purpose and fail 26 / 34 / 20 / 2 / 4 / 5 of
-the 51 cases. The compressed tolerances (25e-3 for i8, 75e-3 for u4) hide some of them: 32 fails only f16 cases, 33 only
-the sharp i8 BY_CHANNEL heads 64 / 128 (u4 reads its pairs with the same line), 34 the four sharp i8 BY_TOKEN cases.
-Its speed is not measured yet.
+On the HPG lane the layout rule makes xe_hpg pages token-major ("Token-major K pages on the xe_hpg lane"), so the
+reader serves GENERATE there. `smoke_paged_attention_decode_tm` forces the page token-major and asserts that it ran
+(f16, i8 BY_TOKEN, i8 BY_CHANNEL and u4 BY_CHANNEL, heads 64-512, k != v, kv groups 1 / 2 / 3 / 4 / 8, page and
+partition edges, window, sink, runtime scale, dynamic padding, compressed head 512 at M = 1, each also with a sharp
+softmax). `SDPA_OCL_NEG_SG8=30..35` break it on purpose and fail 28 / 36 / 22 / 3 / 5 / 5 of the 55 cases. The
+compressed tolerances (25e-3 for i8, 75e-3 for u4) hide some of them: 32 fails f16 cases and, of the compressed ones,
+only the two sharp head-512 cases, 33 only the sharp i8 BY_CHANNEL heads 64 / 128 / 512 (u4 reads its pairs with the
+same line), 34 the five sharp i8 BY_TOKEN cases. Its speed is not measured yet.
 
 ## Debug and bisection switches
 
@@ -2074,7 +2080,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_PLAIN_D512` | Plain-SDPA f16 `d_max` 512 PREFILL on Xe2 ("Plain-SDPA PREFILL tiling (`d_max` 512)"): `0` keeps the bare table tile at 128 GRF (the jit before that change) |
 | `SDPA_OCL_PLAIN_DECODE` | Plain-SDPA decode ("Plain-SDPA decode tiling"): `0` keeps the table tile (the jit before that change) |
 | `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`; plain `d_max` 64: `1`, `0` with a sliding window): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
-| `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
+| `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane, and its K pages become token-major (default off; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
 | `SDPA_OCL_HPG_PA_PREFILL` | `0`: xe_hpg PA PREFILL at heads 64 / 96 / 128 / 256 / 512 takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
 | `SDPA_OCL_HPG_PA_MIXED` | `0`: xe_hpg PA MIXED (f16, i8 or u4 cache) at those heads takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
@@ -2385,9 +2391,10 @@ stage still compiles on a d-major page, as the token-major reader, without being
   `TEST_USE_SDPA_OCL_DECODE`, so of these only `OV_GPU_PA_K_TOKEN_MAJOR=0`, a u8 or bf16 cache, f16 head 16 (a square
   page) and non-f16 inference still give a d-major page ("Token-major K page by a static rule (2026-11-06)").
 - xe_hpg with `TEST_USE_SDPA_OCL_HPG=1`: its pages are always d-major, so MIXED runs `pa_multi_token` there; PREFILL
-  keeps `sdpa_ocl`. `PA_MIXED_F16` stays in `kHpgTiersReady` (PREFILL and MIXED compile together); the SG8 MIXED stage
-  now compiles the token-major arm of `pa_k_tile_gather`; it runs on DG2 only on a forced token-major page
-  (`smoke_paged_attention_mixed_tm`, "xe_hpg bring-up").
+  keeps `sdpa_ocl` (until 2026-11-07, "Token-major K pages on the xe_hpg lane"). `PA_MIXED_F16` stays in
+  `kHpgTiersReady` (PREFILL and MIXED compile together); the SG8 MIXED stage now compiles the token-major arm of
+  `pa_k_tile_gather`; it runs on DG2 only on a forced token-major page (`smoke_paged_attention_mixed_tm`, "xe_hpg
+  bring-up").
 - Checked on the B70: the kit groups U1, SEL, RULE and F2 are identical to the build before; U3
   (`OV_GPU_PA_K_TOKEN_MAJOR=0`) has no failure, and 45 token-type tests written for `sdpa_ocl` MIXED now skip there. With
   the refusal taken out on purpose, U3 fails 85 tests (wrong values and NaN from the token-major read of a d-major
@@ -2446,6 +2453,34 @@ off only where `sdpa_ocl` serves MIXED (as before on a token-major page); an op 
   against 531.9 (657.2 / 657.3 in 512-token chunks). The generated text was identical (MD5) across token-major, d-major
   and before in every set.
 - Not measured: alibi (no model), adaptive R-KV end to end, a head size the DPAS kernels reject.
+
+### Token-major K pages on the xe_hpg lane (2026-11-07)
+
+`k_token_major_device()` admits xe_hpg with XMX when its lane is on (`TEST_USE_SDPA_OCL_HPG=1`): the lane is what
+gives xe_hpg `sdpa_ocl` MIXED (the SG8 PREFILL and generic kernels) and `sdpa_ocl_decode` (the SG8 reader), the
+kernels the layout is for. The two-argument form `k_token_major_device(info, hpg_opt_in)` is pure, so the host truth
+table walks every device; the one-argument form reads the process env. Off the lane xe_hpg keeps the upstream d-major
+page and the opt kernels; Xe2 does not change. Every consumer of the page on xe_hpg reads the token-major form:
+`sdpa_ocl` MIXED, `sdpa_ocl_decode`, `paged_attention_opt.cl` (per-lane reads; its 2D transpose read stays Xe2-only),
+the K writer `pa_kv_cache_update_ref.cl`, the rotation, `pa_kv_reorder` and the R-KV diversity kernel. `pa_small_q`
+never runs on xe_hpg (it needs xe_hpc or newer), and the GQA multi-token fallback stays off where `sdpa_ocl` serves
+MIXED, so small-q GQA MIXED runs `sdpa_ocl` there.
+
+- On DG2 (A770, IGC 2.41.5, Debug unit tests, kit `test/sdpa_ocl_xe_hpg/port`), HPG lane: the PA suites (1506 tests)
+  changed by 56 SKIP -> PASS (the tests that assert `sdpa_ocl` MIXED or a token-major page: token type,
+  `kv_head_size_uses_sdpa_ocl`, u4 mixed, `pa_kv_reorder_layout`) and the four new decode cases, nothing else; the 11
+  failures are the `sdpa_micro` `sdpa_mask_fill` cases, as before. The same suites with `OV_GPU_PA_K_TOKEN_MAJOR=0`
+  match the build before by name, and so does the default DG2 lane (U1, U3, SEL).
+- Negative controls: `OV_GPU_PA_K_TM_BREAK=<consumer>` (debug only: one consumer reads the d-major form of a
+  token-major page) fails 101 tests for the writer, 57 for `paged_attention_opt.cl`, 23 for the rotation, 23 for R-KV
+  and 12 for `pa_kv_reorder`. The SG8 feature NEGs (`SDPA_OCL_NEG_SG8=7 / 9`) now fail the MIXED cases too (sink /3
+  /4, window /8 to /11), and 8 (qq_bias) fails its 3 MIXED cases, which ran `pa_multi_token` before.
+- The SG8 decode reader now serves GENERATE on the lane, which exposed its M choice at long rows: compressed caches
+  spilled at M = 2 past head 320 (BY_CHANNEL) and 448 (i8 BY_TOKEN), so they run M = 1 there ("sdpa_ocl_decode", the
+  SG8 bullet), and `smoke_paged_attention_decode_tm` has the two head-512 cases. Every `sdpa_ocl` kernel the PA
+  suites enqueue on the lane is then spill-free; what still spills there is the remote SIMD16
+  `sdpa_opt__multi_tokens`.
+- Not measured: speed (the DG2 PC is shared), real models on the lane, the B70 (owed).
 
 ### Padded key in the i8 BY_CHANNEL requantize (2026-11-06)
 
