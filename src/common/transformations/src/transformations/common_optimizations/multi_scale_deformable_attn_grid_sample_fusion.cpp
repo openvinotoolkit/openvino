@@ -364,9 +364,16 @@ ov::pass::MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGrid
 ov::pass::SingleScaleDeformableAttnGridSampleFusion::SingleScaleDeformableAttnGridSampleFusion() {
     MATCHER_SCOPE(SingleScaleDeformableAttnGridSampleFusion);
 
+    // Same guard as the multi-scale pattern: converting the grid to the value type would change the sampling.
     auto grid_m = wrap_type<v9::GridSample>(
         {any_input(), any_input()},
-        attrs_match({{"align_corners", false}, {"mode", "bilinear"}, {"padding_mode", "zeros"}}));
+        attrs_match({{"align_corners", false}, {"mode", "bilinear"}, {"padding_mode", "zeros"}}) &&
+            ov::pass::pattern::op::Predicate(
+                [](const ov::Output<ov::Node>& output) {
+                    const auto node = output.get_node();
+                    return node->get_input_element_type(0) == node->get_input_element_type(1);
+                },
+                "same_data_and_grid_type"));
     auto weighted_m = wrap_type<v1::Multiply>({grid_m, any_input()});
     auto reduce_m = wrap_type<v1::ReduceSum>({weighted_m, wrap_const()}, {{"keep_dims", false}});
     // Same ConvertReduceToPooling form as in MultiScaleDeformableAttnGridSampleFusion.
