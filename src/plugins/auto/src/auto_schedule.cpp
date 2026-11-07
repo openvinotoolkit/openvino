@@ -144,8 +144,7 @@ void AutoSchedule::init() {
             return device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU";
         });
         if (!has_warmup_candidate) {
-            LOG_WARNING_TAG("compile_for_all is ignored: no other non-CPU candidate device to compile");
-            m_context->m_compile_for_all = false;
+            LOG_INFO_TAG("compile_for_all cache warm-up is skipped: no other non-CPU candidate device to compile");
         } else {
             // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.
             LOG_INFO_TAG("compile_for_all disables startup and runtime fallback");
