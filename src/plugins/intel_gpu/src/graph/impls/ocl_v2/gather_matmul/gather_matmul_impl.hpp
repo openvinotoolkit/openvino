@@ -31,15 +31,11 @@ struct GatherMatmulImpl : public ImplementationManager {
             ov::element::f16,
         };
 
-        static const std::vector<ov::element::Type_t> supported_weight_types = {
-            ov::element::f16,
-            ov::element::u4,
-            ov::element::i4,
-            ov::element::i8,
-            ov::element::u8,
-        };
+        static const std::vector<ov::element::Type_t> supported_weight_types =
+            {ov::element::f16, ov::element::u4, ov::element::i4, ov::element::i8, ov::element::u8, ov::element::f4e2m1};
 
         static const std::vector<ov::element::Type_t> supported_quant_param_types = {
+            ov::element::f32,
             ov::element::f16,
             ov::element::u4,
             ov::element::i4,
@@ -50,10 +46,14 @@ struct GatherMatmulImpl : public ImplementationManager {
 
         auto desc = *(node.get_kernel_impl_params()->typed_desc<gather_matmul>());
         auto layer_id = desc.id;
+        const auto& packed_weight_shape = node.get_input_layout(gather_matmul::BGMInputIdx::WEIGHT).get_partial_shape();
+        const bool packed_mxfp4 = node.get_kernel_impl_params()->input_layouts.size() == 3 && packed_weight_shape.rank().is_static() &&
+                                  packed_weight_shape.size() == 4 && packed_weight_shape[3].compatible(17);
 
         size_t input_idx = gather_matmul::BGMInputIdx::INPUT;
+        const auto input_type = node.get_input_layout(input_idx).data_type;
         if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
-            !one_of(node.get_input_layout(input_idx).data_type, supported_activation_types)) {
+            (!one_of(input_type, supported_activation_types) && (!packed_mxfp4 || !one_of(input_type, {ov::element::f16, ov::element::f32})))) {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
@@ -62,7 +62,7 @@ struct GatherMatmulImpl : public ImplementationManager {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
-        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
+        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f4e2m1};
         bool has_quant_weight = std::any_of(quantized_types.begin(), quantized_types.end(), [&](const cldnn::data_types& t) -> bool {
             return t == node.get_input_layout(gather_matmul::BGMInputIdx::WEIGHT).data_type;
         });
@@ -75,7 +75,7 @@ struct GatherMatmulImpl : public ImplementationManager {
             }
         }
 
-        if (has_quant_weight) {
+        if (has_quant_weight && !packed_mxfp4) {
             // ZP is a placeholder unless desc.has_zp. prepare_quantization may reorder scale/zp to byfx.
             static const std::vector<format> supported_quant_fmts = {format::bfyx, format::byfx};
             std::vector<size_t> quant_param_indices = {gather_matmul::BGMInputIdx::WEIGHT_SCALE};
@@ -91,7 +91,8 @@ struct GatherMatmulImpl : public ImplementationManager {
         }
 
         const auto& output_layout = node.get_output_layout(0);
-        if (!one_of(output_layout.format, supported_fmts) || !one_of(output_layout.data_type, supported_activation_types)) {
+        if (!one_of(output_layout.format, supported_fmts) || (!one_of(output_layout.data_type, supported_activation_types) &&
+                                                              (!packed_mxfp4 || !one_of(output_layout.data_type, {ov::element::f16, ov::element::f32})))) {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
