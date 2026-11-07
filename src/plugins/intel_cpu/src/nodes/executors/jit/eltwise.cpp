@@ -414,19 +414,15 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                                                                                                ov::element::u8};
 
     std::vector<ov::element::Type> supported_output_precisions = supported_input_precisions;
-    if (any_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+    if (algorithm == Algorithm::EltwiseDivide) {
         supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16, ov::element::f32};
     }
 
     const auto& postOps = attrs.postOps;
     if (!postOps.empty()) {
-        // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
+        // Divide is supported for fp32 and fp16 only; integer inputs use the reference executor.
         if (const auto* const scaleShiftPostOp = std::any_cast<ScaleShiftPostOp>(&postOps.back())) {
             if (scaleShiftPostOp->type() == ScaleShiftPostOp::Type::divide) {
-                supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16, ov::element::f32};
-            }
-        } else if (const auto* const activationPostOp = std::any_cast<ActivationPostOp>(&postOps.back())) {
-            if (activationPostOp->type() == ActivationPostOp::Type::floor) {
                 supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16, ov::element::f32};
             }
         }
