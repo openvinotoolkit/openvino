@@ -545,10 +545,10 @@ TEST(PagedAttentionKCacheLayout, TokenMajorStaticRule) {
     auto no_xmx = xe2;
     no_xmx.supports_immad = false;
     EXPECT_FALSE(pa::k_token_major_rule(no_xmx, f16, i8, true));
-    // xe_hpg stays d-major whatever TEST_USE_SDPA_OCL_HPG says (its opt-in lane has no sdpa_ocl_decode).
+    // xe_hpg is token-major on its opt-in lane only (TEST_USE_SDPA_OCL_HPG=1, the lane itself), d-major otherwise.
     auto xe_hpg = xe2;
     xe_hpg.arch = cldnn::gpu_arch::xe_hpg;
-    EXPECT_FALSE(pa::k_token_major_rule(xe_hpg, f16, i8, true));
+    EXPECT_EQ(pa::k_token_major_rule(xe_hpg, f16, i8, true), pa::sdpa_ocl_hpg_enabled());
     auto xe_hpc = xe2;
     xe_hpc.arch = cldnn::gpu_arch::xe_hpc;
     EXPECT_FALSE(pa::k_token_major_rule(xe_hpc, f16, i8, true));
@@ -574,7 +574,7 @@ TEST(PagedAttentionKCacheLayout, TokenMajorStaticRule) {
 
 // The parts of the layout rule: the device (k_token_major_device()), the page kinds (k_token_major_kind()), and reading
 // the layout back off the cache shape (k_cache_token_major()). Device-independent: the device facts are synthetic, and
-// no kernel switch (TEST_USE_SDPA_OCL_DECODE, TEST_USE_SDPA_OCL_HPG) changes the device.
+// no kernel switch (TEST_USE_SDPA_OCL_DECODE) changes the device; TEST_USE_SDPA_OCL_HPG, the xe_hpg lane, adds xe_hpg.
 TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
     using pa = cldnn::paged_attention;
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -587,7 +587,7 @@ TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
             cldnn::device_info info{};
             info.arch = arch;
             info.supports_immad = immad;
-            const bool lane = one_dnn && immad && arch >= cldnn::gpu_arch::xe2;
+            const bool lane = one_dnn && immad && (arch >= cldnn::gpu_arch::xe2 || (arch == cldnn::gpu_arch::xe_hpg && pa::sdpa_ocl_hpg_enabled()));
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(arch) << " immad=" << immad);
             EXPECT_EQ(pa::k_token_major_device(info), lane);
         }
