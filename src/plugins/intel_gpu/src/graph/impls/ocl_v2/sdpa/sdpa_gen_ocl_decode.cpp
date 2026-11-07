@@ -185,6 +185,15 @@ size_t sg8_grf_estimate(size_t m, size_t sg_per_wg, size_t k_head_size, bool com
     return grf;
 }
 
+// The longest K row, in tiles, at which the SG8 reader holds a compressed cache spill-free at M > 1. The count above
+// misses what grows along the row there: on DG2 (IGC 2.41.5, ocloc with the runtime options) M = 2 spilled from head
+// 384 for i8 and u4 BY_CHANNEL (384 bytes, then 128 more per tile, 1376 at head 512, where the count is 112) and from
+// head 480 for i8 BY_TOKEN (128 bytes, 512 at head 512), while heads 320 / 448 compiled at 0, as did every M = 4 shape
+// up to the budget (heads 112-192) and head 512 at M = 1. f16 is not capped: head 512 at M = 2 compiled at 0.
+size_t sg8_compressed_multi_q_max_k_tiles(bool by_channel) {
+    return by_channel ? 20 : 28;
+}
+
 // u4 V twin pairing (V_TWIN_PAIR): every V tile has a twin in the high nibbles of its byte column, and both
 // belong to the same subgroup.
 bool v_twin_pair_legal(const RuntimeParams& params, const decode_config& c, size_t sg_per_wg) {
@@ -245,6 +254,9 @@ q_tiling q_tiling_with(const RuntimeParams& params, const decode_config& c, size
     size_t plain_m = target;
     while (plain_m > 1 && grf_estimate(plain_m) > grf_budget) {
         plain_m /= 2;
+    }
+    if (c.sg == 8 && c.compressed && desc->k_head_size / dpas_k > sg8_compressed_multi_q_max_k_tiles(c.by_channel)) {
+        plain_m = 1;
     }
 
     q_tiling q;
