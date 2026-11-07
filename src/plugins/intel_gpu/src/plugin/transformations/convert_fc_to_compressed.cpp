@@ -94,7 +94,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             weight_u8 = true;
         }
 
-        auto reshape_input = [has_transpose, grouped, is_weight_3d](std::shared_ptr<ov::Node> node) {
+        std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
+        auto reshape_input = [has_transpose, grouped, is_weight_3d, &result_nodes](std::shared_ptr<ov::Node> node) {
             const auto& partial_shape = node->get_output_partial_shape(0);
             OPENVINO_ASSERT(partial_shape.is_static());
             const ov::Shape current_shape = partial_shape.to_shape();
@@ -130,6 +131,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             auto reshape = std::make_shared<ov::op::v1::Reshape>(node, shape_const, false);
             reshape->set_friendly_name(node->get_friendly_name() + "_reshape");
             ov::copy_runtime_info(node, {shape_const, reshape});
+            result_nodes.push_back(shape_const);
+            result_nodes.push_back(reshape);
             return std::static_pointer_cast<ov::Node>(reshape);
         };
 
@@ -185,7 +188,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool transpose_b_scale = fc->get_transpose_b();
         bool transpose_b_zp = fc->get_transpose_b();
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
-        std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
         if (with_zero_point && ov::is_type<ov::op::v0::Convert>(optional_zero_point)) {
             result_nodes.push_back(optional_zero_point);
         }
@@ -265,6 +267,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (pattern_map.count(mul2_m)) {
             auto mul2_op_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul2_const_m).get_node_shared_ptr());
             fc_input_scale = ov::op::util::make_try_fold<ov::op::v1::Multiply>(fc_input_scale, mul2_op_const);
+            // With a Parameter scale this can't fold and stays an executable Multiply, so it needs runtime info.
+            result_nodes.push_back(fc_input_scale);
         }
 
         std::shared_ptr<ov::Node> new_fc = nullptr;
