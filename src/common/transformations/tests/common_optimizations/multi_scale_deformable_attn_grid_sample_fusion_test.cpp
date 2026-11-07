@@ -459,6 +459,8 @@ struct SingleScaleParams {
     bool wrong_weights_order = false;
     // Reshape [B, Q, H, P, 2] -> [B, H, Q, P, 2] before the coordinate Transpose: a different axis meaning.
     bool regroup_before_transpose = false;
+    // GridSample coordinate type; dynamic means data_type.
+    element::Type grid_type = element::dynamic;
 };
 
 // Single-level deformable attention as exported by RF-DETR: no VariadicSplit and no level Concat.
@@ -470,7 +472,8 @@ std::shared_ptr<ov::Model> getSingleScaleModel(const SingleScaleParams& p) {
     if (p.dynamic_value)
         value_ps[0] = Dimension::dynamic();
     auto value = std::make_shared<v0::Parameter>(p.data_type, value_ps);
-    const auto loc_type = p.int8_gpu_form ? element::f32 : p.data_type;
+    const auto grid_type = p.grid_type == element::dynamic ? p.data_type : p.grid_type;
+    const auto loc_type = p.int8_gpu_form ? element::f32 : grid_type;
     auto locations = std::make_shared<v0::Parameter>(loc_type, Shape{p.batch, p.queries, p.heads, p.points, 2});
     auto weights = std::make_shared<v0::Parameter>(p.data_type, Shape{p.batch, p.queries, p.heads, p.points});
 
@@ -485,8 +488,8 @@ std::shared_ptr<ov::Model> getSingleScaleModel(const SingleScaleParams& p) {
         auto mul = std::make_shared<v1::Multiply>(sub, v0::Constant::create(element::f32, Shape{1}, {2.f}));
         coords = std::make_shared<v0::Convert>(mul, p.data_type);
     } else {
-        auto mul = std::make_shared<v1::Multiply>(locations, v0::Constant::create(p.data_type, Shape{1}, {p.scale}));
-        auto norm = std::make_shared<v1::Add>(mul, v0::Constant::create(p.data_type, Shape{1}, {p.offset}));
+        auto mul = std::make_shared<v1::Multiply>(locations, v0::Constant::create(loc_type, Shape{1}, {p.scale}));
+        auto norm = std::make_shared<v1::Add>(mul, v0::Constant::create(loc_type, Shape{1}, {p.offset}));
         // The level slice of a single level keeps every point.
         auto slice = std::make_shared<v8::Slice>(norm, i64_const({0}), i64_const({P}), i64_const({1}), i64_const({3}));
         std::shared_ptr<ov::Node> grid_src = slice;
@@ -633,5 +636,13 @@ TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, ReshapeBeforeCoordsTranspo
     // locations [1,6,2,2,2] -> Reshape [1,2,6,2,2] -> Transpose(0,2,1,3,4) -> Reshape [2,6,2,2] -> GridSample
     SingleScaleParams p;
     p.regroup_before_transpose = true;
+    model = getSingleScaleModel(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, GridTypeDiffersFromValue) {
+    // f16 image sampled at f32 coordinates: MSDA would sample at f16 coordinates instead.
+    SingleScaleParams p;
+    p.data_type = element::f16;
+    p.grid_type = element::f32;
     model = getSingleScaleModel(p);
 }
