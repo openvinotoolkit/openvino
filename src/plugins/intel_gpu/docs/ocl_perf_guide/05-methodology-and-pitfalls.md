@@ -51,6 +51,7 @@ The source notation `memory:<name>` means `~/.claude/projects/-home-shingyuk-wor
 | **pset** | **multiset** of the host jit `(name, value)` of two corpora | A host-only change does not alter the jit set | Reordering is allowed (the prelude is only `#define`s; 0 duplicates is re-checked every time) |
 | **built** | Is the base text present in the built `.inc` (chunks joined) + the linked `.so` + `ov_gpu_unit_tests` | The kernel I verified went into the **actual binary** | False negative if run during linking |
 | **hpg** | Offline compile of the corpus with `ocloc -device dg2/arl-h`, TSV | Static check on xe_hpg of compile/DPAS count/spill/SLM | Not execution (→ 5.7) |
+| **ckpt** | Output checksum of each bench case (`SDPA_BENCH\|...\|checksum=`) between a side swept with env overrides and the hard-coded default, and between the new build with its off switch and HEAD | The default implements exactly the swept configuration (tiling + loop flags), the off switch restores the old bits, and untouched head sizes are unchanged (2026-11-07: 0 mismatches over 20 + 13 cases) | Only for order-changing tilings is a mismatch informative; a bit-preserving flag (V prefetch, the table's loop changes) gives the same checksum with or without it |
 
 ### 5.2.3 Commands (the form verified in memory:sdpa-ocl-ab-harness)
 
@@ -141,6 +142,9 @@ The `NEG_*` groups are negative controls that **must FAIL** (`SDPA_OCL_BIDIR=0`,
 | E26 | **Chunked prefill hides PREFILL changes** (2026-10-26) | with llm_bench `--cb_config '{"enable_prefix_caching":false}'` (GenAI's default scheduler, 256-token chunks) an 8K prompt ran PREFILL for the first chunk only (64 calls x 20 us) and MIXED for the rest (1,984 calls x 675 us): a PREFILL-only gain is ~0 there | the kit passes `max_num_batched_tokens` 99999999 (whole prompt = one PREFILL); state which scheduler a TTFT claim used, and check MIXED for serving-style claims |
 | E27 | **Another user builds on the same PC** (2026-10-27) | an e2e A/B (TTFT, interleaved) overlapped a colleague's compile (load average 15-18 for ~15 min); the user stopped it. The cliloader kernel times re-measured on an idle machine came out identical, the TTFT is not trustworthy | check `uptime` / foreign processes first; log the load during the run (`test/slower/e2e_fin.sh`: 5 s samples of load1 + the busiest foreign process to `/tmp/e2e_load.log`), match it to each pair's timestamps, rename overlapped result files `*.contaminated` and rerun them |
 | E28 | **A sweep script silently ran other sizes** (2026-10-27) | `test/mixed256/ab_daily.py 8K 32K` ran default..128K: importing `run_daily_bench.py` resets `sys.argv` before the script read its arguments (fixed) | check the first "Running:" / size header of the output a minute after launch, before waiting on an ETA |
+| E30 | **The bench runs a different stage than the model** (2026-11-07) | a dynamic model never compiles static SDPA kernels (SDPA is not async-compiled), so the model runs the shape-agnostic stage on both arms while a static bench measures the static one; even the reference changes config (micro `xehpc_h64_s32` dynamic vs `xehpc_h64` static: 450.7 vs 361.7 us at SD3.5's shape) | bench in the model's shape mode (`custom_dynqkv`); read the kernel row of the model run (`__sa` suffix = shape-agnostic) |
+| E31 | **A pre-rebase baseline makes upstream tests look like regressions** (2026-11-07) | 11 `smoke_sdpa_mask_fill/*_micro_*` FAILs were "new" against the last SDPAX baseline; they came with the rebase and assert the removed `sdpa_micro` name | before attributing a FAIL, run the same filter on the HEAD build and compare failure names (`GetParam()` byte dumps differ in padding; strip them) |
+| E32 | **llm_bench prints sub-model times in whole ms** (2026-11-07) | VAE decoder "68.00 ms/step" on both arms hid a 0.33 ms change | time the sub-model alone (`test/sd35/vae/vae_bench.py`: compile, first infer, 2 s settle, 5 warm-ups, median of 30) |
 | E29 | **`grep` in the agent shell is a ugrep wrapper** (2026-10-27) | Claude Code defines `grep()` as `ugrep -G --ignore-files --hidden -I ...`; on IGC ShaderDump `.cl` files in `/tmp` it printed no match for patterns that `/usr/bin/grep` found (jit defines of the dumped kernel) | use `command grep` (or the full path) for dumps and kit scripts |
 
 ---
@@ -330,6 +334,18 @@ Format: number. Situation -> wrong hypothesis/mistake -> fact/cause -> rule.
     16 partitions' stores to the same 128 B rows. Re-measure every shape after a fix (chapter 02 §10.3).
 47. **"The probe's GENERATE ratio predicts the model"** (again, cf. #14): head 128 probe -1% vs real -9%, head 512 -5% vs 0%; PREFILL
     at 512 blocks matched cliloader within 3-10% in absolute time.
+
+### I. Notes from 2026-11-07 (plain SDPA `d_max` 64 / 512, chapter 06 §6.11)
+
+48. **"The bench shape reproduces the model's SDPA"**: the model ran the shape-agnostic stage (and the reference its `seq = 0`
+    config) for every call; a static bench measured another kernel on both arms (E30).
+49. **"A tile that wins every bench shape is a safe default"**: 17 shapes won, then an SDPA-backend LLM prompt lost 5.1% TTFT. Its
+    SDPA was causal through a mask tensor, a variant no bench row had. Dump the jit of each affected model before the sweep and
+    bench that exact variant; split a rule by op-level properties (mask input, causal), which compile time and dispatch agree on.
+50. **"The final image shows whether the kernel is accurate"**: 20 denoising steps amplify rounding; master vs the old branch were
+    already 19.9 dB apart. One denoiser call on identical inputs against CPU f32 was the oracle (chapter 03 §9.2).
+51. **"The masked case loses because 256 GRF halves the threads that hide the mask reads"**: plausible, not analysed; two 128 GRF
+    tiles lost there as well. The rule records the measurement, not this explanation.
 
 ---
 

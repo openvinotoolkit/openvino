@@ -390,3 +390,34 @@ The daily logs showed gemma-4-26b's 2nd token at 0.99x master for 278 tokens and
    `sharp_softmax` rows failed, so those are the ones that guard the path.
 Result: 2nd token 0.84-0.99x master over 278-133K tokens (was 0.99-1.13x); the other switched models 0.99-1.00x at short and
 0.80-0.96x at long prompts against the branch before.
+
+## 6.11 Case: a diffusion model slower than master (stable-diffusion-3.5, B70 1800 MHz, 2026-11-07)
+
+The daily log showed SD3.5-large-turbo's transformer step at 119.22 vs 114.13 ms (+4.5%) while flux and SD1.5 were faster.
+Details and numbers: `docs/sdpa_ocl.md` "Plain-SDPA PREFILL tiling (`d_max` 64)" / "(`d_max` 512)". The steps, each with the
+evidence it produced (all MEASURED):
+
+1. **Attribute in one run per arm, with the rest of the model as the control** (chapter 07 §7.1): the daily command under
+   `cliloader -d -dv` on the master and the branch install. Transformer SDPA 468.8 vs 603.1 us x 912 calls; 134 us x 38 layers =
+   5.1 ms per step = the whole e2e gap, and the sum of every other kernel 2712.6 vs 2715.2 ms. One kernel, no further suspects.
+2. **Find the stage the model really runs.** The model is dynamic (llm_bench without `--static_reshape`), and SDPA is not in
+   `primitive_inst::use_async_compilation()`, so no static kernel is ever compiled: the shape-agnostic stage serves every call,
+   on both arms. Every count-keyed tiling policy (the plain `d_max` 128 mirror tile) is out of reach, and the reference also runs
+   its `seq = 0` config (`xehpc_h64_s32`, not the `xehpc_h64` a static shape gets). At the SD3.5 shape micro takes 450.7 us
+   dynamic and 361.7 static; a static bench would have measured a different gap.
+3. **Bench in the model's mode** (dynamic Q + K, non-causal, no mask, 1/1024-resolution data) and sweep with env overrides of one
+   build (17 head-64 shapes, then the other models of the same head size). A 32 x 32 subgroup tile at 256 GRF with the loop
+   changes beat the table on all of them and micro by 0.60-0.83x from ~300 tokens.
+4. **The e2e of the other affected models found what the bench did not**: llama-3.2-1b on the SDPA backend got 5.1% slower at
+   4K. Its jit (`OV_GPU_DUMP_SOURCES_PATH`) showed `IS_CAUSAL 0`, `WITH_ATTN_MASK 1`: an SDPA-backend LLM prompt is causal
+   *through a mask tensor*, so the kernel computes every key tile and streams a q x k mask (7.9 ms per layer at 4K against 1.2 ms
+   with `is_causal`). There every tile other than the old table was 1.06-1.21x it. The fix split the rule by an op-level
+   property (`has_attn_mask_input`): masked stages keep the table with the loop changes (0.69-1.00x on every masked shape).
+5. **Prove the code is what was measured**: after hard-coding, every bench case's output checksum equals the swept side's, the
+   off switch reproduces HEAD's bits, and the head sizes not touched are bit-identical (chapter 05 §5.2.2 "ckpt").
+6. **Accuracy with an oracle that can see it**: the generated images of *any* two arms (master and the old branch included)
+   differ by PSNR 17-20 dB, so one transformer call on identical inputs against the CPU plugin in f32 decided it (chapter 03 §9.2).
+
+Result: SD3.5 step 108.8 ms (0.954x master, 0.913x before), SD1.5 0.911x master, the SDPA-backend 4K prompt back to 1.00x; the
+VAE's one-head `d_max` 512 attention (the table spilled at 128 GRF) followed the same route: 865 -> 420 us per call (bench),
+VAE decode at 1024 x 1024 281.9 -> 278.1 ms, gemma-4-e2b on the SDPA backend (masked head-512 layers) 4K TTFT 0.949x.
