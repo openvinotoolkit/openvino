@@ -14,7 +14,7 @@ pytest.importorskip(
 
 
 @pytest.fixture
-def disable_suppress_errors():
+def _disable_suppress_errors():
     saved = torch._dynamo.config.suppress_errors
     torch._dynamo.config.suppress_errors = False
     torch._dynamo.reset()
@@ -23,6 +23,7 @@ def disable_suppress_errors():
     torch._dynamo.reset()
 
 
+@pytest.mark.usefixtures("_disable_suppress_errors")
 @pytest.mark.parametrize(
     "model_fn",
     [
@@ -33,7 +34,7 @@ def disable_suppress_errors():
         pytest.param(lambda t: torch.diagonal(t, dim1=-1, dim2=-2), id="diag_neg_dims"),
     ],
 )
-def test_compile_openvino_backend_does_not_break_dynamo(disable_suppress_errors, model_fn):
+def test_compile_openvino_backend_does_not_break_dynamo(model_fn):
     x = torch.randn(4, 5, 6)
     expected = model_fn(x)
     actual = torch.compile(model_fn, backend="openvino")(x)
