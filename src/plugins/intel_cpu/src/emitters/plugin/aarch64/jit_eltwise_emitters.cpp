@@ -67,18 +67,21 @@ void jit_abs_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_vec_idxs[0]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->fabs(dst.s, src.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->abs(dst.s, src.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->fabs(dst.s, src.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_abs_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::i32}};
 }
 
 /// ADD ///
@@ -106,19 +109,22 @@ void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src0 = TReg(in_vec_idxs[0]);
     auto src1 = TReg(in_vec_idxs[1]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->uni_fadd(dst.s, src0.s, src1.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->add(dst.s, src0.s, src1.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->uni_fadd(dst.s, src0.s, src1.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_add_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// CLAMP ///
@@ -277,16 +283,16 @@ size_t jit_equal_emitter::get_inputs_count() const {
 }
 
 size_t jit_equal_emitter::get_aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 size_t jit_equal_emitter::get_aux_gprs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 std::set<std::vector<element::Type>> jit_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -301,12 +307,18 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg src1 = TReg(in_vec_idxs[0]);
     const TReg src2 = TReg(in_vec_idxs[1]);
     const TReg dst = TReg(out_vec_idxs[0]);
+
+    if (exec_prc_ == ov::element::i32) {
+        h->cmeq(dst.s, src1.s, src2.s);
+        h->ushr(dst.s, dst.s, 31);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     const TReg aux = TReg(aux_vec_idxs[0]);
 
     h->fcmeq(dst.s, src1.s, src2.s);
@@ -316,7 +328,9 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_equal_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
+    if (exec_prc_ == ov::element::f32) {
+        push_arg_entry_of("one", 0x3f800000, true);
+    }
 }
 
 /// NOTEQUAL ///
@@ -339,16 +353,16 @@ size_t jit_not_equal_emitter::get_inputs_count() const {
 }
 
 size_t jit_not_equal_emitter::get_aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 size_t jit_not_equal_emitter::get_aux_gprs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 std::set<std::vector<element::Type>> jit_not_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 void jit_not_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -362,12 +376,19 @@ void jit_not_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_not_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg src1 = TReg(in_vec_idxs[0]);
     const TReg src2 = TReg(in_vec_idxs[1]);
     const TReg dst = TReg(out_vec_idxs[0]);
+
+    if (exec_prc_ == ov::element::i32) {
+        h->cmeq(dst.s, src1.s, src2.s);
+        h->not_(dst.b16, dst.b16);
+        h->ushr(dst.s, dst.s, 31);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     const TReg aux = TReg(aux_vec_idxs[0]);
 
     h->fcmeq(dst.s, src1.s, src2.s);
@@ -377,7 +398,9 @@ void jit_not_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->and_(dst.b16, dst.b16, aux.b16);
 }
 void jit_not_equal_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
+    if (exec_prc_ == ov::element::f32) {
+        push_arg_entry_of("one", 0x3f800000, true);
+    }
 }
 
 /// ELU ///
@@ -906,17 +929,20 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src = TReg(in_vec_idxs[0]);
     auto dst = TReg(out_vec_idxs[0]);
-    h->fneg(dst.s, src.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->neg(dst.s, src.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->fneg(dst.s, src.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_negative_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32}};
+    return {{element::f32}, {element::i32}};
 }
 
 /// GELU_ERF ///
@@ -1163,11 +1189,11 @@ size_t jit_greater_emitter::get_inputs_count() const {
 }
 
 size_t jit_greater_emitter::get_aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 size_t jit_greater_emitter::get_aux_gprs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1182,12 +1208,18 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg src1 = TReg(in_vec_idxs[0]);
     const TReg src2 = TReg(in_vec_idxs[1]);
     const TReg dst = TReg(out_vec_idxs[0]);
+
+    if (exec_prc_ == ov::element::i32) {
+        h->cmgt(dst.s, src1.s, src2.s);
+        h->ushr(dst.s, dst.s, 31);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     const TReg aux = TReg(aux_vec_idxs[0]);
 
     h->fcmgt(dst.s, src1.s, src2.s);
@@ -1196,12 +1228,14 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_greater_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
+    if (exec_prc_ == ov::element::f32) {
+        push_arg_entry_of("one", 0x3f800000, true);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// GREATER_EQUAL ///
@@ -1224,11 +1258,11 @@ size_t jit_greater_equal_emitter::get_inputs_count() const {
 }
 
 size_t jit_greater_equal_emitter::get_aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 size_t jit_greater_equal_emitter::get_aux_gprs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1243,12 +1277,18 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                          const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg src1 = TReg(in_vec_idxs[0]);
     const TReg src2 = TReg(in_vec_idxs[1]);
     const TReg dst = TReg(out_vec_idxs[0]);
+
+    if (exec_prc_ == ov::element::i32) {
+        h->cmge(dst.s, src1.s, src2.s);
+        h->ushr(dst.s, dst.s, 31);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     const TReg aux = TReg(aux_vec_idxs[0]);
 
     h->fcmge(dst.s, src1.s, src2.s);
@@ -1257,12 +1297,14 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_greater_equal_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
+    if (exec_prc_ == ov::element::f32) {
+        push_arg_entry_of("one", 0x3f800000, true);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_greater_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// H_SIGMOID ///
@@ -1679,11 +1721,11 @@ size_t jit_less_emitter::get_inputs_count() const {
 }
 
 size_t jit_less_emitter::get_aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 size_t jit_less_emitter::get_aux_gprs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1697,12 +1739,18 @@ void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg src1 = TReg(in_vec_idxs[0]);
     const TReg src2 = TReg(in_vec_idxs[1]);
     const TReg dst = TReg(out_vec_idxs[0]);
+
+    if (exec_prc_ == ov::element::i32) {
+        h->cmgt(dst.s, src2.s, src1.s);
+        h->ushr(dst.s, dst.s, 31);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     const TReg aux = TReg(aux_vec_idxs[0]);
 
     h->fcmgt(dst.s, src2.s, src1.s);
@@ -1711,12 +1759,14 @@ void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 }
 
 void jit_less_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
+    if (exec_prc_ == ov::element::f32) {
+        push_arg_entry_of("one", 0x3f800000, true);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// LESS_EQUAL ///
@@ -1739,11 +1789,11 @@ size_t jit_less_equal_emitter::get_inputs_count() const {
 }
 
 size_t jit_less_equal_emitter::get_aux_vecs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 size_t jit_less_equal_emitter::get_aux_gprs_count() const {
-    return 1;
+    return exec_prc_ == ov::element::i32 ? 0 : 1;
 }
 
 void jit_less_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1758,12 +1808,18 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg src1 = TReg(in_vec_idxs[0]);
     const TReg src2 = TReg(in_vec_idxs[1]);
     const TReg dst = TReg(out_vec_idxs[0]);
+
+    if (exec_prc_ == ov::element::i32) {
+        h->cmge(dst.s, src2.s, src1.s);
+        h->ushr(dst.s, dst.s, 31);
+        return;
+    }
+
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
     const TReg aux = TReg(aux_vec_idxs[0]);
 
     h->fcmgt(dst.s, src1.s, src2.s);
@@ -1773,12 +1829,14 @@ void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_less_equal_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
+    if (exec_prc_ == ov::element::f32) {
+        push_arg_entry_of("one", 0x3f800000, true);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_less_equal_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// LOGICAL_AND ///
@@ -2228,19 +2286,22 @@ void jit_maximum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src1 = TReg(in_vec_idxs[0]);
     auto src2 = TReg(in_vec_idxs[1]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->fmaxnm(dst.s, src1.s, src2.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->smax(dst.s, src1.s, src2.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->fmaxnm(dst.s, src1.s, src2.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_maximum_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// MIN ///
@@ -2270,19 +2331,22 @@ void jit_minimum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src1 = TReg(in_vec_idxs[0]);
     auto src2 = TReg(in_vec_idxs[1]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->fminnm(dst.s, src1.s, src2.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->smin(dst.s, src1.s, src2.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->fminnm(dst.s, src1.s, src2.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// MISH ///
@@ -2459,8 +2523,6 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     const TReg dst = TReg(out_vec_idxs[0]);
 
@@ -2485,12 +2547,17 @@ void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->mov(dst.b16, src2.b16);
     }
 
-    h->fmla(dst.s, mul0.s, mul1.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->mla(dst.s, mul0.s, mul1.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->fmla(dst.s, mul0.s, mul1.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_mul_add_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32, element::f32}};
+    return {{element::f32, element::f32, element::f32}, {element::i32, element::i32, element::i32}};
 }
 
 /// MULTIPLY ///
@@ -2520,19 +2587,22 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src0 = TReg(in_vec_idxs[0]);
     auto src1 = TReg(in_vec_idxs[1]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->uni_fmul(dst.s, src0.s, src1.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->mul(dst.s, src0.s, src1.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->uni_fmul(dst.s, src0.s, src1.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_multiply_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// POWER ///
@@ -3685,20 +3755,24 @@ void jit_squared_difference_emitter::emit_impl(const std::vector<size_t>& in_vec
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_squared_difference_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                               const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src0 = TReg(in_vec_idxs[0]);
     auto src1 = TReg(in_vec_idxs[1]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->fsub(dst.s, src0.s, src1.s);
-    h->fmul(dst.s, dst.s, dst.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->sub(dst.s, src0.s, src1.s);
+        h->mul(dst.s, dst.s, dst.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->fsub(dst.s, src0.s, src1.s);
+        h->fmul(dst.s, dst.s, dst.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_squared_difference_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// SUBTRACT ///
@@ -3728,19 +3802,22 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
-    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
-
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto src0 = TReg(in_vec_idxs[0]);
     auto src1 = TReg(in_vec_idxs[1]);
     auto dst = TReg(out_vec_idxs[0]);
 
-    h->uni_fsub(dst.s, src0.s, src1.s);
+    if (exec_prc_ == ov::element::i32) {
+        h->sub(dst.s, src0.s, src1.s);
+    } else {
+        OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "unsupported precision: " + exec_prc_.to_string());
+        h->uni_fsub(dst.s, src0.s, src1.s);
+    }
 }
 
 std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32, element::f32}, {element::i32, element::i32}};
 }
 
 /// SWISH ///
