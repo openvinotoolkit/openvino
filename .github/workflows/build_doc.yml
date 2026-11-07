@@ -138,7 +138,7 @@ jobs:
         - /home/runner/secrets/:/secrets:ro
       options: -e SCCACHE_AZURE_BLOB_CONTAINER -v ${{ github.workspace }}:${{ github.workspace }}
     env:
-      CI_DEPS_DOWNLOAD_REFERER: "GHA: ${{ github.event.repository.name }} ${{ github.workflow }}"
+      CI_DEPS_DOWNLOAD_REFERER: http://github.com/openvinotoolkit/openvino/actions
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
       CMAKE_CXX_COMPILER_LAUNCHER: sccache

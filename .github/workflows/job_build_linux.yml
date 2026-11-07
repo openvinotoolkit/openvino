@@ -123,7 +123,7 @@ jobs:
       run:
         shell: bash
     env:
-      CI_DEPS_DOWNLOAD_REFERER: "${{ startsWith(inputs.runner, 'aks-') && format('GHA: {0} {1}', github.event.repository.name, github.workflow) || '' }}"
+      CI_DEPS_DOWNLOAD_REFERER: "${{ startsWith(inputs.runner, 'aks-') && 'http://github.com/openvinotoolkit/openvino/actions' || '' }}"
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_CXX_COMPILER_LAUNCHER: sccache
