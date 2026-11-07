@@ -609,7 +609,6 @@ ConvertPackedMoeMatMulToGatherMatmul::ConvertPackedMoeMatMulToGatherMatmul() {
                                output_transpose,
                                restored_rank_axis,
                                restored_rank});
-        gathered_matmul->set_friendly_name(matmul->get_friendly_name());
         return ov::replace_output_update_name(matmul->output(0), restored_rank->output(0));
     };
 

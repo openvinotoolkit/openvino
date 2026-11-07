@@ -53,7 +53,7 @@ struct GatherMatmulImpl : public ImplementationManager {
         size_t input_idx = gather_matmul::BGMInputIdx::INPUT;
         const auto input_type = node.get_input_layout(input_idx).data_type;
         if (!one_of(node.get_input_layout(input_idx).format, supported_fmts) ||
-            (!one_of(input_type, supported_activation_types) && !(packed_mxfp4 && one_of(input_type, {ov::element::f16, ov::element::f32})))) {
+            (!one_of(input_type, supported_activation_types) && (!packed_mxfp4 || !one_of(input_type, {ov::element::f16, ov::element::f32})))) {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
@@ -92,7 +92,7 @@ struct GatherMatmulImpl : public ImplementationManager {
 
         const auto& output_layout = node.get_output_layout(0);
         if (!one_of(output_layout.format, supported_fmts) || (!one_of(output_layout.data_type, supported_activation_types) &&
-                                                              !(packed_mxfp4 && one_of(output_layout.data_type, {ov::element::f16, ov::element::f32})))) {
+                                                              (!packed_mxfp4 || !one_of(output_layout.data_type, {ov::element::f16, ov::element::f32})))) {
             DO_NOT_USE_THIS_KERNEL(layer_id);
         }
 
