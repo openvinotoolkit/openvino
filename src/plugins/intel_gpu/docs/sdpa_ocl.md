@@ -291,8 +291,8 @@ It only matters where `DKS_FULL < DKS` and a scalar fallback is still taken.
 PA PREFILL on Xe2 at `d_max` 64, 128, 256 and 512 does not use the table row: `solve_pa_prefill_tiling()`
 gives it the workgroup of `sdpa_micro`'s PA prefill config for that head size, compiled with 256 GRF (one
 workgroup per Xe-core). MIXED has its own tiles at `d_max` 128, 256 and 512 ("Paged-attention MIXED tiling");
-plain SDPA (except f16 `d_max` 128, "Plain-SDPA PREFILL tiling" below), `d_max` 32 and xe_hpg keep the table. The
-PA query-block stride follows the stage, which is why `get_query_block_size()` takes it.
+plain SDPA (except f16 `d_max` 128 and, on Xe2, `d_max` 64 and 512: "Plain-SDPA PREFILL tiling" below), `d_max` 32
+and xe_hpg keep the table. The PA query-block stride follows the stage, which is why `get_query_block_size()` takes it.
 
 | `d_max` | KQ subgroup tile, subgroups | Workgroup, keys x queries | `sdpa_micro` | Local memory |
 |---|---|---|---|---|
@@ -741,6 +741,142 @@ shape-agnostic stage chosen in `execute()` ("Performance opportunities").
 f16 gate stays), `SDPA_OCL_PLAIN_TABLE_FLAGS=0` the bare table (both need a `SDPA_OCL_NO_GETENV=OFF` build). Bench:
 `test/xe3_test/b70_repro` (kit README), `sdpa_micro_prefill_config_bench` there is not part of the tree.
 
+### Plain-SDPA PREFILL tiling (`d_max` 64)
+
+Plain (non-PA) multi-token SDPA with f16 Q / K / V at `d_max` 64 (`k` and `v` head 33-64) on Xe2
+(`solve_plain_prefill_d64_tiling()`). Without an attention mask input: 32-key x 32-query subgroup tiles, 4 x 2 subgroups
+(128 keys x 64 queries), 256 GRF, with `PREFETCH_V`, `WIDE_READS` 1 (the K pair), `SOFTMAX_BRANCHLESS` and
+`MAX_SPLIT_BARRIER`, and on a non-causal stage the KQ branch (`CAUSAL_TILE_SKIP`, "Plain-SDPA causal tile skip"); a causal
+stage does not take the causal tile skip (below), as it does not on PA `d_max` 64. With a mask input (tensor or
+single-element; not a const `attn_mask_val`): the table tile (128 GRF) with those four loop changes. The choice reads the
+op's mask input, never a query or key count, so static and shape-agnostic stages, at compile time and dispatch, agree.
+Before, these stages ran the bare table tile (16 x 32 subgroup tiles, 8 x 2 subgroups, 128 GRF, none of the loop
+changes), which was 1.29x `sdpa_micro` on stable-diffusion-3.5-large-turbo's joint attention (38 heads, 1024 image + 333
+text tokens, no mask, a dynamic model, so the shape-agnostic stage: 602.5 vs 469.0 us per call in the model, cliloader,
+1800 MHz) and made its transformer step 4.5% slower than master. bf16, compressed K / V, a `v` head of another `d_max`,
+and other devices keep the bare table (not measured). `SDPA_OCL_PLAIN_D64=0` keeps the bare table (A/B; it reproduces
+the old output bits).
+
+Candidates were swept on B70 (GPU.1 pinned at 1800 MHz; `SDPA_OCL_KQ_*` / loop-flag env overrides of one build; one
+cliloader process per case and side, 100 warm-ups + 400 calls, min device time, sides interleaved per case, 3 rounds,
+median, round-to-round spread <= 3.6%; inputs at 1/1024 resolution) over 17 head-64 shapes: non-causal (SD3.5, CLIP 577,
+Whisper 1500, ViT-B 197, 64 / 333 / 4K tokens, head 40 SD1.5 self- and cross-attention, a 2D mask, static and dynamic)
+and causal GQA (128-token and 2K prompts, a 512-query chunk over 4K keys, 16 queries over 1K, 64 / 8 heads at 4K).
+Against the table: the PA PREFILL `d_max` 64 workgroup (16 x 64 subgroup tiles, 128 x 128, 256 GRF) was 0.78x on SD3.5
+(this tiling 0.65x); 16 x 64 tiles in a 64 x 128 workgroup were best at head 40 (0.61x) but 1.12-1.65x at 64-333 tokens,
+with a mask and on causal prompts / steps; 16 x 32 tiles in a 64 x 64 workgroup at 128 GRF were 0.71x on SD3.5 but
+1.02-1.21x at 197 tokens, a 128-token causal prompt, with a mask and on 16-query steps; 32 x 16 tiles were 1.12-1.15x at
+head 40 and on 16-query steps. This tiling was faster than the table on every shape. At 128 GRF it was 1.4-2.7x slower.
+Without the K pair it was 0.94-1.15x with the KQ branch (faster at head 40 only) and 1.00-1.06x on causal stages. The KQ
+branch made the non-causal shapes 0.88-0.99x; the causal skip made a 512-query chunk 1.06x and a 16-query step 1.11x (a
+2K prompt 0.98x), so it stays off.
+
+A mask splits the rule. The kernel streams a 2D mask, and an SDPA-backend LLM prompt is causal through such a mask
+(`IS_CAUSAL` 0, `WITH_ATTN_MASK` 1: llama-3.2-1b, 32 / 8 heads, a 4K prompt takes 7.9 ms per layer, against 1.2-1.5 ms
+with `is_causal`). There every other tile measured was 1.06-1.21x the table (the 32 x 32 one 1.09x, the table itself at
+256 GRF 1.18x; why the mask path prefers it was not analysed), and the 32 x 32 tile made that model's 4K TTFT 5.1% slower. The table with the loop changes
+was 0.69-1.00x the table on every masked shape (1K-4K tokens, 12-32 heads, GQA, static and dynamic), so masked stages
+take it.
+
+| us per call (median of 3) | table (before) | this rule | `sdpa_micro` (master) |
+|---|---|---|---|
+| SD3.5 38 heads, q = k 1357, dynamic / static | 476.7 / 431.4 | 309.1 / 300.8 | 450.7 / 361.7 |
+| Whisper encoder 20 heads, 1500, dynamic / static | 257.7 / 255.0 | 189.7 / 184.2 | 282.8 / 224.0 |
+| CLIP-L/336 16 heads, 577 | 59.5 | 40.6 | 59.5 |
+| 16 heads, 4K / 333 (38 heads) / 197 (12 heads) / 64 | 1,847 / 45.9 / 13.3 / 7.5 | 959.6 / 32.3 / 11.0 / 6.2 | 1,511 / 40.0 / 10.0 / 4.3 |
+| head 40, 8 heads: self 4K / cross 4K x 77 | 835.2 / 66.1 | 618.9 / 48.2 | 1,038 / 39.4 |
+| causal 32 / 8 heads: 128 / 2K / 4K prompt | 9.4 / 407.2 / 1,532 | 7.8 / 345.0 / 1,184 | 7.1 / 440.1 / 1,667 |
+| causal 32 / 8 heads: 512 over 4K / 16 over 1K | 345.0 / 31.4 | 252.7 / 25.1 | 377.9 / 27.3 |
+| causal 64 / 8 heads, 4K prompt | 3,004 | 2,349 | 3,273 |
+| 2D mask, 32 / 8 heads: 1K / 2K / 4K | 281.0 / 1,243 / 7,921 | 251.8 / 916.6 / 7,920 | - |
+| 2D mask: 16 heads 1K; 12 heads 4K; 16 heads 577 static | 147.7 / 2,049 / 126.2 | 131.1 / 1,422 / 126.4 | - |
+
+All dynamic Q + K unless noted; the masked rows from a second sweep (same protocol); `sdpa_micro` has no masked numbers
+(the master bench takes no mask). Against the table it is 0.52-1.00x; against `sdpa_micro` 0.60-0.83x from ~300 tokens
+without a mask; the short and the cross-attention shapes stay slower than `sdpa_micro` (6.2 vs 4.3 us at 64 tokens), as
+the table was. The output checksum of every case equals that of the swept configuration, and with `SDPA_OCL_PLAIN_D64=0`
+that of the build before; the `d_max` 128 / 256 stages measured alongside are bit-identical to before. Max |out -
+`sdpa_opt`| is the same as the table's in every case.
+
+End to end (llm_bench on GPU.1 pinned at 1800 MHz, the daily commands; the same build with `SDPA_OCL_PLAIN_D64=0` /
+default against the master install with `sdpa_micro`; sides interleaved per model, 2 rounds, median; ms, image models
+per denoising step, LLMs and VLMs first-token latency):
+
+| Model | master | before | this rule |
+|---|---|---|---|
+| stable-diffusion-3.5-large-turbo, 512 x 512, transformer step | 114.25 | 119.37 | 108.99 |
+| stable-diffusion-v1-5, UNet step (head 40) | 47.89 | 46.14 | 43.62 |
+| phi-3.5-vision, image + 802 / 1032 tokens (CLIP encoder) | 112.14 / 133.81 | 111.93 / 132.42 | 109.22 / 131.04 |
+| llama-3.2-1b, SDPA backend, 1024 / 4093 tokens | 21.27 / 267.62 | 21.27 / 237.69 | 20.74 / 238.19 |
+| gpt-oss-20b, SDPA backend, 1024 tokens | 143.11 | 143.02 | 140.96 |
+| minicpm4-0.5b, SDPA backend, 1024 tokens | 15.80 | 16.35 | 15.82 |
+
+The SD3.5 step repeated within 0.1% over 3 more rounds (114.2 / 119.3 / 108.8); in the model its SDPA takes 326.3 us
+per call (cliloader), from 602.5. gemma-4-e2b (image, a masked vision encoder) and the 32-token prompts moved within
+their run-to-run spread (up to 12%); their kernels did not get slower (minicpm4 at 32 tokens 11.3 -> 11.0 us). The 32 x
+32 tile without the mask split had made llama-3.2-1b's 4K prompt 5.1% slower (249.66 ms).
+Generated images differ from before, as from `sdpa_micro`: 20 denoising steps amplify any rounding change (PSNR 17-20 dB
+between any two of the three), so accuracy was checked on one transformer call with identical inputs against the CPU
+plugin in f32: relative L2 error 3.93e-2 with this rule, 3.88e-2 before and 3.91e-2 with `sdpa_micro` (t = 500; the
+three f16 GPU outputs differ from each other by 1.9e-2; the GPU in f32 was 2.4e-2 from the CPU on a second input set). At
+t = 1000 the three f16 outputs are bit-identical to each other and far from f32 (relative 1.0), on master too: an f16
+issue outside SDPA, not investigated.
+
+Tests: `sdpa_gpu_noncausal_tail` `*_d64` / `*head40*` (SD3.5's 1357 keys end 13 keys into a subgroup; CLIP 577; GQA
+200 / 1100; head 40; a 2D mask) against the host reference, and `sdpa_gpu_causal_mask.*_d64` (static ones element-wise
+against the explicit-mask reference, which now takes the masked table tile: max |diff| 6e-5-4.9e-4, bound 2e-3; a 16-query
+step and a 512-query chunk) with Q in [-4, 4]. With the KQ branch's
+subgroup bound 16 keys early, exactly the four non-causal rows without a mask fail (as do the `d_max` 128 rows that use the
+branch or the causal skip), and the masked and causal `d_max` 64 rows, which take neither, pass.
+
+### Plain-SDPA PREFILL tiling (`d_max` 512)
+
+Plain (non-PA) multi-token SDPA with f16 Q / K / V at `d_max` 512 (`k` and `v` head 257-512) on Xe2
+(`solve_plain_prefill_d512_tiling()`): 256 GRF with the PA PREFILL `d_max` 512 loop changes (`PREFETCH_V_L3`,
+`WIDE_READS` 7, `SOFTMAX_BRANCHLESS`, `MAX_SPLIT_BARRIER`) and no causal tile skip (`causal_skip_off`). Without an
+attention mask input it keeps the table tile (16 x 16 subgroup tiles, 8 x 2 subgroups, 128 keys x 32 queries); with
+one (tensor or single-element) it takes the PA PREFILL `d_max` 512 workgroup (32 x 16 subgroup tiles, 8 x 4 subgroups,
+256 keys x 64 queries). As at `d_max` 64 the choice reads the op's mask input only, never a count. Before, these stages
+ran the table tile at 128 GRF, which spilled 1280 B (2432 B with a mask): a VAE decoder's attention (one head of 512,
+4096 tokens at 512 x 512, non-causal, a dynamic model; stable-diffusion-3.5, flux and SD1.5 have it) took 865-874 us
+against `sdpa_micro`'s 587-606 (in the model, cliloader, 1800 MHz). `SDPA_OCL_PLAIN_D512=0` keeps the bare table (A/B;
+it reproduces the old output bits). bf16, compressed K / V, another `v` head and other devices keep the bare table.
+
+Swept on B70 as the `d_max` 64 tiling (same protocol, 3 rounds, spread <= 1.2% on the kept sides) over VAE shapes (1K /
+4K / 16K tokens, static and dynamic), an SDPA-backend LLM prompt with a 2D mask (8 / 1 heads at 1K and 4K, 16 / 2 at
+1K) and causal GQA (a 16-query step over 1K keys, a 2K prompt). Against the table at 256 GRF with these loop changes the
+PA workgroup was 1.03-1.50x without a mask (0.99x at 16K) but 0.77-0.89x with one; dropping the L3 prefetch made the
+16K VAE 1.16x and the masked 4K prompt 1.07x; the KQ branch moved non-causal shapes -0.7% to +1.8% and the causal skip
+made the 16-query step 1.15x (a 2K prompt 0.99x), so neither is taken. 32 x 16 tiles in a 256 x 32 workgroup were
+0.99-1.36x the chosen tile (0.99x on one masked shape), in a 128 x 32 one 1.28-2.24x, and 16 x 16 tiles in a 64 x 32 one
+1.50-2.84x.
+
+| us per call (median of 3) | table (before) | this rule | `sdpa_micro` (master) |
+|---|---|---|---|
+| VAE, one head: 4096 dynamic / static | 747.2 / 757.2 | 420.0 / 418.5 | 552.6 / 424.1 |
+| VAE, one head: 16384 / 1024 | 10,910 / 81.2 | 7,126 / 39.4 | 10,323 / 44.0 |
+| 2D mask, 8 / 1 heads: 1K / 4K | 477.0 / 6,435 | 232.4 / 3,436 | - |
+| 2D mask, 16 / 2 heads: 1K | 835.3 | 510.6 | - |
+| causal 8 / 1 heads: 16 over 1K / 2K prompt | 87.3 / 857.5 | 40.7 / 562.5 | 42.8 / 677.7 |
+
+All dynamic unless noted. Against the table it is 0.47-0.66x; against `sdpa_micro` 0.69-0.99x. Output checksums equal
+those of the swept configurations, and with `SDPA_OCL_PLAIN_D512=0` those of the build before; the `d_max` 64 / 128 /
+256 stages measured alongside are unchanged. Max |out - `sdpa_opt`| is the same as the table's in every case.
+
+End to end on GPU.1 at 1800 MHz (same build with `SDPA_OCL_PLAIN_D512=0` / default, against the master install; ms):
+a VAE decoder call (the decoder model alone, median of 30 after warm-ups, 3 rounds, spread <= 0.2 ms) at 512 x 512 /
+1024 x 1024 went from 68.53 / 281.91 to 68.20 / 278.09 in stable-diffusion-3.5 (master 68.31 / 281.51), flux 68.53 /
+282.09 -> 68.21 / 278.31, SD1.5 68.50 / 281.86 -> 68.16 / 278.05. gemma-4-e2b on the SDPA backend (its head-512 layers masked, 2 rounds): first token at 4212
+tokens 387.47 -> 367.88 (master 372.24), at 1024 tokens with an image 103.72 -> 101.70, at 274 tokens 74.28 -> 74.50
+(within the spread).
+
+Tests: `sdpa_gpu_noncausal_tail` `*_d512` (one VAE-like head, 1100 keys ending 76 into a key tile; two static heads
+333 / 777; a GQA 2D-mask prompt whose 300 queries end 44 into a query tile) against the host reference (max |diff|
+1.3e-4, bound 4e-3), `sdpa_gpu_causal_mask.*_d512` (static lower-right 300 / 1100 against the explicit-mask reference,
+which takes the masked workgroup, max |diff| 2.4e-4, bound 2e-3; a shape-agnostic 16-query step). With the paired V
+read (`WIDE_READS` bit 2, which only these and PA `d_max` 512 use) one key row off, exactly these five fail and the other
+77 plain-SDPA rows pass.
+
 ### Plain-SDPA causal tile skip
 
 `CAUSAL_TILE_SKIP` ("Paged-attention PREFILL: short prompts") is on for a plain-SDPA PREFILL stage with `is_causal`
@@ -815,8 +951,10 @@ lower-right 512 / 2560 and 300 / 2300; table tile: 28 / 4 heads 200 / 1100) and 
 (shape-agnostic) compare element-wise with the explicit-mask reference, Q in [-4, 4]: max |diff| 0 for the static rows
 (same tiling on both sides), 1.2e-4 for the shape-agnostic one (bounds 2e-3 / 5e-3). With the skip bounds 16 keys
 early all five fail (max |diff| 0.05-0.09; cosine 0.98 for the upper-left one), as do three older cosine-only rows.
-Not measured: plain `d_max` 64 / 256 (no loop changes there; PA `d_max` 64 lost with the skip), head sizes below 128
-within `d_max` 128, other devices (the ptl-h build is checked with ocloc only).
+Plain `d_max` 64 on Xe2 takes the KQ branch on non-causal stages without a mask but not the causal skip ("Plain-SDPA
+PREFILL tiling (`d_max` 64)"); plain `d_max` 512 takes neither ("Plain-SDPA PREFILL tiling (`d_max` 512)"). Not
+measured: plain `d_max` 256 (no loop changes there), head sizes below 128 within `d_max` 128, other devices (the ptl-h
+build is checked with ocloc only).
 
 ### Plain-SDPA decode tiling
 
@@ -1718,8 +1856,10 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_V_PREFETCH`, `_SM_BRANCHLESS`, `_MAX_SPLIT`, `_MASK_LAST` | PA PREFILL loop changes ("Paged-attention PREFILL tiling"): `0`/`1` forces each off/on |
 | `SDPA_OCL_V_PREFETCH_L3` | PA PREFILL V tile L3 prefetch (on at `d_max` 512): `0`/`1` forces it off/on; on replaces `PREFETCH_V` |
 | `SDPA_OCL_PLAIN_MIRROR`, `SDPA_OCL_PLAIN_TABLE_FLAGS` | Plain-SDPA f16 `d_max` 128 PREFILL ("Plain-SDPA PREFILL tiling"): `0`/`1` forces the table / the 256 x 128 tile; `0` drops the table tile's loop changes |
+| `SDPA_OCL_PLAIN_D64` | Plain-SDPA f16 `d_max` 64 PREFILL on Xe2 ("Plain-SDPA PREFILL tiling (`d_max` 64)": the 32 x 32 tile, or the table with loop changes under a mask): `0` keeps the bare table tile (the jit before that change) |
+| `SDPA_OCL_PLAIN_D512` | Plain-SDPA f16 `d_max` 512 PREFILL on Xe2 ("Plain-SDPA PREFILL tiling (`d_max` 512)"): `0` keeps the bare table tile at 128 GRF (the jit before that change) |
 | `SDPA_OCL_PLAIN_DECODE` | Plain-SDPA decode ("Plain-SDPA decode tiling"): `0` keeps the table tile (the jit before that change) |
-| `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
+| `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`; plain `d_max` 64: `1`, `0` with a sliding window): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
 | `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
 | `SDPA_OCL_HPG_PA_PREFILL` | `0`: xe_hpg PA PREFILL at head 128 takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
@@ -2253,6 +2393,10 @@ Each needs its own measured change.
   256 x 128 tile, chosen in `SDPAOptImpl::execute()` by the runtime counts, would give dynamic Q + K the 0.75-0.95x of
   long shapes without the small-query loss. The K-read order the non-causal KQ branch gets from IGC ("Plain-SDPA causal
   tile skip") might also be reachable without the branch for the masked stages and other tilings (not tried).
+- Plain-SDPA PREFILL with a 2D mask ("Plain-SDPA PREFILL tiling (`d_max` 64)"): an SDPA-backend LLM prompt is causal
+  through the mask, so the kernel computes every key tile and streams the mask: llama-3.2-1b at 4K tokens takes 7.9 ms
+  per layer against 1.2 ms with `is_causal` (B70, 1800 MHz), about half its first-token latency. Recognising a causal
+  mask (or skipping key tiles the mask fills with -inf) would remove most of it. Not tried.
 - Plain-SDPA decode ("Plain-SDPA decode tiling"): with few heads at head 256 and up to 4K keys it still trails
   `sdpa_micro` (8 / 4 heads: 1.05-1.19x). There `PREFETCH_V` costs what it gains on long contexts, so a runtime gate on
   the key count (one stage serves every count) might keep both; a key split or one workgroup per KV head (each query

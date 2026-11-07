@@ -45,6 +45,7 @@ struct sdpa_ocl_config_t {
     bool hpg_pa_prefill = false;       // the xe_hpg PA PREFILL kernel, sdpa_ocl_hpg_pa_prefill.cl (hpg_pa_prefill_tiling())
     bool noncausal_kq_branch = false;  // plain non-causal PREFILL CAUSAL_TILE_SKIP measured with this tiling (add_prefill_pipeline_jit())
     bool plain_decode = false;         // plain-SDPA decode tiling: the PREFILL loop flags above apply to that stage too
+    bool causal_skip_off = false;      // plain d_max 512 PREFILL: no causal tile skip with these loop flags (add_prefill_pipeline_jit())
 
     int sg_per_wg() const {
         return kq_sg_per_wg_keys * kq_sg_per_wg_queries;
@@ -367,6 +368,7 @@ struct plain_prefill_shape {
     int64_t n_keys = 0;
     int64_t q_len = 0;
     bool f16_qkv = false;  // f16 Q, K and V: what the tilings below were measured with (no bf16, no compressed KV)
+    bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
 };
 
 // Plain (non-PA) SDPA PREFILL on Xe2+ at d_max 128: from ~2K keys the sdpa_micro xehpc_h128 workgroup
@@ -401,6 +403,87 @@ bool solve_plain_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, cons
         return false;
     }
     config = mirror;
+    return true;
+}
+
+// Plain (non-PA) SDPA PREFILL on Xe2 at d_max 64 with f16 Q / K / V. Without an attention mask input: 32-key x 32-query
+// subgroup tiles, 4 x 2 subgroups (128 keys x 64 queries), 256 GRF, with the PA PREFILL loop changes (V prefetch, the
+// wide K read, branchless softmax + split S-max barrier) and, on a non-causal stage, the KQ branch
+// (add_prefill_pipeline_jit()). With one: the table tile (128 GRF) with those loop changes. The bare table tile
+// (16 x 32 subgroup tiles, 8 x 2 subgroups, none of the loop changes) was 1.29x sdpa_micro on stable-diffusion-3.5's
+// joint attention (38 heads, 1357 tokens, dynamic: 603 vs 469 us per call). Without a mask the 256 GRF tile was faster
+// than the table on every head-64 shape measured (non-causal, causal GQA prompts / chunks / 16-query steps, head 40,
+// static and dynamic): 0.52-0.93x it, 0.60-0.83x sdpa_micro from ~300 tokens. With a 2D mask the kernel also streams the
+// mask, and at 4K tokens (an SDPA-backend LLM prompt, causal through the mask) it was 1.09x the table, every other tile
+// measured 1.06-1.21x; the table with the loop changes was 0.69-1.00x it on every masked shape
+// ("Plain-SDPA PREFILL tiling (d_max 64)" in the docs). The choice reads the op's mask input, never a query or key count,
+// so the compiled stage and its dispatch (shape-agnostic or not) agree. SDPA_OCL_PLAIN_D64=0 keeps the bare table (A/B).
+// False: keep the bare table (bf16, compressed K / V, other devices: not measured).
+bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
+    if (d_max != 64 || vd_max != 64 || arch != gpu_arch::xe2 || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D64", 1) == 0) {
+        return false;
+    }
+    sdpa_ocl_config_t t;
+    if (shape.mask_input) {
+        t = choose_config_kq_only(arch, d_max);
+    } else {
+        t.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+        t.kq_sg_tile_keys = 32;
+        t.kq_sg_tile_queries = 32;
+        t.kq_sg_per_wg_keys = 4;
+        t.kq_sg_per_wg_queries = 2;
+        // At 128 GRF this tile was 1.4-2.7x slower.
+        t.large_grf = true;
+        t.noncausal_kq_branch = true;
+    }
+    t.prefill_pipeline = true;
+    t.v_prefetch = true;
+    t.v_prefetch_l3 = false;
+    t.micro_math = false;  // plain SDPA never emits MICRO_MATH
+    t.wide_reads = 1;      // the K pair; without it 0.94-1.15x with the KQ branch (faster at head 40 only), 1.00-1.06x causal
+    if (!solve_sv_split(t, vd_max) || !tiling_fits_device(arch, d_max, t)) {
+        return false;
+    }
+    config = t;
+    return true;
+}
+
+// Plain (non-PA) SDPA PREFILL on Xe2 at d_max 512 with f16 Q / K / V, 256 GRF with the PA PREFILL d_max 512 loop changes
+// (L3-only V prefetch, wide K / V / Q_slm reads, branchless softmax + split S-max barrier), no causal tile skip. Without an
+// attention mask input: the table tile (16 x 16 subgroup tiles, 8 x 2 subgroups, 128 keys x 32 queries); with one: the
+// PA PREFILL d_max 512 workgroup (32 x 16 subgroup tiles, 8 x 4 subgroups, 256 keys x 64 queries). The table tile at
+// 128 GRF spilled 1280 B (2432 with a mask) and was 1.43-1.49x sdpa_micro on a VAE decoder's attention (one head, 4096
+// tokens, dynamic: 865-874 vs 587-606 us in stable-diffusion-3.5). Without a mask the 256 GRF table was 0.47-0.66x the
+// old table (VAE 1K-16K tokens, causal 16-query steps and 2K prompts), 0.70-0.99x sdpa_micro; the PA tile was 1.03-1.50x
+// it there except at 16K, but with a 2D mask (an SDPA-backend LLM prompt, GQA) 0.77-0.89x it ("Plain-SDPA PREFILL tiling
+// (d_max 512)" in the docs). The choice reads the op's mask input only, so the compiled stage and its dispatch agree.
+// SDPA_OCL_PLAIN_D512=0 keeps the bare table (A/B). False: keep the bare table (bf16, compressed K / V, other devices:
+// not measured).
+bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
+    if (d_max != 512 || vd_max != 512 || arch != gpu_arch::xe2 || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D512", 1) == 0) {
+        return false;
+    }
+    sdpa_ocl_config_t t;
+    if (shape.mask_input) {
+        t.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+        t.kq_sg_tile_keys = 32;
+        t.kq_sg_tile_queries = 16;
+        t.kq_sg_per_wg_keys = 8;
+        t.kq_sg_per_wg_queries = 4;
+    } else {
+        t = choose_config_kq_only(arch, d_max);
+    }
+    t.large_grf = true;
+    t.prefill_pipeline = true;
+    t.v_prefetch = false;
+    t.v_prefetch_l3 = true;  // without it the table tile was 1.16x at 16K tokens and 1.07x on a masked 4K prompt
+    t.micro_math = false;    // plain SDPA never emits MICRO_MATH
+    t.wide_reads = 7;
+    t.causal_skip_off = true;
+    if (!solve_sv_split(t, vd_max) || !tiling_fits_device(arch, d_max, t)) {
+        return false;
+    }
+    config = t;
     return true;
 }
 
@@ -469,6 +552,12 @@ bool solve_tiling(gpu_arch arch,
     if (plain_prefill && solve_plain_prefill_tiling(arch, d_max, vd_max, plain_shape, config)) {
         return true;
     }
+    if (plain_prefill && solve_plain_prefill_d64_tiling(arch, d_max, vd_max, plain_shape, config)) {
+        return true;
+    }
+    if (plain_prefill && solve_plain_prefill_d512_tiling(arch, d_max, vd_max, plain_shape, config)) {
+        return true;
+    }
     if (plain_decode && solve_plain_decode_tiling(arch, d_max, vd_max, plain_shape.f16_qkv, config)) {
         return true;
     }
@@ -512,6 +601,7 @@ void read_kq_override(sdpa_ocl_config_t& config) {
     config.mixed_prefetch_k = false;
     config.noncausal_kq_branch = false;
     config.plain_decode = false;
+    config.causal_skip_off = false;
     config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
     config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
     config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
@@ -873,6 +963,10 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
     plain_shape.shape_agnostic = shape_agnostic;
     plain_shape.f16_qkv = params.input_layouts[0].data_type == data_types::f16 && params.input_layouts[1].data_type == data_types::f16 &&
                           params.input_layouts[2].data_type == data_types::f16;
+    if (plain_prefill) {
+        const auto desc = params.typed_desc<scaled_dot_product_attention>();
+        plain_shape.mask_input = desc->has_attn_mask_input && !desc->attn_mask_val.has_value();
+    }
     if (plain_prefill && !shape_agnostic) {
         plain_shape.n_keys = aligned_seq_length(params, 1).get_length();
         plain_shape.q_len = aligned_seq_length(params, 0).get_length();
@@ -1067,8 +1161,12 @@ void add_prefill_pipeline_jit(JitConstants& jit, const jit_inputs& in) {
     const bool noncausal_kq_branch = !in.config.is_causal && t.noncausal_kq_branch && !in.config.has_const_attn_mask_val &&
                                      !sdpa_has_runtime_attn_mask_input(in.params) && !has_scalar_runtime_attn_mask_input(in.params);
     // The plain decode tiling takes the loop changes above but not this: with one query nothing is masked but the keys past
-    // the last one, and the branch made it 1.40-1.75x slower.
-    const int tile_skip = ((in.config.is_causal || noncausal_kq_branch) && t.prefill_pipeline && !t.plain_decode && in.problem.d_max >= 128) ? 1 : 0;
+    // the last one, and the branch made it 1.40-1.75x slower. The plain d_max 64 tiling takes the KQ branch (0.88-0.99x
+    // on non-causal shapes) but not the causal skip (1.06x / 1.11x on a causal chunk / 16-query step, as at PA d_max 64).
+    // The plain d_max 512 tilings take neither (causal_skip_off): the skip made a 16-query step over 1K keys 1.15x (a 2K
+    // prompt 0.99x) and the KQ branch moved non-causal shapes by -0.7% to +1.8%.
+    const bool causal_skip = in.config.is_causal && in.problem.d_max >= 128 && !t.causal_skip_off;
+    const int tile_skip = ((causal_skip || noncausal_kq_branch) && t.prefill_pipeline && !t.plain_decode) ? 1 : 0;
     jit.make("CAUSAL_TILE_SKIP", env_int("SDPA_OCL_CAUSAL_SKIP", tile_skip));
 }
 
@@ -1145,8 +1243,9 @@ void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
     // Fewer, larger K (1) / V (2) / Q_slm (4) reads per key tile: the mask of the PA PREFILL tiling they were measured
     // with (solve_pa_prefill_tiling()), SDPA_OCL_WIDE_READS=<mask> for A/B on any PA PREFILL. With a sliding window
     // d_max 64 keeps the narrow reads: the window's few key tiles stay in cache, and gpt-oss-20b's 128-key window
-    // layers were 10-12% slower with K + Q_slm and up to 0.7% with K alone.
-    const bool narrow_window = in.problem.d_max == 64 && in.config.paged_attention_sliding_window != 0;
+    // layers were 10-12% slower with K + Q_slm and up to 0.7% with K alone. A plain SDPA window (config.sliding_window)
+    // does the same for the plain d_max 64 tiling (not measured there).
+    const bool narrow_window = in.problem.d_max == 64 && (in.config.paged_attention_sliding_window != 0 || (!in.is_pa && in.config.sliding_window != 0));
     const int wide_reads = narrow_window ? 0 : in.problem.tiling.wide_reads;
     jit.make("WIDE_READS", (kv_2d && prefill_lane) ? env_int("SDPA_OCL_WIDE_READS", wide_reads) : 0);
 
