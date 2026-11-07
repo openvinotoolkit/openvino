@@ -31,10 +31,11 @@ using ov::pass::operator|;
 \
         auto sub_value_const_m = wrap_type<ov::op::v0::Constant>();\
         auto sub_value_param_m = wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::has_static_shape());\
-        auto sub_value_param_reshape_m = wrap_type<ov::op::v1::Reshape>({sub_value_param_m, any_input()});\
+        auto sub_value_param_reshape_m =\
+            wrap_type<ov::op::v1::Reshape>({sub_value_param_m, any_input()}, ov::pass::pattern::has_static_shape());\
         auto sub_value_param_convert_m = wrap_type<ov::op::v0::Convert>({sub_value_param_m});\
         auto sub_value_param_convert_reshape_m =\
-            wrap_type<ov::op::v1::Reshape>({sub_value_param_convert_m, any_input()});\
+            wrap_type<ov::op::v1::Reshape>({sub_value_param_convert_m, any_input()}, ov::pass::pattern::has_static_shape());\
         auto sub_const_m = sub_value_const_m | sub_value_param_m | sub_value_param_reshape_m |\
                            sub_value_param_convert_reshape_m;\
         auto sub_convert_const_m = wrap_type<ov::op::v0::Convert>({sub_const_m});\
@@ -44,10 +45,11 @@ using ov::pass::operator|;
 \
         auto mul_value_const_m = wrap_type<ov::op::v0::Constant>();\
         auto mul_value_param_m = wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::has_static_shape());\
-        auto mul_value_param_reshape_m = wrap_type<ov::op::v1::Reshape>({mul_value_param_m, any_input()});\
+        auto mul_value_param_reshape_m =\
+            wrap_type<ov::op::v1::Reshape>({mul_value_param_m, any_input()}, ov::pass::pattern::has_static_shape());\
         auto mul_value_param_convert_m = wrap_type<ov::op::v0::Convert>({mul_value_param_m});\
         auto mul_value_param_convert_reshape_m =\
-            wrap_type<ov::op::v1::Reshape>({mul_value_param_convert_m, any_input()});\
+            wrap_type<ov::op::v1::Reshape>({mul_value_param_convert_m, any_input()}, ov::pass::pattern::has_static_shape());\
         auto mul_value_param_reshape_convert_m =\
              wrap_type<ov::op::v0::Convert>({mul_value_param_reshape_m});\
         auto mul_const_m = mul_value_const_m | mul_value_param_m | mul_value_param_reshape_m |\
