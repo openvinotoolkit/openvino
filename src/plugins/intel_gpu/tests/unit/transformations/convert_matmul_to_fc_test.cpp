@@ -636,6 +636,70 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u4_wei
     }
 }
 
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_weights_static_scale_zp_parameters) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto zp = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{32, 1});
+        auto zp_convert = std::make_shared<ov::opset1::Convert>(zp, ov::element::f16);
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, zp_convert);
+        auto scale = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{32, 1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, scale);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul, false, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, zp, scale});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+        auto zp = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::Shape{32, 1});
+        auto scale = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{32, 1});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed =
+            std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(data, weights, no_bias, scale, zp);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{data, zp, scale});
+    }
+}
+
+// Dynamic scale/zp Parameters broadcast the decompressed weights to a dynamic shape, which FullyConnected can't take,
+// so the MatMul must be left unchanged instead of failing.
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_weights_dynamic_scale_parameter) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{1, 16}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto scale = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(convert, scale);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul, false, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, scale});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnectedTest_compressed_u8_weights_dynamic_zp_parameter) {
+    {
+        auto data = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{1, 16}, {1});
+        auto convert = std::make_shared<ov::opset1::Convert>(weights, ov::element::f16);
+        auto zp = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::PartialShape{-1, 1});
+        auto zp_convert = std::make_shared<ov::opset1::Convert>(zp, ov::element::f16);
+        auto sub = std::make_shared<ov::opset1::Subtract>(convert, zp_convert);
+        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{1, 1}, {1});
+        auto mul = std::make_shared<ov::opset1::Multiply>(sub, scale);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(data, mul, false, true);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data, zp});
+        manager.register_pass<ConvertMatMulToFullyConnected>(true);
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+}
+
 // Checked blocked cases
 TEST(TransformationTests, ConvertMatMulToFullyConnectedExceptionTest_sibling_matmul_no_convert) {
     auto CreateMatMul = [&](bool mat1_transpose_a, bool mat1_transpose_b,
