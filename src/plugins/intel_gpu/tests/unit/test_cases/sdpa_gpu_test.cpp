@@ -716,6 +716,37 @@ TEST(sdpa_gpu_causal_mask, prefill_32q_32kv_300q_2300kv) {
     run_sdpa_causal_mask(1, 32, 32, 300, 2300, 128, true, {false, 5e-3f, 4.0f});
 }
 
+// d_max 64 causal stages (on Xe2 with f16: the 32 x 32 subgroup tiles of the plain d_max 64 tiling, no causal tile
+// skip) against the explicit-mask reference, which takes the masked table tile (another accumulation order: B70 max
+// |diff| 6e-5-4.9e-4) and the host reference: static upper-left q == k and lower-right with an unaligned offset, a
+// shape-agnostic 16-query step and 512-query chunk.
+TEST(sdpa_gpu_causal_mask, prefill_static_upper_left_32q_8kv_1357seq_d64) {
+    run_sdpa_causal_mask(1, 32, 8, 1357, 1357, 64, false, {true, 2e-3f, 4.0f});
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_static_32q_8kv_300q_1100kv_d64) {
+    run_sdpa_causal_mask(1, 32, 8, 300, 1100, 64, true, {true, 2e-3f, 4.0f});
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_32q_8kv_16q_1024kv_d64) {
+    run_sdpa_causal_mask(1, 32, 8, 16, 1024, 64, true, {false, 5e-3f, 4.0f});
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_32q_8kv_512q_2048kv_d64) {
+    run_sdpa_causal_mask(1, 32, 8, 512, 2048, 64, true, {false, 5e-3f, 4.0f});
+}
+
+// d_max 512 causal stages (on Xe2 with f16: the table tile of the plain d_max 512 tiling, no causal tile skip) against the
+// explicit-mask reference, which takes the masked PA PREFILL workgroup, and the host reference: static lower-right with an
+// unaligned offset, a shape-agnostic 16-query step.
+TEST(sdpa_gpu_causal_mask, prefill_static_8q_1kv_300q_1100kv_d512) {
+    run_sdpa_causal_mask(1, 8, 1, 300, 1100, 512, true, {true, 2e-3f, 4.0f});
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_8q_1kv_16q_1024kv_d512) {
+    run_sdpa_causal_mask(1, 8, 1, 16, 1024, 512, true, {false, 5e-3f, 4.0f});
+}
+
 // Non-causal multi-token SDPA (the default kernel: on Xe2+ the f16 d_max 128 table tile, which takes CAUSAL_TILE_SKIP's
 // KQ branch) element-wise against the host reference. Key counts that end inside a key tile and inside a subgroup's 16 keys, where
 // the branch skips the subgroups past the last key; head sizes 72 / 80 (partial depth tiles) and a full 2D mask. Q in
@@ -809,6 +840,46 @@ TEST(sdpa_gpu_noncausal_tail, static_head72_16q_16kv_729seq) {
 
 TEST(sdpa_gpu_noncausal_tail, dynamic_head80_mask_16q_16kv_333q_1037kv) {
     run_sdpa_noncausal_vs_ref(16, 16, 333, 1037, 80, true, true);
+}
+
+// d_max 64 (on Xe2 with f16, solve_plain_prefill_d64_tiling(): without a mask 32-key x 32-query subgroup tiles in
+// 128-key x 64-query workgroups with the KQ branch, with a mask the table tile with the loop changes):
+// stable-diffusion-3.5's joint attention (1357 = 10 key tiles + 77 keys, the last subgroup holding 13), a CLIP image
+// encoder, GQA, head 40 (partial depth tiles) and a 2D mask.
+TEST(sdpa_gpu_noncausal_tail, dynamic_38q_38kv_1357seq_d64) {
+    run_sdpa_noncausal_vs_ref(38, 38, 1357, 1357, 64, true, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, static_16q_16kv_577seq_d64) {
+    run_sdpa_noncausal_vs_ref(16, 16, 577, 577, 64, false, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, static_28q_4kv_200q_1100kv_d64) {
+    run_sdpa_noncausal_vs_ref(28, 4, 200, 1100, 64, false, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, dynamic_head40_8q_8kv_333q_1037kv) {
+    run_sdpa_noncausal_vs_ref(8, 8, 333, 1037, 40, true, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, dynamic_mask_16q_16kv_333q_1037kv_d64) {
+    run_sdpa_noncausal_vs_ref(16, 16, 333, 1037, 64, true, true);
+}
+
+// d_max 512 (on Xe2 with f16, solve_plain_prefill_d512_tiling(): without a mask the table tile at 256 GRF, with a mask
+// the 256-key x 64-query PA PREFILL workgroup; both with the L3 V prefetch and wide K / V / Q_slm reads): a VAE decoder's
+// one-head attention (1100 keys end 76 keys into a key tile, 12 into a subgroup), static with two heads, and a GQA
+// 2D-mask prompt whose queries end 44 into a query tile.
+TEST(sdpa_gpu_noncausal_tail, dynamic_1q_1kv_1100seq_d512) {
+    run_sdpa_noncausal_vs_ref(1, 1, 1100, 1100, 512, true, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, static_2q_2kv_333q_777kv_d512) {
+    run_sdpa_noncausal_vs_ref(2, 2, 333, 777, 512, false, false);
+}
+
+TEST(sdpa_gpu_noncausal_tail, dynamic_mask_8q_1kv_300q_1100kv_d512) {
+    run_sdpa_noncausal_vs_ref(8, 1, 300, 1100, 512, true, true);
 }
 
 // Plain-SDPA decode: the single-token stage (one query), which on Xe2 with f16 Q / K / V takes the decode tiling
