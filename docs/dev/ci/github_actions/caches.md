@@ -124,6 +124,40 @@ path in the Docker container where the resources will be available.
 
 To add new resources, contact a member of the CI team for assistance.
 
+### Hugging Face Model Cache
+
+Hugging Face model-test jobs download through the staging Hugging Face proxy
+instead of the shared model cache. Each job calls the setup action after
+checking out `.github/actions` and setting up Python:
+
+```yaml
+steps:
+  - name: Setup Hugging Face proxy
+    uses: ./.github/actions/setup_hf_proxy
+```
+
+The action exports `HF_ENDPOINT=http://hf-proxy.hf-proxy.svc.cluster.local`,
+`HF_HUB_DISABLE_XET=1`, and a runner-local cache: `HF_HOME` is
+`${{ runner.temp }}/hf-home`, and `HF_HUB_CACHE` and `HUGGINGFACE_HUB_CACHE` are
+`${{ runner.temp }}/hf-home/hub`. Call it in the reusable job itself; reusable
+workflows do not inherit the caller's environment. There is no direct-download
+fallback if the proxy is unreachable, and models occupy local runner disk even
+when the proxy serves them from its cache.
+
+Downloads authenticate with the token file set in `HF_TOKEN_PATH`:
+`/secrets/huggingface/token-tertiary` in Linux containers and
+`C:\mount\secrets\huggingface\token-tertiary` on Windows. On AKS runners the
+file comes from the `huggingface-api-token-tertiary` Kubernetes Secret mounted by
+the runner scale set. Dedicated GPU runners need the file at
+`/opt/home/actions_runner/actions-runner/secrets/huggingface/token-tertiary`
+on the host. If the file is missing, Hugging Face downloads run unauthenticated.
+
+Steps marked `(HuggingFace model download)` may contact the Hugging Face Hub;
+the label does not prove that model files were transferred. The proxy covers
+Hugging Face Hub clients only, not other model hosts such as Kaggle or
+torchvision. All participating runners, including dedicated GPU runners, must be
+able to reach the cluster-local proxy endpoint.
+
 ### Remote Storage Compiler Cache
 
 Builds can share compiled objects through ccache's remote storage on the shared drive

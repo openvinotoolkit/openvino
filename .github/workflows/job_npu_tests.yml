@@ -32,6 +32,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-tertiary"
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
   # OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
@@ -73,6 +74,10 @@ jobs:
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
+      - name: Setup Variables
+        run: |
+          Add-Content -Path $env:GITHUB_ENV -Value "HF_TOKEN_PATH=${{ env.HF_TOKEN_PATH_WIN }}"
+
       - name: Extract OpenVINO tests package
         run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
         working-directory: ${{ env.INSTALL_DIR }}
@@ -83,6 +88,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
+            .github/actions/setup_hf_proxy/action.yml
             .github/actions/install_ov_wheels/action.yml
           sparse-checkout-cone-mode: false
           path: 'openvino'
@@ -94,6 +100,9 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
           use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
+
+      - name: Setup Hugging Face proxy
+        uses: ./openvino/.github/actions/setup_hf_proxy
 
       - name: Install OpenVINO Python wheels
         uses: ./openvino/.github/actions/install_ov_wheels
@@ -109,7 +118,7 @@ jobs:
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
-      - name: TensorFlow Models Tests - NPU compile-only (convert_model)
+      - name: TensorFlow Models Tests - NPU compile-only (convert_model) (HuggingFace model download)
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
         shell: cmd
         run: |
@@ -130,7 +139,7 @@ jobs:
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
 
-      - name: JAX/Flax Models Tests - NPU compile-only
+      - name: JAX/Flax Models Tests - NPU compile-only (HuggingFace model download)
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         shell: cmd
         run: |
@@ -145,7 +154,7 @@ jobs:
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\npu_models.txt
 
-      - name: PyTorch Models Tests - NPU compile-only
+      - name: PyTorch Models Tests - NPU compile-only (HuggingFace model download)
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).PyTorch_FE) }}
         shell: cmd
         env:

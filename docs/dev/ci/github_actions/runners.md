@@ -72,6 +72,14 @@ The available configurations are:
 
 * `*` - Not specified in the group name
 
+### Staging AKS Runners
+
+Staging runner scale sets use the production label with an `-st` suffix, for
+example `aks-win-4-cores-8gb-test-st` and `aks-linux-16-cores-32gb-st`. They must
+provide the same secret mounts as their production counterparts and reach the
+Hugging Face proxy. See
+[Hugging Face model cache](./caches.md#hugging-face-model-cache) for the token file.
+
 ### Dedicated GPU Runners
 
 Eighteen runners with GPU capabilities (both integrated and discrete, iGPU and dGPU) 

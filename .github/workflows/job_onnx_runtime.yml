@@ -24,8 +24,8 @@ on:
 permissions: read-all
 
 env:
-  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-secondary
-  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-secondary"
+  HF_TOKEN_PATH_LIN: /secrets/huggingface/token-tertiary
+  HF_TOKEN_PATH_WIN: "C:\\mount\\secrets\\huggingface\\token-tertiary"
 
 jobs:
   ONNX_Runtime:
@@ -80,7 +80,11 @@ jobs:
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/ci_utils/onnxruntime
+            .github/actions/setup_hf_proxy
           sparse-checkout-cone-mode: false
+
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
 
       - name: Get ONNX runtime version
         run: |
