@@ -4,10 +4,16 @@
 
 #include "comparison.hpp"
 
+#include <array>
+#include <cstdint>
+#include <limits>
+
+#include "common_test_utils/node_builders/comparison.hpp"
 #include "internal_properties.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
-#include "common_test_utils/node_builders/comparison.hpp"
 
 #if defined(OPENVINO_ARCH_RISCV64)
 #   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
@@ -18,8 +24,50 @@ using namespace ov::test::utils;
 
 namespace ov {
 namespace test {
+namespace {
+
+ov::Tensor generate_i32_comparison_input(const ov::Shape& shape, size_t port, ComparisonGraphType graphType) {
+    constexpr int32_t limit = 1 << 24;
+    constexpr int32_t min = std::numeric_limits<int32_t>::min();
+    constexpr int32_t max = std::numeric_limits<int32_t>::max();
+    // Keep adjacent integers in each window: converting them to f32 can make unequal inputs compare equal.
+    constexpr std::array<std::array<int32_t, 2>, 14> values = {{{limit + 1, limit},
+                                                                {limit, limit + 1},
+                                                                {limit + 1, limit + 1},
+                                                                {-limit - 1, -limit},
+                                                                {-limit, -limit - 1},
+                                                                {-limit - 1, -limit - 1},
+                                                                {min, min + 1},
+                                                                {min + 1, min},
+                                                                {max, max - 1},
+                                                                {max - 1, max},
+                                                                {min, max},
+                                                                {max, min},
+                                                                {0, 0},
+                                                                {-1, 1}}};
+    // Add consumes exactly representable values, while the other comparison input is an adjacent integer.
+    // This isolates comparison rounding by keeping the Add operands and result exactly representable in f32.
+    constexpr std::array<std::array<int32_t, 2>, 6> addValues = {{{limit + 4, limit + 3},
+                                                                  {limit + 4, limit + 5},
+                                                                  {-limit - 4, -limit - 3},
+                                                                  {-limit - 4, -limit - 5},
+                                                                  {limit, limit + 1},
+                                                                  {-limit, -limit - 1}}};
+    ov::Tensor tensor(ov::element::i32, shape);
+    auto* data = tensor.data<int32_t>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        data[i] = graphType == ComparisonGraphType::ADD_COMPARE
+                      ? addValues[i % addValues.size()][port] - (port == 0 ? 2 : 0)
+                      : values[i % values.size()][port];
+    }
+    return tensor;
+}
+
+}  // namespace
+
 std::string ComparisonLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ComparisonLayerCPUTestParamSet> &obj) {
-    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets, i32Window] = obj.param;
+    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets, largeI32Values, graphType] =
+        obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -37,21 +85,25 @@ std::string ComparisonLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     result << "modelPrc=" << modelPrc.to_string() << "_";
     result << "inferPrc=" << inferPrc.to_string() << "_";
     result << "_enforceSnippets=" << enforceSnippets;
-    if (i32Window) {
-        result << "_i32Window=" << static_cast<int64_t>(i32Window->start_from) << "_" << i32Window->range;
-    }
+    result << "_largeI32Values=" << largeI32Values;
+    result << "_graphType="
+           << (graphType == ComparisonGraphType::COMPARE               ? "Compare"
+               : graphType == ComparisonGraphType::COMPARE_LOGICAL_NOT ? "CompareLogicalNot"
+                                                                       : "AddCompare");
 
     return result.str();
 }
 
 void ComparisonLayerCPUTest::SetUp() {
-    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets, window] = this->GetParam();
+    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets, largeI32Values, graphType] =
+        this->GetParam();
     targetDevice = ov::test::utils::DEVICE_CPU;
     i32Window = window;
 
     // we have to change model precision as well, otherwise inference precision won't affect single-node graph
     // due to enforce inference precision optimization for the eltwise as first node of the model
     const auto currModelPrc = ov::element::Type(modelPrc).is_real() ? inferPrc : modelPrc;
+    OPENVINO_ASSERT(!largeI32Values || currModelPrc == ov::element::i32);
 
     const auto primitiveType = getPrimitiveType(comparisonType, currModelPrc);
     const auto primiticePrcType =
@@ -71,40 +123,42 @@ void ComparisonLayerCPUTest::SetUp() {
 
     std::shared_ptr<ov::Node> secondInput;
     if (ov::test::utils::InputLayerType::CONSTANT == secondInType) {
-        auto tensor = i32Window && currModelPrc == ov::element::i32
-                          ? ov::test::utils::create_and_fill_tensor(
-                                currModelPrc,
-                                targetStaticShapes[0][1],
-                                ov::test::utils::InputGenerateData(i32Window->start_from, i32Window->range, 1, 2))
-                          : ov::test::utils::create_and_fill_tensor(currModelPrc, targetStaticShapes[0][1]);
+        auto tensor = largeI32Values ? generate_i32_comparison_input(targetStaticShapes[0][1], 1, graphType)
+                                     : ov::test::utils::create_and_fill_tensor(currModelPrc, targetStaticShapes[0][1]);
         secondInput = std::make_shared<ov::op::v0::Constant>(tensor);
     } else {
         auto param = std::make_shared<ov::op::v0::Parameter>(currModelPrc, inputDynamicShapes[1]);
         secondInput = param;
         params.push_back(param);
     }
-    const auto comparison_node = ov::test::utils::make_comparison(params[0], secondInput, comparisonType);
+    std::shared_ptr<ov::Node> firstInput = params[0];
+    if (graphType == ComparisonGraphType::ADD_COMPARE) {
+        firstInput =
+            std::make_shared<ov::op::v1::Add>(firstInput, ov::op::v0::Constant::create(currModelPrc, ov::Shape{}, {2}));
+    }
+    auto comparison_node = ov::test::utils::make_comparison(firstInput, secondInput, comparisonType);
+    if (graphType == ComparisonGraphType::COMPARE_LOGICAL_NOT) {
+        comparison_node = std::make_shared<ov::op::v1::LogicalNot>(comparison_node);
+    }
+    if (graphType != ComparisonGraphType::COMPARE) {
+        // Neighboring operations may use a different execution precision.
+        selectedType = primitiveType + "_.*";
+    }
 
     function = create_ov_model(currModelPrc, params, comparison_node, "Comparison");
 }
 
 void ComparisonLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    if (!i32Window) {
+    if (!std::get<6>(GetParam())) {
         SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
         return;
     }
 
-    // Values from a narrow window, so that both inputs are often equal or differ by 1. A different seed per input
-    // keeps the inputs from being identical.
     inputs.clear();
-    const auto& funcInputs = function->inputs();
-    for (size_t i = 0; i < funcInputs.size(); ++i) {
-        const auto& funcInput = funcInputs[i];
-        ov::test::utils::InputGenerateData inData(i32Window->start_from, i32Window->range, 1, static_cast<int32_t>(i + 1));
-        inputs.insert({funcInput.get_node_shared_ptr(),
-                       ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
-                                                               targetInputStaticShapes[i],
-                                                               inData)});
+    const auto& parameters = function->get_parameters();
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        inputs.emplace(parameters[i],
+                       generate_i32_comparison_input(targetInputStaticShapes[i], i, std::get<7>(GetParam())));
     }
 }
 
@@ -134,6 +188,13 @@ std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonType
 TEST_P(ComparisonLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
+    if (std::get<6>(GetParam())) {
+        const bool enforceSnippets = std::get<5>(GetParam());
+        const bool logicalNot = std::get<7>(GetParam()) == ComparisonGraphType::COMPARE_LOGICAL_NOT;
+        CheckNumberOfNodesWithType(compiledModel,
+                                   enforceSnippets ? "Subgraph" : "Eltwise",
+                                   enforceSnippets || !logicalNot ? 1 : 2);
+    }
 }
 
 namespace comparison {
