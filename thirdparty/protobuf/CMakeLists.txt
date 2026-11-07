@@ -107,6 +107,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR OV_COMPILER_IS_INTEL_LLVM
             VISIBILITY_INLINES_HIDDEN OFF
             INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
     endif()
+    if(APPLE)
+        # Keep bundled Protobuf symbols private to avoid collisions with TensorFlow's runtime.
+        set_target_properties(libprotobuf PROPERTIES
+            CXX_VISIBILITY_PRESET hidden
+            C_VISIBILITY_PRESET hidden
+            VISIBILITY_INLINES_HIDDEN ON)
+    endif()
     # protobuf is incompatible with thread sanitizers
     if(ENABLE_THREAD_SANITIZER)
         foreach(_lib protoc libprotoc libprotobuf libprotobuf-lite)
