@@ -5,6 +5,7 @@
 #include "include/auto_unit_test.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/threading/immediate_executor.hpp"
 
@@ -12,6 +13,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <filesystem>
+#include <fstream>
 #include <future>
 #include <mutex>
 #include <thread>
@@ -1136,10 +1138,15 @@ class AutoDynamicInactiveDeviceReleaseTest : public AutoDynamicDeviceSelectionTe
 public:
     void SetUp() override {
         AutoDynamicDeviceSelectionTest::SetUp();
+        m_cache_dir = std::filesystem::temp_directory_path() /
+                      ("ov_auto_inactive_device_release_" +
+                       std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        std::filesystem::create_directories(m_cache_dir);
         ON_CALL(*core, get_property(_, StrEq(ov::cache_dir.name()), _))
-            .WillByDefault(Return(ov::Any(std::string("test_cache_dir"))));
+            .WillByDefault(Return(ov::Any(m_cache_dir.string())));
         ON_CALL(*core, get_property(_, StrEq(ov::cache_path.name()), _))
             .WillByDefault(Return(ov::Any(std::filesystem::path())));
+        ON_CALL(*core, create_compile_config(_, _)).WillByDefault(Return(ov::AnyMap{}));
         ON_CALL(*core, device_supports_model_caching(_)).WillByDefault(Return(true));
         config.erase(ov::device::priorities.name());
         config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
@@ -1156,13 +1163,27 @@ public:
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                               _))
-            .WillByDefault([this](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap&) {
+            .WillByDefault([this](const std::shared_ptr<const ov::Model>& compiled_model,
+                                  const std::string&,
+                                  const ov::AnyMap& compile_config) {
                 ++m_cpu_compile_count;
                 // what was compiled for CPU before must be gone by now, nothing but AUTO holds it
                 EXPECT_TRUE(m_cpu_model.expired());
                 EXPECT_TRUE(m_cpu_worker_request.expired());
+                if (m_write_cpu_cache_blob) {
+                    const auto supported_config = core->get_supported_property("CPU", compile_config);
+                    const auto cache_key_config = core->create_compile_config("CPU", supported_config);
+                    const auto blob_id = ov::ModelCache::compute_hash(compiled_model, cache_key_config);
+                    std::ofstream(m_cache_dir / (blob_id + ".blob"), std::ios::binary).put('\0');
+                }
                 return make_tracked_cpu_model();
             });
+    }
+
+    void TearDown() override {
+        AutoDynamicDeviceSelectionTest::TearDown();
+        std::error_code error;
+        std::filesystem::remove_all(m_cache_dir, error);
     }
 
     ov::SoPtr<ov::ICompiledModel> make_tracked_cpu_model() {
@@ -1197,6 +1218,8 @@ public:
 
     std::atomic<int> m_gpu0_compile_count{0};
     std::atomic<int> m_cpu_compile_count{0};
+    std::filesystem::path m_cache_dir;
+    bool m_write_cpu_cache_blob = true;
     std::weak_ptr<ov::MockICompiledModel> m_cpu_model;
     std::weak_ptr<ov::mock_auto_plugin::MockISyncInferRequest> m_cpu_worker_request;
 };
@@ -1211,6 +1234,13 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_without_a_non_cpu_w
     config.insert(ov::device::priorities("GPU.0,CPU"));
     switch_between_devices(true);
     EXPECT_EQ(m_cpu_compile_count.load(), 2);
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_kept_when_cache_blob_was_not_written) {
+    m_write_cpu_cache_blob = false;
+    switch_between_devices(true);
+    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    EXPECT_FALSE(m_cpu_model.expired());
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {

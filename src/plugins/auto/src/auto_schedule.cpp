@@ -870,8 +870,24 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
         }
         supports_caching = m_device_supports_caching.emplace(device_name, supported).first;
     }
-    if (!supports_caching->second ||
-        CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name).empty()) {
+    const auto cache_location =
+        CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name);
+    if (!supports_caching->second || cache_location.empty()) {
+        return;
+    }
+    bool has_cache_blob = false;
+    try {
+        has_cache_blob = CacheWarmupManager::is_blob_cached(*m_context->m_ov_core,
+                                                           device_name,
+                                                           device_config,
+                                                           m_dynamic_model,
+                                                           m_context->m_model_path,
+                                                           cache_location);
+    } catch (const std::exception& ex) {
+        // A cache probe is only an optimization; retain the compiled model if the probe fails.
+        LOG_DEBUG_TAG("[dynamic] cache probe failed for %s: %s", device_name.c_str(), ex.what());
+    }
+    if (!has_cache_blob) {
         return;
     }
     const auto workers_it = m_worker_requests.find(device_name);
