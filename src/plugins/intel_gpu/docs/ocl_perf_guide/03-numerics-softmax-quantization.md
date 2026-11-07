@@ -493,6 +493,14 @@ The output is f16, so its own representation granularity is ~4.9e-4 relative →
 the correct and the buggy configurations reach the same plateau → no information. Self-consistency check: being causal, tokens `[0, tile)` depend only on themselves → they must be bit-identical under both configurations, and the 24-layer mean was 0.0000 (proof that the dumps are comparable).
 **VERDICT: the WWB −0.070 of minicpm4-0.5b is not an sdpa_ocl bug (do not re-investigate).** WWB similarity moves by ±0.05 on last-bit changes → **do not use it as a kernel regression gate**; use a per-op exact reference (gtest).
 
+**Diffusion models (2026-11-07, B70):** the final image is the wrong oracle. Over 20 denoising steps any rounding change is
+amplified: stable-diffusion-3.5 images of `sdpa_micro` (master), the old branch and the new tiling were 17-20 dB PSNR apart in
+every pair, master vs old branch included. Use one denoiser (transformer / UNet) call with identical fixed inputs against the
+CPU plugin in f32 and compare relative L2: 3.91e-2 micro, 3.88e-2 before, 3.93e-2 new at t = 500; the f16 GPU arms differ from
+each other by 1.9e-2, the GPU in f32 from the CPU by 2.4e-2 (`test/sd35/acc/one_call.py`). Check the reference arm on the same
+oracle: at t = 1000 every f16 GPU arm, master included, was bit-identical to the others and far from f32 (relative 1.0), an
+f16 issue outside the kernel under test.
+
 ### 9.3 Toggle classification: bit-preserving vs order-changing
 
 | Class | Example | Meaning of "no change" |

@@ -47,6 +47,7 @@ Repository rules (AGENTS.md): builds/GPU tests/benchmarks are **run by the user*
 4. Rebuild-free env knobs + trace first. Then ISA A/B by editing `#define`s in the dumped source + `ocloc` (chapter 04).
 5. Candidate grid: total subgroup count (`aligned_q/wgTQ × heads × sg_per_wg`), wgTK (64/128), wgTQ (32/64), sg_per_wg (8/16), **GRF (128/256) paired with the tile**.
 6. Timing only after the accuracy suite passes. Fixed clock (B70 2800MHz), per-kernel device time, 3 or more passes, representative shapes + synthetic in parallel.
+6a. **One tile per compiled stage, chosen by op-level properties** (2026-11-07): a dynamic-shape op may only ever run its shape-agnostic stage, so a count-keyed policy does not reach it; split by mask input / causal / head size instead (plain `d_max` 64: 32x32 tiles 256 GRF without a mask, the table with a mask; `d_max` 512: table at 256 GRF / PA workgroup; chapter 1 §6.7, §12 7a).
 7. Do not generalize across shapes: do not turn one shape's result into a law; find the discriminator (e.g. `V_TILES`). Before changing a default, check for regressions in prefill/mixed/decode and other heads·dtypes·archs.
 
 ## 5. Rules confirmed by measurement (device/source in chapter 1)
