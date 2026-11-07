@@ -6,13 +6,7 @@ const fs = require("node:fs/promises");
 const { addon: ov } = require("../..");
 const assert = require("assert");
 const { describe, it, before, beforeEach } = require("node:test");
-const {
-  testModels,
-  isModelAvailable,
-  lengthFromShape,
-  generateImage,
-  sleep,
-} = require("../utils.js");
+const { testModels, isModelAvailable, lengthFromShape, generateImage } = require("../utils.js");
 
 describe("ov.InferRequest tests", () => {
   const { testModelFP32 } = testModels;
@@ -215,20 +209,26 @@ describe("ov.InferRequest tests", () => {
     const fastModel = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
     const matrix = new ov.Tensor(ov.element.f32, [size, size], new Float32Array(size * size));
     const vector = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(1));
-    const finished = [];
-
+    let slowDone = false;
     const slow = slowModel
       .createInferRequest()
       .inferAsync([matrix, matrix])
-      .then(() => finished.push("slow"));
-    await sleep(10);
-    await fastModel
-      .createInferRequest()
-      .inferAsync([vector, vector])
-      .then(() => finished.push("fast"));
+      .then(() => (slowDone = true));
+
+    // Run fast calls back to back while the slow one is in flight. With a process-wide lock, at most
+    // the first one could slip in before the slow worker takes the lock; the rest would wait for it.
+    const fastRequest = fastModel.createInferRequest();
+    const fastCalls = 5;
+    let fastDone = 0;
+    while (!slowDone && fastDone < fastCalls) {
+      await fastRequest.inferAsync([vector, vector]);
+      fastDone++;
+    }
+    const slowDoneBeforeFast = slowDone;
     await slow;
 
-    assert.deepStrictEqual(finished, ["fast", "slow"]);
+    assert.strictEqual(fastDone, fastCalls);
+    assert.strictEqual(slowDoneBeforeFast, false);
   });
 
   it("concurrent inferAsync() calls on one request return their own results", async () => {
@@ -244,6 +244,39 @@ describe("ov.InferRequest tests", () => {
         return inferRequest.inferAsync([tensor, tensor]);
       }),
     );
+
+    assert.deepStrictEqual(
+      results.map((result) => Object.values(result)[0].data[0]),
+      values.map((value) => 2 * value),
+    );
+  });
+
+  it("concurrent inferAsync() calls on AsyncInferQueue wrappers of one request do not overlap", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const compiled = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
+    const inferQueue = new ov.AsyncInferQueue(compiled, 1);
+    const wrappers = [];
+    inferQueue.setCallback((err, request) => {
+      assert.ifError(err);
+      wrappers.push(request);
+    });
+    const input = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(1));
+    for (let i = 0; i < 2; i++) {
+      await inferQueue.startAsync({ data1: input, data2: input });
+    }
+    // Both callbacks got a separate JS object for the same native request.
+    assert.strictEqual(wrappers.length, 2);
+    assert.notStrictEqual(wrappers[0], wrappers[1]);
+
+    const values = Array.from({ length: 16 }, (_, i) => i);
+    const results = await Promise.all(
+      values.map((value) => {
+        const tensor = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(value));
+        return wrappers[value % 2].inferAsync([tensor, tensor]);
+      }),
+    );
+    inferQueue.release();
 
     assert.deepStrictEqual(
       results.map((result) => Object.values(result)[0].data[0]),

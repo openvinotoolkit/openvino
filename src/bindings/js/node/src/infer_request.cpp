@@ -39,7 +39,9 @@ void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) 
     _infer_request = infer_request;
 }
 
-Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_request) {
+Napi::Object InferRequestWrap::wrap(Napi::Env env,
+                                    ov::InferRequest infer_request,
+                                    std::shared_ptr<std::mutex> infer_mutex) {
     const auto& prototype = env.GetInstanceData<AddonData>()->infer_request;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to InferRequest prototype.");
@@ -47,6 +49,9 @@ Napi::Object InferRequestWrap::wrap(Napi::Env env, ov::InferRequest infer_reques
     auto obj = prototype.New({});
     const auto ir = Napi::ObjectWrap<InferRequestWrap>::Unwrap(obj);
     ir->set_infer_request(infer_request);
+    if (infer_mutex) {
+        ir->_infer_mutex = std::move(infer_mutex);
+    }
     return obj;
 }
 

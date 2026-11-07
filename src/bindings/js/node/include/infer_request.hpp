@@ -48,9 +48,12 @@ public:
      * @brief Creates JavaScript InferRequest object and wraps inside of it ov::InferRequest object.
      * @param env The environment in which to construct a JavaScript object.
      * @param infer_request ov::InferRequest to wrap.
+     * @param infer_mutex Mutex shared by all wrappers of the same ov::InferRequest. A new one is created if nullptr.
      * @return Javascript InferRequest as Napi::Object. (Not InferRequestWrap object)
      */
-    static Napi::Object wrap(Napi::Env env, ov::InferRequest infer_request);
+    static Napi::Object wrap(Napi::Env env,
+                             ov::InferRequest infer_request,
+                             std::shared_ptr<std::mutex> infer_mutex = nullptr);
 
     /**
      * @brief Sets an input/output tensor to infer on.
@@ -129,7 +132,7 @@ public:
 private:
     ov::InferRequest _infer_request;
     /// Serializes inferAsync() calls on this request. Shared with the worker thread,
-    /// which can outlive this object.
+    /// which can outlive this object, and with other wrappers of the same ov::InferRequest.
     std::shared_ptr<std::mutex> _infer_mutex = std::make_shared<std::mutex>();
 };
 

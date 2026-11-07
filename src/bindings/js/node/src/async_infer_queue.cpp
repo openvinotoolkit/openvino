@@ -41,11 +41,13 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
         m_tsfn = nullptr;
 
         m_requests.reserve(jobs);
+        m_infer_mutexes.reserve(jobs);
         m_user_ids.reserve(jobs);
         m_user_inputs.reserve(jobs);
 
         for (size_t handle = 0; handle < jobs; handle++) {
             m_requests.emplace_back(compiled.create_infer_request());
+            m_infer_mutexes.push_back(std::make_shared<std::mutex>());
             m_user_ids.push_back(std::make_pair(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 1),
                                                 Napi::Promise::Deferred::New(env)));
             m_user_inputs.push_back(Napi::Reference<Napi::Object>::New(Napi::Object::New(env), 1));
@@ -110,7 +112,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
             m_requests[handle].set_callback([this, handle](std::exception_ptr exception_ptr) {
                 try {
                     auto ov_callback = [this, handle, exception_ptr](Napi::Env env, Napi::Function user_callback) {
-                        Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[handle]);
+                        Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[handle], m_infer_mutexes[handle]);
                         const auto promise = m_user_ids[handle].second;
                         try {
                             if (exception_ptr) {
