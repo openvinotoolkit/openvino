@@ -15,13 +15,16 @@
 namespace ov {
 namespace test {
 
-using ComparisonLayerCPUTestParamSet =
-    std::tuple<std::vector<ov::test::InputShape>,  // Input shapes
-               utils::ComparisonTypes,             // Comparison type
-               ov::test::utils::InputLayerType,    // Second input type
-               ov::element::Type,                  // Model precision
-               ov::element::Type,                  // Infer precision
-               bool>;                              // Enforce Snippets
+enum class ComparisonGraphType { COMPARE, COMPARE_LOGICAL_NOT, ADD_COMPARE };
+
+using ComparisonLayerCPUTestParamSet = std::tuple<std::vector<ov::test::InputShape>,  // Input shapes
+                                                  utils::ComparisonTypes,             // Comparison type
+                                                  ov::test::utils::InputLayerType,    // Second input type
+                                                  ov::element::Type,                  // Model precision
+                                                  ov::element::Type,                  // Infer precision
+                                                  bool,                               // Enforce Snippets
+                                                  bool,                               // Use large i32 values
+                                                  ComparisonGraphType>;               // Graph pattern
 
 class ComparisonLayerCPUTest : public testing::WithParamInterface<ComparisonLayerCPUTestParamSet>,
                                virtual public ov::test::SubgraphBaseTest,
@@ -31,6 +34,7 @@ public:
 
 protected:
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
 private:
     std::string getPrimitiveType(const utils::ComparisonTypes& comparison_type, ov::element::Type modelType) const;
