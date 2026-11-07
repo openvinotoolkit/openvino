@@ -2791,8 +2791,8 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 // GENERATE on a forced token-major K page of each kind (f16, i8 BY_TOKEN, i8 BY_CHANNEL, u4 BY_CHANNEL), wherever
-// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg on its opt-in lane (the SG8 reader, sdpa_ocl_hpg_decode.cl), whose
-// pages the layout rule does not make token-major yet. Every subsequence is one new token, so GENERATE is the only stage
+// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg on its opt-in lane (the SG8 reader, sdpa_ocl_hpg_decode.cl), where the
+// layout rule makes the page token-major too. Every subsequence is one new token, so GENERATE is the only stage
 // that reads the cache (kv_cache_update writes the new token token-major first). paged_attention_opt.cl reads a token-major
 // page too, so the test asks which kernel ran rather than relying on a refused op to fail. The cases cover M = 1 / 4 / 8 and a
 // leftover row, page and partition edges, several partitions, heads 64-512, k != v, a sliding window, a sink, a runtime
@@ -2855,10 +2855,12 @@ std::vector<paged_attention_test_params> decode_tm_cases() {
         i8_token({{1, 34}, {1, 515}}, 8, 2, 64, 64),
         i8_token({{1, 1000}}, 4, 4, 128, 128),
         i8_token({{1, 300}}, 6, 2, 256, 256),
+        i8_token({{1, 515}}, 8, 2, 512, 512),  // the SG8 reader's long-row cap: M = 1, four head iterations
         with_sliding_window(i8_token({{1, 600}}, 4, 2, 128, 128), 300),
         i8_channel({{1, 34}, {1, 515}}, 8, 2, 64, 64),
         i8_channel({{1, 1000}}, 32, 8, 128, 128),
         i8_channel({{1, 300}}, 4, 1, 256, 256),
+        i8_channel({{1, 515}}, 8, 2, 512, 512),  // as above
         with_sinks(i8_channel({{1, 300}}, 4, 2, 128, 128)),
         u4({{1, 34}}, 2, 2, 64, 64),
         u4({{1, 515}, {1, 17}}, 8, 2, 128, 128),
@@ -2878,8 +2880,8 @@ std::vector<paged_attention_test_params> decode_tm_cases() {
 INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_decode_tm, paged_attention_decode_tm_test, ::testing::ValuesIn(decode_tm_cases()));
 
 namespace {
-// PA MIXED on a forced token-major K page, the layout the xe_hpg pages take once the layout rule admits xe_hpg; until
-// then nothing else runs sdpa_ocl's SG8 token-major MIXED readers on DG2. Past lengths on and off a page boundary, new
+// PA MIXED on a forced token-major K page, the layout the layout rule gives xe_hpg pages on the HPG lane (the default lane
+// keeps them d-major, so the suite skips there). Past lengths on and off a page boundary, new
 // tokens around a 32-query tile, keys around 128 / 256-key tiles, a long past (the VLM steps of qwen3-vl and
 // phi-4-multimodal), batches that mix MIXED, PREFILL and one-token subsequences, GQA / MQA, sliding windows that start in
 // the past, and a sink, all with a sharp softmax and mostly GQA (with matching head counts the Q of a new token is the K of
