@@ -122,6 +122,7 @@ jobs:
           - SANITIZER: 'Thread'
             SANITIZER_CMAKE_OPTION: '-DENABLE_THREAD_SANITIZER=ON'
     env:
+      CI_DEPS_DOWNLOAD_REFERER: http://github.com/openvinotoolkit/openvino/actions
       CMAKE_BUILD_TYPE: 'RelWithDebInfo'
       CMAKE_GENERATOR: 'Ninja'
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
