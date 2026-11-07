@@ -35,7 +35,7 @@ def _disable_suppress_errors():
     ],
 )
 def test_compile_openvino_backend_does_not_break_dynamo(model_fn):
-    x = torch.randn(4, 5, 6)
-    expected = model_fn(x)
-    actual = torch.compile(model_fn, backend="openvino")(x)
+    input_data = torch.randn(4, 5, 6)
+    expected = model_fn(input_data)
+    actual = torch.compile(model_fn, backend="openvino")(input_data)
     torch.testing.assert_close(actual, expected)
