@@ -6,6 +6,7 @@
 #include <napi.h>
 
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
@@ -38,6 +39,8 @@ private:
     // AsyncInferQueue is the owner of all requests. When AsyncInferQueue is destroyed,
     // all of requests are destroyed as well.
     std::vector<ov::InferRequest> m_requests;
+    // One inferAsync() mutex per request, shared by every JS wrapper passed to the callback.
+    std::vector<std::shared_ptr<std::mutex>> m_infer_mutexes;
     std::vector<Napi::ObjectReference> m_user_inputs;  // to prevent garbage collection
     std::vector<std::pair<Napi::ObjectReference, Napi::Promise::Deferred>> m_user_ids;
 

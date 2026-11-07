@@ -171,6 +171,119 @@ describe("ov.InferRequest tests", () => {
     assert.strictEqual(await infer(positionalInputs(inputNames.toReversed())), -8);
   });
 
+  it("inferAsync() of an independent request does not wait for another request", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const size = 2048;
+    const dims = `<dim>${size}</dim><dim>${size}</dim>`;
+    const parameter = (id, name) => `
+      <layer id="${id}" name="${name}" type="Parameter" version="opset1">
+        <data shape="${size},${size}" element_type="f32" />
+        <output><port id="0" precision="FP32" names="${name}">${dims}</port></output>
+      </layer>`;
+    const matMulXml = `<?xml version="1.0"?>
+      <net name="MatMulModel" version="11">
+        <layers>
+          ${parameter(0, "a")}
+          ${parameter(1, "b")}
+          <layer id="2" name="matmul" type="MatMul" version="opset1">
+            <data transpose_a="false" transpose_b="false" />
+            <input><port id="0" precision="FP32">${dims}</port><port id="1" precision="FP32">${dims}</port></input>
+            <output><port id="2" precision="FP32" names="out">${dims}</port></output>
+          </layer>
+          <layer id="3" name="result" type="Result" version="opset1">
+            <input><port id="0" precision="FP32">${dims}</port></input>
+          </layer>
+        </layers>
+        <edges>
+          <edge from-layer="0" from-port="0" to-layer="2" to-port="0" />
+          <edge from-layer="1" from-port="0" to-layer="2" to-port="1" />
+          <edge from-layer="2" from-port="2" to-layer="3" to-port="0" />
+        </edges>
+      </net>`;
+    // A single-threaded f32 MatMul keeps the first request busy much longer than the second one.
+    const slowModel = core.compileModelSync(core.readModelSync(Buffer.from(matMulXml)), "CPU", {
+      INFERENCE_NUM_THREADS: 1,
+      INFERENCE_PRECISION_HINT: "f32",
+    });
+    const fastModel = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
+    const matrix = new ov.Tensor(ov.element.f32, [size, size], new Float32Array(size * size));
+    const vector = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(1));
+    let slowDone = false;
+    const slow = slowModel
+      .createInferRequest()
+      .inferAsync([matrix, matrix])
+      .then(() => (slowDone = true));
+
+    // Run fast calls back to back while the slow one is in flight. With a process-wide lock, at most
+    // the first one could slip in before the slow worker takes the lock; the rest would wait for it.
+    const fastRequest = fastModel.createInferRequest();
+    const fastCalls = 5;
+    let fastDone = 0;
+    while (!slowDone && fastDone < fastCalls) {
+      await fastRequest.inferAsync([vector, vector]);
+      fastDone++;
+    }
+    const slowDoneBeforeFast = slowDone;
+    await slow;
+
+    assert.strictEqual(fastDone, fastCalls);
+    assert.strictEqual(slowDoneBeforeFast, false);
+  });
+
+  it("concurrent inferAsync() calls on one request return their own results", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const compiled = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
+    const inferRequest = compiled.createInferRequest();
+    const values = Array.from({ length: 16 }, (_, i) => i);
+
+    const results = await Promise.all(
+      values.map((value) => {
+        const tensor = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(value));
+        return inferRequest.inferAsync([tensor, tensor]);
+      }),
+    );
+
+    assert.deepStrictEqual(
+      results.map((result) => Object.values(result)[0].data[0]),
+      values.map((value) => 2 * value),
+    );
+  });
+
+  it("concurrent inferAsync() calls on AsyncInferQueue wrappers of one request do not overlap", async () => {
+    const { addModel } = testModels;
+    const core = new ov.Core();
+    const compiled = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
+    const inferQueue = new ov.AsyncInferQueue(compiled, 1);
+    const wrappers = [];
+    inferQueue.setCallback((err, request) => {
+      assert.ifError(err);
+      wrappers.push(request);
+    });
+    const input = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(1));
+    for (let i = 0; i < 2; i++) {
+      await inferQueue.startAsync({ data1: input, data2: input });
+    }
+    // Both callbacks got a separate JS object for the same native request.
+    assert.strictEqual(wrappers.length, 2);
+    assert.notStrictEqual(wrappers[0], wrappers[1]);
+
+    const values = Array.from({ length: 16 }, (_, i) => i);
+    const results = await Promise.all(
+      values.map((value) => {
+        const tensor = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(value));
+        return wrappers[value % 2].inferAsync([tensor, tensor]);
+      }),
+    );
+    inferQueue.release();
+
+    assert.deepStrictEqual(
+      results.map((result) => Object.values(result)[0].data[0]),
+      values.map((value) => 2 * value),
+    );
+  });
+
   describe("BigInt InferRequest support", () => {
     let core, originalModel, compiledModel, inferRequest;
 
