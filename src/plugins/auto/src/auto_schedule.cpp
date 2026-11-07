@@ -144,8 +144,7 @@ void AutoSchedule::init() {
             return device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU";
         });
         if (!has_warmup_candidate) {
-            LOG_WARNING_TAG("compile_for_all is ignored: no other non-CPU candidate device to compile");
-            m_context->m_compile_for_all = false;
+            LOG_INFO_TAG("compile_for_all cache warm-up is skipped: no other non-CPU candidate device to compile");
         } else {
             // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.
             LOG_INFO_TAG("compile_for_all disables startup and runtime fallback");
@@ -677,16 +676,25 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
             device = select_dynamic_device();
         }
         const bool is_pinned = !preferred_device.empty();
-        const auto pinned_device_name = device.device_name;
+        const auto requested_device_name = device.device_name;
+        DeviceName previous_device;
+        {
+            std::lock_guard<std::mutex> lock(m_gate_mutex);
+            previous_device = m_gate_current_device;
+        }
+        // the previous device stays usable for fallback until the new one is ready
         OPENVINO_ASSERT(ensure_device_ready(device),
                         get_log_tag(),
                         ": failed to compile the model on the selected device ",
                         device.device_name);
         // reject if a pinned request ended up compiled on a different device
-        OPENVINO_ASSERT(!is_pinned || device.device_name == pinned_device_name,
+        OPENVINO_ASSERT(!is_pinned || device.device_name == requested_device_name,
                         get_log_tag(),
                         ": failed to compile the model on the device pinned by the remote tensor ",
-                        pinned_device_name);
+                        requested_device_name);
+        if (previous_device != device.device_name) {
+            release_inactive_device(previous_device);
+        }
         const auto& device_name = device.device_name;
         {
             std::lock_guard<std::mutex> lock(m_gate_mutex);
@@ -829,6 +837,69 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
                  device.device_name.c_str(),
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count());
     return true;
+}
+
+void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
+    if (!m_context->m_compile_for_all || device_name.empty() ||
+        device_name == m_compile_context[ACTUALDEVICE].m_device_info.device_name) {
+        return;
+    }
+    const auto cached = m_dynamic_compiled_models.find(device_name);
+    if (cached == m_dynamic_compiled_models.end()) {
+        return;
+    }
+    // Without a cache for this device, a released model would need a full recompilation.
+    const auto info = std::find_if(m_context->m_device_priorities_initial.begin(),
+                                   m_context->m_device_priorities_initial.end(),
+                                   [&](const DeviceInformation& device) {
+                                       return device.device_name == device_name;
+                                   });
+    const ov::AnyMap no_config;
+    const auto& device_config =
+        info != m_context->m_device_priorities_initial.end()
+            ? info->config
+            : (m_context->m_low_power_device && m_context->m_low_power_device->device_name == device_name
+                   ? m_context->m_low_power_device->config
+                   : no_config);
+    auto supports_caching = m_device_supports_caching.find(device_name);
+    if (supports_caching == m_device_supports_caching.end()) {
+        bool supported = false;
+        try {
+            supported = m_context->m_ov_core->device_supports_model_caching(device_name);
+        } catch (const ov::Exception&) {
+        }
+        supports_caching = m_device_supports_caching.emplace(device_name, supported).first;
+    }
+    if (!supports_caching->second ||
+        CacheWarmupManager::get_cache_location(*m_context->m_ov_core, device_config, device_name).empty()) {
+        return;
+    }
+    const auto workers_it = m_worker_requests.find(device_name);
+    const auto idle_workers_it = m_idle_worker_requests.find(device_name);
+    if (workers_it == m_worker_requests.end() || idle_workers_it == m_idle_worker_requests.end()) {
+        return;
+    }
+    auto& workers = workers_it->second;
+    auto& idle_workers = idle_workers_it->second;
+    // the dynamic selection runs one worker per device, so an empty idle queue means it is still running
+    std::pair<int, WorkerInferRequest*> worker;
+    if (workers.size() != 1 || !idle_workers.try_pop(worker)) {
+        return;
+    }
+    // the timings of these requests go with them, so the per-device summary of ~Schedule() no longer covers them
+    const size_t dropped_infer_count = workers.front().m_start_times.size();
+    // the requests go first, they keep the compiled model alive
+    workers.clear();
+    idle_workers.set_capacity(0);
+    if (const auto tasks_it = m_infer_pipeline_tasks_device_specific.find(device_name);
+        tasks_it != m_infer_pipeline_tasks_device_specific.end()) {
+        tasks_it->second = nullptr;
+    }
+    m_dynamic_compiled_models.erase(cached);
+    LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released; the statistics of its %zu "
+                 "inferences are dropped from the final summary",
+                 device_name.c_str(),
+                 dropped_infer_count);
 }
 
 void AutoSchedule::release_execution_slot() {
