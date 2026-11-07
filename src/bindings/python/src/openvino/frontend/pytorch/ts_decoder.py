@@ -21,6 +21,7 @@ from openvino.frontend.pytorch.utils import (
     convert_quantized_tensor,
     graph_has_ops,
     patch_none_example,
+    to_ov_float_type,
 )
 from openvino import opset11 as ops
 from openvino.frontend.pytorch import quantized, patch_model
@@ -55,8 +56,11 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
         module_extensions=None,
         trace_kwargs=None,
         getattr_cache=None,
+        default_float_type=None,
     ):
         super().__init__()
+        # torch dtype the model was built with, e.g. torch.bfloat16; see TorchDecoderBase.get_default_float_type.
+        self._set_default_float_type(to_ov_float_type(default_float_type))
         self._shared_memory = shared_memory
         self._input_is_list = False
         self.constant_cache = constant_cache if constant_cache is not None else dict()  # noqa: C408

@@ -139,9 +139,15 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
     }
 
     // process model rt_info
-    auto rt_info = pytorch_model->get_decoder()->get_rt_info();
+    const auto& decoder = pytorch_model->get_decoder();
+    auto rt_info = decoder->get_rt_info();
     for (const auto& item : rt_info) {
         model->set_rt_info(item.second, item.first);
+    }
+    // Read back by normalize(), which converts a model whose default float type isn't f32 (see TorchDecoder).
+    const auto default_float_type = decoder->get_default_float_type();
+    if (default_float_type != element::f32) {
+        model->set_rt_info(default_float_type.get_type_name(), "default_float_type");
     }
     model->set_rt_info(ov::Any(pytorch_model->decoder_type_name()), "decoder_type_name");
 
@@ -459,6 +465,19 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         // Since parameters can be added we need to list all current parameters
         std::set<size_t> param_names;
         for (const auto& param : *parameters) {
+            // Skip externally-added parameters with no numeric tensor id
+            // (e.g. "__pa__"-tagged side-channel inputs).
+            const auto& names = param->output(0).get_names();
+            bool has_numeric = false;
+            for (const auto& n : names) {
+                if (!n.empty() && std::isdigit(static_cast<unsigned char>(n[0]))) {
+                    has_numeric = true;
+                    break;
+                }
+            }
+            if (!has_numeric) {
+                continue;
+            }
             auto input_idx = decode_tensor_name(param->output(0));
             param_names.insert(input_idx);
         }
