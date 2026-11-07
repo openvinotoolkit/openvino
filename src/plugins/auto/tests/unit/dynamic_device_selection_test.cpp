@@ -1171,7 +1171,7 @@ public:
                 EXPECT_TRUE(m_cpu_model.expired());
                 EXPECT_TRUE(m_cpu_worker_request.expired());
                 if (m_write_cpu_cache_blob) {
-                    const auto supported_config = core->get_supported_property("CPU", compile_config);
+                    const auto supported_config = core->get_supported_property("CPU", compile_config, true);
                     const auto cache_key_config = core->create_compile_config("CPU", supported_config);
                     const auto blob_id = ov::ModelCache::compute_hash(compiled_model, cache_key_config);
                     std::ofstream(m_cache_dir / (blob_id + ".blob"), std::ios::binary).put('\0');
