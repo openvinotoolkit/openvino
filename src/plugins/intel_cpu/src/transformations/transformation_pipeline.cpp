@@ -34,6 +34,22 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
+#if defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/add.hpp"
+#    include "openvino/op/equal.hpp"
+#    include "openvino/op/floor.hpp"
+#    include "openvino/op/greater.hpp"
+#    include "openvino/op/greater_eq.hpp"
+#    include "openvino/op/less.hpp"
+#    include "openvino/op/less_eq.hpp"
+#    include "openvino/op/maximum.hpp"
+#    include "openvino/op/minimum.hpp"
+#    include "openvino/op/multiply.hpp"
+#    include "openvino/op/negative.hpp"
+#    include "openvino/op/not_equal.hpp"
+#    include "openvino/op/squared_difference.hpp"
+#    include "openvino/op/subtract.hpp"
+#endif
 #include "openvino/op/avg_pool.hpp"
 #if !defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/op/bitwise_not.hpp"
@@ -1510,11 +1526,34 @@ void Transformations::MainSnippets() {
         return !is_unsupported(n) && (ignoreCallback || !is_unsupported_by_common_tokenization(n));
     };
 
-    auto has_supported_tensors = [ignoreCallback](const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto has_native_i32_support = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
+#if defined(OPENVINO_ARCH_ARM64)
+        return ov::is_type_any_of<const op::v0::Abs,
+                                  const op::v1::Add,
+                                  const op::v1::Subtract,
+                                  const op::v1::Multiply,
+                                  const op::v1::Minimum,
+                                  const op::v1::Maximum,
+                                  const op::v0::Negative,
+                                  const op::v0::SquaredDifference,
+                                  const op::v0::Floor,
+                                  const op::v1::Equal,
+                                  const op::v1::NotEqual,
+                                  const op::v1::Greater,
+                                  const op::v1::GreaterEqual,
+                                  const op::v1::Less,
+                                  const op::v1::LessEqual>(n);
+#else
+        return false;
+#endif
+    };
+
+    auto has_supported_tensors =
+        [ignoreCallback, has_native_i32_support](const std::shared_ptr<const ov::Node>& n) -> bool {
         // Check for supported precision
-        auto is_supported_tensor = [&n, ignoreCallback](descriptor::Tensor& t, bool is_input) -> bool {
-            // TODO [105804] int32 isn't supported in general because i32 emitters are required for bit-exact i32
-            // calculations in some cases So i32 is supported exclusively for transposes and broadcast
+        auto is_supported_tensor = [&n, ignoreCallback, has_native_i32_support](descriptor::Tensor& t,
+                                                                                bool is_input) -> bool {
+            // Integer tensors require exact i32 emitters; admit only operations with native integer execution.
             static const auto supported_element_types = [] {
 #if defined(OPENVINO_ARCH_ARM64)
                 return std::set<ov::element::Type>{ov::element::f32,
@@ -1547,6 +1586,9 @@ void Transformations::MainSnippets() {
                 }
             }
 
+            if (t.get_element_type() == ov::element::i32 && has_native_i32_support(n)) {
+                return true;
+            }
             return supported_element_types.count(t.get_element_type()) != 0 ||
                    (is_input && t.get_element_type() == ov::element::i32 &&
                     (ov::is_type_any_of<const op::v1::Transpose,
