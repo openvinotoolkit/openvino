@@ -16,14 +16,16 @@
 namespace ov {
 namespace test {
 
-using ComparisonLayerCPUTestParamSet =
-    std::tuple<std::vector<ov::test::InputShape>,  // Input shapes
-               utils::ComparisonTypes,             // Comparison type
-               ov::test::utils::InputLayerType,    // Second input type
-               ov::element::Type,                  // Model precision
-               ov::element::Type,                  // Infer precision
-               bool,                               // Enforce Snippets
-               std::optional<ov::test::utils::InputGenerateData>>;  // Value window for i32 inputs
+enum class ComparisonGraphType { COMPARE, COMPARE_LOGICAL_NOT, ADD_COMPARE };
+
+using ComparisonLayerCPUTestParamSet = std::tuple<std::vector<ov::test::InputShape>,  // Input shapes
+                                                  utils::ComparisonTypes,             // Comparison type
+                                                  ov::test::utils::InputLayerType,    // Second input type
+                                                  ov::element::Type,                  // Model precision
+                                                  ov::element::Type,                  // Infer precision
+                                                  bool,                               // Enforce Snippets
+                                                  bool,                               // Use large i32 values
+                                                  ComparisonGraphType>;               // Graph pattern
 
 class ComparisonLayerCPUTest : public testing::WithParamInterface<ComparisonLayerCPUTestParamSet>,
                                virtual public ov::test::SubgraphBaseTest,
