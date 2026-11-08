@@ -1733,8 +1733,8 @@ private:
 
 // Speculative decoding MIXED step with GQA: subsequences of at most 16 query tokens go to pa_small_q_opt.cl on DPAS
 // platforms when the KV group size divides 8 and query tokens x context is large enough, otherwise to the GQA
-// multi-token path of paged_attention_opt.cl -- or to sdpa_ocl for a token-major K page where sdpa_ocl serves MIXED
-// (select_gqa_multi_tokens_kernel()).
+// multi-token path of paged_attention_opt.cl. Where sdpa_ocl serves MIXED on the token-major K page, sdpa_ocl is a third
+// candidate and the thresholds differ (select_gqa_multi_tokens_kernel()).
 class paged_attention_gqa_multi_tokens_test : public paged_attention_gqa_multi_tokens_test_base {};
 TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
     auto p = GetParam();
@@ -1746,24 +1746,53 @@ TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
     // Mirrors supports_gqa_multi_tokens_dpas_kernel() and prefer_gqa_multi_tokens_fallback_kernel()
     const auto& info = tests::get_test_engine().get_device_info();
     const int kv_group_size = p.num_heads / p.num_kv_heads;
-    const bool expect_dpas = info.supports_immad && info.arch >= cldnn::gpu_arch::xe_hpc && 8 % kv_group_size == 0 &&
-                             p.k_head_size == p.v_head_size && p.k_head_size % 32 == 0 && p.k_head_size <= 256;
+    const bool expect_dpas = info.supports_immad && info.arch >= cldnn::gpu_arch::xe_hpc && 8 % kv_group_size == 0 && p.k_head_size == p.v_head_size &&
+                             p.k_head_size % 32 == 0 && p.k_head_size <= 256 && !p.token_type_ids.has_value();
     size_t max_tokens = 0;
     size_t max_context_len = 0;
     for (const auto& s : p.subsequences) {
         max_tokens = std::max(max_tokens, static_cast<size_t>(s.num_tokens));
         max_context_len = std::max(max_context_len, static_cast<size_t>(s.past_len + s.num_tokens));
     }
-    const bool prefer_fallback = max_tokens * max_tokens * max_context_len <= 64 * 1024;
     const bool tm_page = pam.k_cache_token_major();
     const bool sdpa_ocl_mixed = sdpa_ocl_serves_prefill_mixed() && pa_dpas_kernel_enabled_by_config();
-    const std::string expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt"
-                                        : tm_page && sdpa_ocl_mixed     ? "sdpa_ocl_mixed"
-                                                                        : "_gqa_multi_tokens_fallback";
+    std::string expected_kernel;
+    if (tm_page && sdpa_ocl_mixed) {
+        // Mirrors the token_major_gqa_* helpers: per cache kind, scaled down below head size 128
+        const double head_factor = std::min(1.0, p.k_head_size / 128.0);
+        const bool int8_cache = p.kv_cache_compression && p.kv_cache_precision != ov::element::u4;
+        const std::string without_small_q = (!p.kv_cache_compression && max_tokens > 12) ? "sdpa_ocl_mixed" : "_gqa_multi_tokens_fallback";
+        if (!expect_dpas)
+            expected_kernel = without_small_q;
+        else if (static_cast<double>(max_tokens * max_tokens * max_context_len) <= (int8_cache ? 192.0 : 320.0) * 1024.0 * head_factor)
+            expected_kernel = "_gqa_multi_tokens_fallback";
+        else if (static_cast<double>(max_context_len) >= 1536.0 * head_factor)
+            expected_kernel = "pa_small_q_opt";
+        else
+            expected_kernel = without_small_q;
+    } else {
+        const bool prefer_fallback = max_tokens * max_tokens * max_context_len <= 64 * 1024;
+        expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt" : "_gqa_multi_tokens_fallback";
+    }
     auto pa_inst = result.network->get_primitive("paged_attention");
     ASSERT_NE(pa_inst, nullptr);
     const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
     ASSERT_NE(entries.find(expected_kernel), std::string::npos) << "Expected " << expected_kernel << ", executed: " << entries;
+
+    if (p.token_type_ids.has_value()) {
+        // A row with token_type_ids must observe the bidirectional mask: its reference has to differ from the causal one
+        // by more than the tolerance, or a kernel that ignored the mask would pass.
+        const auto token_type_ids = pam.token_type_ids;
+        pam.token_type_ids.clear();
+        const auto causal = std::get<0>(PagedAttentionReference(pam).get_reference(result.key_cache_mem));
+        pam.token_type_ids = token_type_ids;
+        const auto bidir = std::get<0>(PagedAttentionReference(pam).get_reference(result.key_cache_mem));
+        ASSERT_EQ(causal.size(), bidir.size());
+        float max_diff = 0.0f;
+        for (size_t i = 0; i < causal.size(); ++i)
+            max_diff = std::max(max_diff, std::fabs(static_cast<float>(causal[i]) - static_cast<float>(bidir[i])));
+        ASSERT_GT(max_diff, this->tolerance) << "the bidirectional mask does not change the reference by more than the tolerance";
+    }
 
     check_accuracy_with_poisoned_memory(result, p);
 }
@@ -1795,6 +1824,12 @@ static paged_attention_test_params with_dynamic_paddings(paged_attention_test_pa
 static paged_attention_test_params with_qq_bias(paged_attention_test_params p, QueryToQueryAttentionDescriptor qq_bias_config) {
     p.has_qq_bias = true;
     p.qq_bias_config = std::move(qq_bias_config);
+    return p;
+}
+
+// token_type_ids over the new tokens of every subsequence (1 = attends bidirectionally within its group of 1s)
+static paged_attention_test_params with_token_type_ids(paged_attention_test_params p, std::vector<int> token_type_ids) {
+    p.token_type_ids = std::move(token_type_ids);
     return p;
 }
 
@@ -1870,6 +1905,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
     sharp_softmax(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL)),
     sharp_softmax(make_gqa_multi_tokens_params({{8, 291}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
     sharp_softmax(make_gqa_multi_tokens_params({{16, 40}}, 4, 2, 64, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
+
+    // Each branch of the token-major choice where sdpa_ocl serves MIXED (select_gqa_multi_tokens_kernel()): pa_small_q
+    // above the fallback threshold per cache kind (head size 128, and 64 where both thresholds halve), sdpa_ocl for f16
+    // above 12 new tokens below pa_small_q's context
+    sharp_softmax(make_gqa_multi_tokens_params({{16, 2100}}, 8, 2, 128)),
+    sharp_softmax(make_gqa_multi_tokens_params({{12, 2100}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL)),
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 3200}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN)),
+    sharp_softmax(make_gqa_multi_tokens_params({{16, 1600}}, 8, 2, 64, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
+    make_gqa_multi_tokens_params({{16, 1290}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{16, 700}}, 8, 2, 64),
+
+    // token_type_ids (a bidirectional draft block): pa_small_q does not implement the mask, so the fallback serves it,
+    // or sdpa_ocl for f16 above 12 new tokens on the token-major page. Sharp softmax and a short context make the mask
+    // observable (checked by the test; the u4 tolerance needs 16 new tokens over a 16-20 key past).
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{8, 20}}, 8, 2, 128)), std::vector<int>(8, 1)),
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{8, 37}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL)),
+                        {0, 0, 1, 1, 1, 1, 1, 0}),
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{16, 16}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
+                        std::vector<int>(16, 1)),
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{6, 30}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN)),
+                        {1, 1, 1, 0, 1, 1}),
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{16, 300}}, 8, 2, 128)), std::vector<int>(16, 1)),
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{16, 20}}, 8, 2, 64, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
+                        std::vector<int>(16, 1)),
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{8, 34}, {3, 600}}, 8, 2, 128)), {1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1}),
+    with_token_type_ids(sharp_softmax(make_gqa_multi_tokens_params({{8, 25}}, 6, 2, 64)), std::vector<int>(8, 1)),
 }));
 
 // Accuracy-only coverage for the default-mode GQA multi-token decode path. Unlike

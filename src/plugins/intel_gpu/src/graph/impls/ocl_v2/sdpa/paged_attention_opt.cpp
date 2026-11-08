@@ -252,6 +252,41 @@ inline bool supports_gqa_multi_tokens_dpas_kernel(const kernel_impl_params& para
     return slm_size <= info.max_local_mem_size;
 }
 
+// The small GQA MIXED step where sdpa_ocl serves MIXED on the token-major K page (Xe2+ XMX), so that three kernels can take
+// it: the GQA fallback (paged_attention_opt.cl), pa_small_q_opt.cl and sdpa_ocl (NONE here). Each wins a region (B70 at
+// 1800 MHz, unit-test perf rows with the KV cache out of L2 at the start of a call, 32/8 heads at head size 128 and 64,
+// 24/8, 28/4 and 16/8 at 256, f16 / i8 BY_TOKEN / i8 and u4 BY_CHANNEL caches, 2-16 new tokens, 512-16K context):
+//   - the fallback reads the KV once per new token and spreads the work over tokens x heads x 256-key partitions, so it
+//     wins while new tokens^2 x context is small: up to 320K with an f16 or u4 cache and 192K with an i8 one at head
+//     size 128 and above, half that at 64 (pa_small_q dequantizes less per tile there; sizes in between interpolate);
+//   - pa_small_q (when it can run) wins above that, from a context of 1.5K (768 at head size 64): a work-group of
+//     ceil(tokens / TOKENS_PER_SG) subgroups dequantizes every K/V tile of a 256-key partition into SLM, which costs the
+//     same for any token count and leaves the GPU mostly idle at a short context;
+//   - sdpa_ocl takes the same time for any token count and grows with the context (no split over keys), so it wins only
+//     with an f16 cache above 12 new tokens where pa_small_q does not.
+// Over those 736 cases the choice took 1.007x the fastest kernel's time (geometric mean), the previous policy (sdpa_ocl
+// below prefer_gqa_multi_tokens_fallback_kernel()'s threshold and wherever pa_small_q cannot run, pa_small_q above it)
+// 1.98x; it was more than 2% slower than the previous policy in 3 cases, by at most 7.3% (24/8 heads, f16, 12 new
+// tokens at 1K context: 77.6 against 72.3 us). sdpa_ocl.md, "Small GQA MIXED step on the token-major page (2026-11-08)".
+inline GQAMultiTokensKernel token_major_gqa_kernel_without_small_q(const kernel_impl_params& params, size_t max_tokens) {
+    return (!get_kv_compressed(params) && max_tokens > 12) ? GQAMultiTokensKernel::NONE : GQAMultiTokensKernel::FALLBACK;
+}
+
+inline double token_major_gqa_head_size_factor(const kernel_impl_params& params) {
+    return std::min(1.0, static_cast<double>(params.typed_desc<paged_attention>()->k_head_size) / 128.0);
+}
+
+inline bool token_major_gqa_prefers_fallback(const kernel_impl_params& params, size_t max_tokens, size_t max_context_len) {
+    const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+    const bool int8_cache = get_kv_compressed(params) && !data_type_traits::is_i4_u4(kv_cache_dt);
+    const double threshold = (int8_cache ? 192.0 : 320.0) * 1024.0 * token_major_gqa_head_size_factor(params);
+    return static_cast<double>(max_tokens * max_tokens * max_context_len) <= threshold;
+}
+
+inline bool token_major_gqa_small_q_context(const kernel_impl_params& params, size_t max_context_len) {
+    return static_cast<double>(max_context_len) >= 1536.0 * token_major_gqa_head_size_factor(params);
+}
+
 // Speculative decoding validation step: MIXED stage where every subsequence has only a few new query tokens.
 // `sdpa_ocl_mixed`: the impl staged sdpa_ocl for MIXED (PagedAttentionOptImpl::dpas_backend()).
 inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_params& params, const PagedAttentionStage& stage, bool sdpa_ocl_mixed) {
@@ -263,23 +298,30 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
     if (max_tokens <= 0 || max_subsequence_len > static_cast<size_t>(max_tokens))
         return GQAMultiTokensKernel::NONE;
 
-    // pa_small_q_opt.cl and paged_attention_opt.cl read every K page layout. Where sdpa_ocl serves MIXED, a small step on
-    // a token-major page still runs pa_small_q or sdpa_ocl rather than the GQA fallback (the policy of the per-op layout
-    // rule this one replaced, which made the page token-major only for such ops); below the fallback threshold sdpa_ocl
-    // is slower than the fallback (B70, 32/8 heads, head 128, 4 new tokens: f16 1.9-2.1x, i8 BY_TOKEN 2.6-3.6x at 1K-4K
-    // context). An op sdpa_ocl refuses keeps the fallback, now on the token-major page.
-    const auto fallback = (sdpa_ocl_mixed && get_k_token_major(params)) ? GQAMultiTokensKernel::NONE : GQAMultiTokensKernel::FALLBACK;
     const auto forced = get_forced_gqa_multi_tokens_kernel();
     if (forced == GQAMultiTokensKernel::NONE)
         return GQAMultiTokensKernel::NONE;
     if (forced == GQAMultiTokensKernel::FALLBACK)
-        return fallback;
+        return GQAMultiTokensKernel::FALLBACK;
 
+    // pa_small_q_opt.cl and paged_attention_opt.cl read every K page layout; where sdpa_ocl serves MIXED on the token-major
+    // page it is a third candidate (token_major_gqa_kernel_without_small_q() and the helpers above it).
+    const bool sdpa_ocl_candidate = sdpa_ocl_mixed && get_k_token_major(params);
+    const auto without_small_q = sdpa_ocl_candidate ? token_major_gqa_kernel_without_small_q(params, max_subsequence_len) : GQAMultiTokensKernel::FALLBACK;
     if (!supports_gqa_multi_tokens_dpas_kernel(params))
-        return fallback;
+        return without_small_q;
 
-    if (forced != GQAMultiTokensKernel::SMALL_Q && prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, get_max_context_len(params)))
-        return fallback;
+    if (forced != GQAMultiTokensKernel::SMALL_Q) {
+        const size_t max_context_len = get_max_context_len(params);
+        if (sdpa_ocl_candidate) {
+            if (token_major_gqa_prefers_fallback(params, max_subsequence_len, max_context_len))
+                return GQAMultiTokensKernel::FALLBACK;
+            if (!token_major_gqa_small_q_context(params, max_context_len))
+                return without_small_q;
+        } else if (prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, max_context_len)) {
+            return GQAMultiTokensKernel::FALLBACK;
+        }
+    }
 
     const auto subgroups_num = ceil_div(max_subsequence_len, get_gqa_multi_tokens_per_sg(params));
     if (subgroups_num * subgroup_size > params.get_device_info().max_work_group_size)
