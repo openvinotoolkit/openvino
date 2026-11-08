@@ -90,6 +90,8 @@ private:
     DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
     // whether Core writes a cache blob for the device, queried once per device
     DeviceMap<bool>                                                      m_device_supports_caching;
+    // Cache keys are immutable for this compiled model/device configuration; file existence is still probed per release.
+    DeviceMap<std::string>                                               m_dynamic_cache_blob_ids;
     std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
     std::atomic<size_t>                                                  m_dynamic_switch_count = {0};
 };

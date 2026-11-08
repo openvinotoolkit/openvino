@@ -265,32 +265,42 @@ std::filesystem::path CacheWarmupManager::get_cache_location(const ov::ICore& co
     return query("").value_or(std::filesystem::path{});
 }
 
+std::string CacheWarmupManager::get_blob_id(const ov::ICore& core,
+                                           const std::string& device_name,
+                                           const ov::AnyMap& config,
+                                           const std::shared_ptr<const ov::Model>& model,
+                                           const std::filesystem::path& model_path) {
+    OPENVINO_ASSERT(model || !model_path.empty(), "A model or model path is required to compute a cache blob ID");
+    const auto compile_config =
+        create_compile_config(core, device_name, core.get_supported_property(device_name, config));
+    // Same precedence as Core: a user blob ID wins, then the hash (which covers ov::cache_model_path for a model).
+    if (const auto it = config.find(ov::cache_blob_id.name()); it != config.end()) {
+        return it->second.as<std::string>();
+    }
+    if (model) {
+        const auto it = config.find(ov::cache_model_path.name());
+        const auto cache_model_path =
+            it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
+        return ov::ModelCache::compute_hash(model, cache_model_path, compile_config);
+    }
+    return ov::ModelCache::compute_hash(model_path, compile_config);
+}
+
+bool CacheWarmupManager::is_blob_cached(const std::filesystem::path& cache_location, const std::string& blob_id) {
+    // The cache location is a directory with one <blob_id>.blob per model; a single-file cache is never a hit here.
+    return !cache_location.empty() && ov::util::file_exists(cache_location / (blob_id + ".blob"));
+}
+
 bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,
                                         const std::string& device_name,
                                         const ov::AnyMap& config,
                                         const std::shared_ptr<const ov::Model>& model,
                                         const std::filesystem::path& model_path,
                                         const std::filesystem::path& cache_location) {
-    // The cache location is a directory with one <blob_id>.blob per model; a single-file cache is never a hit here.
     if (cache_location.empty() || (!model && model_path.empty())) {
         return false;
     }
-    const auto compile_config =
-        create_compile_config(core, device_name, core.get_supported_property(device_name, config));
-    // Same precedence as Core: a user blob ID wins, then the hash (which covers ov::cache_model_path for a model).
-    const auto blob_id = [&]() -> std::string {
-        if (const auto it = config.find(ov::cache_blob_id.name()); it != config.end()) {
-            return it->second.as<std::string>();
-        }
-        if (model) {
-            const auto it = config.find(ov::cache_model_path.name());
-            const auto cache_model_path =
-                it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
-            return ov::ModelCache::compute_hash(model, cache_model_path, compile_config);
-        }
-        return ov::ModelCache::compute_hash(model_path, compile_config);
-    }();
-    return ov::util::file_exists(cache_location / (blob_id + ".blob"));
+    return is_blob_cached(cache_location, get_blob_id(core, device_name, config, model, model_path));
 }
 
 }  // namespace auto_plugin

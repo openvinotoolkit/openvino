@@ -877,12 +877,19 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     }
     bool has_cache_blob = false;
     try {
-        has_cache_blob = CacheWarmupManager::is_blob_cached(*m_context->m_ov_core,
-                                                           device_name,
-                                                           device_config,
-                                                           m_dynamic_model,
-                                                           m_context->m_model_path,
-                                                           cache_location);
+        auto blob_id = m_dynamic_cache_blob_ids.find(device_name);
+        if (blob_id == m_dynamic_cache_blob_ids.end()) {
+            blob_id = m_dynamic_cache_blob_ids
+                          .emplace(device_name,
+                                   CacheWarmupManager::get_blob_id(*m_context->m_ov_core,
+                                                                   device_name,
+                                                                   device_config,
+                                                                   m_dynamic_model,
+                                                                   m_context->m_model_path))
+                          .first;
+        }
+        // Keep the filesystem check fresh in case the cache entry was removed after the key was computed.
+        has_cache_blob = CacheWarmupManager::is_blob_cached(cache_location, blob_id->second);
     } catch (const std::exception& ex) {
         // A cache probe is only an optimization; retain the compiled model if the probe fails.
         LOG_DEBUG_TAG("[dynamic] cache probe failed for %s: %s", device_name.c_str(), ex.what());

@@ -1146,7 +1146,12 @@ public:
             .WillByDefault(Return(ov::Any(m_cache_dir.string())));
         ON_CALL(*core, get_property(_, StrEq(ov::cache_path.name()), _))
             .WillByDefault(Return(ov::Any(std::filesystem::path())));
-        ON_CALL(*core, create_compile_config(_, _)).WillByDefault(Return(ov::AnyMap{}));
+        ON_CALL(*core, create_compile_config(_, _)).WillByDefault([this](const std::string& device, const ov::AnyMap&) {
+            if (device == "CPU") {
+                ++m_cpu_cache_key_compute_count;
+            }
+            return ov::AnyMap{};
+        });
         ON_CALL(*core, device_supports_model_caching(_)).WillByDefault(Return(true));
         config.erase(ov::device::priorities.name());
         config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
@@ -1221,6 +1226,7 @@ public:
 
     std::atomic<int> m_gpu0_compile_count{0};
     std::atomic<int> m_cpu_compile_count{0};
+    std::atomic<int> m_cpu_cache_key_compute_count{0};
     std::filesystem::path m_cache_dir;
     bool m_write_cpu_cache_blob = true;
     std::weak_ptr<ov::MockICompiledModel> m_cpu_model;
@@ -1245,6 +1251,21 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_kept_when_cache_blob_was_not
     switch_between_devices(true, &compiled_model);
     EXPECT_EQ(m_cpu_compile_count.load(), 1);
     EXPECT_FALSE(m_cpu_model.expired());
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_cache_key_is_computed_once_across_releases) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,CPU"));
+    config.insert(ov::intel_auto::compile_for_all(true));
+    expect_selected_devices({"GPU.0", "CPU", "GPU.0", "CPU", "GPU.0"});
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 4);
+
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
+    // Two CPU compiles write the mock cache entry; the release probe computes the key only once.
+    EXPECT_EQ(m_cpu_cache_key_compute_count.load(), 3);
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {
