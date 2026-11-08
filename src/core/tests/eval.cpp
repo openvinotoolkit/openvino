@@ -1565,7 +1565,7 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_scatter_elements_update_out
                     HasSubstr("Accessing out-of-range dimension"));
 }
 
-TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_update_empty_axis) {
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_update_invalid_axis_shape) {
     const Shape data_shape{3, 3};
     const Shape indices_shape{2, 3};
 
@@ -1576,19 +1576,23 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_up
 
     auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
     auto model = make_shared<Model>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
-    auto out_vector = ov::TensorVector{ov::Tensor()};
-    auto in_vector =
-        ov::TensorVector{make_tensor<element::Type_t::f32>(data_shape, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}),
-                         make_tensor<element::Type_t::i32>(indices_shape, {1, 0, 2, 0, 2, 1}),
-                         make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
-                         make_tensor<element::Type_t::i64>({0}, {})};
-    OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
-                    ov::Exception,
-                    HasSubstr("Axis input must be scalar or have 1 element"));
+
+    for (const auto& axis :
+         {make_tensor<element::Type_t::i64>({0}, {}), make_tensor<element::Type_t::i64>({1, 1}, {0})}) {
+        auto out_vector = ov::TensorVector{ov::Tensor()};
+        auto in_vector = ov::TensorVector{
+            make_tensor<element::Type_t::f32>(data_shape, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}),
+            make_tensor<element::Type_t::i32>(indices_shape, {1, 0, 2, 0, 2, 1}),
+            make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
+            axis};
+        OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
+                        ov::Exception,
+                        HasSubstr("Axis input must be scalar or have 1 element"));
+    }
 }
 
 REGISTER_TYPED_TEST_SUITE_P(ScatterElementsUpdateEvalTest,
-                            evaluate_dynamic_scatter_elements_update_empty_axis,
+                            evaluate_dynamic_scatter_elements_update_invalid_axis_shape,
                             evaluate_dynamic_scatter_elements_update_one_elem_i32,
                             evaluate_dynamic_scatter_elements_update_1d_axis,
                             evaluate_dynamic_scatter_elements_update_negative_axis,
