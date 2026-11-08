@@ -580,6 +580,7 @@ void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, c
     manager.register_pass<UnaryEltwisePattern<v0::Tanh, linalg::ElementwiseKind::tanh>>();
     manager.register_pass<GatherPattern>();
     manager.register_pass<GroupedMatMulPattern>();
+    manager.register_pass<GroupedMatMulCompressedPattern>();
     manager.register_pass<ShapeOfPattern>();
     manager.register_pass<SlicePattern>();
     manager.register_pass<SqueezePattern>();
