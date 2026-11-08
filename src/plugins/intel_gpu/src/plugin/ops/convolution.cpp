@@ -89,6 +89,7 @@ static void CreateConvolutionOp(ProgramBuilder& p, const std::shared_ptr<ov::int
                                                     filter_rank);
     }
 
+    prim->output_data_types = {op->get_output_element_type(0)};
     p.add_primitive(*op, prim);
 }
 
