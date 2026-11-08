@@ -1320,11 +1320,11 @@ a static rule (2026-11-06)" in "Known issues"). `smoke_paged_attention_by_channe
 output, `OV_GPU_ENABLE_SDPA_MICRO=0` / `TEST_USE_SDPA_OCL_DECODE=0`); `OV_GPU_PA_K_TOKEN_MAJOR=0` runs them on the
 d-major page as the control.
 
-Where `sdpa_ocl` serves MIXED, a small GQA MIXED step on a token-major page goes to `pa_small_q_opt.cl` or `sdpa_ocl`,
-never to the GQA fallback; an op `sdpa_ocl` refuses keeps the fallback, on the token-major page. Below
-`prefer_gqa_multi_tokens_fallback_kernel()`'s threshold `sdpa_ocl` is slower than the fallback was on the f16 / i8
-BY_TOKEN token-major page (B70 at 1800 MHz, 32/8 heads, head 128, 4 new tokens, 1K / 4K context: f16 47.0 / 154 against
-25.3 / 75.3 us, i8 BY_TOKEN 96 / 339 against 37 / 95 us), the path the default BY_CHANNEL caches already took.
+Where `sdpa_ocl` serves MIXED on the token-major page, a small GQA MIXED step (at most 16 new tokens per subsequence)
+goes to the GQA fallback, `pa_small_q_opt.cl` or `sdpa_ocl`, chosen in `select_gqa_multi_tokens_kernel()` by cache kind,
+head size, new tokens and context ("Small GQA MIXED step on the token-major page (2026-11-08)" in "Known issues"). An op
+`sdpa_ocl` refuses, and a d-major page, keep upstream's choice: the fallback while new tokens^2 x context is at most 64K
+(`prefer_gqa_multi_tokens_fallback_kernel()`), `pa_small_q_opt.cl` above it.
 
 `OV_GPU_PA_K_TOKEN_MAJOR=0` makes every page d-major (the control for the token-major readers); unset is the rule. `1`
 (the f16 / BY_TOKEN page token-major on every device, read by the opt kernels) and `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` are
@@ -1628,13 +1628,15 @@ sliding-window region (`openvino/reference/paged_attention.hpp`).
   `TT_BOUNDS_STAGE` in the upstream `paged_attention_opt.cl`, is no longer compiled).
 - A small GQA MIXED step (at most 16 new tokens per subsequence, e.g. a speculative draft block)
   takes the GQA multi-token path as without token_type_ids. `pa_small_q_opt.cl` has no bidirectional
-  mask, so that is the `paged_attention_opt.cl` fallback, which has one (on a token-major page
-  where `sdpa_ocl` serves MIXED, `sdpa_ocl`: "Paged-attention cache layouts"). Against `sdpa_ocl` (f16, 1K-8K
-  context, setup in "Performance opportunities") the fallback is 1.8-2.9x faster at 4 new tokens and
-  1.15-1.57x slower at 16. Giving `pa_small_q_opt.cl` the mask was measured through its time without
-  token_type_ids (the mask costs the fallback under 2%) and not done: with the default BY_CHANNEL
-  caches it would take 0.27-0.51x `sdpa_ocl`'s time from 4K but 1.13-1.74x at 1K, and with f16 or
-  i8 BY_TOKEN 1.3-4.8x the fallback's at 4 new tokens.
+  mask, so that is the `paged_attention_opt.cl` fallback, which has one; on a token-major page where
+  `sdpa_ocl` serves MIXED, an f16 cache above 12 new tokens goes to `sdpa_ocl` instead ("Small GQA MIXED
+  step on the token-major page (2026-11-08)"). With token_type_ids on that page the fallback took
+  0.11-0.97x `sdpa_ocl`'s time with the u4 and i8 BY_CHANNEL caches at 2-16 new tokens and 512-16K
+  context, and 0.15-1.02x with f16 and i8 BY_TOKEN up to 12 new tokens (32/8 heads, head 128; f16 at
+  16 new tokens up to 1.34x). Giving `pa_small_q_opt.cl` the mask was measured
+  through its time without token_type_ids (the mask costs the fallback under 2%) and not done
+  (2026-10-30): with the default BY_CHANNEL caches it would take 0.27-0.51x `sdpa_ocl`'s time from 4K
+  but 1.13-1.74x at 1K, and with f16 or i8 BY_TOKEN 1.3-4.8x the fallback's at 4 new tokens.
 - A runtime-empty `token_type_ids` (`[B_token | 0]`) is legal while `HAS_TOKEN_TYPE_IDS` is decided
   at compile time from a possibly dynamic shape, so every read is gated on the runtime count. The
   paged-attention impl is compiled once from dynamic params (`shape_types::any`) and afterwards only
@@ -2188,7 +2190,8 @@ token-major page. Moved from the d-major to the token-major page on Xe2: models 
 (GenAI cache eviction), adaptive R-KV or alibi, a head size `sdpa_ocl` / `sdpa_ocl_decode` reject (above 512, not a
 multiple of 16), k != v without an `sdpa_ocl` tiling, and the `OV_GPU_ENABLE_SDPA_MICRO=0` / `TEST_USE_SDPA_OCL_DECODE=0`
 runs. Models every gate serves were already token-major and run the same kernels. The GQA multi-token fallback stays
-off only where `sdpa_ocl` serves MIXED (as before on a token-major page); an op it refuses keeps the fallback.
+off only where `sdpa_ocl` serves MIXED (as before on a token-major page); an op it refuses keeps the fallback. (Since
+2026-11-08 it serves small steps there too: "Small GQA MIXED step on the token-major page (2026-11-08)".)
 
 - Checked on the B70 (kit, `build_tests` Release): U1 672 PASS / 4 SKIP and F1 2199 PASS, the same tests as the build
   before; RULE (its truth tables rewritten for the new rule), U3, SEL and KVC without a failure. The new groups U1_OPT
@@ -2243,6 +2246,87 @@ cache back and compares every stored token with its input (B70, both page layout
 BY_CHANNEL cases with a padded key (dynamic 16 B, static 16 B, static 4 B pads) fail at the second new token of the
 `{10, 34}` subsequence (stored -0.0001 for -0.0767, tolerance 0.01); the unpadded, u4 BY_CHANNEL and i8 BY_TOKEN controls
 pass. After it all six pass.
+
+### Small GQA MIXED step on the token-major page (2026-11-08)
+
+A small GQA MIXED step (at most 16 new tokens per subsequence: a speculative-decoding validation step, a draft model
+catching up, a short prompt continuation) never took the GQA fallback where `sdpa_ocl` serves MIXED on the token-major
+page, a leftover of the per-op layout rule, when the fallback could not read every token-major page: it ran `sdpa_ocl`
+while new tokens^2 x context was at most 64K and wherever `pa_small_q_opt.cl` cannot run (token_type_ids, a kv group
+that does not divide 8), `pa_small_q_opt.cl` above. Since the fallback reads every token-major page ("Token-major K page
+by a static rule (2026-11-06)"), `select_gqa_multi_tokens_kernel()` picks among the three there
+(`token_major_gqa_*` helpers in `paged_attention_opt.cpp`):
+
+- the fallback while new tokens^2 x context is at most 320K with an f16 or u4 cache and 192K with an i8 one;
+- above that, `pa_small_q_opt.cl` from a 1.5K context;
+- otherwise, and where `pa_small_q_opt.cl` cannot run, the fallback, except `sdpa_ocl` for an f16 cache above 12 new
+  tokens;
+- both thresholds scale with min(1, head size / 128): measured at head size 64, 128 and 256, the sizes in between
+  interpolate.
+
+An op `sdpa_ocl` refuses, a d-major page and every other device keep upstream's choice. `OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=2`
+now forces the fallback on the token-major page too (it fell through to `sdpa_ocl` there).
+
+Why each wins: the fallback reads the KV once per new token but spreads the work over tokens x heads x 256-key
+partitions; `pa_small_q_opt.cl` reads it once per partition with DPAS, but a work-group of ceil(tokens / TOKENS_PER_SG)
+subgroups dequantizes every K/V tile into SLM, which costs the same for any token count and leaves the GPU mostly idle
+at a short context (32 work-groups of 2 subgroups at 4 new tokens, 1K context, 32/8 heads); `sdpa_ocl` has no split over
+keys, so its time does not depend on the token count and grows with the context.
+
+- Measured on the B70 at 1800 MHz (all busy clock samples 1800, no throttle, CPU load at most 2.8): unit-test perf rows
+  inserted locally (`DISABLED_gqa_perf`, inputs copied to `usm_device`), kernel plus finalization from the cliloader
+  chrome timeline, median of 100 calls, the KV cache pushed out of L2 before every call (a 128 MB copy on the same queue,
+  as the other layers of a model do; without it the times are 10-50 us lower, `pa_small_q_opt.cl` most, and the
+  ranking was the same in the cases compared), harness data at 1/1024 resolution (no difference from the default 1/8
+  here). Forced arms: `sdpa_ocl` `OV_GPU_PA_GQA_MULTI_TOKENS_MAX=0`, `pa_small_q_opt.cl`
+  `OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=1`, the fallback on the same token-major page `OV_GPU_ENABLE_SDPA_MICRO=0` plus
+  `OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=2`. 736 cases: 32/8 heads at head size 128, 2-16 new tokens x 512-16K context, f16,
+  u4 BY_CHANNEL, i8 BY_CHANNEL and i8 BY_TOKEN, each with and without token_type_ids (two rounds within 3.1%), and 32/8
+  heads at 64, 16/8 at 256, 24/8 and 28/4 at 128, 2-16 x 1K-16K, the four caches (one round).
+- The previous choice took 1.98x the fastest kernel's time (geometric mean over the 736; up to 20x: head 64, u4, 2 new
+  tokens, 8K, where the u4 `sdpa_ocl_mixed` tile at `d_max` 64 spills). The new default, measured with the change
+  (no environment): the kernel the rule names ran in all 736, 1.007x the fastest (up to 1.69x: 16/8 heads, head 256,
+  f16, 16 new tokens at 1K, where `sdpa_ocl` would take 91 against 153 us), 0.51x the previous default's time (geometric
+  mean); slower than the previous default by more than 2% in 3 cases, at most 7.3% (24/8 heads, f16, 12 new tokens at
+  1K: 77.6 against 72.3 us). Previous / new default with the u4 cache (default for 4-bit weights), us per call:
+
+  | Heads, head size | Context | 2 / 4 / 8 / 16 new tokens |
+  |---|---|---|
+  | 32/8, 128 | 1K | 109/30, 109/32, 166/52, 142/87 |
+  | | 4K | 391/56, 215/85, 181/149, 193/193 |
+  | | 16K | 370/174, 351/292, 388/388, 633/633 |
+  | 32/8, 128, token_type_ids | 1K | 114/31, 114/32, 113/52, 114/85 |
+  | | 16K | 1579/174, 1578/294, 1579/535, 1580/1041 |
+  | 32/8, 64 | 1K | 150/30, 150/30, 72/32, 73/73 |
+  | | 4K | 568/36, 92/52, 78/78, 85/85 |
+  | 24/8, 128 | 4K | 392/55, 394/84, 395/146, 396/273 |
+
+- End to end (llm_bench, speculative decoding: llama-3.1-8b-instruct with llama-3.2-1b-instruct as the draft, both
+  4-bit, so u4 caches, `num_assistant_tokens` 5, 256 new tokens, fixed prompt, 5 iterations x 3 runs in alternating
+  order; `build_release` install of HEAD against the same install with the new plugin): at an 8K prompt the generated
+  text (MD5) and the number of speculative steps (45) were the same in both arms and the second-token latency went from
+  10.36 to 7.83 ms (-24.4%), first token unchanged. At 2K and 4K the validation step's kernel changes the numerics, so
+  the generated text and the step count differ (74 -> 70, 74 -> 75) and the latencies (10.35 -> 8.80, 11.26 -> 10.17 ms)
+  are not the kernel's alone. Per call under cliloader (warm-up plus one iteration): the main model's validation step
+  (6 new tokens) 179 / 186 / 210 us on `pa_small_q_opt.cl` against 67 / 119 / 208 us on the fallback at 2K / 4K / 8K;
+  the draft model's MIXED steps (head 64) 310 / 593 / 1148 us on `sdpa_ocl_mixed` (the spilling `d_max` 64 u4 tile)
+  against 26 / 30 / 51 us on the fallback; device time of the whole run 5239 / 6278 / 7183 ms against 4347 / 5589 /
+  5756 ms.
+- Numerics: the fallback multiplies without DPAS and dequantizes in f16 where `pa_small_q_opt.cl` and `sdpa_ocl` use
+  DPAS (and `sdpa_ocl` the exact u4 dequant); it is upstream's kernel for these steps on every other device. The PA
+  suites pass at their tolerances, and the 2K / 4K texts above differ because a greedy token flipped.
+- Tests (B70, `build_tests` Release): `smoke_paged_attention_gqa_multi_tokens` mirrors the choice in its kernel oracle
+  and has 14 new rows (basic/48-61): a sharp-softmax row per `pa_small_q_opt.cl` branch (f16, i8 BY_CHANNEL, i8
+  BY_TOKEN at head 128, u4 at head 64), two f16 rows above 12 new tokens below the 1.5K context (`sdpa_ocl`), and eight
+  token_type_ids rows (sharp softmax, short context; the test asserts that the bidirectional reference differs from the
+  causal one by more than the tolerance, which two u4 rows at 8 new tokens failed, so they have 16). Negative controls:
+  the previous choice with the new tests fails 52 of the 62 rows on the kernel; the fallback with its token_type_ids
+  extension removed fails exactly the 7 token_type_ids rows it serves. Kit groups against the build before: U1 710 PASS
+  / 4 SKIP and U3 573 / 60 (the 14 new rows added, nothing else changed), U1_OPT the same 25 failures as the build
+  before (tests that expect `sdpa_ocl` under `OV_GPU_ENABLE_SDPA_MICRO=0`, `feature_pad`/46, `prefill_h128`/15, /33), SEL, RULE, KVC, RKV and SDPAX unchanged.
+- Not measured: devices other than the B70 (the thresholds are its), several subsequences of different lengths (the
+  choice takes the longest subsequence and the largest context), head sizes other than 64 / 128 / 256, the i8 and f16
+  caches and a token_type_ids draft end to end, an EAGLE3 tree (qq_bias) end to end.
 
 ### Correctness
 
@@ -2435,9 +2519,6 @@ Each needs its own measured change.
   1.26-1.32x with i8 BY_CHANNEL and 1.31-1.39x with i8 BY_TOKEN; f16, block2d before and after, stays at 0.87 / 0.99 /
   1.00x. llama-3.2-1b (u4): 1.71 / 1.05 / 1.01 / 1.07x at 2K / 8K / 16K / 32K. End to end the opt kernel is now
   1.00-1.15 on phi-3.5-mini / vision and 1.00-1.09 on llama-3.2-1b (second-token latency, same method).
-- A small GQA MIXED step on a token-major page runs `sdpa_ocl` below the `pa_small_q_opt.cl` threshold, 1.9-3.6x the
-  time the opt GQA fallback took there ("Paged-attention cache layouts"); a few-query `sdpa_ocl` MIXED tiling would serve
-  every cache kind.
 - The MIXED K block reads use only the even entries of `k_page[]`, and the per-k0 K hoists sit in up
   to three separate `if (from_cache)` blocks.
 - The single-element runtime mask is re-read for every logit, plain SDPA takes `d` as a runtime
@@ -2459,40 +2540,23 @@ Each needs its own measured change.
   `REG128 SPILL=448` (384 before the V page indices were hoisted; cliloader, B70). With GenAI's continuous-batching
   default scheduler (256-token chunks) every chunk after the first runs this kernel, so it carries the prefill there.
   Whether it spilled under IGC 2.36, and what the spill costs, were not measured. The `d_max` 512 MIXED tile spills
-  1,920 B at 256 GRF.
+  1,920 B at 256 GRF. Small steps (at most 16 new tokens) no longer reach it on the token-major page: a llama-3.2-1b
+  draft model's MIXED steps took 310 / 593 / 1148 us per call on it at 2K / 4K / 8K context and take 26 / 30 / 51 us on
+  the GQA fallback ("Small GQA MIXED step on the token-major page (2026-11-08)"); record only.
 - MIXED sliding-window layers with a short window lose to `sdpa_micro` per call: gpt-oss-20b's 128-key window at `d_max`
   64 with every cache (f16 52 against 44 us, i8 61 against 55, u4 69 against 57; 8K, 256-token chunks) and gemma-4-e2b's
   512-key window at `d_max` 256 with f16 (63 against 61). Not investigated ("Paged-attention MIXED: i8 and f16 caches").
 - The u4 token-major K writer's head-256 GENERATE dispatch is still 3-4% slower than master's d-major writer
   (gemma-4-26b 9.5 against 9.2 us per call): each thread writes 8 bytes into 16 token rows, i.e. 16 different 128 B
   lines, where a d-major thread writes 2 ("The u4 token-major K writer (IGC 2.41)").
-- A small GQA MIXED step (at most 16 new tokens per subsequence) goes to `pa_small_q_opt.cl` whenever it can, as upstream
-  does against `sdpa_micro`. Time per call without token_type_ids in us (kernel plus finalization; B70 pinned at
-  1800 MHz, 32/8 heads, head 128, one subsequence, unit-test perf rows with the inputs copied to `usm_device`, cliloader
-  chrome kernel timeline, median of 100 calls, two rounds within 1.5%; the fallback forced with
-  `OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=2`, one round):
-
-  | Cache | Kernel | 1K: 4 / 8 / 16 new tokens | 4K | 8K |
-  |---|---|---|---|---|
-  | f16 | `pa_small_q_opt.cl` | 129 / 105 / 96 | 155 / 144 / 187 | 245 / 261 / 354 |
-  | | fallback | 27 / 46 / 79 | 75 / 130 / 246 | 160 / 286 / 538 |
-  | | `sdpa_ocl` | 45 / 45 / 45 | 145 / 145 / 145 | 440 / 441 / 441 |
-  | i8 BY_TOKEN | `pa_small_q_opt.cl` | 169 / 122 / 108 | 182 / 157 / 172 | 227 / 238 / 312 |
-  | | fallback | 37 / 56 / 98 | 94 / 169 / 326 | 170 / 319 / 632 |
-  | | `sdpa_ocl` | 185 / 183 / 185 | 691 / 690 / 690 | 1366 / 1369 / 1367 |
-  | u4 BY_CHANNEL | `pa_small_q_opt.cl` | 180 / 141 / 125 | 189 / 161 / 177 | 211 / 227 / 313 |
-  | | `sdpa_ocl` | 99 / 99 / 98 | 354 / 353 / 352 | 695 / 694 / 694 |
-  | i8 BY_CHANNEL | `pa_small_q_opt.cl` | 145 / 124 / 119 | 156 / 152 / 175 | 200 / 237 / 302 |
-  | | `sdpa_ocl` | 104 / 104 / 104 | 376 / 375 / 373 | 737 / 737 / 734 |
-
-  With f16 and i8 BY_TOKEN `pa_small_q_opt.cl` loses to the fallback at 4 new tokens at every context (1.3-4.8x), and at
-  1K `sdpa_ocl` or the fallback beats it with every cache (the fallback could not read the token-major BY_CHANNEL page
-  when this was measured; it can since 2026-11-06, unmeasured). It
-  wins from 4K with the BY_CHANNEL caches (0.27-0.53x `sdpa_ocl`), from 8 new tokens at 4K with i8 BY_TOKEN, and at 8
-  and 16 new tokens at 8K with f16. `sdpa_ocl` takes the same time for 4-16 new tokens and grows linearly with context;
-  `pa_small_q_opt.cl` splits the context into 256-key partitions but gets slower with fewer new tokens (a workgroup has
-  `ceil(tokens / TOKENS_PER_SG)` subgroups to dequantize each K/V tile into SLM; not profiled). A threshold on context
-  and new tokens, or a dequant that does not depend on the token count, would recover the short cases.
+- Small GQA MIXED steps (record only, 2026-11-08; "Small GQA MIXED step on the token-major page (2026-11-08)"):
+  `pa_small_q_opt.cl` leaves the GPU mostly idle with few new tokens or a short context (a work-group per KV head and
+  256-key partition with ceil(tokens / TOKENS_PER_SG) subgroups, each dequantizing every K/V tile into SLM: 32
+  work-groups of 2 subgroups at 4 new tokens and 1K context, 32/8 heads), which is why the fallback keeps that region; a
+  split of a partition's tiles over more subgroups, or a dequant whose cost does not depend on the token count, would
+  let the DPAS kernel take it. `sdpa_ocl` has no split over keys, so its few-query MIXED time grows with the context
+  whatever the token count (f16 480 us at 8K for 2-16 new tokens with the KV out of L2, 32/8 heads, head 128); a few-query tiling with a key
+  split would serve every cache kind, token_type_ids included. Neither was profiled.
 - PA PREFILL at 32 tokens is still slower than `sdpa_micro` per call after the causal tile skip: qwen3-8b 14.1 against
   12.6 us (1.12x), phi-3.5-mini 15.8 against 12.8 (1.23x), and at `d_max` 64, where the skip is off, llama-3.2-1b 13.1
   against 9.2 (1.42x) ("Paged-attention PREFILL: short prompts"). From 1K they are level or faster.
