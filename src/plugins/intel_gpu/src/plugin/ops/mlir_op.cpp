@@ -31,6 +31,13 @@ static void CreateMLIROp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
 
     cldnn::mlir_primitive primitive(layer_name, inputs, op, std::move(shape_infer_f), num_outputs, get_output_data_types(op));
 
+    // Fill the required input formats from the input orders of the compiled program.
+    for (const auto& [i, order] : op->get_input_orders()) {
+        const auto fmt = cldnn::mlir_primitive::format_from_dim_order(order);
+        OPENVINO_ASSERT(fmt.has_value(), "[GPU] MLIROp '", layer_name, "': no cldnn format for the physical order of input ", i);
+        primitive.required_input_fmts.emplace(i, fmt.value());
+    }
+
     p.add_primitive(*op, primitive);
 }
 
