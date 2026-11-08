@@ -35,9 +35,22 @@ In the GPU plugin this contract is spelled as the `GraphConverter::Convertor` al
 - `mlir::OpBuilder`
 - Mapping between `ov::Node` inputs and MLIR tensors
 - Mapping between dynamic-dimension symbols and their MLIR values
+- A way to request a physical layout of an input (`requestInputOrder`)
 
-For the exact declaration (constructor and the `getInputs` / `getDimValue` callbacks it expects) see
-[`conversion_context.hpp`](conversion_context.hpp).
+For the exact declaration (constructor and the `getInputs` / `getDimValue` / `requestInputOrder` callbacks it
+expects) see [`conversion_context.hpp`](conversion_context.hpp).
+
+#### Requesting a physical input order
+
+A converter may call `requestInputOrder(input, order)` to ask for the source of `input` to be passed with its
+dimensions stored in `order`, e.g. `{0, 2, 1}` for a logical `[E, N, G]` tensor stored as `[E, G, N]`.
+
+- It is an optional **hint**: calling it is never required, and the IR built by the converter must stay on logical
+  tensors and be valid for any physical order.
+- The driver decides whether to honour it (e.g. it may only support some orders or only inputs coming from
+  outside of the subgraph), and is responsible for providing the buffer in the chosen layout.
+- For the GPU plugin the conditions are described at `GraphConverter::request_input_order` in
+  [`graph_converter.hpp`](../graph_converter.hpp).
 
 ### Whole-graph conversion
 
