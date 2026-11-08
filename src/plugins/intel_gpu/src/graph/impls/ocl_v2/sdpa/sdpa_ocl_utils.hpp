@@ -169,8 +169,8 @@ inline ov::element::Type pa_kv_cache_precision(const cldnn::kernel_impl_params& 
     return params.get_program().get_config().get_kv_cache_precision();
 }
 
-// Data-row pitch of a u4 K page in bytes: exactly h / 2, not aligned, which is what makes the token-major
-// page (16 * (h / 2) data + 4 * h comp bytes = 12 * h) fit the upstream d-major INT4 page.
+// Data-row pitch of a u4 K page in bytes: exactly h / 2, not aligned, which is what makes the page
+// 16 * (h / 2) data + 4 * h comp bytes = 12 * h, the page the pipeline allocates (transformations_pipeline.cpp).
 inline size_t pa_u4_k_row_bytes(size_t k_head_size) {
     return k_head_size / 2;
 }
@@ -182,28 +182,6 @@ inline size_t pa_u4_v_row_bytes(size_t v_head_size, size_t subgroup_size) {
 // The alignment the cache writer gives that row (pa_kv_cache_update_ref.cl's PACKED_V_HEAD_SIZE, with paged_attention_opt.cpp's
 // subgroup of 16), whatever subgroup the reader runs: every reader of the page passes this, not its own subgroup size.
 constexpr size_t pa_u4_v_row_align = 16;
-
-// Whether the PagedAttention op's K cache holds token-major pages -- of any kind: uncompressed, i8 BY_TOKEN or i8/u4
-// BY_CHANNEL -- read off its physical shape by paged_attention::k_cache_token_major() (the decision is made once, in
-// transformations_pipeline.cpp). The page's block dimension is block_size, or for a compressed BY_CHANNEL page
-// block_size (halved for int4) plus one (scale, zp) pair per channel. Every PA kernel generator asks this one helper;
-// XAttention pages are not covered.
-inline bool pa_k_token_major(const cldnn::kernel_impl_params& params) {
-    using pa = cldnn::paged_attention;
-    const auto desc = params.typed_desc<pa>();
-    if (desc->has_xattention) {
-        return false;
-    }
-    const auto& key_cache = params.input_layouts[pa::PagedAttentionInputIdx::KEY_CACHE];
-    const auto configured = pa_kv_cache_precision(params);
-    const bool int4 = configured == ov::element::u4 || configured == ov::element::i4;
-    const auto precision = int4 ? configured : ov::element::Type(key_cache.data_type);
-    const bool compressed = int4 || precision == ov::element::i8 || precision == ov::element::u8;
-    const size_t comp_bytes = 2 * ov::element::Type(params.input_layouts[pa::PagedAttentionInputIdx::KEY].data_type).size();
-    const size_t block = pa::block_size;
-    const size_t page_block = (compressed && desc->is_key_by_channel) ? (int4 ? block / 2 : block) + comp_bytes : block;
-    return pa::k_cache_token_major(key_cache.get_partial_shape(), page_block);
-}
 
 // A K page is ADJUSTED_K_HEAD_SIZE x ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE and a V page block_size x
 // ADJUSTED_V_HEAD_SIZE. The comp region grows the factor it is indexed by (per token: the head axis, per

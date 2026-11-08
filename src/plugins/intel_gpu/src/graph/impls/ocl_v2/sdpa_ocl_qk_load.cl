@@ -455,8 +455,8 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16)(__private ushort8 *k_raw, const __glo
 // db % PA_K_WIDE_TILES == 0 each key group reads tiles db..db + PA_K_WIDE_TILES - 1 into its entries of the caller's
 // k_wide (per read block-major: the first tile's 16 key rows, then the second's), and the following depth tiles take their
 // rows from there. With one read at a time IGC serialised the reads behind the DPAS that consumed the previous pair
-// (small GQA MIXED steps, few workgroups: 1.11-1.14x the 32-row transpose read of the d-major page, removed since, which
-// kept two reads in flight the same way; docs "Token-major f16 page"). Same height clamp and zero fill; columns past d
+// (small GQA MIXED steps, few workgroups: 1.11-1.14x the 32-row transpose read of a former page layout, which kept two
+// reads in flight the same way; docs "Token-major f16 page"). Same height clamp and zero fill; columns past d
 // come back zero from the surface width, so a head size that ends inside a group needs no special case.
 SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16_pair)(__private ushort8 *k_raw, __private ushort8 *k_wide,
                                                 const __global KEY_DATA_T *K, const __private uint *k_page,
