@@ -336,6 +336,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/pass/graph_rewrite.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pass/low_latency.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pass/make_stateful.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/pass/make_stateless.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pass/manager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pass/node_registry.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pass/pa_kv_reorder_fusion.cpp
