@@ -564,7 +564,7 @@ struct gr_quant_case {
     bool write_gate = false;
     bool is_signed = false;
     bool has_zp = true;
-    size_t group = 0;  // see make_quant_matrix
+    size_t group = 0;     // see make_quant_matrix
     bool scalar = false;  // the scalar gr_read.cl (GPU_GR_KERNEL_SELECTION=scalar), which dequantizes in registers too
 };
 

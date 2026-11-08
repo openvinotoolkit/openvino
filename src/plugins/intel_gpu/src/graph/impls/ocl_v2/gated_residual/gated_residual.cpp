@@ -744,7 +744,7 @@ protected:
         const auto qs = gr_down_q_share(*desc, tier);
         const auto tiling =
             share ? GrGemmTiling{32, qs.ks, 1} : gr_down_tiling(*desc, params.get_device_info(), tier, q ? gr_weight_type(params) : GrWType::f16);
-        const bool narrow = q && gr_decode_like(tier) && !(tier == GrTier::decode && desc->produce_write_gate);
+        const bool narrow = q && gr_decode_like(tier) && (tier != GrTier::decode || !desc->produce_write_gate);
         return {share, qs, tiling, narrow ? gr_dpas_n : gr_down_tn, desc->produce_write_gate && !share};
     }
 
