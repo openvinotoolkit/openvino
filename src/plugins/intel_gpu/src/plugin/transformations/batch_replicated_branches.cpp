@@ -281,12 +281,7 @@ BatchReplicatedBranches::BatchReplicatedBranches() {
                                                            [](const ov::Output<ov::Node>& output) {
                                                                return !is_type_relaxed(output.get_node());
                                                            },
-                                                           "not_type_relaxed") &&
-                                                       Predicate(
-                                                           [](const ov::Output<ov::Node>& output) {
-                                                               return match_branches(output).has_value();
-                                                           },
-                                                           "replicated_branches_match"));
+                                                           "not_type_relaxed"));
 
     auto callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(m.get_match_root());
