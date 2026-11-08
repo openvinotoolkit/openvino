@@ -500,7 +500,7 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
             const JitTerm f_size{to_code_string(l.feature())};
             const JitTerm f{"(f)"};
             if (l.data_padding && simple_format) {
-                const JitTerm f_pitch{to_code_string(0 /* _tensor.Feature().pitch */)};
+                const JitTerm f_pitch{name + "_FEATURE_PITCH"};
                 safe_index_func_val = offset + (f % f_size) * f_pitch;
                 index_func_val = offset + (f * f_pitch);
             } else if (!l.data_padding && !format::is_multi_blocked(fmt)) {
