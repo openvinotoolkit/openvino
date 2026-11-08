@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <random>
 #include <sstream>
+#include <tuple>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
@@ -24,6 +25,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 
@@ -607,6 +609,14 @@ void GatedResidualLayerCPUTest::compare(const std::vector<ov::Tensor>& expected,
 
 TEST_P(GatedResidualLayerCPUTest, Inference) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // bf16 / f16 cases need the native instructions (the executor has no upconvert path for them).
+    const auto precision = std::get<1>(GetParam()).precision;
+    if (precision == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
+        GTEST_SKIP() << "bf16 requires avx512_core_bf16";
+    }
+    if (precision == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16()) {
+        GTEST_SKIP() << "f16 requires avx512_core_fp16";
+    }
     run();
     const auto runtime_model = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 1);
