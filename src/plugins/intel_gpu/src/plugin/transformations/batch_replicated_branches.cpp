@@ -267,7 +267,15 @@ bool batch_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output
 }  // namespace
 
 BatchReplicatedBranches::BatchReplicatedBranches() {
-    auto output_concat = wrap_type<ov::op::v0::Concat>(has_static_shape() &&
+    // Cheap filter before the full branch match: every branch ends with one of these ops
+    const auto first_input_is_branch_output = Predicate(
+        [](const ov::Output<ov::Node>& output) {
+            using namespace ov::op;
+            const auto* producer = output.get_node()->get_input_node_ptr(0);
+            return ov::is_type_any_of<v1::Convolution, v1::MaxPool, v8::MaxPool, v14::MaxPool, v1::Add, v0::Relu>(producer);
+        },
+        "first_input_is_branch_output");
+    auto output_concat = wrap_type<ov::op::v0::Concat>(has_static_shape() && first_input_is_branch_output &&
                                                        Predicate(
                                                            [](const ov::Output<ov::Node>& output) {
                                                                return !is_type_relaxed(output.get_node());
