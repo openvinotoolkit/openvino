@@ -307,7 +307,7 @@
 
 // Row pitch of a K / V page's DATA region, in cache-dtype elements: the head size for f16 and i8. A
 // u4 page packs two values per byte in a u8 layout, so the host supplies it: exactly K_HEAD_SIZE/2
-// for K (so the token-major page fits the upstream d-major allocation) and Align(V_HEAD_SIZE/2,
+// for K (so the page is 12 * K_HEAD_SIZE bytes with its f16 comp) and Align(V_HEAD_SIZE/2,
 // SUBGROUP_SIZE) for V. Matches sdpa_ocl_decode.cl's K/V_ROW_ELEMS and the writer.
 #ifndef PA_K_ROW_ELEMS
 #  define PA_K_ROW_ELEMS K_HEAD_SIZE
@@ -316,9 +316,8 @@
 #  define PA_V_ROW_ELEMS V_HEAD_SIZE
 #endif
 
-// In-page addressing of a K cache page, in K elements: the token-major page, [token, head] like V. MIXED reads no other
-// (PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it off a d-major page, on which it is only compiled). The
-// scalar-gather fallbacks (used wherever the host's block2d page rule fails) address through this pair.
+// In-page addressing of a K cache page, in K elements: the token-major page, [token, head] like V (paged_attention.hpp).
+// The scalar-gather fallbacks (used wherever the host's block2d page rule fails) address through this pair.
 #define PA_K_TOKEN_STRIDE  PA_K_ROW_ELEMS
 #define PA_K_HIDDEN_STRIDE 1
 

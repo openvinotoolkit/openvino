@@ -406,12 +406,6 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     if (kv_u4 && !desc->is_key_by_channel) {
         return false;
     }
-    // The KQ B operand is 16 consecutive head dims of one key, so the K page must be token-major, which is read off the
-    // physical cache shape for every kind of page.
-    if (!pa_k_token_major(params)) {
-        return false;
-    }
-
     // A key group / S*V chunk is one page.
     if (paged_attention::block_size != page_keys) {
         return false;

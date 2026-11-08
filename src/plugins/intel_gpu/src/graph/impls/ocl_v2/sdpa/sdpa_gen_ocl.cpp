@@ -894,9 +894,8 @@ struct sdpa_ocl_problem {
 };
 
 // How the stage reads a paged-attention KV cache; all false for plain SDPA and for PA PREFILL, whose K is
-// the f16 input. MIXED reads the token-major K page only. `compressed` is keyed on the data type so that MIXED
-// always compiles: on a page it cannot read -- any d-major one (the BY_CHANNEL fields stay false there), or a
-// kind without a dequant (dequant_ok false) -- it compiles as the token-major reader, and
+// the f16 input. MIXED reads the token-major K page (paged_attention.hpp). `compressed` is keyed on the data type so
+// that MIXED always compiles: on a kind without a dequant (dequant_ok false) it compiles, and
 // PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it off dispatch.
 struct pa_cache_desc {
     bool compressed = false;        // IS_PA_KV_COMPRESSED: an i8/u8 cache (u4 is stored as u8)
@@ -934,9 +933,8 @@ bool dword_token_matrix_ok(const layout& l) {
 // 4 there, and the SDPA_OCL_NEG_SG8=4 fallback build, not the default.
 // SDPA_OCL_HPG_PA_PREFILL=0 turns it off for A/B, and a SDPA_OCL_KQ_* override does too (it tiles the generic kernel).
 // It serves PA MIXED (!is_prefill) at the same heads on f16 caches, without token_type_ids or qq_bias: it reads every key
-// from the token-major pages (the only ones sdpa_ocl's MIXED reads; PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it
-// off a d-major page, where the stage only compiles) and of the inputs only Q. It also serves MIXED on the compressed caches
-// sdpa_ocl's MIXED dequantizes (classify_pa_cache().dequant_ok: i8 BY_TOKEN, token-major i8 / u4 BY_CHANNEL), with the new
+// from the (token-major) pages and of the inputs only Q. It also serves MIXED on the compressed caches
+// sdpa_ocl's MIXED dequantizes (classify_pa_cache().dequant_ok: i8 BY_TOKEN, i8 / u4 BY_CHANNEL), with the new
 // tokens from the f16 K / V inputs (PA_CUR_KV_F16; SDPA_OCL_PA_CUR_F16=0, which reads them back from the cache, takes the
 // generic kernel). It reads Kc / Vc with dword loads and no fallback, on dword_token_matrix_ok() rows: a dynamic padding is
 // taken on trust as PREFILL's K / V, and one 2 B off reads wrong values (the disabled feature_pad_residual cases).
@@ -1131,9 +1129,8 @@ pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
     c.compressed = data_type_traits::is_i8_u8(k.data_type);
     c.key_by_channel = params.typed_desc<paged_attention>()->is_key_by_channel;
     const bool i8 = c.compressed && !int4;
-    // Only MIXED reads the cache, so only MIXED has a page layout to recognise.
-    const bool page_tm = mixed && pa_k_token_major(params);
-    const bool tm_layout = page_tm && c.compressed && c.key_by_channel;
+    // Only MIXED reads the cache (token-major pages, paged_attention.hpp), so only MIXED has a BY_CHANNEL page to read.
+    const bool tm_layout = mixed && c.compressed && c.key_by_channel;
     // u4, not i4: the u4 quantizer's nibbles are unsigned, and a signed widen is not implemented.
     c.u4_by_channel_tm = tm_layout && precision == ov::element::u4;
     c.by_channel_tm = (i8 && tm_layout) || c.u4_by_channel_tm;

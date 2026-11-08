@@ -30,21 +30,13 @@
     #error "pa_small_q_opt.cl: SEQ_LEN_PARTITION_SIZE must be a multiple of PAGED_ATTENTION_BLOCK_SIZE"
 #endif
 
-// The token-major K pages sdpa_ocl reads (layouts in pa_kv_cache_update_ref.cl), all under one host flag,
-// IS_KEY_TOKEN_MAJOR, split here by the quant mode:
-//   KEY_BY_TOKEN_TM    uncompressed and i8 BY_TOKEN: [BLOCK][HEAD_SIZE], the i8 per-token comp still follows the data.
-//   KEY_BY_CHANNEL_TM  i8 and u4 BY_CHANNEL: [BLOCK][HEAD_SIZE] bytes (u4: [BLOCK][HEAD_SIZE / 2], channels 2b and
-//                      2b + 1 in byte b), then one (scale, zp) pair per channel. It relays the u4 V page too.
-#ifdef IS_KEY_BY_CHANNEL
-    #define KEY_BY_TOKEN_TM   0
-    #define KEY_BY_CHANNEL_TM IS_KEY_TOKEN_MAJOR
-#else
-    #define KEY_BY_TOKEN_TM   IS_KEY_TOKEN_MAJOR
-    #define KEY_BY_CHANNEL_TM 0
-#endif
-
-#if KEY_BY_TOKEN_TM && IS_INT4_COMPRESSED
-    #error "pa_small_q_opt.cl: an INT4 K cache is token-major only BY_CHANNEL"
+// The K pages (token-major, paged_attention.hpp; layouts in pa_kv_cache_update_ref.cl), by the quant mode:
+//   BY_TOKEN    uncompressed and i8 BY_TOKEN: [BLOCK][HEAD_SIZE], the i8 per-token comp follows the data.
+//   BY_CHANNEL  i8 and u4 BY_CHANNEL: [BLOCK][HEAD_SIZE] bytes (u4: [BLOCK][HEAD_SIZE / 2], channels 2b and 2b + 1 in
+//               byte b), then one (scale, zp) pair per channel. The u4 cache's V page has split nibbles and trailing
+//               per-token comp arrays.
+#if IS_INT4_COMPRESSED && !defined(IS_KEY_BY_CHANNEL)
+    #error "pa_small_q_opt.cl: an INT4 K cache is BY_CHANNEL only"
 #endif
 
 #define HEAD_SIZE K_HEAD_SIZE
@@ -63,8 +55,8 @@
 
 // Writes the K tile transposed to [token][head_dim] so each lane (key token) reads a contiguous DPAS B operand
 inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local half* dst, uint lid, uint local_size) {
-#if KEY_BY_TOKEN_TM
-    // A token-major row already is a row of the tile, so a work-item converts 8 adjacent head dims of one token: one load,
+#ifndef IS_KEY_BY_CHANNEL
+    // A page row already is a row of the tile, so a work-item converts 8 adjacent head dims of one token: one load,
     // one SLM store.
     for (uint i = lid; i < BLOCK * HEAD_SIZE / 8; i += local_size) {
         const uint t = i / (HEAD_SIZE / 8);
@@ -84,7 +76,7 @@ inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local hal
         vstore8(out, 0, dst + t * HEAD_SIZE + d0);
     #endif
     }
-#elif KEY_BY_CHANNEL_TM
+#else
     // A work-item owns 4 adjacent channels for all tokens, so their (scale, zp) pairs are read once and every token costs
     // one 4-channel load and one SLM store.
     #if IS_INT4_COMPRESSED
@@ -119,59 +111,6 @@ inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local hal
             vstore4(out, 0, dst + t * HEAD_SIZE + d0);
         }
     }
-#elif !IS_KV_COMPRESSED
-    for (uint d = lid; d < HEAD_SIZE; d += local_size) {
-        unroll_for (uint t = 0; t < BLOCK; t++) {
-            dst[t * HEAD_SIZE + d] = key_block[d * BLOCK + t];
-        }
-    }
-#elif IS_INT4_COMPRESSED && defined(IS_KEY_BY_CHANNEL)
-    const __global uchar* key_bytes = (const __global uchar*)key_block;
-    for (uint d = lid; d < HEAD_SIZE; d += local_size) {
-        const __global uchar* row = key_bytes + d * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-        const __global INPUT0_TYPE* comp = (const __global INPUT0_TYPE*)(row + PACKED_K_BLOCK_SIZE);
-        const float comp_scale = convert_float(comp[0]);
-        const float comp_zp = convert_float(comp[1]);
-        const ulong packed = as_ulong(vload8(0, row));
-        unroll_for (uint i = 0; i < PACKED_K_BLOCK_SIZE; i++) {
-            const uint codes = (uint)((packed >> (i * 8)) & 0xfful);
-            dst[(2 * i) * HEAD_SIZE + d] = convert_half(((float)(codes & 15u) - comp_zp) * comp_scale);
-            dst[(2 * i + 1) * HEAD_SIZE + d] = convert_half(((float)(codes >> 4) - comp_zp) * comp_scale);
-        }
-    }
-#elif IS_INT4_COMPRESSED
-    const __global uchar* key_bytes = (const __global uchar*)key_block;
-    const __global INPUT0_TYPE* comp = (const __global INPUT0_TYPE*)(key_bytes + PACKED_K_HEAD_SIZE * BLOCK);
-    for (uint packed_dim = lid; packed_dim < HEAD_SIZE / 2; packed_dim += local_size) {
-        unroll_for (uint t = 0; t < BLOCK; t++) {
-            const uint codes = key_bytes[packed_dim * BLOCK + t];
-            const float comp_scale = convert_float(comp[t]);
-            const float comp_zp = convert_float(comp[BLOCK + t]);
-            dst[t * HEAD_SIZE + 2 * packed_dim] = convert_half(((float)(codes & 15u) - comp_zp) * comp_scale);
-            dst[t * HEAD_SIZE + 2 * packed_dim + 1] = convert_half(((float)(codes >> 4) - comp_zp) * comp_scale);
-        }
-    }
-#elif defined(IS_KEY_BY_CHANNEL)
-    const __global char* key_bytes = (const __global char*)key_block;
-    for (uint d = lid; d < HEAD_SIZE; d += local_size) {
-        const __global char* row = key_bytes + d * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-        const __global INPUT0_TYPE* comp = (const __global INPUT0_TYPE*)(row + BLOCK);
-        const float comp_scale = convert_float(comp[0]);
-        const float comp_zp = convert_float(comp[1]);
-        unroll_for (uint t = 0; t < BLOCK; t++) {
-            dst[t * HEAD_SIZE + d] = convert_half(((float)row[t] - comp_zp) * comp_scale);
-        }
-    }
-#else
-    const __global char* key_bytes = (const __global char*)key_block;
-    const __global INPUT0_TYPE* comp = (const __global INPUT0_TYPE*)(key_bytes + HEAD_SIZE * BLOCK);
-    for (uint d = lid; d < HEAD_SIZE; d += local_size) {
-        unroll_for (uint t = 0; t < BLOCK; t++) {
-            const float comp_scale = convert_float(comp[t]);
-            const float comp_zp = convert_float(comp[BLOCK + t]);
-            dst[t * HEAD_SIZE + d] = convert_half(((float)key_bytes[d * BLOCK + t] - comp_zp) * comp_scale);
-        }
-    }
 #endif
 }
 
@@ -192,7 +131,7 @@ inline void FUNC(dequant_value)(const __global INPUT2_TYPE* value_block, __local
         unroll_for (uint j = 0; j < SUBGROUP_SIZE; j++) {
             dst[(dim_base + j) * BLOCK + token] = row[dim_base + j];
         }
-#elif IS_INT4_COMPRESSED && KEY_BY_CHANNEL_TM
+#elif IS_INT4_COMPRESSED
         // Rows of PACKED_V_HEAD_SIZE bytes, byte b holding head dims b (low nibble) and b + PACKED_V_HEAD_SIZE, then the
         // per-token scale and zp arrays. PACKED_V_HEAD_SIZE is a multiple of 16, so a chunk lies within one nibble half.
         const __global uchar* value_bytes = (const __global uchar*)value_block;
@@ -204,18 +143,6 @@ inline void FUNC(dequant_value)(const __global INPUT2_TYPE* value_block, __local
         unroll_for (uint j = 0; j < SUBGROUP_SIZE; j++) {
             const uint code = high_nibble ? (packed[j] >> 4) : (packed[j] & 15u);
             dst[(dim_base + j) * BLOCK + token] = convert_half(((float)code - comp_zp) * comp_scale);
-        }
-#elif IS_INT4_COMPRESSED
-        const __global uchar* row = (const __global uchar*)value_block + token * PACKED_ADJUSTED_V_HEAD_SIZE;
-        const __global INPUT0_TYPE* comp = (const __global INPUT0_TYPE*)(row + PACKED_V_HEAD_SIZE);
-        const float comp_scale = convert_float(comp[0]);
-        const float comp_zp = convert_float(comp[1]);
-        const ulong packed = as_ulong(vload8(0, row + dim_base / 2));
-        unroll_for (uint i = 0; i < SUBGROUP_SIZE / 2; i++) {
-            const uint codes = (uint)((packed >> (i * 8)) & 0xfful);
-            const uint dim = dim_base + 2 * i;
-            dst[dim * BLOCK + token] = convert_half(((float)(codes & 15u) - comp_zp) * comp_scale);
-            dst[(dim + 1) * BLOCK + token] = convert_half(((float)(codes >> 4) - comp_zp) * comp_scale);
         }
 #else
         const __global char* value_bytes = (const __global char*)value_block;

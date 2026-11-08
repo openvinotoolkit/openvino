@@ -140,18 +140,13 @@ struct PagedAttentionManager {
     std::vector<int> adaptive_rkv_diversity_block_set_indices;
     std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
 
-    // Whether this case carries a scores output (LAST_TOKEN / SNAPKV) and/or adaptive R-KV. Neither changes the K layout
-    // (paged_attention::k_token_major_rule()): the opt kernels that serve them read the token-major page too.
+    // Whether this case carries a scores output (LAST_TOKEN / SNAPKV) and/or adaptive R-KV.
     bool has_scores_output;
     bool has_adaptive_rkv;
 
     bool has_qq_bias = false;
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
-
-    // Overrides the plugin's K layout decision, for tests that need a token-major (or d-major) page
-    // where the plugin would not create it. Set before the first k_cache_token_major() call.
-    std::optional<bool> force_k_cache_token_major;
 
     // Build the network through program save/load (tests::get_network's caching path), which rebuilds every
     // impl from its default ctor plus the saved stage order.
@@ -403,43 +398,11 @@ struct PagedAttentionManager {
         return kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
     }
 
-    // Whether this case's K cache is laid out token-major, i.e. [.., block_size, k_head_size].
-    // Must agree with the plugin, so it goes through the same predicates and feeds them the same thing
-    // graph/paged_attention.cpp does: the PHYSICAL cache type, except for INT4, which packs into u8
-    // and can only be recognised from the configured precision.
-    // Computed once: it is called inside the per-token loops, and the rule queries the device.
+    // The K cache is token-major, [.., block_size, k_head_size], on every device (paged_attention.hpp).
+    // TODO(TMO4): drop the d-major branches of the reference and the fixtures that still ask.
     bool k_cache_token_major() const {
-        if (force_k_cache_token_major.has_value())
-            return *force_k_cache_token_major;
-        if (!k_cache_token_major_cached.has_value())
-            k_cache_token_major_cached = decide_k_cache_token_major();
-        return *k_cache_token_major_cached;
+        return true;
     }
-
-    // What transformations_pipeline.cpp decides for this case on the test device (paged_attention::k_token_major_rule();
-    // the harness always runs f16), and what the consumers then read off the page shape: a square page (head dim ==
-    // block dim) has one shape for both dim orders, so every consumer takes it d-major.
-    bool decide_k_cache_token_major() const {
-        const auto precision = is_int4_kv_cache() ? kv_cache_precision
-                                                  : (kv_cache_compression ? ov::element::i8 : ov::element::f16);
-        const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-        if (!cldnn::paged_attention::k_token_major_rule(test_engine.get_device_info(), ov::element::f16, precision, is_by_channel))
-            return false;
-        // The page dims of get_key_cache_memory().
-        int adjusted_head_size = k_head_size;
-        int adjusted_block_size = block_size;
-        if (kv_cache_compression) {
-            const int scale_zp_bytes = 4;
-            if (is_by_channel) {
-                adjusted_block_size = is_int4_kv_cache() ? block_size / 2 + scale_zp_bytes : block_size + scale_zp_bytes;
-            } else {
-                adjusted_head_size = is_int4_kv_cache() ? k_head_size / 2 + scale_zp_bytes : k_head_size + scale_zp_bytes;
-            }
-        }
-        return adjusted_head_size != adjusted_block_size;
-    }
-
-    mutable std::optional<bool> k_cache_token_major_cached;
 
     cldnn::memory::ptr get_key_cache_memory() {
         auto key_cache_dt = cldnn::data_types::f16;
