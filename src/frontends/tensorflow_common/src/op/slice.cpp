@@ -59,13 +59,11 @@ OutputVector translate_slice_op(const NodeContext& node) {
     auto step = make_shared<v3::Broadcast>(const_one, start_shape);
 
     if (complex_type_mark_node) {
-        auto real = complex_type_mark_node->get_real();
-        auto imag = complex_type_mark_node->get_imag();
+        auto data = complex_type_mark_node->get_data();
 
-        auto real_slice = make_shared<v8::Slice>(real, start, stop, step);
-        auto imag_slice = make_shared<v8::Slice>(imag, start, stop, step);
+        auto slice = make_shared<v8::Slice>(data, start, stop, step);
 
-        auto complex_mark_node = node.mark_node(std::make_shared<ComplexTypeMark>(real_slice, imag_slice));
+        auto complex_mark_node = node.mark_node(std::make_shared<ComplexTypeMark>(slice));
 
         set_node_name(node.get_name(), complex_mark_node);
         return complex_mark_node->outputs();
