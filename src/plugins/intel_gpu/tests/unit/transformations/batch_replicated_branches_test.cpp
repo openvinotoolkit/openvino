@@ -189,6 +189,17 @@ TEST_F(BatchReplicatedBranchesTests, IsIdempotent) {
     manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
 }
 
+TEST_F(BatchReplicatedBranchesTests, BatchesBranchesWithGatherV1) {
+    const BranchConfig config{};
+    model = getModel(config, false);
+    for (const auto& branch : get_concat(model)->input_values()) {
+        const auto gather = branch.get_node()->get_input_node_shared_ptr(0);
+        ASSERT_TRUE(is_type<op::v8::Gather>(gather));
+        replace_node(gather, std::make_shared<op::v1::Gather>(gather->input_value(0), gather->input_value(1), gather->input_value(2)));
+    }
+    model_ref = getModel(config, true);
+}
+
 TEST_F(BatchReplicatedBranchesTests, RejectsNonExactReplicaOrder) {
     model = getModel(BranchConfig{}, false);
     const auto concat = get_concat(model);

@@ -19,11 +19,11 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/util/gather_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -65,12 +65,17 @@ public:
                 return output.get_index() == 0 && (node->get_output_size() < 2 || node->output(1).get_target_inputs().empty());
             },
             "max_pool_indices_unused");
+        // Gather v1 has no batch_dims attribute, so attrs_match would reject it
+        const auto no_batch_dims = Predicate(
+            [](const ov::Output<ov::Node>& output) {
+                return ov::as_type<ov::op::util::GatherBase>(output.get_node())->get_batch_dims() == 0;
+            },
+            "no_batch_dims");
 
         auto data = any_input(has_static_shape());
         auto axis = wrap_type<ov::op::v0::Constant>();
-        auto gather = wrap_type<ov::op::v8::Gather>({data, wrap_type<ov::op::v0::Constant>(value_matches(std::to_string(index))), axis},
-                                                    branch_node,
-                                                    {{"batch_dims", 0}});
+        auto gather = wrap_type<ov::op::util::GatherBase>({data, wrap_type<ov::op::v0::Constant>(value_matches(std::to_string(index))), axis},
+                                                          branch_node && no_batch_dims);
         auto weights = wrap_type<ov::op::v0::Constant>();
         auto weights_convert = optional<ov::op::v0::Convert>({weights});
         auto conv = wrap_type<ov::op::v1::Convolution>({gather, weights_convert}, branch_node);
@@ -151,7 +156,7 @@ std::optional<std::vector<MatchedBranch>> match_branches(const ov::Output<ov::No
         const auto& branch = branches.emplace_back(MatchedBranch{block, matcher.get_pattern_value_map()});
         const auto& reference = branches.front();
         if (i == 0) {
-            const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(branch.get("gather")->get_node_shared_ptr());
+            const auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(branch.get("gather")->get_node_shared_ptr());
             if (gather->get_input_shape(0)[gather->get_axis()] != replica_count)
                 return std::nullopt;
         } else if (branch.get("data") != reference.get("data") || !branches_are_equal(reference, branch)) {
@@ -186,7 +191,7 @@ bool batch_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output
 
     // Branch i gathers slice i of data, so the stacked slices are data with the replica axis moved to the front.
     // Transpose is needed only when a dim before the replica axis is not 1, otherwise Reshape keeps the order
-    const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(reference.get("gather")->get_node_shared_ptr());
+    const auto gather = ov::as_type_ptr<ov::op::util::GatherBase>(reference.get("gather")->get_node_shared_ptr());
     ov::Output<ov::Node> data = gather->input_value(0);
     const auto& data_shape = data.get_shape();
     const auto replica_axis = static_cast<size_t>(gather->get_axis());

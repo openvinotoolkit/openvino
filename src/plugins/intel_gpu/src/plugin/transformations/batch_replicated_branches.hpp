@@ -59,9 +59,9 @@ namespace ov::intel_gpu {
  * The rewrite is applied when:
  *  - all shapes are static and every branch output is [1, C, H, W] with Concat on axis k > 0, so batch N is
  *    free for the replicas and the Concat layout can be restored by Transpose and Reshape;
- *  - branch i gathers slice i of one tensor and the N slices cover the gathered dimension, so the batched
- *    input is that tensor with the replica axis moved to the front; Transpose is added only when a dim before
- *    that axis is not 1;
+ *  - branch i gathers (Gather v1, v7 or v8) slice i of one tensor and the N slices cover the gathered
+ *    dimension, so the batched input is that tensor with the replica axis moved to the front; Transpose is
+ *    added only when a dim before that axis is not 1;
  *  - all branches have the same operations, attributes and constants, so the batched branch computes every
  *    replica; Add uses numpy broadcast;
  *  - every branch node feeds only the next one and MaxPool indices are unused, otherwise the original branches
