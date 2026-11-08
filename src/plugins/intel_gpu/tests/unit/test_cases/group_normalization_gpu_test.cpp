@@ -622,3 +622,83 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum_relu) {
         ASSERT_NEAR(static_cast<float>(output_mem_lock[i]), expected, 0.05) << "at index " << i;
     }
 }
+
+// Static simple-format input whose element count equals its feature count, with padding.
+// The jitter emits a special <NAME>_GET_INDEX for this case, which must still honor the padding.
+namespace {
+struct gn_padded_per_channel_case {
+    std::string name;
+    std::vector<int64_t> shape;
+    int64_t groups;
+    padding in_pad;
+};
+
+class group_normalization_padded_per_channel_input : public ::testing::TestWithParam<gn_padded_per_channel_case> {};
+
+TEST_P(group_normalization_padded_per_channel_input, bfyx_opt) {
+    const auto& c = GetParam();
+    auto& engine = get_test_engine();
+    const float epsilon = 0.0025f;
+    const int64_t channels = c.shape[1];
+    const auto plain_fmt = format::get_default_format(c.shape.size());
+    const ov::Shape shape(c.shape.begin(), c.shape.end());
+    const size_t count = ov::shape_size(shape);
+    const layout sb_layout{ov::PartialShape{1, channels, 1, 1}, data_types::f32, format::bfyx};
+
+    topology tp;
+    tp.add(input_layout{"data", layout{shape, data_types::f32, plain_fmt}});
+    tp.add(input_layout{"scale", sb_layout});
+    tp.add(input_layout{"bias", sb_layout});
+    tp.add(reorder{"data_r", input_info("data"), layout{shape, data_types::f32, format::bfyx, c.in_pad}});
+    tp.add(group_normalization{"gn", input_info("data_r"), input_info("scale"), input_info("bias"), c.groups, epsilon});
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(false));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net(engine, tp, config);
+
+    auto inst = net.get_primitive("gn");
+    ASSERT_EQ(inst->get_input_layout(0).data_padding, c.in_pad);
+    const std::string impl = inst->get_impl()->get_type_info();
+    ASSERT_NE(impl.find("GroupNormalizationBfyxOptImpl"), std::string::npos) << impl;
+
+    tests::random_generator rg{"gn_padded_per_channel_" + c.name};
+    auto data = rg.generate_random_1d<float>(count, -1.0f, 1.0f);
+    auto scale = rg.generate_random_1d<float>(channels, -1.0f, 1.0f);
+    auto bias = rg.generate_random_1d<float>(channels, -0.5f, 0.5f);
+    auto data_mem = engine.allocate_memory(layout{shape, data_types::f32, plain_fmt});
+    auto scale_mem = engine.allocate_memory(sb_layout);
+    auto bias_mem = engine.allocate_memory(sb_layout);
+    set_values(data_mem, data);
+    set_values(scale_mem, scale);
+    set_values(bias_mem, bias);
+    net.set_input_data("data", data_mem);
+    net.set_input_data("scale", scale_mem);
+    net.set_input_data("bias", bias_mem);
+    auto out_mem = net.execute().at("gn").get_memory();
+    ASSERT_FALSE(static_cast<bool>(out_mem->get_layout().data_padding));
+
+    std::vector<float> expected(count);
+    ov::reference::group_normalization(data.data(), scale.data(), bias.data(), expected.data(), shape, c.groups, epsilon);
+    cldnn::mem_lock<float, mem_lock_type::read> actual(out_mem, get_test_stream());
+    size_t bad = 0;
+    float max_err = 0.0f;
+    for (size_t i = 0; i < count; i++) {
+        const float err = std::fabs(actual[i] - expected[i]);
+        max_err = std::max(max_err, err);
+        bad += err > 2e-4f;
+    }
+    EXPECT_EQ(bad, 0u) << "max_err=" << max_err;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         group_normalization_padded_per_channel_input,
+                         ::testing::Values(gn_padded_per_channel_case{"b1_c32_spatial_pad", {1, 32, 1, 1}, 8, padding({0, 0, 1, 2}, {0, 0, 2, 1})},
+                                           gn_padded_per_channel_case{"b1_c32_feature_pad", {1, 32, 1, 1}, 8, padding({0, 3, 0, 0}, {0, 1, 0, 0})},
+                                           gn_padded_per_channel_case{"b1_c40_rank2_feature_pad", {1, 40}, 5, padding({0, 3}, {0, 1})},
+                                           gn_padded_per_channel_case{"control_b2_c32_spatial_pad", {2, 32, 1, 1}, 8, padding({0, 0, 1, 2}, {0, 0, 2, 1})},
+                                           gn_padded_per_channel_case{"control_b1_c32_no_pad", {1, 32, 1, 1}, 8, padding()}),
+                         [](const ::testing::TestParamInfo<gn_padded_per_channel_case>& info) {
+                             return info.param.name;
+                         });
+}  // namespace
