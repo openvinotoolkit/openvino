@@ -10,16 +10,24 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 
@@ -247,6 +255,115 @@ TEST(CollapseUNQDQPassTest, ConvToMatMulAndUNQDQOrderDoesNotMatter) {
 
         expect_conv_to_matmul_and_unqdq_rewritten(model);
     }
+}
+
+ov::Output<ov::Node> add_unqdq(const ov::Output<ov::Node>& input, float range) {
+    auto fake_quantize = std::make_shared<ov::op::v0::FakeQuantize>(
+        input,
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-range}),
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {range}),
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f}),
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {65535.0f}),
+        65536);
+    auto quantized_convert = std::make_shared<ov::op::v0::Convert>(fake_quantize, ov::element::u16);
+    auto dequantized_convert = std::make_shared<ov::op::v0::Convert>(quantized_convert, ov::element::f32);
+    auto subtract =
+        std::make_shared<ov::op::v1::Subtract>(dequantized_convert,
+                                               ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {32768.0f}));
+    return std::make_shared<ov::op::v1::Multiply>(
+        subtract,
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {range / 32768.0f}));
+}
+
+// Mirrors an MLP feeding a post-norm: Mul_1 -> FQ -> down_proj -> FQ -> L2 normalization
+std::shared_ptr<ov::Model> build_overflow_mlp_model(float range, bool decomposed_l2, bool residual_add) {
+    auto up = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    ov::ParameterVector params{up, gate};
+    auto mul = std::make_shared<ov::op::v1::Multiply>(up, gate);
+    mul->set_friendly_name("mul_1");
+    auto down = std::make_shared<ov::op::v0::MatMul>(
+        add_unqdq(mul, range / 4),
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4, 4}, std::vector<float>(16, 1.0f)));
+    ov::Output<ov::Node> x = add_unqdq(down, range);
+    if (residual_add) {
+        auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        params.push_back(residual);
+        x = std::make_shared<ov::op::v1::Add>(x, residual);
+    }
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    std::shared_ptr<ov::Node> norm;
+    if (decomposed_l2) {
+        auto square =
+            std::make_shared<ov::op::v1::Power>(x, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f}));
+        auto sum = std::make_shared<ov::op::v1::ReduceSum>(square, axes, true);
+        auto eps =
+            std::make_shared<ov::op::v1::Add>(sum,
+                                              ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-7f}));
+        norm = std::make_shared<ov::op::v1::Divide>(x, std::make_shared<ov::op::v0::Sqrt>(eps));
+    } else {
+        norm = std::make_shared<ov::op::v0::NormalizeL2>(x, axes, 1e-7f, ov::op::EpsMode::ADD);
+    }
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(norm)},
+                                       params,
+                                       "overflow_mlp_model");
+}
+
+// Returns the power-of-two exponent applied to `mul_1`'s first input, or 0 if none was inserted
+int rescale_exponent(const std::shared_ptr<ov::Model>& model) {
+    for (auto&& op : model->get_ops()) {
+        if (op->get_friendly_name() != "mul_1") {
+            continue;
+        }
+        const auto factor = ov::as_type_ptr<ov::op::v1::Multiply>(op->get_input_node_shared_ptr(0));
+        const auto value = factor ? ov::util::get_constant_from_source(factor->input_value(1)) : nullptr;
+        return value ? std::ilogb(value->cast_vector<float>()[0]) : 0;
+    }
+    return 0;
+}
+
+TEST(RescaleFP16OverflowQDQPassTest, ScalesOverflowingRegionEndingInL2Normalize) {
+    for (bool decomposed_l2 : {true, false}) {
+        const auto model = build_overflow_mlp_model(950796.0f, decomposed_l2, false);
+        ov::npuw::RescaleFP16OverflowQDQ rescale;
+
+        EXPECT_TRUE(rescale.run_on_model(model));
+        model->validate_nodes_and_infer_types();
+
+        // 950796 / 2^5 = 29712 is the first value under the 32768 target
+        EXPECT_EQ(rescale_exponent(model), -5) << "decomposed_l2=" << decomposed_l2;
+    }
+}
+
+TEST(RescaleFP16OverflowQDQPassTest, KeepsRegionWithResidualAdd) {
+    const auto model = build_overflow_mlp_model(950796.0f, true, true);
+    ov::npuw::RescaleFP16OverflowQDQ rescale;
+
+    EXPECT_FALSE(rescale.run_on_model(model));
+    EXPECT_EQ(rescale_exponent(model), 0);
+}
+
+TEST(RescaleFP16OverflowQDQPassTest, KeepsRangesWithinF16) {
+    const auto model = build_overflow_mlp_model(60000.0f, true, false);
+    ov::npuw::RescaleFP16OverflowQDQ rescale;
+
+    EXPECT_FALSE(rescale.run_on_model(model));
+    EXPECT_EQ(rescale_exponent(model), 0);
+}
+
+TEST(RescaleFP16OverflowQDQPassTest, KeepsRequantizedDequantizeOutput) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto norm = std::make_shared<ov::op::v0::NormalizeL2>(add_unqdq(add_unqdq(input, 100.0f), 950796.0f),
+                                                          axes,
+                                                          1e-7f,
+                                                          ov::op::EpsMode::ADD);
+    const auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(norm)},
+                                                   ov::ParameterVector{input},
+                                                   "requantize_model");
+    ov::npuw::RescaleFP16OverflowQDQ rescale;
+
+    EXPECT_FALSE(rescale.run_on_model(model));
 }
 
 }  // namespace

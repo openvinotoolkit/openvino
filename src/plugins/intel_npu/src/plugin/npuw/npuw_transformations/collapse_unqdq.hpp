@@ -14,4 +14,14 @@ public:
     CollapseUNQDQ();
 };
 
+// FakeQuantize ranges are the only record of how large an activation gets, and CollapseUNQDQ
+// drops them, so run this first. For an FQ whose range exceeds the f16 maximum, scale the
+// producer's input by 2^-k. Only done when every path from there is linear in the scaled value
+// and ends in an L2 normalization, which cancels the factor; otherwise the FQ is left as is.
+class RescaleFP16OverflowQDQ : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ov::npuw::RescaleFP16OverflowQDQ");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
 }  // namespace ov::npuw
