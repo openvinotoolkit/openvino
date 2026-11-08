@@ -20,6 +20,7 @@
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
 #include "common_test_utils/test_tools.hpp"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -290,6 +291,92 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups) {
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d) {
+    auto model = convert_model("deform_conv_2d.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 1, 3, 3)
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // offset (1, 8, 2, 2): h-coord of kernel[0,0] at out[0,0] = 0.5, w-coord of kernel[1,0] at out[0,1] = -0.1
+    std::vector<float> offset(32, 0.f);
+    offset[0] = 0.5f;
+    offset[21] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {9.5f, 11.9f, 20.f, 24.f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_padding) {
+    auto model = convert_model("deform_conv_2d_with_padding.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 1, 3, 3)
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // offset (1, 8, 4, 4): h-coord of kernel[0,0] at out[0,0] = 0.5, w-coord of kernel[1,0] at out[1,2] = -0.1
+    std::vector<float> offset(128, 0.f);
+    offset[0] = 0.5f;
+    offset[86] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 4},
+        {0.f, 1.f, 3.f, 2.f, 3.f, 8.f, 11.9f, 7.f, 9.f, 20.f, 24.f, 13.f, 6.f, 13.f, 15.f, 8.f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_mask_bias) {
+    auto model = convert_model("deform_conv_2d_with_mask_bias.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 1, 3, 3)
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // offset (1, 8, 2, 2): same as the basic case
+    std::vector<float> offset(32, 0.f);
+    offset[0] = 0.5f;
+    offset[21] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {10.5f, 12.9f, 21.f, 19.4f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_with_offset_groups) {
+    auto model = convert_model("deform_conv_2d_with_offset_groups.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // X (1, 2, 3, 3): channel 0 is arange(9), channel 1 is arange(8, -1, -1)
+    test_case.add_input<float>(
+        {0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 8.f, 7.f, 6.f, 5.f, 4.f, 3.f, 2.f, 1.f, 0.f});
+
+    // offset (1, 16, 2, 2): h-coord of kernel[0,0] (group 0) at out[0,0] = 0.5,
+    // w-coord of kernel[1,0] (group 1) at out[0,1] = -0.1
+    std::vector<float> offset(64, 0.f);
+    offset[0] = 0.5f;
+    offset[53] = -0.1f;
+    test_case.add_input<float>(offset);
+
+    test_case.add_expected_output<float>(Shape{1, 1, 2, 2}, {33.5f, 32.1f, 32.f, 32.f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_deform_conv_2d_invalid_offset_group_channels) {
+    try {
+        convert_model("deform_conv_2d_invalid_offset_group_channels.onnx");
+        FAIL() << "Expected DeformConv input channel validation to fail";
+    } catch (const ov::Exception& error) {
+        EXPECT_THAT(error.what(),
+                    testing::HasSubstr("DeformConv input channels (3) must be evenly divisible by offset_group (2)"));
+    }
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d) {
