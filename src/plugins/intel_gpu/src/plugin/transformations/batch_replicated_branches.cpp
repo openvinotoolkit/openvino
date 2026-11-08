@@ -141,8 +141,9 @@ bool branches_are_equal(const MatchedBranch& lhs, const MatchedBranch& rhs) {
 // tensor, the slices cover the whole replica dimension, and all branches are equal
 std::optional<std::vector<MatchedBranch>> match_branches(const ov::Output<ov::Node>& concat_output) {
     const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(concat_output.get_node_shared_ptr());
-    const auto replica_count = concat ? concat->get_input_size() : 0;
-    // Replicas are stacked on axis 0, so Concat must be on another axis
+    const auto replica_count = concat->get_input_size();
+    // A single-input Concat is valid but has nothing to batch. The axis may be negative, so it is normalized
+    // to reject axis 0: the repack below only handles a Concat on axis k > 0
     if (replica_count < 2 || ov::util::normalize(concat->get_axis(), concat->get_output_shape(0).size()) <= 0)
         return std::nullopt;
 
