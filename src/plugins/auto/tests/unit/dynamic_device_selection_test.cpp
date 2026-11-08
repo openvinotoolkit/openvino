@@ -1206,7 +1206,7 @@ public:
     }
 
     // GPU.0 is the initial device; CPU is the one that goes inactive and is never warmed up
-    void switch_between_devices(bool compile_for_all) {
+    void switch_between_devices(bool compile_for_all, std::shared_ptr<ov::ICompiledModel>* result = nullptr) {
         if (compile_for_all) {
             config.insert(ov::intel_auto::compile_for_all(true));
         }
@@ -1214,6 +1214,9 @@ public:
         std::shared_ptr<ov::ICompiledModel> compiled_model;
         OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
         run_inferences(compiled_model, 3);
+        if (result) {
+            *result = std::move(compiled_model);
+        }
     }
 
     std::atomic<int> m_gpu0_compile_count{0};
@@ -1238,7 +1241,8 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_released_without_a_non_cpu_w
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_is_kept_when_cache_blob_was_not_written) {
     m_write_cpu_cache_blob = false;
-    switch_between_devices(true);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    switch_between_devices(true, &compiled_model);
     EXPECT_EQ(m_cpu_compile_count.load(), 1);
     EXPECT_FALSE(m_cpu_model.expired());
 }
