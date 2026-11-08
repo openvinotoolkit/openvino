@@ -66,7 +66,10 @@ namespace ov::intel_gpu {
  *    replica; Add uses numpy broadcast;
  *  - every branch node feeds only the next one and MaxPool indices are unused, otherwise the original branches
  *    would stay in the graph next to the batched one;
- *  - branch nodes and Concat are not TypeRelaxed and have no control dependencies, which cloning does not keep.
+ *  - branch nodes and Concat are not TypeRelaxed: Gather and Concat are replaced by new Reshape and Transpose
+ *    nodes, which would drop a type override;
+ *  - branch nodes have no control dependencies or dependents: cloning does not keep the dependencies, and the
+ *    dependents would keep the original branch alive.
  */
 class BatchReplicatedBranches : public ov::pass::MatcherPass {
 public:

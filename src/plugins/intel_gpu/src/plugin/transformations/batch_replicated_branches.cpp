@@ -48,7 +48,9 @@ class ReplicaBranch : public ov::pass::pattern::op::Block {
 public:
     explicit ReplicaBranch(size_t index) : Block({}, {}, "ReplicaBranch" + std::to_string(index)) {
         // Branch nodes are cloned with [N, ...] input instead of [1, ...], so they must have batch 1
-        // and a single consumer; TypeRelaxed and control dependencies are not preserved by cloning
+        // and a single consumer. Gather is replaced by a new Reshape, which would drop a TypeRelaxed
+        // type override. Cloning does not keep control dependencies, and control dependents would keep
+        // the original branch alive
         const auto branch_node = has_static_shape() && shape_matches("[1, ?, ?, ?]") && consumers_count(1) &&
                                  Predicate(
                                      [](const ov::Output<ov::Node>& output) {
