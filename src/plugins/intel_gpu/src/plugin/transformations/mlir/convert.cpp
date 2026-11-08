@@ -166,11 +166,12 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  InputOrders& keptInputOrders,
                                                  const std::string& function_name = "entry") {
     // Split inputs: splat constants are inlined, runtime inputs become function args.
+    // Sub-byte constants are packed in OV and can't be inlined as is (see getConstant): pass them as args.
     ov::OutputVector runtime_inputs;
     SmallVector<bool> is_constant(inputs.size(), false);
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto* c = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());
-        if (c && c->get_all_data_elements_bitwise_identical()) {
+        if (c && c->get_all_data_elements_bitwise_identical() && c->get_element_type().bitwidth() >= 8) {
             is_constant[i] = true;
         } else {
             runtime_inputs.push_back(inputs[i]);
