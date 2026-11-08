@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-import tempfile
-
 #! [py_ov_property_import_header]
 import openvino as ov
 import openvino.properties as properties
@@ -184,19 +182,19 @@ def part7():
 
 
 def part8():
-    with tempfile.TemporaryDirectory() as cache_dir:
-        #! [compile_for_all]
-        core = ov.Core()
-        compiled_model = core.compile_model(
-            model=model,
-            device_name="AUTO",
-            config={
-                device.priorities: "GPU,CPU",
-                properties.cache_dir: cache_dir,
-                intel_auto.compile_for_all: True,
-            },
-        )
-        #! [compile_for_all]
+    #! [compile_for_all]
+    cache_dir = "model_cache"
+    core = ov.Core()
+    compiled_model = core.compile_model(
+        model=model,
+        device_name="AUTO",
+        config={
+            device.priorities: "GPU,CPU",
+            properties.cache_dir: cache_dir,
+            intel_auto.compile_for_all: True,
+        },
+    )
+    #! [compile_for_all]
 
 
 def main():

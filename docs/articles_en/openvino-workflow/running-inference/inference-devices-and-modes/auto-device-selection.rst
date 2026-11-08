@@ -246,8 +246,9 @@ string; plain ``AUTO`` uses its usual eligible devices.
 * When active, disables ``ov::intel_auto::enable_startup_fallback`` and ``ov::intel_auto::enable_runtime_fallback``
   at initialization, even if startup retries later remove all warm-up candidates. This may increase first-inference
   latency and prevents retrying a failed inference on another device.
-* Skips devices with caching disabled or a single-file cache path (``*.bin``). Warm-up failures are logged as warnings.
-  Core reuses compatible cache blobs and may rebuild invalid ones.
+* Skips devices with caching disabled or a single-file cache path (``*.bin``). Failures of the background compilation
+  are logged as warnings; a failure to snapshot the model is reported by ``compile_model``. Core reuses compatible
+  cache blobs and may rebuild invalid ones.
 
 Warm-up compiles one device at a time and releases each temporary compiled model. Background compilation adds
 memory overhead, including a private clone for in-memory models. Destroying the AUTO compiled model cancels pending
