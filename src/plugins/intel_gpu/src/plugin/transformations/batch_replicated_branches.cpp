@@ -67,14 +67,15 @@ public:
         auto data = any_input(has_static_shape());
         auto axis = wrap_type<ov::op::v0::Constant>();
         auto gather = wrap_type<ov::op::v8::Gather>({data, wrap_type<ov::op::v0::Constant>(value_matches(std::to_string(index))), axis},
-                                                    branch_node && attrs_match({{"batch_dims", 0}}));
+                                                    branch_node,
+                                                    {{"batch_dims", 0}});
         auto weights = wrap_type<ov::op::v0::Constant>();
         auto weights_convert = optional<ov::op::v0::Convert>({weights});
         auto conv = wrap_type<ov::op::v1::Convolution>({gather, weights_convert}, branch_node);
         auto pool = optional<ov::op::v1::MaxPool, ov::op::v8::MaxPool, ov::op::v14::MaxPool>({conv}, branch_node && indices_unused);
         // Bias broadcast to [1, C, H, W] is also valid for [N, C, H, W]
         auto bias = wrap_type<ov::op::v0::Constant>();
-        auto add = optional<ov::op::v1::Add>({pool, bias}, branch_node && attrs_match({{"auto_broadcast", "numpy"}}));
+        auto add = optional<ov::op::v1::Add>({pool, bias}, branch_node, {{"auto_broadcast", "numpy"}});
         auto relu = optional<ov::op::v0::Relu>({add}, branch_node);
 
         m_inputs = {data};
