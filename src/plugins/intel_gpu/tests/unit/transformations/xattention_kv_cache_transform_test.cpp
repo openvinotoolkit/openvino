@@ -520,118 +520,20 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          NormalizeMoEOutputReshapeTargetTypeTest,
                          testing::Values(ov::element::i8, ov::element::i16, ov::element::i32, ov::element::i64, ov::element::u8, ov::element::u32));
 
-// Every kind of K page (f16, i8 BY_TOKEN, i8/u4 BY_CHANNEL) is token-major by one static rule for the device and config,
-// whatever the ops (every consumer reads both layouts). Device-independent: the device facts are synthetic.
-TEST(PagedAttentionKCacheLayout, TokenMajorStaticRule) {
-    using pa = cldnn::paged_attention;
-#ifndef ENABLE_ONEDNN_FOR_GPU
-    GTEST_SKIP() << "without oneDNN there is no sdpa_ocl MIXED stage, so the page is never token-major";
-#endif
-    if (pa::k_token_major_switch() == pa::k_layout_switch::d_major)
-        GTEST_SKIP() << "OV_GPU_PA_K_TOKEN_MAJOR=0 makes every page d-major";
-
-    cldnn::device_info xe2{};
-    xe2.supports_immad = true;
-    xe2.arch = cldnn::gpu_arch::xe2;
-    const auto f16 = ov::element::f16;
-    const auto i8 = ov::element::i8;
-
-    EXPECT_TRUE(pa::k_token_major_rule(xe2, f16, i8, true));
-    auto xe3 = xe2;
-    xe3.arch = cldnn::gpu_arch::xe3;
-    EXPECT_TRUE(pa::k_token_major_rule(xe3, f16, i8, true));
-
-    // Device and precision.
-    auto no_xmx = xe2;
-    no_xmx.supports_immad = false;
-    EXPECT_FALSE(pa::k_token_major_rule(no_xmx, f16, i8, true));
-    // xe_hpg is token-major on its opt-in lane only (TEST_USE_SDPA_OCL_HPG=1, the lane itself), d-major otherwise.
-    auto xe_hpg = xe2;
-    xe_hpg.arch = cldnn::gpu_arch::xe_hpg;
-    EXPECT_EQ(pa::k_token_major_rule(xe_hpg, f16, i8, true), pa::sdpa_ocl_hpg_enabled());
-    auto xe_hpc = xe2;
-    xe_hpc.arch = cldnn::gpu_arch::xe_hpc;
-    EXPECT_FALSE(pa::k_token_major_rule(xe_hpc, f16, i8, true));
-    auto xe_lp = no_xmx;
-    xe_lp.arch = cldnn::gpu_arch::xe_lp;
-    EXPECT_FALSE(pa::k_token_major_rule(xe_lp, f16, i8, true));
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, ov::element::f32, i8, true));
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, ov::element::bf16, i8, true));
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, ov::element::dynamic, i8, true));
-
-    // Page kind (k_token_major_kind()): the same rule for every page.
-    EXPECT_TRUE(pa::k_token_major_rule(xe2, f16, f16, false));
-    EXPECT_TRUE(pa::k_token_major_rule(xe2, f16, f16, true));  // the quant mode means nothing uncompressed
-    EXPECT_TRUE(pa::k_token_major_rule(xe2, f16, i8, false));  // BY_TOKEN
-    EXPECT_TRUE(pa::k_token_major_rule(xe2, f16, ov::element::u4, true));
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, f16, ov::element::u8, false));  // sdpa_ocl_decode widens the byte as signed
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, f16, ov::element::u8, true));
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, f16, ov::element::u4, false));  // 4-bit BY_TOKEN keys do not exist
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, f16, ov::element::i4, true));
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, f16, ov::element::f32, false));  // sdpa_ocl_decode takes an f16 cache only
-    EXPECT_FALSE(pa::k_token_major_rule(xe2, f16, ov::element::bf16, false));
-}
-
-// The parts of the layout rule: the device (k_token_major_device()), the page kinds (k_token_major_kind()), and reading
-// the layout back off the cache shape (k_cache_token_major()). Device-independent: the device facts are synthetic, and
-// no kernel switch (TEST_USE_SDPA_OCL_DECODE) changes the device; TEST_USE_SDPA_OCL_HPG, the xe_hpg lane, adds xe_hpg.
-TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
-    using pa = cldnn::paged_attention;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    constexpr bool one_dnn = true;
-#else
-    constexpr bool one_dnn = false;
-#endif
-    for (const auto arch : {cldnn::gpu_arch::xe_lp, cldnn::gpu_arch::xe_hpg, cldnn::gpu_arch::xe_hpc, cldnn::gpu_arch::xe2, cldnn::gpu_arch::xe3}) {
-        for (const bool immad : {false, true}) {
-            cldnn::device_info info{};
-            info.arch = arch;
-            info.supports_immad = immad;
-            const bool lane = one_dnn && immad && (arch >= cldnn::gpu_arch::xe2 || (arch == cldnn::gpu_arch::xe_hpg && pa::sdpa_ocl_hpg_enabled()));
-            SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(arch) << " immad=" << immad);
-            EXPECT_EQ(pa::k_token_major_device(info), lane);
-        }
-    }
-
-    // The kinds of page both token-major readers read; INT4 is BY_CHANNEL only.
-    EXPECT_TRUE(pa::k_token_major_kind(ov::element::f16, false));
-    EXPECT_TRUE(pa::k_token_major_kind(ov::element::f16, true));  // the quant mode means nothing uncompressed
-    EXPECT_TRUE(pa::k_token_major_kind(ov::element::i8, false));
-    EXPECT_TRUE(pa::k_token_major_kind(ov::element::i8, true));
-    EXPECT_TRUE(pa::k_token_major_kind(ov::element::u4, true));
-    EXPECT_FALSE(pa::k_token_major_kind(ov::element::u8, false));
-    EXPECT_FALSE(pa::k_token_major_kind(ov::element::u8, true));
-    EXPECT_FALSE(pa::k_token_major_kind(ov::element::u4, false));
-    EXPECT_FALSE(pa::k_token_major_kind(ov::element::i4, true));
-    EXPECT_FALSE(pa::k_token_major_kind(ov::element::f32, false));
-    EXPECT_FALSE(pa::k_token_major_kind(ov::element::bf16, false));
-
-    // Consumers read the layout off the physical shape. Where the shape cannot tell, the page is d-major: a square page
-    // has the same shape in both dim orders, so every consumer takes it d-major.
-    const ov::Dimension any = ov::Dimension::dynamic();
-    EXPECT_TRUE(pa::k_cache_token_major({any, 2, 16, 64}, 16));
-    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 64, 16}, 16));
-    EXPECT_TRUE(pa::k_cache_token_major({any, 2, 20, 64}, 20));  // i8 BY_CHANNEL
-    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 64, 20}, 20));
-    EXPECT_TRUE(pa::k_cache_token_major({any, 2, 12, 128}, 12));  // u4 BY_CHANNEL
-    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 128, 12}, 12));
-    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 16, 16}, 16));  // square page
-    EXPECT_FALSE(pa::k_cache_token_major(ov::PartialShape::dynamic(4), 16));
-    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 20, 20}, 20));  // square BY_CHANNEL
-}
-
-// The same decision through the real pipeline on the test device: the key_cache shape
-// ConvertPagedAttnInputs gives a synthetic PA model. Run with --device_suffix for each GPU.
+// The K page is token-major on every device, for every kind of page and inference precision (paged_attention.hpp):
+// the key_cache shape ConvertPagedAttnInputs gives a synthetic PA model through the real pipeline on the test device.
+// Run with --device_suffix for each GPU.
 struct KCacheLayoutParams {
     ov::element::Type kv_cache_precision;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     bool with_alibi;
     bool with_qq_bias;
+    ov::element::Type inference_precision = ov::element::f16;
 };
 
 class PagedAttentionKCacheLayoutPipelineTest : public testing::TestWithParam<KCacheLayoutParams> {};
 
-TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageFollowsRule) {
+TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageIsTokenMajor) {
     const auto& p = GetParam();
     auto& engine = get_test_engine();
     auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
@@ -639,7 +541,7 @@ TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageFollowsRule) {
 
     auto config = get_test_default_config(engine);
     config.set_user_property(ov::hint::kv_cache_precision(p.kv_cache_precision));
-    config.set_user_property(ov::hint::inference_precision(ov::element::f16));
+    config.set_user_property(ov::hint::inference_precision(p.inference_precision));
     config.set_user_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
     config.finalize(context.get(), model.get());
     ASSERT_EQ(config.get_key_cache_quant_mode(), p.key_cache_quant_mode);
@@ -653,26 +555,22 @@ TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageFollowsRule) {
     ASSERT_TRUE(key_shape.rank().is_static());
     ASSERT_EQ(key_shape.rank().get_length(), 4);
 
-    using pa = cldnn::paged_attention;
-    const auto& info = engine.get_device_info();
-    const bool by_channel = p.kv_cache_precision != ov::element::f16 && p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-    // Every page kind of these cases is token-major on XMX Xe2+, whatever the ops (alibi, qq_bias) and the kernel
-    // switches (OV_GPU_ENABLE_SDPA_MICRO=0): the opt kernels that serve what sdpa_ocl / sdpa_ocl_decode refuse read it.
-    const bool token_major = pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::k_token_major_device(info);
+    const bool by_channel = p.kv_cache_precision.is_integral() && p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
 
-    // f16 comp: i8 BY_CHANNEL keeps a (scale, zp) pair per channel after 16 tokens, u4 packs 16 tokens into 8 bytes,
-    // i8 BY_TOKEN appends per-token pairs along the head dim.
+    // The comp is in the inference precision: i8 BY_CHANNEL keeps a (scale, zp) pair per channel after 16 tokens, u4
+    // packs a channel's 16 tokens into 8 bytes, i8 BY_TOKEN appends per-token pairs along the head dim.
+    const int64_t comp = 2 * static_cast<int64_t>(p.inference_precision.size());
     int64_t block = 16;
     int64_t head = 64;
     if (by_channel) {
-        block = p.kv_cache_precision == ov::element::u4 ? 12 : 20;
+        block = (p.kv_cache_precision == ov::element::u4 ? 8 : 16) + comp;
     } else if (p.kv_cache_precision == ov::element::i8) {
-        head = 68;
+        head = 64 + comp;
     }
     EXPECT_TRUE(key_shape[0].is_dynamic());
     EXPECT_EQ(key_shape[1].get_length(), 2);
-    EXPECT_EQ(key_shape[2].get_length(), token_major ? block : head) << "key_cache " << key_shape;
-    EXPECT_EQ(key_shape[3].get_length(), token_major ? head : block) << "key_cache " << key_shape;
+    EXPECT_EQ(key_shape[2].get_length(), block) << "key_cache " << key_shape;
+    EXPECT_EQ(key_shape[3].get_length(), head) << "key_cache " << key_shape;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionKCacheLayout,
@@ -685,6 +583,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionKCacheLayout,
                                          KCacheLayoutParams{ov::element::f16, ov::internal::CacheQuantMode::BY_CHANNEL, false, false},
                                          KCacheLayoutParams{ov::element::f16, ov::internal::CacheQuantMode::BY_CHANNEL, true, true},
                                          KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, false, false},
-                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, true, true}));
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, true, true},
+                                         KCacheLayoutParams{ov::element::f32, ov::internal::CacheQuantMode::BY_TOKEN, false, false, ov::element::f32},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, false, false, ov::element::f32},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, false, false, ov::element::f32}));
 
 }  // namespace ov::test::intel_gpu

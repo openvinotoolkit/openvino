@@ -44,7 +44,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                                 impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8 ||
                                 data_type_traits::is_i4_u4(key_cache_dt);
     auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
-    // Both INT4 and INT8 BY_CHANNEL use dim order {0,1,3,2} with block_size at dim[3].
+    // INT4 and INT8 BY_CHANNEL grow the block dim (dim[2] of the token-major page) by the per-channel (scale, zp) rows.
     const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
         if (is_int4) {
@@ -65,14 +65,8 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      "[GPU] Paged Attention key cache quantization mode mismatch: prim.is_key_by_channel : ",
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
 
-    // Both INT4 and INT8 BY_CHANNEL use {0,1,3,2} dim order (block_size at dim[3]).
-    // Token-major K uses {0,1,2,3}, so block_size moves to dim[2] as for XAttention.
-    // A token-major BY_CHANNEL page keeps the SAME size (k_head_size * (block_size + 4)), so
-    // expected_block_size above is still the adjusted 20 -- it just moves from dim 3 to dim 2 with the
-    // rest of the token-major dim order. The layout decided once in transformations_pipeline.cpp is read
-    // back off the PHYSICAL cache shape.
-    const bool k_token_major = !desc->has_xattention && cldnn::paged_attention::k_cache_token_major(key_cache_ps, expected_block_size);
-    const auto block_size_idx = (desc->has_xattention || k_token_major) ? 2 : 3;
+    // The K page is token-major ({0,1,2,3}, as XAttention's): the (adjusted) block size is dim[2].
+    const size_t block_size_idx = 2;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation for key cache quant mode "

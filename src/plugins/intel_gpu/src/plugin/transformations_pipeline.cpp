@@ -1093,22 +1093,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
             }
 
-            // KVCache layout with default attention -
-            // k: [num_blocks, num_kv_heads, head_size, block_size(16)], or token-major
-            //    [num_blocks, num_kv_heads, block_size, head_size] (paged_attention::k_token_major_rule(): Xe2+ XMX,
-            //    f16 inference, a kind of page every consumer reads)
+            // KVCache layout with default attention (token-major K on every device and for every kind of page,
+            // paged_attention.hpp) -
+            // k: [num_blocks, num_kv_heads, block_size(16), head_size]
             // v: [num_blocks, num_kv_heads, block_size(16), head_size]
             // KVCache layout with XAttention -
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
-            // The K cache, of every kind (f16, i8 BY_TOKEN, i8/u4 BY_CHANNEL), is materialized token-major by one static
-            // rule for the device and config, whatever the ops: every kernel that reads the page reads both layouts, so
-            // the reader chosen per dispatch (sdpa_ocl / sdpa_ocl_decode, or the opt kernels for an op they refuse) needs
-            // no promise from here.
             const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
-            const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-            const bool allow_token_major =
-                cldnn::paged_attention::k_token_major_rule(device_info, infer_precision, config.get_kv_cache_precision(), is_by_channel);
 
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             auto kv_cache_precision = config.get_kv_cache_precision();
@@ -1126,9 +1118,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                // Token-major K (same dim order as V and as XAttention) where the rule allows it (allow_token_major
-                // above). Consumers read the result back off the cache shape (paged_attention::k_cache_token_major()).
-                kv_cache_config.keyCacheDimOrder = allow_token_major ? std::vector<size_t>{0, 1, 2, 3} : std::vector<size_t>{0, 1, 3, 2};
+                kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
@@ -1158,8 +1148,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                             block_size);
                             block_size += (block_size / kv_sub_block_size) * infer_precision.size() * 2;
                         } else if (precision == ov::element::i4 || precision == ov::element::u4) {
-                            // INT4 BY_CHANNEL with {0,1,3,2}: block_size is innermost dim (packed)
-                            // Pack 16 u4 tokens → 8 bytes, plus scale/zp = 4 bytes → 12 bytes per column
+                            // INT4 BY_CHANNEL: a channel's 16 u4 tokens take 8 bytes, plus its scale/zp (4 bytes in f16):
+                            // the page is [16 tokens][head_size / 2] bytes, then the per-channel pairs (paged_attention.hpp)
                             block_size = block_size / 2 + infer_precision.size() * 2;
                         }
                     } else {
