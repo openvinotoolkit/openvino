@@ -102,48 +102,6 @@ TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
             EXPECT_EQ(pa::sdpa_ocl_selected(info), pa::sdpa_ocl_selected(info, pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(info),
                       pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_enabled(), pa::sdpa_ocl_hpg_enabled()));
-            EXPECT_EQ(pa::k_token_major_device(info), pa::k_token_major_device(info, pa::sdpa_ocl_hpg_enabled()));
-        }
-    }
-}
-
-// The device part of the layout rule: Xe2+ XMX, and xe_hpg XMX on its opt-in lane, where both sdpa_ocl's SG8 MIXED and
-// its SG8 GENERATE reader read every kind of token-major page. TEST_USE_SDPA_OCL_HPG is the xe_hpg lane itself; the
-// expectation looks at no kernel switch (TEST_USE_SDPA_OCL_DECODE=0 or OV_GPU_ENABLE_SDPA_MICRO=0 only move the reads to
-// paged_attention_opt.cl, which reads the token-major page too).
-TEST(SdpaOclPredicates, TokenMajorDeviceTruthTable) {
-    for (auto a : kArchs) {
-        for (bool immad : kBools) {
-            for (bool hpg : kBools) {
-                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " hpg=" << hpg);
-                const bool want = kOneDnn && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg));
-                EXPECT_EQ(pa::k_token_major_device(make_info(a, immad), hpg), want);
-            }
-        }
-    }
-}
-
-// The rule on the process env: the device term above with this process's TEST_USE_SDPA_OCL_HPG, the same for every page
-// kind, d-major for any other kind or inference precision, and everywhere under OV_GPU_PA_K_TOKEN_MAJOR=0.
-TEST(SdpaOclPredicates, TokenMajorRuleTruthTable) {
-    SCOPED_TRACE(env_trace());
-    for (auto a : kArchs) {
-        for (bool immad : kBools) {
-            SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
-            const auto info = make_info(a, immad);
-            const bool device = kOneDnn && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && pa::sdpa_ocl_hpg_enabled()));
-            EXPECT_EQ(pa::k_token_major_device(info), device);
-            const bool want = device && pa::k_token_major_switch() != pa::k_layout_switch::d_major;
-            // The same rule for every page kind (k_token_major_kind()).
-            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::i8, true), want);
-            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::u4, true), want);
-            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::f16, false), want);
-            EXPECT_EQ(pa::k_token_major_rule(info, ov::element::f16, ov::element::i8, false), want);
-            // Not a kind, or not an f16 inference precision: d-major everywhere.
-            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::f16, ov::element::u8, false));
-            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::f16, ov::element::u4, false));
-            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::f32, ov::element::i8, true));
-            EXPECT_FALSE(pa::k_token_major_rule(info, ov::element::bf16, ov::element::f16, false));
         }
     }
 }

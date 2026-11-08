@@ -68,8 +68,7 @@
 
 // Row pitch of a page's DATA region, in cache-dtype elements: head_size for f16 and i8. A u4 page
 // packs two head dims per byte in a u8 layout, so the host supplies it: exactly K_HEAD_SIZE/2 for K
-// (so the token-major page fits the upstream d-major allocation) and Align(V_HEAD_SIZE/2, 16) for
-// V.
+// (the page the pipeline allocates) and Align(V_HEAD_SIZE/2, 16) for V.
 #ifndef K_ROW_ELEMS
 #    define K_ROW_ELEMS K_HEAD_SIZE
 #endif

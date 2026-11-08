@@ -40,13 +40,9 @@ size_t key_offset(size_t block,
     return page_base + (token_major ? token * k_head_size + k : k * block_size + token);
 }
 
-// The layout the plugin gives this test's cache on the test device (paged_attention::k_token_major_rule(), f16 inference);
-// the reorder reads it back off the cache shape.
-// i8 BY_TOKEN follows the same rule (its scale/zp trail the data region). The token-major BY_CHANNEL
-// pages are covered by smoke_pa_kv_reorder_layout below.
+// The K page is token-major on every device (paged_attention.hpp). TODO(TMO4): drop the d-major fixtures.
 bool k_token_major_page() {
-    using pa = cldnn::paged_attention;
-    return pa::k_token_major_switch() == pa::k_layout_switch::rule && pa::k_token_major_device(get_test_engine().get_device_info());
+    return true;
 }
 
 bool k_token_major() {
@@ -1962,14 +1958,6 @@ class pa_kv_reorder_layout_test : public ::testing::TestWithParam<lt_case> {};
 
 TEST_P(pa_kv_reorder_layout_test, token_major_matches_d_major) {
     const auto p = GetParam();
-    if (p.dynamic_indices) {
-        // A shape-agnostic impl compiles the token-major kernel only where such a page can exist.
-        using pa = cldnn::paged_attention;
-        const auto layout_switch = pa::k_token_major_switch();
-        if (layout_switch == pa::k_layout_switch::d_major ||
-            (layout_switch == pa::k_layout_switch::rule && !pa::k_token_major_device(get_test_engine().get_device_info())))
-            GTEST_SKIP() << "no token-major K page on this device";
-    }
 
     auto in = lt_random(p.kind, 20261101);
     std::vector<uint8_t> k_dm, v_dm, k_tm, v_tm;

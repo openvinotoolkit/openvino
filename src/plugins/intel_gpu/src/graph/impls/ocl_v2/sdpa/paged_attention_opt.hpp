@@ -91,6 +91,14 @@ struct PagedAttentionOpt : public ImplementationManager {
             return false;
         }
 
+        // A 4-bit K cache is BY_CHANNEL only: the token-major page has no 4-bit BY_TOKEN K kind (paged_attention.hpp; the
+        // execution config rejects it for PA models too). Refused here, not in the generators: an exception there is
+        // swallowed by add_stage and leaves a stage without a kernel.
+        if (data_type_traits::is_i4_u4(node.get_program().get_config().get_kv_cache_precision()) && !desc->is_key_by_channel) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because a 4-bit K cache is BY_CHANNEL only." << std::endl;
+            return false;
+        }
+
         return one_of(q_layout.data_type, supported_q_types) && one_of(out_layout.data_type, supported_q_types);
     }
 };
