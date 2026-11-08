@@ -264,7 +264,7 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 #if GR_DEQUANT_WEIGHTS
 // Dequantizes one compressed GatedResidual weight matrix [N, K] (4-bit / 8-bit, scale / zp [G, N]) into a
 // row-major f16 scratch matrix with the arithmetic of the decompression graph, see the helpers above. The f16 GEMM kernels then
-// run on the scratch (used above the GPU_GR_PD_MIN_ROWS row count).
+// run on the scratch (used above the GPU_GR_PD_ROW_THRESHOLD row count).
 //
 // One subgroup owns 16 rows x GR_DQ_KCH columns; lane l owns row 16 * tile + l.
 // JIT: GR_DEQUANT_WEIGHTS, GR_W_TYPE, GR_DQ_N, GR_DQ_K, GR_DQ_KCH, GR_DQ_NRAW (dwords per raw load), GR_DQ_RB (row bytes), GR_DQ_GS32

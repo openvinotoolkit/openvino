@@ -29,7 +29,7 @@ inline bool is_device_supported(const device_info& info) {
     return info.supports_intel_subgroups && info.supports_intel_subgroups_short;
 }
 
-/// The device runs the systolic (dpas) READ kernels; the GPU_GR_FORCE_SCALAR debug option pretends it does not.
+/// The device runs the systolic (dpas) READ kernels; GPU_GR_KERNEL_SELECTION=scalar (debug option) pretends it does not.
 bool has_systolic(const device_info& info, const ov::intel_gpu::ExecutionConfig& config);
 
 /// A READ / FINAL_MIX runs on the dpas kernels exactly when this holds; the scalar gr_read.cl takes the rest.

@@ -241,9 +241,9 @@ static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sd
 static constexpr Property<int, ov::PropertyMutability::RW> micro_sdpa_disable_prefetch{"GPU_MICRO_SDPA_DISABLE_PREFETCH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay_dynamic{"GPU_RECORD_REPLAY_DYNAMIC"};
-static constexpr Property<bool, ov::PropertyMutability::RW> gr_force_scalar{"GPU_GR_FORCE_SCALAR"};
-static constexpr Property<int64_t, ov::PropertyMutability::RW> gr_pd_min_rows{"GPU_GR_PD_MIN_ROWS"};
-static constexpr Property<size_t, ov::PropertyMutability::RW> gr_q_scratch_limit_mb{"GPU_GR_Q_SCRATCH_LIMIT_MB"};
+static constexpr Property<int64_t, ov::PropertyMutability::RW> gr_pd_row_threshold{"GPU_GR_PD_ROW_THRESHOLD"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> gr_scratch_limit_mb{"GPU_GR_SCRATCH_LIMIT_MB"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> gr_kernel_selection{"GPU_GR_KERNEL_SELECTION"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_types{"GPU_FORCE_FP32_LAYER_TYPES"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> force_fp32_layer_names{"GPU_FORCE_FP32_LAYER_NAMES"};
 }  // namespace ov::intel_gpu

@@ -518,7 +518,7 @@ gr_run_result run_gr_read(const gr_ref_params& p,
                           const std::vector<float>& gain,
                           const std::vector<memory::ptr>& weights,
                           bool write_gate = false,
-                          bool force_scalar = false) {
+                          const std::string& path = "") {
     auto& engine = get_test_engine();
     const size_t CD = p.C * p.D;
     auto residual_mem = make_f16(engine, {static_cast<int64_t>(p.rows), static_cast<int64_t>(CD)}, residual);
@@ -537,8 +537,8 @@ gr_run_result run_gr_read(const gr_ref_params& p,
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 #ifdef GPU_DEBUG_CONFIG
-    if (force_scalar) {
-        config.set_property(ov::intel_gpu::gr_force_scalar(true));
+    if (!path.empty()) {
+        config.set_property(ov::intel_gpu::gr_kernel_selection(path));
     }
 #endif
     network network(engine, topology, config);
@@ -565,15 +565,15 @@ struct gr_quant_case {
     bool is_signed = false;
     bool has_zp = true;
     size_t group = 0;  // see make_quant_matrix
-    bool scalar = false;  // the scalar gr_read.cl (GPU_GR_FORCE_SCALAR), which dequantizes in registers too
+    bool scalar = false;  // the scalar gr_read.cl (GPU_GR_KERNEL_SELECTION=scalar), which dequantizes in registers too
 };
 
 size_t scratch_limit_bytes() {
-    return GPU_DEBUG_VALUE_OR(finalized_test_config().get_gr_q_scratch_limit_mb(), size_t{256}) << 20;
+    return GPU_DEBUG_VALUE_OR(finalized_test_config().get_gr_scratch_limit_mb(), size_t{256}) << 20;
 }
 
 size_t pd_min_rows() {
-    const int64_t rows = GPU_DEBUG_VALUE_OR(finalized_test_config().get_gr_pd_min_rows(), int64_t{-1});
+    const int64_t rows = GPU_DEBUG_VALUE_OR(finalized_test_config().get_gr_pd_row_threshold(), int64_t{-1});
     return rows >= 0 ? static_cast<size_t>(rows) : 5 * static_cast<size_t>(get_test_engine().get_device_info().execution_units_count);
 }
 
@@ -598,7 +598,7 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
     }
 #ifndef GPU_DEBUG_CONFIG
     if (tc.scalar) {
-        GTEST_SKIP() << "GPU_GR_FORCE_SCALAR is a debug option";
+        GTEST_SKIP() << "GPU_GR_KERNEL_SELECTION is a debug option";
     }
 #endif
     gr_ref_params p;
@@ -638,8 +638,8 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
             q_weights.push_back(make_quant_zp(engine, wi));
         }
     }
-    const auto f16_run = run_gr_read(p, mode, residual, gain, f16_weights, tc.write_gate, tc.scalar);
-    const auto q_run = run_gr_read(p, mode, residual, gain, q_weights, tc.write_gate, tc.scalar);
+    const auto f16_run = run_gr_read(p, mode, residual, gain, f16_weights, tc.write_gate, tc.scalar ? "scalar" : "");
+    const auto q_run = run_gr_read(p, mode, residual, gain, q_weights, tc.write_gate, tc.scalar ? "scalar" : "");
 
     // compressed weights use the 3-dispatch pipeline unless its Rbar scratch exceeds the limit
     const auto expected = tc.scalar ? std::vector<std::string>{"READ"} : expected_read_stages(p.rows, p.D, p.L);
@@ -871,7 +871,7 @@ std::vector<gr_quant_case> group_size_cases() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_group_sizes, gated_residual_quant_test, ::testing::ValuesIn(group_size_cases()));
 
-/// The scalar gr_read.cl (GPU_GR_FORCE_SCALAR, as on a device without systolic arrays) dequantizes in registers too: both weight
+/// The scalar gr_read.cl (GPU_GR_KERNEL_SELECTION=scalar, as on a device without systolic arrays) dequantizes in registers too: both weight
 /// widths, group sizes, zero points, signedness, FINAL_MIX and the compressed write gate (L <= 512, C * D <= 16384).
 std::vector<gr_quant_case> scalar_cases() {
     std::vector<gr_quant_case> cases;
