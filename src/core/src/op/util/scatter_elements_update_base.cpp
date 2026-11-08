@@ -107,6 +107,9 @@ bool util::ScatterElementsUpdateBase::evaluate_symbol(TensorSymbolVector& output
 int64_t util::ScatterElementsUpdateBase::get_normalized_axis(const TensorVector& inputs) const {
     const auto& axis_input = inputs[3];
     OPENVINO_ASSERT(axis_input.get_element_type().is_integral_number(), "axis element type is not integral data type");
+    OPENVINO_ASSERT(axis_input.get_size() == 1,
+                    "Axis input must be scalar or have 1 element. Got: ",
+                    axis_input.get_shape());
 
     const auto axis = get_tensor_data_as<int64_t>(axis_input)[0];
     const auto data_rank = static_cast<int64_t>(inputs[0].get_shape().size());
