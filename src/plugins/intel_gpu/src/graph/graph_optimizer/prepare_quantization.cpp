@@ -16,6 +16,9 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#    include "graph/impls/onednn/utils.hpp"
+#endif
 
 #include <algorithm>
 #include <array>
@@ -559,7 +562,7 @@ static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto fc_prim = fc_node.get_primitive();
     // static_sbzp needs f16 / bf16 activations (dynamic quantization already skips floating-point zero points)
-    if (!fc_prim->compressed_weights || !fc_prim->decompression_scale.is_valid() || !fc_prim->decompression_zero_point.is_valid() ||
+    if (!fc_prim->decompression_scale.is_valid() || !fc_prim->decompression_zero_point.is_valid() ||
         fc_prim->decompression_zero_point_after_scale || fc_prim->dynamic_quantized_activation)
         return;
 
@@ -590,7 +593,7 @@ static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p
     auto weights_rank = std::count_if(weights_shape.begin(), weights_shape.end(), [](ov::Dimension d) {
         return d.get_length() > 1;
     });
-    if (!fc_prim->weights_transposed || weights_rank > 2 || fc_prim->transpose_b_scale != fc_prim->transpose_b_zp)
+    if (weights_rank > 2 || fc_prim->transpose_b_scale != fc_prim->transpose_b_zp)
         return;
     const auto& param_shape = scale_layout.get_partial_shape();
     if (param_shape.size() != 2 || !one_of(scale_layout.format, {format::bfyx, format::fbyx}))
@@ -599,6 +602,10 @@ static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p
     const size_t rows = static_cast<size_t>(param_shape[n_major ? 0 : 1].get_length());
     const size_t groups = static_cast<size_t>(param_shape[n_major ? 1 : 0].get_length());
     if (groups < 2 || rows * groups != zp_layout.count())
+        return;
+    // the OpenCL kernels no longer take the FC once it is flagged, so the group size must be one oneDNN accepts
+    const auto [ngroups, group_size] = onednn::get_scale_groups(fc_node.get_input_layout(1), scale_layout, fc_prim->weights_transposed);
+    if (!onednn::is_supported_scale_group(ngroups, group_size))
         return;
 
     // Write [N, groups] in fbyx, the layout the later reorder would produce, to avoid another copy

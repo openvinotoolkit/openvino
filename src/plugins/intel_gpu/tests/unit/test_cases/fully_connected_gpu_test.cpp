@@ -1745,7 +1745,8 @@ public:
     // without oneDNN, the OpenCL kernels use the zero point as given. input_3d: [1, batch, ifm] input (input_size 3), as
     // LLM layers have; oneDNN then gets 3D weights with a size-1 batch dimension. shared_zp: a second fully connected
     // uses the same scale and zero point constants, and each gets its own zp * scale. groups_major: scale and zero point
-    // laid out [groups, N] (transpose_b_scale / transpose_b_zp false) instead of [N, groups].
+    // laid out [groups, N] (transpose_b_scale / transpose_b_zp false) instead of [N, groups]. group_size: groups oneDNN
+    // can't take (not a multiple of 16) keep the zero point as given and run on the OpenCL kernels.
     void test_compressed_f16_zp(data_types wei_dt,
                                 bool is_dynamic,
                                 long int batch_num,
@@ -1753,7 +1754,8 @@ public:
                                 bool is_caching_test = false,
                                 bool input_3d = false,
                                 bool shared_zp = false,
-                                bool groups_major = false) {
+                                bool groups_major = false,
+                                long int group_size = 32) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
         if (use_onednn && !engine.get_device_info().supports_immad)
@@ -1761,7 +1763,6 @@ public:
 
         const long int ifm_num = 512;
         const long int ofm_num = 256;
-        const long int group_size = 32;
         const long int group_num = ifm_num / group_size;
 
         const ov::PartialShape in_shape = input_3d ? ov::PartialShape{1, batch_num, ifm_num} : ov::PartialShape{batch_num, ifm_num};
@@ -1834,9 +1835,10 @@ public:
             auto fc_inst = network->get_primitive(id);
             auto impl = fc_inst->get_impl();
             ASSERT_NE(impl, nullptr);
-            ASSERT_EQ(impl->is_onednn(), use_onednn);
-            ASSERT_EQ(fc_inst->get_impl_params()->typed_desc<fully_connected>()->decompression_zero_point_after_scale, use_onednn);
-            if (use_onednn && !is_caching_test) {
+            const bool sbzp = use_onednn && group_size % 16 == 0;
+            ASSERT_EQ(impl->is_onednn(), sbzp);
+            ASSERT_EQ(fc_inst->get_impl_params()->typed_desc<fully_connected>()->decompression_zero_point_after_scale, sbzp);
+            if (sbzp && !is_caching_test) {
                 // zp * scale is written in the layout the fully connected reads ([groups][N]): a constant, with no reorder in between
                 auto& zp_dep = network->get_program()->get_node(id).get_dependency(3);
                 ASSERT_TRUE(zp_dep.is_type<data>()) << id;
@@ -6605,6 +6607,10 @@ TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_shared_zp_ocl) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_ocl) {
     this->test_compressed_f16_zp(data_types::u4, false, 1, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_group_8) {
+    this->test_compressed_f16_zp(data_types::u4, false, 64, true, false, false, false, false, 8);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch_dynamic_ocl) {
