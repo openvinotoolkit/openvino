@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-09-20-50-58-000-42680170472",
+  "timestamp": "2026-11-09T20:50:58Z",
+  "run_id": "42680170472",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42680170472",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39444",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39444",
+  "author": "arshil42",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access to the path is denied"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll: Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force on top of a pre-existing install directory from a previous run on this self-hosted Windows runner. Expand-Archive's overwrite logic first tries to Remove-Item any existing file it is about to replace, but tbb12.dll is still locked by another process (commonly a lingering test/runner process from a prior job on the same self-hosted machine) that holds an open handle, so the OS denies the delete with UnauthorizedAccessException. This matches the identical failure recorded twice already in pattern 95bb23aa2ed8a84d (same tbb12.dll lock, same job type, same PR) within the last day, confirming this is an Infrastructure-level runner state issue rather than a code regression introduced by PR #39444.",
+  "reproduction_steps": "N/A (depends on stale/locked file state of a specific self-hosted Windows runner machine; not reproducible from a clean checkout). On an affected runner: observe a leftover process from a prior job still holding C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll open, then run Expand-Archive -Force over the existing install directory.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job; it typically succeeds once the lock is released.",
+    "Clean the workspace install directory (rm -Recurse -Force install) before extraction instead of relying on Expand-Archive -Force to overwrite in place, avoiding the delete-while-locked race.",
+    "Audit the self-hosted Windows GPU runner pool for lingering OpenVINO/test processes that keep tbb12.dll open between jobs, and ensure prior job processes are fully terminated before the next job starts.",
+    "Consider adding a short retry/backoff around the extraction step specifically for 'access is denied' file-lock errors on Windows runners."
+  ],
+  "prevention_strategies": "Ensure self-hosted Windows runners fully terminate all child processes (test binaries, previous job's OpenVINO runtime) before starting a new job, and/or clear the install directory fully before extracting a fresh package rather than doing an in-place overwrite extraction, to eliminate file-lock races on shared DLLs like tbb12.dll.",
+  "historical_context": "Identical failure signature (95bb23aa2ed8a84d) previously recorded twice: run 42662261631 (PR #39034) and run 42668697675 (also PR #39444), both within the last 24 hours, same root cause (tbb12.dll locked during Expand-Archive overwrite on a Windows self-hosted GPU runner). This is now the 3rd occurrence in a short window, indicating a recurring runner-pool hygiene issue rather than an isolated incident."
+}
