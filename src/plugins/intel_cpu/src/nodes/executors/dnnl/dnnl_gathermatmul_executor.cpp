@@ -44,7 +44,6 @@ using dnnl_utils::InnerProductKey;
 using dnnl_utils::make_bias_md;
 using dnnl_utils::normalize_m;
 
-
 bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
 #ifdef OPENVINO_ARCH_X86_64
     // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
@@ -125,13 +124,13 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
                                   dnnl::memory::format_tag::any);
 
     const auto [src_dyn_quant_group_size, zp_dt] = dnnl_utils::dyn_quant_params(attrs.dynamicQuantizationGroupSize,
-                                                                          weights_precision,
-                                                                          src_precision,
-                                                                          zp_precision,
-                                                                          zp_non_negative_i8,
-                                                                          static_cast<size_t>(K),
-                                                                          scale_shape,
-                                                                          zp_shape);
+                                                                                weights_precision,
+                                                                                src_precision,
+                                                                                zp_precision,
+                                                                                zp_non_negative_i8,
+                                                                                static_cast<size_t>(K),
+                                                                                scale_shape,
+                                                                                zp_shape);
 
     const auto dst_dt = DnnlExtensionUtils::ElementTypeToDataType(memory.at(ARG_DST)->getDesc().getPrecision());
     InnerProductKey key{src_md,
@@ -389,7 +388,6 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             auto* bias = bias_offset(gather_axis_index);
             auto* scale = scale_offset(gather_axis_index);
             auto* zp = zp_offset(gather_axis_index);
-            // printf("[CPU] GatherMatmulDnnlExecutor::execute gather_axis_index %d\n", gather_axis_index);  // TODO: remove
             m_gemvImpl->exec(src, dst, wei, bias, scale, zp);
         }
     }
