@@ -713,7 +713,7 @@ jobs:
     name: GPU unit tests
     needs: [ Build, Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
-    timeout-minutes: 530
+    timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
     defaults:
       run:
         shell: powershell
