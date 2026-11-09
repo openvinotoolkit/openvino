@@ -18,7 +18,7 @@ inputs:
     required: false
     default: ''
   profile:
-    description: Test profile, usually cpu or gpu.
+    description: Test profile, usually cpu, gpu, or npu (C++ unit tests without hardware).
     required: false
     default: cpu
   lane:
