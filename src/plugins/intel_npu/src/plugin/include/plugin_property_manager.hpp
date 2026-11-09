@@ -30,7 +30,6 @@ public:
     PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
-                          const std::shared_ptr<const CompilerAdapterFactory>& compilerAdapterFactory,
                           Logger& logger);
 
     PluginPropertyManager& operator=(const PluginPropertyManager& other) = delete;
