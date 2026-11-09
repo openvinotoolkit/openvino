@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <utility>
 #include <vector>
 
 #include "utils/error.hpp"
@@ -226,6 +227,16 @@ LayoutInfo resolveLayout(const std::vector<int>& dims, int num_classes) {
                 << "\"num_classes\" + 4 / \"num_classes\" + 5");
 }
 
+bool isKnownLayout(const std::vector<int>& dims, int num_classes) {
+    const int cols = dims[1];
+    const int rows = dims[0];
+    if (cols == 6 || cols == 7) {
+        return true;
+    }
+    return num_classes > 0 && (cols == num_classes + 4 || cols == num_classes + 5 || rows == num_classes + 4 ||
+                               rows == num_classes + 5);
+}
+
 std::string shapeToString(const cv::Mat& mat) {
     std::stringstream ss;
     ss << "[";
@@ -234,6 +245,42 @@ std::string shapeToString(const cv::Mat& mat) {
     }
     ss << "] (" << mat.total() << " element(s), depth " << mat.depth() << ")";
     return ss.str();
+}
+
+// Merges DETR-style boxes [N, 4] and class logits [N, C] into [N, 6] [x1, y1, x2, y2, score, label].
+cv::Mat mergeDetrOutputs(const cv::Mat& boxes, const cv::Mat& logits, MAP::BoxFormat box_format) {
+    cv::Mat boxes_f32, logits_f32;
+    boxes.convertTo(boxes_f32, CV_32F);
+    logits.convertTo(logits_f32, CV_32F);
+    const int num_queries = squeezeDims(boxes_f32)[0];
+    const auto logits_dims = squeezeDims(logits_f32);
+    if (logits_dims.size() != 2u || logits_dims[0] != num_queries) {
+        THROW_ERROR("MAP metric cannot pair DETR boxes " << shapeToString(boxes) << " with class logits "
+                                                       << shapeToString(logits));
+    }
+    const int num_classes = logits_dims[1];
+    const auto boxes2d = boxes_f32.reshape(1, num_queries);
+    const auto logits2d = logits_f32.reshape(1, num_queries);
+
+    cv::Mat merged(num_queries, 6, CV_32F);
+    for (int q = 0; q < num_queries; ++q) {
+        const float* b = boxes2d.ptr<float>(q);
+        const float* l = logits2d.ptr<float>(q);
+        const int label = static_cast<int>(std::max_element(l, l + num_classes) - l);
+        float* out = merged.ptr<float>(q);
+        if (box_format == MAP::BoxFormat::XYXY) {
+            std::copy(b, b + 4, out);
+        } else {
+            out[0] = b[0] - b[2] / 2.f;
+            out[1] = b[1] - b[3] / 2.f;
+            out[2] = b[0] + b[2] / 2.f;
+            out[3] = b[1] + b[3] / 2.f;
+        }
+        // DETR-family heads (RF-DETR, RT-DETR, Deformable DETR) are trained with sigmoid focal loss.
+        out[4] = 1.f / (1.f + std::exp(-l[label]));
+        out[5] = static_cast<float>(label);
+    }
+    return merged;
 }
 
 std::vector<Detection> decodeDetections(const cv::Mat& mat, const MAP::Params& params) {
@@ -467,6 +514,31 @@ MAP::MAP(const Params& params): m_params(params){};
 Result MAP::compare(const cv::Mat& lhs, const cv::Mat& rhs) {
     // NB: lhs is the actual model output, rhs is the reference used as ground truth.
     LOG_DEBUG() << "MAP: actual " << shapeToString(lhs) << ", reference " << shapeToString(rhs) << std::endl;
+    const auto dims = squeezeDims(lhs);
+    if (dims.size() != 2u || isKnownLayout(dims, m_params.num_classes)) {
+        return evaluate(lhs, rhs);
+    }
+
+    // NB: DETR-style models split detections into boxes [N, 4] and class logits [N, C] layers,
+    // which reach the shared metric one after another - buffer the first until its companion arrives.
+    auto& slot = dims[1] == 4 ? m_detr_boxes : m_detr_logits;
+    if (slot) {
+        THROW_ERROR("MAP metric got two DETR " << (dims[1] == 4 ? "box" : "class logits")
+                    << " layers in a row. Boxes [N, 4] and class logits [N, C] must be validated by the same "
+                    << "\"map\" metric, set it once for the whole model rather than per layer");
+    }
+    slot = std::make_pair(lhs, rhs);
+    if (!m_detr_boxes || !m_detr_logits) {
+        return Success{"waiting for the companion DETR layer"};
+    }
+    const auto actual = mergeDetrOutputs(m_detr_boxes->first, m_detr_logits->first, m_params.box_format);
+    const auto reference = mergeDetrOutputs(m_detr_boxes->second, m_detr_logits->second, m_params.box_format);
+    m_detr_boxes.reset();
+    m_detr_logits.reset();
+    return evaluate(actual, reference);
+}
+
+Result MAP::evaluate(const cv::Mat& lhs, const cv::Mat& rhs) {
     auto preds = nonMaximumSuppression(decodeDetections(lhs, m_params), m_params.nms_threshold);
     auto gts = nonMaximumSuppression(decodeDetections(rhs, m_params), m_params.nms_threshold);
     LOG_DEBUG() << "MAP: decoded " << preds.size() << " actual and " << gts.size()
@@ -510,6 +582,7 @@ std::string MAP::str() {
     if (m_params.num_classes > 0) {
         ss << ", num_classes: " << m_params.num_classes;
     }
+    ss << ", box_format: " << (m_params.box_format == BoxFormat::XYXY ? "xyxy" : "cxcywh");
     ss << "}";
     return ss.str();
 }

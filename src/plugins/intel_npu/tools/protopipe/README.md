@@ -494,12 +494,14 @@ Parameters:
 	- `confidence_threshold` - **Optional**. Detections with a score lower than this value are discarded. (**Default**: 0.0)
 	- `nms_threshold` - **Optional**. IoU threshold for per-class non-maximum suppression. Set to `0` to disable NMS for models with NMS-free heads (e.g. YOLOv10). (**Default**: 0.45)
 	- `num_classes` - **Optional**. Number of classes. **Required** only to decode raw (not post-processed) detection outputs.
+	- `box_format` - **Optional**. Coordinate encoding of DETR-style `[N, 4]` boxes: `cxcywh` or `xyxy`. (**Default**: `cxcywh`)
 
 	Supported detection output layouts (unit dimensions are ignored):
     - `[N, 6]` - `[x1, y1, x2, y2, score, label]`, e.g. post-processed YOLOv8/YOLOv10 output of shape `[1, 300, 6]`.
     - `[N, 7]` - `[image_id, label, score, x1, y1, x2, y2]`, e.g. SSD/`DetectionOutput` of shape `[1, 1, N, 7]`.
     - `[N, num_classes + 4]` or `[num_classes + 4, N]` - raw YOLOv8-style head: `[cx, cy, w, h, class scores...]`.
     - `[N, num_classes + 5]` or `[num_classes + 5, N]` - raw YOLOv5-style head: `[cx, cy, w, h, objectness, class scores...]`.
+    - `[N, 4]` boxes + `[N, num_classes]` class logits - DETR-family models (RF-DETR, RT-DETR, Deformable DETR) that emit them as two output layers. The pair is merged into `[x1, y1, x2, y2, sigmoid(max logit), argmax label]` detections. Both layers must use the same `map` metric, so set it once for the whole model rather than per layer.
 
 	Examples:
 	```
@@ -507,6 +509,8 @@ Parameters:
 	- { name: yolo.xml, ip: FP16, output_data: ref_output/, metric: { name: map, overlap_threshold: 0.5, map_threshold: 0.9 } }
 	# mAP@0.5:0.95 for a raw detection output
 	- { name: yolo.xml, ip: FP16, output_data: ref_output/, metric: { name: map, overlap_threshold: "0.5:0.95", map_threshold: 0.9, confidence_threshold: 0.25, nms_threshold: 0.45, num_classes: 80 } }
+	# DETR-style model with separate boxes and class logits outputs
+	- { name: rfdetr.xml, ip: FP16, metric: { name: map, map_threshold: 0.9, confidence_threshold: 0.5, nms_threshold: 0 } }
 	```
 
 ### Example

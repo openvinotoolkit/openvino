@@ -6,7 +6,9 @@
 
 #include <memory>
 #include <opencv2/core/core.hpp>
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "result.hpp"
 
@@ -54,6 +56,9 @@ class MAP : public IAccuracyMetric {
 public:
     using Ptr = std::shared_ptr<MAP>;
 
+    // Encoding of DETR-style [num_queries, 4] box outputs.
+    enum class BoxFormat { CXCYWH, XYXY };
+
     struct Params {
         // Minimal mAP value to treat the comparison as passed.
         double map_threshold = 0.5;
@@ -65,6 +70,7 @@ public:
         double nms_threshold = 0.45;
         // Required only to decode raw (not post-processed) detection outputs.
         int num_classes = -1;
+        BoxFormat box_format = BoxFormat::CXCYWH;
     };
 
     explicit MAP(const Params& params);
@@ -72,5 +78,10 @@ public:
     std::string str() override;
 
 private:
+    Result evaluate(const cv::Mat& lhs, const cv::Mat& rhs);
+
     Params m_params;
+    // DETR layer waiting for its companion, as {actual, reference}.
+    std::optional<std::pair<cv::Mat, cv::Mat>> m_detr_boxes;
+    std::optional<std::pair<cv::Mat, cv::Mat>> m_detr_logits;
 };
