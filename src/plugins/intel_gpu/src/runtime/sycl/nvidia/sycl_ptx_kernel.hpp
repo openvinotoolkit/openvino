@@ -81,10 +81,6 @@ public:
 
     const std::string& source() const { return _ptx; }
 
-    // Whether kernels of this PTX can run with a block layout other than block_layout::plain: true when the PTX was
-    // built with the work-item helpers of the NVIDIA compatibility prelude, which the other layouts rely on.
-    bool can_fold_block() const { return _can_fold_block; }
-
     // Alignment, by parameter index, that each __local pointer parameter of entry point `kernel_name` needs: the
     // N of the '.align N' NVVM declares, which patch_ptx_local keeps as a comment. Entries for other parameters are
     // 0, and the vector is empty for an entry point the PTX does not have.
@@ -101,7 +97,6 @@ public:
 
 private:
     const std::string _ptx;
-    const bool _can_fold_block;
     // local_param_alignments of every entry point, read from the PTX once.
     std::map<std::string, std::vector<uint32_t>> _local_alignments;
 
