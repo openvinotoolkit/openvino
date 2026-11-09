@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-09-08-21-05-440-42582789819",
+  "timestamp": "2026-11-09T08:21:05Z",
+  "run_id": "42582789819",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42582789819",
+  "workflow_name": "Android",
+  "pr_number": "36945",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36945",
+  "author": "bumbosiepsak",
+  "category": "Network",
+  "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 504 from github.com)",
+  "signature": "downloading sentencepiece-0.2.1.tar.gz failed HTTP response code said error 504|Network",
+  "signature_hash": "8c8192df2f508443",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure step fails downloading sentencepiece-0.2.1.tar.gz release asset from github.com with HTTP 504"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Aggregate status job fails because Build x64 failed"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at sentencepiece-subbuild/sentencepiece-populate-prefix/src/sentencepiece-populate-stamp/download-sentencepiece-populate.cmake:170 (message): Each download failed! error: downloading 'https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz' failed status_code: 22 status_string: \"HTTP response code said error\"",
+    "HTTP/2 504 ... The requested URL returned error: 504",
+    "FAILED: [code=1] sentencepiece-populate-prefix/src/sentencepiece-populate-stamp/sentencepiece-populate-download",
+    "ninja: build stopped: subcommand failed.",
+    "CMake Error at FetchContent.cmake:1622 (message): Build step for sentencepiece failed: 1"
+  ],
+  "root_cause": "The Android 'Build x64' job's CMake configure step fetches the sentencepiece v0.2.1 source tarball directly from a GitHub release asset URL (github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz) via FetchContent during OpenVINO Tokenizers configuration. GitHub returned an HTTP 504 (gateway timeout) for this request, which is a transient upstream availability issue on GitHub's release-asset CDN, not related to the PR under test (Update Protobuf to 6.31.1) which does not touch sentencepiece or tokenizers build logic. This exact failure signature (sentencepiece-0.2.1.tar.gz HTTP 504) has been seen once before on 2026-10-01, plus a related HTTP 500 variant of the same download, confirming recurring flakiness of this external GitHub release-asset fetch.",
+  "reproduction_steps": "Re-run the 'Build x64' job of the Android workflow; the failure is intermittent and tied to GitHub release-asset availability, not deterministically reproducible locally. To reproduce manually: configure OpenVINO with -DENABLE_OV_TOKENIZERS=ON (or an equivalent flag enabling GenAI/Tokenizers FetchContent) on an Android/riscv-cross toolchain and observe the CMake FetchContent step attempting to download https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz; a transient 504/500 from GitHub will reproduce the same CMake 'Each download failed!' error.",
+  "recommended_actions": [
+    "Re-run the failed 'Build x64' job (automated remediation requested via remediate_transient_failure) since this is a transient network failure.",
+    "Consider mirroring the sentencepiece release tarball in an OpenVINO-controlled or more reliable CDN/cache to reduce dependency on GitHub release-asset availability for this recurring flaky download.",
+    "Consider adding a retry/backoff wrapper around the FetchContent download step for third-party release tarballs (sentencepiece in particular) to self-heal transient 5xx errors without requiring a full job rerun.",
+    "The 'Each download failed!' search string is already present in .github/scripts/workflow_rerun/errors_to_look_for.json (category Network), so the automated workflow rerunner should already catch and retry this class of failure on monitored pipelines."
+  ],
+  "prevention_strategies": "Mirror or cache third-party release tarballs fetched via CMake FetchContent (sentencepiece, and similar GenAI/Tokenizers third-party deps) inside OpenVINO's own artifact storage to avoid depending on GitHub's release-asset CDN reliability. Ensure the CMake download step uses a retry count/backoff (e.g., multiple URLs or a local mirror fallback) rather than a single-shot download that fails the whole build on any transient 5xx.",
+  "historical_context": "Two prior occurrences of the same sentencepiece-0.2.1.tar.gz download failure are recorded: an HTTP 500 variant on 2026-10-01 (PR #36733, pattern ab13d93818e84607) and an HTTP 504 variant on 2026-10-01 (PR #38536, pattern 8c8192df2f508443, now updated to count=2 by this run). This confirms the GitHub release-asset download for sentencepiece is a recurring source of transient merge-queue failures unrelated to PR content."
+}

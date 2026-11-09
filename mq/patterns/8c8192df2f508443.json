@@ -4,17 +4,19 @@
   "signature_hash": "8c8192df2f508443",
   "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 504 from github.com)",
   "category": "Network",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-10-01T13:27:03Z",
-  "last_seen": "2026-10-01T13:27:03Z",
+  "last_seen": "2026-11-09T08:21:05Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42582789819",
     "https://github.com/openvinotoolkit/openvino/actions/runs/36863877140"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36945",
     "https://github.com/openvinotoolkit/openvino/pull/38536"
   ],
   "recent_timestamps": [
-    "2026-10-01T13:27:03Z"
+    "2026-11-09T08:21:05Z"
   ],
-  "rerun_search_string": "downloading 'https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz' failed"
+  "rerun_search_string": "Each download failed!"
 }
