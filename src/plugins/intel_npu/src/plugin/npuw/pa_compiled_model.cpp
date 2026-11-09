@@ -362,10 +362,23 @@ ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& prop
     auto config = util::get_default_common_config(npudesc);
     config.erase(std::string(::intel_npu::NPUW_SLICE_OUT::key()));
     config.erase(std::string(::intel_npu::NPUW_FUNCALL_FOR_ALL::key()));
-    config[std::string(::intel_npu::NPUW_DEVICES::key())] = "NPU," + pa_device;
+    // The tail picks a dynamic number of logits rows, which the NPU compiler
+    // cannot take, so it goes to the PA device, or to CPU next to a GPU: the
+    // GPU adds the residual of the tail's first FC in place into the buffer
+    // of a subgraph input, which it allocates only at inference, and crashes.
+    const std::string tail_device = pa_device == "GPU" ? "CPU" : pa_device;
+    config[std::string(::intel_npu::NPUW_DEVICES::key())] =
+        tail_device == pa_device ? "NPU," + pa_device : "NPU," + pa_device + "," + tail_device;
     config[std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key())] = std::string("REP");
     config[std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key())] = std::string("Op:PagedAttentionExtension/pa");
-    config[std::string(::intel_npu::NPUW_ONLINE_AVOID::key())] = std::string("Op:PagedAttentionExtension/NPU");
+    // Every PA op stays on the PA device. Next to a GPU the CPU is listed for
+    // the tail, so the PA ops avoid it too: the cache pools they take are GPU
+    // tensors, so a CPU fallback for them could not run anyway.
+    auto pa_avoid = std::string("Op:PagedAttentionExtension/NPU");
+    if (tail_device != pa_device) {
+        pa_avoid += ",Op:PagedAttentionExtension/" + tail_device;
+    }
+    config[std::string(::intel_npu::NPUW_ONLINE_AVOID::key())] = pa_avoid;
     config[std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key())] = std::string("pa");
     const auto compilation_mode_params = std::string(::intel_npu::COMPILATION_MODE_PARAMS::key());
     for (const auto& [key, value] : properties) {
@@ -379,11 +392,9 @@ ov::AnyMap ov::npuw::PACompiledModel::make_variant_config(const ov::AnyMap& prop
 
     // A variant is an ordinary NPUW model: it must not select the PA front-end
     // again, and a partitioning chosen for the whole model does not apply to it.
-    // Its tail picks a dynamic number of logits rows, which the NPU compiler
-    // cannot take, so the tail goes straight to the PA device.
     config.erase(std::string(::intel_npu::NPUW_PA::key()));
     config.erase(std::string(::intel_npu::NPUW_PLAN::key()));
-    config[std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key())] = "last:" + pa_device;
+    config[std::string(::intel_npu::NPUW_SUBMODEL_DEVICE::key())] = "last:" + tail_device;
     config[ov::intel_npu::use_npuw.name()] = std::string("YES");
     config[std::string(::intel_npu::NPUW_WEIGHTS_BANK::key())] = weights_bank;
     return config;
