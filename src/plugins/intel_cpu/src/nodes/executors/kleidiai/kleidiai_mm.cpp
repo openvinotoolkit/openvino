@@ -229,7 +229,12 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     case WEIGHT_INT8 | ISA_I8MM | QUANT_CHANNEL | QUANT_SYMMETRIC: {
         const bool useI8MM = (kernelLookupKey & ISA_I8MM) != 0;
         if (useI8MM) {
-            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_IMM>>(N, K, lhsPackedMem);
+            // The M == 1 GEMV paired with the i8mm GEMM is a dotprod kernel, so it needs FEAT_DotProd
+            const bool hasDotprod = hasArmISASupport(ArmISA::DOTPROD);
+            _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_IMM>>(N,
+                                                                                                   K,
+                                                                                                   lhsPackedMem,
+                                                                                                   hasDotprod);
         } else {
             _kernel =
                 std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I8_NEON_DOTPROD>>(N, K, lhsPackedMem);

@@ -16,10 +16,6 @@ result. There are no cache Results, output alias bindings, rotation banks or poi
 swaps. The primitive uses the ordinary output allocation path for its single output;
 no changes to primitive_inst or network output binding are needed.
 
-The independent dynamic output-binding fix remains needed by llama.cpp cache-only
-MTP serving. Native cache-op tests pass without it, but imported Qwen3.6 MTP
-graphs still exercise that general runtime bug.
-
 The GPU precision pass protects caller-owned cache Parameters and exclusive
 Reshape aliases. A cache with another graph reader or a computed temporary cache
 bank is rejected. The caller must bind a writable GPU RemoteTensor and ensure

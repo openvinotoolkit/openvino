@@ -669,7 +669,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
         }
 
         ret_ev.push_back(prim->set_output_memory(mem, (!prim->is_dynamic() || !is_remote)));
-        // Dynamic nodes bind arguments after shape inference allocates their inputs.
+        // Dynamic output changes are marked by set_output_memory; bind arguments once input memory is ready.
         if (!_reset_arguments && !prim->is_dynamic() &&
             (prim->type() != cldnn::data::type_id() && (prim->type() != cldnn::mutable_data::type_id() || !prim->dependencies().empty()))) {
             prim->set_arguments();

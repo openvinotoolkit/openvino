@@ -7,11 +7,14 @@
 #    include <gtest/gtest.h>
 
 #    include <algorithm>
+#    include <vector>
 
 #    include "openvino/op/constant.hpp"
 #    include "openvino/op/convert.hpp"
 #    include "openvino/op/multiply.hpp"
 #    include "openvino/op/parameter.hpp"
+#    include "openvino/op/reshape.hpp"
+#    include "openvino/op/softmax.hpp"
 #    include "openvino/runtime/core.hpp"
 #    include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #    include "openvino/runtime/properties.hpp"
@@ -61,6 +64,56 @@ TEST_P(DynamicOutputRebindTest, SharedProducerWithNewOutputBindings) {
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, DynamicOutputRebindTest, ::testing::Values(false, true));
+
+// Softmax is a non-output compute node that writes straight into the output buffer and does
+// not read a Parameter, so its kernel arguments are not refreshed by input changes. Swapping the
+// bound output buffer at an unchanged shape must still rebind Softmax's output argument.
+TEST(DynamicOutputRebindTest, PingPongBuffersForNonOutputProducer) {
+    using namespace ov;
+    auto input = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{1, -1, 8});
+    auto product = std::make_shared<op::v1::Multiply>(input, op::v0::Constant::create(element::f16, Shape{}, {2}));
+    auto softmax = std::make_shared<op::v8::Softmax>(product, 2);
+    auto reshape = std::make_shared<op::v1::Reshape>(softmax, op::v0::Constant::create(element::i64, Shape{3}, {0, -1, 8}), true);
+    auto model = std::make_shared<Model>(OutputVector{reshape}, ParameterVector{input});
+    Core core;
+    auto compiled = core.compile_model(model, "GPU", hint::inference_precision(element::dynamic));
+    if (!compiled.get_context().is<intel_gpu::ocl::ClContext>())
+        GTEST_SKIP() << "This test uses OpenCL USM output tensors";
+    auto context = compiled.get_context().as<intel_gpu::ocl::ClContext>();
+    auto request = compiled.create_infer_request();
+    const Shape shape{1, 3, 8};
+    // Keep the input binding fixed so only the output binding changes between iterations.
+    auto source = context.create_usm_device_tensor(element::f16, shape);
+    Tensor source_host(element::f16, shape);
+    for (size_t i = 0; i < source_host.get_size(); ++i)
+        source_host.data<float16>()[i] = float16(static_cast<float>(i % 8) / 8.0f);
+    source.copy_from(source_host);
+    request.set_input_tensor(source);
+
+    Tensor expected(element::f16, shape);
+    {
+        // Plugin-allocated warm-up output: Softmax writes the output block directly.
+        request.infer();
+        request.get_output_tensor(0).copy_to(expected);
+    }
+
+    std::vector<RemoteTensor> buffers{context.create_usm_device_tensor(element::f16, shape), context.create_usm_device_tensor(element::f16, shape)};
+    Tensor sentinel(element::f16, shape);
+    std::fill_n(sentinel.data<float16>(), sentinel.get_size(), float16(-1.0f));
+    for (size_t iter = 0; iter < 4; ++iter) {
+        SCOPED_TRACE(iter);
+        auto& output = buffers[iter % buffers.size()];
+        output.copy_from(sentinel);
+        request.set_output_tensor(0, output);
+        ASSERT_NO_THROW(request.infer());
+
+        Tensor output_host(element::f16, shape);
+        output.copy_to(output_host);
+        for (size_t i = 0; i < output_host.get_size(); ++i) {
+            ASSERT_EQ(float(output_host.data<float16>()[i]), float(expected.data<float16>()[i])) << "element " << i;
+        }
+    }
+}
 }  // namespace
 
 #endif  // OV_GPU_WITH_OCL_RT
