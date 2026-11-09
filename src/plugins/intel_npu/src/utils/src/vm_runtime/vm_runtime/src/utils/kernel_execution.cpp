@@ -737,12 +737,12 @@ result_t ExecutionContext::initializeExecutionObjects(ze_context_handle_t contex
                                                       ze_command_queue_npu_dditable_ext_t* cmdQueueDdiTable,
                                                       bool useInternalCmdQueue) {
     if (_levelZeroDdiTable == nullptr) {
-        auto ddiTable = ov::ZeroApi::get_instance();
-        if (ddiTable == nullptr) {
+        _ddiTable = ov::ZeroApi::get_instance();
+        if (_ddiTable == nullptr) {
             NPU_VM_LOG_ERROR("Failed to get Level Zero DDI table");
             throw std::runtime_error("Failed to get Level Zero DDI table");
         }
-        _levelZeroDdiTable = ddiTable.get();
+        _levelZeroDdiTable = _ddiTable.get();
     }
 
     if (graphDdiTable == nullptr) {

@@ -411,7 +411,7 @@ protected:
     ze_command_queue_handle_t _commandQueue{nullptr};
     ze_graph_dditable_ext_t* _graphDdiTable{nullptr};
     ze_command_queue_npu_dditable_ext_t* _commandQueueDdiTableExt{nullptr};
-
+    std::shared_ptr<ov::ZeroApi> _ddiTable{nullptr};
     ov::ZeroApi* _levelZeroDdiTable{nullptr};
     npu_vm_batch_mode _batchMode = npu_vm_batch_mode_none;
     uint64_t _batchSize = 1;
