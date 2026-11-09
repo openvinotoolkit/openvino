@@ -56,9 +56,8 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
-      # Debug stays without ccache: ccache can't cache MSVC /Zi, and /Z7 would enlarge the developer and PDB packages
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
       CCACHE_SECONDARY_STORAGE: "file:///C:/mount/caches/ccache/shared/windows/${{ inputs.build-variant }}/x86_64/${{ inputs.build-type }}|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
@@ -159,7 +158,6 @@ jobs:
       #
 
       - name: Setup ccache
-        if: ${{ inputs.build-type != 'Debug' }}
         run: |
           ccache --version
           $config = ccache --show-config | Out-String
@@ -194,14 +192,13 @@ jobs:
           Invoke-Expression $cmakeCommand
 
       - name: Clean ccache stats
-        if: ${{ inputs.build-type != 'Debug' }}
         run: '& ccache --zero-stats'
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL -- --quiet
 
       - name: Show ccache stats
-        if: ${{ !cancelled() && inputs.build-type != 'Debug' }}
+        if: ${{ !cancelled() }}
         run: '& ccache --show-stats --verbose'
 
       - name: Cmake install - OpenVINO

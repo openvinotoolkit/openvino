@@ -132,11 +132,15 @@ to `file:///mount/caches/ccache/shared` (`file:///C:/mount/caches/ccache/shared`
 Users:
 * The RISC-V GNU build in [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml)
   (`/mount/caches/ccache/shared/ubuntu22/riscv64/gnu`).
-* The Windows Release builds in
+* The Windows builds in
   [`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml)
-  (`C:\mount\caches\ccache\shared\windows\<build-variant>\x86_64\Release`).
-  Windows Debug builds do not use ccache: it cannot cache MSVC `/Zi` compilations, and
-  switching to `/Z7` roughly doubles the developer and PDB package sizes.
+  (`C:\mount\caches\ccache\shared\windows\<build-variant>\x86_64\<build-type>`).
+  ccache cannot cache MSVC `/Zi` compilations, so the Debug build sets
+  `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`). Static libraries installed
+  to the developer package and the Intel GPU static libraries stay on `/Zi` through
+  `ov_keep_debug_info_in_pdb()`, to keep the package size and MSVC's 4 GB archive limit,
+  so they are not cached. GitHub Actions builds also link without `/INCREMENTAL`, which keeps
+  PDB files free of stale incremental-link data.
 
 Old entries are evicted together with the rest of `/mount/caches/ccache` and
 `C:\mount\caches\ccache` by the `Cleanup_ccache_lin` and `Cleanup_ccache_win` jobs in
