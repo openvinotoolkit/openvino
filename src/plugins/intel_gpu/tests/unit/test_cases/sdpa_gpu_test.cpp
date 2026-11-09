@@ -617,6 +617,296 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_sink,
                          ::testing::Combine(::testing::Bool(), ::testing::Values(32, 3), ::testing::Values(32, 300)),
                          sdpa_gpu_sink_test::PrintToStringParamName);
 
+// Inputs the few-row route opens up, against a host reference: masks, partition edges, widths, batches, output layouts.
+enum class few_rows_mask { none, causal, causal_lower_right, causal_sliding, masked_tail, per_row_partition, whole_row, static_inf };
+
+struct sdpa_few_rows_grid_params {
+    data_types dt;
+    data_types mask_dt;
+    int k_head_size;
+    int v_head_size;
+    int seq_q;
+    int seq_kv;
+    few_rows_mask mask;
+    int batch;
+    int kv_batch;
+    bool transposed_output;
+    bool padded_output;
+    bool dynamic;
+    const char* expected_kernel;
+};
+
+class sdpa_few_rows_grid_runner {
+public:
+    static constexpr int num_heads = 2;
+    static constexpr int sliding_window = 8;
+    static constexpr const char* not_single_token = "not_single_token";
+
+    explicit sdpa_few_rows_grid_runner(const sdpa_few_rows_grid_params& p) : p(p), engine(get_test_engine()), rg("sdpa_few_rows_grid") {
+        const bool has_mask_input = p.mask == few_rows_mask::masked_tail || p.mask == few_rows_mask::per_row_partition || p.mask == few_rows_mask::whole_row;
+        const auto input = [&](int batch, int rows, int head) {
+            return layout({batch, num_heads, p.dynamic ? -1 : rows, head}, p.dt, format::bfyx);
+        };
+        topology topo;
+        topo.add(input_layout("q", input(p.batch, p.seq_q, p.k_head_size)));
+        topo.add(input_layout("k", input(p.kv_batch, p.seq_kv, p.k_head_size)));
+        topo.add(input_layout("v", input(p.kv_batch, p.seq_kv, p.v_head_size)));
+        std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v")};
+        if (has_mask_input) {
+            topo.add(input_layout("mask", p.dynamic ? layout({1, 1, -1, -1}, p.mask_dt, format::bfyx) : layout({1, 1, p.seq_q, p.seq_kv}, p.mask_dt, format::bfyx)));
+            inputs.push_back(input_info("mask"));
+        }
+        const bool is_causal = p.mask == few_rows_mask::causal || p.mask == few_rows_mask::causal_lower_right || p.mask == few_rows_mask::causal_sliding;
+        const std::vector<int64_t> output_order = p.transposed_output ? std::vector<int64_t>{0, 2, 1, 3} : std::vector<int64_t>{0, 1, 2, 3};
+        auto prim = scaled_dot_product_attention("sdpa",
+                                                 inputs,
+                                                 is_causal,
+                                                 -1,
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 output_order,
+                                                 {},
+                                                 false,
+                                                 p.mask == few_rows_mask::causal_lower_right || p.mask == few_rows_mask::causal_sliding);
+        prim.scale_val = 1.0f;
+        if (p.mask == few_rows_mask::causal_sliding) {
+            prim.sliding_window = sliding_window;
+        }
+        if (p.mask == few_rows_mask::static_inf) {
+            prim.attn_mask_val = -std::numeric_limits<float>::infinity();
+        }
+        if (p.padded_output) {
+            prim.output_paddings = {padding({0, 0, 1, 0}, {0, 0, 1, 0})};
+        }
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
+        net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    }
+
+    // Runs one shape on the network and compares with the host reference; in a dynamic network the rows and keys can differ per call.
+    void run(int seq_q, int seq_kv, const char* expected_kernel) {
+        const auto q_data = fill("q", {p.batch, num_heads, seq_q, p.k_head_size}, p.dt);
+        const auto k_data = fill("k", {p.kv_batch, num_heads, seq_kv, p.k_head_size}, p.dt);
+        const auto v_data = fill("v", {p.kv_batch, num_heads, seq_kv, p.v_head_size}, p.dt);
+
+        const auto is_masked = [&](int row, int key) {
+            switch (p.mask) {
+            case few_rows_mask::causal:
+                return key > row;
+            case few_rows_mask::causal_lower_right:
+                return key > std::max(0, seq_kv - seq_q) + row;
+            case few_rows_mask::causal_sliding: {
+                const int pos = std::max(0, seq_kv - seq_q) + row;
+                return key > pos || (pos >= sliding_window && key < pos - sliding_window + 1);
+            }
+            case few_rows_mask::masked_tail:
+                return key >= 256;
+            case few_rows_mask::per_row_partition:
+                return key / 256 == row;
+            case few_rows_mask::whole_row:
+                return row == 1;
+            case few_rows_mask::static_inf:
+                return true;
+            default:
+                return false;
+            }
+        };
+        if (p.mask == few_rows_mask::masked_tail || p.mask == few_rows_mask::per_row_partition || p.mask == few_rows_mask::whole_row) {
+            auto mask_mem = engine.allocate_memory(layout({1, 1, seq_q, seq_kv}, p.mask_dt, format::bfyx));
+            std::vector<float> mask_data(static_cast<size_t>(seq_q) * seq_kv, 0.0f);
+            for (int r = 0; r < seq_q; ++r) {
+                for (int j = 0; j < seq_kv; ++j) {
+                    mask_data[static_cast<size_t>(r) * seq_kv + j] = is_masked(r, j) ? -std::numeric_limits<float>::infinity() : 0.0f;
+                }
+            }
+            if (p.mask_dt == data_types::f32) {
+                set_values(mask_mem, mask_data);
+            } else {
+                set_values(mask_mem, std::vector<ov::float16>(mask_data.begin(), mask_data.end()));
+            }
+            net->set_input_data("mask", mask_mem);
+        }
+
+        auto out_mem = net->execute().at("result").get_memory();
+
+        primitive_id sdpa_id;
+        for (const auto& info : net->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention") {
+                sdpa_id = info.original_id;
+            }
+        }
+        auto sdpa_inst = net->get_primitive(sdpa_id);
+        const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
+        if (std::string(expected_kernel) == not_single_token) {
+            ASSERT_EQ(entries.find("_single_"), std::string::npos) << entries;
+        } else {
+            ASSERT_NE(entries.find(expected_kernel), std::string::npos) << entries;
+        }
+
+        const size_t out_count = static_cast<size_t>(p.batch) * num_heads * seq_q * p.v_head_size;
+        std::vector<float> expected(out_count);
+        std::vector<float> logits(seq_kv);
+        for (int b = 0; b < p.batch; ++b) {
+            const int kv_b = p.kv_batch == 1 ? 0 : b;
+            for (int h = 0; h < num_heads; ++h) {
+                for (int r = 0; r < seq_q; ++r) {
+                    const auto* q = &q_data[((static_cast<size_t>(b) * num_heads + h) * seq_q + r) * p.k_head_size];
+                    float max_logit = std::numeric_limits<float>::lowest();
+                    bool any_unmasked = false;
+                    for (int j = 0; j < seq_kv; ++j) {
+                        any_unmasked = any_unmasked || !is_masked(r, j);
+                    }
+                    for (int j = 0; j < seq_kv; ++j) {
+                        const auto* k = &k_data[((static_cast<size_t>(kv_b) * num_heads + h) * seq_kv + j) * p.k_head_size];
+                        logits[j] = is_masked(r, j) ? std::numeric_limits<float>::lowest() : std::inner_product(q, q + p.k_head_size, k, 0.0f);
+                        max_logit = std::max(max_logit, logits[j]);
+                    }
+                    float denom = 0.0f;
+                    for (auto& logit : logits) {
+                        logit = logit == std::numeric_limits<float>::lowest() ? 0.0f : std::exp(logit - max_logit);
+                        denom += logit;
+                    }
+                    const size_t row_idx = p.transposed_output ? (static_cast<size_t>(b) * seq_q + r) * num_heads + h : (static_cast<size_t>(b) * num_heads + h) * seq_q + r;
+                    auto* out = &expected[row_idx * p.v_head_size];
+                    if (!any_unmasked) {
+                        std::fill_n(out, p.v_head_size, std::numeric_limits<float>::quiet_NaN());
+                        continue;
+                    }
+                    for (int j = 0; j < seq_kv; ++j) {
+                        const auto* v = &v_data[((static_cast<size_t>(kv_b) * num_heads + h) * seq_kv + j) * p.v_head_size];
+                        for (int d = 0; d < p.v_head_size; ++d) {
+                            out[d] += logits[j] / denom * v[d];
+                        }
+                    }
+                }
+            }
+        }
+
+        cldnn::mem_lock<float, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+        // A dynamic network can preallocate more rows than this call has.
+        ASSERT_GE(out_mem->get_layout().count(), expected.size());
+        const float tolerance = p.dt == data_types::bf16 ? 3e-2f : 5e-3f;
+        for (size_t i = 0; i < expected.size(); ++i) {
+            // A row with every key masked has no defined result, it only has to stay finite.
+            if (std::isnan(expected[i])) {
+                ASSERT_TRUE(std::isfinite(out_ptr[i])) << "index " << i << " q " << seq_q << " kv " << seq_kv;
+            } else {
+                ASSERT_NEAR(expected[i], out_ptr[i], tolerance) << "index " << i << " q " << seq_q << " kv " << seq_kv;
+            }
+        }
+    }
+
+    sdpa_few_rows_grid_params p;
+    cldnn::engine& engine;
+    tests::random_generator rg;
+    cldnn::network::ptr net;
+
+private:
+    std::vector<float> fill(const primitive_id& id, const ov::PartialShape& shape, data_types dt) {
+        const layout l(shape, dt, format::bfyx);
+        auto mem = engine.allocate_memory(l);
+        auto data = rg.generate_random_1d<float>(l.count(), -1.0f, 1.0f);
+        if (dt == data_types::f32) {
+            set_values(mem, data);
+        } else if (dt == data_types::bf16) {
+            std::vector<ov::bfloat16> stored(data.begin(), data.end());
+            set_values(mem, stored);
+            data.assign(stored.begin(), stored.end());
+        } else {
+            std::vector<ov::float16> stored(data.begin(), data.end());
+            set_values(mem, stored);
+            data.assign(stored.begin(), stored.end());
+        }
+        net->set_input_data(id, mem);
+        return data;
+    }
+};
+
+struct sdpa_few_rows_grid_test : public ::testing::TestWithParam<sdpa_few_rows_grid_params> {
+    static std::string PrintToStringParamName(const testing::TestParamInfo<ParamType>& info) {
+        const auto& p = info.param;
+        return ov::element::Type(p.dt).get_type_name() + "_" + ov::element::Type(p.mask_dt).get_type_name() + "_k" + std::to_string(p.k_head_size) + "_v" + std::to_string(p.v_head_size) + "_q" +
+               std::to_string(p.seq_q) + "_kv" + std::to_string(p.seq_kv) + "_mask" + std::to_string(static_cast<int>(p.mask)) + "_b" + std::to_string(p.batch) +
+               "x" + std::to_string(p.kv_batch) + (p.transposed_output ? "_outT" : "") + (p.padded_output ? "_pad" : "") + (p.dynamic ? "_dyn" : "_static");
+    }
+};
+
+TEST_P(sdpa_few_rows_grid_test, matches_host_reference) {
+    const auto p = GetParam();
+    sdpa_few_rows_grid_runner runner(p);
+    runner.run(p.seq_q, p.seq_kv, p.expected_kernel);
+}
+
+static std::vector<sdpa_few_rows_grid_params> few_rows_grid() {
+    const auto f16 = data_types::f16;
+    const auto f32 = data_types::f32;
+    const auto multi = sdpa_few_rows_grid_runner::not_single_token;
+    std::vector<sdpa_few_rows_grid_params> cases;
+    const auto add = [&](data_types dt, data_types mask_dt, int k, int v, int q, int kv, few_rows_mask mask, int b = 1, int kv_b = 1, bool t = false, bool pad = false, const char* kernel = "_single_") {
+        cases.push_back({dt, mask_dt, k, v, q, kv, mask, b, kv_b, t, pad, false, kernel});
+        cases.push_back({dt, mask_dt, k, v, q, kv, mask, b, kv_b, t, pad, true, kernel});
+    };
+    // Partition edges and head sizes
+    for (int kv : {17, 256, 257, 513}) {
+        add(f16, f16, 64, 64, 3, kv, few_rows_mask::none);
+    }
+    add(f16, f16, 128, 128, 3, 513, few_rows_mask::none);
+    add(f16, f16, 512, 512, 3, 1024, few_rows_mask::none);
+    // Fully masked key partitions and rows, -Inf with every mask type
+    for (const auto& [dt, mask_dt] : std::vector<std::pair<data_types, data_types>>{{f16, f16}, {f16, f32}, {f32, f32}}) {
+        add(dt, mask_dt, 64, 64, 3, 512, few_rows_mask::masked_tail);
+        add(dt, mask_dt, 64, 64, 3, 600, few_rows_mask::per_row_partition);
+        add(dt, mask_dt, 64, 64, 3, 600, few_rows_mask::whole_row);
+    }
+    add(f32, f32, 64, 64, 1, 512, few_rows_mask::masked_tail, 1, 1, false, false, "");
+    add(f16, f16, 64, 64, 3, 600, few_rows_mask::causal);
+    add(f16, f16, 64, 64, 3, 600, few_rows_mask::causal_lower_right);
+    add(f16, f16, 64, 64, 3, 600, few_rows_mask::causal_sliding);
+    // Output layouts, batches, types
+    add(f16, f16, 64, 64, 3, 600, few_rows_mask::none, 2, 2, true);
+    add(f16, f16, 64, 64, 3, 600, few_rows_mask::none, 1, 1, false, true);
+    add(f16, f16, 64, 64, 3, 600, few_rows_mask::none, 2, 1);
+    add(data_types::bf16, f16, 64, 64, 3, 600, few_rows_mask::none);
+    // V narrower than K takes the route, wider or unaligned does not
+    add(f16, f16, 128, 64, 3, 600, few_rows_mask::none);
+    add(f16, f16, 64, 128, 3, 600, few_rows_mask::none, 1, 1, false, false, multi);
+    add(f16, f16, 64, 256, 3, 600, few_rows_mask::none, 1, 1, false, false, multi);
+    add(f16, f16, 40, 40, 3, 600, few_rows_mask::none, 1, 1, false, false, multi);
+    add(f16, f16, 64, 64, 5, 600, few_rows_mask::none, 1, 1, false, false, multi);
+    return cases;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_few_rows_grid,
+                         sdpa_few_rows_grid_test,
+                         ::testing::ValuesIn(few_rows_grid()),
+                         sdpa_few_rows_grid_test::PrintToStringParamName);
+
+// One dynamic network: internal buffers and stages must follow the rows and keys of each call.
+TEST(sdpa_few_rows_grid_shapes, rows_and_keys_change_between_calls) {
+    sdpa_few_rows_grid_params p{data_types::f16, data_types::f16, 64, 64, 1, 512, few_rows_mask::none, 1, 1, false, false, true, "_single_"};
+    sdpa_few_rows_grid_runner runner(p);
+    const std::vector<std::tuple<int, int, const char*>> calls = {{1, 512, ""},
+                                                                  {3, 512, "_single_"},
+                                                                  {5, 512, sdpa_few_rows_grid_runner::not_single_token},
+                                                                  {3, 1024, "_single_"},
+                                                                  {4, 300, "_single_"},
+                                                                  {1, 1024, ""},
+                                                                  {2, 33024, sdpa_few_rows_grid_runner::not_single_token},
+                                                                  {3, 512, "_single_"}};
+    for (const auto& [q, kv, kernel] : calls) {
+        SCOPED_TRACE("q " + std::to_string(q) + " kv " + std::to_string(kv));
+        runner.run(q, kv, kernel);
+        if (::testing::Test::HasFatalFailure()) {
+            return;
+        }
+    }
+}
+
 struct micro_sdpa_prefetch_k_params {
     int head_size;
     int num_heads;
@@ -2033,7 +2323,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,
                                            // f32 compute: dequantized f16 KV must be cast to the Q compute type
                                            sdpa_test_params{128, 40, 10, 512, 512, 1, 8, false, data_types::f32},
                                            sdpa_test_params{128, 40, 10, 128, 128, 1, 8, true, data_types::f32},
-                                           sdpa_test_params{128, 40, 40, 128, 128, 1, 8, true, data_types::f32}),
+                                           sdpa_test_params{128, 40, 40, 128, 128, 1, 8, true, data_types::f32},
+                                           sdpa_test_params{128, 40, 10, 3, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 3, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 3, 600, 1, 8, true}),
                          sdpa_gpu_compressed_kv_per_token_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16,
@@ -2046,7 +2339,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16,
                                            sdpa_test_params{128, 40, 10, 128, 128, 1, 8, true},
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 128, 128, 1, 8, true},
-                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true},
+                                           sdpa_test_params{128, 40, 10, 3, 600, 1, 8, false}),
                          sdpa_gpu_compressed_kv_bf16_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_int4_bf16_per_token,
@@ -2054,7 +2348,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_int4_bf16_per_token,
                          ::testing::Values(sdpa_test_params{128, 40, 10, 128, 128, 1, 4, true},
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 4, true},
                                            sdpa_test_params{128, 40, 40, 128, 128, 1, 4, true},
-                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 4, true}),
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 4, true},
+                                           sdpa_test_params{128, 40, 10, 3, 600, 1, 4, true}),
                          sdpa_gpu_compressed_kv_int4_bf16_per_token_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_bf16_int8_zp,
