@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 using namespace default_opset;
 NamedOutputs stack(const NodeContext& node) {
     auto data_inputs = node.get_ng_inputs("X");
@@ -33,7 +30,4 @@ NamedOutputs stack(const NodeContext& node) {
 
     return node.default_single_output_mapping({std::make_shared<Concat>(node_datas_reshape, axis)}, {"Y"});
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

@@ -34,10 +34,7 @@
 using namespace ov::op;
 using namespace ov::frontend::onnx::attention;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace detail {
 namespace {
 
@@ -397,7 +394,4 @@ ov::OutputVector attention(const ov::frontend::onnx::Node& node) {
 ONNX_OP("Attention", OPSET_SINCE(24), ai_onnx::opset_24::attention);
 }  // namespace opset_24
 
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

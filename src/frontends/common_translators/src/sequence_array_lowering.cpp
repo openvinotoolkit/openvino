@@ -40,9 +40,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace pass {
+namespace ov::frontend::pass {
 namespace sal_detail {
 
 namespace {
@@ -588,6 +586,4 @@ bool SequenceArrayLowering::run_on_model(const std::shared_ptr<ov::Model>& model
     return overall_changed || resolver.changed();
 }
 
-}  // namespace pass
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pass

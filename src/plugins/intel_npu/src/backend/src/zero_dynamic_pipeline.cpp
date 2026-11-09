@@ -7,6 +7,7 @@
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include "intel_npu/common/itt.hpp"
@@ -180,9 +181,12 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         _executionContext.ensureV2(vmRuntime,
                                    init_structs->getContext(),
                                    init_structs->getDevice(),
-                                   commandQueueDesc.shared_common_queue() ? _command_queue->handle() : nullptr,
+                                   commandQueueDesc.sharedCommonQueue() ? _command_queue->handle() : nullptr,
                                    _init_structs->getGraphDdiTable().getImpl(),
                                    _init_structs->getCommandQueueDdiTable().getImpl());
+        if (commandQueueDesc.sharedCommonQueue()) {
+            _vm_referenced_command_queues.push_back(_command_queue);
+        }
         _runtime_config_command_queue_desc = commandQueueDesc;
         _runtime_config_command_queue_desc_valid = true;
     } else {
@@ -224,11 +228,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
         _logger.debug("Update tensor property for input desc index: %u", desc.indexUsedByDriver);
         const auto& tensor = input_tensors.at(io_index).at(SINGLE_TENSOR);
-        size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
         dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                tensor->data(),
                                                tensor->get_shape(),
-                                               get_strides(tensor->get_strides(), elementSize));
+                                               get_strides(*tensor));
         ++io_index;
     }
 
@@ -236,11 +239,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     for (const auto& desc : _graph->get_metadata().outputs) {
         _logger.debug("Update tensor property for output desc index: %u", desc.indexUsedByDriver);
         const auto& tensor = output_tensors.at(io_index);
-        size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
         dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                tensor->data(),
                                                tensor->get_shape(),
-                                               get_strides(tensor->get_strides(), elementSize));
+                                               get_strides(*tensor));
         ++io_index;
     }
     _logger.debug("Initialization completed");
@@ -260,8 +262,10 @@ void DynamicPipeline::push() {
     const bool commandQueueVersionChanged = (commandQueueDesc.key() != _command_queue->desc().key());
 
     const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
+
     if (useV2Api) {
-        if (commandQueueVersionChanged && commandQueueDesc.shared_common_queue()) {
+        if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
+            // The outgoing queue stays alive in _vm_referenced_command_queues until Execute2 rebinds off it.
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -272,6 +276,8 @@ void DynamicPipeline::push() {
             _runtime_config_command_queue_desc_valid = true;
         }
     } else if (commandQueueVersionChanged) {
+        // v1 Fences own a shared_ptr to their queue, so the old queue outlives the fence recreation below;
+        // no extra retention is needed here (unlike the v2 runtime-owned fence migrated in Execute2).
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
 
         if (_sync_output_with_fences) {
@@ -282,7 +288,7 @@ void DynamicPipeline::push() {
     }
 
     const auto commandQueueHandle =
-        useV2Api && !commandQueueDesc.shared_common_queue() ? nullptr : _command_queue->handle();
+        useV2Api && !commandQueueDesc.sharedCommonQueue() ? nullptr : _command_queue->handle();
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
     auto& commandLists = _command_list_group;
     auto& dynamicArguments = commandLists->getArguments();
@@ -452,6 +458,14 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
 
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     const auto result = npuVMRuntimeExecute2(vmRuntime, &params);
+    if (commandQueue != nullptr) {
+        auto& queues = _vm_referenced_command_queues;
+        if (result == NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            queues.assign(1, _command_queue);
+        } else if (std::find(queues.begin(), queues.end(), _command_queue) == queues.end()) {
+            queues.push_back(_command_queue);
+        }
+    }
     OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS,
                     "Failed to execute VM runtime engine (v2), error code: ",
                     result);
@@ -538,12 +552,6 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
-            const auto commandQueueDesc = _graph->get_command_queue_desc();
-            if (commandQueueDesc.shared_common_queue() && commandQueueDesc.key() != _command_queue->desc().key()) {
-                _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
-            }
-        }
         params.executionContext =
             use_npu_vm_runtime_v2_api(_apiVersion) ? _executionContext.handle() : _executionContext.ensure(vmRuntime);
 
@@ -614,12 +622,15 @@ void DynamicPipeline::pull() {
     } else {
         _events.front()->hostSynchronize();
     }
-    /// sample npu timestamps if feature was activated
-    if (_npu_profiling != nullptr) {
-        _npu_profiling->sampleNpuTimestamps();
-    }
 
     _logger.debug("pull - completed");
+}
+
+std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
+    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+        _logger.warning("get_profiling_info - profiling is not supported for dynamic graphs");
+    }
+    return {};
 }
 
 void DynamicPipeline::reset() const {
@@ -642,11 +653,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // This is the tensor with right shape and strides
     // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
-    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    _command_list_group->updateMutableCommandList(index,
-                                                  zeroTensor->data(),
-                                                  get_strides(tensor->get_strides(), elementSize),
-                                                  tensor->get_shape());
+    _command_list_group->updateMutableCommandList(index, zeroTensor->data(), get_strides(*tensor), tensor->get_shape());
     _logger.debug("update_graph_arguments - completed");
 }
 
@@ -662,13 +669,9 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // This is the tensor with right shape and strides
     // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
-    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     OPENVINO_ASSERT(batch_index == 0, "DynamicPipeline owns only one command-list group");
 
-    _command_list_group->updateMutableCommandList(index,
-                                                  zeroTensor->data(),
-                                                  get_strides(tensor->get_strides(), elementSize),
-                                                  tensor->get_shape());
+    _command_list_group->updateMutableCommandList(index, zeroTensor->data(), get_strides(*tensor), tensor->get_shape());
 }
 
 }  // namespace intel_npu

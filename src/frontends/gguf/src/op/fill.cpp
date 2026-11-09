@@ -13,10 +13,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_FILL sets every element of a tensor to a constant. The scalar is provided by the decoder
 // as the "fill_value" attribute (ggml stores it as a float in op_params[0]). The output has the same
@@ -36,7 +33,4 @@ OutputVector translate_fill(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

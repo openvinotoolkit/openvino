@@ -7,10 +7,7 @@
 #include "openvino/op/reduce_logical_and.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -58,7 +55,4 @@ OutputVector translate_all(const NodeContext& context) {
     return {result};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

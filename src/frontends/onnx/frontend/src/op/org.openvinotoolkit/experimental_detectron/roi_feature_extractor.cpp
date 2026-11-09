@@ -7,11 +7,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace org_openvinotoolkit {
-namespace opset_1 {
+namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
 ov::OutputVector experimental_detectron_roi_feature_extractor(const ov::frontend::onnx::Node& node) {
     using ROIFeatureExtractor = v6::ExperimentalDetectronROIFeatureExtractor;
 
@@ -30,8 +26,4 @@ ONNX_OP("ExperimentalDetectronROIFeatureExtractor",
         OPSET_SINCE(1),
         org_openvinotoolkit::opset_1::experimental_detectron_roi_feature_extractor,
         OPENVINO_ONNX_DOMAIN);
-}  // namespace opset_1
-}  // namespace org_openvinotoolkit
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1

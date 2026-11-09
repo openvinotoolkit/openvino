@@ -4,16 +4,10 @@
 
 #include "openvino/frontend/jax/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
-namespace op {
+namespace ov::frontend::jax::op {
 
 OutputVector translate_constant(const NodeContext& context) {
     return context.as_constant();
 };
 
-}  // namespace op
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax::op

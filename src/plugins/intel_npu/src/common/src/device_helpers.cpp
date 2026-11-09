@@ -35,9 +35,9 @@ std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
     return std::string(platformName);
 }
 
-std::string utils::getCompilationPlatform(const std::string_view platform,
-                                          const std::string_view deviceId,
-                                          std::vector<std::string> availableDevicesNames) {
+std::string utils::getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                          const std::string_view platform,
+                                          const std::string_view deviceId) {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
         return ov::intel_npu::Platform::standardize(platform);
@@ -49,6 +49,11 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
     }
 
     // Automatic detection of compilation platform
+    if (engineBackend == nullptr) {
+        return std::string();
+    }
+
+    const auto availableDevicesNames = engineBackend->getDeviceNames();
     if (availableDevicesNames.empty()) {
         return std::string();
     }
@@ -80,6 +85,17 @@ std::string utils::getFullDeviceName(const ov::SoPtr<IEngineBackend>& engineBack
     }
 
     OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+std::string utils::getDeviceArchitecture(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                         const std::string& specifiedDeviceName) {
+    // Empty name falls back to the first available device inside the backend
+    auto device = getDeviceById(engineBackend, specifiedDeviceName);
+    if (device) {
+        return device->getName();
+    }
+
+    return std::string();
 }
 
 IDevice::Uuid utils::getDeviceUuid(const ov::SoPtr<IEngineBackend>& engineBackend,

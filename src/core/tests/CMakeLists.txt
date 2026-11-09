@@ -54,7 +54,6 @@ set(OV_CORE_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/int4.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/intervals.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/layout.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/lazy_buffer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/logger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matcher_pass.cpp

@@ -453,8 +453,10 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_from_ORT_MEM_ADDR) {
     auto frontend = fem.load_by_framework("onnx");
     ASSERT_NE(frontend, nullptr);
     std::shared_ptr<ov::frontend::InputModel> input_model;
-    ASSERT_NO_THROW(input_model = frontend->load(model_proto_ptr)) << "Could not load model from modified ModelProto";
+    ASSERT_NO_THROW(input_model = frontend->load(model_proto_ptr, GetParam()))
+        << "Could not load model from modified ModelProto";
     ASSERT_NE(input_model, nullptr);
+    model_proto.reset();
 
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = frontend->convert(input_model)) << "Could not convert model with ORT_MEM_ADDR";

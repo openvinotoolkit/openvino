@@ -11,6 +11,9 @@ shell commands. At the moment there are three of them, all dedicated to diagnosi
 * [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) — **CI Doctor
   (Post-Commit)**, an automatic investigator for post-commit (push) failures that only collects and
   reports (it never re-runs or re-queues pipelines).
+* [`ci-doctor-remediation.md`](../../../../.github/workflows/ci-doctor-remediation.md) — **CI Doctor
+  (Weekly Remediation)**, a scheduled maintenance job that consumes the two doctors' knowledge base
+  (read-only) and opens up to 3 draft remediation pull requests plus a Markdown report artifact.
 
 This document explains what they are, how they are built and invoked, the algorithm each one follows,
 and the reusable jobs from [`.github/workflows/shared`](../../../../.github/workflows/shared/agentic-workflows)
@@ -144,7 +147,9 @@ if: ${{ contains(fromJSON('["akashchi","mryzhov","akladiev","ababushk","dorloff"
 4. **Root-cause investigation** — classify the failure into one of seven categories and localise it,
    within the source-inspection safeguards.
 5. **Reporting** — post one consolidated comment (via the `add_comment` safe output) with an overview
-   table and a per-pipeline section; otherwise `noop`/`missing_data`.
+   table visible and a separate, collapsed-by-default `<details>` section for each pipeline's
+   diagnosis, remedy, and log evidence; otherwise `noop`/`missing_data`. Readers can expand only the
+   pipelines they need without scrolling through every log excerpt.
 
 ## CI Doctor — Merge Queue (automatic)
 
@@ -160,9 +165,14 @@ on:
   workflow_run:
     workflows: ["Linux (Ubuntu 22.04, Python 3.11)", "Windows (VS 2022, Python 3.11, Release)", ...]
     types: [completed]
+    branches: ["gh-readonly-queue/**"]
 
 if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'merge_group') }}
 ```
+
+`gh aw compile` requires a positive `workflow_run.branches` scope (check `CTR-021`). Merge-queue runs
+always execute on GitHub-created `gh-readonly-queue/<base>/pr-<N>-<sha>` branches in this repository,
+including for PRs from forks, so `gh-readonly-queue/**` still covers every merge-queue failure.
 
 A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided for manual testing.
 
@@ -178,6 +188,10 @@ A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided fo
   `remediate_transient_failure` safe output; that job resolves the PR's live merge-queue status and
   decides on its own whether to re-run only the failed jobs (PR still queued) or re-add the PR to the
   merge queue (PR dropped). The agent never reasons about queue status.
+* **Rerun-pattern proposals**: for a transient failure with a verified `rerun_search_string`
+  candidate, the agent calls `propose_rerun_pattern`, which opens a **human-review pull request** against
+  `master` adding it to `errors_to_look_for.json`. The workflow rerunner only uses a string after that PR is merged — see
+  [Automated re-run integration](#automated-re-run-integration).
 
 **Algorithm** The body defines a seven-phase protocol:
 
@@ -195,7 +209,7 @@ A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided fo
    strings) before emitting it.
 
 The run always ends by calling exactly one (or a valid combination) of the safe outputs: `notify_teams`,
-`notify_teams_recurring`, `add_comment`, `remediate_transient_failure`, `noop`, or
+`notify_teams_recurring`, `add_comment`, `remediate_transient_failure`, `propose_rerun_pattern`, `noop`, or
 `missing_data`.
 
 ## CI Doctor — Post-Commit (automatic)
@@ -239,6 +253,47 @@ and output validation. Its pattern schema drops the `rerun_search_string` field 
 integration) and tracks `affected_commits` instead of `affected_prs`. The run always ends by calling
 exactly one of `notify_teams` (with `source: "post_commit"`), `noop`, or `missing_data`.
 
+## CI Doctor — Weekly Remediation (automatic)
+
+**What it is** A weekly maintenance workflow that *consumes* the knowledge base the two automatic
+doctors build, rather than diagnosing a new failure. It reviews the recurring failures recorded over the
+past week, proposes a concrete per-issue remediation, opens draft pull requests for the code-fixable
+ones, and uploads a Markdown report covering every identified issue. It is strictly **read-only** with
+respect to the knowledge base and never re-runs or re-queues any pipeline.
+
+**How it is triggered** On a weekly `schedule` (fuzzy `weekly on monday`) and on demand via
+`workflow_dispatch` (with an optional `days` look-back input, default `7`). There is no `workflow_run`
+trigger and no actor allow-list — it is a scheduled maintenance job.
+
+**What it does / benefits**
+
+* **Weekly synthesis**: instead of one failure at a time, it looks at the whole week of accumulated
+  patterns across both doctors, groups them by `signature_hash`, and ranks them by reproduction `count`,
+  recency, and breadth.
+* **Actionable remediation**: for each issue it decides on a concrete fix and classifies it as
+  code-fixable or not.
+* **Automated fixes**: for the highest-impact code-fixable issues it opens **up to 3 draft pull
+  requests** (one issue per PR), each with `akashchi` as reviewer and assignee and the
+  `agentic-workflows` + `automated-fix` labels, applied automatically by the workflow. Because
+  remediation frequently touches `.github/` CI infrastructure, `create-pull-request` is configured with
+  `protected-files: allowed`.
+* **Durable record**: every identified issue — code-fixable or not — is written to a Markdown report
+  uploaded as a run artifact via the `upload_artifact` safe output.
+
+**Algorithm** The body defines a four-phase protocol: (1) triage and group the pre-downloaded patterns;
+(2) decide a per-issue remediation and classify code-fixable vs not; (3) create at most 3 pull requests
+for the top code-fixable issues (minimal, root-cause changes; PR body carries the problem, investigation
+run URLs, pattern signature/count, and the fix); (4) write and upload the Markdown report. The recent
+knowledge base is pre-downloaded before the agent starts by the imported
+[`collect-ci-doctor-history.md`](../../../../.github/workflows/shared/agentic-workflows/collect-ci-doctor-history.md)
+step (script
+[`collect_ci_doctor_history.py`](../../../../.github/scripts/agentic-workflows/collect_ci_doctor_history.py)),
+which reads the `memory/ci-doctor-mq` and `memory/ci-doctor-post-commit` branches read-only and writes a
+ranked `summary.txt` plus the filtered `patterns/`/`investigations/` under
+`/tmp/gh-aw/agent/ci-doctor-remediation/`. The run always ends by calling `upload_artifact` (optionally
+with up to 3 × `create_pull_request`), or `noop`/`missing_data`. A `report-failure-as-issue` guard flags
+the `missing_safe_outputs` no-op so a silent run is surfaced rather than passing green.
+
 ## Shared reusable jobs and prompt fragments
 
 Everything the doctors have in common is factored into
@@ -281,9 +336,11 @@ inputs, permissions, or step wiring, edit the shared `.md` and recompile.
 | --- | --- | --- | --- |
 | [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | all | Pre-download failed logs and pre-locate error hints before the agent starts. |
 | [`collect-pr-info.md`](../../../../.github/workflows/shared/agentic-workflows/collect-pr-info.md) | Pre-agent step | CI Doctor, MQ | Resolve the pull request under investigation and pre-collect its metadata (`pr-info.json` / `pr-info.txt`). |
+| [`collect-ci-doctor-history.md`](../../../../.github/workflows/shared/agentic-workflows/collect-ci-doctor-history.md) | Pre-agent step | Weekly Remediation | Pre-download the recent CI Doctor investigations and patterns from both memory branches (read-only) into `/tmp/gh-aw/agent/ci-doctor-remediation/` with a ranked `summary.txt`. |
 | [`notify-teams.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams.md) | Safe-output job | MQ, Post-Commit | Send the investigation summary to Microsoft Teams; upload the statistics artifact. A `source` input selects the `[MQ]` / `[PC]` badge and the artifact name. |
 | [`notify-teams-recurring.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams-recurring.md) | Safe-output job | MQ | Send a recurring-failure escalation alert to Teams. |
 | [`remediate-transient-failure.md`](../../../../.github/workflows/shared/agentic-workflows/remediate-transient-failure.md) | Safe-output job | MQ | Remediate a transient failure: the job resolves the PR's live merge-queue status and either re-runs the failed jobs (still queued) or re-adds the dropped PR (dropped). |
+| [`propose-rerun-pattern.md`](../../../../.github/workflows/shared/agentic-workflows/propose-rerun-pattern.md) | Safe-output job | MQ | Re-validate a `rerun_search_string` candidate and open a human-review PR against `master` appending it to `errors_to_look_for.json`. |
 
 **`download-failure-logs.md`** is a *step* fragment (it has no `on:` trigger). It auto-detects its mode
 from the environment: **run mode** (`RUN_ID` set) analyses a single run; **PR mode** (`PR_NUMBER` set)
@@ -311,6 +368,25 @@ dropped PR** to the queue (via `gh pr merge`, idempotent: it skips PRs that are 
 already carry the CI Doctor re-add marker comment). It uses the default `GITHUB_TOKEN` (with
 `actions: write`) for the re-run and status reads, and the `MERGE_QUEUE_TOKEN` secret for the re-queue
 (the default `GITHUB_TOKEN` cannot re-trigger `merge_group` check runs).
+
+**`propose-rerun-pattern.md`** defines the `propose-rerun-pattern` job
+([`propose_rerun_pattern.py`](../../../../.github/scripts/agentic-workflows/propose_rerun_pattern.py)),
+the only path by which a new rerun search string can reach the workflow rerunner. It re-validates the
+agent's candidate (transient category only; at least 3 words / 15 characters after normalization; not
+just generic words, step boilerplate, or a hash; no URLs, which would pin it to one dependency release;
+must occur in the supplied verbatim log line, which must contain no CR/LF characters and must
+not be a step `##[group]` header) and de-duplicates it against
+[`errors_to_look_for.json`](../../../../.github/scripts/workflow_rerun/errors_to_look_for.json) on the
+default branch, entries added by other open proposal PRs, and any earlier PR for the same signature (a
+closed, unmerged PR counts as a rejection and is never re-proposed). If the candidate passes, it creates
+branch `ci-doctor/rerun-pattern/<signature-hash>` from the default branch, appends
+`{"error_text": ..., "ticket": 9999999, "category": ...}` to `errors_to_look_for.json`, and opens a PR
+with a review checklist, labels, and requested reviewers. Concurrent proposals all
+append to the end of the file, so after one is merged the others need a trivial rebase. Skipped proposals are reported in the job summary and do not fail the run. All writes (branch,
+commit, PR, labels, reviewers) use the `RERUNNER_DB_UPDATE` secret, so the PR triggers CI normally; the
+job's own `GITHUB_TOKEN` is limited to `contents: read`.
+If an open proposal's error database cannot be read or parsed, the job fails instead of opening a new
+PR with an incomplete overlap check.
 
 ### Shared prompt fragments
 
@@ -352,8 +428,9 @@ The shared fragments explicitly point the agent at the trailing
 and takes precedence on conflict. The workflow `.md` bodies hold only those additions:
 
 * [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md): the pre-collected PR context, the
-  `rerun_search_string` pattern field (compute, verify, backfill), Phase 5.5 recurrence escalation, and
-  the `add_comment` / `notify_teams_recurring` / `remediate_transient_failure` safe-output guidance and
+  `rerun_search_string` pattern field (compute and verify a candidate; no backfill of other records),
+  Phase 5.5 recurrence escalation, and the `add_comment` / `notify_teams_recurring` /
+  `remediate_transient_failure` / `propose_rerun_pattern` safe-output guidance and
   valid call combinations.
 * [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md): the
   `master`-only scope, the report-only rule, how PR context may be inferred from the commit, and the
@@ -432,14 +509,29 @@ Teams escalation.
 
 ### Automated re-run integration
 
-Pattern records also carry a `rerun_search_string` that feeds the static
-[`workflow_rerun`](../../../../.github/scripts/workflow_rerun) tooling. For **transient** categories
-(`Flaky Test`, `Infrastructure`, `Network`, `External Service`) the agent stores a short, stable
-substring taken verbatim from a real failure log line; for deterministic categories it stores `null` so
-the re-runner never loops on an unfixable failure. The string is verified against the exact matcher in
-[`log_analyzer.py`](../../../../.github/scripts/workflow_rerun/log_analyzer.py) — the same mechanism that
-backs the static entries in
-[`errors_to_look_for.json`](../../../../.github/scripts/workflow_rerun/errors_to_look_for.json).
+The [`workflow_rerun`](../../../../.github/scripts/workflow_rerun) tooling re-runs **every** failed
+monitored pipeline whose logs contain a known transient error string, so each string it uses must be
+specific. It reads a single, **human-reviewed** source:
+[`errors_to_look_for.json`](../../../../.github/scripts/workflow_rerun/errors_to_look_for.json), which only
+changes through reviewed PRs to `master`. It never reads the CI Doctor memory branch.
+
+Pattern records in `mq/patterns/` still carry a `rerun_search_string`, but it is only a **candidate**:
+for **transient** categories (`Flaky Test`, `Infrastructure`, `Network`, `External Service`) the agent
+stores a short, stable substring taken verbatim from a log line in a **failed step within a failed
+job**, with both conclusions verified as `failure` and the line mapped to that step. Full failed-job
+logs also contain successful steps, and the downloaded job list includes cancelled jobs; neither is
+eligible evidence. If either failure conclusion or the line's step provenance cannot be verified, the
+candidate is `null`. Eligible candidates are verified against the exact `log_analyzer.py` matcher;
+for deterministic categories it also stores `null`. The rerunner does not read this
+field. Instead the agent calls `propose_rerun_pattern`, and the
+[`propose-rerun-pattern`](#shared-jobs-and-steps) job opens a PR against `master` appending the candidate to
+`errors_to_look_for.json` with ticket `9999999` (the reviewer may replace it with a real ticket). A maintainer reviews the string for specificity (it must not match unrelated
+failures) and merges or closes the PR; closing it permanently rejects that signature's proposal.
+
+The `rerun_search_string` values that the doctor had written to `mq/patterns/` before this review flow
+existed were migrated into `errors_to_look_for.json` (ticket `9999999`), except clearly over-generic ones
+(for example step titles, artifact-upload notices, or bare `Unexpected failures`), so no previously
+approved behaviour was lost.
 
 ### Secrets and permissions
 
@@ -450,6 +542,7 @@ only the narrow permission it needs. The workflows rely on the following secrets
 | --- | --- | --- |
 | `TEAMS_WEBHOOK_URL` | `notify-teams` (MQ + Post-Commit), `notify-teams-recurring` | Microsoft Teams incoming webhook. |
 | `MERGE_QUEUE_TOKEN` | `remediate-transient-failure` | PAT / App token with `contents: write` + `pull_requests: write` to re-queue a PR (the default token cannot re-trigger `merge_group` runs). |
+| `RERUNNER_DB_UPDATE` | `propose-rerun-pattern` | PAT / App token with `contents: write` + `pull_requests: write` to push `ci-doctor/rerun-pattern/*` branches and open review PRs against `master` that edit `errors_to_look_for.json` (unlike `GITHUB_TOKEN`, PRs it opens trigger CI). |
 | `GITHUB_TOKEN` | log download, `remediate-transient-failure` | Standard GitHub API access (re-run failed jobs, read live merge-queue status). |
 
 ## Maintaining the workflows

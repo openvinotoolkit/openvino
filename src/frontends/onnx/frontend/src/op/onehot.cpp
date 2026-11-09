@@ -10,10 +10,7 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_common {
 template <bool NEEDS_NORMALIZED_INDICES_MODE>
 ov::OutputVector onehot_impl(const ov::frontend::onnx::Node& node) {
@@ -53,7 +50,4 @@ ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("OneHot", OPSET_SINCE(11), ai_onnx::opset_11::onehot);
 }  // namespace opset_11
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

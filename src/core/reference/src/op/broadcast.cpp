@@ -14,6 +14,11 @@ void broadcast(const char* arg,
                const Shape& out_shape,
                const AxisSet& broadcast_axes,
                size_t elem_size) {
+    if (shape_size(out_shape) == 0) {
+        // Empty output: nothing to copy, and repeats[i] below would divide by zero on any
+        // zero-sized axis that isn't a broadcast axis (adjusted_in_shape[i] == 0).
+        return;
+    }
     const auto output_rank = std::max(in_shape.size(), out_shape.size());
     Shape adjusted_in_shape = in_shape;
     for (const auto& axis : broadcast_axes) {

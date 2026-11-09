@@ -156,11 +156,7 @@ ov::OutputVector split_with_default_split(const ov::frontend::onnx::Node& node) 
 
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_11 {
+namespace ov::frontend::onnx::ai_onnx::opset_11 {
 
 /// @brief Implements the SplitToSequence operator
 /// @param node Input ONNX node
@@ -184,9 +180,4 @@ ov::OutputVector split_to_sequence(const ov::frontend::onnx::Node& node) {
 ///         Registering as available since opset 1 for compatibility with existing tests.
 ONNX_OP("SplitToSequence", OPSET_SINCE(1), ai_onnx::opset_11::split_to_sequence);
 
-}  // namespace opset_11
-
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_11

@@ -119,7 +119,7 @@ struct program_helpers {
     }
 };
 
-struct onednn_add_fusing_helpers {
+struct onednn_eltwise_fusing_helpers {
     enum class add_fusing_type {
         sum,
         binary_per_tensor,
@@ -127,15 +127,14 @@ struct onednn_add_fusing_helpers {
         not_supported,
     };
 
-    static bool is_full_tensor(const layout& layout);
-    static std::vector<fused_primitive_desc> get_fused_eltwise_primitives();
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
     static int32_t get_reused_eltwmem_idx(const program_node& node);
+    static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
 };
 
-using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
+using add_fusing_type = onednn_eltwise_fusing_helpers::add_fusing_type;
 
 static inline std::ostream& operator<< (std::ostream& os, add_fusing_type& t) {
     switch (t) {

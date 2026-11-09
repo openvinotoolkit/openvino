@@ -25,10 +25,7 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 static bool is_static_one(const ov::Dimension& dim) {
     return dim.is_static() && dim.get_length() == 1;
@@ -86,9 +83,21 @@ OutputVector translate_soft_max(const NodeContext& context) {
     ov::Output<Node> res;
 
     // ggml SOFT_MAX reduces ne[0] == the OV last axis (rank-3 attention -> 2, rank-4 router -> 3);
-    // derive it from the rank instead of hardcoding 2. Reused by both Softmax paths below.
+    // derive it from the rank instead of hardcoding 2. The native builder may request another
+    // axis, e.g. the gpt-oss top-k gating weights [1,T,K,1] normalize over K. Reused by both
+    // Softmax paths below.
     const auto& in_ps = input0.get_partial_shape();
-    const int64_t softmax_axis = in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 2;
+    const bool has_softmax_axis = context.has_attribute("softmax_axis");
+    const int64_t softmax_axis = has_softmax_axis ? context.get_attribute<int64_t>("softmax_axis")
+                                                  : (in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 2);
+    if (has_softmax_axis && in_ps.rank().is_static()) {
+        const int64_t rank = in_ps.rank().get_length();
+        FRONT_END_OP_CONVERSION_CHECK(-rank <= softmax_axis && softmax_axis < rank,
+                                      "SOFT_MAX softmax_axis ",
+                                      softmax_axis,
+                                      " is out of range for input rank ",
+                                      rank);
+    }
 
     float scale = context.get_attribute<float>("scale", 1.0f);
     float max_bias = context.get_attribute<float>("max_bias", 0.0f);
@@ -103,6 +112,11 @@ OutputVector translate_soft_max(const NodeContext& context) {
     const bool has_mask = context.get_input_size() > 1 && !second_input_is_sinks;
     const bool has_sinks = second_input_is_sinks || context.get_input_size() > 2;
     const int sinks_input_idx = second_input_is_sinks ? 1 : 2;
+    if (has_sinks && has_softmax_axis) {
+        const bool last_axis =
+            softmax_axis == -1 || (in_ps.rank().is_static() && softmax_axis == in_ps.rank().get_length() - 1);
+        FRONT_END_OP_CONVERSION_CHECK(last_axis, "SOFT_MAX with attention sinks supports only the last softmax_axis");
+    }
 
     if (!has_mask) {
         if (has_sinks) {
@@ -169,7 +183,4 @@ OutputVector translate_soft_max(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

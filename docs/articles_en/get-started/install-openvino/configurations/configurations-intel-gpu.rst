@@ -136,7 +136,7 @@ Additional Resources
 * :doc:`Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image <../install-openvino-docker-linux>`
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
-* `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__
+* `Dockerfile templates for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/tree/master/templates>`__
 * `GPU Driver issue troubleshoot <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_plugin_driver_troubleshooting.md>`__
 
 

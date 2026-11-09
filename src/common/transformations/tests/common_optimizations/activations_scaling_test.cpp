@@ -25,6 +25,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -337,6 +338,28 @@ TEST_F(TransformationTestsF, EliminateScalarMulTest) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
+TEST_F(TransformationTestsF, EliminateScalarMulRMSWithoutGammaTest) {
+    constexpr double epsilon = 1.f;
+    constexpr float scale_factor = 8.f;
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto rms = std::make_shared<ov::op::internal::RMS>(mul, epsilon, ov::element::f16, 1);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto rms =
+            std::make_shared<ov::op::internal::RMS>(input, epsilon / scale_factor / scale_factor, ov::element::f16, 1);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
 TEST_F(TransformationTestsF, MoveDownScalarMulTest) {
     {
         auto input0 = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{6, 12, 10, 24});
@@ -395,4 +418,28 @@ TEST_F(TransformationTestsF, MulShareTransformationTest) {
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, MulShareTransformationRMSWithoutGammaTest) {
+    constexpr double epsilon = 1.f;
+    constexpr float scale_factor = 8.f;
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, epsilon, ov::element::f16, 1);
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{rms, mul}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::activations_scaling::MulShareTransformation>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto rms =
+            std::make_shared<ov::op::internal::RMS>(mul, epsilon * scale_factor * scale_factor, ov::element::f16, 1);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms, mul}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

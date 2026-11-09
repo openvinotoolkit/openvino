@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs eye(const NodeContext& node) {
     auto row = node.get_attribute<int64_t>("num_rows");
     auto col = node.get_attribute<int64_t>("num_columns", row);
@@ -30,7 +27,4 @@ NamedOutputs eye(const NodeContext& node) {
     return node.default_single_output_mapping({out_node}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

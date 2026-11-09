@@ -30,7 +30,7 @@ struct ConvertSlice {
         auto empty = tensor::EmptyOp::create(builder, loc, index_type, dynamic_index_dims);
 
         // TODO: this only works for the all-positive numbers case.
-        auto sizes = linalg::SubOp::create(builder, loc, mlir::ValueRange{stop, start}, mlir::ValueRange{empty});
+        auto sizes = linalg::ElementwiseOp::create(builder, loc, mlir::ValueRange{stop, start}, mlir::ValueRange{empty}, linalg::ElementwiseKind::sub);
         auto slice = tensor::ExtractSliceOp::create(builder, loc, input, mlir::ValueRange{start}, mlir::ValueRange{sizes.getResults()}, mlir::ValueRange{step});
         return slice;
     }

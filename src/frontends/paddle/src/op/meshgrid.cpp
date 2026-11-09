@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs meshgrid(const NodeContext& node) {
     auto inputs = node.get_ng_inputs("X");
     OutputVector dims;
@@ -36,7 +33,4 @@ NamedOutputs meshgrid(const NodeContext& node) {
     return named_outputs;
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

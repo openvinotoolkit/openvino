@@ -6,10 +6,7 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs lstm(const NodeContext& node);
 NamedOutputs rnn(const NodeContext& node) {
     auto mode = node.get_attribute<std::string>("mode");
@@ -21,7 +18,4 @@ NamedOutputs rnn(const NodeContext& node) {
     return lstm(node);
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

@@ -8,9 +8,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/onnx/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 struct ONNX_FRONTEND_API TensorMetaInfo {
     ov::PartialShape m_partial_shape;
@@ -115,6 +113,4 @@ public:
     ~DecoderBaseTensor() override;
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

@@ -12,9 +12,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "tensor.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 using ::ONNX_NAMESPACE::SparseTensorProto;
 
 class SparseTensor {
@@ -82,6 +80,4 @@ private:
 inline std::ostream& operator<<(std::ostream& outs, const SparseTensor& tensor) {
     return (outs << "<Sparse Tensor>");
 }
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

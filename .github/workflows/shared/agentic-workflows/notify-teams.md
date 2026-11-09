@@ -55,7 +55,7 @@ safe-outputs:
           required: true
           type: string
         statistics:
-          description: "Markdown-formatted statistics summary of this CI Doctor's pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/<slug>/investigations/` and `/tmp/gh-aw/repo-memory/default/<slug>/patterns/` (`<slug>` = `mq` or `post-commit`). Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML)."
+          description: "Markdown-formatted statistics summary of this CI Doctor's pattern database, uploaded as the statistics workflow artifact (NOT rendered in the Teams card). Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/<slug>/investigations/` and `/tmp/gh-aw/repo-memory/default/<slug>/patterns/` (`<slug>` = `mq` or `post-commit`). Keep concise (top 20 patterns max)."
           required: true
           type: string
         statistics_json:

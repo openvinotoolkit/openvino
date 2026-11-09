@@ -83,7 +83,9 @@ static constexpr Property<int32_t, PropertyMutability::RW> debug_global_property
 
 namespace {
 const std::string test_config_path = "test_debug_config_path.json";
+#ifdef ENABLE_DEBUG_CAPS
 const std::string device_name = "SOME_DEVICE";
+#endif
 
 void dump_config(const std::string& filename, const std::string& config_content) {
     std::ofstream ofs(filename);

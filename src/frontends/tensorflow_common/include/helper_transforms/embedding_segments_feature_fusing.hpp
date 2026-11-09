@@ -3,17 +3,13 @@
 //
 
 #pragma once
-
 #include <memory>
 #include <utility>
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace pass {
+namespace ov::frontend::tensorflow::pass {
 
 // The transformation looks for pattern (sub-graph) that performs extraction of embedding vectors from the parameters
 // table for object feature values, and sum up these embedding vectors for every object or compute their mean value.
@@ -24,7 +20,4 @@ public:
     EmbeddingSegmentSingleFeatureFusion();
 };
 
-}  // namespace pass
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::pass

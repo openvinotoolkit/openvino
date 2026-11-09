@@ -78,7 +78,7 @@ All paths are relative to the repository root.
 |---|---|
 | `tests/layer_tests/pytorch_tests/` | **Python layer tests** — one `test_<op>.py` file per operation. Primary test suite. |
 | `tests/layer_tests/pytorch_tests/pytorch_layer_test_class.py` | `PytorchLayerTest` base class. |
-| `tests/model_hub_tests/pytorch/` | Model-level tests for HuggingFace Transformers, TorchVision, etc. |
+| `tests/model_hub_tests/pytorch/` | Model-level tests for HuggingFace Transformers, timm, TorchVision, etc. See "PyTorch Frontend Model Hub Tests" in `src/frontends/pytorch/README.md` for how to run them and set up the model cache. |
 
 ### Build Targets
 

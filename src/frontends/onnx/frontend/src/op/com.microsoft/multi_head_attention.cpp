@@ -34,10 +34,7 @@
 using namespace ov::op;
 using namespace ov::frontend::onnx::attention;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
+namespace ov::frontend::onnx::com_microsoft {
 namespace detail {
 namespace {
 
@@ -441,7 +438,4 @@ ov::OutputVector multi_head_attention(const ov::frontend::onnx::Node& node) {
 ONNX_OP("MultiHeadAttention", OPSET_SINCE(1), com_microsoft::opset_1::multi_head_attention, MICROSOFT_DOMAIN);
 }  // namespace opset_1
 
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft

@@ -8,11 +8,7 @@
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 namespace {
 struct RNNInputMap : public recurrent::OpInputMap {
     RNNInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count) : OpInputMap(node, gates_count) {}
@@ -48,11 +44,12 @@ ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
     const auto Y = rnn_sequence->output(0);
     const auto Y_h = rnn_sequence->output(1);
 
+    if (attributes.m_layout == 1) {
+        // OV [batch, num_directions, seq, hidden] -> ONNX [batch, seq, num_directions, hidden]; Y_h already matches.
+        return {ov::op::util::reorder_axes(Y, {0, 2, 1, 3}), Y_h};
+    }
+
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
 ONNX_OP("RNN", OPSET_SINCE(1), ai_onnx::opset_1::rnn);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

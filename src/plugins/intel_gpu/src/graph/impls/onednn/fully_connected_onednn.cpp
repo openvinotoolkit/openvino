@@ -53,7 +53,7 @@ protected:
         if (prim->compressed_weights) {
             const auto weights_dt = instance.get_input_layout(1).data_type;
             auto weight_bitwidth = ov::element::Type(weights_dt).bitwidth();
-            OPENVINO_ASSERT(weight_bitwidth == 8 || weight_bitwidth == 4, "[GPU] oneDNN supports only 4bit/8bit compressed weights");
+            OPENVINO_ASSERT(one_of(weight_bitwidth, {8, 4, 3, 2}), "[GPU] oneDNN supports only 2bit/3bit/4bit/8bit compressed weights");
             int idx = prim->bias.is_valid() ? 3 : 2;
 
             if (prim->decompression_scale.is_valid()) {
@@ -164,13 +164,18 @@ protected:
         dnnl::memory::desc weights_md;
         if (weights_layout.data_padding
             && format::is_default_format(weights_layout.format)
-            && (weights_layout.data_type == data_types::i4 || weights_layout.data_type == data_types::u4)) {
+            && one_of(weights_layout.data_type, {data_types::i4, data_types::u4, data_types::u2})) {
             weights_md = onednn::layout_to_memory_desc_strides(weights_layout, weights_fmt);
         } else {
             weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt);
         }
 
-        dnnl::memory::desc input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
+        dnnl::memory::desc input_md;
+        if (input_layout.data_padding && format::is_default_format(input_layout.format)) {
+            input_md = onednn::layout_to_memory_desc_strides(input_layout, target_fmt);
+        } else {
+            input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
+        }
         dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt);
 
         if (has_bias) {
@@ -217,6 +222,8 @@ public:
         ob << weights_rank;
         ob << has_bias;
         ob << is_compressed;
+        ob << prim->transpose_b_scale;
+        ob << prim->transpose_b_zp;
         ob << prim->dynamic_quantized_activation;
         ob << prim->dynamic_quantized_activation_zp;
         ob << prim->dynamic_quantized_precomputed_reduction;
@@ -244,6 +251,8 @@ public:
         size_t weights_rank = 2;
         bool has_bias = false;
         bool is_compressed = false;
+        bool transpose_b_scale = true;
+        bool transpose_b_zp = true;
         bool dynamic_quantized_activation;
         bool dynamic_quantized_activation_zp;
         bool dynamic_quantized_precomputed_reduction;
@@ -251,18 +260,16 @@ public:
         ib >> weights_rank;
         ib >> has_bias;
         ib >> is_compressed;
+        ib >> transpose_b_scale;
+        ib >> transpose_b_zp;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
         ib >> dynamic_quantized_precomputed_reduction;
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto prim = impl_params->typed_desc<fully_connected>();
-        auto weights_layout = impl_params->get_input_layout(1);
-        const auto& weight_shape = weights_layout.get_partial_shape();
-        auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(),
-            [](ov::Dimension d) { return d.get_length() > 1; });
-        weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
-        const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
+        const auto weight_rank = get_compressed_weights_rank(impl_params->get_input_layout(1));
+        const bool has_batch_dim = weight_rank > 2;
 
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         const auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
@@ -277,10 +284,11 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
+            const auto weights_layout_for_scale = arg.get_dependency(1).get_output_layout();
+            const auto ngroups = get_ngroups(weights_layout_for_scale, scale_layout, prim->weights_transposed);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
-            } else if (ngroups == 1) {
+            } else if (ngroups == 1 && !has_batch_dim) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
@@ -297,8 +305,9 @@ public:
                 if (dzp_layout.count() == 1) {
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    auto ngroups = dzp_layout.get_dim(ifm_dim_idx);
-                    if (ngroups == 1) {
+                    const auto weights_layout_for_zp = arg.get_dependency(1).get_output_layout();
+                    auto ngroups = get_ngroups(weights_layout_for_zp, dzp_layout, prim->weights_transposed);
+                    if (ngroups == 1 && !has_batch_dim) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
@@ -366,10 +375,9 @@ public:
             }
 
             auto weights_layout = impl_params.get_input_layout(1);
-            auto weight_shape = weights_layout.get_partial_shape();
-            auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
-            weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
+            const auto weight_rank = get_compressed_weights_rank(weights_layout);
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
+            const bool has_batch_dim = weight_rank > 2;
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
             int grouped = (1 << prim->input_size) - 1;
@@ -378,16 +386,13 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                // IFM (K) dimension position depends on weight layout orientation.
-                const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
-                const auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
-                const auto ngroups = scale_layout.get_dim(ifm_dim_idx);
-                group_size = static_cast<int>(ifm / ngroups);
-                OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
+                const auto [ngroups, scale_group_size] = get_scale_groups(weights_layout, scale_layout, prim->weights_transposed);
+                group_size = static_cast<int>(scale_group_size);
+                OPENVINO_ASSERT(is_supported_scale_group(ngroups, group_size),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
-                } else if (ngroups == 1 && weight_rank <= 2) {
+                } else if (ngroups == 1 && !has_batch_dim) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // should use {K, 1} for the group size + per tensor mask for 3d
@@ -410,9 +415,8 @@ public:
                     auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
-                    auto dzp_ifm_dim_idx = prim->weights_transposed ? (dzp_rank - 1) : (dzp_rank - 2);
-                    auto ngroups = dzp_layout.get_dim(dzp_ifm_dim_idx);
-                    if (ngroups == 1 && dzp_rank <= 2) {
+                    auto ngroups = get_ngroups(weights_layout, dzp_layout, prim->weights_transposed);
+                    if (ngroups == 1 && dzp_rank <= 2 && !has_batch_dim) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d

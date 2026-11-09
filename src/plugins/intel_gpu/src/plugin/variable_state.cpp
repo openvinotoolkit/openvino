@@ -6,27 +6,49 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 #include "intel_gpu/runtime/memory_caps.hpp"
+#include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <memory>
+#include <limits>
+#include <utility>
 
 namespace ov::intel_gpu {
 
-VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context, std::shared_ptr<cldnn::ShapePredictor> shape_predictor)
+VariableState::VariableState(const VariableStateInfo& info, RemoteContextImpl::Ptr context,
+                             std::shared_ptr<cldnn::ShapePredictor> shape_predictor,
+                             std::shared_ptr<cldnn::tensor_conversion> conversion)
     : VariableStateBase{info.m_id, context}
     , m_layout(info.m_layout)
     , m_user_specified_type(info.m_user_specified_type)
     , m_shape_predictor(shape_predictor)
     , m_prim_inst(info.m_release_variable_inst)
     , m_transpose_required(info.transpose_required)
+    , m_conversion(std::move(conversion))
     , m_initial_layout(info.m_layout) {
     update_device_buffer();
 }
 
+VariableState::~VariableState() {
+    try {
+        wait_for_gpu_conversion();
+    } catch (...) {
+        try {
+            m_context->get_engine().get_service_stream().finish();
+            m_pending.clear_after_completion();
+        } catch (...) {
+        }
+    }
+}
+
+void VariableState::wait_for_gpu_conversion() const {
+    m_pending.wait();
+}
+
 void VariableState::reset() {
+    wait_for_gpu_conversion();
     m_is_set = false;
     set_layout(m_initial_layout);
     for (auto& user : m_prim_inst) {
@@ -37,6 +59,7 @@ void VariableState::reset() {
 }
 
 cldnn::memory::ptr VariableState::get_memory() const {
+    wait_for_gpu_conversion();
     return m_memory;
 }
 
@@ -45,6 +68,7 @@ const cldnn::layout& VariableState::get_layout() const {
 }
 
 void VariableState::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) {
+    wait_for_gpu_conversion();
     GPU_DEBUG_TRACE_DETAIL << m_name << " : Update memory (Ptr : " << new_mem->buffer_ptr()
                            << ", layout : " << actual_layout.to_short_string() << ")" << std::endl;
     m_memory = new_mem;
@@ -54,6 +78,7 @@ void VariableState::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::l
 }
 
 void VariableState::set_layout(const cldnn::layout& new_layout) {
+    wait_for_gpu_conversion();
     if (m_layout == new_layout) {
         return;
     }
@@ -63,6 +88,7 @@ void VariableState::set_layout(const cldnn::layout& new_layout) {
 }
 
 void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
+    wait_for_gpu_conversion();
     auto src_shape = state->get_shape();
     size_t src_rank = src_shape.size();
     cldnn::padding::DynamicDimsMask dynamic_pad_dims;
@@ -73,6 +99,7 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
                                            std::vector<ov::Dimension::value_type>(src_rank, 0),
                                            dynamic_pad_dims);
     auto src_stride = state->get_strides();
+    OPENVINO_ASSERT(src_stride.size() == src_rank, "[GPU] State source stride rank mismatch");
     for (size_t i = 0; i < src_rank; ++i) {
         src_stride[i] /= state->get_element_type().bitwidth() / 8;
     }
@@ -84,27 +111,42 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
         return;
     }
 
-    // check whether the src tensor is padded
-    std::vector<size_t> src_stride_no_pad(src_rank, 1);
+    // Derive upper padding from adjacent strides to preserve gaps in tensor views.
     std::vector<ov::Dimension::value_type> upper_pad(src_rank, 0);
     std::vector<ov::Dimension::value_type> lower_pad(src_rank, 0);
-    for (int32_t i = static_cast<int32_t>(src_stride.size()) - 1; i >= 0; --i) {
-        if (i <= static_cast<int32_t>(src_stride.size()) - 2) {
-            src_stride_no_pad[i] = src_stride_no_pad[i + 1] * src_shape[i + 1];
-        }
-        if (src_stride[i] != src_stride_no_pad[i]) {
-            OPENVINO_ASSERT(src_stride[i] > src_stride_no_pad[i]);
-            size_t padded_size = src_stride[i] / src_stride[i + 1];
-            size_t non_padded_size = src_stride_no_pad[i] / src_stride_no_pad[i + 1];
-            ov::Dimension::value_type pad_dim = i + 1;
-            upper_pad[pad_dim] = static_cast<ov::Dimension::value_type>(padded_size) - static_cast<ov::Dimension::value_type>(non_padded_size);
-        }
+    OPENVINO_ASSERT(src_stride.empty() || src_stride.back() == 1,
+                    "[GPU] State source innermost stride must be one element");
+    for (size_t i = src_rank; i-- > 1;) {
+        OPENVINO_ASSERT(src_stride[i] > 0 && src_stride[i - 1] % src_stride[i] == 0,
+                        "[GPU] State source strides cannot be represented as padding");
+        const size_t padded_size = src_stride[i - 1] / src_stride[i];
+        OPENVINO_ASSERT(padded_size >= src_shape[i], "[GPU] Overlapping state source strides are unsupported");
+        OPENVINO_ASSERT(padded_size - src_shape[i] <=
+                        static_cast<size_t>(std::numeric_limits<ov::Dimension::value_type>::max()),
+                        "[GPU] State source padding is too large");
+        upper_pad[i] = static_cast<ov::Dimension::value_type>(padded_size - src_shape[i]);
     }
     cldnn::padding src_padd = cldnn::padding(lower_pad, upper_pad);
     auto src_fmt = cldnn::format::get_default_format(src_rank);
     auto src_layout = cldnn::layout(ov::PartialShape(src_shape), state->get_element_type(), src_fmt, src_padd);
 
-    convert_and_copy(state._ptr.get(), m_memory, m_context->get_engine().get_service_stream(), src_layout, m_transpose_required);
+    auto& stream = m_context->get_engine().get_service_stream();
+    bool gpu_conversion_submitted = false;
+    if (state->get_element_type() == get_user_specified_type() &&
+        state->get_element_type() != m_layout.data_type) {
+        gpu_conversion_submitted = convert_and_copy_async(state._ptr.get(), m_memory, stream, src_layout, m_conversion,
+                                                         m_pending, m_transpose_required);
+    }
+    if (gpu_conversion_submitted) {
+        GPU_DEBUG_INFO << "[state_conversion] GPU state=" << m_name
+                       << " dtype=" << state->get_element_type() << "->" << ov::element::Type(m_layout.data_type)
+                       << " count=" << ov::shape_size(src_shape) << " padded=" << static_cast<bool>(src_padd)
+                       << " transpose=" << m_transpose_required << std::endl;
+        set();
+        return;
+    }
+    m_pending.clear_after_completion();
+    convert_and_copy(state._ptr.get(), m_memory, stream, src_layout, m_transpose_required);
     set();
 }
 
@@ -136,6 +178,7 @@ ov::element::Type VariableState::get_user_specified_type() const {
 }
 
 ov::SoPtr<ov::ITensor> VariableState::get_state() const {
+    wait_for_gpu_conversion();
     if (m_memory == nullptr) {
         const auto& pshape = m_layout.get_partial_shape();
         const auto& shape = get_tensor_shape(pshape);
