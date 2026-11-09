@@ -239,6 +239,7 @@ IBuildStrategy::InferBuildInfo AccuracyStrategy::build(const InferDesc& infer) {
                                               extractLayerNames(infer.output_layers), default_metric);
     for (size_t i = 0; i < infer.output_layers.size(); ++i) {
         const auto& layer = infer.output_layers[i];
+        per_layer_metrics.at(layer.name)->bindLayer(layer.dims);
         out_data_visitor.metas[i].set(
                 AccuracyValidate{LayerValidator{infer.tag, layer.name, per_layer_metrics.at(layer.name)}});
     }

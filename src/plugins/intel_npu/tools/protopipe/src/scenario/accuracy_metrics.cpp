@@ -169,17 +169,21 @@ float intersectionOverUnion(const Detection& a, const Detection& b) {
 }
 
 // Drops unit dimensions, e.g. [1, 300, 6] -> [300, 6] and [1, 1, N, 7] -> [N, 7].
-std::vector<int> squeezeDims(const cv::Mat& mat) {
+std::vector<int> squeezeDims(const std::vector<int>& shape) {
     std::vector<int> dims;
-    for (int i = 0; i < mat.size.dims(); ++i) {
-        if (mat.size[i] != 1) {
-            dims.push_back(mat.size[i]);
+    for (int d : shape) {
+        if (d != 1) {
+            dims.push_back(d);
         }
     }
     while (dims.size() < 2u) {
         dims.insert(dims.begin(), 1);
     }
     return dims;
+}
+
+std::vector<int> squeezeDims(const cv::Mat& mat) {
+    return squeezeDims(std::vector<int>(mat.size.p, mat.size.p + mat.size.dims()));
 }
 
 enum class DetectionLayout {
@@ -196,6 +200,15 @@ struct LayoutInfo {
     // Raw detection heads are commonly emitted transposed, as [4 + num_classes, num_boxes].
     bool transposed = false;
 };
+
+std::string unsupportedLayoutMessage(int rows, int cols) {
+    std::stringstream ss;
+    ss << "MAP metric failed to interpret detection tensor of shape [" << rows << ", " << cols
+       << "]. Expected trailing dimension 6 ([x1, y1, x2, y2, score, label]), "
+       << "7 ([image_id, label, score, x1, y1, x2, y2]), for raw outputs \"num_classes\" + 4 / "
+       << "\"num_classes\" + 5, or a DETR pair of boxes [N, 4] and class logits [N, C] validated by the same metric";
+    return ss.str();
+}
 
 LayoutInfo resolveLayout(const std::vector<int>& dims, int num_classes) {
     const int rows = dims[0];
@@ -221,10 +234,7 @@ LayoutInfo resolveLayout(const std::vector<int>& dims, int num_classes) {
     if (cols == 7) {
         return {DetectionLayout::SSD, rows, cols, false};
     }
-    THROW_ERROR("MAP metric failed to interpret detection tensor of shape ["
-                << rows << ", " << cols << "]. Expected trailing dimension 6 ([x1, y1, x2, y2, score, label]), "
-                << "7 ([image_id, label, score, x1, y1, x2, y2]) or, for raw outputs, "
-                << "\"num_classes\" + 4 / \"num_classes\" + 5");
+    THROW_ERROR(unsupportedLayoutMessage(rows, cols));
 }
 
 bool isKnownLayout(const std::vector<int>& dims, int num_classes) {
@@ -281,6 +291,20 @@ cv::Mat mergeDetrOutputs(const cv::Mat& boxes, const cv::Mat& logits, MAP::BoxFo
         out[5] = static_cast<float>(label);
     }
     return merged;
+}
+
+// Corners of a valid xyxy box are always ordered, centre/size boxes of a DETR head almost never are for every query.
+MAP::BoxFormat detectBoxFormat(const cv::Mat& boxes) {
+    cv::Mat f32;
+    boxes.convertTo(f32, CV_32F);
+    const auto boxes2d = f32.reshape(1, static_cast<int>(f32.total() / 4));
+    for (int q = 0; q < boxes2d.rows; ++q) {
+        const float* b = boxes2d.ptr<float>(q);
+        if (b[2] < b[0] || b[3] < b[1]) {
+            return MAP::BoxFormat::CXCYWH;
+        }
+    }
+    return MAP::BoxFormat::XYXY;
 }
 
 std::vector<Detection> decodeDetections(const cv::Mat& mat, const MAP::Params& params) {
@@ -515,27 +539,49 @@ Result MAP::compare(const cv::Mat& lhs, const cv::Mat& rhs) {
     // NB: lhs is the actual model output, rhs is the reference used as ground truth.
     LOG_DEBUG() << "MAP: actual " << shapeToString(lhs) << ", reference " << shapeToString(rhs) << std::endl;
     const auto dims = squeezeDims(lhs);
-    if (dims.size() != 2u || isKnownLayout(dims, m_params.num_classes)) {
+    if (!m_detr_dims || (dims != m_detr_dims->first && dims != m_detr_dims->second)) {
         return evaluate(lhs, rhs);
     }
 
     // NB: DETR-style models split detections into boxes [N, 4] and class logits [N, C] layers,
     // which reach the shared metric one after another - buffer the first until its companion arrives.
-    auto& slot = dims[1] == 4 ? m_detr_boxes : m_detr_logits;
-    if (slot) {
-        THROW_ERROR("MAP metric got two DETR " << (dims[1] == 4 ? "box" : "class logits")
-                    << " layers in a row. Boxes [N, 4] and class logits [N, C] must be validated by the same "
-                    << "\"map\" metric, set it once for the whole model rather than per layer");
-    }
-    slot = std::make_pair(lhs, rhs);
+    (dims == m_detr_dims->first ? m_detr_boxes : m_detr_logits) = std::make_pair(lhs, rhs);
     if (!m_detr_boxes || !m_detr_logits) {
         return Success{"waiting for the companion DETR layer"};
     }
-    const auto actual = mergeDetrOutputs(m_detr_boxes->first, m_detr_logits->first, m_params.box_format);
-    const auto reference = mergeDetrOutputs(m_detr_boxes->second, m_detr_logits->second, m_params.box_format);
+
+    // NB: Detect on the reference so both devices are decoded the same way.
+    const auto box_format = m_params.box_format.value_or(detectBoxFormat(m_detr_boxes->second));
+    LOG_DEBUG() << "MAP: DETR box format: " << (box_format == BoxFormat::XYXY ? "xyxy" : "cxcywh") << std::endl;
+    const auto actual = mergeDetrOutputs(m_detr_boxes->first, m_detr_logits->first, box_format);
+    const auto reference = mergeDetrOutputs(m_detr_boxes->second, m_detr_logits->second, box_format);
+
     m_detr_boxes.reset();
     m_detr_logits.reset();
+
     return evaluate(actual, reference);
+}
+
+void MAP::bindLayer(const std::vector<int>& dims) {
+    m_bound_dims.insert(squeezeDims(dims));
+    // NB: Pair only when exactly one [N, 4] and one [N, C] layer are routed here, so both always arrive.
+    std::vector<std::vector<int>> boxes, logits;
+    for (const auto& d : m_bound_dims) {
+        if (d.size() == 2u && d[1] == 4) {
+            boxes.push_back(d);
+        }
+    }
+    if (boxes.size() == 1u) {
+        for (const auto& d : m_bound_dims) {
+            if (d.size() == 2u && d[0] == boxes[0][0] && d[1] != 4 && !isKnownLayout(d, m_params.num_classes)) {
+                logits.push_back(d);
+            }
+        }
+    }
+    m_detr_dims.reset();
+    if (logits.size() == 1u) {
+        m_detr_dims = std::make_pair(boxes[0], logits[0]);
+    }
 }
 
 Result MAP::evaluate(const cv::Mat& lhs, const cv::Mat& rhs) {
@@ -582,7 +628,9 @@ std::string MAP::str() {
     if (m_params.num_classes > 0) {
         ss << ", num_classes: " << m_params.num_classes;
     }
-    ss << ", box_format: " << (m_params.box_format == BoxFormat::XYXY ? "xyxy" : "cxcywh");
+    if (m_params.box_format) {
+        ss << ", box_format: " << (*m_params.box_format == BoxFormat::XYXY ? "xyxy" : "cxcywh");
+    }
     ss << "}";
     return ss.str();
 }
