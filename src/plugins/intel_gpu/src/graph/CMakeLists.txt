@@ -89,8 +89,6 @@ macro(ov_gpu_add_backend_target)
         ${ARG_BYPASS}
     )
 
-    ov_gpu_set_debug_information_format(${ARG_NAME})
-
     get_property(CURRENT_LIBS GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
     list(APPEND CURRENT_LIBS ${ARG_LINK_LIBRARIES})
     set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL ${CURRENT_LIBS})
@@ -166,8 +164,6 @@ foreach(backend IN LISTS BACKEND_LIBS)
     target_link_libraries(${backend} INTERFACE $<LINK_ONLY:${TARGET_NAME}>)
     ov_install_static_lib(${backend} ${OV_CPACK_COMP_CORE})
 endforeach()
-
-ov_gpu_set_debug_information_format(${TARGET_NAME})
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
