@@ -39,7 +39,8 @@ def images_to_output(images: list):
 def get_changeset(repo: str, pr: str, target_branch: str, commit_sha: str):
     """Returns changeset either from PR or commit"""
     owner, repository = repo.split('/')
-    gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
+    # ghapi 2 returns coroutines from endpoint calls unless the client is synchronous.
+    gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"), sync=True)
     if pr:
         changed_files = gh_api.pulls.list_files(pr)
     elif target_branch:
