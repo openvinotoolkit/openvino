@@ -24,6 +24,7 @@ class TRANSFORMATIONS_API PositionIDsReplacerCodeGen2;
 class TRANSFORMATIONS_API EliminateDropBatch;
 class TRANSFORMATIONS_API RoPEUnsqueezeAxisReplacer;
 class TRANSFORMATIONS_API PositionIDsReplacerGranite;
+class TRANSFORMATIONS_API PositionIDsReplacerQwen3_5;
 
 }  // namespace pass
 }  // namespace ov
@@ -186,4 +187,51 @@ class ov::pass::PositionIDsReplacerGranite : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerGranite");
     explicit PositionIDsReplacerGranite(const Output<Node>& unsq_position_ids);
+};
+
+/**
+ * @brief Replace implicit text-only Qwen3.5 M-RoPE positions with explicit PagedAttention positions.
+ *
+ * The text-only export of Qwen3.5 generates positions from the past cache length and current sequence length.
+ * After SDPAToPA moves tokens to the batch dimension, the sequence length becomes one, so that
+ * implicit branch cannot represent prefill or packed requests. Rewire the existing Broadcast's
+ * data input to explicit positions, preserving its target input and the downstream M-RoPE graph.
+ *
+ * We change from this:                         to this:
+ *
+ *  ┌──────────────────────┐                   ┌──────────────────────┐
+ *  │ Range(P, P + S, 1)   │                   │ unsq_position_ids    │
+ *  │ implicit positions   │                   │ [T, 1]               │
+ *  └──────────┬───────────┘                   └──────────┬───────────┘
+ *             │                                          │
+ *  ┌──────────┴───────────┐                   ┌──────────┴───────────┐
+ *  │ Reshape([1, 1, -1])  │                   │ NEW Unsqueeze(0)     │
+ *  │                      │                   │ [1, T, 1]            │
+ *  └──────────┬───────────┘                   └──────────┬───────────┘
+ *             │ input 0                                  │ input 0
+ *  ┌──────────┴───────────┐                   ┌──────────┴───────────┐
+ *  │ Broadcast            ├── target input 1  │ Broadcast            ├── target input 1
+ *  │ [3, T, 1]            │   [3, T, 1]       │ [3, T, 1]            │   [3, T, 1]
+ *  └──────────┬───────────┘   (unchanged)     └──────────┬───────────┘   (unchanged)
+ *             │                                          │
+ *  ┌──────────┴───────────┐                   ┌──────────┴───────────┐
+ *  │ Unsqueeze(2)         │                   │ Unsqueeze(2)         │
+ *  │ [3, T, 1, 1]         │                   │ [3, T, 1, 1]         │
+ *  └──────────┬───────────┘                   └──────────┬───────────┘
+ *             │                                          │
+ *  ┌──────────┴───────────┐                   ┌──────────┴───────────┐
+ *  │ Convert              │                   │ Convert              │
+ *  │ MatMul(inv_freq)     │                   │ MatMul(inv_freq)     │
+ *  │ Transpose            │                   │ Transpose            │
+ *  └──────────────────────┘                   └──────────────────────┘
+ *
+ * T is the total token count. Both sides show the PA layout: the original branch broadcasts
+ * one implicit position across tokens; the replacement preserves each token's explicit position.
+ * The target is Concat([3], Reshape(Gather(ShapeOf(hidden_states), 0, 0), [1]), [1]).
+ * Since hidden_states has shape [T, features, 1], the target values are [3, T, 1].
+ */
+class ov::pass::PositionIDsReplacerQwen3_5 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PositionIDsReplacerQwen3_5");
+    explicit PositionIDsReplacerQwen3_5(const Output<Node>& unsq_position_ids);
 };
