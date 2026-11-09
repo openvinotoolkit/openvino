@@ -32,7 +32,7 @@ endif()
 
 check_linker_flag(CXX "LINKER:--icf=safe" OV_GPU_LINKER_HAS_ICF)
 if(OV_GPU_LINKER_HAS_ICF)
-  target_link_options(GraphCompiler INTERFACE $<$<CONFIG:Release>:LINKER:--icf=safe >)
+  target_link_options(GraphCompiler INTERFACE "$<$<CONFIG:Release>:LINKER:--icf=safe>")
 endif()
 
 check_linker_flag(CXX "LINKER:-z,pack-relative-relocs" OV_GPU_LINKER_HAS_PACK_RELATIVE_RELOCS)
