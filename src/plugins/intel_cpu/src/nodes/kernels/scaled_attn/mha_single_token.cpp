@@ -1281,7 +1281,7 @@ static void dot_product_u8_rows(const float* const* q,
 }
 
 // Accumulates one u8 value row into R output rows, out[r] += weight[r] * dequant(v), with the operations, order and
-// 16-element step of attn_acc_value(float*, float, uint8_t*, ...), so each row's result is unchanged.
+// 16-element step of attn_acc_value(float*, float, uint8_t*, ...), so each row's result equals that function's.
 // scale_zp holds interleaved {scale, zero point} pairs.
 template <size_t R>
 static void attn_acc_value_u8_rows(float* const* out,
@@ -1388,8 +1388,9 @@ static void attn_acc_value_u8_rows(ov::float16* const* out,
 }
 #    endif
 
-// Calls f(std::integral_constant<size_t, R>{}, m) for consecutive tiles [m, m + R) of R <= 4 of the q_len x heads
-// rows, token-major (row m is query token m / heads, head m % heads in the group); a tile may span query tokens.
+// Calls f(std::integral_constant<size_t, R>{}, m) for consecutive tiles [m, m + R) of R <= 4 of the rows = q_len x G
+// (token, head) rows, token-major (row m is query token m / G, head m % G in the group, G = h_each_group_len); a tile
+// may span query tokens.
 template <typename F>
 static void for_each_row_tile(size_t rows, const F& f) {
     size_t m = 0;
