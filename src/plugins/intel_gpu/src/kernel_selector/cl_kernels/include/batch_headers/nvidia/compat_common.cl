@@ -67,23 +67,22 @@
 // that is a plain exchange of the two axes and needs no division.
 //
 // So that the same PTX serves every layout, the helpers below do not read the values that depend on it from
-// special registers but from %envreg23-31, which cuLaunchKernel never sets and the NVIDIA OpenCL built-ins do not use
+// special registers but from %envreg27-31, which cuLaunchKernel never sets and the NVIDIA OpenCL built-ins do not use
 // (they use %envreg0-9). When sycl_ptx_kernel.cpp loads the PTX it replaces each of them with the special register
 // the chosen layout calls for, so the asm here never reaches the hardware as written:
-//     %envreg23-26  %tid.y, %tid.z, %ntid.y, %ntid.z in every layout. Reading even these through a placeholder lets
-//                   the runtime tell the helpers from an OpenCL built-in they do not replace: a %tid.y/z or %ntid.y/z
-//                   left in the PTX comes from such a built-in, which would read the wrong axis once the layout
-//                   folds Y and Z, and the runtime then refuses to fold them for that program.
 //     %envreg27-30  local id 1, local id 2, local size 1, local size 2: the axes they sit on in the layout.
 //     %envreg31     the divisor of the fold: %ntid.z when Y > 1 is folded, %ntid.y otherwise. Compared with %ntid.y
 //                   it selects the division, and in the other layouts ptxas folds the comparison and drops it.
-// The numbering puts the placeholders that a simpler, unchecked scheme could do without first, so that dropping them
-// leaves no gap. Dimension 0 and the work-group ids and counts are read from their special registers directly: the
-// layout never moves dimension 0, and the grid axes are remapped by renaming %ctaid/%nctaid.
-static inline uint _nv_hw_tid_y(void)      { uint v; __asm__("mov.b32 %0, %%envreg23;" : "=r"(v)); return v; }
-static inline uint _nv_hw_tid_z(void)      { uint v; __asm__("mov.b32 %0, %%envreg24;" : "=r"(v)); return v; }
-static inline uint _nv_hw_ntid_y(void)     { uint v; __asm__("mov.b32 %0, %%envreg25;" : "=r"(v)); return v; }
-static inline uint _nv_hw_ntid_z(void)     { uint v; __asm__("mov.b32 %0, %%envreg26;" : "=r"(v)); return v; }
+// The runtime folds a program only when its PTX has %envreg31, which shows it was built with these helpers: the
+// OpenCL built-ins they replace would read the wrong axis once the layout moves dimensions 1 and 2. %envreg27-30
+// only spare the division when Y is 1 and could be dropped first, so they take the lower numbers. Dimension 0, the
+// hardware y and z values and the work-group ids and counts are read from their special registers directly: the
+// layout never moves dimension 0, the hardware numbering is what the fold is built on, and the grid axes are
+// remapped by renaming %ctaid/%nctaid.
+static inline uint _nv_hw_tid_y(void)      { uint v; __asm__("mov.u32 %0, %%tid.y;"  : "=r"(v)); return v; }
+static inline uint _nv_hw_tid_z(void)      { uint v; __asm__("mov.u32 %0, %%tid.z;"  : "=r"(v)); return v; }
+static inline uint _nv_hw_ntid_y(void)     { uint v; __asm__("mov.u32 %0, %%ntid.y;" : "=r"(v)); return v; }
+static inline uint _nv_hw_ntid_z(void)     { uint v; __asm__("mov.u32 %0, %%ntid.z;" : "=r"(v)); return v; }
 static inline uint _nv_local_id_1(void)    { uint v; __asm__("mov.b32 %0, %%envreg27;" : "=r"(v)); return v; }
 static inline uint _nv_local_id_2(void)    { uint v; __asm__("mov.b32 %0, %%envreg28;" : "=r"(v)); return v; }
 static inline uint _nv_local_size_1(void)  { uint v; __asm__("mov.b32 %0, %%envreg29;" : "=r"(v)); return v; }
