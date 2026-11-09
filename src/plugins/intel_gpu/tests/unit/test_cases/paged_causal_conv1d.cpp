@@ -26,6 +26,9 @@ enum class paging_mode {
     cache_interval,  // read slot followed by cache_interval checkpoint slots
     aliased_slot,    // non-speculative step: block_indices = {row, row} and no cache_interval
     mixed,           // cycles per sequence through cache_interval, aliased_slot and a missing write slot
+    // cache_interval layout, but the first checkpoint slot reuses the read row when the step starts mid-interval
+    // (past_lens % cache_interval != 0), so an early checkpoint overwrites the cached state that later outputs depend on
+    interval_aliased,
 };
 
 struct paged_causal_conv1d_test_params {
@@ -128,7 +131,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
             d.subsequence_begins.push_back(consumed_tokens);
 
             const bool mixed = p.mode == paging_mode::mixed;
-            if (p.mode == paging_mode::cache_interval || (mixed && seq % 3 == 0)) {
+            const bool interval_aliased = p.mode == paging_mode::interval_aliased;
+            if (p.mode == paging_mode::cache_interval || interval_aliased || (mixed && seq % 3 == 0)) {
                 const int32_t seq_past_len = 1 + (seq % 3);
                 const int32_t seq_interval = 2 + (seq % 2);
                 d.past_lens.push_back(seq_past_len);
@@ -140,6 +144,9 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                 const int32_t required_slots = 1 + std::max<int32_t>(1, max_slot);
                 for (int32_t i = 0; i < required_slots; i++) {
                     d.block_indices.push_back(total_blocks + i);
+                }
+                if (interval_aliased && prev_nums != 0) {
+                    d.block_indices[d.block_indices.size() - required_slots + 1] = total_blocks;
                 }
                 total_blocks += required_slots;
             } else {
@@ -456,6 +463,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
             mode_name = "_aliased_slot";
         } else if (p.mode == paging_mode::mixed) {
             mode_name = "_mixed_slots";
+        } else if (p.mode == paging_mode::interval_aliased) {
+            mode_name = "_interval_aliased_slot";
         }
         return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" + std::to_string(p.num_sequences) +
                "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias") +
@@ -489,7 +498,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
 
 // The opt kernel splits the flattened tokens into ranges of up to 16 tokens. These cases cover sequences that span many
 // ranges (including cache_interval checkpoints after the first range), ranges that cross sequence boundaries, sequences
-// shorter than kernel_size - 1, aliased read/write state slots, and decode batches.
+// shorter than kernel_size - 1, aliased read/write state slots (also with cache_interval checkpoints, where
+// tokens_per_item < kernel_size - 1), and decode batches.
 INSTANTIATE_TEST_SUITE_P(
     smoke_paged_causal_conv1d_gpu_test_token_ranges,
     paged_causal_conv1d_gpu_test,
@@ -501,7 +511,10 @@ INSTANTIATE_TEST_SUITE_P(
         paged_causal_conv1d_test_params{64, 64, 300, 4, ov::element::f16, true, false, false, 1, paging_mode::aliased_slot},
         paged_causal_conv1d_test_params{720, 21, 32, 7, ov::element::f32, true, false, false, 1, paging_mode::aliased_slot, prefill_with_decode_lens(700, 20)},
         paged_causal_conv1d_test_params{847, 8, 32, 7, ov::element::f16, true, false, false, 1, paging_mode::mixed, {701, 128, 2, 1, 3, 5, 6, 1}},
-        paged_causal_conv1d_test_params{847, 8, 32, 7, ov::element::f32, true, false, true, 1, paging_mode::mixed, {701, 128, 2, 1, 3, 5, 6, 1}}),
+        paged_causal_conv1d_test_params{847, 8, 32, 7, ov::element::f32, true, false, true, 1, paging_mode::mixed, {701, 128, 2, 1, 3, 5, 6, 1}},
+        // tokens_per_item = 5 and 3, both below kernel_size - 1 = 6
+        paged_causal_conv1d_test_params{600, 3, 32, 7, ov::element::f16, true, false, false, 1, paging_mode::interval_aliased},
+        paged_causal_conv1d_test_params{300, 4, 48, 7, ov::element::f32, false, false, true, 1, paging_mode::interval_aliased, {3, 40, 1, 256}}),
     paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace
