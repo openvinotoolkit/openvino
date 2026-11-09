@@ -694,6 +694,10 @@ public:
         return disableBF16Conversion;
     }
 
+    [[nodiscard]] const std::shared_ptr<IAuxiliaryMemoryControl>& getAuxiliaryMemoryControl() const {
+        return auxiliaryMemoryControl;
+    }
+
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
 
@@ -751,6 +755,7 @@ protected:
     std::vector<dnnl::primitive_desc> descs;
 
     const GraphContext::CPtr context;
+    const std::shared_ptr<IAuxiliaryMemoryControl> auxiliaryMemoryControl;
 
     Algorithm algorithm = Algorithm::Default;
 
