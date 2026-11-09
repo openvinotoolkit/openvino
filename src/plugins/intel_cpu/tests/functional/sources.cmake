@@ -281,6 +281,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/comparison.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution.cpp
@@ -302,7 +303,6 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_embed_tokens_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_rotary_emb_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/causal_mask_preprocess.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/compare_i32_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/concat_sdp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/conv_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/conv_dw_conv.cpp
