@@ -477,7 +477,7 @@ std::shared_ptr<Model> make_query_model(const QueryOptions& o, bool fused) {
         if (o.non_unit_unused_weight && !(fused && o.absorb_norm)) {
             inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
         }
-        const auto unflatten = [](const Output<Node>& input) {
+        const auto unflatten = [paged](const Output<Node>& input) {
             if constexpr (paged) {
                 return input.get_node_shared_ptr()->input_value(0);
             } else {

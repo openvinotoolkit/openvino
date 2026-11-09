@@ -50,13 +50,10 @@ PagedSparseAttentionFusion::PagedSparseAttentionFusion(paged_attention::PaParams
     constexpr size_t scale_input_index = 6;
     constexpr size_t sinks_input_index = 7;
 
-    const auto activation = [heads_axis, head_dim_axis] {
-        return any_input(rank_equals(4) && has_static_dims({heads_axis, head_dim_axis}));
-    };
-    const auto p_query = any_input(rank_equals(4) && has_static_dims({heads_axis, head_dim_axis}) &&
-                                   type_matches_any({element::f32, element::f16, element::bf16}));
-    const auto p_key = activation();
-    const auto p_value = activation();
+    const auto activation_shape = rank_equals(4) && has_static_dims({heads_axis, head_dim_axis});
+    const auto p_query = any_input(activation_shape && type_matches_any({element::f32, element::f16, element::bf16}));
+    const auto p_key = any_input(activation_shape);
+    const auto p_value = any_input(activation_shape);
     const auto p_key_read = wrap_type<ov::op::util::ReadValueBase>();
     const auto p_value_read = wrap_type<ov::op::util::ReadValueBase>();
     const auto read_state = [](const std::shared_ptr<Node>& p_read) {
