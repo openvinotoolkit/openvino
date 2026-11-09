@@ -8,6 +8,31 @@ namespace {
 using ov::test::TopK11LayerTest;
 using ov::test::TopKLayerTest;
 
+class TopKIndicesOnlyBF16GPUTest : public ov::test::SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::bf16, ov::Shape{1, 4, 2, 2});
+        const auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        const auto topk = std::make_shared<ov::op::v1::TopK>(input,
+                                                             k,
+                                                             1,
+                                                             ov::op::v1::TopK::Mode::MAX,
+                                                             ov::op::v1::TopK::SortType::SORT_VALUES,
+                                                             ov::element::i64);
+        const auto indices = std::make_shared<ov::op::v0::Result>(topk->output(1));
+
+        function = std::make_shared<ov::Model>(ov::ResultVector{indices},
+                                               ov::ParameterVector{input},
+                                               "TopKIndicesOnlyBF16");
+    }
+};
+
+TEST_F(TopKIndicesOnlyBF16GPUTest, smoke_IndicesOutputUsesF32Fallback) {
+    run();
+}
+
 std::vector<ov::Shape> shapes = {{10, 10, 10}};
 
 const std::vector<ov::element::Type> netPrecisions = {

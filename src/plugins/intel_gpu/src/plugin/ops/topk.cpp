@@ -9,6 +9,7 @@
 
 #include "intel_gpu/primitives/arg_max_min.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
 namespace ov::intel_gpu {
@@ -23,6 +24,21 @@ static void TopKImpl(ProgramBuilder& p,
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
+    const bool use_bf16_f32_fallback = op->get_input_element_type(0) == ov::element::bf16 &&
+                                       op->output(0).get_target_inputs().empty();
+    auto values_output_type = op->get_output_element_type(0);
+
+    if (use_bf16_f32_fallback) {
+        const auto input_rank = op->get_input_partial_shape(0).rank().get_length();
+        const auto reorder_name = layerName + "_bf16_to_f32";
+        auto reorder_prim = cldnn::reorder(reorder_name,
+                                           inputs[0],
+                                           cldnn::format::get_default_format(input_rank),
+                                           cldnn::data_types::f32);
+        p.add_primitive(*op, reorder_prim);
+        inputs[0] = cldnn::input_info(reorder_name);
+        values_output_type = ov::element::f32;
+    }
 
     if (p.use_new_shape_infer()) {
         size_t num_outputs = op->get_output_size();
@@ -37,9 +53,11 @@ static void TopKImpl(ProgramBuilder& p,
                                             stype,
                                             true,
                                             stable,
-                                            cldnn::element_type_to_data_type(op->get_output_element_type(0)),
+                                            cldnn::element_type_to_data_type(values_output_type),
                                             num_outputs);
         argmaxPrim.output_data_types = get_output_data_types(op);
+        if (use_bf16_f32_fallback)
+            argmaxPrim.output_data_types[0] = cldnn::data_types::f32;
         p.add_primitive(*op, argmaxPrim);
     } else {
         if (op->get_output_size() == 2) {
@@ -70,7 +88,7 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+                                                 cldnn::element_type_to_data_type(values_output_type));
 
             p.add_primitive(*op, argmaxPrim);
 
@@ -88,7 +106,7 @@ static void TopKImpl(ProgramBuilder& p,
                                                  stype,
                                                  true,
                                                  stable,
-                                                 cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+                                                 cldnn::element_type_to_data_type(values_output_type));
 
             p.add_primitive(*op, argmaxPrim);
         } else {
