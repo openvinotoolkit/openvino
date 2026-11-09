@@ -16,6 +16,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -23,6 +24,19 @@
 #include "ov_ops/rms.hpp"
 
 namespace {
+
+// Every StatelessKV reads the sequence length on the host in shape inference. Computed on the GPU, it sits in device
+// memory and each read is a blocking copy that drains the queue, twice per layer. Marking the scalar chain from the
+// seqlens input as a shape_of subgraph root runs it on the CPU, so the reads use host memory.
+void mark_seqlens_for_host(const ov::Output<ov::Node>& seqlens_1d) {
+    for (auto node = seqlens_1d.get_node_shared_ptr(); node->get_input_size() > 0 && !ov::is_type<ov::op::v0::Parameter>(node);
+         node = node->get_input_node_shared_ptr(0)) {
+        const auto& shape = node->get_output_partial_shape(0);
+        if (shape.is_dynamic() || ov::shape_size(shape.to_shape()) > 16)
+            break;
+        node->get_rt_info()["gpu_shape_of_subgraph_root"] = true;
+    }
+}
 
 bool is_supported_compressed_kv_type(const ov::element::Type& type) {
     return type == ov::element::i8 || type == ov::element::u8 || type == ov::element::i4 || type == ov::element::u4;
@@ -141,6 +155,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     static const std::vector<int64_t> transpose_v_order{0, 1, 3, 2};
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
+    mark_seqlens_for_host(seqlens_1d);
 
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;

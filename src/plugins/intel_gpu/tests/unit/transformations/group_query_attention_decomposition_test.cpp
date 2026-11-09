@@ -343,6 +343,30 @@ TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {
     expect_stateless_kv_cache_connections(cfg);
 }
 
+TEST(GQADecompositionTest, seq_len_chain_is_shape_of_subgraph_root) {
+    GQAConfig cfg;
+    const auto model = decompose_gqa_model(cfg);
+    const auto seqlens_k = model->get_parameters()[5];
+
+    size_t stateless_kv_count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node);
+        if (!stateless_kv)
+            continue;
+        ++stateless_kv_count;
+        // The sequence length is read on the host, so the scalar chain from seqlens_k must run on the CPU.
+        auto chain_node = stateless_kv->get_input_node_shared_ptr(2);
+        size_t marked = 0;
+        for (; !ov::is_type<ov::op::v0::Parameter>(chain_node); chain_node = chain_node->get_input_node_shared_ptr(0)) {
+            EXPECT_EQ(chain_node->get_rt_info().count("gpu_shape_of_subgraph_root"), 1u) << chain_node->get_friendly_name();
+            ++marked;
+        }
+        EXPECT_EQ(chain_node, seqlens_k);
+        EXPECT_GT(marked, 0u);
+    }
+    EXPECT_EQ(stateless_kv_count, 2u);
+}
+
 TEST(GQADecompositionTest, transpose_v_fused) {
     GQAConfig cfg;
     cfg.transpose_v = true;
