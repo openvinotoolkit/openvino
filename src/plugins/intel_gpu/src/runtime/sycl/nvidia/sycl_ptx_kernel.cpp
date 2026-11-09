@@ -48,22 +48,26 @@ constexpr unsigned int CUDA_MAX_GRID_YZ = 65535;
 // The %envreg placeholders the NVIDIA compatibility prelude reads instead of the special registers that depend on the
 // work-group layout, and the register each block layout replaces them with. Entry i stands for
 // %envreg(first_layout_envreg + i); keep the table in sync with "Work-group layout on CUDA" in compat_common.cl.
-constexpr unsigned int first_layout_envreg = 23;
-constexpr size_t layout_envreg_count = 9;
+constexpr unsigned int first_layout_envreg = 27;
+constexpr size_t layout_envreg_count = 5;
 constexpr const char* layout_envreg_targets[3][layout_envreg_count] = {
-    // hardware tid.y, tid.z, ntid.y, ntid.z | local id 1, local id 2, local size 1, local size 2 | fold divisor
-    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%ntid.y"},  // plain
-    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%tid.z", "%tid.y", "%ntid.z", "%ntid.y", "%ntid.y"},  // exchanged
-    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%tid.y", "%tid.z", "%ntid.z", "%ntid.y", "%ntid.z"},  // folded
+    // local id 1, local id 2, local size 1, local size 2 | fold divisor
+    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%ntid.y"},  // plain
+    {"%tid.z", "%tid.y", "%ntid.z", "%ntid.y", "%ntid.y"},  // exchanged
+    {"%tid.y", "%tid.z", "%ntid.z", "%ntid.y", "%ntid.z"},  // folded
 };
 
-// Whether the PTX reads %tid.y/z or %ntid.y/z itself. The prelude reads them only through the placeholders, so such a
-// read comes from an OpenCL built-in the prelude does not replace, or from PTX built without the prelude (the clang
-// path, or a binary cached before the placeholders), and gives the hardware axis, which is the wrong one once the
-// block layout moves dimensions 1 and 2.
-bool reads_yz_registers_directly(const std::string& ptx) {
-    for (const char* reg : {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z"}) {
-        if (ptx.find(reg) != std::string::npos)
+// Whether the PTX was built with the NVIDIA compatibility prelude, whose work-item helpers the block layouts other
+// than the plain one rely on: the OpenCL built-ins they replace read the hardware axes, which are the wrong ones once
+// dimensions 1 and 2 move. The prelude's fold divisor placeholder marks it. PTX built without the prelude (the clang
+// path, or a binary cached before the placeholders) lacks it, and so does a kernel that never asks for an id or size
+// of dimension 1 or 2, which is refused a fold it would not need to notice.
+bool has_layout_placeholders(const std::string& ptx) {
+    static const std::string divisor =
+        "%envreg" + std::to_string(first_layout_envreg + layout_envreg_count - 1);
+    for (size_t pos = ptx.find(divisor); pos != std::string::npos; pos = ptx.find(divisor, pos + 1)) {
+        const size_t end = pos + divisor.size();
+        if (end == ptx.size() || !std::isdigit(static_cast<unsigned char>(ptx[end])))
             return true;
     }
     return false;
@@ -289,7 +293,7 @@ std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_modu
 
 }  // anonymous namespace
 
-ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)), _can_fold_block(!reads_yz_registers_directly(_ptx)) {
+ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)), _can_fold_block(has_layout_placeholders(_ptx)) {
     // A parameter list holds no ')', so it ends at the first one after '.entry name('; parameters are separated by
     // ',', which neither a declaration nor the comment patch_ptx_local leaves contains.
     static const std::regex entry_re(R"(\.entry\s+([\w.$]+)\s*\(([^)]*)\))");
@@ -417,8 +421,8 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _state->kernel_name, "' cannot be launched with work-group (",
                        block_extent[0], ", ", block_extent[1], ", ", block_extent[2],
                        "): more than 64 work-items along dimension 2 need dimensions 1 and 2 folded on the CUDA axes, "
-                       "but its PTX reads %tid.y/z or %ntid.y/z directly, through an OpenCL built-in that the "
-                       "NVIDIA compatibility prelude (compat_common.cl) does not replace");
+                       "but its PTX was built without the work-item helpers of the NVIDIA compatibility prelude "
+                       "(compat_common.cl) that the folding relies on");
     }
     // The per-axis checks come first, so that the product cannot overflow.
     const bool fits = block_axes[0] <= CUDA_MAX_BLOCK_XY && block_axes[1] <= CUDA_MAX_BLOCK_XY &&
