@@ -151,6 +151,8 @@ def _define_loader():
         def _weights(self, model, model_config):
             params = dict(model.named_parameters())
             out_dtype = model_config.dtype
+            quant_config = getattr(model_config.hf_config, "quantization_config", None) or {}
+            bits = quant_config.get("bits", 4)
             with self._checkpoint(model_config.model) as (keys, get_tensor):
                 for name in sorted(keys):
                     if name.startswith("__nncf_hooks."):
@@ -168,16 +170,15 @@ def _define_loader():
                     zp = get_tensor(zp_key) if zp_key in keys else None
                     module = name.removesuffix(".weight")
 
-                    if scale.dim() == 3 and self._target_is_quantized(
-                            model, params, module):
-                        # Already row-major over (out, in/2), so the reshapes are free.
-                        out_features, groups = scale.shape[:2]
+                    if self._target_is_quantized(model, params, module):
+                        # Already row-major over (out, in) or (out, in/2), so the reshapes are free.
+                        out_features = scale.shape[0]
                         yield f"{module}.qweight", stored.reshape(out_features, -1)
-                        yield f"{module}.scale", scale.reshape(out_features, groups)
+                        yield f"{module}.scale", scale.reshape(out_features, -1)
                         if zp is not None:
-                            # Unpacked, so it concatenates like `scale`.
-                            yield (f"{module}.zero_point",
-                                   _unpack_uint4(zp).reshape(out_features, groups))
+                            # int4 zero points are packed; unpacked, they concatenate like `scale`.
+                            zp = _unpack_uint4(zp) if bits == 4 else zp
+                            yield f"{module}.zero_point", zp.reshape(out_features, -1)
                     else:
                         yield name, _dequantize(stored, scale, zp, out_dtype)
                 yield from self._kv_shared_zeros(model, params, keys, out_dtype)

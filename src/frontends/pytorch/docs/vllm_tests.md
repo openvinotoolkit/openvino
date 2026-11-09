@@ -39,6 +39,7 @@ OV_LAZY_KVCACHE=1 python -m pytest tests/vllm_tests -m precommit -v
 | `test_pa_partitioning.py` | Unit | Attention calls always land in an OV partition; KV-sharing pairs stay together |
 | `test_pa_input_binding.py`, `test_fast_infer.py` | Unit | Side-channel and fast-infer input binding |
 | `test_fused_sampler.py` | Unit | The OV-fused sampler |
+| `test_nncf_loader.py` | Unit | `load_format="nncf_hooks"` for int4 and int8, sym and asym |
 | `test_omp_wait_policy.py`, `test_bench_run.py` | Unit | Worker OpenMP environment; benchmark script arguments and timing |
 
 New tests that should run in CI need the `precommit` marker. Prefer unit tests on hand-built FX graphs or
