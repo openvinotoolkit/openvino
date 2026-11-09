@@ -152,8 +152,7 @@ the runner scale set. Dedicated GPU runners need the file at
 `/opt/home/actions_runner/actions-runner/secrets/huggingface/token-tertiary`
 on the host. If the file is missing, Hugging Face downloads run unauthenticated.
 
-Steps marked `(HuggingFace model download)` may contact the Hugging Face Hub;
-the label does not prove that model files were transferred. The proxy covers
+Steps marked `(HuggingFace model download)` may contact the Hugging Face Hub - the label does not prove that model files were transferred. The proxy covers
 Hugging Face Hub clients only, not other model hosts such as Kaggle or
 torchvision. All participating runners, including dedicated GPU runners, must be
 able to reach the cluster-local proxy endpoint.
