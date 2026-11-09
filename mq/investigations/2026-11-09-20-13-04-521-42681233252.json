@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-09-20-13-04-521-42681233252",
+  "timestamp": "2026-11-09T20:13:04Z",
+  "run_id": "42681233252",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42681233252",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39034",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39034",
+  "author": "Akihiro-Tabuchi",
+  "category": "Configuration",
+  "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: C compiler check broken because sccache server fails to start (Azure blob InvalidUri on .sccache_check)"
+    },
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "2 of 4 Qwen2-0.5B-Instruct accuracy_conformance tests fail with huggingface_hub 429 Too Many Requests (rate limited, unrelated transient issue, already superseded by attempt 2 in_progress)"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status gate job fails (exit 1) because required jobs above failed"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at /usr/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:67 (message): The C compiler \"/usr/bin/cc\" is not able to compile a simple test program.",
+    "sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server. RequestId:04e3aa10-301e-00a1-3886-702b4d000000 Time:2026-11-09T20:10:21.6223781Z\" }",
+    "uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_24_04_x86_64_Release_cpp20/.sccache_check",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The non-blocking C++20 build job sets CMAKE_C_COMPILER_LAUNCHER/CMAKE_CXX_COMPILER_LAUNCHER to sccache with SCCACHE_AZURE_CONNECTION_STRING configured for the ghasccacheblobs storage account. The resulting blob URI constructed by sccache contains a double slash (\"...blob.core.windows.net//sccache/...\"), which Azure Blob Storage rejects with HTTP 400 InvalidUri. This causes the very first sccache-wrapped compiler invocation (CMakeTestCCompiler's try-compile) to fail, so CMake reports the C compiler as broken and configuration aborts before any real compilation happens. This is the third occurrence of the exact same signature (runs 42198977524 and 42234699742 on 2026-11-06), confirming a persistent, deterministic misconfiguration of the sccache Azure connection string/prefix (likely a trailing slash or empty path segment in SCCACHE_AZURE_KEY_PREFIX or the connection string's BlobEndpoint) rather than a one-off outage.",
+  "reproduction_steps": "N/A directly (requires the CI runner's SCCACHE_AZURE_CONNECTION_STRING secret and ghasccacheblobs storage account). To reproduce locally: set SCCACHE_AZURE_CONNECTION_STRING to a value whose BlobEndpoint ends with a trailing slash (or whose SCCACHE_AZURE_KEY_PREFIX produces an empty path segment), run `sccache --start-server`, then invoke `sccache cc -c test.c -o test.o`; observe the same AzblobError InvalidUri on the resulting double-slash URI.",
+  "recommended_actions": [
+    "Inspect the sccache Azure connection string / BlobEndpoint used by the 'ubuntu_24.yml' -> non-blocking C++20 build job for a trailing slash before the container path, and strip it (this is the same root cause already flagged for pattern 08b993dbdc18ccac on runs 42198977524/42234699742).",
+    "Add a CI-side sanity check that fails fast with a clear message if the sccache server cannot start, instead of surfacing it as an opaque 'C compiler is not able to compile a simple test program' CMake error.",
+    "Verify SCCACHE_AZURE_KEY_PREFIX ('ubuntu_24_04_x86_64_Release_cpp20') concatenation with the connection string's container/path does not introduce a double slash.",
+    "Since this build job is already 'non-blocking', confirm the merge-queue gate correctly treats it as non-blocking so a transient/config sccache failure here does not gate the merge (current run's overall-status job still failed; verify this is intentional for a required job elsewhere, not this one)."
+  ],
+  "prevention_strategies": "Add a smoke-test step (or pre-flight CI check) that calls `sccache --start-server` and verifies connectivity to the Azure blob cache before the full CMake configure runs, failing with a specific, actionable message referencing the exact storage URI rather than letting it masquerade as a C-compiler failure three layers down. Pin/validate the SCCACHE_AZURE_CONNECTION_STRING and SCCACHE_AZURE_KEY_PREFIX format in the workflow's reusable job definition (job_build_linux_cpp20.yml) with a regex check for trailing slashes.",
+  "historical_context": "Identical signature (08b993dbdc18ccac) previously recorded twice: 2026-11-06T11:53:20Z (run 42198977524, PR #39101) and 2026-11-06T16:06:09Z (run 42234699742, PR #39101). This is the 3rd occurrence overall but the first in the last 12 hours relative to this run, so no notify_teams_recurring escalation is triggered this time."
+}
