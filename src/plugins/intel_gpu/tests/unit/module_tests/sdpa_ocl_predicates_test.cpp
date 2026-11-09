@@ -77,14 +77,16 @@ TEST(SdpaOclPredicates, SelectedTruthTable) {
 }
 
 TEST(SdpaOclPredicates, DecodeReaderAvailableTruthTable) {
+    using sw = pa::decode_switch;
     for (auto a : kArchs) {
         for (bool immad : kBools) {
-            for (bool dec : kBools) {
+            for (sw dec : {sw::unset, sw::on, sw::off}) {
                 for (bool hpg : kBools) {
-                    SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " decode=" << dec
-                                                    << " hpg=" << hpg);
-                    // Xe2+ (SG16), and xe_hpg on its opt-in lane (SG8); no oneDNN term.
-                    const bool want = dec && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg));
+                    SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad
+                                                    << " decode=" << static_cast<int>(dec) << " hpg=" << hpg);
+                    // Xe2+ (SG16) unless switched off, and xe_hpg on its opt-in lane (SG8) only when asked for; no oneDNN
+                    // term.
+                    const bool want = dec != sw::off && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg && dec == sw::on));
                     EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(make_info(a, immad), dec, hpg), want);
                 }
             }
@@ -101,7 +103,7 @@ TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
             EXPECT_EQ(pa::sdpa_ocl_arch_ok(info), pa::sdpa_ocl_arch_ok(info, pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::sdpa_ocl_selected(info), pa::sdpa_ocl_selected(info, pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(info),
-                      pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_enabled(), pa::sdpa_ocl_hpg_enabled()));
+                      pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_switch(), pa::sdpa_ocl_hpg_enabled()));
         }
     }
 }

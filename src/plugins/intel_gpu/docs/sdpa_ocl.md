@@ -34,7 +34,8 @@ re-derive the kernel from the device or the environment.
 
 `TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so GENERATE falls back to the
 `paged_attention_opt` single-token kernels. The K page layout does not follow it: since 2026-11-06 those kernels read
-the token-major page of every kind ("Paged-attention cache layouts").
+the token-major page of every kind ("Paged-attention cache layouts"). On xe_hpg those kernels serve GENERATE by default
+on the HPG lane too; `TEST_USE_SDPA_OCL_DECODE=1` asks for the SG8 reader there ("xe_hpg reader (SG8)").
 `SDPAOclGenerator::supported()` requires Xe2 or later (xe_hpg only during the bring-up, below) and
 f16/bf16 Q and output. Plain SDPA
 additionally requires equal K and V head sizes (`SDPAOpt::dpas_sdpa_op_supported()`), paged
@@ -2038,7 +2039,23 @@ partition edges, window, sink, runtime scale, dynamic padding, compressed head 5
 softmax). `SDPA_OCL_NEG_SG8=30..35` break it on purpose and fail 28 / 36 / 22 / 3 / 5 / 5 of the 55 cases. The
 compressed tolerances (25e-3 for i8, 75e-3 for u4) hide some of them: 32 fails f16 cases and, of the compressed ones,
 only the two sharp head-512 cases, 33 only the sharp i8 BY_CHANNEL heads 64 / 128 / 512 (u4 reads its pairs with the
-same line), 34 the five sharp i8 BY_TOKEN cases. Its speed is not measured yet.
+same line), 34 the five sharp i8 BY_TOKEN cases.
+
+Since 2026-11-09 the reader serves GENERATE only with `TEST_USE_SDPA_OCL_DECODE=1`
+(`sdpa_ocl_decode_reader_available()`); by default xe_hpg runs GENERATE on the opt kernels (`pa_single_token` /
+`pa_gqa_single_token`, the kernels the remote branch runs on DG2), on the same token-major page. Measured on the A770
+(Windows driver 32.0.101.9175, llm_bench on the daily 4-bit models, so a u4 BY_CHANNEL cache; cliloader device time
+per call of the decode kernel plus its finalization, 32 new tokens; the same build with `TEST_USE_SDPA_OCL_DECODE=0`
+as the control) the reader took 2.46-7.00x the opt kernels' time at 1K keys (llama-3.2-1b 153.8 against 38.9 us,
+llama-3.1-8b 184.9 / 61.5, qwen3-8b 186.4 / 49.5, gemma-2-9b 341.0 / 51.9, gemma-4-e2b 388.5 / 55.5, gpt-oss-20b
+104.9 / 42.6), 2.14-5.13x at 4K, 1.99-6.44x at 16K and 2.79-4.20x at 32K; it does not catch up with the context. End to
+end that was 1.13-1.89x the second-token latency of the 2026.5 RC (daily prompts, 256 new tokens; gpt-oss-20b, whose
+token the MoE dominates, 0.96-0.98) and 1.24-1.55x the opt kernels' at a 4K prompt with 512 new tokens; on the opt
+kernels the lane's second token is the RC's (0.98-1.03).
+The cause was not analysed: at 1K keys a call is a few hundred threads of the A770's 4096 (4 partitions x 8 KV heads x
+the head groups, 8 subgroups each), so the reader would need another work split, not a tuning knob. The kit runs its
+suite (`smoke_paged_attention_decode_tm`, DEC_hpg) and NEG 30-35 with `TEST_USE_SDPA_OCL_DECODE=1`; without it the
+suite skips on xe_hpg as it does on the default lane.
 
 ## Debug and bisection switches
 
@@ -2046,7 +2063,7 @@ All are read on the host when the kernel is compiled.
 
 | Variable | Effect |
 |---|---|
-| `TEST_USE_SDPA_OCL_DECODE` | `0` selects the opt GENERATE path instead, on the same K page layout (until 2026-11-06 it also made the page d-major; `TEST_USE_SDPA_OCL`, which selected `sdpa_micro`, was retired with it; `OV_GPU_ENABLE_SDPA_MICRO=0` turns the DPAS kernel off) |
+| `TEST_USE_SDPA_OCL_DECODE` | `0` selects the opt GENERATE path instead, on the same K page layout (until 2026-11-06 it also made the page d-major; `TEST_USE_SDPA_OCL`, which selected `sdpa_micro`, was retired with it; `OV_GPU_ENABLE_SDPA_MICRO=0` turns the DPAS kernel off); `1` also lets the SG8 reader serve GENERATE on xe_hpg's lane (unset: Xe2+ only, since 2026-11-09) |
 | `SDPA_OCL_KQ_TILE_KEYS`, `_TILE_QUERIES`, `_PER_WG_KEYS`, `_PER_WG_QUERIES` | Override the KQ tiling (`kq_sg_tile_keys` must be 16 or 32) |
 | `SDPA_OCL_TRACE_CONFIG`, `SDPA_OCL_TRACE_STAGE` | Print the chosen tiling / PA stage |
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg; `SDPA_OCL_256GRF=0` turns it off for the PA PREFILL tiling) |
@@ -2563,8 +2580,12 @@ keys, so its time does not depend on the token count and grows with the context.
   `{7, 5}` row at each head size, and the compressed GQA rows with 4 new tokens; the fallback reads the new tokens back
   from the cache, so the u4 row's reference takes them from there too, `reference_new_from_cache`). With the GQA path off
   (`OV_GPU_PA_GQA_MULTI_TOKENS_MAX=0`) all 164 rows run `sdpa_ocl` and pass, as before, and with the fallback forced
-  (`OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=2`) every row in its window runs it and passes (the oracle reads both). Which
-  kernel is faster on DG2 was not measured: the thresholds are the B70's.
+  (`OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=2`) every row in its window runs it and passes (the oracle reads both). On the
+  A770 the fallback is the faster kernel for these steps: prompt lookup decoding (llm_bench `--max_ngram_size 3
+  --num_assistant_tokens 5`, 1K-token prompt, 256 new tokens, u4 cache, so every step a compressed MIXED of 6 tokens)
+  ran `paged_attention_opt__gqa_multi_tokens_fallback` at 75 us per call against 506 us for `sdpa_ocl_mixed` with
+  `OV_GPU_PA_GQA_MULTI_TOKENS_MAX=0` (llama-3.1-8b), and the second token took 25.5 / 25.5 ms against 37.7 / 38.8 ms
+  (llama-3.1-8b / qwen3-8b, 2 rounds). The rule stays as it is on DG2.
 
 ### Token-major K pages only (2026-11-08)
 
@@ -2595,6 +2616,13 @@ off its lane, xe_hpc), non-f16 inference, and the pages the rule turned down on 
   "Incorrect block size" in `graph/paged_attention.cpp`, because `transformations_pipeline.cpp` sizes the comp region
   with the inference precision (u4 16, i8 24) while the graph expects the f16 comp (12, 20); f32 inference with an f16
   cache fails to build a kernel (`CL_BUILD_PROGRAM_FAILURE`).
+- Cost on DG2 (A770, 2026-11-09): GENERATE on `pa_gqa_single_token` with a u4 cache, the plugin of the last commit
+  with the switch (ce42728943) on the token-major page against `OV_GPU_PA_K_TOKEN_MAJOR=0` (cliloader device time per
+  call, llm_bench, 32 new tokens): 0.79 / 0.80 / 0.91 at 4K keys (llama-3.1-8b, qwen3-8b, llama-3.2-1b), 1.19 / 1.22 /
+  1.04 at 16K and 1.20 / 1.19 / 1.02 at 32K (llama-3.1-8b 314.0 against 261.3 us). The token-major arm of that build
+  matches this one within 0.5% and its d-major arm the default lane and the 2026.5 RC within 1%, so the long-context
+  loss of the 8B models (32 / 8 heads, head 128) is the page, not the rest of the branch. Open (P11): the B70 measured
+  the token-major u4 read faster at 16K (-16%), DG2 slower from somewhere between 4K and 16K.
 - Not checked: devices without XMX and xe_hpc (no such device on the test PC), Xe2 (the B70, owed), EAGLE3 / R-KV /
   `pa_small_q_opt.cl` with a non-f16 comp. The remote branch keeps the rule and the d-major page, so the two diverge
   until the same lands there.
@@ -2669,6 +2697,18 @@ What the xe_hpg integration leaves open. Nothing here falls back to `sdpa_micro`
 is not shared (the harness numbers are from the 2026-10 study on an A770, driver 26.35). Every speed against `sdpa_micro`
 below was measured before this branch removed it (real models on the same A770, 2026-10-30 to 11-04); the xe_hpg port
 re-measures against the opt kernels.
+
+- Against the 2026.5 RC (pip, the remote's kernels on DG2: `sdpa_micro` PREFILL / MIXED, the opt GENERATE kernels),
+  A770, Windows driver 32.0.101.9175, 2026-11-09, llm_bench on the daily 4-bit models (u4 BY_CHANNEL cache), the HPG
+  lane with GENERATE on the opt kernels:
+  - PREFILL kernel, 1K tokens, device time per call: 0.96 (head 64, llama-3.2-1b), 0.98 (gpt-oss-20b), 1.04-1.15 at
+    heads 96 / 128 / 256 (llama-3.1-8b 485 against 422 us), 0.82 on gemma-4-e2b (heads 256 / 512), 1.12 on qwen3-vl-4b's
+    4.9K-token video prompt; first token 0.96-1.03 at 1K. 32-token prompts take 1.09-1.21x the first-token latency on
+    the small models (llama-3.2-1b 13.7 against 11.3 ms, phi-3.5-mini, phi-4-mini, gemma-3-4b), not analysed.
+  - MIXED of 256-token chunks (a 4K prompt, `max_num_batched_tokens` 256): `sdpa_ocl_mixed` 1.26-1.40x
+    `sdpa_micro__generate` per call (llama-3.1-8b 1142 against 904 us, qwen3-8b 1158 / 882, llama-3.2-1b 699 / 500),
+    first token 1.09-1.16x.
+  - Image generation (flux.1-schnell, its 32-token prompt, plain SDPA): 0.94x.
 
 - PA PREFILL prompts up to about 2K tokens are slower than `sdpa_micro` with the 256-key x 32-query tile: 65 and 128
   tokens about 1.2x, 384-768 tokens 1.03-1.16x with gaps between calls, 2048 tokens 1.03x. Two study kernels cover parts
