@@ -73,7 +73,7 @@ endif()
 #
 
 if(ENABLE_OV_ZERO_LOADER)
-    add_subdirectory(thirdparty/level_zero)
+    add_subdirectory(thirdparty/level_zero EXCLUDE_FROM_ALL)
 endif()
 
 #
