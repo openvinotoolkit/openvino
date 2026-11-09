@@ -41,7 +41,6 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -49,6 +48,10 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
+
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+#    include "transformations/mlir/interface/gpu_runtime.hpp"
+#endif
 
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
@@ -205,7 +208,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
     // This is a temporary solution. A common way of handling weightless caching will be defined later.
     if (config_copy.get_enable_weightless()) {
-        const auto weight_path = ov::util::make_path(config.get_weights_path());
+        const auto weight_path = ov::util::make_path(config_copy.get_weights_path());
 
         if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model)) {
             set_weightless_cache_attributes(cloned_model);
@@ -264,6 +267,9 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
 }
 
 Plugin::Plugin() {
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+    ov::intel_gpu::mlir::register_mlir_gpu_runtime();
+#endif
     set_device_name("GPU");
     register_primitives();
 
@@ -477,6 +483,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
+    config.apply_weightless_options();
 
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
@@ -494,7 +501,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    if (ov::util::is_weightless_enabled(config.get_user_properties()).value_or(false)) {
+    if (config.get_enable_weightless()) {
         const auto& weights_path = ov::util::make_path(config.get_weights_path());
 
         if (weights_path.extension() != ".bin") {

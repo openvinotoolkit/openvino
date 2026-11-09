@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include "builder/api/metadata_store.hpp"
+#include "builder/gguf_graph.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -64,7 +66,10 @@ private:
 };
 
 // Small nonzero fixture shared by registration, structure, and stateful numerical tests.
-std::string write_decoder_gguf(const std::string& dir, const std::string& arch = "qwen3", uint32_t layers = 2) {
+std::string write_decoder_gguf(const std::string& dir,
+                               const std::string& arch = "qwen3",
+                               uint32_t layers = 2,
+                               bool layer_norm = false) {
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
@@ -74,7 +79,7 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
     writer.kv_u32(arch + ".attention.head_count_kv", 1);
     writer.kv_u32(arch + ".rope.dimension_count", 4);
     writer.kv_u32(arch + ".context_length", 32);
-    writer.kv_f32(arch + ".attention.layer_norm_rms_epsilon", 1e-5f);
+    writer.kv_f32(arch + (layer_norm ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"), 1e-5f);
     writer.kv_f32(arch + ".rope.scaling.factor", 4.f);
     writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
     writer.kv_u32(arch + ".attention.sliding_window", 2);
@@ -83,9 +88,13 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
     };
     weight("token_embd.weight", {8, 16});
     weight("output_norm.weight", {8}, true);
+    if (layer_norm)
+        weight("output_norm.bias", {8});
     for (uint32_t layer = 0; layer < layers; ++layer) {
         const auto prefix = "blk." + std::to_string(layer) + ".";
         weight(prefix + "attn_norm.weight", {8}, true);
+        if (layer_norm)
+            weight(prefix + "attn_norm.bias", {8});
         weight(prefix + "attn_q.weight", {8, 8});
         weight(prefix + "attn_k.weight", {8, 4});
         weight(prefix + "attn_v.weight", {8, 4});
@@ -93,6 +102,8 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
         weight(prefix + "attn_q_norm.weight", {4}, true);
         weight(prefix + "attn_k_norm.weight", {4}, true);
         weight(prefix + "ffn_norm.weight", {8}, true);
+        if (layer_norm)
+            weight(prefix + "ffn_norm.bias", {8});
         weight(prefix + "ffn_gate.weight", {8, 12});
         weight(prefix + "ffn_up.weight", {8, 12});
         weight(prefix + "ffn_down.weight", {12, 8});
@@ -574,6 +585,121 @@ TEST(GGUFArchitectureExtension, ConverterRegisteredAfterLoadInfersBuilderValues)
             for (size_t i = 0; i < 12; ++i) {
                 EXPECT_EQ(result[0].data<float>()[12 * t + i], data.data<float>()[4 * t + i % 4]);
             }
+        }
+    }
+}
+
+TEST(GGUFArchitectureExtension, TypedUnknownLayerNormFactoryControlsScalesAndLayerRope) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "custom-normalization", 2, true);
+    ASSERT_FALSE(path.empty());
+    const auto definition = make_decoder_architecture("custom-normalization", [](const BuildContext& context) {
+        DecoderParameters defaults;
+        defaults.normalization.kind = NormalizationKind::Layer;
+        auto parameters = read_decoder_parameters(context.metadata, defaults);
+        parameters.attention.rope_mode = RopeMode::Neox;
+        parameters.scales.embedding = 2.5f;
+        parameters.scales.residual = 0.375f;
+        parameters.scales.logits = 0.75f;
+        parameters.layers.resize(2);
+        parameters.layers[0].sliding_window = false;
+        parameters.layers[1].sliding_window = true;
+        auto local = parameters.attention.rope;
+        local.freq_base = 32000.f;
+        local.freq_scale = 0.5f;
+        parameters.layers[1].rope = local;
+        return parameters;
+    });
+    auto loaded = get_gguf_data(path);
+    auto& [metadata, weights, qtypes, mappings] = loaded;
+    detail::MetadataStore store{metadata};
+    detail::WeightStore tensors{weights, qtypes};
+    const BuildContext context{GgufMetadata(store), "custom-normalization", &tensors};
+    const auto graph = definition.factory(context)->build();
+    EXPECT_TRUE(graph->use_per_op_rope);
+    const auto op = [&](const std::string& name) -> const GgufOp& {
+        const auto found = std::find_if(graph->nodes.begin(), graph->nodes.end(), [&](const GgufOp& node) {
+            return node.name == name;
+        });
+        OPENVINO_ASSERT(found != graph->nodes.end(), "missing expected operation ", name);
+        return *found;
+    };
+    EXPECT_EQ(op("blk.0.attn_norm.norm").op_type, "GGML_OP_NORM");
+    EXPECT_FLOAT_EQ(op("embd_scaled").attributes.at("scale").as<float>(), 2.5f);
+    EXPECT_FLOAT_EQ(op("blk.0.attn_out_scaled").attributes.at("scale").as<float>(), 0.375f);
+    EXPECT_FLOAT_EQ(op("result_output_scaled").attributes.at("scale").as<float>(), 0.75f);
+    const auto extension = std::make_shared<ArchitectureExtension>(definition);
+    const auto converted = convert_with(path, {extension});
+    ASSERT_TRUE(converted);
+    EXPECT_EQ(converted->output(0).get_partial_shape().rank().get_length(), 4);
+}
+
+TEST(GGUFArchitectureExtension, TypedGatedDeltaNetFactoryScalesBothResidualBranches) {
+    using namespace ov::frontend::gguf;
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "custom-recurrent");
+    ASSERT_FALSE(path.empty());
+    auto loaded = get_gguf_data(path);
+    auto& [metadata, weights, qtypes, mappings] = loaded;
+    for (int layer = 0; layer < 2; ++layer) {
+        const auto prefix = "blk." + std::to_string(layer) + ".";
+        const std::map<std::string, ov::Shape> shapes{{"attn_qkv.weight", {12, 8}},
+                                                      {"attn_gate.weight", {4, 8}},
+                                                      {"ssm_alpha.weight", {1, 8}},
+                                                      {"ssm_beta.weight", {1, 8}},
+                                                      {"ssm_conv1d.weight", {12, 3}},
+                                                      {"ssm_a", {1}},
+                                                      {"ssm_dt.bias", {1}},
+                                                      {"ssm_norm.weight", {4}},
+                                                      {"ssm_out.weight", {8, 4}}};
+        for (const auto& [name, shape] : shapes) {
+            ov::Tensor weight(ov::element::f32, shape);
+            std::fill_n(weight.data<float>(), weight.get_size(), 0.1f);
+            weights[prefix + name] = weight;
+        }
+    }
+    detail::MetadataStore store{metadata};
+    detail::WeightStore tensors{weights, qtypes};
+    const BuildContext context{GgufMetadata(store), "custom-recurrent", &tensors};
+    for (float scale : {1.0f, 0.375f}) {
+        const auto definition = make_decoder_architecture("custom-recurrent", [scale](const BuildContext& context) {
+            auto parameters = read_decoder_parameters(context.metadata);
+            parameters.hybrid.kind = RecurrentKind::GatedDeltaNet;
+            parameters.hybrid.conv_kernel = 3;
+            parameters.hybrid.state_size = 4;
+            parameters.hybrid.group_count = 1;
+            parameters.hybrid.time_step_rank = 1;
+            parameters.hybrid.inner_size = 4;
+            parameters.hybrid.recurrent_layers = {1, 1};
+            parameters.scales.residual = scale;
+            return parameters;
+        });
+        const auto graph = definition.factory(context)->build();
+        const auto op = [&](const std::string& name) -> const GgufOp& {
+            const auto found = std::find_if(graph->nodes.begin(), graph->nodes.end(), [&](const GgufOp& node) {
+                return node.name == name;
+            });
+            OPENVINO_ASSERT(found != graph->nodes.end(), "missing expected operation ", name);
+            return *found;
+        };
+        for (int layer = 0; layer < 2; ++layer) {
+            const auto prefix = "blk." + std::to_string(layer) + ".";
+            const auto expected_attention = scale == 1.0f ? prefix + "linear_attn_out" : prefix + "attn_out_scaled";
+            const auto expected_ffn = scale == 1.0f ? prefix + "ffn_out" : prefix + "ffn_out_scaled";
+            if (scale != 1.0f) {
+                for (const auto& name : {"attn_out_scaled", "ffn_out_scaled"}) {
+                    EXPECT_EQ(op(prefix + name).op_type, "GGML_OP_SCALE");
+                    EXPECT_FLOAT_EQ(op(prefix + name).attributes.at("scale").as<float>(), scale);
+                }
+            }
+            if (layer == 0) {
+                EXPECT_EQ(op(prefix + "ffn_inp").input_names.front(), expected_attention);
+            } else {
+                EXPECT_EQ(op(prefix + "attn_out_g").input_names.front(), expected_attention);
+                EXPECT_EQ(op(prefix + "ffn_inp").input_names.front(), prefix + "attn_out_g");
+            }
+            EXPECT_EQ(op(prefix + "l_out").input_names, (std::vector<std::string>{expected_ffn, prefix + "ffn_inp"}));
         }
     }
 }

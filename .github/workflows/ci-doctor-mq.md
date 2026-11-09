@@ -36,6 +36,10 @@ on:
       - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
     types:
       - completed
+    # Merge-queue runs always execute on GitHub-created `gh-readonly-queue/<base>/pr-<N>-<sha>`
+    # branches in this repository, even for PRs from forks, so this covers every merge-queue failure.
+    branches:
+      - "gh-readonly-queue/**"
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
@@ -57,6 +61,7 @@ imports:
   - shared/agentic-workflows/notify-teams.md
   - shared/agentic-workflows/notify-teams-recurring.md
   - shared/agentic-workflows/remediate-transient-failure.md
+  - shared/agentic-workflows/propose-rerun-pattern.md
   # Shared CI Doctor prompt (inlined before this file's body, in this order).
   # Also wires tools.github, tools.repo-memory (memory/ci-doctor-mq) and the
   # investigations/patterns artifact upload.
@@ -100,7 +105,7 @@ The shared CI Doctor protocol above applies in full. The sections below extend i
 - escalates to Microsoft Teams when the same failure pattern recurs **3 or more times within a 12-hour window** (Phase 5.5 / `notify_teams_recurring`),
 - posts a remediation comment on the pull request behind the failed merge-queue run (`add_comment`),
 - requests automated remediation of **transient** failures (`remediate_transient_failure`),
-- maintains the `rerun_search_string` hook consumed by the workflow re-runner.
+- computes a `rerun_search_string` candidate for transient failures and proposes it for **human review** (`propose_rerun_pattern`) — it never publishes rerunner search strings itself.
 
 ## Pre-Analysis Data — Pull Request Context
 
@@ -122,9 +127,9 @@ In both branches of the Step C pseudocode additionally set:
 record.rerun_search_string = RERUN_SEARCH_STRING   ← compute per Step C.1 below (recompute on every update)
 ~~~
 
-### Step C.1 — Compute and verify `RERUN_SEARCH_STRING` (the workflow_rerunner hook)
+### Step C.1 — Compute and verify the `RERUN_SEARCH_STRING` candidate
 
-This field feeds the automated rerunner (`.github/scripts/workflow_rerun`), which greps the failed run's logs for this string and, on a match, re-runs the failed jobs — exactly like the static entries in `.github/scripts/workflow_rerun/errors_to_look_for.json`. A rerun only helps for **transient** failures, and a string that never matches is useless:
+This field is a **candidate only**. The automated rerunner (`.github/scripts/workflow_rerun`) does **not** read it from `mq/patterns/`; it only reads `.github/scripts/workflow_rerun/errors_to_look_for.json` on `master`, which changes exclusively through reviewed pull requests. Once approved, the rerunner greps every failed monitored run's logs for the string and re-runs the failed jobs on a match — so an over-generic string would restart almost every failing pipeline. A rerun only helps for **transient** failures, and a string that never matches is useless:
 
 - IF `category` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service` (i.e. a deterministic `Code Issue`/`Dependencies`/`Configuration` failure a restart cannot fix): set `RERUN_SEARCH_STRING = null`. A search string here would make the rerunner loop on an unfixable failure.
 - ELSE: set `RERUN_SEARCH_STRING` to a **short, stable substring taken verbatim from a single raw log line** that uniquely identifies this failure (e.g., `Could not resolve host`, `Connection reset by peer`, `runner has received a shutdown signal`). Strip everything volatile that changes between runs or across jobs: absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and embedded job/runner/OS/shard names.
@@ -132,26 +137,16 @@ This field feeds the automated rerunner (`.github/scripts/workflow_rerun`), whic
 
 **Verify a non-null value against the rerunner's exact matcher** ([`log_analyzer.py`](../scripts/workflow_rerun/log_analyzer.py)): it normalizes a string by replacing each run of non-alphanumeric chars (`[^A-Za-z0-9]+`) with one space, lower-casing, and stripping (so `Could not resolve host: github.com` → `could not resolve host github com`), then checks whether the normalized string is a plain substring of a **single** normalized log line (matches never span line breaks). Confirm the normalized `RERUN_SEARCH_STRING` is a substring of a normalized real log line from the pre-downloaded logs, is non-empty after normalization, and is specific enough to avoid matching benign lines (no bare `error`/`failed`/`warning`). If you cannot satisfy this, set `RERUN_SEARCH_STRING = null` rather than store an unverified guess.
 
+Additionally keep the candidate **specific**: at least 3 words and 15 characters after normalization; never a GitHub Actions step name, a `##[group]` header, a test-suite/job name, a hash/ID, or runner boilerplate shared by unrelated failures (e.g. `Process completed with exit code`, `The operation was canceled`, `No artifacts will be uploaded`). Keep it **general** across instances of the same failure class: never include a URL, a versioned file/package name, or a dependency name that only identifies one occurrence — prefer the stable tool message on a neighbouring line (e.g. for CMake download failures use `Each download failed!` rather than `downloading 'https://…/sentencepiece-0.2.1.tar.gz' failed`). Remember the **verbatim raw log line** you verified it against as `SAMPLE_LOG_LINE` — you need it for `propose_rerun_pattern`.
+
 ### Step E (addendum) — extra read-back checks
 
 - `rerun_search_string` is present and is either a non-empty string (only for the transient categories `Flaky Test`/`Infrastructure`/`Network`/`External Service`) or `null` (for every other category)
 - if `rerun_search_string` is non-null, it still satisfies the Step C.1 verification (normalized substring of a single actual failure-log line, non-empty after normalization); otherwise set it to `null`
 
-### Step 5 — Backfill Missing `rerun_search_string` Fields (MANDATORY sweep, every run)
+### No backfill of other pattern records
 
-Some pattern files were written before `rerun_search_string` existed and are missing the field entirely (as opposed to having it explicitly set to `null`). Every time you run Phase 5, after step 2 has written/updated the current failure's pattern file, sweep **all** other files in `/tmp/gh-aw/repo-memory/default/mq/patterns/` and backfill any that lack the key:
-
-- For each `<signature-hash>.json` file in the patterns directory (including ones untouched by this run):
-  1. Read and parse the file.
-  2. If the `rerun_search_string` key is **already present** (even if its value is `null`), skip it — do not touch a file that already conforms to the schema.
-  3. If the key is **missing**, derive it from the file's own `signature` field (`<normalized-error>|<category>`) using the same rules as Step C.1, without needing the original failure logs:
-     - Split `signature` on the last `|` to recover `<normalized-error>` and `<category>`.
-     - IF `<category>` is NOT one of `Flaky Test`, `Infrastructure`, `Network`, or `External Service`: set `rerun_search_string = null`.
-     - ELSE: set `rerun_search_string = <normalized-error>` verbatim (the signature's error component was already stripped of volatile tokens per Step A, so no further normalization is needed). Since the original raw logs are unlikely to still be available for a backfill, you do NOT need to re-verify it against a live log line as Step C.1 otherwise requires — only confirm it is non-empty and not just generic noise (e.g., not solely `error`, `failed`, or `warning`). If it fails that minimal check, set it to `null` instead of guessing.
-  4. Write the updated object back to the same file, changing only the `rerun_search_string` key — do not alter `count`, timestamps, `signature`, `signature_hash`, or any other field.
-  5. Validate the rewritten file against `pattern.schema.json` (see the validation procedure in the "Artefact schemas" block) and confirm `rerun_search_string` is now present as either a non-empty string or `null`.
-
-This step must never modify a file's `count`, `first_seen`, `last_seen`, or timestamp arrays — its only job is adding the missing key.
+Only the current failure's pattern record gets a `rerun_search_string`, computed and verified against real log lines per Step C.1. Do **not** derive or backfill `rerun_search_string` for other pattern files (e.g. from their `signature` field) — unverified, signature-derived strings were the main source of over-generic rerun patterns. Leave other records untouched.
 
 ## Phase 5.5 — Recurring Failure Escalation Check
 
@@ -189,12 +184,17 @@ ELSE:
 
 - When the failure is associated with a PR in the merge queue, post a remediation comment on that PR with the failed pipeline name/link, a short failure description, and a short possible remedy (see `add_comment` field guidance below)
 - When the investigation concludes the failure is **transient** (Infrastructure / Flaky Test / Network / External Service), request automated remediation by calling `remediate_transient_failure` (see its decision guidance below).
+- When the current pattern record has a verified, non-null `rerun_search_string` candidate, submit it for human review by calling `propose_rerun_pattern` (see its decision guidance below). This is the **only** way a new string can reach the workflow rerunner.
 
 ## Phase 7 — Additional String-Encoding Checklist
 
 For `notify_teams_recurring`:
 - `title`, `failed_workflow`, `pipeline_url`, `description`, `affected_prs`, `recent_run_urls` — non-empty strings
 - `recent_count` — string-encoded positive integer, e.g. `"3"` (NOT `3`)
+
+For `propose_rerun_pattern`:
+- `signature_hash`, `rerun_search_string`, `category`, `title`, `sample_log_line`, `pipeline_url`, `reason` — non-empty strings
+- `rerun_search_string` and `sample_log_line` copied exactly (no paraphrasing) from the pattern record / verified log line
 
 ## Output Requirements — Merge-Queue Additions
 
@@ -209,6 +209,7 @@ For `notify_teams_recurring`:
 
 - If you called `remediate_transient_failure`: `✅ Remediation requested` followed by the one-line `reason` you passed. Note that the job itself decides at run time whether to re-run the failed jobs (PR still in the queue) or re-add the PR to the merge queue (PR dropped) — you do not choose or report which.
 - Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that neither a restart nor a re-queue can fix).
+- Then one line `Rerun pattern:` with either `📝 Proposed for review` followed by the candidate in backticks (when you called `propose_rerun_pattern`), or `— not proposed` followed by a short reason (non-transient, no verified candidate, already approved).
 ```
 
 Additionally, if Phase 5.5 determines the same failure has occurred 3 or more times in the last 12 hours, call the `notify_teams_recurring` safe-output tool exactly once with the escalation details.
@@ -286,6 +287,25 @@ This tool is independent of the notifications: still call `notify_teams` (and `a
 
 Whenever you decide about remediation (whether or not you trigger it), you MUST record the outcome in both the Teams message (the `### Automatic Remediation` section of `notify_teams.description`) and, when a PR comment is posted, the `**Automatic remediation**` line of the `add_comment` body. Keep both consistent with the actual `remediate_transient_failure` call.
 
+### `propose_rerun_pattern` decision guidance
+
+The workflow rerunner re-runs **every** failed monitored pipeline whose log contains an approved search string, so new strings must be reviewed by a human before they take effect. `propose_rerun_pattern` submits your Step C.1 candidate for that review: the job re-validates it and opens a pull request against `master` appending the string to `.github/scripts/workflow_rerun/errors_to_look_for.json`. Nothing changes for the rerunner until a maintainer merges that PR.
+
+Call it **at most once** per investigation, and only when **all** of the following hold:
+- the category is transient (`Flaky Test`, `Infrastructure`, `Network`, `External Service`);
+- the current pattern record's `rerun_search_string` is non-null and passed the Step C.1 verification in **this** run (never propose a string you did not verify against the pre-downloaded logs);
+- the normalized candidate is not already covered by `${GITHUB_WORKSPACE}/.github/scripts/workflow_rerun/errors_to_look_for.json` (read-only check using the Step C.1 normalization; a match in either direction means it is already covered).
+
+Provide:
+- **`signature_hash`** — the current pattern's `<signature-hash>`.
+- **`rerun_search_string`** — exactly the value stored in the pattern record.
+- **`category`** / **`title`** — the pattern's category and `notify_teams.title`.
+- **`sample_log_line`** — the verbatim raw log line (`SAMPLE_LOG_LINE`) the candidate was verified against.
+- **`pipeline_url`** — URL of the analysed failed run.
+- **`reason`** — one line on why a plain rerun fixes this failure.
+
+The job may still skip the proposal (too generic, duplicate, previously rejected); that is expected and not an error. `propose_rerun_pattern` is independent of `remediate_transient_failure`: the current run is remediated (or not) regardless of the proposal.
+
 ## Mandatory Output Requirement — Merge-Queue Safe Outputs
 
 In addition to `notify_teams`, `noop` and `missing_data` from the shared protocol, this workflow may call (all numeric-looking fields, including `recent_count`, as JSON strings):
@@ -293,11 +313,13 @@ In addition to `notify_teams`, `noop` and `missing_data` from the shared protoco
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
 - **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
 - **`remediate_transient_failure`**: Remediate a transient merge-queue failure. Call this **only** when the failure is transient (Infrastructure / Flaky Test / Network / External Service). The job resolves the PR's live merge-queue status and decides whether to re-run the failed jobs or re-add the PR to the queue — you do not choose. Call at most once per run.
+- **`propose_rerun_pattern`**: Open a human-review PR against `master` that would add the verified rerun search string candidate to `.github/scripts/workflow_rerun/errors_to_look_for.json`. Call this **only** under the conditions in its decision guidance above. Call at most once per run.
 
 **Valid call combinations:**
 - `notify_teams` alone — standard investigation with no identifiable PR, fewer than 3 occurrences in the last 12 hours.
 - `notify_teams` + `add_comment` — standard investigation where the failure is tied to a PR in the merge queue.
 - `notify_teams` + `notify_teams_recurring` (+ `add_comment` when a PR is identified) — standard investigation AND 3+ occurrences in the last 12 hours.
 - Any of the `notify_teams` combinations above **+ `remediate_transient_failure`** — a transient failure; the job decides at run time whether to re-run the failed jobs or re-add the PR to the merge queue.
+- Any of the transient combinations above **+ `propose_rerun_pattern`** — additionally, a verified rerun search string candidate that is not yet approved is submitted for human review.
 - `noop` alone — no investigation needed.
 - `missing_data` alone — investigation blocked by missing data.

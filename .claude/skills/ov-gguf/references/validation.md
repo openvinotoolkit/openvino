@@ -17,6 +17,11 @@ an unimplemented contract remains outstanding work, not an implicit scope reduct
 Test layout-sensitive recurrent paths with batching early, alongside single-sequence numerics.
 Include multiple heads/tokens and unequal Q/KV dimensions where applicable.
 
+Complete a coherent family stage before expanding implementation, preserving remaining
+contracts in the manifest. Exercise the actual consumer constructor and a small prefill/decode
+early, including draft/target pairing or media insertion when applicable. Test default settings
+and supported overrides; conversion and factory fixtures do not exercise consumer restrictions.
+
 ## Multimodal contracts
 
 Before connecting generation, record the pinned reference contract for each requested
@@ -46,6 +51,10 @@ incremental builds, multiple worktrees or dispatched CPU kernels.
 Use one reusable runner and task manifest, extending the existing harness where available.
 Update the manifest at milestones and input/environment changes; retain commands, completed
 checks, failure signatures and the next diagnostic so handoffs can resume without full logs.
+Diagnose the first differing boundary on identical inputs and record the predicted observation
+before each experiment. Reassess the boundary, reference and loaded runtime after repeated
+unchanged or inconclusive attempts before another sweep. Keep failed numerical results and
+assess generated-text quality with [WWB](wwb.md) separately when that evaluation is requested.
 Specify selected scenarios, per-case environments, expected test counts and allowed skips,
 existing numerical metrics/tolerances, timeouts and artifact paths. Keep runtime identity,
 completed cases and failed attempts in its reports; preserve the tests' acceptance gates
@@ -62,10 +71,11 @@ template and special-token policy. Compare prompt token IDs before blaming the
 encoder or decoder. Check matching explicit caches and the product default
 separately; user properties must override a model-specific default.
 
-Inspect tensor types rather than checkpoint names: Q4_0 files can also contain
-Q4_1, Q8_0 or K-quants. When the user accepts Q4_K_M loss pending a plugin fix,
-use Q4_0 fixtures for the requested gate and retain K-quant diagnostics. Do not
-assume every Q4_0 output matches or relax other parity gates.
+Inspect tensor types rather than checkpoint names: a nominal quantization can contain mixed
+weight types. Validate the requested original checkpoint; substituting another quantization
+creates a different fixture. When quantization-quality evaluation is requested, compare both
+backends with the same original-weight floating reference using [WWB](wwb.md). Retain the
+original numerical gates and failures.
 
 Use the pinned quantizer to create or exactly expand fixtures when needed,
 preserving hashes, conversion revision/options and tensor inventory.
@@ -87,6 +97,7 @@ unfiltered unit suite. Record precision, KV precision and activation quantizatio
 | Scenario | Zero-point setting | Acceptance |
 |---|---|---|
 | Unfiltered frontend unit suite | Unset `OV_GGUF_Q4_K_ZP_F16` | Default test expectations, required fixtures and op coverage |
+| Generated-text quality / WWB | Use and record the selected checkpoint environment | [Same-reference quality comparison](wwb.md); numerical and integration gates remain separate |
 | Strict quantized checkpoint comparison | `OV_GGUF_Q4_K_ZP_F16=1` | Original full-logit or feature parity gate |
 | Represented-F32 diagnostic | Explicit environment and tensor-type inventory | Arithmetic isolation; does not replace quantized parity |
 
@@ -111,15 +122,12 @@ history measure local decisions, not identical free-running sequences. Tiny or
 random fixtures can produce nonsense text while numerically agreeing. Keep
 parity, model quality and fidelity to unquantized weights as separate claims.
 
-GenAI-adapted Gemma4 image groups intentionally follow Optimum-intel's window behavior; see the
-[accepted parity gap](../../../../src/frontends/gguf/docs/mmproj.md#gemma4-image-window-parity-gap).
-Keep affected llama.cpp comparisons as diagnostics with their original gates; report
-SDPA/PA agreement and API compatibility separately. Do not attribute the semantic
-mismatch to quantization or turn it into a numerical-parity pass.
+Document intentional consumer/reference differences in the applicable frontend guide and
+retain affected comparisons with their original gates. Report SDPA/PA agreement and API
+compatibility separately; distinguish semantic mismatches from quantization differences.
 Exercise repeated media requests with prefix caching enabled and disabled; an isolated
-prefill pass cannot establish cache-reuse correctness. Keep default-cache failures
-separate from the [image prefix-cache gap](../../../../src/frontends/gguf/docs/mmproj.md#bidirectional-image-prefix-cache-gap)
-diagnostics.
+prefill does not establish cache-reuse correctness. Keep default-cache failures separate
+from results using explicitly disabled caches.
 
 For failures, follow [multimodal integration bisection](../../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection):
 template/token IDs, encoder tensors, insertion/positions, masks/windows, cache
@@ -146,6 +154,11 @@ Verify artifact provenance when a workflow consumes another repository's build;
 Inspect GTest XML, pytest counts/skips and acceptance reports downloaded with
 `gh run download <run-id> --dir <artifact-directory>`. Required coverage and
 numerical gates belong in the tests, rather than a second report runner.
+
+Before repeated local batches, check selected IDs/counts and required fixtures with the
+[coverage preflight](preflight.md#test-selection-and-required-fixtures). Retain post-run coverage
+checks too: an absent or suppressed required test remains missing coverage even with exit zero.
+Audit overlay link inputs when using a custom link command.
 
 For local checks, invoke the GTest binary or pytest/acceptance script directly,
 with explicit filters and report paths. Keep commands, logs and reports outside

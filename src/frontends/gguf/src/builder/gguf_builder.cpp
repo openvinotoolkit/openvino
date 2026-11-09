@@ -48,10 +48,8 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
     return cfg;
 }
 
-}  // namespace
-
-GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry) {
-    auto data = std::make_shared<decltype(get_gguf_data(file))>(get_gguf_data(file));
+GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
+    auto data = std::make_shared<GGUFLoad>(std::move(loaded));
     auto& [metadata, weights, qtypes, mmap] = *data;
 
     const detail::MetadataStore meta_store{metadata};
@@ -92,6 +90,16 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
         graph->architecture = meta_view.architecture();
         return graph;
     };
+}
+
+}  // namespace
+
+GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry) {
+    return make_gguf_builder(get_gguf_data(file), registry);
+}
+
+GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files, const ArchRegistry& registry) {
+    return make_gguf_builder(get_gguf_data(files), registry);
 }
 
 }  // namespace ov::frontend::gguf

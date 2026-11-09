@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <map>
 #include <utility>
 #include <set>
@@ -30,7 +31,9 @@ class pass_manager;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
+class tensor_conversion;
 class ICompilationContext;
+using tensor_conversion_key = std::pair<data_types, data_types>;
 
 
 struct program {
@@ -276,6 +279,8 @@ public:
                              bool is_internal);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
+    std::shared_ptr<tensor_conversion> get_tensor_conversion(bool create_if_not_exist = true) const;
+    void prepare_tensor_conversions(const std::vector<tensor_conversion_key>& keys);
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
@@ -315,6 +320,8 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
+    mutable std::shared_ptr<tensor_conversion> _tensor_conversion;
+    mutable std::mutex _tensor_conversion_mutex;
     ExecutionConfig _config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;

@@ -230,7 +230,7 @@ TEST(ISectionReaderHandlerTest, recognizes_own_device_and_tag) {
     entry.size = 4;
 
     const std::byte payload[4] = {};
-    const hsm::Section section(entry, ov::util::MemoryView{payload, 4});
+    const hsm::Section section(entry, ov::util::as_memory_view(payload));
     RecordingHandler handler(fake_device_id, /*tag_id=*/42);
     EXPECT_TRUE(handler.handle_section(entry, section));
     EXPECT_EQ(handler.last_payload.size(), 4u);

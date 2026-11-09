@@ -31,12 +31,11 @@ class ColorMode(StrEnum):
 ```python
 class CameraType(StrEnum):
     UVC = "uvc"
+    IP = "ip"
     REALSENSE = "realsense"
     GENICAM = "genicam"
     BASLER = "basler"
 ```
-
-> **Note:** IP camera support may be available through the UVC backend but is not verified or tested.
 
 ## Read Semantics
 

@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
+#include <sstream>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch_registry.hpp"
@@ -14,13 +16,17 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
+#include "model_adapter_attribute.hpp"
+#include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
@@ -44,7 +50,7 @@ protected:
     void weight(const std::string& name, const std::vector<uint64_t>& dims, bool norm = false) {
         writer.filled_tensor(name, dims, norm, 0.01f);
     }
-    void encoder(const std::string& modality, const std::string& projector) {
+    void encoder(const std::string& modality, const std::string& projector, uint64_t positions = 16) {
         const auto meta = "clip." + modality + ".";
         const auto p = modality == "vision" ? std::string("v.") : std::string("a.");
         writer.kv_bool("clip.has_" + modality + "_encoder", true);
@@ -55,7 +61,7 @@ protected:
         writer.kv_u32(meta + "projection_dim", 6);
         writer.kv_u32(meta + "attention.head_count", 2);
         writer.kv_f32(meta + "attention.layer_norm_epsilon", 1e-5f);
-        weight(p + "position_embd.weight", {8, 16});
+        weight(p + "position_embd.weight", {8, positions});
         for (const auto* n : {"ln1", "ln2"}) {
             weight(p + "blk.0." + n + ".weight", {8}, true);
             weight(p + "blk.0." + n + ".bias", {8});
@@ -88,6 +94,23 @@ protected:
         return frontend.convert(frontend.load(path));
     }
 };
+
+TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
+    encoder("vision", "minicpmv4_7", 4900);
+    weight("mm.up.weight", {32, 12});
+    weight("mm.down.weight", {12, 6});
+    auto model = convert();
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "clip.vision.image_size"}), "8");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
+}
+
+TEST_F(GGUFMMProj, MiniCPMRejectsNonSquareLearnedPositionGrid) {
+    encoder("vision", "minicpmv4_7", 15);
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("square learned position grid"));
+}
 
 TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
     using namespace ov::frontend::gguf;
@@ -143,6 +166,11 @@ TEST_F(GGUFMMProj, ExtensionReusesBuiltinProjectorAndReplacementIsExplicit) {
     auto model = frontend.convert(frontend.load(path));
     EXPECT_EQ(model->output().get_shape(), (ov::Shape{1, 1, 4, 6}));
     EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "custom-gemma3");
+    using Adapter = pass::AdaptMmprojToGenAI;
+    auto adapted = model->clone();
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    ASSERT_TRUE(adapter.run_on_model(adapted));
+    EXPECT_EQ(adapter.get_vision_models().at("vision_embeddings"), adapted);
     EXPECT_THROW(frontend.add_extension(std::make_shared<ProjectorExtension>(definition)), ov::Exception);
     definition.build = [](GgufGraphContext& graph) {
         return ProjectorResult{graph.add_input("replacement", ov::element::f32, {1, 1, 2, 3}), {}};
@@ -152,6 +180,245 @@ TEST_F(GGUFMMProj, ExtensionReusesBuiltinProjectorAndReplacementIsExplicit) {
     definition.id = "missing";
     EXPECT_THROW(frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace)),
                  ov::Exception);
+}
+
+TEST_F(GGUFMMProj, CustomProjectorOverridesSerializableGenAILayout) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "custom-layout");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{
+        "clip.vision.custom-layout",
+        "clip",
+        "vision",
+        "custom-layout",
+        [](GgufGraphContext& graph) {
+            auto input = graph.add_input("vision.custom_pixels", ov::element::f32, {1, 1, 2, 3});
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}),
+                                   {},
+                                   ProjectorLayout::Image};
+        },
+        {},
+        ProjectorLayout::PaddedPatches};
+    FrontEnd frontend;
+    auto extension = std::make_shared<ProjectorExtension>(definition);
+    frontend.add_extension(extension);
+    auto model = frontend.convert(frontend.load(path));
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "image");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    ASSERT_TRUE(adapter.run_on_model(restored));
+    ASSERT_EQ(adapter.get_vision_models().size(), 1);
+    EXPECT_EQ(adapter.get_vision_models().at("vision_embeddings"), restored);
+    EXPECT_EQ(restored->input().get_any_name(), "custom_pixels");
+    auto request = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+    std::fill_n(request.get_input_tensor().data<float>(), 6, 3.f);
+    request.infer();
+    EXPECT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 2, 3}));
+    for (size_t i = 0; i < 6; ++i)
+        EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[i], 6.f);
+
+    definition.build = [](GgufGraphContext& graph) {
+        return ProjectorResult{graph.add_input("vision.replacement", ov::element::f32, {1, 1, 2, 3}), {}};
+    };
+    definition.genai_layout = ProjectorLayout::Image;
+    auto replacement_extension = std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace);
+    frontend.add_extension(replacement_extension);
+    auto replacement = frontend.convert(frontend.load(path));
+    EXPECT_EQ(replacement->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "image");
+    ASSERT_TRUE(adapter.run_on_model(replacement));
+    EXPECT_EQ(replacement->input().get_any_name(), "replacement");
+}
+
+TEST_F(GGUFMMProj, ArbitraryProjectorCallbacksOverrideRecipesAndDefinitions) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "custom-callback");
+    ASSERT_TRUE(writer.write(path));
+    const auto scale = [](float factor) -> ModelAdapterFn {
+        return [factor](const std::shared_ptr<ov::Model>& model) {
+            auto result = model->get_results().front();
+            auto multiplier = ov::op::v0::Constant::create(ov::element::f32, {}, {factor});
+            auto output = std::make_shared<ov::op::v1::Multiply>(result->input_value(0), multiplier);
+            output->output(0).set_names({"custom_features"});
+            result->input(0).replace_source_output(output);
+            return ModelAdapterResult{model, {{"custom_vision", model}}};
+        };
+    };
+    for (const int selection : {0, 1, 2}) {
+        SCOPED_TRACE(selection);
+        std::optional<ModelAdapterFn> callback;
+        if (selection == 1)
+            callback = scale(5.f);
+        else if (selection == 2)
+            callback = ModelAdapterFn{};
+        ProjectorDefinition definition{
+            "clip.vision.custom-callback",
+            "clip",
+            "vision",
+            "custom-callback",
+            [callback](GgufGraphContext& graph) {
+                auto input = graph.add_input("vision.custom_pixels", ov::element::f32, {1, 1, 2, 3});
+                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}),
+                                       {},
+                                       ProjectorLayout::Image,
+                                       callback};
+            },
+            {},
+            ProjectorLayout::PaddedPatches,
+            scale(3.f)};
+        FrontEnd frontend;
+        auto extension = std::make_shared<ProjectorExtension>(definition);
+        frontend.add_extension(extension);
+        auto model = frontend.convert(frontend.load(path));
+        ov::serialize(model, path + ".xml", path + ".bin");
+        auto restored = ov::Core{}.read_model(path + ".xml");
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(adapter.run_on_model(restored));
+        auto baseline = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+        std::fill_n(baseline.get_input_tensor().data<float>(), 6, 1.f);
+        baseline.infer();
+        EXPECT_FLOAT_EQ(baseline.get_output_tensor().data<float>()[0], 2.f);
+        ASSERT_TRUE(adapter.run_on_model(model));
+        EXPECT_EQ(adapter.get_vision_models().at(selection == 2 ? "vision_embeddings" : "custom_vision"), model);
+        auto request = ov::Core{}.compile_model(model, "CPU").create_infer_request();
+        std::fill_n(request.get_input_tensor().data<float>(), 6, 1.f);
+        request.infer();
+        for (size_t i = 0; i < 6; ++i)
+            EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[i],
+                            selection == 0   ? 6.f
+                            : selection == 1 ? 10.f
+                                             : 2.f);
+        // Release the memory-mapped IR before rewriting its weights on Windows.
+        baseline = ov::InferRequest{};
+        restored.reset();
+        EXPECT_NO_THROW(ov::serialize(model, path + ".xml", path + ".bin"));
+    }
+}
+
+TEST_F(GGUFMMProj, ProjectorCallbackCanReplaceThePrimaryGraph) {
+    using namespace ov::frontend::gguf;
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "custom-replacement");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{
+        "clip.vision.custom-replacement",
+        "clip",
+        "vision",
+        "custom-replacement",
+        [](GgufGraphContext& graph) {
+            return ProjectorResult{graph.add_input("vision.source", ov::element::f32, {1, 1, 2, 3}), {}};
+        },
+        {},
+        {},
+        [](const std::shared_ptr<ov::Model>&) {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3});
+            input->set_friendly_name("callback_values");
+            input->output(0).set_names({"callback_values"});
+            auto bias = ov::op::v0::Constant::create(ov::element::f32, {}, {7.f});
+            auto output = std::make_shared<ov::op::v1::Add>(input, bias);
+            output->output(0).set_names({"callback_features"});
+            auto replacement = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+            replacement->set_rt_info(std::string("replacement"), {"custom_adapter"});
+            return ModelAdapterResult{replacement, {{"custom_replacement", replacement}}};
+        }};
+    FrontEnd frontend;
+    auto extension = std::make_shared<ProjectorExtension>(definition);
+    frontend.add_extension(extension);
+    auto model = frontend.convert(frontend.load(path));
+    using Adapter = pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    ASSERT_TRUE(adapter.run_on_model(model));
+    EXPECT_EQ(adapter.get_vision_models().at("custom_replacement"), model);
+    EXPECT_EQ(model->input().get_any_name(), "callback_values");
+    EXPECT_EQ(model->get_rt_info<std::string>({"custom_adapter"}), "replacement");
+    auto request = ov::Core{}.compile_model(model, "CPU").create_infer_request();
+    ov::Tensor data(ov::element::f32, {2, 3});
+    std::fill_n(data.data<float>(), data.get_size(), 4.f);
+    request.set_input_tensor(data);
+    request.infer();
+    for (size_t i = 0; i < 6; ++i)
+        EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[i], 11.f);
+}
+
+TEST_F(GGUFMMProj, EmbeddingsCallbacksOverrideBothModalitiesWithOptionalModelMaps) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    for (const std::string modality : {"vision", "audio"}) {
+        writer.kv_bool("clip.has_" + modality + "_encoder", true);
+        writer.kv_str("clip." + modality + ".projector_type", "custom-embeddings");
+    }
+    ASSERT_TRUE(writer.write(path));
+    for (const bool named_models : {false, true}) {
+        SCOPED_TRACE(named_models);
+        std::map<std::string, size_t> calls;
+        std::shared_ptr<ov::Model> working;
+        FrontEnd frontend;
+        for (const std::string modality : {"vision", "audio"}) {
+            ProjectorDefinition definition{
+                "clip." + modality + ".custom-embeddings",
+                "clip",
+                modality,
+                "custom-embeddings",
+                [modality](GgufGraphContext& graph) {
+                    auto input = graph.add_input(modality + ".custom_values", ov::element::f32, {1, 1, 2, 3});
+                    return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}),
+                                           {}};
+                },
+                {},
+                {},
+                [modality, named_models, &calls, &working](const std::shared_ptr<ov::Model>& model) {
+                    ++calls[modality];
+                    EXPECT_NE(model, working);
+                    EXPECT_EQ(working->outputs().size(), 2);
+                    EXPECT_EQ(model->inputs().size(), 1);
+                    EXPECT_EQ(model->input().get_any_name(), "custom_values");
+                    EXPECT_EQ(model->output().get_any_name(),
+                              modality == "vision" ? "image_features" : "audio_features");
+                    EXPECT_EQ(model->output().get_shape(), (ov::Shape{1, 2, 3}));
+                    auto multiplier =
+                        ov::op::v0::Constant::create(ov::element::f32, {}, {modality == "vision" ? 3.f : 5.f});
+                    auto output = std::make_shared<ov::op::v1::Multiply>(model->get_results().front()->input_value(0),
+                                                                         multiplier);
+                    output->output(0).set_names({"custom_features"});
+                    auto replacement = std::make_shared<ov::Model>(ov::OutputVector{output}, model->get_parameters());
+                    replacement->set_rt_info(modality, {"custom_adapter"});
+                    return ModelAdapterResult{
+                        replacement,
+                        named_models ? ModelMap{{"custom_" + modality, replacement}} : ModelMap{}};
+                }};
+            auto extension = std::make_shared<ProjectorExtension>(definition);
+            frontend.add_extension(extension);
+        }
+        auto original = frontend.convert(frontend.load(path));
+        for (const std::string modality : {"vision", "audio"}) {
+            SCOPED_TRACE(modality);
+            working = original->clone();
+            Adapter adapter(modality == "vision" ? Adapter::Modality::VISION : Adapter::Modality::AUDIO);
+            ASSERT_TRUE(adapter.run_on_model(working));
+            EXPECT_EQ(calls[modality], 1);
+            EXPECT_EQ(calls[modality == "vision" ? "audio" : "vision"], modality == "vision" ? 0 : 1);
+            EXPECT_EQ(working->get_rt_info<std::string>({"custom_adapter"}), modality);
+            if (named_models)
+                EXPECT_EQ(adapter.get_vision_models().at("custom_" + modality), working);
+            else
+                EXPECT_TRUE(adapter.get_vision_models().empty());
+            for (const auto& node : working->get_ops())
+                EXPECT_FALSE(get_model_adapter(node));
+            auto request = ov::Core{}.compile_model(working, "CPU").create_infer_request();
+            std::fill_n(request.get_input_tensor().data<float>(), 6, 4.f);
+            request.infer();
+            for (size_t i = 0; i < 6; ++i)
+                EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[i], modality == "vision" ? 24.f : 40.f);
+            EXPECT_NO_THROW(ov::serialize(working, path + ".xml", path + ".bin"));
+        }
+        EXPECT_EQ(original->outputs().size(), 2);
+        EXPECT_EQ(original->input("vision.custom_values").get_shape(), (ov::Shape{1, 1, 2, 3}));
+        EXPECT_EQ(original->input("audio.custom_values").get_shape(), (ov::Shape{1, 1, 2, 3}));
+    }
 }
 
 TEST_F(GGUFMMProj, ExtensionReplacesOnlyOneBuiltinComponent) {
@@ -371,7 +638,9 @@ std::shared_ptr<ov::Model> vision_fixture(const std::string& name) {
     return frontend.convert(frontend.load(fixture.path));
 }
 
-void expect_layout_rejection_preserves_model(const std::shared_ptr<ov::Model>& model, const std::string& requirement) {
+void expect_adaptation_rejection_preserves_model(const std::shared_ptr<ov::Model>& model,
+                                                 ov::frontend::gguf::pass::AdaptMmprojToGenAI& adapter,
+                                                 const std::string& requirement) {
     const auto results = model->get_results();
     const auto parameters = model->get_parameters();
     const auto nodes = model->get_ordered_ops();
@@ -384,8 +653,6 @@ void expect_layout_rejection_preserves_model(const std::shared_ptr<ov::Model>& m
         for (const auto& output : node->outputs())
             tensor_names.push_back(output.get_names());
     }
-    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
-    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
     OV_EXPECT_THROW(adapter.run_on_model(model), ov::Exception, testing::HasSubstr(requirement));
     EXPECT_TRUE(adapter.get_vision_models().empty());
     EXPECT_EQ(model->get_results(), results);
@@ -398,8 +665,207 @@ void expect_layout_rejection_preserves_model(const std::shared_ptr<ov::Model>& m
         for (const auto& output : nodes[i]->outputs())
             EXPECT_EQ(output.get_names(), tensor_names[output_index++]);
     }
+}
+
+void expect_layout_rejection_preserves_model(const std::shared_ptr<ov::Model>& model, const std::string& requirement) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    expect_adaptation_rejection_preserves_model(model, adapter, requirement);
     EXPECT_NO_THROW(Adapter(Adapter::Modality::VISION).run_on_model(model));
     EXPECT_EQ(model->output(0).get_any_name(), "image_features");
+}
+
+TEST_F(GGUFMMProj, VisionEncoderLayoutRestoresLegacySerializedRecipes) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    for (const std::string projector : {"gemma3", "gemma4v", "gemma4uv", "muse-glimmer", "qwen3vl_merger", "lfm2"}) {
+        SCOPED_TRACE(projector);
+        auto source = vision_fixture(projector);
+        auto current = source->clone();
+        Adapter current_adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(current_adapter.run_on_model(current));
+        source->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.genai_layout");
+        ov::serialize(source, path + ".xml", path + ".bin");
+        auto restored = ov::Core{}.read_model(path + ".xml");
+        ASSERT_FALSE(restored->has_rt_info({"gguf_mmproj", "vision.genai_layout"}));
+        ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), projector);
+        Adapter legacy_adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(legacy_adapter.run_on_model(restored));
+        const auto& current_models = current_adapter.get_vision_models();
+        const auto& legacy_models = legacy_adapter.get_vision_models();
+        ASSERT_EQ(legacy_models.size(), current_models.size());
+        for (const auto& [name, expected] : current_models) {
+            ASSERT_TRUE(legacy_models.count(name));
+            const auto& actual = legacy_models.at(name);
+            ASSERT_EQ(actual->inputs().size(), expected->inputs().size());
+            ASSERT_EQ(actual->outputs().size(), expected->outputs().size());
+            for (size_t i = 0; i < actual->inputs().size(); ++i) {
+                EXPECT_EQ(actual->input(i).get_names(), expected->input(i).get_names());
+                EXPECT_EQ(actual->input(i).get_partial_shape(), expected->input(i).get_partial_shape());
+                EXPECT_EQ(actual->input(i).get_element_type(), expected->input(i).get_element_type());
+            }
+            for (size_t i = 0; i < actual->outputs().size(); ++i) {
+                EXPECT_EQ(actual->output(i).get_names(), expected->output(i).get_names());
+                EXPECT_EQ(actual->output(i).get_partial_shape(), expected->output(i).get_partial_shape());
+                EXPECT_EQ(actual->output(i).get_element_type(), expected->output(i).get_element_type());
+            }
+        }
+    }
+}
+
+TEST_F(GGUFMMProj, ExplicitVisionLayoutOverridesLegacyProjectorRecipe) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto source = vision_fixture("gemma4v");
+    source->set_rt_info(std::string("image"), {"gguf_mmproj", "vision.genai_layout"});
+    source->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.patch_size");
+    ov::serialize(source, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "image");
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    ASSERT_TRUE(adapter.run_on_model(restored));
+    ASSERT_EQ(adapter.get_vision_models().size(), 1);
+    EXPECT_EQ(adapter.get_vision_models().at("vision_embeddings"), restored);
+    ASSERT_EQ(restored->inputs().size(), source->inputs().size());
+    for (size_t i = 0; i < restored->inputs().size(); ++i) {
+        EXPECT_EQ(restored->input(i).get_any_name(), source->input(i).get_any_name().substr(7));
+        EXPECT_EQ(restored->input(i).get_partial_shape(), source->input(i).get_partial_shape());
+        EXPECT_EQ(restored->input(i).get_element_type(), source->input(i).get_element_type());
+    }
+    EXPECT_EQ(restored->output().get_any_name(), "image_features");
+}
+
+TEST_F(GGUFMMProj, ExplicitUnsupportedVisionLayoutRejectsLegacyProjectorRecipe) {
+    encoder("vision", "gemma3");
+    auto source = convert();
+    for (const std::string layout : {"unsupported", "invalid", ""}) {
+        SCOPED_TRACE(layout);
+        auto model = source->clone();
+        model->set_rt_info(layout, {"gguf_mmproj", "vision.genai_layout"});
+        expect_layout_rejection_preserves_model(model, "no GenAI vision layout for mmproj contract");
+    }
+}
+
+TEST_F(GGUFMMProj, LegacyVisionLayoutRejectsUnknownOrMissingProjector) {
+    encoder("vision", "gemma3");
+    auto source = convert();
+    source->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.genai_layout");
+    for (const std::string projector : {"custom", ""}) {
+        SCOPED_TRACE(projector);
+        auto model = source->clone();
+        if (projector.empty())
+            model->get_rt_info()["gguf_mmproj"].as<ov::AnyMap>().erase("vision.projector");
+        else
+            model->set_rt_info(projector, {"gguf_mmproj", "vision.projector"});
+        expect_layout_rejection_preserves_model(model, "no GenAI vision layout");
+    }
+}
+
+TEST_F(GGUFMMProj, ProjectorCallbackFailuresPreserveTheOriginalGraph) {
+    using namespace ov::frontend::gguf;
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "custom-failure");
+    ASSERT_TRUE(writer.write(path));
+    for (const int failure : {0, 1, 2, 3, 4}) {
+        SCOPED_TRACE(failure);
+        ProjectorDefinition definition{
+            "clip.vision.custom-failure",
+            "clip",
+            "vision",
+            "custom-failure",
+            [](GgufGraphContext& graph) {
+                return ProjectorResult{graph.add_input("vision.source", ov::element::f32, {1, 1, 2, 3}), {}};
+            },
+            {},
+            {},
+            [failure](const std::shared_ptr<ov::Model>& model) -> ModelAdapterResult {
+                model->get_parameters().front()->set_friendly_name("rewired_clone");
+                if (failure == 0)
+                    OPENVINO_THROW("custom callback failure");
+                if (failure == 1)
+                    return {};
+                if (failure == 2)
+                    return {model, {{"primary", model}, {"invalid", nullptr}}};
+                if (failure == 4)
+                    return {model, {}};
+                auto output = ov::op::v0::Constant::create(ov::element::f32, {}, {1.f});
+                auto result = std::make_shared<ov::op::v0::Result>(output);
+                auto other = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
+                return {model, {{"other", other}}};
+            }};
+        FrontEnd frontend;
+        auto extension = std::make_shared<ProjectorExtension>(definition);
+        frontend.add_extension(extension);
+        auto model = frontend.convert(frontend.load(path));
+        using Adapter = pass::AdaptMmprojToGenAI;
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        expect_adaptation_rejection_preserves_model(model,
+                                                    adapter,
+                                                    failure == 0                   ? "custom callback failure"
+                                                    : failure == 1 || failure == 4 ? "returned no models"
+                                                    : failure == 2                 ? "invalid model"
+                                                                                   : "omitted its primary model");
+    }
+}
+
+TEST_F(GGUFMMProj, EmbeddingsCallbackFailuresPreserveBothModalities) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    for (const std::string modality : {"vision", "audio"}) {
+        SCOPED_TRACE(modality);
+        writer.kv_bool("clip.has_" + modality + "_encoder", true);
+        writer.kv_str("clip." + modality + ".projector_type", "custom-failure");
+    }
+    ASSERT_TRUE(writer.write(path));
+    for (const std::string modality : {"vision", "audio"}) {
+        SCOPED_TRACE(modality);
+        for (const int failure : {0, 1, 2, 3, 4, 5, 6}) {
+            SCOPED_TRACE(failure);
+            FrontEnd frontend;
+            for (const std::string branch : {"vision", "audio"}) {
+                ProjectorDefinition definition{
+                    "clip." + branch + ".custom-failure",
+                    "clip",
+                    branch,
+                    "custom-failure",
+                    [branch](GgufGraphContext& graph) {
+                        return ProjectorResult{graph.add_input(branch + ".source", ov::element::f32, {1, 1, 2, 3}), {}};
+                    },
+                    {},
+                    {},
+                    [failure](const std::shared_ptr<ov::Model>& model) -> ModelAdapterResult {
+                        model->get_parameters().front()->set_friendly_name("rewired_clone");
+                        if (failure == 0)
+                            OPENVINO_THROW("custom callback failure");
+                        if (failure == 1)
+                            return {};
+                        if (failure == 2)
+                            return {model, {{"primary", model}, {"invalid", nullptr}}};
+                        if (failure == 3)
+                            return {model, {{"", model}}};
+                        auto other = model->clone();
+                        if (failure == 4)
+                            return {model, {{"other", other}}};
+                        auto invalid = failure == 5 ? model : other;
+                        auto result = invalid->get_results().front();
+                        auto bias = ov::op::v0::Constant::create(ov::element::f32, {1, 2, 3}, {1.f});
+                        auto output = std::make_shared<ov::op::v1::Add>(result->input_value(0), bias);
+                        result->input(0).replace_source_output(output);
+                        invalid->get_parameters().front()->set_partial_shape({1, 1, 2, 5});
+                        return {model, failure == 5 ? ModelMap{} : ModelMap{{"primary", model}, {"other", other}}};
+                    }};
+                auto extension = std::make_shared<ProjectorExtension>(definition);
+                frontend.add_extension(extension);
+            }
+            auto model = frontend.convert(frontend.load(path));
+            Adapter adapter(modality == "vision" ? Adapter::Modality::VISION : Adapter::Modality::AUDIO);
+            expect_adaptation_rejection_preserves_model(model,
+                                                        adapter,
+                                                        failure == 0                   ? "custom callback failure"
+                                                        : failure == 1                 ? "returned no models"
+                                                        : failure == 2 || failure == 3 ? "invalid model"
+                                                        : failure == 4                 ? "omitted its primary model"
+                                                                       : "Argument shapes are inconsistent");
+        }
+    }
 }
 
 class GGUFMMProjLayoutMetadata : public ::testing::TestWithParam<std::pair<std::string, std::string>> {};
@@ -437,6 +903,33 @@ INSTANTIATE_TEST_SUITE_P(VisionEncoders,
                                            std::make_pair("muse-glimmer", "vision.merge"),
                                            std::make_pair("qwen3vl_merger", "clip.vision.embedding_length"),
                                            std::make_pair("qwen3vl_merger", "clip.vision.attention.head_count")));
+
+TEST(GGUFMMProjLayout, DeclaredAuxiliaryOutputsSurviveSplitMergerAndIR) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    for (const bool deepstack : {false, true}) {
+        SCOPED_TRACE(deepstack);
+        auto model = vision_fixture("qwen3vl_merger");
+        auto lengths = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
+        lengths->output(0).set_names({"vision.lengths"});
+        model->add_results({std::make_shared<ov::op::v0::Result>(lengths)});
+        auto contract = read_model_contract(model);
+        contract.component_groups["vision"] = {"encoder", {{"encoder", {{"vision.embeddings", "vision.lengths"}, ""}}}};
+        write_model_contract(model, contract);
+        model->set_rt_info(std::string(deepstack ? "1" : "0"), {"gguf_mmproj", "vision.auxiliary_count"});
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(adapter.run_on_model(model));
+        ASSERT_EQ(model->get_results().size(), deepstack ? 3 : 2);
+        EXPECT_NO_THROW(model->output("vision.lengths"));
+        if (deepstack) {
+            EXPECT_NO_THROW(model->output("deepstack_feature_lists"));
+        }
+        auto restored = ov_gguf_test::reload_ir_model(model);
+        EXPECT_NO_THROW(restored->output("vision.lengths"));
+        auto compiled = ov::Core{}.compile_model(restored, "CPU");
+        EXPECT_NO_THROW(compiled.output("vision.lengths"));
+    }
+}
 
 TEST(GGUFMMProjLayout, RejectsMissingQwenWeightsWithoutChangingModel) {
     auto source = vision_fixture("qwen3vl_merger");
@@ -533,6 +1026,16 @@ TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
     encoder("vision", "unused_modality_key");
     writer.kv_str("clip.projector_type", "gemma3");
     EXPECT_NO_THROW(convert());
+}
+
+TEST_F(GGUFMMProj, LegacyEncoderIgnoresUnrelatedGenerationMetadata) {
+    encoder("vision", "gemma3");
+    writer.kv_bool("clip.has_gen_audio_encoder", true);
+    writer.kv_str("clip.gen.audio.projector_type", "lfm2a_gen");
+    const auto model = convert();
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->output().get_any_name(), "vision.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "gemma3");
 }
 
 // Legacy Qwen2.5 Omni files name one global projector for both encoders.
@@ -679,6 +1182,65 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
 }
 
 class GGUFMMProjDynamicAccuracy : public GGUFMMProjAccuracy {};
+class GGUFMMProjMiniCpmPackedAccuracy : public GGUFMMProjAccuracy {};
+
+TEST_P(GGUFMMProjMiniCpmPackedAccuracy, PackedGridsMatchLlamaCPU) {
+    const std::string family = GetParam();
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto adapted = model->clone();
+    Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS).run_on_model(adapted);
+    auto request = compile(adapted);
+    const size_t patch = 2;
+    for (const auto step : {0, 1, 0}) {
+        const auto prefix = std::to_string(step) + ".";
+        const auto& source = array(prefix + "pixel_values");
+        const auto rows = source.shape[2] / patch;
+        const auto cols = source.shape[3] / patch;
+        ov::Tensor packed(ov::element::f32, {1, 3, patch, rows * cols * patch});
+        for (size_t channel = 0; channel < 3; ++channel)
+            for (size_t y = 0; y < rows; ++y)
+                for (size_t x = 0; x < cols; ++x)
+                    for (size_t dy = 0; dy < patch; ++dy)
+                        for (size_t dx = 0; dx < patch; ++dx)
+                            packed.data<float>()[(channel * patch + dy) * rows * cols * patch + (y * cols + x) * patch +
+                                                 dx] =
+                                source.data<float>()[(channel * rows * patch + y * patch + dy) * cols * patch +
+                                                     x * patch + dx];
+        request.set_tensor("pixel_values", packed);
+        ov::Tensor positions(ov::element::i64, {rows * cols});
+        const auto& position_values = array(prefix + "position_ids");
+        std::copy_n(position_values.data<int32_t>(), rows * cols, positions.data<int64_t>());
+        request.set_tensor("position_ids", positions);
+        ov::Tensor grid(ov::element::i64, {2});
+        grid.data<int64_t>()[0] = rows;
+        grid.data<int64_t>()[1] = cols;
+        request.set_tensor("patch_grid", grid);
+        const auto interleave = [&](const std::string& name) {
+            const auto count = array(prefix + name + ".indices.0").num_vals;
+            ov::Tensor indices(ov::element::i64, {count * 4});
+            for (size_t part = 0; part < 4; ++part) {
+                const auto& values = array(prefix + name + ".indices." + std::to_string(part));
+                for (size_t i = 0; i < count; ++i)
+                    indices.data<int64_t>()[i * 4 + part] = values.data<int32_t>()[i];
+            }
+            return indices;
+        };
+        request.set_tensor("merge_index", interleave("merger"));
+        const bool windowed = family == "minicpmv4_7";
+        request.set_tensor("window_index", interleave(windowed ? "vit_merger" : "merger"));
+        request.infer();
+        const auto output = request.get_output_tensor();
+        const auto& expected = array(prefix + "embeddings");
+        ASSERT_EQ(output.get_shape(), (ov::Shape{expected.shape[2], expected.shape[3]}));
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+            1e-5);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Reference,
+                         GGUFMMProjMiniCpmPackedAccuracy,
+                         ::testing::Values("minicpmv4_7", "minicpmv4_7_4x"));
 
 // The low-contrast fixture's patch projection cancels to rounding noise, which differs with the
 // platform's summation order (3e-5 on ARM64). Dropping its recentering raises the error to 1e-3.
@@ -732,6 +1294,8 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "gemma4uv_low_contrast",
                                            "gemma4ua",
                                            "minicpmv4_6",
+                                           "minicpmv4_7",
+                                           "minicpmv4_7_4x",
                                            "gemma4a",
                                            "deepseekocr",
                                            "deepseekocr2",
@@ -956,4 +1520,266 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "qwen3vl_merger",
                                            "lfm2",
                                            "lfm2_no_norm"));
+
+std::pair<std::shared_ptr<ov::Model>, ov::frontend::gguf::ModelContract> component_contract_model() {
+    const auto parameter = [](const std::string& name, const ov::Shape& shape) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        input->set_friendly_name(name);
+        input->output(0).set_names({name});
+        return input;
+    };
+    auto samples = parameter("audio.samples", {1, 1, 2, 2});
+    auto score = parameter("score_input", {1, 1, 2, 2});
+    auto lookup = parameter("lookup_input", {1, 1, 2, 2});
+    auto render = parameter("render_input", {1, 1, 2, 2});
+    auto encoder_state = parameter("audio.cache.counter", {1, 1, 1, 1});
+    auto speech_state = parameter("speech.cache.counter", {1, 1, 1, 1});
+    auto one = ov::op::v0::Constant::create(ov::element::f32, {}, {1.f});
+    auto audio = std::make_shared<ov::op::v1::Add>(samples, encoder_state);
+    auto rendered = std::make_shared<ov::op::v1::Add>(render, speech_state);
+    auto encoder_update = std::make_shared<ov::op::v1::Add>(encoder_state, one);
+    auto speech_update = std::make_shared<ov::op::v1::Add>(speech_state, one);
+    auto window = ov::op::v0::Constant::create(ov::element::f32, {1}, {2.f});
+    audio->output(0).set_names({"audio.embeddings"});
+    score->output(0).set_names({"scores"});
+    lookup->output(0).set_names({"lookup"});
+    rendered->output(0).set_names({"rendered"});
+    window->output(0).set_names({"window"});
+    encoder_update->output(0).set_names({"encoder_update"});
+    speech_update->output(0).set_names({"speech_update"});
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{audio, score, lookup, rendered, window, encoder_update, speech_update},
+        ov::ParameterVector{samples, score, lookup, render, encoder_state, speech_state});
+    model->get_results()[5]->set_friendly_name("encoder_update");
+    model->get_results()[6]->set_friendly_name("speech_update");
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-mmproj");
+    model->get_rt_info()["gguf_mmproj"] = ov::AnyMap{{"audio.projector", std::string("custom-audio")}};
+    model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] =
+        std::vector<std::string>{"audio.cache.counter", "encoder_update", "speech.cache.counter", "speech_update"};
+    ov::frontend::gguf::ModelContract contract;
+    contract.component_groups = {{"audio", {"encoder", {{"encoder", {{"audio.embeddings"}, "audio.cache."}}}}},
+                                 {"audio_generation",
+                                  {"lookup",
+                                   {{"score", {{"scores"}, ""}},
+                                    {"lookup", {{"lookup"}, ""}},
+                                    {"renderer", {{"rendered", "window"}, "speech.cache."}}}}}};
+    ov::frontend::gguf::write_model_contract(model, contract);
+    return {model, contract};
+}
+
+TEST(GGUFMMProjContract, DeclaredComponentsPreservePrimaryNamesStateAndIR) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    using ov::frontend::gguf::pass::GGUFMakeStateful;
+    const auto native = component_contract_model().first;
+    ov::Core core;
+    for (const bool stateful : {false, true}) {
+        for (const bool reload : {false, true}) {
+            auto source = native->clone();
+            if (stateful) {
+                ASSERT_TRUE(GGUFMakeStateful().run_on_model(source));
+            }
+            if (reload)
+                source = ov_gguf_test::reload_ir_model(source);
+            const auto run_stream = [&](const std::shared_ptr<ov::Model>& model,
+                                        const std::string& input,
+                                        const std::string& output,
+                                        const std::string& state_name,
+                                        const ov::Shape& expected_shape) {
+                GGUFMakeStateful().run_on_model(model);
+                ASSERT_EQ(model->get_variables().size(), 1);
+                auto request = core.compile_model(model, "CPU").create_infer_request();
+                const auto states = request.query_state();
+                ASSERT_EQ(states.size(), 1);
+                EXPECT_EQ(states[0].get_name(), state_name);
+                ov::Tensor data(ov::element::f32, {1, 1, 2, 2});
+                std::fill_n(data.data<float>(), 4, 4.f);
+                request.set_tensor(input, data);
+                for (const float expected : {4.f, 5.f}) {
+                    request.infer();
+                    auto actual = request.get_tensor(output);
+                    ASSERT_EQ(actual.get_shape(), expected_shape);
+                    for (size_t i = 0; i < actual.get_size(); ++i)
+                        EXPECT_EQ(actual.data<float>()[i], expected);
+                }
+                request.reset_state();
+                request.infer();
+                EXPECT_EQ(request.get_tensor(output).data<float>()[0], 4.f);
+            };
+            auto audio = source->clone();
+            ASSERT_TRUE(Adapter(Adapter::Modality::AUDIO).run_on_model(audio));
+            if (!stateful) {
+                EXPECT_EQ(audio->input("audio.cache.counter").get_any_name(), "audio.cache.counter");
+            }
+            run_stream(audio, "samples", "audio_features", "audio.cache.counter", {1, 2, 2});
+            Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+            ASSERT_TRUE(adapter.run_on_model(source));
+            const auto& models = adapter.get_audio_generation_models();
+            ASSERT_EQ(models.size(), 3);
+            EXPECT_EQ(models.at("lookup"), source);
+            EXPECT_EQ(models.at("score")->get_parameters().size(), 1);
+            EXPECT_EQ(models.at("lookup")->get_parameters().size(), 1);
+            EXPECT_TRUE(models.at("score")->get_sinks().empty());
+            EXPECT_TRUE(models.at("lookup")->get_sinks().empty());
+            auto renderer = ov_gguf_test::reload_ir_model(models.at("renderer"));
+            EXPECT_EQ(renderer->output("window").get_shape(), (ov::Shape{1}));
+            run_stream(renderer, "render_input", "rendered", "speech.cache.counter", {1, 1, 2, 2});
+        }
+    }
+}
+
+TEST(GGUFMMProjContract, StatefulPrimaryDoesNotDuplicateVariableRegistration) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto [model, contract] = component_contract_model();
+    contract.component_groups.at("audio_generation").primary = "renderer";
+    ov::frontend::gguf::write_model_contract(model, contract);
+    ASSERT_TRUE(ov::frontend::gguf::pass::GGUFMakeStateful().run_on_model(model));
+    ASSERT_EQ(model->get_variables().size(), 2);
+    Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+    ASSERT_TRUE(adapter.run_on_model(model));
+    EXPECT_EQ(adapter.get_audio_generation_models().at("renderer"), model);
+    ASSERT_EQ(model->get_variables().size(), 1);
+    EXPECT_EQ(model->get_variables().front()->get_info().variable_id, "speech.cache.counter");
+    auto restored = ov_gguf_test::reload_ir_model(model);
+    EXPECT_EQ(restored->get_variables().size(), 1);
+}
+
+TEST(GGUFMMProjContract, FriendlyNameOnlyComponentOutputIsExposedByTensorName) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    input->output(0).set_names({"render_input"});
+    auto output = std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    model->get_results().front()->set_friendly_name("friendly_only");
+    ASSERT_TRUE(model->get_results().front()->output(0).get_names().empty());
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-mmproj");
+    ov::frontend::gguf::ModelContract contract;
+    contract.component_groups["audio_generation"] = {"renderer", {{"renderer", {{"friendly_only"}, ""}}}};
+    ov::frontend::gguf::write_model_contract(model, contract);
+    for (const bool reload : {false, true}) {
+        auto source = model->clone();
+        if (reload)
+            source = ov_gguf_test::reload_ir_model(source);
+        Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+        ASSERT_TRUE(adapter.run_on_model(source));
+        auto component = adapter.get_audio_generation_models().at("renderer");
+        EXPECT_NO_THROW(component->output("friendly_only"));
+        auto restored = ov_gguf_test::reload_ir_model(component);
+        EXPECT_NO_THROW(restored->output("friendly_only"));
+        auto request = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+        ov::Tensor data(ov::element::f32, {1, 2});
+        std::fill_n(data.data<float>(), 2, 1.f);
+        request.set_tensor("render_input", data);
+        request.infer();
+        EXPECT_EQ(request.get_tensor("friendly_only").data<float>()[0], 2.f);
+    }
+}
+
+TEST(GGUFMMProjContract, DeclaredAuxiliaryOutputsSurviveExtractionCallbacksAndIR) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    using namespace ov::frontend::gguf;
+    for (const std::string modality : {"vision", "audio"}) {
+        for (const int mode : {0, 1, 2, 3, 4, 5}) {
+            SCOPED_TRACE(modality + " mode=" + std::to_string(mode));
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 2});
+            input->set_friendly_name(modality + ".samples");
+            input->output(0).set_names({modality + ".samples"});
+            auto embeddings =
+                std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}));
+            embeddings->output(0).set_names({modality + ".embeddings"});
+            const bool passthrough = mode >= 3;
+            auto length_input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+            length_input->set_friendly_name(modality + ".lengths");
+            std::shared_ptr<ov::Node> lengths = passthrough ? std::static_pointer_cast<ov::Node>(length_input)
+                                                            : ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
+            lengths->output(0).set_names({modality + ".lengths"});
+            auto discarded = ov::op::v0::Constant::create(ov::element::f32, {1}, {9.f});
+            discarded->output(0).set_names({"discarded_output"});
+            ov::ParameterVector inputs{input};
+            if (passthrough)
+                inputs.push_back(length_input);
+            auto model = std::make_shared<ov::Model>(ov::OutputVector{embeddings, lengths, discarded}, inputs);
+            ModelContract contract;
+            contract.component_groups[modality] = {
+                "encoder",
+                {{"encoder", {{modality + ".embeddings", modality + ".lengths"}, ""}}}};
+            write_model_contract(model, contract);
+            bool called = false;
+            const std::string features = modality == "vision" ? "image_features" : "audio_features";
+            if (mode % 3 == 2) {
+                auto adapter = std::make_shared<ModelAdapter>();
+                adapter->transform = [&](const std::shared_ptr<ov::Model>& selected) {
+                    called = true;
+                    EXPECT_EQ(selected->get_results().size(), 2);
+                    EXPECT_EQ(selected->output(0).get_any_name(), features);
+                    EXPECT_NO_THROW(selected->output(modality + ".lengths"));
+                    return ModelAdapterResult{selected, {}};
+                };
+                model->get_results().front()->get_rt_info()[ModelAdapterAttribute::get_type_info_static()] =
+                    ModelAdapterAttribute(adapter);
+            } else if (mode % 3 == 1) {
+                model = ov_gguf_test::reload_ir_model(model);
+            }
+            ASSERT_TRUE(Adapter(modality == "vision" ? Adapter::Modality::VISION : Adapter::Modality::AUDIO)
+                            .run_on_model(model));
+            EXPECT_EQ(called, mode % 3 == 2);
+            ASSERT_EQ(model->get_results().size(), 2);
+            EXPECT_EQ(model->output(0).get_any_name(), features);
+            if (passthrough) {
+                ASSERT_NO_THROW(model->input("lengths"));
+            }
+            auto restored = ov_gguf_test::reload_ir_model(model);
+            if (passthrough) {
+                ASSERT_NO_THROW(restored->input("lengths"));
+            }
+            if (passthrough) {
+                auto cloned = restored->clone();
+                ASSERT_NO_THROW(cloned->input("lengths"));
+            }
+            auto compiled = ov::Core{}.compile_model(restored, "CPU");
+            if (passthrough) {
+                ASSERT_NO_THROW(compiled.input("lengths"));
+            }
+            auto request = compiled.create_infer_request();
+            ov::Tensor data(ov::element::f32, {1, 1, 2, 2});
+            std::fill_n(data.data<float>(), data.get_size(), 4.f);
+            request.set_tensor("samples", data);
+            if (passthrough) {
+                ov::Tensor length(ov::element::i32, {1});
+                length.data<int32_t>()[0] = 2;
+                request.set_tensor("lengths", length);
+            }
+            request.infer();
+            EXPECT_EQ(request.get_tensor(modality + ".lengths").data<int32_t>()[0], 2);
+            auto actual = request.get_tensor(features);
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 2, 2}));
+            for (size_t i = 0; i < actual.get_size(); ++i)
+                EXPECT_EQ(actual.data<float>()[i], 5.f);
+        }
+    }
+}
+
+TEST(GGUFMMProjContract, InvalidComponentsLeaveSourceUnchanged) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto [model, contract] = component_contract_model();
+    contract.component_groups.at("audio_generation").models.at("renderer").outputs.push_back("missing_output");
+    ov::frontend::gguf::write_model_contract(model, contract);
+    const auto parameters = model->get_parameters();
+    const auto results = model->get_results();
+    const auto states = model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()];
+    Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+    EXPECT_THROW(adapter.run_on_model(model), ov::Exception);
+    EXPECT_EQ(model->get_parameters(), parameters);
+    EXPECT_EQ(model->get_results(), results);
+    EXPECT_EQ(
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()].as<std::vector<std::string>>(),
+        states.as<std::vector<std::string>>());
+    EXPECT_TRUE(adapter.get_audio_generation_models().empty());
+    contract.component_groups.at("audio_generation").primary = "missing_component";
+    EXPECT_THROW(ov::frontend::gguf::write_model_contract(model, contract), ov::Exception);
+    auto& groups = model->get_rt_info()["gguf_model_contract"].as<ov::AnyMap>().at("component_groups").as<ov::AnyMap>();
+    groups.at("audio_generation").as<ov::AnyMap>().at("primary") = std::string("missing_component");
+    EXPECT_THROW(adapter.run_on_model(model), ov::Exception);
+    EXPECT_EQ(model->get_parameters(), parameters);
+    EXPECT_EQ(model->get_results(), results);
+}
 }  // namespace

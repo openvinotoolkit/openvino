@@ -164,32 +164,20 @@ dnnl::memory::dims get_strides(dnnl::memory::dims dims) {
 
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
-    case cldnn::data_types::f32:
-        return dnnl::memory::data_type::f32;
-    case cldnn::data_types::f16:
-        return dnnl::memory::data_type::f16;
-    case cldnn::data_types::i8:
-        return dnnl::memory::data_type::s8;
-    case cldnn::data_types::u8:
-        return dnnl::memory::data_type::u8;
-    case cldnn::data_types::i32:
-        return dnnl::memory::data_type::s32;
-    case cldnn::data_types::i4:
-        return dnnl::memory::data_type::s4;
-    case cldnn::data_types::u4:
-        return dnnl::memory::data_type::u4;
-    case cldnn::data_types::f4e2m1:
-        return dnnl::memory::data_type::f4_e2m1;
-    case cldnn::data_types::f8e4m3:
-        return dnnl::memory::data_type::f8_e4m3;
-    case cldnn::data_types::f8e5m2:
-        return dnnl::memory::data_type::f8_e5m2;
-    case cldnn::data_types::f8e8m0:
-        return dnnl::memory::data_type::e8m0;
-    case cldnn::data_types::bf16:
-        return dnnl::memory::data_type::bf16;
-    default:
-        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+        case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
+        case cldnn::data_types::f16: return dnnl::memory::data_type::f16;
+        case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
+        case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
+        case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
+        case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
+        case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
+        case cldnn::data_types::u3: return dnnl::memory::data_type::u3;
+        case cldnn::data_types::f4e2m1: return dnnl::memory::data_type::f4_e2m1;
+        case cldnn::data_types::f8e4m3: return dnnl::memory::data_type::f8_e4m3;
+        case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
+        case cldnn::data_types::f8e8m0: return dnnl::memory::data_type::e8m0;
+        case cldnn::data_types::bf16: return dnnl::memory::data_type::bf16;
+        default: OPENVINO_THROW("[GPU] Unsupported conversion from cldnn to onednn type");
     }
 }
 
@@ -300,24 +288,27 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     }
 
     switch (desc.get_data_type()) {
-    case dnnl::memory::data_type::s4:
-    case dnnl::memory::data_type::u4:
-    case dnnl::memory::data_type::f4_e2m1:
-        return offset / 2;
-    case dnnl::memory::data_type::s8:
-    case dnnl::memory::data_type::u8:
-    case dnnl::memory::data_type::f8_e4m3:
-    case dnnl::memory::data_type::f8_e5m2:
-    case dnnl::memory::data_type::e8m0:
-        return offset;
-    case dnnl::memory::data_type::f16:
-    case dnnl::memory::data_type::bf16:
-        return (offset * 2);
-    case dnnl::memory::data_type::f32:
-    case dnnl::memory::data_type::s32:
-        return (offset * 4);
-    default:
-        throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ") + dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
+        case dnnl::memory::data_type::u3:
+            OPENVINO_ASSERT(offset % 8 == 0, "[GPU] u3 memory offset must be byte aligned, but got element offset ", offset);
+            return offset * 3 / 8;
+        case dnnl::memory::data_type::s4:
+        case dnnl::memory::data_type::u4:
+        case dnnl::memory::data_type::f4_e2m1:
+            return offset / 2;
+        case dnnl::memory::data_type::s8:
+        case dnnl::memory::data_type::u8:
+        case dnnl::memory::data_type::f8_e4m3:
+        case dnnl::memory::data_type::f8_e5m2:
+        case dnnl::memory::data_type::e8m0:
+            return offset;
+        case dnnl::memory::data_type::f16:
+        case dnnl::memory::data_type::bf16:
+            return (offset * 2);
+        case dnnl::memory::data_type::f32:
+        case dnnl::memory::data_type::s32:
+            return (offset * 4);
+        default:
+            OPENVINO_THROW("[GPU] Unsupported offset for dnnl_data_type_t ", dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
     }
 }
 
@@ -483,8 +474,9 @@ private:
 
         switch (fmt) {
         case dnnl::memory::format_tag::ab:
+            strides.push_back(std::accumulate(padded_dims.begin() + 1, padded_dims.end(), int64_t{1},
+                                              [](int64_t stride, int64_t dim) { return stride * dim; }));
             strides.push_back(1);
-            strides.push_back(padded_dims[0]);
             break;
 
         case dnnl::memory::format_tag::abc:
@@ -590,6 +582,12 @@ std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_
     auto input_desc = input_mdb.build();
     auto weights_desc = weights_mdb.build();
     auto output_desc = output_mdb.build();
+
+    // The rank-3 path pins a plain format_tag so that 1D activations stay representable in cldnn. Weights are converted
+    // by the oneDNN weights reorder, so keep format_tag::any and let oneDNN choose their layout as in the 4D/5D paths.
+    if (weights_desc.get_ndims() == 3) {
+        weights_desc = dnnl::memory::desc(weights_desc.get_dims(), weights_desc.get_data_type(), dnnl::memory::format_tag::any);
+    }
 
     GPU_DEBUG_TRACE_DETAIL << "input: " << input_layout.to_short_string() << " -> " << memory_desc_to_string(input_desc) << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "weights: " << weights_layout.to_short_string() << " -> " << memory_desc_to_string(weights_desc) << std::endl;

@@ -14,9 +14,14 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <iomanip>
 #include <limits>
 #include <optional>
+#include <sstream>
 #include <string_view>
+#include <type_traits>
+#include <unordered_set>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -25,8 +30,10 @@
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/variant_visitor.hpp"
 #include "weights.hpp"
 
 namespace ov::frontend::gguf {
@@ -62,7 +69,7 @@ TypeTraits type_traits(uint32_t type) {
     case GGUF_TYPE_Q8_0:
         return {32, 34};
     case GGUF_TYPE_Q8_1:
-        return {32, 40};
+        return {32, 36};
     case GGUF_TYPE_Q2_K:
         return {256, 84};
     case GGUF_TYPE_Q2_0:
@@ -110,7 +117,7 @@ struct QuantLayout {
     bool asymmetric;    // carries a per-group zero-point
 };
 
-std::optional<QuantLayout> quant_layout(uint32_t type) {
+std::optional<QuantLayout> quant_layout(uint32_t type, const std::string& name) {
     constexpr bool asymmetric = true;
     constexpr bool symmetric = false;
     switch (type) {
@@ -122,6 +129,7 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q5_0:
     case GGUF_TYPE_Q8_0:
+    case GGUF_TYPE_Q8_1:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric};
     case GGUF_TYPE_Q6_K:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 16, symmetric};
@@ -141,7 +149,8 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
     case GGUF_TYPE_Q5_1:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_Q5_K:
-        return QuantLayout{ov::element::u8, 1, ov::element::f16, 32, asymmetric};
+        return native_q5_k_is_symmetric(name) ? QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric}
+                                              : QuantLayout{ov::element::u8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_MXFP4:
         return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, symmetric};
     default:
@@ -338,88 +347,6 @@ static const ov::Tensor& metadata_scalar_tensor(const std::unordered_map<std::st
     return *tensor;
 }
 
-float metadata_to_float(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
-    const auto& tensor = metadata_scalar_tensor(metadata, key, ov::element::f32);
-    return *(tensor.data<ov::element_type_traits<ov::element::f32>::value_type>());
-}
-
-int metadata_to_int(const std::unordered_map<std::string, GGUFMetaData>& metadata, const std::string& key) {
-    // GGUF stores these counts as u32; reinterpret as i32 (values fit comfortably).
-    const auto& tensor = metadata_scalar_tensor(metadata, key, ov::element::u32);
-    return static_cast<int>(*(tensor.data<ov::element_type_traits<ov::element::u32>::value_type>()));
-}
-
-// `metadata_to_int`/`metadata_to_float`, but returning `default_value` when `key` is absent
-// instead of asserting. Most per-architecture scalars below are optional this way: llama.cpp's
-// hparam loading has the same "missing key -> compile-time default" convention per key.
-int metadata_to_int_or(const std::unordered_map<std::string, GGUFMetaData>& metadata,
-                       const std::string& key,
-                       int default_value) {
-    return metadata.count(key) ? metadata_to_int(metadata, key) : default_value;
-}
-
-float metadata_to_float_or(const std::unordered_map<std::string, GGUFMetaData>& metadata,
-                           const std::string& key,
-                           float default_value) {
-    return metadata.count(key) ? metadata_to_float(metadata, key) : default_value;
-}
-
-// GGUF stores true/false flags (e.g. "<arch>.expert_weights_norm") as a 1-byte
-// element::boolean scalar tensor, not the u32 metadata_to_int reinterprets; reading it through
-// metadata_to_int would read 4 bytes out of a 1-byte allocation. Read the boolean storage
-// directly instead.
-bool metadata_to_bool_or(const std::unordered_map<std::string, GGUFMetaData>& metadata,
-                         const std::string& key,
-                         bool default_value) {
-    if (!metadata.count(key)) {
-        return default_value;
-    }
-    const auto& tensor = metadata_scalar_tensor(metadata, key, ov::element::boolean);
-    return *(tensor.data<ov::element_type_traits<ov::element::boolean>::value_type>()) != 0;
-}
-
-// Read a metadata array of integer elements as a vector<int32_t>, empty when the key is absent.
-// GGUF writers disagree on the element type for the same key (llama.cpp emits
-// rope.dimension_sections as INT32 and attention.recurrent_layers as UINT32, and boolean arrays
-// carry the sliding-window pattern), so accept any 1- or 4-byte integer encoding.
-// `max_n` caps how many entries are taken (rope.dimension_sections reads at most 4).
-std::vector<int32_t> metadata_to_i32_vector(const std::unordered_map<std::string, GGUFMetaData>& metadata,
-                                            const std::string& key,
-                                            size_t max_n = std::numeric_limits<size_t>::max()) {
-    std::vector<int32_t> out;
-    auto it = metadata.find(key);
-    if (it == metadata.end()) {
-        return out;
-    }
-    const auto* t = std::get_if<ov::Tensor>(&it->second);
-    OPENVINO_ASSERT(t && t->data(), "[GGUF] metadata key '", key, "' is not an array as expected");
-    const auto& et = t->get_element_type();
-    OPENVINO_ASSERT(et.is_integral() && (et.size() == 1 || et.size() == 4),
-                    "[GGUF] metadata key '",
-                    key,
-                    "' is not an integer array as expected, got ",
-                    et);
-    const auto* bytes = static_cast<const uint8_t*>(t->data());
-    const size_t n = std::min(t->get_size(), max_n);
-    out.reserve(n);
-    for (size_t i = 0; i < n; ++i) {
-        if (et == ov::element::boolean) {
-            // Only a boolean array normalizes to 0/1. A byte-sized INTEGER array keeps its
-            // value: these keys carry counts and widths (a rope section of 32 must not
-            // become 1), not just flags.
-            out.push_back(bytes[i] ? 1 : 0);
-        } else if (et.size() == 1) {
-            out.push_back(et.is_signed() ? static_cast<int32_t>(static_cast<int8_t>(bytes[i]))
-                                         : static_cast<int32_t>(bytes[i]));
-        } else {
-            int32_t v = 0;
-            std::memcpy(&v, bytes + i * 4, sizeof(v));
-            out.push_back(v);
-        }
-    }
-    return out;
-}
-
 }  // namespace
 
 ov::Shape get_shape(const GgufTensor& tensor) {
@@ -431,13 +358,29 @@ ov::Shape get_shape(const GgufTensor& tensor) {
     return shape;
 }
 
-GGUFLoad get_gguf_data(const std::string& file) {
+namespace {
+
+struct TensorInfo {
+    std::string name;
+    uint32_t type = 0;
+    uint32_t ndim = 0;
+    uint64_t dim[4] = {1, 1, 1, 1};
+    uint64_t offset = 0;
+};
+
+struct GgufFile {
     std::unordered_map<std::string, GGUFMetaData> metadata;
-    std::unordered_map<std::string, ov::Tensor> arrays;
-    std::unordered_map<std::string, GgufTensorType> qtype;
+    std::vector<TensorInfo> infos;
+    std::shared_ptr<ov::MappedMemory> mapped;
+    uint64_t alignment;
+    uint64_t data_off;
+};
+
+GgufFile read_gguf_file(const std::filesystem::path& file) {
+    std::unordered_map<std::string, GGUFMetaData> metadata;
 
     auto mapped = ov::load_mmap_object(file);
-    OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", file, "'");
+    OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", ov::util::path_to_string(file), "'");
     const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
     const uint64_t fsize = mapped->size();
 
@@ -445,7 +388,10 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // ---- Header ----
     uint32_t magic = cur.read<uint32_t>();
-    OPENVINO_ASSERT(magic == GGUF_MAGIC, "[load_gguf] '", file, "' is not a GGUF file (bad magic)");
+    OPENVINO_ASSERT(magic == GGUF_MAGIC,
+                    "[load_gguf] '",
+                    ov::util::path_to_string(file),
+                    "' is not a GGUF file (bad magic)");
     uint32_t version = cur.read<uint32_t>();
     OPENVINO_ASSERT(version == 2 || version == 3, "[load_gguf] unsupported GGUF version ", version);
     uint64_t tensor_count = cur.read<uint64_t>();
@@ -473,13 +419,6 @@ GGUFLoad get_gguf_data(const std::string& file) {
                     alignment);
 
     // ---- Tensor info section ----
-    struct TensorInfo {
-        std::string name;
-        uint32_t type = 0;
-        uint32_t ndim = 0;
-        uint64_t dim[4] = {1, 1, 1, 1};
-        uint64_t offset = 0;
-    };
     // A minimal tensor-info record (0-length name, ndim=0) is 8 (name len) + 4 (ndim) + 4 (type) +
     // 8 (offset) = 24 bytes; bound the file-controlled `tensor_count` by that before sizing the
     // vector, so a tiny malformed file can't request an effectively unbounded allocation.
@@ -502,56 +441,74 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
     uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
+    OPENVINO_ASSERT(data_off <= fsize, "[load_gguf] tensor data section starts past EOF");
+    return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off};
+}
 
-    // Older Prism files used the upstream Q2_0 id for group-128 payloads.
-    std::vector<uint64_t> offsets;
-    for (const auto& ti : infos)
-        offsets.push_back(ti.offset);
-    std::sort(offsets.begin(), offsets.end());
-    OPENVINO_ASSERT(data_off <= fsize && (offsets.empty() || offsets.back() <= fsize - data_off),
-                    "[load_gguf] tensor offset runs past EOF");
+void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
     std::vector<TensorInfo*> ambiguous_q2;
     bool legacy_g128 = false;
-    for (auto& ti : infos) {
-        if (ti.type != GGUF_TYPE_Q2_0 || ti.dim[0] == 0)
-            continue;
-        const auto next = std::upper_bound(offsets.begin(), offsets.end(), ti.offset);
-        OPENVINO_ASSERT(data_off <= fsize && ti.offset <= fsize - data_off,
-                        "[load_gguf] tensor '",
-                        ti.name,
-                        "' offset runs past EOF");
-        const auto span = (next == offsets.end() ? fsize - data_off : *next) - ti.offset;
-        const auto size_for = [&](uint32_t type) {
-            const auto traits = type_traits(type);
-            uint64_t blocks = ti.dim[0] / traits.items_per_block;
-            for (uint32_t d = 1; d < ti.ndim; ++d) {
-                OPENVINO_ASSERT(ti.dim[d] == 0 || blocks <= std::numeric_limits<uint64_t>::max() / ti.dim[d],
+    for (auto& file : files) {
+        auto& infos = file.infos;
+        const auto alignment = file.alignment;
+        const auto data_off = file.data_off;
+        const uint64_t fsize = file.mapped->size();
+        std::vector<uint64_t> offsets;
+        for (const auto& ti : infos)
+            offsets.push_back(ti.offset);
+        std::sort(offsets.begin(), offsets.end());
+        OPENVINO_ASSERT(data_off <= fsize && (offsets.empty() || offsets.back() <= fsize - data_off),
+                        "[load_gguf] tensor offset runs past EOF");
+        for (auto& ti : infos) {
+            if (ti.type != GGUF_TYPE_Q2_0 || ti.dim[0] == 0)
+                continue;
+            const auto next = std::upper_bound(offsets.begin(), offsets.end(), ti.offset);
+            OPENVINO_ASSERT(data_off <= fsize && ti.offset <= fsize - data_off,
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' offset runs past EOF");
+            const auto span = (next == offsets.end() ? fsize - data_off : *next) - ti.offset;
+            const auto size_for = [&](uint32_t type) {
+                const auto traits = type_traits(type);
+                uint64_t blocks = ti.dim[0] / traits.items_per_block;
+                for (uint32_t d = 1; d < ti.ndim; ++d) {
+                    OPENVINO_ASSERT(ti.dim[d] == 0 || blocks <= std::numeric_limits<uint64_t>::max() / ti.dim[d],
+                                    "[load_gguf] tensor '",
+                                    ti.name,
+                                    "' byte count overflows");
+                    blocks *= ti.dim[d];
+                }
+                OPENVINO_ASSERT(blocks <= std::numeric_limits<uint64_t>::max() / traits.bytes_per_block,
                                 "[load_gguf] tensor '",
                                 ti.name,
                                 "' byte count overflows");
-                blocks *= ti.dim[d];
+                const auto bytes = blocks * traits.bytes_per_block;
+                return bytes <= span &&
+                       (bytes == span || ov::util::align_padding_size(alignment, bytes) == span - bytes);
+            };
+            const bool g64 = ti.dim[0] % 64 == 0 && size_for(GGUF_TYPE_Q2_0);
+            const bool g128 = ti.dim[0] % 128 == 0 && size_for(GGUF_TYPE_PQ2_0);
+            OPENVINO_ASSERT(g64 || g128, "[load_gguf] tensor '", ti.name, "' has invalid Q2_0 packing");
+            if (g64 && g128) {
+                ambiguous_q2.push_back(&ti);
+            } else if (g128) {
+                ti.type = GGUF_TYPE_PQ2_0;
+                legacy_g128 = true;
             }
-            OPENVINO_ASSERT(blocks <= std::numeric_limits<uint64_t>::max() / traits.bytes_per_block,
-                            "[load_gguf] tensor '",
-                            ti.name,
-                            "' byte count overflows");
-            const auto bytes = blocks * traits.bytes_per_block;
-            return bytes <= span && (bytes == span || ov::util::align_padding_size(alignment, bytes) == span - bytes);
-        };
-        const bool g64 = ti.dim[0] % 64 == 0 && size_for(GGUF_TYPE_Q2_0);
-        const bool g128 = ti.dim[0] % 128 == 0 && size_for(GGUF_TYPE_PQ2_0);
-        OPENVINO_ASSERT(g64 || g128, "[load_gguf] tensor '", ti.name, "' has invalid Q2_0 packing");
-        if (g64 && g128) {
-            ambiguous_q2.push_back(&ti);
-        } else if (g128) {
-            ti.type = GGUF_TYPE_PQ2_0;
-            legacy_g128 = true;
         }
     }
     if (legacy_g128) {
         for (auto* ti : ambiguous_q2)
             ti->type = GGUF_TYPE_PQ2_0;
     }
+}
+
+void load_gguf_tensors(GgufFile& file,
+                       std::unordered_map<std::string, ov::Tensor>& arrays,
+                       std::unordered_map<std::string, GgufTensorType>& qtype) {
+    auto& [metadata, infos, mapped, alignment, data_off] = file;
+    const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+    const uint64_t fsize = mapped->size();
 
     // Validate file-controlled shapes before allocating repacked tensors.
     auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
@@ -582,7 +539,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
     };
 
     for (const auto& info : infos) {
-        if (const auto layout = quant_layout(info.type)) {
+        if (const auto layout = quant_layout(info.type, info.name)) {
             quant_sizes(info, *layout);
         }
     }
@@ -634,7 +591,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         const std::string name_prefix =
             ov::util::ends_with(name, WEIGHT_SUFFIX) ? name.substr(0, name.length() - WEIGHT_SUFFIX.length()) : name;
 
-        const auto layout = quant_layout(ti.type);
+        const auto layout = quant_layout(ti.type, ti.name);
         if (!layout) {
             ov::Tensor loaded = extract_tensor_data(tensor, mapped);  // zero-copy mmap view
             const bool inserted = arrays.emplace(name, std::move(loaded)).second;
@@ -657,7 +614,9 @@ GGUFLoad get_gguf_data(const std::string& file) {
             zp = ov::Tensor(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
         }
 
-        if (ti.type == GGUF_TYPE_MXFP4) {
+        if (ti.type == GGUF_TYPE_Q5_K && !layout->asymmetric) {
+            gguf_fill_q5_k_i8(tensor, weights, scales);
+        } else if (ti.type == GGUF_TYPE_MXFP4) {
             gguf_fill_mxfp4(tensor, weights, scales);
         } else if (ti.type == GGUF_TYPE_Q2_0 || ti.type == GGUF_TYPE_PQ2_0 || ti.type == GGUF_TYPE_PTQ1_0) {
             gguf_fill_q2_0(tensor, weights, scales, zp);
@@ -675,263 +634,153 @@ GGUFLoad get_gguf_data(const std::string& file) {
         }
         qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
     }
-
-    return {std::move(metadata), std::move(arrays), std::move(qtype), std::move(mapped)};
 }
 
-std::map<std::string, GGUFMetaData> decoder_config_from_meta(
-    const std::unordered_map<std::string, GGUFMetaData>& metadata) {
-    std::map<std::string, GGUFMetaData> config;
-    // The architecture key drives every other key lookup; fail with a clear message (not a bare
-    // std::out_of_range / std::bad_variant_access) if the file carries no / a non-string one.
-    auto arch_it = metadata.find("general.architecture");
-    OPENVINO_ASSERT(arch_it != metadata.end(),
-                    "[GGUF] file has no 'general.architecture' metadata key; not a valid GGUF model file");
-    const auto* arch_ptr = std::get_if<std::string>(&arch_it->second);
-    OPENVINO_ASSERT(arch_ptr, "[GGUF] 'general.architecture' metadata is not a string");
-    const std::string arch = *arch_ptr;
-    config["architecture"] = arch;
-    config["layer_num"] = metadata_to_int(metadata, arch + ".block_count");
-    const int head_count = metadata_to_int(metadata, arch + ".attention.head_count");
-    // Validate this independently of key_length: head_count is also used by the builder and,
-    // when key_length is absent, is the divisor for the head-size fallback below.
-    OPENVINO_ASSERT(head_count > 0, "[GGUF] '", arch, ".attention.head_count' must be positive");
-    config["head_num"] = head_count;
-    config["head_size"] = metadata.count(arch + ".attention.key_length")
-                              ? metadata_to_int(metadata, arch + ".attention.key_length")
-                              : (metadata_to_int(metadata, arch + ".embedding_length") / head_count);
-    {
-        const std::string kv_key = arch + ".attention.head_count_kv";
-        if (metadata.count(kv_key)) {
-            const auto& kv_val = metadata.at(kv_key);
-            if (auto* t = std::get_if<ov::Tensor>(&kv_val)) {
-                if (t->get_shape().size() == 1 && t->get_shape()[0] > 1) {
-                    // Per-layer array: store as a config tensor for use in the builder.
-                    config["head_num_kv_per_layer"] = *t;
-                    // Global default = the most common value (max over the array).
-                    const auto* data = t->data<uint32_t>();
-                    int global_kv = static_cast<int>(*std::max_element(data, data + t->get_size()));
-                    config["head_num_kv"] = global_kv;
-                } else {
-                    config["head_num_kv"] = metadata_to_int(metadata, kv_key);
-                }
-            }
-        } else {
-            config["head_num_kv"] = metadata_to_int(metadata, arch + ".attention.head_count");
+uint64_t split_value(const GgufFile& file, const std::string& key, const ov::element::Type& type) {
+    const auto& value = metadata_scalar_tensor(file.metadata, key, type);
+    OPENVINO_ASSERT(value.get_shape().empty(), "[load_gguf] '", key, "' must be a scalar");
+    if (type == ov::element::u16) {
+        return *value.data<const uint16_t>();
+    }
+    const auto count = *value.data<const int32_t>();
+    OPENVINO_ASSERT(count >= 0, "[load_gguf] '", key, "' must be nonnegative");
+    return static_cast<uint64_t>(count);
+}
+
+uint64_t split_count(const GgufFile& file) {
+    return file.metadata.count("split.count") ? split_value(file, "split.count", ov::element::u16) : 0;
+}
+
+bool same_metadata(const GGUFMetaData& lhs, const GGUFMetaData& rhs) {
+    if (lhs.index() != rhs.index()) {
+        return false;
+    }
+    return std::visit(ov::util::VariantVisitor{[&](const ov::Tensor& a) {
+                                                   const auto& b = std::get<ov::Tensor>(rhs);
+                                                   return a.get_element_type() == b.get_element_type() &&
+                                                          a.get_shape() == b.get_shape() &&
+                                                          (a.get_byte_size() == 0 ||
+                                                           std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0);
+                                               },
+                                               [&](const auto& a) {
+                                                   return a == std::get<std::decay_t<decltype(a)>>(rhs);
+                                               }},
+                      lhs);
+}
+
+std::string split_suffix(uint64_t index, uint64_t count) {
+    std::ostringstream suffix;
+    suffix << '-' << std::setfill('0') << std::setw(5) << index + 1 << "-of-" << std::setw(5) << count << ".gguf";
+    return suffix.str();
+}
+
+GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
+    const uint64_t count = split_count(files.front());
+    if (count != 0) {
+        OPENVINO_ASSERT(files.size() == count, "[load_gguf] expected ", count, " GGUF shards, got ", files.size());
+        std::vector<bool> seen(count);
+        uint64_t tensor_count = 0;
+        const auto total = split_value(files.front(), "split.tensors.count", ov::element::i32);
+        for (const auto& file : files) {
+            OPENVINO_ASSERT(split_count(file) == count, "[load_gguf] inconsistent split.count across GGUF shards");
+            const auto index = split_value(file, "split.no", ov::element::u16);
+            OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
+            OPENVINO_ASSERT(!seen[index], "[load_gguf] duplicate GGUF shard index: ", index);
+            seen[index] = true;
+            OPENVINO_ASSERT(split_value(file, "split.tensors.count", ov::element::i32) == total,
+                            "[load_gguf] inconsistent split.tensors.count across GGUF shards");
+            tensor_count += file.infos.size();
         }
-    }
-    config["hidden_size"] = metadata_to_int(metadata, arch + ".embedding_length");
-    config["max_position_embeddings"] = metadata_to_int_or(metadata, arch + ".context_length", 2048);
-    config["pooling_type"] = metadata_to_int_or(metadata, arch + ".pooling_type", 0);
-    config["causal_attention"] = metadata_to_bool_or(metadata, arch + ".attention.causal", true) ? 1 : 0;
-    config["rms_norm_eps"] = metadata_to_float(
-        metadata,
-        arch + (arch == "jais2" ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"));
-    config["rope_freq_base"] = metadata_to_float_or(metadata, arch + ".rope.freq_base", 10000.0f);
-    // Advisory: the dominant quant type of the file. Purely informational -- every weight carries
-    // its own type in the tensor info, which is what the dequant path uses. Optional because
-    // llama.cpp's own model writer (llama_model_saver, the source of the per-arch test fixtures)
-    // does not emit it; requiring it would reject files llama.cpp itself considers valid.
-    config["file_type"] = metadata_to_int_or(metadata, "general.file_type", 0);
-
-    // RoPE YaRN scaling: freq_scale = 1/factor (default 1.0 = no scaling), ext_factor = 1.0
-    // for YARN type (0.0 otherwise), n_ctx_orig from rope.scaling.original_context_length.
-    // Mirrors llama.cpp: hparams.rope_freq_scale_train = 1/ropescale; ext_factor = (yarn?1:0).
-    {
-        const float ropescale = metadata_to_float_or(metadata, arch + ".rope.scaling.factor", 0.0f);
-        config["rope_freq_scale"] = ropescale == 0.0f ? 1.0f : 1.0f / ropescale;
-
-        const bool is_yarn = metadata.count(arch + ".rope.scaling.type") &&
-                             std::get<std::string>(metadata.at(arch + ".rope.scaling.type")) == "yarn";
-        config["rope_ext_factor"] = is_yarn ? 1.0f : 0.0f;
-        config["rope_yarn_beta_fast"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_fast", 32.0f);
-        config["rope_yarn_beta_slow"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_slow", 1.0f);
-        config["rope_yarn_log_mul"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_log_multiplier", 0.0f);
-        config["attention_temperature_scale"] =
-            metadata_to_float_or(metadata, arch + ".attention.temperature_scale", 0.0f);
-
-        // n_ctx_orig: use rope.scaling.original_context_length when present; fall back to
-        // context_length (the training context, which is also n_ctx_train in llama.cpp).
-        config["rope_n_ctx_orig"] = metadata_to_int_or(metadata,
-                                                       arch + ".rope.scaling.original_context_length",
-                                                       std::get<int>(config["max_position_embeddings"]));
-    }
-
-    // Number of rope dimensions (n_rot); defaults to head_size. Some archs (e.g. partial-
-    // rotary models) set it smaller. A value of 0 means "no RoPE" or full rotation —
-    // treat as head_size to avoid division-by-zero and empty-vector crashes downstream.
-    {
-        const int rope_dims = metadata_to_int_or(metadata, arch + ".rope.dimension_count", 0);
-        config["rope_dimension_count"] = (rope_dims > 0) ? rope_dims : std::get<int>(config["head_size"]);
-    }
-    // Gemma4: SWA layers use a smaller head size (and fewer rope dims) than global layers.
-    // key_length_swa / value_length_swa / rope.dimension_count_swa default to key_length.
-    config["head_size_swa"] =
-        metadata_to_int_or(metadata, arch + ".attention.key_length_swa", std::get<int>(config["head_size"]));
-    config["rope_dimension_count_swa"] =
-        metadata_to_int_or(metadata, arch + ".rope.dimension_count_swa", std::get<int>(config["rope_dimension_count"]));
-    // Gemma4: per-layer embedding dimension (0 = absent / not used).
-    config["n_embd_per_layer"] = metadata_to_int_or(metadata, arch + ".embedding_length_per_layer_input", 0);
-    // Gemma4: number of layers that have their own KV cache (from the start).
-    // shared_kv_layers trailing layers reuse KV from the preceding full-KV layer.
-    // 0 = all layers have KV (default for non-Gemma4 architectures).
-    config["shared_kv_layers"] = metadata_to_int_or(metadata, arch + ".attention.shared_kv_layers", 0);
-
-    // Mixture-of-experts config (0 when dense).
-    config["expert_count"] = metadata_to_int_or(metadata, arch + ".expert_count", 0);
-    config["expert_used_count"] = metadata_to_int_or(metadata, arch + ".expert_used_count", 0);
-    config["expert_feed_forward_length"] = metadata_to_int_or(metadata, arch + ".expert_feed_forward_length", 0);
-    // Hybrid MoE: first N layers are dense, remainder use MoE routing.
-    // Mirrors llama.cpp hparams.n_layer_dense_lead (deepseek2-ocr, ernie4_5-moe, glm4moe).
-    config["n_layer_dense_lead"] = metadata_to_int_or(metadata, arch + ".leading_dense_block_count", 0);
-    // Shared (always-active) experts: run in parallel with routed experts, outputs summed.
-    // Mirrors llama.cpp hparams.n_expert_shared (deepseek2-ocr, bailingmoe2, exaone-moe).
-    config["expert_shared_count"] = metadata_to_int_or(metadata, arch + ".expert_shared_count", 0);
-
-    // Per-architecture scalars (MiniCPM family). MiniCPM bakes these into hparams with
-    // backward-compatible defaults when the GGUF lacks the keys (older exports); newer
-    // exports carry the keys and override. Other archs default to 1.0 (no-op).
-    const bool is_minicpm = arch.rfind("minicpm", 0) == 0;
-    // Gemma/Gemma2/Gemma3/Gemma4 scale embeddings by sqrt(n_embd) before the first layer.
-    const bool is_gemma = arch == "gemma" || arch == "gemma2" || arch == "gemma3" || arch == "gemma4";
-    const float def_embedding_scale =
-        is_minicpm ? 12.0f : (is_gemma ? std::sqrt(static_cast<float>(std::get<int>(config["hidden_size"]))) : 1.0f);
-    const float def_residual_scale =
-        is_minicpm ? 1.4f / std::sqrt(static_cast<float>(std::get<int>(config["layer_num"]))) : 1.0f;
-    const float def_logit_scale = is_minicpm ? 256.0f / static_cast<float>(std::get<int>(config["hidden_size"])) : 1.0f;
-    config["embedding_scale"] = metadata_to_float_or(metadata, arch + ".embedding_scale", def_embedding_scale);
-    config["residual_scale"] = metadata_to_float_or(metadata, arch + ".residual_scale", def_residual_scale);
-    const float logit_scale = metadata_to_float_or(metadata, arch + ".logit_scale", def_logit_scale);
-    // MiniCPM shares llama.cpp's Granite graph, which divides logits by this scale.
-    config["logit_scale"] = is_minicpm && logit_scale != 0.0f ? 1.0f / logit_scale : logit_scale;
-    // Hybrid linear-attention (Gated DeltaNet) parameters: qwen35 / qwen3next / kimi-linear.
-    // 0 for every non-SSM architecture, which is what the builder tests against.
-    auto ssm_key = [&](const std::string& k) {
-        return metadata_to_int_or(metadata, arch + "." + k, 0);
-    };
-    config["ssm_conv_kernel"] = ssm_key("ssm.conv_kernel");
-    config["ssm_state_size"] = ssm_key("ssm.state_size");
-    config["ssm_group_count"] = ssm_key("ssm.group_count");
-    config["ssm_time_step_rank"] = ssm_key("ssm.time_step_rank");
-    config["ssm_inner_size"] = ssm_key("ssm.inner_size");
-    // Every full_attention_interval-th layer is full attention, the rest are recurrent:
-    // llama.cpp qwen35 is_recr(il) = (il < n_layer) && ((il + 1) % interval != 0).
-    // llama.cpp defaults the interval to 4 when the GGUF omits the key, so match that rather
-    // than rejecting the model (llama.cpp src/models/qwen35.cpp load_arch_hparams).
-    config["full_attention_interval"] = metadata_to_int_or(metadata, arch + ".full_attention_interval", 4);
-    // NextN / MTP: extra decoder blocks stored past the main stack and NOT executed in a normal
-    // forward pass. The builder must stop its layer loop before them.
-    config["nextn_predict_layers"] = ssm_key("nextn_predict_layers");
-    // Explicit per-layer recurrent flags. llama.cpp consults this FIRST and only falls back to
-    // full_attention_interval when it is absent (src/models/qwen35.cpp load_arch_hparams).
-    config["recurrent_layer_flags"] = metadata_to_i32_vector(metadata, arch + ".attention.recurrent_layers");
-
-    // M-RoPE section widths (qwen35 / qwen3vl): 4 per-axis rotary section sizes.
-    config["rope_sections"] = metadata_to_i32_vector(metadata, arch + ".rope.dimension_sections", 4);
-
-    // Optional explicit attention (softmax) scale; 0 -> use 1/sqrt(head_size).
-    // Gemma4 uses scale=1.0 (no pre-attn scaling), per llama.cpp hparams.f_attention_scale=1.0.
-    // Gemma3 (like gemma/gemma2) uses 1/sqrt(n_embd_head_k); llama.cpp applies it as a
-    // Qcur pre-scale with build_attn(scale=1.0), which is numerically 1/sqrt(head_size) --
-    // exactly the default branch here, so gemma3 must NOT force scale=1.0.
-    const float def_attention_scale = arch == "gemma4" ? 1.0f
-                                      : arch == "gemma2" && std::get<int>(config["layer_num"]) == 46
-                                          ? 1.0f / std::sqrt(static_cast<float>(std::get<int>(config["hidden_size"]) /
-                                                                                std::get<int>(config["head_num"])))
-                                          : 0.0f;
-    config["attention_scale"] = metadata_to_float_or(metadata, arch + ".attention.scale", def_attention_scale);
-
-    // gpt-oss SWA: separate RoPE frequency base for sliding-window attention layers.
-    // Defaults to the global rope_freq_base when the key is absent (non-SWA or legacy models),
-    // EXCEPT gemma3: llama.cpp's gemma3 loader keeps the struct default 10000.0 when the key is
-    // absent (it does not reset to the global base first, unlike gemma2/gemma4/cohere2/etc.), so
-    // gemma3 SWA layers rope at freq_base=10000 while global layers use 1000000. See
-    // llama.cpp src/models/gemma3.cpp load_arch_hparams.
-    const float def_freq_base_swa =
-        (arch == "gemma3" || arch == "plamo3") ? 10000.0f : std::get<float>(config["rope_freq_base"]);
-    config["rope_freq_base_swa"] = metadata_to_float_or(metadata, arch + ".rope.freq_base_swa", def_freq_base_swa);
-
-    // has_swa: true when the GGUF carries either a sliding_window_pattern or a
-    // sliding_window (a finite window length), indicating SWA is active. The builder uses
-    // this to add the self_kq_mask_swa input and route SWA layers to the windowed mask.
-    // Architectures that always use sinks (gpt-oss) or per-layer flags (gemma4) are handled
-    // separately inside the builder; has_swa catches newly-added archs like smollm3.
-    //
-    // The same "positive finite" value, when present, is also the window's length in tokens
-    // (swa_window_size below): a token at position q may then attend to keys in
-    // [q - swa_window_size + 1, q], which AdaptToGenAI needs to build a correctly windowed
-    // self_kq_mask_swa instead of reusing the full causal mask.
-    uint32_t swa_window_value =
-        (arch == "gemma2" || (arch == "exaone4" && std::get<int>(config["layer_num"]) == 64)) ? 4096 : 0;
-    if (metadata.count(arch + ".attention.sliding_window")) {
-        const auto& t = std::get<ov::Tensor>(metadata.at(arch + ".attention.sliding_window"));
-        const uint32_t v = *t.data<uint32_t>();
-        // A value of 0 or UINT32_MAX typically means "no SWA"; treat only positive finite
-        // values as a real window.
-        if (v > 0 && v < 0xFFFFFFFFu) {
-            swa_window_value = v;
-        }
-    }
-    config["has_swa"] = (metadata.count(arch + ".attention.sliding_window_pattern") || swa_window_value > 0) ? 1 : 0;
-    config["swa_window_size"] = static_cast<int>(swa_window_value);
-
-    // gpt-oss SWA: alternation period (default 2: even layers are SWA). Matches llama.cpp's
-    // set_swa_pattern(swa_period, dense_first=false): il is SWA if il % period < period - 1.
-    // Gemma4: sliding_window_pattern is a boolean array (one entry per layer); stored as
-    // an ov::Tensor of element::boolean. Detect by checking the variant type.
-    if (metadata.count(arch + ".attention.sliding_window_pattern")) {
-        const auto& v = metadata.at(arch + ".attention.sliding_window_pattern");
-        if (std::holds_alternative<ov::Tensor>(v)) {
-            const auto& t = std::get<ov::Tensor>(v);
-            if (t.get_element_type() == ov::element::boolean) {
-                // Boolean array: convert to vector<int32_t> (1=SWA, 0=global) for the builder.
-                config["swa_layer_flags"] =
-                    metadata_to_i32_vector(metadata, arch + ".attention.sliding_window_pattern");
-                config["swa_layer_pattern"] = 0;  // 0 = use per-layer flags, not period
-            } else {
-                config["swa_layer_pattern"] = metadata_to_int(metadata, arch + ".attention.sliding_window_pattern");
-                config["swa_layer_flags"] = std::vector<int32_t>{};
-            }
-        } else {
-            config["swa_layer_pattern"] = metadata_to_int(metadata, arch + ".attention.sliding_window_pattern");
-            config["swa_layer_flags"] = std::vector<int32_t>{};
-        }
+        OPENVINO_ASSERT(tensor_count == total,
+                        "[load_gguf] split.tensors.count declares ",
+                        total,
+                        " tensors, found ",
+                        tensor_count);
+        std::sort(files.begin(), files.end(), [](const auto& a, const auto& b) {
+            return split_value(a, "split.no", ov::element::u16) < split_value(b, "split.no", ov::element::u16);
+        });
     } else {
-        // No explicit pattern key. gemma3 defaults to period 6 (llama.cpp gemma3 load_arch_hparams
-        // passes swa_period=6 to get_key_or_arr); gpt-oss and others default to 2.
-        config["swa_layer_pattern"] = arch == "gemma3"                              ? 6
-                                      : arch == "plamo3"                            ? 8
-                                      : (arch == "exaone4" || arch == "exaone-moe") ? 4
-                                                                                    : 2;
-        config["swa_layer_flags"] = std::vector<int32_t>{};
+        OPENVINO_ASSERT(files.size() == 1, "[load_gguf] multiple inputs must belong to one split GGUF model");
     }
 
-    // gpt-oss MoE: optional per-expert routing weight scale applied after softmax (0 = 1.0 no-op).
-    config["expert_weights_scale"] = metadata_to_float_or(metadata, arch + ".expert_weights_scale", 0.0f);
-
-    // Routing metadata; architecture-required normalization is resolved in DecoderConfig.
-    config["moe_layer_step"] = metadata_to_int_or(metadata, arch + ".interleave_moe_layer_step", 1);
-    config["expert_groups"] = metadata_to_int_or(metadata, arch + ".expert_group_count", 1);
-    config["expert_groups_used"] = metadata_to_int_or(metadata, arch + ".expert_group_used_count", 1);
-    auto expert_gating_func = metadata_to_int_or(metadata, arch + ".expert_gating_func", arch == "glm4moe" ? 2 : 1);
-    if (arch == "glm4moe" && expert_gating_func == 0)
-        expert_gating_func = 2;
-    config["expert_gating_func"] = expert_gating_func;
-    config["expert_weights_norm"] = metadata_to_bool_or(metadata, arch + ".expert_weights_norm", false) ? 1 : 0;
-
-    // Gemma2 attention soft-cap: tanh(QK^T * (1/cap)) * cap applied inside the attention.
-    // 0.0 means no soft-cap (default for all non-Gemma2 architectures).
-    config["attn_logit_softcapping"] = metadata_to_float_or(metadata, arch + ".attn_logit_softcapping", 0.0f);
-
-    // Gemma2/Gemma3 final logit soft-cap applied after lm_head: tanh(x/cap)*cap.
-    // 0.0 means no soft-cap.
-    config["final_logit_softcapping"] = metadata_to_float_or(metadata, arch + ".final_logit_softcapping", 0.0f);
-
-    for (const auto& [key, value] : metadata) {
-        if (key.compare(0, 15, "prism.hadamard.") == 0)
-            config[key] = value;
+    const auto& metadata = files.front().metadata;
+    std::unordered_set<std::string> names;
+    for (const auto& file : files) {
+        for (const auto& [key, value] : file.metadata) {
+            if (key.compare(0, 6, "split.") == 0) {
+                continue;
+            }
+            const auto it = metadata.find(key);
+            OPENVINO_ASSERT(it != metadata.end() && same_metadata(it->second, value),
+                            "[load_gguf] inconsistent metadata across GGUF shards: '",
+                            key,
+                            "'");
+        }
+        for (const auto& info : file.infos) {
+            OPENVINO_ASSERT(names.insert(info.name).second, "[load_gguf] duplicate tensor name '", info.name, "'");
+        }
     }
-    return config;
+
+    std::unordered_map<std::string, ov::Tensor> arrays;
+    std::unordered_map<std::string, GgufTensorType> qtype;
+    std::vector<std::shared_ptr<ov::MappedMemory>> mappings;
+    mappings.reserve(files.size());
+    detect_legacy_q2_layout(files);
+    for (auto& file : files) {
+        load_gguf_tensors(file, arrays, qtype);
+        mappings.push_back(std::move(file.mapped));
+    }
+    return {std::move(files.front().metadata), std::move(arrays), std::move(qtype), std::move(mappings)};
+}
+
+}  // namespace
+
+GGUFLoad get_gguf_data(const std::filesystem::path& file) {
+    auto initial = read_gguf_file(file);
+    const auto count = split_count(initial);
+    if (count <= 1) {
+        std::vector<GgufFile> files;
+        files.push_back(std::move(initial));
+        return load_gguf_files(std::move(files));
+    }
+    const auto index = split_value(initial, "split.no", ov::element::u16);
+    OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
+    const auto filename = file.filename().native();
+    const auto suffix = std::filesystem::path(split_suffix(index, count)).native();
+    OPENVINO_ASSERT(filename.size() >= suffix.size() &&
+                        filename.compare(filename.size() - suffix.size(), suffix.size(), suffix) == 0,
+                    "[load_gguf] split GGUF filename does not match its metadata; provide an explicit list of shards");
+    const auto prefix = filename.substr(0, filename.size() - suffix.size());
+    std::vector<GgufFile> files;
+    files.reserve(count);
+    for (uint64_t i = 0; i < count; ++i) {
+        if (i == index) {
+            files.push_back(std::move(initial));
+            continue;
+        }
+        const auto sibling = file.parent_path() / (prefix + std::filesystem::path(split_suffix(i, count)).native());
+        OPENVINO_ASSERT(std::filesystem::is_regular_file(sibling),
+                        "[load_gguf] missing GGUF shard: '",
+                        ov::util::path_to_string(sibling),
+                        "'");
+        auto next = read_gguf_file(sibling);
+        OPENVINO_ASSERT(split_value(next, "split.no", ov::element::u16) == i,
+                        "[load_gguf] split.no does not match shard filename: '",
+                        ov::util::path_to_string(sibling),
+                        "'");
+        files.push_back(std::move(next));
+    }
+    return load_gguf_files(std::move(files));
+}
+
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& paths) {
+    OPENVINO_ASSERT(!paths.empty(), "[load_gguf] GGUF shard list is empty");
+    std::vector<GgufFile> files;
+    files.reserve(paths.size());
+    for (const auto& path : paths) {
+        files.push_back(read_gguf_file(path));
+    }
+    return load_gguf_files(std::move(files));
 }
 
 }  // namespace ov::frontend::gguf

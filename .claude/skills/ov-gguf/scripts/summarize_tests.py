@@ -6,6 +6,7 @@
 import argparse
 from collections import Counter
 import json
+import os
 from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
@@ -17,19 +18,29 @@ def signature(message):
     return " ".join((useful or lines)[:2])[:320] or "No message provided"
 
 
+def aliases(first, second):
+    if first.resolve() == second.resolve():
+        return True
+    try:
+        return os.path.samefile(first, second)
+    except OSError:
+        return False
+
+
 def summarize(path):
     root = ET.parse(path).getroot()
     for node in root.iter():
         node.tag = node.tag.rsplit("}", 1)[-1]
     cases = list(root.iter("testcase"))
     counts = Counter(selected=0, passed=0, failed=0, errors=0, skipped=0, not_run=0)
-    failures, skips = [], []
+    failures, skips, selected_ids = [], [], []
     for case in cases:
         if case.get("status") == "notrun" or case.get("result") == "suppressed":
             counts["not_run"] += 1
             continue
         counts["selected"] += 1
         name = ".".join(filter(None, (case.get("classname"), case.get("name"))))
+        selected_ids.append(name)
         errors = case.findall("error")
         failed = case.findall("failure")
         skipped = case.findall("skipped")
@@ -45,7 +56,7 @@ def summarize(path):
         for node in list(suite)
         if node.tag in ("failure", "error")
     ]
-    return {"path": str(path.resolve()), "counts": dict(counts), "failures": failures,
+    return {"path": str(path.resolve()), "counts": dict(counts), "selected_ids": selected_ids, "failures": failures,
             "skips": skips, "suite_errors": suite_errors}
 
 
@@ -55,7 +66,7 @@ def main():
     parser.add_argument("--output", required=True, type=Path, help="Full JSON details; must differ from input reports")
     parser.add_argument("--process-exit", type=int, help="Recorded exit code of the test process")
     args = parser.parse_args()
-    if args.output.resolve() in {path.resolve() for path in args.reports}:
+    if any(aliases(args.output, path) for path in args.reports):
         parser.error("output must not overwrite an input report")
     reports, errors = [], []
     for path in args.reports:

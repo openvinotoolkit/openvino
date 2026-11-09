@@ -17,6 +17,7 @@
 
 #include <cmath>
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
@@ -39,21 +40,11 @@ namespace {
 constexpr int64_t D = -1;
 }  // namespace
 
-DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
-                               std::unordered_map<std::string, ov::Tensor>& weights,
-                               std::unordered_map<std::string, GgufTensorType>& qtypes,
-                               std::optional<RopeMode> rope,
-                               const DecoderOptions& options,
-                               const std::unordered_map<std::string, CreatorFunction>* translators)
-    : m_cfg(config, weights, rope, options),
-      m_emit(weights, qtypes, m_cfg.arch, translators),
+DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
+    : m_cfg(parameters, context.weights->weights),
+      m_emit(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
-    m_emit.configure_hadamard(config);
-    auto& graph = *m_emit.graph();
-    graph.has_rope = true;
-    graph.rope_config = m_cfg.rope_config;
-    graph.use_per_op_rope = m_cfg.use_per_op_rope;
-    graph.swa_window_size = m_cfg.swa_window_size;
+    m_cfg.configure_graph(m_emit, context.metadata);
 }
 
 void DecoderBuilder::build_inputs() {
@@ -243,11 +234,14 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     const std::string attn_norm =
         m_cfg.post_norm_only ? cur : norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
 
-    if (m_cfg.is_qwen35 && m_cfg.is_recurrent_layer(il)) {
+    if (m_cfg.is_recurrent_layer(il)) {
         // Hybrid stack: 3 of every 4 layers replace attention with a Gated DeltaNet block.
         // It produces the same thing the attention path does -- the sublayer output before
         // the residual -- so the shared FFN tail below is reused verbatim.
-        const std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
+        std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
+        if (m_cfg.residual_scale != 1.0f) {
+            gdn_out = blocks::scale(m_emit, gdn_out, m_cfg.residual_scale, p + "attn_out_scaled");
+        }
         std::string sa = inpSA;
         std::string ao = gdn_out;
         if (selects_output_rows(il)) {
@@ -255,7 +249,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
             sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
         }
         auto ffn_inp_r = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa});
-        auto ffn_norm_r = blocks::rms_norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
+        auto ffn_norm_r = norm(m_emit, ffn_inp_r, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
         // Mirror the non-recurrent FFN dispatch below: Qwen3-Next is MoE for every trunk layer
         // (llama.cpp routes both the GDN and full-attention layers through build_moe_ffn), so a
         // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
@@ -264,6 +258,9 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r)
                       : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r)
                                        : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r);
+        if (m_cfg.residual_scale != 1.0f) {
+            down_r = blocks::scale(m_emit, down_r, m_cfg.residual_scale, p + "ffn_out_scaled");
+        }
         return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r});
     }
 

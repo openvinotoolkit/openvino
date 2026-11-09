@@ -45,8 +45,7 @@ void TransposeMatMul::SetUp() {
     targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
 
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_ARM)
-    // For ARM platforms with FP16 tests, ensure inference precision is FP16
+    // For platforms with FP16 tests, ensure inference precision is FP16
     // to match the model precision and avoid comparison tolerance issues
     if (std::all_of(elem_types.begin(), elem_types.end(), 
                     [](const ov::element::Type& t) { return t == ov::element::f16; })) {
@@ -56,7 +55,6 @@ void TransposeMatMul::SetUp() {
         abs_threshold = 0.5f;
         rel_threshold = 0.035f;
     }
-#endif
 
     const auto builder = get_builder(elem_types);
     function = builder->getOriginal();
