@@ -2008,6 +2008,26 @@ def test_inlined_inputs():
     model()
 
 
+@pytest.mark.precommit
+def test_openvino_compile_reads_cached_model(tmp_path):
+    from torch.fx.experimental.proxy_tensor import make_fx
+    from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
+
+    def func(lhs, rhs):
+        return torch.relu(lhs) + rhs
+
+    lhs = torch.linspace(-1, 1, 6).reshape(2, 3)
+    rhs = torch.ones(2, 3)
+    graph = make_fx(func)(lhs, rhs)
+    options = {"cache_dir": str(tmp_path)}
+    # The first call converts the graph and saves it to the cache, the second one reads it from there
+    for _ in range(2):
+        compiled = openvino_compile(graph, lhs, rhs, model_hash_str="test_model", options=options)
+    assert len(list((tmp_path / "model").glob("*.xml"))) == 1
+    result = compiled([lhs.numpy(), rhs.numpy()])[0]
+    np.testing.assert_allclose(result, func(lhs, rhs).numpy(), atol=1e-3, rtol=1e-3)
+
+
 # --- dynamo (torch.export) tests ---
 
 def _torch_version_at_least(version_str):
