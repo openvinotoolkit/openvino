@@ -195,7 +195,8 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
         auto expected_zp_mem_desc =
             MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(ref_impl->get_zp_md()));
         const auto& zp_dims = zp_mem->getShape().getStaticDims();
-        expected_zp_mem_desc = add_batch_dim(MemoryDescUtils::convertToBlockedMemoryDesc(expected_zp_mem_desc), zp_dims[0]);
+        expected_zp_mem_desc =
+            add_batch_dim(MemoryDescUtils::convertToBlockedMemoryDesc(expected_zp_mem_desc), zp_dims[0]);
         const auto zp_src = expand_scalar(zp_mem, expected_zp_mem_desc->getShape().getRank(), eng);
         if (expected_zp_mem_desc->isCompatible(zp_src->getDesc())) {
             m_zp_memory = std::const_pointer_cast<IMemory>(zp_src);
@@ -211,15 +212,14 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
 
     m_src_data_type = DnnlExtensionUtils::ElementTypeToDataType(src_precision);
     m_K = K;
-    m_key_template =
-        InnerProductKey{{},
-                        ref_impl->get_weights_md(),
-                        key.bias_md,
-                        key.dst_data_type,
-                        scale_shape,
-                        zp_shape,
-                        zp_dt,
-                        src_dyn_quant_group_size};
+    m_key_template = InnerProductKey{{},
+                                     ref_impl->get_weights_md(),
+                                     key.bias_md,
+                                     key.dst_data_type,
+                                     scale_shape,
+                                     zp_shape,
+                                     zp_dt,
+                                     src_dyn_quant_group_size};
 }
 
 // inner_product bakes M into the primitive descriptor (src/common/inner_product.cpp rejects
@@ -319,7 +319,6 @@ void GroupedMatMulDnnlExecutor::execute(const MemoryArgs& memory) {
         auto* zp = zp_offset(g);
 
         // Source and destination rows are both contiguous, so the primitive runs on them in place
-        // printf("[CPU] GroupedMatMulDnnlExecutor::execute group %zu with start row %zu and %zu rows\n", g, start, rows);  // TODO: remove
         impl_for(rows)->exec(src_at(g, start), dst_at(g, start), wei, nullptr, scale, zp);
     }
 
