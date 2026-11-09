@@ -5,10 +5,16 @@
 #include "pre_compute.hpp"
 
 #include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "../../logging.hpp"
 #include "../../orc.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/scatter_nd_base.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -441,6 +447,249 @@ std::optional<uint64_t> ov::npuw::patterns::pre_compute::extract_longrope_contex
     return extract_context_limit<LongRopePatternPhi>(model);
 }
 
+namespace {
+// Ops that only move/select/reshape data (or compute indices and shapes). For such an op f,
+// cos(f(x)) == f(cos(x)), so Sin/Cos can be hoisted in front of a chain made of them.
+bool is_data_movement_op(const std::shared_ptr<ov::Node>& n) {
+    return ov::is_type<ov::op::util::GatherBase>(n) || ov::is_type<ov::op::v8::Slice>(n) ||
+           ov::is_type<ov::op::v1::StridedSlice>(n) || ov::is_type<ov::op::v1::Reshape>(n) ||
+           ov::is_type<ov::op::util::ScatterNDBase>(n) || ov::is_type<ov::op::util::BroadcastBase>(n) ||
+           ov::is_type<ov::op::v0::Concat>(n) || ov::is_type<ov::op::v0::Squeeze>(n) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(n) || ov::is_type<ov::op::v1::Transpose>(n) ||
+           ov::is_type<ov::op::util::ShapeOfBase>(n) || ov::is_type<ov::op::v1::ReduceProd>(n) ||
+           ov::is_type<ov::op::v0::Range>(n) || ov::is_type<ov::op::v4::Range>(n);
+}
+
+// Whether `input_idx` of a data-movement op carries the data (as opposed to indices/shapes/axes).
+bool is_data_input(const std::shared_ptr<ov::Node>& n, size_t input_idx) {
+    if (ov::is_type<ov::op::v0::Concat>(n)) {
+        return true;
+    }
+    if (ov::is_type<ov::op::util::ScatterNDBase>(n)) {
+        return input_idx == 0 || input_idx == 2;
+    }
+    return input_idx == 0;
+}
+
+// Finds (in `ancestors`) the Transpose( MatMul(inv_freq, Convert(Unsqueeze(P))) ) that produces
+// the angle tensor [..., L, n] = P[..., L] * inv_freq[n]. Fills inv_freq values and P on success.
+struct AngleSource {
+    std::shared_ptr<ov::Node> transpose;
+    ov::Output<ov::Node> positions;  // P
+    std::vector<float> inv_freq;
+};
+
+std::optional<AngleSource> match_angle_source(const std::shared_ptr<ov::Node>& transpose) {
+    auto tr = ov::as_type_ptr<ov::op::v1::Transpose>(transpose);
+    if (!tr || !tr->get_output_partial_shape(0).is_static()) {
+        return std::nullopt;
+    }
+    auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(tr->input_value(0).get_node_shared_ptr());
+    if (!matmul || matmul->get_transpose_a() || matmul->get_transpose_b()) {
+        return std::nullopt;
+    }
+
+    // Positions: Convert(Unsqueeze(P)) with P an integer tensor [..., L].
+    auto pos_node = matmul->input_value(1).get_node_shared_ptr();
+    if (ov::is_type<ov::op::v0::Convert>(pos_node)) {
+        pos_node = pos_node->input_value(0).get_node_shared_ptr();
+    } else {
+        return std::nullopt;
+    }
+    auto unsqueeze = ov::as_type_ptr<ov::op::v0::Unsqueeze>(pos_node);
+    if (!unsqueeze) {
+        return std::nullopt;
+    }
+    const auto positions = unsqueeze->input_value(0);
+    if (!positions.get_element_type().is_integral_number() || !positions.get_partial_shape().is_static()) {
+        return std::nullopt;
+    }
+    auto expected_unsqueezed = positions.get_shape();
+    expected_unsqueezed.insert(expected_unsqueezed.end() - 1, 1u);  // [..., 1, L]
+    if (unsqueeze->get_output_partial_shape(0) != ov::PartialShape(expected_unsqueezed)) {
+        return std::nullopt;
+    }
+
+    // Frequencies: Constant, possibly behind Convert/Broadcast.
+    auto freq_node = matmul->input_value(0).get_node_shared_ptr();
+    while (ov::is_type<ov::op::v0::Convert>(freq_node) || ov::is_type<ov::op::util::BroadcastBase>(freq_node)) {
+        freq_node = freq_node->input_value(0).get_node_shared_ptr();
+    }
+    auto inv_freq = ov::as_type_ptr<ov::op::v0::Constant>(freq_node);
+    if (!inv_freq) {
+        return std::nullopt;
+    }
+
+    // Transpose must swap the two trailing dims: [..., n, L] -> [..., L, n].
+    const auto out_shape = tr->get_output_shape(0);
+    const size_t rank = out_shape.size();
+    auto perm = ov::as_type_ptr<ov::op::v0::Constant>(tr->input_value(1).get_node_shared_ptr());
+    if (!perm || rank < 2 || out_shape.back() != ov::shape_size(inv_freq->get_shape())) {
+        return std::nullopt;
+    }
+    std::vector<int64_t> expected_perm(rank);
+    for (size_t i = 0; i < rank; ++i) {
+        expected_perm[i] = static_cast<int64_t>(i);
+    }
+    std::swap(expected_perm[rank - 1], expected_perm[rank - 2]);
+    if (perm->cast_vector<int64_t>() != expected_perm) {
+        return std::nullopt;
+    }
+    auto expected_out = positions.get_shape();
+    expected_out.push_back(out_shape.back());
+    if (out_shape != expected_out) {
+        return std::nullopt;
+    }
+
+    return AngleSource{tr, positions, inv_freq->cast_vector<float>()};
+}
+
+// Qwen3-VL / Qwen3.5-style interleaved mRoPE: the angle tensor [3, B, L, n] (one position stream
+// per T/H/W) is not fed to Sin/Cos directly but first goes through a data-only selection
+// (Gather/Slice/ScatterNDUpdate/... "interleave") and a Concat. As the selection commutes with
+// cos/sin, a cos/sin LUT indexed by position is gathered right at the angle tensor instead and
+// a copy of the selection chain is run on the gathered coefficients.
+// Returns the number of Sin/Cos pairs replaced.
+size_t cache_interleaved_mrope(const std::shared_ptr<ov::Model>& model, const uint32_t max_len) {
+    const auto ordered_ops = model->get_ordered_ops();
+    std::vector<std::shared_ptr<ov::Node>> sins;
+    std::vector<std::shared_ptr<ov::Node>> coss;
+    for (const auto& op : ordered_ops) {
+        if (ov::is_type<ov::op::v0::Sin>(op)) {
+            sins.push_back(op);
+        } else if (ov::is_type<ov::op::v0::Cos>(op)) {
+            coss.push_back(op);
+        }
+    }
+
+    size_t replaced = 0;
+    for (const auto& sin : sins) {
+        const auto root = sin->input_value(0);
+        auto cos_it = std::find_if(coss.begin(), coss.end(), [&](const auto& cos) {
+            return cos->input_value(0) == root;
+        });
+        if (cos_it == coss.end() || root.get_index() != 0 || !root.get_partial_shape().is_static()) {
+            continue;
+        }
+        const auto cos = *cos_it;
+
+        // Everything the Sin/Cos input depends on.
+        std::unordered_set<ov::Node*> ancestors;
+        std::vector<ov::Node*> stack{root.get_node()};
+        while (!stack.empty()) {
+            auto* node = stack.back();
+            stack.pop_back();
+            if (!ancestors.insert(node).second) {
+                continue;
+            }
+            for (const auto& input : node->input_values()) {
+                stack.push_back(input.get_node());
+            }
+        }
+
+        std::optional<AngleSource> source;
+        bool ambiguous = false;
+        for (auto* node : ancestors) {
+            if (!ov::is_type<ov::op::v1::Transpose>(node)) {
+                continue;
+            }
+            if (auto candidate = match_angle_source(node->shared_from_this())) {
+                ambiguous = source.has_value();
+                source = std::move(candidate);
+            }
+        }
+        if (!source || ambiguous || source->transpose.get() == root.get_node()) {
+            continue;  // not an mRoPE chain (plain RoPE is handled by RopePatternLLama2)
+        }
+        const auto angle = source->transpose;
+
+        // Nodes between the angle tensor and Sin/Cos, in topological order.
+        std::unordered_set<ov::Node*> descendants{angle.get()};
+        std::vector<std::shared_ptr<ov::Node>> chain;
+        std::unordered_set<ov::Node*> shape_only;  // depend on the angle's shape, not its values
+        bool supported = true;
+        for (const auto& node : ordered_ops) {
+            if (node == angle || !ancestors.count(node.get())) {
+                continue;
+            }
+            bool uses_angle = false;
+            std::vector<bool> value_dep(node->get_input_size(), false);
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                auto* src = node->input_value(i).get_node();
+                uses_angle = uses_angle || descendants.count(src) > 0;
+                value_dep[i] = descendants.count(src) > 0 && shape_only.count(src) == 0;
+            }
+            if (!uses_angle) {
+                continue;
+            }
+            const bool has_value_input = std::find(value_dep.begin(), value_dep.end(), true) != value_dep.end();
+            if (has_value_input) {
+                // Every data operand must come from the angle tensor, e.g. a Concat that pads with
+                // constant zeros would not commute with cos (cos(0) == 1), and angle-derived
+                // indices are not representable at all.
+                for (size_t i = 0; i < value_dep.size(); ++i) {
+                    supported = supported && (is_data_input(node, i) == value_dep[i]);
+                }
+            }
+            descendants.insert(node.get());
+            chain.push_back(node);
+            if (ov::is_type<ov::op::util::ShapeOfBase>(node) || !has_value_input) {
+                shape_only.insert(node.get());
+            }
+            supported = supported && is_data_movement_op(node);
+        }
+        if (!supported || !descendants.count(root.get_node())) {
+            LOG_VERB("mRoPE cache: " << sin->get_friendly_name()
+                                     << " input chain is not a pure data-movement chain, skipping");
+            continue;
+        }
+
+        // cos/sin LUT [max_len, n] (f16, like the standard RoPE cache), row i == position i.
+        const size_t n = source->inv_freq.size();
+        const ov::Shape lut_shape{max_len, n};
+        ov::Tensor lut_cos(ov::element::f16, lut_shape);
+        ov::Tensor lut_sin(ov::element::f16, lut_shape);
+        writeCosSinRows(source->inv_freq, false, max_len, lut_cos.data<ov::float16>(), lut_sin.data<ov::float16>());
+
+        auto make_branch = [&](const ov::Tensor& lut, const char* suffix) -> std::shared_ptr<ov::Node> {
+            auto lut_const = std::make_shared<ov::op::v0::Constant>(lut);
+            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+            auto gather = std::make_shared<ov::op::v8::Gather>(lut_const, source->positions, axis);
+            auto coeffs = std::make_shared<ov::op::v0::Convert>(gather, angle->get_output_element_type(0));
+            if (coeffs->get_output_partial_shape(0) != angle->get_output_partial_shape(0)) {
+                return nullptr;
+            }
+
+            std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>> clones{{angle.get(), coeffs}};
+            for (const auto& node : chain) {
+                ov::OutputVector inputs;
+                for (const auto& input : node->input_values()) {
+                    auto it = clones.find(input.get_node());
+                    inputs.push_back(it == clones.end() ? input : it->second->output(input.get_index()));
+                }
+                auto clone = node->copy_with_new_inputs(inputs);
+                clone->set_friendly_name(node->get_friendly_name() + suffix);
+                clones[node.get()] = clone;
+            }
+            auto result = clones.at(root.get_node());
+            return result->get_output_partial_shape(0) == root.get_partial_shape() ? result : nullptr;
+        };
+
+        auto cos_branch = make_branch(lut_cos, "/npuw_rope_cos");
+        auto sin_branch = make_branch(lut_sin, "/npuw_rope_sin");
+        if (!cos_branch || !sin_branch) {
+            continue;
+        }
+        LOG_INFO("RoPE cache: interleaved mRoPE detected at " << sin->get_friendly_name() << ", using a " << max_len
+                                                              << "x" << n << " cos/sin LUT");
+        ov::replace_node(cos, cos_branch);
+        ov::replace_node(sin, sin_branch);
+        ++replaced;
+    }
+    return replaced;
+}
+}  // namespace
+
 ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len,
                                                                     const std::shared_ptr<ov::Model>& model,
                                                                     LongRopeCosSin* out_tables) {
@@ -517,6 +766,18 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
     };
     long_rpe_v5->run_on_model(model);
 
+    cache_interleaved_mrope(model, max_prompt_len);
+
+    {
+        const auto& ops = model->get_ops();
+        const auto left = std::count_if(ops.begin(), ops.end(), [](const auto& op) {
+            return ov::is_type<ov::op::v0::Sin>(op) || ov::is_type<ov::op::v0::Cos>(op);
+        });
+        if (left > 0) {
+            LOG_WARN("RoPE cache: " << left << " Sin/Cos node(s) are still in the model - the RoPE pattern was not "
+                                    << "recognized, angles will be computed at run time on the device");
+        }
+    }
     if (lr_cos_param) {
         model->add_parameters({lr_cos_param, lr_sin_param});
         for (auto&& input : model->inputs()) {
