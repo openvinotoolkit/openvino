@@ -62,11 +62,14 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 }
             }
 
-            // Offline (HW-free) compile has no device to JIT against. The primitive descriptor above is
-            // what drives format and layout decisions, and it is serialized; load() rebuilds the
-            // primitive from it on the importing device.
-            if (!engine.is_hw_free())
+            // On the HW-free engine nGEN kernels are generated on the host; save() stores them as a cache blob.
+            // OpenCL C kernels cannot be built there, so load() still builds those primitives from _pd.
+            try {
                 build_primitive(config);
+            } catch (const dnnl::error&) {
+                if (!engine.is_hw_free())
+                    throw;
+            }
         }
 
     typed_primitive_onednn_impl(const engine& engine, const ExecutionConfig& config = {})
@@ -359,7 +362,7 @@ private:
     void build_primitive(const ExecutionConfig& config) {
         auto cache_outpath = get_cache_directory(config);
 
-        if (!config.get_allow_new_shape_infer()) {
+        if (!config.get_allow_new_shape_infer() || _engine->is_hw_free()) {
             cache_outpath = "";
         }
 
@@ -394,6 +397,12 @@ private:
     }
 
 protected:
+    // Saved for a built primitive with no kernels (e.g. gpu:direct_copy): there is nothing to compile at load.
+    static const std::vector<uint8_t>& no_kernel_blob() {
+        static const std::vector<uint8_t> blob{0};
+        return blob;
+    }
+
     // Returns an empty blob if the primitive does not support cache blob serialization.
     std::vector<uint8_t> get_cache_blob() const {
         std::vector<uint8_t> cache;
@@ -402,6 +411,8 @@ protected:
             return cache;
         try {
             cache = _prim.get_cache_blob();
+            if (cache.empty())
+                cache = no_kernel_blob();
         } catch (const dnnl::error& e) {
             if (e.status != dnnl_unimplemented) {
                 throw;
@@ -420,6 +431,9 @@ protected:
     PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob, const ExecutionConfig& config) const {
         if (cache_blob.empty()) {
             return jit_primitive(config);
+        }
+        if (cache_blob == no_kernel_blob()) {
+            return PrimType(_pd);
         }
         return PrimType(_pd, cache_blob);
     }
