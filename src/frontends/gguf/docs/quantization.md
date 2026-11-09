@@ -11,6 +11,21 @@ The implementation is in [`gguf.cpp`](../src/quant/gguf.cpp),
 
 ## Storage and graph conventions
 
+The loader retains one raw descriptor per original tensor, including its logical shape,
+GGUF format and mapped payload. Builders emit frontend-only `GGUFConstant` leaves and ordinary
+`Concat`, `Slice` and `Gather` operations; they do not unpack or concatenate packed components.
+Normalization folds compatible weight-only row concatenations, slices and gathers before
+repacking directly into the final code, scale and zero-point buffers. It also combines
+compatible two-bit projections sharing an activation. No `GGUFConstant` survives conversion.
+
+Compatible matrix row patterns use the existing native unpacker for each format; plain
+row patterns also fold.
+Inputs must share their format and conversion policy. Aligned column permutations move complete
+quantization groups and may use packed intermediate buffers. Unsupported views, including
+unaligned column gathers, retain ordinary graph operations after leaf materialization.
+Supplied-decoder weights materialize individually using their existing conversion policy.
+Embedding/output policies, quantization groups and zero points are preserved.
+
 The tables below describe the **native `.gguf` input path before device compilation**. The
 [supplied-decoder path](#supplied-decoder-and-raw-byte-differences) has additional conversions.
 Mixed checkpoint labels such as `Q4_K_M` select different formats for different tensors; they
@@ -358,9 +373,10 @@ For `N` weights of a uniform block format, multiply its OpenVINO bytes per block
 `N / weights_per_block`. Sum over tensor formats for a mixed checkpoint. This estimates
 frontend payload storage, including per-group metadata.
 
-Native quantized loading allocates independent buffers while reading the memory-mapped
-source. Source pages and output buffers can coexist during import; the loader requests
-eviction of processed source ranges, but this is not a guarantee about peak resident memory.
+Native quantized weights allocate independent buffers when normalization materializes their
+memory-mapped source (or when a caller explicitly invokes the unpacking helper). Source pages and output buffers can coexist
+during import; the loader requests eviction of processed source ranges, but this is not a
+guarantee about peak resident memory.
 Splitting or reordering projections can also require copies. Constants built from the
 extracted buffers share those buffers rather than copying each one again.
 

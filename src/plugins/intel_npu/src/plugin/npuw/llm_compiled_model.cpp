@@ -33,6 +33,7 @@
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "npuw_transformations/rewrite_gqa_attention_mask.hpp"
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
 #include "npuw_transformations/shrink_sliding_window_kv_cache.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
@@ -76,9 +77,46 @@ bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
-}  // namespace
+bool is_4d_float_attention_mask(const std::shared_ptr<const ov::Model>& model) {
+    const auto attention_mask =
+        ov::npuw::util::find_port_by_name(model->inputs(), ov::npuw::LLMInferRequest::layer_names::attention_mask);
 
-namespace {
+    // Models without an attention_mask input (e.g. the Whisper decoder) keep the binary-mask flow.
+    if (!attention_mask) {
+        return false;
+    }
+
+    const auto elem_type = attention_mask->get_element_type();
+    const auto pshape = attention_mask->get_partial_shape();
+    const bool is_int_or_bool = elem_type == ov::element::i64 || elem_type == ov::element::i32 ||
+                                elem_type == ov::element::u64 || elem_type == ov::element::u32 ||
+                                elem_type == ov::element::boolean;
+    const bool is_float = elem_type.is_real();
+
+    if (!pshape.rank().is_static()) {
+        OPENVINO_ASSERT(is_int_or_bool,
+                        "NPUW LLM only supports dynamic-rank attention_mask for integer/bool masks. "
+                        "Got floating attention_mask with dynamic rank.");
+        return false;
+    }
+
+    const auto rank = pshape.rank().get_length();
+    // A 2D mask keeps the binary-mask flow whatever its element type; the infer request validates the type.
+    if (rank == 2) {
+        return false;
+    }
+    if (rank == 4 && is_float) {
+        return true;
+    }
+
+    OPENVINO_THROW("Unsupported attention_mask contract for NPUW LLM. Expected either 2D attention_mask "
+                   "or 4D float attention_mask, but got rank=",
+                   rank,
+                   ", element type=",
+                   elem_type,
+                   ".");
+}
+
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
@@ -728,6 +766,11 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
+        // The pass treats attention_mask as a 2D 0/1 mask, which an additive 4D float mask is not.
+        if (!m_attention_mask_is_4d_float) {
+            ov::npuw::RewriteGQAAttentionMask().run_on_model(generate_variant);
+        }
+
         if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
             // No-op (returns false) for models without sliding-window attention layers.
@@ -898,6 +941,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
 
+    m_attention_mask_is_4d_float = is_4d_float_attention_mask(model);
+    if (m_attention_mask_is_4d_float) {
+        LOG_INFO("Detected 4D float attention_mask contract [B, 1, Q, K] for NPUW LLM path.");
+        if (m_use_chunk_prefill) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("4D float attention_mask mode does not support chunked prefill yet. "
+                                           "Please disable chunked prefill by setting NPUW_LLM_PREFILL_CHUNK_SIZE >= "
+                                           "NPUW_LLM_MAX_PROMPT_LEN or by using NPUW_LLM_PREFILL_HINT=STATIC.");
+        }
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>()) {
+            OPENVINO_THROW_NOT_IMPLEMENTED(
+                "4D float attention_mask mode does not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
+        }
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
+            OPENVINO_THROW_NOT_IMPLEMENTED(
+                "4D float attention_mask mode does not support NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK yet.");
+        }
+    }
+
     std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
     if (m_use_chunk_prefill) {
         LOG_VERB("Find all models outputs besides logits that also have dynamic shapes to handle in chunked prefill.");
@@ -913,9 +974,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-        ov::npuw::InsertVocabSub128 pass;
-        if (!pass.run_on_model(kvcache_model)) {
-            LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
+        bool shared_vocab = false;
+        ov::npuw::DetectVocabSharing detect_vocab_sharing(shared_vocab);
+        detect_vocab_sharing.run_on_model(kvcache_model);
+        if (shared_vocab) {
+            ov::npuw::InsertVocabSub128 pass;
+            if (!pass.run_on_model(kvcache_model)) {
+                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
+                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
+            }
         }
     }
 
@@ -927,6 +994,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
 
     if (m_is_embedding) {
+        if (m_attention_mask_is_4d_float) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("4D float attention_mask mode does not support text-embedding models yet.");
+        }
         // Both embedding flavours only ever prefill; what differs is how they attend. An
         // autoregressive embedder (Qwen3-Embedding-style) has a causal mask and a KV cache to
         // reconstruct, which is what lets it prefill in chunks. A bidirectional encoder (BERT:
@@ -969,8 +1039,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Adding position_ids input in case it doesn't exist in model: LFM-2 case.");
         ov::npuw::AddPositionIdsParam().run_on_model(kvcache_model);
-        LOG_DEBUG("Right-align attention_mask slice for Conv operations: LFM-2 case.");
-        ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+        if (!m_attention_mask_is_4d_float) {
+            LOG_DEBUG("Right-align attention_mask slice for Conv operations: LFM-2 case.");
+            ov::npuw::RightAlignMaskSliceForConv().run_on_model(kvcache_model);
+        } else {
+            LOG_DEBUG("Skipping RightAlignMaskSliceForConv for 4D float attention_mask mode.");
+        }
         LOG_DEBUG("Transform kvcache model from stateful to stateless.");
         ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     }
@@ -1006,8 +1080,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
     if (is_per_layer_inputs_model) {
         // SWA shrink is incompatible with prefix caching and multi-token generation (e.g.
-        // speculative decoding). When it applies, continuous prefill is resolved off.
-        const bool swa_shrink_compatible = !m_enable_prefix_caching && max_generation_token_len == 1;
+        // speculative decoding) and with the 4D float attention_mask. When it applies, continuous
+        // prefill is resolved off.
+        const bool swa_shrink_compatible =
+            !m_enable_prefix_caching && max_generation_token_len == 1 && !m_attention_mask_is_4d_float;
         if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             m_cfg.update({{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}});
             LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK");
@@ -1024,9 +1100,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     //    the KV cache still keeps the full context (no memory/perf savings).
     //  - ShrinkSlidingWindowKVCache: shrinks the KV cache to the window size and
     //    manages it as a sliding buffer at runtime for better memory/perf.
-    if (!m_is_whisper && !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
+    if (!m_is_whisper && !m_attention_mask_is_4d_float &&
+        !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
+    } else if (m_attention_mask_is_4d_float) {
+        LOG_DEBUG("Skipping PatchSlidingWindowMask for 4D float attention_mask mode.");
     }
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_LINCACHE_LAYOUT>()) {
@@ -1106,6 +1185,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   whisper_lhs_seq_size,
                                   true)
             .run_on_model(prefill_model);
+    }
+    if (!m_attention_mask_is_4d_float) {
+        ov::npuw::RewriteGQAAttentionMask().run_on_model(prefill_model);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
@@ -1475,6 +1557,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
         OPENVINO_ASSERT(!integer_kv_cache,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE cannot be combined with integer KV-cache precision.");
+        if (m_attention_mask_is_4d_float) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("4D float attention_mask mode does not support "
+                                           "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE yet.");
+        }
         OPENVINO_ASSERT(!m_enable_prefix_caching,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
                         "cannot be enabled simultaneously — this combination is not yet supported. "
@@ -1895,6 +1981,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
             compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size;
 
+        // Not serialized: derived from the restored inputs, the same way as at compile time.
+        compiled->m_attention_mask_is_4d_float = is_4d_float_attention_mask(ov_model);
+
         // LongRoPE cos/sin tables - see the matching comment in serialize()
         stream & compiled->m_longrope_tables;
 
@@ -2060,6 +2149,9 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
     }
     if (m_is_whisper || m_is_embedding || m_is_eagle) {
         return false;  // out of scope pipelines
+    }
+    if (m_attention_mask_is_4d_float) {
+        return false;  // a continued prefill stages only the 2D int64 attention_mask
     }
     if (m_longrope_context_limit > 0u) {
         return false;  // LongRoPE threshold can be crossed mid-generation

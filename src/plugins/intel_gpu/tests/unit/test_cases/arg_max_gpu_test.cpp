@@ -1249,6 +1249,38 @@ template <typename T>
 class arg_max_gpu_topk_radix : public ::testing::Test {};
 TYPED_TEST_SUITE(arg_max_gpu_topk_radix, topk_radix_data_types, topk_radix_type_names);
 
+// Using the compile-time WG_SIZE as the increment in work-item-strided loops was
+// miscompiled on Xe3 when K=N=257, corrupting the sorted values and indices.
+TEST(arg_max_gpu_topk_radix, k_equals_axis_values) {
+    auto& engine = get_test_engine();
+    const int top_k = 257;
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, top_k, 1, 1}});
+    std::vector<ov::float16> input_values(top_k);
+    for (int i = 0; i < top_k; i++) {
+        input_values[i] = static_cast<float>((i * 73) % top_k) / top_k;
+    }
+    set_values(input, input_values);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max", {input_info("input")},
+                             ov::op::TopKMode::MAX, top_k, 1,
+                             ov::op::TopKSortType::SORT_VALUES, true, true, data_types::f16, 1));
+
+    network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto values_output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(values_output, get_test_stream());
+    for (int i = 0; i < top_k; i++) {
+        const int expected_idx = ((top_k - 1 - i) * 169) % top_k;  // 169 is the inverse of 73 modulo 257.
+        ASSERT_EQ(static_cast<float>(out_ptr[i]), static_cast<float>(input_values[expected_idx]))
+            << "value mismatch at i=" << i;
+    }
+}
+
 // --------------------------------------------------------------------------
 // Parameterized test: value-only verification with various configurations
 // --------------------------------------------------------------------------
