@@ -15,6 +15,7 @@ set(DEV_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/tensor_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/validation_util.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/weight_sharing_util.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/core/weights_prefetch.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/rt_info/weightless_caching_attributes.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/element_iterator.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/core/type/element_type_info.hpp

@@ -206,12 +206,20 @@ TEST(GGUFHadamardSharing, InverseRotationUsesSupportedMatrix) {
     ASSERT_EQ(y.get_node()->get_type_name(), std::string("Reshape"));
     EXPECT_EQ(y.get_node()->get_input_node_shared_ptr(0)->get_type_name(), std::string("MatMul"));
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x});
-    ov::Tensor input(ov::element::f32, {2, 1, block});
-    std::fill_n(input.data<float>(), input.get_size(), 1.f);
-    ov::TensorVector output{ov::Tensor(ov::element::f32, {2, 1, block})};
-    ASSERT_TRUE(model->evaluate(output, {input}));
-    for (size_t i = 0; i < input.get_size(); ++i)
-        EXPECT_FLOAT_EQ(output[0].data<float>()[i], i % block == 0 ? 16.f : 0.f);
+    for (const bool decomposed : {false, true}) {
+        if (decomposed) {
+            decompose_hadamard(y);
+            model->validate_nodes_and_infer_types();
+        }
+        for (const size_t tokens : {1, 3}) {
+            ov::Tensor input(ov::element::f32, {2, tokens, block});
+            std::fill_n(input.data<float>(), input.get_size(), 1.f);
+            ov::TensorVector output{ov::Tensor(ov::element::f32, {2, tokens, block})};
+            ASSERT_TRUE(model->evaluate(output, {input}));
+            for (size_t i = 0; i < input.get_size(); ++i)
+                EXPECT_FLOAT_EQ(output[0].data<float>()[i], i % block == 0 ? 16.f : 0.f);
+        }
+    }
 }
 
 TEST(GGUFHadamardSharing, DistinguishesSignsDirectionLayoutAndConversionScope) {

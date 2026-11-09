@@ -289,7 +289,9 @@ TEST(GGUFBuilderAPI, RopeScalingDefaultsAndPositiveFactors) {
     Environment env;
     env.decoder();
     EXPECT_FLOAT_EQ(env.parameters().attention.rope.freq_scale, 1.0f);
-    for (const float factor : {0.0f, 1.0f, 4.0f}) {
+    for (const float factor :
+         {0.0f, -0.0f, 1.0f, 4.0f, std::numeric_limits<float>::min(), std::numeric_limits<float>::max()}) {
+        SCOPED_TRACE(factor);
         env.real("test.rope.scaling.factor", factor);
         EXPECT_FLOAT_EQ(env.parameters().attention.rope.freq_scale, factor == 0.0f ? 1.0f : 1.0f / factor);
     }
@@ -305,6 +307,20 @@ TEST(GGUFBuilderAPI, RejectsInvalidRopeScalingFactors) {
         env.decoder();
         env.real("test.rope.scaling.factor", factor);
         EXPECT_THROW(env.parameters(), ov::Exception);
+    }
+}
+
+TEST(GGUFBuilderAPI, RopeScalingPreservesTypedDefaultsWithoutAnOverride) {
+    Environment env;
+    env.decoder();
+    DecoderParameters defaults;
+    defaults.attention.rope.freq_scale = 0.125f;
+    EXPECT_FLOAT_EQ(read_decoder_parameters(env.context.metadata, defaults).attention.rope.freq_scale, 0.125f);
+    for (const float factor : {0.0f, -0.0f, 1.0f, 4.0f}) {
+        SCOPED_TRACE(factor);
+        env.real("test.rope.scaling.factor", factor);
+        EXPECT_FLOAT_EQ(read_decoder_parameters(env.context.metadata, defaults).attention.rope.freq_scale,
+                        factor == 0.0f ? 0.125f : 1.0f / factor);
     }
 }
 
