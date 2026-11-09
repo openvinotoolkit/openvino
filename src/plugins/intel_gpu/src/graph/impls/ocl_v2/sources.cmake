@@ -38,6 +38,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_gen_micro.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_gen_micro.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemv.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_swiglu_opt.cpp
@@ -138,6 +140,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/lora_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_int3.cl
+    ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_int3_gemm.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_swiglu_fuse.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_swiglu_mlp.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_gate_activation.cl
