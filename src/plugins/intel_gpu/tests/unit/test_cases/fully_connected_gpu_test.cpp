@@ -7589,3 +7589,79 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          fully_connected_onednn_int4_alignment::GetTestCaseName);
 }  // namespace
 #endif
+
+// fully_connected_gpu_gemv has no tail handling for a partial OFM tile (GWS[0] = OFM / ofm_per_work_item, LWS[0] = 16).
+// It must be rejected at Validate for an unaligned OFM, also for the shape-agnostic impl built with a dynamic batch.
+TEST_F(fully_connected_gpu_tests, gemv_rejects_unaligned_ofm_with_dynamic_batch) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+    auto supports_immad = engine.get_device_info().supports_immad;
+    const long int ifm_num = 1024;
+    const long int group_size = 128;
+
+    for (long int ofm_num : {1024L, 1000L}) {
+        SCOPED_TRACE("OFM=" + std::to_string(ofm_num));
+        auto input_mem = engine.allocate_memory({{1, ifm_num}, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::i4, format::bfyx});
+        auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / group_size}, data_types::f16, format::bfyx});
+        auto dcomp_zp_mem = engine.allocate_memory({{1, 1, 1, 1}, data_types::u8, format::bfyx});
+        set_values<int8_t>(dcomp_zp_mem, {8});
+        set_values(input_mem, rg.generate_random_1d<ov::float16>(ifm_num, -1.0f, 1.0f));
+        set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 5));
+        set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / group_size, -2.0f, 2.0f));
+
+        // Fresh topology per network: program build may modify the primitive descriptors.
+        auto make_topology = [&]() {
+            auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", supports_immad ? "dcomp_zp" : "", data_types::f16, 2, 2);
+            fc_prim.decompression_zero_point_scalar = 8;
+            return topology(input_layout("input", layout{{-1, ifm_num}, data_types::f16, format::bfyx}),
+                            data("weights", weights_mem),
+                            data("scale", scale_mem),
+                            data("dcomp_zp", dcomp_zp_mem),
+                            fc_prim);
+        };
+
+        auto make_config = [&](const std::string& forced_kernel) {
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+            if (!forced_kernel.empty()) {
+                config.set_property(
+                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, forced_kernel, impl_types::ocl}}}));
+                // Keep the shape-agnostic impl so that it is the one under test.
+                config.set_property(ov::intel_gpu::disable_async_compilation(true));
+            }
+            return config;
+        };
+        auto execute = [&](network& net) {
+            net.set_input_data("input", input_mem);
+            return net.execute().at("fc_prim").get_memory();
+        };
+
+        network ref_net(engine, make_topology(), make_config("fully_connected_gpu_bfyx_ref"));
+        auto ref_mem = execute(ref_net);
+
+        auto kernel_name_of = [](network& net) {
+            auto impl = net.get_primitive("fc_prim")->get_impl();
+            return impl ? impl->get_kernel_name() : std::string("<none>");
+        };
+        auto is_gemv = [](const std::string& kernel_name) {
+            return kernel_name.find("fully_connected_gpu_gemv") != std::string::npos;
+        };
+
+        // With a dynamic batch the shape-agnostic impl is selected at build time, before any enqueue, so this checks
+        // the Validate decision.
+        const bool ofm_aligned = ofm_num % 16 == 0;
+        auto gemv_net = std::make_shared<network>(engine, make_topology(), make_config("fully_connected_gpu_gemv"));
+        const auto shape_agnostic_kernel = kernel_name_of(*gemv_net);
+        EXPECT_EQ(is_gemv(shape_agnostic_kernel), ofm_aligned) << "shape-agnostic kernel " << shape_agnostic_kernel;
+
+        auto net = ofm_aligned ? gemv_net : std::make_shared<network>(engine, make_topology(), make_config(""));
+        auto out_mem = execute(*net);
+        const auto kernel_name = kernel_name_of(*net);
+        EXPECT_EQ(is_gemv(kernel_name), ofm_aligned) << "kernel " << kernel_name;
+
+        compare_outputs<ov::float16>(out_mem, ref_mem);
+    }
+}
