@@ -104,6 +104,8 @@ const std::vector<std::vector<int64_t>> axes_short_signal_2d = {
 
 const std::vector<std::vector<int64_t>> signal_sizes_short_signal_2d = {
     {4},
+    {5},
+    {6},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_short_signal_2d, RDFTLayerTest,
