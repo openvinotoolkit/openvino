@@ -216,24 +216,6 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
 }
 
-TEST(NPUWConfigOptionsSmokeTest, UpdateAnyKnownIgnoresUnregisteredKeys) {
-    auto cfg = make_config();
-
-    ov::AnyMap mixed;
-    mixed[std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key())] = uint32_t{7};
-    mixed["COMPLETELY_UNKNOWN_KEY"] = std::string("value");
-
-    ASSERT_NO_THROW(cfg.updateAnyKnown(mixed));
-    EXPECT_EQ(cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>(), 7);
-}
-
-TEST(NPUWConfigOptionsSmokeTest, UpdateAnyKnownEmptyMapIsNoop) {
-    auto cfg = make_config({{std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()), "3"}});
-
-    ASSERT_NO_THROW(cfg.updateAnyKnown(ov::AnyMap{}));
-    EXPECT_EQ(cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>(), 3);
-}
-
 TEST(NPUWConfigOptionsSmokeTest, ExtractReturnsOnlyMatchingKeys) {
     auto cfg = make_config({
         {std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()), "5"},

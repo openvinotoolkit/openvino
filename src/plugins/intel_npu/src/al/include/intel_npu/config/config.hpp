@@ -484,9 +484,6 @@ public:
 
     virtual void updateAny(const ov::AnyMap& options);
 
-    // Like updateAny(), but silently ignores keys that are not registered instead of throwing.
-    void updateAnyKnown(const ov::AnyMap& options);
-
     void parseEnvVars();
 
     // Returns this config's currently-set options whose keys are contained in `keys`.

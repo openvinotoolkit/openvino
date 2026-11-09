@@ -1736,8 +1736,6 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         ::intel_npu::Config blob_cfg(compiled->m_options_desc);
         stream & blob_cfg;
         compiled->m_cfg.update(blob_cfg.extract(::intel_npu::cachedNPUWOptionKeys()));
-        // Re-apply the import properties, so a host that passes an NPUW property into import_model wins over the blob.
-        compiled->m_cfg.updateAnyKnown(properties);
         compiled->implement_properties();
         // Not serialized. Recomputed from the deserialized config so older blobs stay loadable.
         compiled->m_enable_continuous_prefill = compiled->m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_CONTINUOUS_PREFILL>();

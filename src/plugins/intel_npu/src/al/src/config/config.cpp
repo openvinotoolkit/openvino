@@ -282,18 +282,6 @@ void Config::updateAny(const ov::AnyMap& options) {
     }
 }
 
-void Config::updateAnyKnown(const ov::AnyMap& options) {
-    ov::AnyMap known;
-    for (const auto& p : options) {
-        if (_desc->has(p.first)) {
-            known.emplace(p.first, p.second);
-        }
-    }
-    if (!known.empty()) {
-        updateAny(known);
-    }
-}
-
 Config::ConfigMap Config::extract(const std::unordered_set<std::string>& keys) const {
     ConfigMap out;
     for (const auto& p : _impl) {
