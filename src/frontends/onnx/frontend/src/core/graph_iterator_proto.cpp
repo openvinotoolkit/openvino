@@ -9,17 +9,16 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <exception>
 #include <fstream>
 #include <map>
 #include <queue>
-#include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "decoder_proto.hpp"
 #include "onnx_common/parser.hpp"
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
@@ -73,7 +72,7 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
-    throw std::runtime_error("Unsupported type");
+    FRONT_END_THROW("Unsupported type");
 }
 
 const ::ONNX_NAMESPACE::TypeProto_Tensor* get_tensor_type(const ::ONNX_NAMESPACE::TypeProto& type_proto) {
@@ -351,14 +350,17 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
     }
     const auto full_path = ov::util::sanitize_path(graph_iterator->get_model_dir(), ov::util::make_path(ext_location));
     const int64_t file_size = ov::util::file_size(full_path);
-    if ((file_size <= 0 && ext_data_length > 0) || ext_data_length > static_cast<uint64_t>(file_size) ||
-        ext_data_offset > static_cast<uint64_t>(file_size) - ext_data_length) {
-        // not_existed_file.data, offset: 4096, data_length: 16)
-        std::stringstream ss;
-        ss << "Invalid usage of method for externally stored data in file (" << ext_location;
-        ss << ", offset: " << ext_data_offset << ", data_length: " << ext_data_length << ")";
-        throw std::runtime_error(ss.str());
-    }
+    // not_existed_file.data, offset: 4096, data_length: 16)
+    FRONT_END_GENERAL_CHECK((file_size > 0 || ext_data_length == 0) &&
+                                ext_data_length <= static_cast<uint64_t>(file_size) &&
+                                ext_data_offset <= static_cast<uint64_t>(file_size) - ext_data_length,
+                            "Invalid usage of method for externally stored data in file (",
+                            ext_location,
+                            ", offset: ",
+                            ext_data_offset,
+                            ", data_length: ",
+                            ext_data_length,
+                            ")");
     const size_t resolved_data_length = ext_data_length > 0
                                             ? static_cast<size_t>(ext_data_length)
                                             : static_cast<size_t>(file_size) - static_cast<size_t>(ext_data_offset);
@@ -393,9 +395,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             (*cache)[full_path] = external_data_stream;
         }
 
-        if (external_data_stream->fail() || !external_data_stream->good()) {
-            throw std::runtime_error("Failed to open external data stream");
-        }
+        FRONT_END_GENERAL_CHECK(external_data_stream->good(), "Failed to open external data stream");
 
         tensor_meta_info.m_is_raw = true;
         tensor_meta_info.m_tensor_data_size = resolved_data_length;
@@ -414,7 +414,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
         tensor_meta_info.m_tensor_data_size = ext_data_length;
         return true;
     } else {
-        throw std::runtime_error("Unsupported memory management mode");
+        FRONT_END_THROW("Unsupported memory management mode");
     }
 }
 }  // namespace
@@ -423,9 +423,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                                                             const ValueInfoProto* value_info,
                                                             GraphIteratorProto* graph_iterator) {
     const auto* graph_def = graph_iterator->get_graph();
-    if ((tensor_info == nullptr && value_info == nullptr) || graph_def == nullptr) {
-        throw std::runtime_error("Wrong usage");
-    }
+    FRONT_END_GENERAL_CHECK((tensor_info != nullptr || value_info != nullptr) && graph_def != nullptr, "Wrong usage");
 
     ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
     tensor_meta_info.m_external_location = nullptr;
@@ -437,15 +435,13 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             ov::PartialShape(std::vector<int64_t>(tensor_info->dims().begin(), tensor_info->dims().end()));
         tensor_meta_info.m_element_type =
             tensor_info->has_data_type() ? get_ov_element_type(tensor_info->data_type()) : ov::element::dynamic;
-        if (tensor_info->has_segment()) {
-            throw std::runtime_error("Loading segments isn't supported");
-        }
+        FRONT_END_GENERAL_CHECK(!tensor_info->has_segment(), "Loading segments isn't supported");
         if (tensor_info->has_data_location() &&
             tensor_info->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
             if (extract_tensor_external_data(tensor_meta_info, tensor_info, graph_iterator)) {
                 return tensor_meta_info;
             }
-            throw std::runtime_error("Unsupported method for externally stored data");
+            FRONT_END_THROW("Unsupported method for externally stored data");
         }
         if (tensor_info->has_raw_data()) {
             tensor_meta_info.m_tensor_data = reinterpret_cast<const uint8_t*>(tensor_info->raw_data().data());
@@ -495,8 +491,8 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                 tensor_meta_info.m_tensor_data_size = tensor_info->string_data_size();
                 break;
             default:
-                throw std::runtime_error("Unsupported type " +
-                                         ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
+                FRONT_END_THROW("Unsupported type " +
+                                ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
             }
         }
     } else if (value_info != nullptr) {
@@ -504,9 +500,9 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
         const auto* value_type = value_info->has_type() ? get_tensor_type(value_info->type()) : nullptr;
         const auto value_case =
             value_info->has_type() ? value_info->type().value_case() : ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET;
-        if (value_type == nullptr && value_case != ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET) {
-            throw std::runtime_error("Unsupported value_info type: " + (*tensor_meta_info.m_tensor_name));
-        }
+        FRONT_END_GENERAL_CHECK(value_type != nullptr || value_case == ::ONNX_NAMESPACE::TypeProto::VALUE_NOT_SET,
+                                "Unsupported value_info type: ",
+                                *tensor_meta_info.m_tensor_name);
         if (value_type != nullptr && value_type->has_shape()) {
             std::vector<int64_t> dims;
             const auto& shape = value_type->shape();
@@ -607,9 +603,7 @@ std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::st
             m_tensors[empty_name] = tensor_decoder;
             return tensor_decoder;
         }
-        if (m_parent == nullptr) {
-            throw std::runtime_error("Input tensor isn't found for node \"" + name + "\"");
-        }
+        FRONT_END_GENERAL_CHECK(m_parent != nullptr, "Input tensor isn't found for node \"", name, "\"");
         return m_parent->get_tensor(name, owner);
     }
     *owner = this;
@@ -658,9 +652,8 @@ void GraphIteratorProto::reset() {
             tensor = std::make_shared<DecoderProtoTensor>(init_it->second, this);
         }
         const auto& tensor_name = *tensor->get_tensor_info().m_tensor_name;
-        if (auto [it, inserted] = m_tensors.try_emplace(tensor_name, tensor); !inserted) {
-            throw std::runtime_error("Tensor already exists \"" + tensor_name + "\"");
-        }
+        const auto inserted = m_tensors.try_emplace(tensor_name, tensor).second;
+        FRONT_END_GENERAL_CHECK(inserted, "Tensor already exists \"", tensor_name, "\"");
         m_decoders.push_back(tensor);
     }
 
@@ -826,28 +819,26 @@ uint32_t decode_varint(std::istream& model) {
     uint32_t value = 0;
     for (uint32_t shift = 0; shift < 32; shift += 7) {
         const auto byte = model.get();
-        if (byte == std::char_traits<char>::eof() || (shift == 28 && (byte & 0xf0) != 0)) {
-            throw std::runtime_error{"Invalid protobuf varint"};
-        }
+        FRONT_END_GENERAL_CHECK(byte != std::char_traits<char>::eof() && (shift != 28 || (byte & 0xf0) == 0),
+                                "Invalid protobuf varint");
         value |= static_cast<uint32_t>(byte & 0x7f) << shift;
         if ((byte & 0x80) == 0) {
             return value;
         }
     }
-    throw std::runtime_error{"Invalid protobuf varint"};
+    FRONT_END_THROW("Invalid protobuf varint");
 }
 
 void consume_varint64(std::istream& model) {
     for (uint32_t index = 0; index < 10; ++index) {
         const auto byte = model.get();
-        if (byte == std::char_traits<char>::eof() || (index == 9 && (byte & 0xfe) != 0)) {
-            throw std::runtime_error{"Invalid protobuf varint"};
-        }
+        FRONT_END_GENERAL_CHECK(byte != std::char_traits<char>::eof() && (index != 9 || (byte & 0xfe) == 0),
+                                "Invalid protobuf varint");
         if ((byte & 0x80) == 0) {
             return;
         }
     }
-    throw std::runtime_error{"Invalid protobuf varint"};
+    FRONT_END_THROW("Invalid protobuf varint");
 }
 
 PbKey decode_key(uint32_t key) {
@@ -861,9 +852,7 @@ PbKey decode_key(uint32_t key) {
 ONNXField decode_next_field(std::istream& model) {
     const auto decoded_key = decode_key(decode_varint(model));
 
-    if (!is_correct_onnx_field(decoded_key)) {
-        throw std::runtime_error{"Incorrect field detected in the processed model"};
-    }
+    FRONT_END_GENERAL_CHECK(is_correct_onnx_field(decoded_key), "Incorrect field detected in the processed model");
 
     const auto onnx_field = static_cast<Field>(decoded_key.first);
 
@@ -883,9 +872,9 @@ ONNXField decode_next_field(std::istream& model) {
         return {onnx_field, 4};
     case START_GROUP:
     case END_GROUP:
-        throw std::runtime_error{"StartGroup and EndGroup are not used in ONNX models"};
+        FRONT_END_THROW("StartGroup and EndGroup are not used in ONNX models");
     default:
-        throw std::runtime_error{"Unknown WireType encountered in the model"};
+        FRONT_END_THROW("Unknown WireType encountered in the model");
     }
 }
 

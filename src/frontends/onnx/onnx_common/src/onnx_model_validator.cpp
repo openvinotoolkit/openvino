@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <exception>
 #include <map>
-#include <stdexcept>
 #include <unordered_set>
+
+#include "openvino/core/except.hpp"
 
 namespace {
 namespace onnx {
@@ -65,28 +65,26 @@ uint32_t decode_varint(std::istream& model) {
     uint32_t value = 0;
     for (uint32_t shift = 0; shift < 32; shift += 7) {
         const auto byte = model.get();
-        if (byte == std::char_traits<char>::eof() || (shift == 28 && (byte & 0xf0) != 0)) {
-            throw std::runtime_error{"Invalid protobuf varint"};
-        }
+        OPENVINO_ASSERT(byte != std::char_traits<char>::eof() && (shift != 28 || (byte & 0xf0) == 0),
+                        "Invalid protobuf varint");
         value |= static_cast<uint32_t>(byte & 0x7f) << shift;
         if ((byte & 0x80) == 0) {
             return value;
         }
     }
-    throw std::runtime_error{"Invalid protobuf varint"};
+    OPENVINO_THROW("Invalid protobuf varint");
 }
 
 void consume_varint64(std::istream& model) {
     for (uint32_t index = 0; index < 10; ++index) {
         const auto byte = model.get();
-        if (byte == std::char_traits<char>::eof() || (index == 9 && (byte & 0xfe) != 0)) {
-            throw std::runtime_error{"Invalid protobuf varint"};
-        }
+        OPENVINO_ASSERT(byte != std::char_traits<char>::eof() && (index != 9 || (byte & 0xfe) == 0),
+                        "Invalid protobuf varint");
         if ((byte & 0x80) == 0) {
             return;
         }
     }
-    throw std::runtime_error{"Invalid protobuf varint"};
+    OPENVINO_THROW("Invalid protobuf varint");
 }
 
 PbKey decode_key(uint32_t key) {
@@ -100,9 +98,7 @@ PbKey decode_key(uint32_t key) {
 ONNXField decode_next_field(std::istream& model) {
     const auto decoded_key = decode_key(decode_varint(model));
 
-    if (!is_correct_onnx_field(decoded_key)) {
-        throw std::runtime_error{"Incorrect field detected in the processed model"};
-    }
+    OPENVINO_ASSERT(is_correct_onnx_field(decoded_key), "Incorrect field detected in the processed model");
 
     const auto onnx_field = static_cast<Field>(decoded_key.first);
 
@@ -122,9 +118,9 @@ ONNXField decode_next_field(std::istream& model) {
         return {onnx_field, 4};
     case START_GROUP:
     case END_GROUP:
-        throw std::runtime_error{"StartGroup and EndGroup are not used in ONNX models"};
+        OPENVINO_THROW("StartGroup and EndGroup are not used in ONNX models");
     default:
-        throw std::runtime_error{"Unknown WireType encountered in the model"};
+        OPENVINO_THROW("Unknown WireType encountered in the model");
     }
 }
 
