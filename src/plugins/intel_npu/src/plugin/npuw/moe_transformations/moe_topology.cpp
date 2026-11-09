@@ -8,6 +8,7 @@
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "moe_transformation_utils.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -328,9 +329,11 @@ std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& sca
     // Locate a candidate only; all topology checks belong to BatchedMoEPattern.
     auto node = scatter;
     for (size_t hop = 0; hop < max_score_views + 3; ++hop) {
-        node = only_consumer(node->output(0));
-        if (!node)
+        auto next = only_consumer(node->output(0));
+        if (!next) {
             return std::nullopt;
+        }
+        node = std::move(next);
         if (ov::is_type<ov::op::v1::ReduceSum>(node)) {
             const auto moe = BatchedMoEPattern().match(node);
             return moe && moe->score_transpose->input_value(0).get_node_shared_ptr() == scatter ? moe : std::nullopt;
