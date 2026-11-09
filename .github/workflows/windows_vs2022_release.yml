@@ -712,8 +712,8 @@ jobs:
   GPU_Unit_Tests:
     name: GPU unit tests
     needs: [ Build, Smart_CI ]
-    if: "!needs.smart_ci.outputs.skip_workflow"
-    timeout-minutes: 530
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
     defaults:
       run:
         shell: powershell
@@ -773,7 +773,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, GPU_Unit_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API, NPU_Models_Tests ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
