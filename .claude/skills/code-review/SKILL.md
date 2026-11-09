@@ -13,6 +13,29 @@ of unrelated legacy code.
 
 ## Review workflow
 
+### Establish the review baseline
+
+- For a pull request, record the head and base SHAs and inspect the current
+  diff. Recheck the head before finalizing; if it changed, revisit affected
+  findings. Record relevant check conclusions, not just completion status.
+- For local uncommitted changes, state whether the review covers staged
+  changes, unstaged changes, or both. Compare the selected changes against
+  `HEAD`, distinguishing index content from working-tree content.
+- For committed branch changes, use the merge base of `HEAD` and the specified
+  target branch or commit. Record both SHAs and review the merge-base-to-HEAD
+  diff. Do not silently include uncommitted changes.
+- For local reviews, mark PR-only checks, approvals, and review threads as not
+  applicable. Report local validation separately.
+- Treat existing review comments as leads, not proof. Verify each relevant
+  concern against the reviewed revision and classify it as still applicable,
+  fixed, outdated/inapplicable, or not yet verifiable. Cite the code or evidence
+  supporting that classification.
+
+Compilation or passing CI alone does not establish correctness beyond the
+tested scope. Report unavailable validation explicitly.
+
+### Review the selected changes
+
 1. Read the diff, commit or pull request description, and relevant surrounding
    code.
 2. Identify the affected component, public APIs, runtime paths, input
@@ -101,11 +124,15 @@ relative to the repository root and include tests within each component.
 Apply multiple references when a change crosses boundaries; for shared tests
 or documentation, select by the behavior exercised or described.
 
+This skill defines the shared evidence threshold and review output. Component
+references supplement it with domain-specific checks; they do not redefine
+finding severity, confidence, or reporting requirements.
+
 | Changed paths or behavior | Reference |
 | --- | --- |
 | `src/core/`, `src/inference/` | [Runtime and core](references/runtime.md) |
 | `src/common/transformations/`, `src/common/low_precision_transformations/`, `src/common/offline_transformations/`, `src/common/snippets/`, `src/core/src/pass/`, `src/core/src/pattern/`, `src/core/include/openvino/pass/`, transformation passes and tests under frontends or plugins, `src/bindings/python/tests/test_transformations/` | [Transformations](references/transformations.md), plus the owning component's guidance |
-| `src/plugins/intel_gpu/`, `src/plugins/intel_gpu/tests/`, GPU kernel/selector/runtime/layout/memory/cache/precision changes, or Intel GPU platform enablement | Load [Intel GPU plugin review](references/plugins/GPU.md) **and** [Plugins](references/plugins.md). |
+| `src/plugins/intel_gpu/`, `src/inference/include/openvino/runtime/intel_gpu/`, Intel GPU tests, GPU kernel/selector/runtime/layout/memory/cache/precision changes, GPU public behavior, or Intel GPU platform enablement | Load [Intel GPU plugin review](references/plugins/GPU.md) **and** [Plugins](references/plugins.md); also apply [Bindings and public APIs](references/bindings.md) for public API or user-visible contract changes.
 | `src/plugins/`, including plugin-local tests | [Plugins](references/plugins.md) |
 | `src/tests/functional/` shared operator and inference behavior tests | [Runtime](references/runtime.md) and [plugins](references/plugins.md), as exercised |
 | `src/frontends/`, `src/bindings/python/src/openvino/frontend/` (including PyTorch and JAX decoders), `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [bindings](references/bindings.md) for Python API and language-boundary changes |
