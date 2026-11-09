@@ -1169,6 +1169,11 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     }
     const auto& input_precisions = parentNode->getOriginalInputPrecisions();
 
+    if (parentNode->getOriginalOutputPrecisionAtPort(0) == ov::element::i32 && input_precisions[0].is_real()) {
+        // Removing this Convert can change execution precision and lose truncation before integer operations.
+        return false;
+    }
+
     return EltwiseJitExecutor::supports(m_attrs, inputShapes.front().getRank(), input_precisions);
 #else
     const auto isSuitableParentNode = [](const Node* parentNode) {

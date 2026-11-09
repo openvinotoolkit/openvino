@@ -59,7 +59,9 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
@@ -68,6 +70,7 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -154,6 +157,7 @@
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_transformation.hpp"
 
@@ -202,11 +206,7 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
-#    include "openvino/op/add.hpp"
 #    include "transformations/snippets/aarch64/pass/snippets_mark_skipped.hpp"
-#else
-#    include "openvino/op/convolution.hpp"
-#    include "openvino/op/group_conv.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -224,7 +224,6 @@
 #    include "openvino/op/group_normalization.hpp"
 #    include "openvino/op/mish.hpp"
 #    include "openvino/op/multiply.hpp"
-#    include "openvino/op/softmax.hpp"
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
@@ -244,7 +243,6 @@
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #    include "transformations/snippets/x64/pass/fuse_brgemm_cpu_postops.hpp"
 #    include "transformations/snippets/x64/pass/snippets_mark_skipped.hpp"
-#    include "transformations/utils/utils.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
