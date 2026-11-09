@@ -1225,7 +1225,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             // The DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed). Other XMX
-            // devices (xe_hpg by default, xe_hpc) take the rules below. The 256 limit predates sdpa_ocl (which serves heads
+            // devices (xe_hpc, xe_hpg under TEST_USE_SDPA_OCL_HPG=0) take the rules below. The 256 limit predates sdpa_ocl (which serves heads
             // up to 512); raising it would change which models keep SDPA fused.
             if (device_info.supports_immad && cldnn::paged_attention::sdpa_ocl_selected(device_info) && head_size <= 256)
                 return true;
