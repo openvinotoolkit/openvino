@@ -94,7 +94,7 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 
 ## Sharding Strategy (Megatron-style)
 
-For a standard Llama-family decoder block with hidden size `H`,
+For a standard decoder block with hidden size `H`,
 `num_heads` query heads, `num_kv_heads` (GQA), and intermediate size `I`,
 the analysis shards the following MatMul weights:
 
@@ -109,8 +109,8 @@ the analysis shards the following MatMul weights:
 | `down_proj`   | row-parallel      | input (axis 1)    | `I/N × H`                          | output → **AllReduce(sum)**                  |
 
 Splits are in whole units: query groups (or, with fewer KV heads than ranks, equal shares of one
-group), KV heads, and for the MLP the coarsest step any of its weights needs (quantization groups,
-packed sub-byte elements). Units that do not divide by `N` go one extra to each of the first ranks
+group), KV heads, and for the MLP the coarsest step any of its weights needs (quantization
+groups). Units that do not divide by `N` go one extra to each of the first ranks
 (e.g. 5 KV heads on 2 ranks: 3 and 2); the busiest rank paces the group, so the plugin warns when
 the imbalance is large.
 
@@ -121,7 +121,7 @@ alike and keep it in their own KV caches; the GQA expansion of a rank goes to it
 group only. Any other configuration with fewer KV heads than ranks is rejected.
 
 **Fused projections** (one `qkv_proj` split into Q, K and V; one `gate_up_proj` split into gate
-and up, as in Phi-3): the weight is cut per part, so every rank holds its share of every part,
+and up): the weight is cut per part, so every rank holds its share of every part,
 and the `VariadicSplit` lengths or `Slice` bounds after it are the rank's; equal chunks (`Split`)
 stay equal.
 
@@ -137,8 +137,9 @@ each rank owns a distinct band of logits, so there is nothing to reduce.
 Only rank 0's buffer is written, because that is the only rank whose outputs the infer
 request reads. `TP_DISABLE_LM_HEAD_SHARDING` turns this off. When the LM head shares its weight
 with the embedding (tied weights), the embedding table stays whole and the LM head gets a copy of
-the chain to cut: the split costs `table / N` more device memory per rank and saves 6-9 % of the
-decode time (Llama-3.2-3B).
+the chain to cut: the split costs `table / N` more device memory per rank, and in exchange each
+rank computes only its share of the vocabulary projection, one of the largest MatMuls of a decode
+step.
 
 **Collectives per inference**: `2 × num_layers` AllReduce calls — one after
 attention `o_proj`, one after MLP `down_proj` — plus one Gather for the
@@ -197,9 +198,20 @@ that depends on OpenVINO core and the collective ops only. It runs in three stag
    variables and PagedAttention head counts get the KV-head split. A weight shared with another
    reader (a tied embedding) is given a source of its own first, so cutting it leaves the other
    reader whole. A linear layer no pass claims stays whole on every rank, with a warning naming it
-   and its size. A weight whose decompression chain cannot be cut at the rank boundaries
-   (quantization groups, packed sub-byte elements) is cut by a `Slice` at run time, with a
-   warning; the device plugin folds it at compile time.
+   and its size. Weights are split only when every constant of their chain is of 8 bits and
+   more or a 4-bit type; 1, 2, 3 or 6-bit constants fail the compilation, naming the weight.
+   Packed 4-bit constants (weights, zero points) are cut at any element, copying
+   element by element where a rank's range starts or ends inside a byte. A weight whose
+   decompression chain cannot be cut at the rank boundaries (a boundary inside a quantization
+   group, an op in the chain the walk does not know)
+   is cut by a `Slice` at run time, with a warning. The device plugin folds that `Slice` together
+   with the decompression chain above it, so the rank keeps the weight decompressed: on GPU an
+   int4 weight becomes an f16 one (about four times its memory, which the ERR-7 estimate does
+   not count) and the layer loses the compressed `FullyConnected` path (slower prefill). In
+   practice this happens only to the O projection, whose
+   cut follows the query heads, when a rank's query heads x `head_dim` is not a whole number of
+   groups (e.g. a `head_dim` of 64, an odd number of query heads per rank and groups of 128).
+   The MLP cuts in whole groups and is not affected.
 2. **`TPShardingVerifier`**, the last pass of the analysis, propagates a state through every
    tensor: Replicated, Split (per-rank ranges along one or more axes), Partial (the sum over
    ranks is the value) or rank-dependent sizes (a shape vector from `ShapeOf` of a split tensor
@@ -207,7 +219,9 @@ that depends on OpenVINO core and the collective ops only. It runs in three stag
    role must produce a Partial sum, which becomes Replicated at its `TPAllReduce`; a model output
    must be Replicated. A Split, VariadicSplit or Slice along a split axis is proven by simulating
    every rank with its own lengths or bounds. Anything it cannot prove fails the compilation with
-   the node, its type, the input shapes and states, and where each state came from.
+   the node, its type, the input shapes and states, and where each state came from. A split
+   with fewer units (whole heads, quantization groups) than ranks fails too, naming the largest
+   number of devices that works.
 3. **Per rank**, on a clone of the analyzed model: `TPWeightShardingPass(rank, N)` cuts the
    annotated constants (a zero-copy view of a single contiguous range, a copy otherwise), gives
    the annotated shape elements, variable shapes and `rt_info` head counts the rank's values, and
@@ -374,9 +388,8 @@ others. The work is split in two:
   rank's last one before moving its staging.
 
 The group makes every collective's lists and completion events when it is
-created, and a recorder takes its set over on first use. Creating them costs
-about a millisecond per collective and rank (measured: 256 sets on four ranks
-took 255 ms), which would otherwise land on the first inference.
+created, and a recorder takes its set over on first use. Creating them takes time for every
+collective and rank, which would otherwise land on the first inference.
 
 ### Per-rank state
 
@@ -446,9 +459,9 @@ it grows on its own: before it frees the old allocation it
 waits for its own last splice, which itself waited for every peer write into
 that staging, and peers cannot write the new one before they have read its
 address in the rendezvous. Recordings that still point at the old staging see
-the id change in their signature. Prefill makes this large: at an 8K-token
-prompt on Llama-3.1-8B every rank holds 128 MiB, allocated during the first
-long prompt, after the KV cache took its share.
+the id change in their signature. Prefill makes this large: hidden size x prompt length x
+element size on every rank, allocated during the first long prompt, after the KV cache took its
+share.
 
 With `ov_internal_tp_comm_buffer_size` the staging has that size, rounded down
 to 512 bytes, and is allocated once by `create_context()`, before any model is
@@ -464,20 +477,17 @@ do. Chunking does not change a bit on two ranks; on more, the ring sums an
 element in an order that depends on where the chunk boundaries fall, so the
 result differs from the unchunked one in rounding, deterministically.
 
-Three other ways to run the chunks were measured against this one (Llama-3.1-8B,
-2 and 4 ranks, 1024- and 8K-token prompts, 2, 4 and 8 chunks): a call per
-chunk re-recording the two lists (each chunk waits for the device to finish the
-chunk two before it: up to +22 % TTFT at 1024 tokens), a call per chunk with a
-list per chunk created on first use (about 0.8 ms per list: up to +550 ms on the
-first prompt), and the same lists made with the group (up to +7.7 s model load,
-and the chunk count has to be known in advance). Mutable command lists cannot
+Three other ways to run the chunks were measured against this one: a call per chunk re-recording
+the two lists (each chunk waits for the device to finish the chunk two before it, which lengthens
+the time to first token), a call per chunk with a list per chunk created on first use (the
+creation lands on the first prompt), and the same lists made with the group (a longer model
+load, and the chunk count has to be known in advance). Mutable command lists cannot
 retarget memory copies, which every transfer here is. The single recording
 matched or beat all of them everywhere and costs nothing on the first prompt.
 
 What chunking costs in itself is device time: the chunks run one after the
-other, each with every step's cross-device round trip. On four ranks at an 8K
-prompt, 2 chunks cost +0.6 % TTFT, 4 chunks +6 %, 8 chunks +11 %; on two ranks
-nothing measurable.
+other, each with every step's cross-device round trip. The cost grows with the number of chunks
+and of ranks; on two ranks it is negligible.
 
 A rank's staging, grown or fixed, is counted as `usm_device` in the engine of
 the rank's TP context from the first bind on, and `ov::intel_gpu::memory_statistics`
@@ -493,8 +503,8 @@ device (other processes are not seen), e.g. for sizing a KV cache.
 No allreduce schedule writes into a peer's model buffers: peers write staging
 only, and each rank delivers into its own output. Remote writes into a buffer
 the receiving rank's own kernels had just written were measured to lose against
-them now and then (the halving gather used to do this: about one decode run in
-twelve on four ranks produced a different token). The gather does write into
+them now and then (the halving gather used to do this, and an occasional decode run produced a
+different token). The gather does write into
 the root's output, but only behind a handshake with the root's queue (see
 "Gather").
 
@@ -806,7 +816,7 @@ other slice, which then stays in the blob. On import the core passes
   ranks follow from one worker per rank under the device locks, and the
   GPU plugin's async machinery (task executor, `EXCLUSIVE_ASYNC_REQUESTS`,
   external queues) is not on the path. Running rank 0 on the calling thread
-  instead measured about 2.5 ms (4-6 %) slower to first token on short
+  instead measured slower to first token on short
   prompts; a rank request on the GPU plugin's `start_async()` measured the
   same as a worker.
 - `CompiledModel::lock_inference()` takes a process-wide lock of every
@@ -879,8 +889,8 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
 - All ranks of a group run in one process.
 - Every rank has to run its collectives in one order. With the collectives on
   one chain (the residual stream of a sequential block) that is given; with
-  collectives on parallel branches (attention and MLP in parallel, as in GPT-J
-  or Falcon) it holds only while the device plugin rewrites every rank model
+  collectives on parallel branches (attention and MLP computed in parallel from one norm)
+  it holds only while the device plugin rewrites every rank model
   alike. A rewrite that depends on a rank's constants (a multiplication by one
   removed on one rank) can reorder them; the GPU plugin then fails the first
   call (`ranks disagree on call ...`) instead of mixing them up.

@@ -116,7 +116,7 @@ so the guarded code folds away instead of costing a branch.
 |                               | Adds a kernel-timestamp query per collective, so host figures from such a run are not comparable with a HOST run -- which is why it does not print them.    |                                                      |
 | `OV_GPU_TP_PROFILING=ALL`     | Both of the above.                                                                                                                                          |                                                      |
 | `OV_GPU_TP_DUMP_PERIOD=N`     | Inferences per report of the collectives (an inference runs every collective of the model once). Each report covers only its own N inferences. Unset: one report per inference. | `1` to see a prefill and a decode step apart; larger to average a steady decode. |
-| `OV_GPU_TP_DUMP_PROFILING_DATA_PATH=<dir>` | With `OV_GPU_TP_PROFILING` set: `tp_collectives_<N>ranks_<k>.csv`, a row per AllReduce call and rank -- `host` rows (HOST): schedule, bytes, how late the rank arrived, rendezvous and hand-over time; `device` rows (DEVICE): the queue time of the call's splice and the model's device time since the previous collective, read when the recording is reused (the last call of each collective has none). `call` is the collective's call number, one per inference, so per-inference and per-rank sums are a group-by. | Stragglers, a step that is slower than the others, anything an average hides. HOST costs nothing measurable; ALL with the CSV +0.3 ms TPOT on TP4. |
+| `OV_GPU_TP_DUMP_PROFILING_DATA_PATH=<dir>` | With `OV_GPU_TP_PROFILING` set: `tp_collectives_<N>ranks_<k>.csv`, a row per AllReduce call and rank -- `host` rows (HOST): schedule, bytes, how late the rank arrived, rendezvous and hand-over time; `device` rows (DEVICE): the queue time of the call's splice and the model's device time since the previous collective, read when the recording is reused (the last call of each collective has none). `call` is the collective's call number, one per inference, so per-inference and per-rank sums are a group-by. | Stragglers, a step that is slower than the others, anything an average hides. HOST costs nothing measurable; ALL with the CSV adds a small per-token cost. |
 | `OV_TP_DUMP_SHARDING_STATES=<dir>` | `compile_model` writes `tp_sharding_states_<model>_<N>ranks.txt`: the blocks found, the linear layers left whole, then every node of the analyzed model that is split or annotated with its state (Split layout per rank, Partial, rank-dependent sizes), where the state comes from, and its `tp_role` / `tp_shard`. On a verification failure the states up to the failing node, then the error. | A model fails the verification, or a new block pass is being written. |
 
 The analyzed model and the rank models before their device compilation are not a TP option: the pass
@@ -437,8 +437,8 @@ one; `OV_GPU_TP_VALIDATE_ALLREDUCE_OUTPUT=1` compares a checksum of every AllRed
 ranks -- they must be bit-identical -- and names the collective and the call where they differ
 (`[TP][CHECK] AllReduce output differs across ranks: <name> (collective 24, call 0): r0=0x.. r1=0x..`,
 the first 20, then a count at the end: `[TP][CHECK] AllReduce outputs compared across 4 ranks: 98304
-calls, 0 differ`). Both drain the queue at every check: Llama-3.1-8B TP4, 1024-token prompt, TTFT
-755 ms and TPOT 9.6 ms with the checksum instead of 90 ms and 6.7 ms.
+calls, 0 differ`). Both drain the queue at every check, so the run is many times slower: use them
+to find the collective, not to time anything.
 
 The tensors themselves come from the GPU plugin's dump, which works on every rank: with
 `OV_GPU_DUMP_TENSORS_PATH=<dir>/`, `OV_GPU_DUMP_LAYER_NAMES="tpallreduce:tp_allreduce/<projection name>"`

@@ -45,7 +45,7 @@ Level Zero context — no host round-trip and no copy through CPU memory.
 - A decoder whose attention is `PagedAttentionExtension` or
   `ScaledDotProductAttention`, with the Q/K/V/O and MLP projections being
   MatMuls over constant-derived weights. Fused projections (one `qkv_proj`,
-  one `gate_up_proj`, as in Phi-3) are supported.
+  one `gate_up_proj`) are supported.
 - More ranks than KV heads only when the ranks divide by the KV heads and the
   query heads by the ranks (e.g. 2 KV heads and 32 query heads on 4 GPUs: two
   ranks share each KV head). Fewer ranks than KV heads work for any count.
@@ -138,12 +138,10 @@ want a stuck rank reported sooner.
 
 The collectives pass every message through a staging buffer on each rank.
 Without `ov_internal_tp_comm_buffer_size` it grows to the largest message seen:
-a prompt's prefill, which is the hidden size times the prompt length (128 MiB
-per rank for an 8K-token prompt on Llama-3.1-8B), allocated when that prompt
+a prompt's prefill, which is the hidden size times the prompt length, allocated when that prompt
 first arrives. Setting it reserves the memory up front, before the KV cache is
-sized, and caps it; a message that does not fit is sent in chunks. Splitting
-into two chunks costs little; on four ranks, four chunks of an 8K-token prompt
-cost about 6 % of the time to first token and eight about 11 %. Decode
+sized, and caps it; a message that does not fit is sent in chunks. Every chunk
+adds a little to the time to first token, more on more ranks. Decode
 messages are small and never split. On more than two ranks a chunked prompt
 is summed in a different order, so the outputs may differ from the unchunked
 run in the last bits, the same way on every run.
@@ -203,8 +201,7 @@ Things to know:
 - **Weightless caching works** (`ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)`
   with a model read from IR). A rank weight that is a contiguous slice of a
   weight in the model's `.bin` is read back from there; the others (slices
-  across rows) stay in the entry. Llama-3.1-8B int4: 1.37 GB on two ranks,
-  1.39 GB on four, instead of 6.05 / 7.12 GB.
+  across rows) stay in the entry, so for a compressed model it holds a fraction of the weights.
 - **Properties for the rank devices are part of the cache key**, whether given
   in the call (`ov::device::properties(...)`) or set on `TP`.
 - `compiled.get_property(ov::loaded_from_cache)` tells you which path was
@@ -238,10 +235,13 @@ cache.allocate(0, blocks, /*zero_initialize=*/false);  // bound to every infer r
   the node (`[TP] Sharding verification failed at node ...`) instead of producing
   wrong output. A weight fed from a live parameter rather than a constant (a LoRA
   adapter) is not supported.
-- **Quantized weights.** A quantized weight is cut on quantization-group
-  boundaries. When the split does not line up with them (or with the bytes of
-  packed 4-bit data), the weight is cut at run time instead; the plugin warns,
-  names the weight, and the compilation takes longer.
+- **Quantized weights.** Weights of 8 bits and more (f32, f16, bf16, f8e4m3,
+  f8e5m2, i8, u8) and 4-bit ones (u4, i4, nf4, f4e2m1) are split; a model with
+  weights of 1, 2, 3 or 6 bits is rejected, naming the weight. A quantized
+  weight is cut on quantization-group boundaries. When the split does not line
+  up with them, the weight is cut at
+  run time instead; the plugin warns and names the weight, and the device keeps
+  it decompressed (see the warning below).
 - **Single-process.** All ranks execute in the same process on plugin-owned
   threads. Multi-process / multi-host configurations are out of scope.
 - **One TP request at a time per device.** TP requests of every TP model in
@@ -330,6 +330,25 @@ their time the other ranks spend waiting (one head out of the busier ranks'
 heads); the warning only appears above 10%.
 
 Choose a number of devices that divides the KV head count to make it go away.
+
+### `[TP] Warning: N weights cannot be cut at the rank boundaries at compile time`
+
+Not an error: the model runs correctly. A rank's boundary falls inside a quantization group of
+the named weight, usually the attention output projection: a rank's query heads x `head_dim` is
+not a whole number of groups (e.g. a `head_dim` of 64, an odd number of query heads per rank and
+groups of 128). Such a weight is cut after
+decompression, so the device keeps it in f16: about four times the memory of an int4 weight and
+a markedly slower prefill for that layer.
+
+Choose a number of devices that gives every rank whole groups, or compress the model with a
+group size that divides a rank's share of the heads.
+
+### `[TP] '<weight>' (<block>) splits ... unit(s) for N ranks: a rank would get none`
+
+Every rank needs at least one unit of every split: a whole query group or KV head in attention,
+a whole quantization group in the MLP. A model too small for the number of devices (an MLP of
+two quantization groups on three devices, say) is rejected with the largest number of devices
+that works. Use that many or fewer.
 
 ### `[TP] Model has H Q heads and K KV heads; world size N does not divide them evenly`
 
