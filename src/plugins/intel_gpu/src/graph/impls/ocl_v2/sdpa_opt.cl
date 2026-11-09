@@ -2933,15 +2933,7 @@ KERNEL(sdpa_opt_finalization_stage)(
 #endif
             acc += out_val_f * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
     }
-    const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * V_HEAD_SIZE) +
-#ifdef OUTPUT_TRANSPOSE_ORDER_PRESENT
-                            target_seq_idx * (NUM_HEADS * V_HEAD_SIZE) +
-                            b1_idx * (V_HEAD_SIZE) +
-#else
-                            b1_idx * (TARGET_SEQ_LEN * V_HEAD_SIZE) +
-                            target_seq_idx * (V_HEAD_SIZE) +
-#endif
-                            local_id;
+    const uint out_offset = SDPA_OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx, local_id);
 
     output[out_offset] = TO_OUTPUT_TYPE(acc / global_exp_sum);
 }
