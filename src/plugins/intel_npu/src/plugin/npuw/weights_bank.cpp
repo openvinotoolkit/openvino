@@ -73,10 +73,14 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
 
     std::unique_lock guard(m_mutex);
 
-    auto& device_bank = m_device_banks.at(device_for_alloc);
-    auto iter_device = device_bank.storage.find(uid);
+    const auto& device_bank =
+        std::find_if(m_device_banks.begin(), m_device_banks.end(), [&device_for_alloc](const auto& dev_bank) {
+            return ov::npuw::util::starts_with(dev_bank.first, device_for_alloc);
+        });
+    NPUW_ASSERT(device_bank != m_device_banks.end() && "Device not found within list of devices from weights bank");
+    auto iter_device = device_bank->second.storage.find(uid);
 
-    NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
+    NPUW_ASSERT(iter_device != device_bank->second.storage.end() && iter_device->second.tensor &&
                 "Tensor should be registered and allocated first!");
 
     return iter_device->second.tensor;
