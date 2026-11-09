@@ -13,8 +13,16 @@
 
 namespace ov::frontend::gguf {
 
-// Recipes use resolved vision.patch_size/window_size/merge and clip.* dimensions in config.
-enum class ProjectorLayout { Unsupported, Image, PaddedPatches, WindowedPatches, SplitMerger, PackedPatches };
+// Recipes use resolved vision.patch_size/temporal_patch_size/window_size/merge and clip.* dimensions in config.
+enum class ProjectorLayout {
+    Unsupported,
+    Image,
+    PaddedPatches,
+    WindowedPatches,
+    SplitMerger,
+    PackedPatches,
+    TemporalPackedPatches
+};
 
 struct GGUF_FRONTEND_API ProjectorResult {
     GgufValue output;

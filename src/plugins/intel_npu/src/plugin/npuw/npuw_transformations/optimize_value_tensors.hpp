@@ -10,7 +10,9 @@ namespace ov {
 namespace npuw {
 namespace util {
 
-// SDPA-unroll and transpose transformations
+// Decompose SDPA and transpose V tensors, including past/present KV-cache ports.
+// Direct ShapeOf consumers use a Gather to restore dimension order without freezing dynamic shapes.
+// Other consumers are not rewired by the ShapeOf correction.
 class OptimizeValueTensors : public ov::pass::ModelPass {
     bool m_is_prefill;
     bool m_is_whisper;

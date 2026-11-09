@@ -588,6 +588,13 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::GroupedMa
     return std::make_shared<ov::Model>(results, ov::ParameterVector{mat_a, mat_b}, "GroupedMatMulGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::Histc> &node) {
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 3, 4});
+    const auto histcNode = std::make_shared<ov::op::v17::Histc>(data, 10, 0.0, 1.0);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(histcNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{data}, "HistcGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::QSAPrepare> &node) {
     const auto raw_index_keys = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 16});
     const auto past_block_index_keys = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 0, 16});
