@@ -479,11 +479,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)"),
             // Target Static Shape is empty
             std::regex(R"(.*proposal_params/.*)"),
-            // Quantized models unsupported
-            std::regex(R"(.*Quantized.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
-            std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
