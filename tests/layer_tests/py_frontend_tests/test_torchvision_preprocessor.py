@@ -202,6 +202,33 @@ def test_pad(test_input, preprocess_pipeline):
     assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
 
 
+# The transforms after Pad depend on the padded image size
+@pytest.mark.parametrize(
+    ("image_size", "transforms_list"),
+    [
+        ((40, 40), [transforms.Pad((2, 6)), transforms.CenterCrop(44)]),
+        ((40, 40), [transforms.Pad((2, 6)), transforms.CenterCrop((50, 40))]),
+        ((40, 40), [transforms.Pad((10, 0)), transforms.CenterCrop((40, 56))]),
+        ((40, 40), [transforms.Pad([4]), transforms.CenterCrop(44)]),
+        ((40, 40), [transforms.Pad((2, 6, 2, 6)), transforms.CenterCrop(44)]),
+    ],
+)
+def test_pad_then_centercrop_matches_torchvision(image_size, transforms_list):
+    test_input = np.random.randint(255, size=(*image_size, 3), dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose([*transforms_list, transforms.ToTensor()])
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
+    assert torch_result.shape == ov_result.shape
+    assert np.max(np.absolute(torch_result - ov_result)) < 4e-05
+
+
+def test_pad_then_resize_shape():
+    # Resize scales the shorter edge of the padded image, which is 52 x 44 (H x W) here
+    test_input = np.random.randint(255, size=(40, 40, 3), dtype=np.uint8)
+    preprocess_pipeline = transforms.Compose([transforms.Pad((2, 6)), transforms.Resize(30), transforms.ToTensor()])
+    torch_result, ov_result = _infer_pipelines(test_input, preprocess_pipeline)
+    assert torch_result.shape == ov_result.shape
+
+
 def test_centercrop():
     test_input = np.random.randint(255, size=(260, 260, 3), dtype=np.uint8)
     preprocess_pipeline = transforms.Compose(

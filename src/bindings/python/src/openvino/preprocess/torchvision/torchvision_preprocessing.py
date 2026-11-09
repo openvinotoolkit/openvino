@@ -189,35 +189,25 @@ class _(TransformConverterBase):
         pads_begin = [0 for _ in meta["input_shape"]]
         pads_end = [0 for _ in meta["input_shape"]]
 
-        # padding equal on all sides
+        # torchvision padding is a single value for all sides, (left/right, top/bottom)
+        # or (left, top, right, bottom)
         if isinstance(torch_padding, int):
-            image_dimensions[0] += 2 * torch_padding
-            image_dimensions[1] += 2 * torch_padding
-
-            pads_begin[layout.get_index_by_name("H")] = torch_padding
-            pads_begin[layout.get_index_by_name("W")] = torch_padding
-            pads_end[layout.get_index_by_name("H")] = torch_padding
-            pads_end[layout.get_index_by_name("W")] = torch_padding
-
-        # padding different in horizontal and vertical axis
+            torch_padding = [torch_padding]
+        if len(torch_padding) == 1:
+            left = top = right = bottom = torch_padding[0]
         elif len(torch_padding) == 2:
-            image_dimensions[0] += sum(torch_padding)
-            image_dimensions[1] += sum(torch_padding)
-
-            pads_begin[layout.get_index_by_name("H")] = torch_padding[1]
-            pads_begin[layout.get_index_by_name("W")] = torch_padding[0]
-            pads_end[layout.get_index_by_name("H")] = torch_padding[1]
-            pads_end[layout.get_index_by_name("W")] = torch_padding[0]
-
-        # padding different on top, bottom, left and right of image
+            left = right = torch_padding[0]
+            top = bottom = torch_padding[1]
         else:
-            image_dimensions[0] += torch_padding[1] + torch_padding[3]
-            image_dimensions[1] += torch_padding[0] + torch_padding[2]
+            left, top, right, bottom = torch_padding
 
-            pads_begin[layout.get_index_by_name("H")] = torch_padding[1]
-            pads_begin[layout.get_index_by_name("W")] = torch_padding[0]
-            pads_end[layout.get_index_by_name("H")] = torch_padding[3]
-            pads_end[layout.get_index_by_name("W")] = torch_padding[2]
+        image_dimensions[0] += top + bottom
+        image_dimensions[1] += left + right
+
+        pads_begin[layout.get_index_by_name("H")] = top
+        pads_begin[layout.get_index_by_name("W")] = left
+        pads_end[layout.get_index_by_name("H")] = bottom
+        pads_end[layout.get_index_by_name("W")] = right
 
         @custom_preprocess_function
         def pad_node(output: Output) -> Callable:
