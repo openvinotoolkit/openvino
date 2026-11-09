@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-09T16:30:00Z",
+  "last_seen": "2026-11-09T16:30:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42626586527"
+  ],
+  "affected_commits": [
+    "41aa722bf4d15ebcd2869da881b577335d7a1155"
+  ],
+  "recent_timestamps": [
+    "2026-11-09T16:30:00Z"
+  ]
+}

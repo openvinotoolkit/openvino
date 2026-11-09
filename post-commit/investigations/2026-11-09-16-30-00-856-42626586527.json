@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-09-16-30-00-856-42626586527",
+  "timestamp": "2026-11-09T16:30:00Z",
+  "run_id": "42626586527",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42626586527",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "41aa722bf4d15ebcd2869da881b577335d7a1155",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll - Access to the path is denied"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force on openvino_package.zip and openvino_tests.zip into the shared install directory. PowerShell's Expand-Archive with -Force first tries to delete pre-existing files at the destination before overwriting them. tbb12.dll under install\\runtime\\3rdparty\\tbb\\bin was still locked (loaded by another process, e.g. an antivirus scan, an unreleased handle from a previous step, or a lingering test/runner process on the self-hosted Windows runner) when Remove-Item attempted to delete it, raising UnauthorizedAccessException and aborting the archive extraction with exit code 1. This is a transient runner/environment resource-locking issue rather than a code defect.",
+  "reproduction_steps": "Not directly reproducible locally; this depends on Windows self-hosted runner state. To reproduce the failure mode: on a Windows machine, load tbb12.dll into a running process (e.g. via a lingering test binary), then run Expand-Archive -Force targeting a destination containing that locked file - Remove-Item will fail with UnauthorizedAccessException.",
+  "recommended_actions": [
+    "Ensure the install directory is fully cleaned (and any processes holding handles to it, e.g. leftover test executables or antivirus scanners, are terminated/excluded) before the 'Extract OpenVINO packages' step runs.",
+    "Consider extracting to a fresh/unique directory per run instead of overwriting an existing install directory with -Force, avoiding delete-before-overwrite races entirely.",
+    "Add a retry-with-backoff wrapper around the Expand-Archive step for Windows jobs, since file-lock contention on shared runner directories is often transient.",
+    "Investigate whether a prior step (build, packaging, or a previous test job on the same runner) leaves tbb12.dll loaded/locked and add an explicit cleanup/wait step."
+  ],
+  "prevention_strategies": "Isolate extraction destinations per job/run to prevent overwrite-induced delete races; add file-lock-aware retry logic around PowerShell Expand-Archive/Remove-Item calls on Windows runners; audit self-hosted Windows runner hygiene (stale processes, antivirus real-time scanning of install directories) that can hold file handles open between jobs.",
+  "historical_context": "No prior post-commit investigations in the knowledge base matched this exact signature (tbb12.dll lock during Expand-Archive). Related but distinct Windows infrastructure patterns previously recorded include: Windows CC build out-of-memory errors under high parallelism, Windows build jobs terminated mid-build with unavailable logs, and pip-proxy malformed JSON responses breaking Windows dependency installs - all pointing to broader self-hosted Windows runner instability."
+}
