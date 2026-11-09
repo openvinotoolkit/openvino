@@ -130,10 +130,8 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     } else {
         const auto& position_ids_shape = position_ids->get_partial_shape();
         if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 2) {
-            std::cout << "position_ids rank 2" << std::endl;
             position_ids->set_partial_shape(PartialShape{-1});
         } else if (position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 3) {
-            std::cout << "position_ids rank 3" << std::endl;
             // Qwen2.5 VL M-RoPE: [3, total_token_num] -> Unsqueeze(axis=-1) -> [3, total_token_num, 1]
             position_ids->set_partial_shape(PartialShape{position_ids_shape[0], -1});
         } else {
@@ -151,7 +149,6 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     // Refresh shapes after the input_ids/position_ids changes above; per-pass validation is disabled below.
     model->validate_nodes_and_infer_types();
 
-    std::cout << "Running SDPAToPA" << std::endl;
     ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
     manager.register_pass<EliminateDropBatch>();
