@@ -235,17 +235,17 @@ TEST_P(pooling_f32_scale, fp16_scale_out_overflow) {
     const float scale = 1.0f / 16.0f;
     const float expected = 8192.0f;
 
-    const layout input_layout_f32{ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } };
+    const layout input_layout_f32{ data_types::f32, format::bfyx, tensor{ 1, 1, 3, 3 } };
     const layout scale_layout{ data_types::f32, format::bfyx, tensor{ 1, 1, 1, 1 } };
     const ov::Shape kernel(2, 3);
     const ov::Strides stride(2, 1);
-    const ov::Shape pads_begin(2, 1);
-    const ov::Shape pads_end(2, 1);
+    const ov::Shape pads_begin(2, 0);
+    const ov::Shape pads_end(2, 0);
 
     create_topologies(
         input_layout("input", input_layout_f32),
         data("scale_data", get_mem(scale_layout, scale)),
-        pooling("pooling", input_info("input"), pooling_mode::max, kernel, stride, pads_begin, pads_end),
+        pooling("pooling", input_info("input"), p.pool_mode, kernel, stride, pads_begin, pads_end),
         eltwise("scale", { input_info("pooling"), input_info("scale_data") }, eltwise_mode::prod, data_types::f16),
         reorder("output_reorder", input_info("scale"), format::bfyx, data_types::f32)
     );
