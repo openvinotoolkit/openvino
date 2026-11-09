@@ -114,7 +114,7 @@ TEST_P(FuseMoERouterTest, CompareFunctions) {
         auto indices_out = std::make_shared<ov::op::v0::Unsqueeze>(topk_indices, ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
         model = std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out}, ov::ParameterVector{hidden_states});
     }
-    manager.register_pass<FuseMoERouter>();
+    manager.register_pass<FuseMoERouter>(std::vector<ov::element::Type>{data_precision});
     {
         auto hidden_states = std::make_shared<ov::op::v0::Parameter>(data_precision, Shape{4, 8, 2048});
         auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
@@ -147,6 +147,19 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                             ::testing::Values(128, 512),
                                             ::testing::Values(8, 10)),
                          FuseMoERouterTest::get_test_case_name);
+
+TEST_F(TransformationTestsF, FuseMoERouter_unsupported_activation_type) {
+    auto hidden_states = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 8, 2048});
+    auto flatten_shape = op::v0::Constant::create(element::i32, Shape{2}, {32, 2048});
+    auto hidden_states_reshape = std::make_shared<ov::op::v1::Reshape>(hidden_states, flatten_shape, false);
+    auto routers = op::v0::Constant::create(element::f32, Shape{2048, 128}, {0.2});
+    auto routing_weights = std::make_shared<ov::op::v0::MatMul>(hidden_states_reshape, routers);
+    const auto [routing_out, topk_indices] = build_softmax_routing_for_fuse_test(routing_weights, 8, true);
+    auto weights_out = std::make_shared<ov::op::v0::Unsqueeze>(routing_out, ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
+    auto indices_out = std::make_shared<ov::op::v0::Unsqueeze>(topk_indices, ov::op::v0::Constant::create(element::i32, Shape{1}, {0}));
+    model = std::make_shared<ov::Model>(ov::OutputVector{weights_out, indices_out}, ov::ParameterVector{hidden_states});
+    manager.register_pass<FuseMoERouter>(std::vector<ov::element::Type>{ov::element::f16});
+}
 
 }  // namespace intel_gpu
 }  // namespace test

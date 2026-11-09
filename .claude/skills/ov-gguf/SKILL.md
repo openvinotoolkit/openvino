@@ -22,14 +22,29 @@ converters; builders and validation differ. Registration or conversion alone nev
 |---|---|
 | Is a model supported? | [supported_models.md](../../../src/frontends/gguf/docs/supported_models.md) or [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md#supported-projectors); quote the checkpoint result and limitations, not just the catalog entry |
 | Load a model, make it stateful/GenAI/PA-ready, tokenizer, IR export | [runtime.md](../../../src/frontends/gguf/docs/runtime.md) |
-| Add or port an architecture | [architectures.md](../../../src/frontends/gguf/docs/architectures.md); [extensions.md](../../../src/frontends/gguf/docs/extensions.md) when shipping it as a plugin |
-| Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) |
+| Add or port an architecture | [architectures.md](../../../src/frontends/gguf/docs/architectures.md) and the [family contract](references/validation.md#family-contract); [extensions.md](../../../src/frontends/gguf/docs/extensions.md) when shipping it as a plugin |
+| Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Missing ggml operation or `op_case` | [how_to_add_op.md](../../../src/frontends/gguf/docs/how_to_add_op.md) |
+| Validate generated-text or quantized-model quality | [WWB validation](references/wwb.md); compare both backends against the same saved reference while preserving numerical and integration gates |
 | Wrong numbers | [debugging_accuracy.md](../../../src/frontends/gguf/docs/debugging_accuracy.md) |
-| GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) |
+| GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Unsupported weight type | [quantization.md](../../../src/frontends/gguf/docs/quantization.md); the fix belongs in `src/quant/`, not a builder |
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
 | Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use existing GHA workflows and focused local tests, preserving revisions, coverage and failures |
+| Preflight test selection, fixtures or an overlay link | [executable checks](references/preflight.md); verify required cases and link inputs before a broad batch |
+
+## Architecture ownership
+
+- Keep all architecture-specific computation and decisions under `src/builder/`: metadata schemas,
+  aliases/defaults, topology, operation selection, layouts, and architecture-specific adaptation.
+- Built-ins and `ArchitectureExtension`/`ProjectorExtension` must use the same configuration and
+  builder contracts. An extension must be able to replace or override every architecture-specific
+  behavior without editing parser, quantization, translator, or generic adaptation code.
+- Code outside `src/builder/` should be reusable between OpenVINO GenAI and the llama.cpp OpenVINO
+  backend. Consume explicit operation parameters and builder/decoder-declared model contracts;
+  do not dispatch on architecture names, projector names, or guessed model variants there.
+  Keep file-format/quantization mechanics and GGML operation semantics generic. Architecture
+  identifiers may be propagated for diagnostics, and specialized adapters belong to their builder.
 
 ## Easy to miss
 
@@ -44,22 +59,26 @@ converters; builders and validation differ. Registration or conversion alone nev
   `GGUFArchConversion` skips without generated headers unless `OV_GGUF_REQUIRE_ARCH_FIXTURES=1`
   requires them; generate them with [gen_arch_fixtures.py](../../../src/frontends/gguf/tests/gen_arch_fixtures.py) `--fetch`.
   Check actual selected counts and skips; registration, conversion, decoder numerics and
-  GenAI media/API integration establish different levels of support.
+  GenAI media/API integration establish different levels of support. Use the
+  [coverage helper](references/preflight.md#test-selection-and-required-fixtures) for repeated batches;
+  zero selected tests or suppressed required cases are missing coverage.
 - **References.** Layout-sensitive expectations come from real ggml CPU via a committed oracle under
   `tests/`, with several heads/tokens and unequal Q/KV dimensions; NumPy or single-head tests can
   share the bug. Do not tighten `expect_near` tolerances from an x86-only run.
 - **Comparisons.** Use full logits or features on identical inputs and token histories, with
   `INFERENCE_PRECISION_HINT=f32`, `DYNAMIC_QUANTIZATION_GROUP_SIZE=0` and the reference's KV precision.
-  Set `OV_GGUF_Q4_K_ZP_F16=1` before the process starts. Report quantized-CPU and represented-F32
-  comparisons separately and keep failed results. `GGML_OPENVINO_*` variables configure only the
-  llama.cpp backend.
+  For strict checkpoint comparisons, set `OV_GGUF_Q4_K_ZP_F16=1` before starting the process.
+  Run the unfiltered frontend unit suite with this variable unset: integer-zero-point tests require
+  the default mode. Keep [scenario environments](references/validation.md#scenario-environments)
+  explicit. Report quantized-CPU and represented-F32 comparisons separately and keep failed results.
+  `GGML_OPENVINO_*` variables configure only the llama.cpp backend.
   Inspect tensor-type inventory rather than checkpoint names. Identical quantized weights do
   not rule out CPU arithmetic differences; exact expansions isolate them but do not waive the
   original parity gate. Shared exported-model layout does not imply identical media geometry.
 - **Shared changes.** Translator, VIEW/`op_case` or shared block changes rerun
   `GGUFArchitectureAccuracy`, `GGUFArchConversion` and the mmproj suites, not just the target model.
-- **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large Q2
-  MoE checkpoints expand at CPU compilation; check memory before starting one.
+- **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large quantized
+  MoE checkpoints can expand at CPU compilation; check memory before starting one.
 - **Ineffective rebuilds.** Verify graph attributes, plugin/executor parameters and the linked,
   loaded CPU variants before repeating a sweep. Use [build and runtime identity](references/build-runtime.md)
   for overlays or multiple worktrees; version strings and `ldd` alone do not prove execution identity.

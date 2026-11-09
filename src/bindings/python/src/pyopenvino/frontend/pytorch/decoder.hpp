@@ -5,6 +5,7 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
@@ -145,6 +146,9 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
 
     ov::OutputVector convert(const ov::frontend::NodeContext* context) const override {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, convert, context);
+    }
+    InputSequences get_input_sequences() const override {
+        PYBIND11_OVERRIDE(InputSequences, TorchDecoder, get_input_sequences);
     }
 };
 

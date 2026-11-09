@@ -88,6 +88,8 @@ inline bool is_nonzero(T v) {
  */
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts);
 
+bool requires_expert_slice(const ov::Tensor& source, const ov::Shape& target_shape, size_t num_experts);
+
 /**
  * @brief Parse selected experts from router output tensor.
  *

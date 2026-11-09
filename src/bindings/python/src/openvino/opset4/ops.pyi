@@ -1,6 +1,5 @@
 # type: ignore
 from __future__ import annotations
-from builtins import list as TensorShape
 from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Shape
@@ -24,6 +23,7 @@ from openvino.utils.types import make_constant_node
 import functools
 import numpy as np
 import openvino._pyopenvino
+import types
 import typing
 """
 Factory functions for all openvino ops.
@@ -282,4 +282,5 @@ def swish(*args, **kwargs) -> openvino._pyopenvino.Node:
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
+TensorShape: types.GenericAlias  # value = list[int]
 _get_node_factory_opset4: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset4')

@@ -26,6 +26,46 @@
     #define DISABLE_QK_LOOP_UNROLL
 #endif
 
+#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+// An empty token_type_ids input (runtime size 0) disables the bidirectional masking.
+#define TT_PRESENT (TOKEN_TYPE_IDS_BATCH_NUM > 0)
+// token_type_ids has one value per scheduled token (all subsequences joined). Indexes below are global token indexes.
+// A group is a run of 1s (type-1 tokens). All lanes of the sub-group get the same result.
+
+// End (exclusive) of the group that contains `token`.
+inline uint FUNC(pa_bidir_group_end)(const __global int* token_type_ids, const uint token, const uint subsequence_end) {
+    const uint sglid = get_sub_group_local_id();
+    uint e = token + 1;
+    while (true) {
+        const uint idx = e + sglid;
+        const bool is_boundary = (idx >= subsequence_end) || (token_type_ids[idx] != 1);
+        const uint first = sub_group_reduce_min(is_boundary ? idx : UINT_MAX);
+        if (first != UINT_MAX) {
+            return first;
+        }
+        e += SUBGROUP_SIZE;
+    }
+}
+
+// Start (inclusive) of the group that contains `token`.
+inline uint FUNC(pa_bidir_group_begin)(const __global int* token_type_ids, const uint token, const uint subsequence_begin) {
+    const int sglid = (int)get_sub_group_local_id();
+    const int lowest = (int)subsequence_begin - 1;  // boundary just before the subsequence
+    int e = (int)token;                              // lane l checks e - 1 - l
+    while (true) {
+        const int idx = e - 1 - sglid;
+        // a token that is not type 1, or the subsequence start, ends the group
+        const bool is_boundary = (idx <= lowest) || (token_type_ids[idx] != 1);
+        // the nearest boundary has the largest index
+        const int nearest = sub_group_reduce_max(is_boundary ? max(idx, lowest) : INT_MIN);
+        if (nearest != INT_MIN) {
+            return (uint)(nearest + 1);
+        }
+        e -= SUBGROUP_SIZE;
+    }
+}
+#endif
+
 #ifdef SDPA_STAGE_0
 
 #if SEQ_LEN_PARTITION_SIZE % PAGED_ATTENTION_BLOCK_SIZE != 0
@@ -84,6 +124,9 @@ KERNEL(pa_sdpa_opt)(
 #if HAS_QQ_BIAS
     const __global QQ_BIAS_DATA_T* qq_bias,
     const __global QQ_BIAS_BEGINS_DATA_T* qq_bias_begins,
+#endif
+#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+    const __global int* token_type_ids,
 #endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
@@ -165,8 +208,23 @@ KERNEL(pa_sdpa_opt)(
     const int subsequence_idx = gws_subseq_mapping[seq_idx];
     const int subsequence_begin = subsequence_begins[subsequence_idx];
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
+#if !HAS_TOKEN_TYPE_IDS
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+#endif
     const uint past_len = past_lens[subsequence_idx];
+#if HAS_TOKEN_TYPE_IDS
+    // causal_len: keys up to the query itself (used by ALiBi and the sliding window).
+    // seq_len: keys really read. A type-1 token also reads the rest of its group.
+    const uint causal_len = past_len + 1 + (seq_idx - subsequence_begin);
+    uint seq_len = causal_len;
+    uint sliding_window_begin_ext = 0xFFFFFFFFu;  // window start of a type-1 token: its group start
+    if (TT_PRESENT && token_type_ids[seq_idx] == 1) {
+        seq_len = past_len + (FUNC_CALL(pa_bidir_group_end)(token_type_ids, seq_idx, subsequence_end) - subsequence_begin);
+    #if SLIDING_WINDOW_SIZE != 0
+        sliding_window_begin_ext = past_len + (FUNC_CALL(pa_bidir_group_begin)(token_type_ids, seq_idx, subsequence_begin) - subsequence_begin);
+    #endif
+    }
+#endif
     #if HAS_QQ_BIAS
         const uint qq_bias_num = qq_bias_begins[subsequence_idx + 1] - qq_bias_begins[subsequence_idx];
         const uint qq_bias_spec_num = (uint)native_sqrt((float)qq_bias_num);
@@ -434,14 +492,24 @@ KERNEL(pa_sdpa_opt)(
             const uint token_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 
 #ifdef HAS_ALIBI
+#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+            const int alibi_val = (1 - (int)causal_len) + token_idx;
+#else
             const int alibi_val = (1 - seq_len) + token_idx;
+#endif
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
                 GET_VECTOR_ELEMENT(qk_acc, q_idx) += alibi_slopes[head_num_idx + q_idx] * alibi_val;
             }
 #endif
 
 #if SLIDING_WINDOW_SIZE != 0
+    #if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+            // a type-1 token keeps its whole group inside the window
+            if (token_idx >= seq_len ||
+                (causal_len > SLIDING_WINDOW_SIZE && token_idx < min(causal_len - SLIDING_WINDOW_SIZE, sliding_window_begin_ext)))
+    #else
             if (token_idx >= seq_len || (seq_len > SLIDING_WINDOW_SIZE && token_idx < (seq_len - SLIDING_WINDOW_SIZE)))
+    #endif
 #else
             if (token_idx >= seq_len)
 #endif
@@ -449,6 +517,7 @@ KERNEL(pa_sdpa_opt)(
 
 #if HAS_QQ_BIAS && MULTI_TOKENS_PROCESSING
             // token_idx < seq_len, speculative tree mask
+            // (seq_len includes the group, so a key hidden by qq_bias stays hidden)
             if (qq_bias_num > 0 && token_idx >= past_len && token_idx < seq_len) {
                 const uint spec_offset = token_idx - past_len;
                 if (spec_offset < qq_bias_spec_num) {
@@ -585,24 +654,29 @@ KERNEL(pa_sdpa_opt)(
         barrier(CLK_LOCAL_MEM_FENCE);
 
         {
-            // Save temporary exm_sums and max_logits values for each partition_num
+            // Save temporary exm_sums and max_logits values for each partition_num.
+            // Subgroups stride over heads: with small head sizes SUBGROUPS_PER_WG may be smaller than HEADS_PER_WI.
 #if HEADS_PER_WI > 1 && HEADS_LEFTOVERS_NUM > 0
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && sgid < HEADS_PER_WI && sgid < iter_heads_num) {
+            const uint stats_heads_num = iter_heads_num;
 #else
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && sgid < HEADS_PER_WI) {
+            const uint stats_heads_num = HEADS_PER_WI;
 #endif
-                const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(sgid, 0);
-                const uint exp_sums_offset = seq_idx * HEADS_NUM * total_partitions_num +
-                                             (head_num_idx + head_idx) * total_partitions_num +
-                                             partition_idx;
-                exp_sums[exp_sums_offset] = GET_VECTOR_ELEMENT(exp_sum, head_idx);
+            if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+                for (uint q_idx = sgid; q_idx < stats_heads_num; q_idx += SUBGROUPS_PER_WG) {
+                    const uint head_idx = GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(q_idx, 0);
+                    const uint exp_sums_offset = seq_idx * HEADS_NUM * total_partitions_num +
+                                                 (head_num_idx + head_idx) * total_partitions_num +
+                                                 partition_idx;
+                    exp_sums[exp_sums_offset] = GET_VECTOR_ELEMENT(exp_sum, head_idx);
 
-                const uint max_logits_offset = exp_sums_offset;
-                max_logits[max_logits_offset] = GET_VECTOR_ELEMENT(qk_max, head_idx);
+                    const uint max_logits_offset = exp_sums_offset;
+                    max_logits[max_logits_offset] = GET_VECTOR_ELEMENT(qk_max, head_idx);
+                }
             }
 
 #if PAGED_ATTENTION_SCORES_OUTPUT
 #if MULTI_TOKENS_PROCESSING
+            // NOTE: scores output with token_type_ids is not tested. A type-1 token saves its whole group range.
             const uint subsequence_idx = gws_subseq_mapping[seq_idx];
             const uint subsequence_start_pos = subsequence_begins[subsequence_idx];
             const uint subsequence_end_pos = subsequence_begins[subsequence_idx + 1];
@@ -996,9 +1070,15 @@ KERNEL(pa_sdpa_opt)(
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(pa_sdpa_finalization_stage)(
+#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+    OPTIONAL_SHAPE_INFO_ARG
+#endif
     const __global INPUT3_TYPE* past_lens,
 #if MULTI_TOKENS_PROCESSING
     const __global INPUT6_TYPE* subsequence_begins,
+#endif
+#if HAS_TOKEN_TYPE_IDS && MULTI_TOKENS_PROCESSING
+    const __global int* token_type_ids,
 #endif
     __global OUTPUT_TYPE* output,
 #if PAGED_ATTENTION_SCORES_OUTPUT
@@ -1023,7 +1103,16 @@ KERNEL(pa_sdpa_finalization_stage)(
 #if MULTI_TOKENS_PROCESSING
     const int subsequence_idx = gws_subseq_mapping[seq_idx];
     const int subsequence_begin = subsequence_begins[subsequence_idx];
+#if HAS_TOKEN_TYPE_IDS
+    // same as the main kernel
+    uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+    if (TT_PRESENT && token_type_ids[seq_idx] == 1) {
+        const int subsequence_end = subsequence_begins[subsequence_idx + 1];
+        seq_len = past_lens[subsequence_idx] + (FUNC_CALL(pa_bidir_group_end)(token_type_ids, seq_idx, subsequence_end) - subsequence_begin);
+    }
+#else
     const uint seq_len = past_lens[subsequence_idx] + 1 + (seq_idx - subsequence_begin);
+#endif
 #else
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
@@ -1330,4 +1419,69 @@ KERNEL(pa_sdpa_scores_calculation)(
 }
 
 #undef MAX_PARTITIONS_NUM
+#endif
+
+#ifdef TT_BOUNDS_STAGE
+/* Per-token bidirectional group bounds from token_type_ids, consumed by sdpa_micro (USE_TT_BOUNDS).
+   One work-group of TT_BOUNDS_WG work-items per subsequence. For token u (index among the subsequence's new tokens):
+   bounds[2 * (subsequence_begin + u)]     = first index of its type-1 run,
+   bounds[2 * (subsequence_begin + u) + 1] = last index of its type-1 run (inclusive).
+   Text tokens, and every token when token_type_ids is empty, get the empty range (1, 0). */
+#define TT_BOUNDS_WG 256
+__attribute__((reqd_work_group_size(TT_BOUNDS_WG, 1, 1)))
+KERNEL(pa_tt_bounds)(
+    const __global int* subsequence_begins,
+    const __global int* token_type_ids,
+    __global int* bounds,
+    int num_seqs,
+    int tt_count) {
+    const int s = get_group_id(0);
+    if (s >= num_seqs) {
+        return;
+    }
+    const int lid = get_local_id(0);
+    const int b = subsequence_begins[s];
+    const int n = subsequence_begins[s + 1] - b;
+
+    /* run begin = running max of run-start indices */
+    int carry = -1;
+    for (int c0 = 0; c0 < n; c0 += TT_BOUNDS_WG) {
+        const int u = c0 + lid;
+        int tt = 0;
+        int start = -1;
+        if (u < n && tt_count > 0) {
+            tt = token_type_ids[b + u];
+            if (tt == 1 && (u == 0 || token_type_ids[b + u - 1] != 1)) {
+                start = u;
+            }
+        }
+        const int pm = max(work_group_scan_inclusive_max(start), carry);
+        carry = max(carry, work_group_reduce_max(start));
+        if (u < n) {
+            bounds[2 * (b + u)] = (tt == 1) ? pm : 1;
+        }
+    }
+
+    /* run end = running min of run-end indices, scanning the chunks from the back (lane order reversed) */
+    const int big = 0x7fffffff;
+    int carry_end = big;
+    const int last_chunk = ((n + TT_BOUNDS_WG - 1) / TT_BOUNDS_WG - 1) * TT_BOUNDS_WG;
+    for (int c0 = last_chunk; c0 >= 0; c0 -= TT_BOUNDS_WG) {
+        const int u = c0 + (TT_BOUNDS_WG - 1 - lid);
+        int tt = 0;
+        int end = big;
+        if (u < n && tt_count > 0) {
+            tt = token_type_ids[b + u];
+            if (tt == 1 && (u == n - 1 || token_type_ids[b + u + 1] != 1)) {
+                end = u;
+            }
+        }
+        const int sm = min(work_group_scan_inclusive_min(end), carry_end);
+        carry_end = min(carry_end, work_group_reduce_min(end));
+        if (u < n) {
+            bounds[2 * (b + u) + 1] = (tt == 1) ? sm : 0;
+        }
+    }
+}
+#undef TT_BOUNDS_WG
 #endif

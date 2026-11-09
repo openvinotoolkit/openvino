@@ -377,7 +377,6 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_memory_reallocation) {
         auto out_mem = output.at("output").get_memory();
         cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
 
-        const auto& reorder_inst = net.get_primitive("input1_reordered");
         const auto& concat_inst = net.get_primitive("concat");
         auto reorder1_mem = net.get_primitive("input1_reordered")->output_memory_ptr();
         auto reorder2_mem = net.get_primitive("input2_reordered")->output_memory_ptr();

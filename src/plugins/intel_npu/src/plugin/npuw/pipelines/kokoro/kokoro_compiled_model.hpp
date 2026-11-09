@@ -1,10 +1,11 @@
-// Copyright (C) 2025 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <cstdint>
+#include <mutex>
 
 #include "npuw/compiled_model.hpp"
 
@@ -65,6 +66,10 @@ private:
 
     ov::SoPtr<ov::ICompiledModel> m_model_a_compiled;
     std::shared_ptr<ov::npuw::ICompiledModel> m_model_b_compiled;
+
+    // Each model serializes only its own update, so set_property() holds this for both:
+    // concurrent calls can't leave the two models with different values
+    std::mutex m_set_property_mutex;
 };
 
 }  // namespace npuw

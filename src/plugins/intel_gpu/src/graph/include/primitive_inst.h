@@ -390,6 +390,8 @@ public:
 
     virtual void update_output_memory() {}
     void clear_output_memory();
+    // Unlike clear_output_memory(), also returns pool-owned output memory so the next allocation can reuse it.
+    void release_and_clear_output_memory();
 
     virtual int32_t get_prealloc_iter_num() { return -1; }
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
@@ -628,6 +630,9 @@ public:
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
     }
+    // Must return true in every type that overrides get_fake_aligned_params(), otherwise realloc_outputs() allocates
+    // its outputs without the fake alignment
+    static bool has_fake_alignment() { return false; }
 
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}

@@ -146,18 +146,18 @@ function(ov_download_tbb)
     elseif(LINUX AND AARCH64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB with glibc 2.17
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin-arm64-release.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.13.4-lin-arm64-release.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "494c69164acaec93fb70c99b7e679e955db43b192d3a24ac6c964a5750cb7c8a"
+                SHA256 "f87ae19f8ba184abb4f75d7d8e9252a2a716e477286db4469d885e27f50a43e7"
                 USE_NEW_LOCATION TRUE)
     elseif(APPLE AND AARCH64)
         # build oneTBB with export MACOSX_DEPLOYMENT_TARGET=11.0
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.13.1-mac-arm64-canary.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.13.4-mac-arm64-canary.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "031c34cbb25a73246a3076754343997b9e0f61737221a1d7979352d3b3aba898"
+                SHA256 "0e4aaaa10efe8e4e1e208360461f57e9bff1b5584daab142d19a50b98a12e8d7"
                 USE_NEW_LOCATION TRUE)
     elseif(RISCV64)
         RESOLVE_DEPENDENCY(TBB
