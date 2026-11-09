@@ -591,10 +591,8 @@ KERNEL(sdpa_opt)(
                         // _SAFE index macro doesn't parenthesize its arguments, so the modulo for a broadcast mask needs the whole sum
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, (target_seq_idx + seq_idx), (start_partition_idx + seq_len));
                         INPUT3_COMPUTE_TYPE mask_val = DECODE_INPUT3_COMPUTE_TYPE(attn_mask[attn_mask_offset]);
-#ifdef CLAMP_ATTN_MASK_INPUT
-                        // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
+                        // A key partition masked only with -Inf would have an infinite maximum and turn its softmax into NaN
                         mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
-#endif
                         qk_val[seq_idx] += mask_val;
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
