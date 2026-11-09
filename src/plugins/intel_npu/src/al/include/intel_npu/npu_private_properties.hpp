@@ -476,6 +476,8 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
  * This option allows to skip writing plugin metadata to compiled model when exporting it
+ * It can also be set on an already compiled model. Enabling it fails if the compiled model is not a regular weightful
+ * ELF one, i.e. if it holds information that requires metadata to be exported.
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
