@@ -123,7 +123,7 @@ SV  O[d]   = sum_key P[key] V[key][d]: A = P (short, lane = key, KQ result layou
 ### 2.4 The K cache layout forces the mapping
 - If the PA K cache is d-major (`[head, token]`, token innermost), a coalesced read gives lane = token, which is not the axis that sdpa_ocl's A=K (lane = head dim) needs
   → K becomes a **SIMD-1 scalar gather**, which was the dominant cost of the mixed kernel (`pa-k-cache-layout-d-major`, `sdpa-ocl-int8-perf`: int8 prefill ocl 1.69x slower than micro, B580).
-  Fix: relayout K into token-major pages (the default on the Xe2+ `sdpa_ocl` lane, `OV_GPU_PA_K_TOKEN_MAJOR=0` turns it off; decided per device and config by `k_token_major_rule()` (Xe2+ XMX, f16 inference, page kind), the same for every cache kind; for the current default scope see `sdpa_ocl.md` "Paged-attention cache layouts"; → chapter 02). The transpose read is 32-bit only, so an 8-bit/16-bit K cannot be read transposed.
+  Fix: relayout K into token-major pages (since 2026-11-08 the only K page, on every device and for every cache kind; `sdpa_ocl.md` "Paged-attention cache layouts"; → chapter 02). The transpose read is 32-bit only, so an 8-bit/16-bit K cannot be read transposed.
 - u4 K: a byte is a pair of adjacent channels, so lane L receives channels `(2L,2L+1)`. Permuting the contraction-axis depth is **free if A and B are permuted identically**, so
   the depth is **permuted** with `PA_K_U4_CHANNEL(db,L) = win + 2L + par` and deinterleaved only once, in the Q staging (`sdpa_ocl_qk_load.cl:15-40`; `sdpa_ocl.md` "u4 K").
   → "applying the same permutation to the contraction axis of both operands leaves the result unchanged" is a general tool for resolving layout mismatches.
