@@ -1,0 +1,33 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-09-16-59-01-275-42647164506",
+    "timestamp": "2026-11-09T16:59:01Z",
+    "run_id": "42647164506",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42647164506",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+    "signature": "typeerror genai_gen_text got an unexpected keyword argument context|Dependencies",
+    "signature_hash": "6cf9cf0d8f5c0a43",
+    "confidence": "High",
+    "failed_jobs": [
+        {"name": "LLM accuracy iGPU tests / LLM accuracy GPU tests", "conclusion": "failure", "symptom": "All 4 GPU accuracy_conformance test cases fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'"},
+        {"name": "LLM accuracy CPU tests / LLM accuracy CPU tests", "conclusion": "failure", "symptom": "All 4 CPU accuracy_conformance test cases fail identically with TypeError: genai_gen_text() got an unexpected keyword argument 'context'"}
+    ],
+    "key_errors": [
+        "tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] FAILED [ 25%]",
+        "File \"/__w/openvino/openvino/tests/llm/accuracy_conformance.py\", line 250, in test_accuracy_conformance\n    _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())\n  File \"/venv/lib/python3.12/site-packages/whowhatbench/text_evaluator.py\", line 145, in score\n    predictions = self._generate_data(\n  File \"/venv/lib/python3.12/site-packages/whowhatbench/text_evaluator.py\", line 236, in _generate_data\n    output = gen_answer_fn(\nTypeError: genai_gen_text() got an unexpected keyword argument 'context'"
+    ],
+    "root_cause": "The tests/llm/requirements.txt pulls the whowhatbench package directly from the openvino.genai master branch (git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark) with no pin. An upstream change to whowhatbench's text_evaluator.py now calls the model's generation function (genai_gen_text) with an extra 'context' keyword argument that the installed generation-function implementation does not accept, breaking every accuracy_conformance test on both CPU and GPU. This failure is unrelated to the merge-queue PR itself (PR #39512 only edits a benchmarks CSV file) and is purely an unpinned-dependency drift issue; it has recurred 3 times since 2026-11-05 across unrelated PRs, confirming it is a persistent, not transient, dependency-version mismatch.",
+    "reproduction_steps": "Install tests/llm/requirements.txt (which pulls whowhatbench from openvino.genai@master) against the current genai_gen_text generation-function implementation, then run: python3 -m pytest tests/llm/accuracy_conformance.py -k CPU --tb native. The TypeError reproduces immediately on the first test case.",
+    "recommended_actions": [
+        "Pin tests/llm/requirements.txt's whowhatbench dependency to a known-good commit/tag of openvino.genai instead of tracking master, or update the repo's genai_gen_text() implementation to accept the new 'context' keyword argument used by whowhatbench.text_evaluator._generate_data.",
+        "Add a compatibility shim/kwarg (**kwargs or an explicit context=None parameter) to genai_gen_text() in tests/llm (or the openvino_genai helper it wraps) so new optional arguments from whowhatbench do not break the test suite.",
+        "Coordinate with the openvino.genai / whowhatbench maintainers to confirm the intended signature change and align both repos before merging."
+    ],
+    "prevention_strategies": "Avoid unpinned 'git+https://...@master' dependencies for test-only packages that are developed in lockstep with code under test; pin to a tag/commit and bump deliberately via CI, or add a contract test that fails fast with a clear message when the upstream function signature changes.",
+    "historical_context": "This exact signature has now been seen 3 times (first seen 2026-11-05T06:17:40Z, most recent prior occurrence 2026-11-06T18:21:38Z on run 42251178965), always on unrelated PRs, confirming the break stems from an upstream whowhatbench update rather than any merge-queue PR content."
+}

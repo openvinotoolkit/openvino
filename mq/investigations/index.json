@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 346,
+  "total": 347,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3375,6 +3375,15 @@
       "category": "Network",
       "signature_hash": "8c8192df2f508443",
       "pr_number": "36945"
+    },
+    {
+      "investigation_id": "2026-11-09-16-59-01-275-42647164506",
+      "run_id": "42647164506",
+      "timestamp": "2026-11-09T16:59:01Z",
+      "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+      "category": "Dependencies",
+      "signature_hash": "6cf9cf0d8f5c0a43",
+      "pr_number": "39512"
     }
   ]
 }
