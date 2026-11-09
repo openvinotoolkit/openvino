@@ -8,69 +8,29 @@
 
 set(OV_ONNX_NAMESPACE openvino_onnx)
 
-# Apply local patches to the pinned ONNX submodule.
-#
-# These patches keep the bundled ONNX source buildable with older toolchains
-# (notably GCC 8 on RHEL 8.10, whose libstdc++ predates several C++17 library
-# features ONNX relies on). Newer compilers accept the upstream source as-is,
-# so every patch is gated on the exact compiler version that needs it.
-#
-#   not_equal_to_ctad.patch     - ONNX 1.23.1 uses 'std::not_equal_to()', which
-#                                 GCC < 9 rejects (it attempts class template
-#                                 argument deduction instead of using the
-#                                 default <void> argument). Rewritten to the
-#                                 portable 'std::not_equal_to<>()'.
-#   printer_to_chars_fallback.patch - printer.cc formats floats with
-#                                 'std::to_chars'. A compile probe checks for
-#                                 both floating-point overloads; Apple Clang
-#                                 retains a conservative fallback. Adds an
-#                                 classic-locale stream round-trip fallback
-#                                 (guarded so the integer path never
-#                                 instantiates the missing overload).
-#
-# TODO: remove these patches (and the patches directory) once the affected
-# toolchains are dropped, or once the fixes are upstreamed into the pinned ONNX
-# version. Patches should be avoided in general and kept as narrow and
-# short-lived as possible.
-#
-# Patches are listed explicitly (not globbed) so it is clear which patch applies
-# under which condition. They are applied idempotently so re-configuration and
-# incremental builds are safe.
-function(ov_onnx_apply_patch patch_file)
-    find_package(Git QUIET)
-    if(NOT GIT_FOUND)
-        message(WARNING "Git not found; ONNX source patch '${patch_file}' was not applied and the build may fail")
-        return()
-    endif()
-    # Skip patches that are already applied (e.g. on re-configure).
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply --reverse --check "${patch_file}"
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx"
-        RESULT_VARIABLE _already_applied
-        OUTPUT_QUIET ERROR_QUIET)
-    if(_already_applied EQUAL 0)
-        message(STATUS "ONNX patch already applied: ${patch_file}")
-        return()
-    endif()
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" apply --verbose "${patch_file}"
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx"
-        RESULT_VARIABLE _apply_rv
-        ERROR_VARIABLE _apply_err)
-    if(NOT _apply_rv EQUAL 0)
-        message(FATAL_ERROR "Failed to apply ONNX patch ${patch_file}:\n${_apply_err}")
-    endif()
-    message(STATUS "Applied ONNX patch: ${patch_file}")
-endfunction()
+include("${CMAKE_CURRENT_LIST_DIR}/../patches.cmake")
 
-# std::not_equal_to() CTAD: only GCC < 9 needs it.
+# The patches below keep the bundled ONNX source buildable with older toolchains
+# (notably GCC 8 on RHEL 8.10, whose libstdc++ predates several C++17 library
+# features ONNX relies on). Each patch is gated on the toolchain that needs it.
+# TODO: remove them once the affected toolchains are dropped or the fixes are
+# upstreamed into the pinned ONNX version.
+
+# ONNX uses 'std::not_equal_to()', which GCC < 9 rejects (it attempts class
+# template argument deduction instead of using the default <void> argument).
+# Rewrite it to the portable 'std::not_equal_to<>()'.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
-    ov_onnx_apply_patch("${CMAKE_CURRENT_SOURCE_DIR}/patches/not_equal_to_ctad.patch")
+    ov_apply_patch(
+        PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/not_equal_to_ctad.patch"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx")
 endif()
 
-# Probe both floating-point overloads using the active compiler and standard
-# library. Keep the conservative fallback for Apple Clang, where libc++'s
-# availability also depends on the macOS deployment target.
+# printer.cc formats floats with 'std::to_chars'. When either floating-point
+# overload is missing, add a classic-locale stream round-trip fallback (guarded
+# so the integer path never instantiates the missing overload). Probe both
+# overloads with the active compiler and standard library; keep the conservative
+# fallback for Apple Clang, where libc++'s availability also depends on the
+# macOS deployment target.
 set(_onnx_need_to_chars_fallback OFF)
 if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(_onnx_need_to_chars_fallback ON)
@@ -119,7 +79,9 @@ int main() {
     endif()
 endif()
 if(_onnx_need_to_chars_fallback)
-    ov_onnx_apply_patch("${CMAKE_CURRENT_SOURCE_DIR}/patches/printer_to_chars_fallback.patch")
+    ov_apply_patch(
+        PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/printer_to_chars_fallback.patch"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/onnx")
 endif()
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
