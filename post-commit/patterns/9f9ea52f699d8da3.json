@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "caching_test.cpp mock import_model call count mismatch EXPECT_CALL unsatisfied LoadMultiWithConfig_race|Flaky Test",
+  "signature_hash": "9f9ea52f699d8da3",
+  "title": "CachingTest.LoadMultiWithConfig_race fails with mock import_model call count mismatch on Windows",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-09T23:43:11Z",
+  "last_seen": "2026-11-09T23:43:11Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42699508369"
+  ],
+  "affected_commits": [
+    "8741112ef223226e9010d15488f1c3fb8acb3261"
+  ],
+  "recent_timestamps": [
+    "2026-11-09T23:43:11Z"
+  ]
+}

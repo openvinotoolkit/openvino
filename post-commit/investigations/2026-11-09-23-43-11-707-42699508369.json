@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-09-23-43-11-707-42699508369",
+  "timestamp": "2026-11-09T23:43:11Z",
+  "run_id": "42699508369",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42699508369",
+  "workflow_name": "C++ unit tests / C++ unit tests",
+  "commit_sha": "8741112ef223226e9010d15488f1c3fb8acb3261",
+  "pr_number": "38851",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38851",
+  "author": "dchigarev",
+  "category": "Flaky Test",
+  "title": "CachingTest.LoadMultiWithConfig_race fails with mock import_model call count mismatch on Windows",
+  "signature": "caching_test.cpp mock import_model call count mismatch EXPECT_CALL unsatisfied LoadMultiWithConfig_race|Flaky Test",
+  "signature_hash": "9f9ea52f699d8da3",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "OpenVINO Inference Functional Tests step failed: CachingTest.LoadMultiWithConfig_race/ByModelName_testCache gmock expectation unsatisfied"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check failed because the C++ unit tests job failed"
+    }
+  ],
+  "key_errors": [
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(2670): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 6 times\n           Actual: called 5 times - unsatisfied and active",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(315): error: Value of: Mock::VerifyAndClearExpectations(mockPlugin.get())\n  Actual: false\nExpected: true",
+    "[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2045 ms)"
+  ],
+  "root_cause": "CachingTest.LoadMultiWithConfig_race spawns multiple concurrent threads that race to load/import the same cached model via a mock plugin, and asserts an exact EXPECT_CALL count (6) on mock_plugin->import_model(). The test's own log line ('Caching LoadMulti Test completed. Tried 115 times') shows it internally retries the race until a target condition is met, but the retry loop does not guarantee the mocked import_model() is invoked exactly 6 times under Windows CI timing/scheduling variance - on this run only 5 calls were observed before the loop's termination condition was satisfied, leaving one EXPECT_CALL unsatisfied. This is a pre-existing timing-sensitive test design issue in src/inference/tests/functional/caching_test.cpp and is unrelated to the triggering commit (#38851), which only changes MLIR header include style in the GPU plugin and does not touch caching/import_model code.",
+  "reproduction_steps": "Not reliably reproducible outside CI; requires Windows scheduling conditions. Locally: build with -DENABLE_TESTS=ON, run `ov_inference_functional_tests --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race*` repeatedly (hundreds of iterations) on a loaded Windows machine to attempt to trigger the race; failure rate is low and timing-dependent.",
+  "recommended_actions": [
+    "Relax the exact EXPECT_CALL(*mockPlugin, import_model(...)).Times(6) expectation in caching_test.cpp around line 2670 to an AtLeast()/range-based expectation, or make the race-loop (the one producing 'Caching LoadMulti Test completed. Tried N times') guarantee the exact call count deterministically before asserting.",
+    "Add a short synchronization barrier/wait after the racing threads join and before Mock::VerifyAndClearExpectations so late-arriving import_model() calls are captured.",
+    "Consider marking LoadMultiWithConfig_race (and the sibling LoadMulti_race tests) as known-flaky on Windows with a retry/quarantine mechanism if the above fix is not quick to land.",
+    "If this recurs frequently, file/update a tracking issue referencing src/inference/tests/functional/caching_test.cpp:2670 and :315 so maintainers of the caching test suite can adjust the race test design."
+  ],
+  "prevention_strategies": "Avoid asserting exact gmock call counts in tests that deliberately introduce concurrency races; prefer bounded ranges (e.g., Between(min,max) or AtLeast) when the number of calls depends on thread scheduling. Add explicit synchronization (e.g., a latch/barrier) before verifying mock expectations in multi-threaded cache-race tests.",
+  "historical_context": "No prior CI Doctor Post-Commit investigation matches this exact signature (caching_test.cpp mock import_model count mismatch in LoadMultiWithConfig_race); this is the first recorded occurrence. Other Windows C++ unit test flakiness has been seen previously but under different signatures/patterns."
+}
