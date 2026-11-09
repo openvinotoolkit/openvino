@@ -1320,6 +1320,156 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBa
     }
 }
 
+namespace {
+
+constexpr size_t DYNAMIC_BATCH_LOWER_BOUND = 1;
+constexpr size_t DYNAMIC_BATCH_UPPER_BOUND = 10;
+
+// Makes the batch of a model with two independent inputs (tensor_input0/1) dynamic
+std::shared_ptr<ov::Model> reshapeToDynamicBatch(const std::shared_ptr<ov::Model>& model) {
+    const auto modelShape = PartialShape{ov::Dimension(DYNAMIC_BATCH_LOWER_BOUND, DYNAMIC_BATCH_UPPER_BOUND), 2, 2, 2};
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes["tensor_input0"] = modelShape;
+    shapes["tensor_input1"] = modelShape;
+    model->reshape(shapes);
+    return model;
+}
+
+// Fills both inputs with different values, infers and checks that both outputs have the new batch size and values
+void fillInferAndCheckTwoInputs(ov::InferRequest& req, ov::Tensor& input0, ov::Tensor& input1, const float value) {
+    auto* data0 = input0.data<float>();
+    for (size_t i = 0; i < input0.get_size(); ++i) {
+        data0[i] = value;
+    }
+    auto* data1 = input1.data<float>();
+    for (size_t i = 0; i < input1.get_size(); ++i) {
+        data1[i] = value + 50.f;
+    }
+
+    req.infer();  // Adds '1' to each element
+
+    // Outputs can be reallocated when the batch changes, so always query them after the inference
+    auto output0 = req.get_tensor("tensor_output0");
+    auto output1 = req.get_tensor("tensor_output1");
+    ASSERT_EQ(output0.get_shape(), input0.get_shape());
+    ASSERT_EQ(output1.get_shape(), input1.get_shape());
+
+    const auto* out0 = output0.data<float>();
+    for (size_t j = 0; j < output0.get_size(); ++j) {
+        ASSERT_EQ(out0[j], value + 1.f) << "Batch=" << input0.get_shape()[0] << ", output0 index " << j;
+    }
+    const auto* out1 = output1.data<float>();
+    for (size_t j = 0; j < output1.get_size(); ++j) {
+        ASSERT_EQ(out1[j], value + 51.f) << "Batch=" << input1.get_shape()[0] << ", output1 index " << j;
+    }
+}
+
+}  // namespace
+
+// Both inputs are reshaped (set_shape) without calling set_tensor again. The plugin must detect the new batch size
+// and sync the Level Zero tensors of both inputs, not only of the first one.
+TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsWithoutSetTensorInflation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = create_n_inputs(2, element::f32, Shape{4, 2, 2, 2}, "N...");
+    auto execNet = core->compile_model(reshapeToDynamicBatch(model), target_device, configuration);
+    auto req = execNet.create_infer_request();
+
+    ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
+    ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
+    req.set_tensor("tensor_input0", input0);
+    req.set_tensor("tensor_input1", input1);
+    fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
+
+    for (size_t batch = 3; batch <= DYNAMIC_BATCH_UPPER_BOUND; ++batch) {
+        input0.set_shape(Shape{batch, 2, 2, 2});
+        input1.set_shape(Shape{batch, 2, 2, 2});
+        fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch));
+    }
+}
+
+TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsWithoutSetTensorDeflation) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = create_n_inputs(2, element::f32, Shape{4, 2, 2, 2}, "N...");
+    auto execNet = core->compile_model(reshapeToDynamicBatch(model), target_device, configuration);
+    auto req = execNet.create_infer_request();
+
+    ov::Tensor input0(ov::element::f32, Shape{DYNAMIC_BATCH_UPPER_BOUND, 2, 2, 2});
+    ov::Tensor input1(ov::element::f32, Shape{DYNAMIC_BATCH_UPPER_BOUND, 2, 2, 2});
+    req.set_tensor("tensor_input0", input0);
+    req.set_tensor("tensor_input1", input1);
+    fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
+
+    for (size_t batch = DYNAMIC_BATCH_UPPER_BOUND - 1; batch >= DYNAMIC_BATCH_LOWER_BOUND; --batch) {
+        input0.set_shape(Shape{batch, 2, 2, 2});
+        input1.set_shape(Shape{batch, 2, 2, 2});
+        fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch));
+    }
+}
+
+// Both inputs are reshaped and set_tensor is called again for both of them (same tensor objects)
+TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsThenSetTensor) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = create_n_inputs(2, element::f32, Shape{4, 2, 2, 2}, "N...");
+    auto execNet = core->compile_model(reshapeToDynamicBatch(model), target_device, configuration);
+    auto req = execNet.create_infer_request();
+
+    ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
+    ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
+    req.set_tensor("tensor_input0", input0);
+    req.set_tensor("tensor_input1", input1);
+    fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
+
+    for (size_t batch = 3; batch <= DYNAMIC_BATCH_UPPER_BOUND; ++batch) {
+        input0.set_shape(Shape{batch, 2, 2, 2});
+        input1.set_shape(Shape{batch, 2, 2, 2});
+        req.set_tensor("tensor_input0", input0);
+        req.set_tensor("tensor_input1", input1);
+        fillInferAndCheckTwoInputs(req, input0, input1, static_cast<float>(batch));
+    }
+}
+
+// Running twice after a reshape must not trigger any update the second time and must keep producing valid results
+TEST_P(DynamicBatchedTensorsRunTests, ReshapeAllInputTensorsAndInferTwice) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = create_n_inputs(2, element::f32, Shape{4, 2, 2, 2}, "N...");
+    auto execNet = core->compile_model(reshapeToDynamicBatch(model), target_device, configuration);
+    auto req = execNet.create_infer_request();
+
+    ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
+    ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
+    req.set_tensor("tensor_input0", input0);
+    req.set_tensor("tensor_input1", input1);
+    fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
+
+    input0.set_shape(Shape{6, 2, 2, 2});
+    input1.set_shape(Shape{6, 2, 2, 2});
+    fillInferAndCheckTwoInputs(req, input0, input1, 10.f);
+    fillInferAndCheckTwoInputs(req, input0, input1, 20.f);
+    fillInferAndCheckTwoInputs(req, input0, input1, 30.f);
+}
+
+// Only one of the two inputs is reshaped, so the batch sizes of the inputs no longer match: an error is expected
+TEST_P(DynamicBatchedTensorsRunTests, ReshapeOnlyOneInputTensorFails) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    auto model = create_n_inputs(2, element::f32, Shape{4, 2, 2, 2}, "N...");
+    auto execNet = core->compile_model(reshapeToDynamicBatch(model), target_device, configuration);
+    auto req = execNet.create_infer_request();
+
+    ov::Tensor input0(ov::element::f32, Shape{2, 2, 2, 2});
+    ov::Tensor input1(ov::element::f32, Shape{2, 2, 2, 2});
+    req.set_tensor("tensor_input0", input0);
+    req.set_tensor("tensor_input1", input1);
+    fillInferAndCheckTwoInputs(req, input0, input1, 1.f);
+
+    input0.set_shape(Shape{5, 2, 2, 2});
+    OV_EXPECT_THROW(req.infer(), ov::Exception, HasSubstr("batch size"));
+}
+
 TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 

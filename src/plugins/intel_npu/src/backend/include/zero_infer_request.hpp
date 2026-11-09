@@ -101,6 +101,21 @@ protected:
                                               const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
                                               const std::optional<size_t>& batchSize = std::nullopt);
 
+    /**
+     * @brief Updates the batch size of the graph based on the batch size candidate deduced from a user tensor.
+     * Sets the "batch changed" flag if a new pipeline needs to be created. Throws if the candidate does not match the
+     * batch size already set by other tensors in the same inference request.
+     *
+     * @param batchSizeCandidate Batch size deduced from the new tensor(s)
+     * @param tensorSizeChanged Whether the new tensor(s) have a different size than the previous ones
+     */
+    void update_dynamic_batch_size(const size_t batchSizeCandidate, const bool tensorSizeChanged);
+
+    /**
+     * @brief Checks if any user input with a dynamic batch size was reshaped since the last set_tensor call.
+     */
+    void update_batch_size_from_user_inputs();
+
     virtual void prepare_inputs();
     virtual void prepare_outputs();
 
@@ -164,6 +179,8 @@ protected:
     std::unique_ptr<IPipeline> _pipeline;
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
+    // Indices of the inputs that have a dynamic batch size (empty for dynamic graphs)
+    std::vector<size_t> _dynamicBatchInputs;
 
     Logger _logger;
 
