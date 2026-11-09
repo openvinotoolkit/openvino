@@ -89,6 +89,8 @@ macro(ov_gpu_add_backend_target)
         ${ARG_BYPASS}
     )
 
+    ov_keep_debug_info_in_pdb(${ARG_NAME})
+
     get_property(CURRENT_LIBS GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
     list(APPEND CURRENT_LIBS ${ARG_LINK_LIBRARIES})
     set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL ${CURRENT_LIBS})
@@ -156,6 +158,9 @@ ov_add_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+# Embedded debug information pushes this static library past MSVC's 4 GB archive limit
+ov_keep_debug_info_in_pdb(${TARGET_NAME})
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 

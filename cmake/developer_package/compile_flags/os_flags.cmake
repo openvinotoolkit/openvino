@@ -132,6 +132,17 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # PDB related flags
     #
 
+    # CI builds start from scratch, so incremental linking only adds padding, a second link
+    # to embed manifests and stale blocks in PDB files
+    if(DEFINED ENV{GITHUB_ACTIONS})
+        foreach(link_type IN ITEMS EXE SHARED MODULE)
+            foreach(config IN ITEMS DEBUG RELWITHDEBINFO)
+                string(REGEX REPLACE "/INCREMENTAL( |$)" "/INCREMENTAL:NO\\1"
+                       CMAKE_${link_type}_LINKER_FLAGS_${config} "${CMAKE_${link_type}_LINKER_FLAGS_${config}}")
+            endforeach()
+        endforeach()
+    endif()
+
     if(ENABLE_PDB_IN_RELEASE)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")

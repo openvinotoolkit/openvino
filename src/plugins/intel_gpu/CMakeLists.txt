@@ -169,7 +169,10 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 
     # Distinct binary dirs so the same source dirs can be added twice in a COMBINED build.
     add_subdirectory(src/runtime         runtime${SUFFIX})
+    # Embedded debug information pushes GPU static libraries past MSVC's 4 GB archive limit
+    ov_keep_debug_info_in_pdb(openvino_intel_gpu_runtime${SUFFIX})
     add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})
+    ov_keep_debug_info_in_pdb(openvino_intel_gpu_kernels${SUFFIX})
     add_subdirectory(src/graph           graph${SUFFIX})
 
     # One per stack: the objects link this stack's graph library, so a COMBINED build cannot
