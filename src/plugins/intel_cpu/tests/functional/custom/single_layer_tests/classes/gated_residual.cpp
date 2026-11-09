@@ -258,7 +258,13 @@ std::string GatedResidualLayerCPUTest::getTestCaseName(const testing::TestParamI
 
 void GatedResidualLayerCPUTest::SetUp() {
     const auto& [mode, shape, produce_write_gate, norm_gain_plus_one, input_shape, device] = GetParam();
-    const auto& [hc_count, hidden_size, lowrank, precision, compression] = shape;
+    // Plain variables, not structured bindings: the lambdas below capture them and a structured binding cannot be
+    // captured before C++20 on older compilers.
+    const size_t hc_count = shape.hc_count;
+    const size_t hidden_size = shape.hidden_size;
+    const size_t lowrank = shape.lowrank;
+    const ov::element::Type precision = shape.precision;
+    const GatedResidualWeightCompression& compression = shape.compression;
     targetDevice = device;
     m_mode = mode;
     m_hc_count = hc_count;
@@ -274,7 +280,8 @@ void GatedResidualLayerCPUTest::SetUp() {
     // write_gate), so the node always takes the dynamic-shape path (shape inference + prepareParams per
     // inference); only weights, scales and norm_weight keep static shapes. The static targets of each
     // inference come from `input_shape.second`.
-    const auto& [leading_ps, leading_targets] = input_shape;
+    const auto& leading_ps = input_shape.first;
+    const auto& leading_targets = input_shape.second;
     OPENVINO_ASSERT(leading_ps.is_dynamic() && !leading_targets.empty(),
                     "GatedResidual tests must use a dynamic input shape with at least one target shape");
     const auto rows_shape = [&](size_t last) {
