@@ -1970,8 +1970,8 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
         return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
-    // Xe2+ always (the kernel is built on the 2D block IO intrinsics, as sdpa_ocl_decode); xe_hpg only with
-    // TEST_USE_SDPA_OCL_HPG=1. Every caller already requires XMX.
+    // Xe2+ (the 2D block IO kernels) and xe_hpg (the SG8 arms; not under TEST_USE_SDPA_OCL_HPG=0). Every caller already
+    // requires XMX.
     const auto arch = params.get_device_info().arch;
     if (!paged_attention::sdpa_ocl_arch_ok(params.get_device_info())) {
         return false;

@@ -21,8 +21,8 @@ The end-to-end performance investigation, including the B70 Xe2 gap closure and 
 | PA GENERATE | `SDPAOclDecodeGenerator` | `sdpa_ocl_decode.cl` | `SDPAOclDecodeGenerator::supported()` |
 
 Whether the DPAS kernel serves plain SDPA and PA PREFILL/MIXED is decided per device,
-`paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ XMX (and xe_hpg with `TEST_USE_SDPA_OCL_HPG=1`, below), the
-opt kernels on every other device (xe_hpg by default, xe_hpc, non-XMX). `sdpa_micro`, the oneDNN-derived DPAS kernel
+`paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ and xe_hpg XMX (xe_hpg since 2026-11-09, below), the
+opt kernels on every other device (xe_hpc, non-XMX). `sdpa_micro`, the oneDNN-derived DPAS kernel
 that served the other XMX parts, was removed on 2026-11-02 together with `TEST_USE_SDPA_OCL`, which selected it; what
 that changed off Xe2 is listed in "Known issues". The `sdpa_ocl` lane needs XMX and a oneDNN build (the
 `ENABLE_ONEDNN_FOR_GPU` guards were kept, although the kernel no longer uses oneDNN), but not the oneDNN microkernel
@@ -55,14 +55,15 @@ Reachable configurations on Xe2 with XMX and no environment overrides:
 
 ### xe_hpg bring-up (DG2, SG8)
 
-xe_hpg (SG8, no 2D block IO) can take the `sdpa_ocl` lane only with `TEST_USE_SDPA_OCL_HPG=1`; without
-it nothing about xe_hpg changes. Only the kernel arms that exist are served: `supported()` requires the
+xe_hpg (SG8, no 2D block IO) takes the `sdpa_ocl` lane by default since 2026-11-09: PREFILL, MIXED and plain
+SDPA pick the kernels Xe2 picks, GENERATE the opt kernels ("xe_hpg reader (SG8)"). `TEST_USE_SDPA_OCL_HPG=0` keeps
+xe_hpg on the opt kernels, the default before, as the A/B control. Only the kernel arms that exist are served: `supported()` requires the
 op's `HpgTier` bits (`sdpa_ocl_hpg.hpp`, `hpg_tier_required()`) to be set in `kHpgTiersReady`, which
 has `PLAIN_F16_STATIC` (plain f16 SDPA, static shape, more than one query, no mask / causal / sink / runtime
 scale), `PLAIN_I8`, `PA_PREFILL`, `PA_MIXED_F16`, `PA_FEATURES`, `PA_I8_TOKEN`, `PA_I8_CHANNEL`, `PA_U4` and `PLAIN_EXT` (the rest of uncompressed plain SDPA: bf16, a mask, causal, a sink, a runtime scale, a dynamic
 shape, one query; the mask, causal, sink and softmax code is lane = query and shared with SG16, only the 16-key
 `mask_full` vector of a full 2D mask is wider than the subgroup). Every other op is refused and runs the opt kernels,
-as every op does with the switch off (until 2026-11-02 a temporary routing sent both to `sdpa_micro`). The SG8 arm (`SG8` in
+as every op does under `TEST_USE_SDPA_OCL_HPG=0` (until 2026-11-02 a temporary routing sent both to `sdpa_micro`). The SG8 arm (`SG8` in
 `sdpa_ocl_config.cl`, i.e. `SUBGROUP_SIZE == 8`) feeds the DPAS an `int8` A operand, two halves per lane
 (lane l = reduction elements 2l, 2l+1): the K tile is read by `k_tile_dword` (a dword block read per key row, a
 two-ushort fallback for an unaligned or tail tile) and the S*V A operand is one 8-row dword block read of
@@ -2001,7 +2002,7 @@ the control) 0.993-0.997 with identical output MD5s. The opt kernel against this
 
 ### xe_hpg reader (SG8)
 
-On xe_hpg (`TEST_USE_SDPA_OCL_HPG=1`) `SDPAOclDecodeGenerator` compiles `sdpa_ocl_hpg_decode.cl`, which
+On xe_hpg's lane `SDPAOclDecodeGenerator` compiles `sdpa_ocl_hpg_decode.cl`, which
 `sdpa_ocl_decode.cl` includes in place of its own kernel when `SUBGROUP_SIZE` is 8 (the SG16 text is unchanged). The
 contract, the partition and window arithmetic, the work split and the dequant identities are the SG16 kernel's; the
 operand forms are DG2's SG8 DPAS (N = 8, A one int = two depth halves per lane, B int8, C float), and there is no 2D
@@ -2074,7 +2075,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_PLAIN_D512` | Plain-SDPA f16 `d_max` 512 PREFILL on Xe2 ("Plain-SDPA PREFILL tiling (`d_max` 512)"): `0` keeps the bare table tile at 128 GRF (the jit before that change) |
 | `SDPA_OCL_PLAIN_DECODE` | Plain-SDPA decode ("Plain-SDPA decode tiling"): `0` keeps the table tile (the jit before that change) |
 | `SDPA_OCL_WIDE_READS` | PA PREFILL wide reads (`d_max` 64: `5`, `0` with a sliding window; 128 / 256: `1`; 512: `7`; plain `d_max` 64: `1`, `0` with a sliding window): bit mask, `1` K pair, `2` V pair, `4` Q_slm as `ulong4`; `0` = narrow |
-| `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane, and its K pages become token-major (default off; see "xe_hpg bring-up") |
+| `TEST_USE_SDPA_OCL_HPG` | `0`: xe_hpg stays off the `sdpa_ocl` lane and runs the opt kernels (the A/B control; the lane is the default since 2026-11-09, before that `1` turned it on; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
 | `SDPA_OCL_HPG_PA_PREFILL` | `0`: xe_hpg PA PREFILL at heads 64 / 96 / 128 / 256 / 512 takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
 | `SDPA_OCL_HPG_PA_MIXED` | `0`: xe_hpg PA MIXED (f16, i8 or u4 cache) at those heads takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
@@ -2112,9 +2113,9 @@ What deleting `sdpa_micro` (`sdpa_gen_micro.cpp`, `sdpa_micro.cl`, the PA `pa_tt
 are unchanged (it never ran there by default); everything below is about the other devices, none of which is available
 here, so none of it was measured on them.
 
-- xe_hpg by default (DG2/Arc-A, ARL-H) and xe_hpc (PVC) have no DPAS SDPA kernel any more: plain SDPA and PA
-  PREFILL/MIXED run the opt kernels, so attention there is slower by the old `sdpa_micro` margin (not measured).
-  xe_hpg with `TEST_USE_SDPA_OCL_HPG=1` runs `sdpa_ocl` where its tiers are ready and the opt kernels elsewhere (the
+- xe_hpc (PVC), and xe_hpg (DG2/Arc-A, ARL-H) until its lane became the default on 2026-11-09, have no DPAS SDPA
+  kernel any more: plain SDPA and PA PREFILL/MIXED run the opt kernels, so attention there is slower by the old
+  `sdpa_micro` margin (not measured). xe_hpg on its lane runs `sdpa_ocl` where its tiers are ready and the opt kernels elsewhere (the
   temporary routing of refused ops to `sdpa_micro` is gone). xe_hpc has no `sdpa_ocl` arm (`sdpa_ocl_arch_ok()`).
 - Asymmetric planar KV-cache compression (what `kv_cache_compression.cpp` builds on every XMX device): an XMX device
   off the lane now runs it on the `sdpa_opt` stages and their planar zero-point path (`SDPAOpt::validate_impl()`),

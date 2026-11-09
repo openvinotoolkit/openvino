@@ -46,8 +46,8 @@ public:
     // The HpgTier bits this op needs on xe_hpg.
     static uint32_t hpg_tier_required(const kernel_impl_params& params);
 
-    // Whether sdpa_ocl.cl compiles for these layouts: Xe2 or later (xe_hpg only with TEST_USE_SDPA_OCL_HPG=1, and then only
-    // for ops whose HpgTier bits are all ready), f16/bf16 Q and output, K/V matching Q or an i8/u4 cache. An added stage
+    // Whether sdpa_ocl.cl compiles for these layouts: Xe2 or later, or xe_hpg (only for ops whose HpgTier bits are all
+    // ready), f16/bf16 Q and output, K/V matching Q or an i8/u4 cache. An added stage
     // is compiled even when it is never dispatched, so everything else must be rejected here.
     static bool supported(const kernel_impl_params& params);
 

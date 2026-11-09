@@ -1743,8 +1743,8 @@ public:
             return DpasBackend::none;
         }
 
-        // sdpa_ocl runs on its lane only (Xe2+ XMX; xe_hpg with TEST_USE_SDPA_OCL_HPG=1). Every other device runs the
-        // opt kernels; it needs no oneDNN microkernel support.
+        // sdpa_ocl runs on its lane only (Xe2+ and xe_hpg XMX). Every other device runs the opt kernels; it needs no oneDNN
+        // microkernel support.
         if (!cldnn::paged_attention::sdpa_ocl_selected(info)) {
             return DpasBackend::none;
         }

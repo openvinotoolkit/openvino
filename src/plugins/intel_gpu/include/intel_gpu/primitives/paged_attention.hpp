@@ -77,12 +77,12 @@ struct paged_attention : public primitive_base<paged_attention> {
         return value;
     }
 
-    // TEST_USE_SDPA_OCL_HPG: '1' => xe_hpg (DG2/Arc-A, ARL-H) may take the sdpa_ocl lane. Default OFF (xe_hpg runs the
-    // opt kernels) until the default flip. Has no effect on Xe2+. Read once per process.
+    // TEST_USE_SDPA_OCL_HPG: xe_hpg (DG2/Arc-A, ARL-H) takes the sdpa_ocl lane as Xe2+ does (since 2026-11-09); '0' keeps
+    // it on the opt kernels, the default before, as an A/B control. Has no effect on Xe2+. Read once per process.
     static bool sdpa_ocl_hpg_enabled() {
         static const bool enabled = []() {
             const char* env = std::getenv("TEST_USE_SDPA_OCL_HPG");
-            return env != nullptr && env[0] == '1';
+            return env == nullptr || env[0] != '0';
         }();
         return enabled;
     }
@@ -96,9 +96,9 @@ struct paged_attention : public primitive_base<paged_attention> {
         return sdpa_ocl_arch_ok(info, sdpa_ocl_hpg_enabled());
     }
 
-    // Whether the DPAS SDPA kernel (sdpa_ocl) may serve plain SDPA and PA PREFILL/MIXED on this device: Xe2+ XMX, and
-    // xe_hpg with TEST_USE_SDPA_OCL_HPG=1. Every other device (xe_hpg by default, xe_hpc, non-XMX) runs the opt kernels,
-    // and so does an op sdpa_ocl refuses. The lane needs XMX only, no oneDNN microkernel support.
+    // Whether the DPAS SDPA kernel (sdpa_ocl) may serve plain SDPA and PA PREFILL/MIXED on this device: Xe2+ and xe_hpg
+    // XMX (xe_hpg not under TEST_USE_SDPA_OCL_HPG=0). Every other device (xe_hpc, non-XMX) runs the opt kernels, and so
+    // does an op sdpa_ocl refuses. The lane needs XMX only, no oneDNN microkernel support.
     // This is the lane, i.e. which kernel serves PREFILL/MIXED. It is NOT "a GENERATE reader exists": ask
     // sdpa_ocl_decode_reader_available() for that.
     static bool sdpa_ocl_selected(const device_info& info, bool hpg_opt_in) {
@@ -116,7 +116,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     }
 
     // Whether sdpa_ocl_decode (the DPAS GENERATE reader) serves this device: Xe2+ XMX (SG16 + 2D block IO) unless
-    // TEST_USE_SDPA_OCL_DECODE turns it off, and xe_hpg with TEST_USE_SDPA_OCL_HPG=1 only when TEST_USE_SDPA_OCL_DECODE=1
+    // TEST_USE_SDPA_OCL_DECODE turns it off, and xe_hpg on the sdpa_ocl lane only when TEST_USE_SDPA_OCL_DECODE=1
     // asks for the SG8 reader (sdpa_ocl_hpg_decode.cl). Mirrors the device/switch part of supported(), which calls this
     // itself so the two cannot drift. No oneDNN guard: the decode kernel does not need oneDNN.
     // The three-argument form is pure so a host test can walk the whole table; the one-argument form reads the process env.

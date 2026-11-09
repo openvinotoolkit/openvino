@@ -93,8 +93,8 @@ public:
     }
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-        // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ XMX; xe_hpg only with TEST_USE_SDPA_OCL_HPG=1). Where it
-        // is refused, and on every other device, the opt kernels run.
+        // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ and xe_hpg XMX). Where it is refused, and on every other
+        // device, the opt kernels run.
         const bool ocl_lane = cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info());
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // Lazy, so only the branches below that need it evaluate the gate. sdpa_ocl reads a single-element runtime mask
