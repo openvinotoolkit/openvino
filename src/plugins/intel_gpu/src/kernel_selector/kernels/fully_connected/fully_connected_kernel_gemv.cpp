@@ -47,6 +47,57 @@ DeviceFeaturesKey FullyConnected_GEMV::get_required_device_features_key(const Pa
     return k;
 }
 
+namespace {
+// Weights layout the GEMV kernel runs with (the layout weights are reordered to, or the given blocked layout).
+WeightsLayout get_gemv_weights_layout(const fully_connected_params& fc_params) {
+    auto output_f = get_output_aligned_bf_size(fc_params, false).second;
+
+    WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
+    if (is_swiglu_fused(fc_params)) {
+        weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
+    } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
+               (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) &&
+               (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4) &&
+               is_weight_horizontal(fc_params, output_f)) {
+        // Large N + small K case (horizontal weight) to use osv64_isv2
+        weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
+    } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
+               (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4) &&
+               (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) &&
+               is_weight_vertical(fc_params, output_f)) {
+        // Large K + Small N case (vertical weight)  to use osv16
+        weights_layout = WeightsLayout::os_iyx_osv16;
+    } else if (fc_params.compressed &&
+               fc_params.inputs[0].GetDType() == Datatype::F16
+               // ioyx => os_is_yx_osv32_isv2 is not supported yet
+               && (fc_params.weights.GetLayout() == WeightsLayout::oiyx || fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) &&
+               (fc_params.weights.GetDType() == WeightsType::INT4 || fc_params.weights.GetDType() == WeightsType::UINT4)) {
+        weights_layout = WeightsLayout::os_iyx_osv16;
+    }
+
+    if ((fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) || (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) ||
+        (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)) {
+        weights_layout = fc_params.weights.GetLayout();
+    }
+
+    return weights_layout;
+}
+
+// Dispatch: GWS = {OFM / ofm_per_work_item, 1, 16}, LWS = {16, 1, 16}. Shared by Validate and SetDefault.
+constexpr size_t gemv_lws[3] = {16, 1, 16};
+
+size_t get_ofm_per_work_item(WeightsLayout wl) {
+    switch (wl) {
+    case WeightsLayout::os_is_yx_osv32_isv2:
+        return 2;
+    case WeightsLayout::os_is_yx_osv64_isv2:
+        return 4;
+    default:
+        return 1;
+    }
+}
+}  // namespace
+
 bool FullyConnected_GEMV::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
@@ -77,23 +128,14 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    auto wl = weights.GetLayout();
-    auto wo = weights.OFM().v;
-
-    const auto& fc_input = fc_params.inputs[0];
     if (is_swiglu_fused(fc_params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    if (input_size.first != 0 && fc_input.is_dynamic()) {
-        if (input_size.first != 1) {
-            DO_NOT_USE_THIS_KERNEL(params.layerID);
-        }
-        if ((wl != WeightsLayout::os_is_yx_osv32_isv2 || wo % 32 != 0) &&
-            (wl != WeightsLayout::os_is_yx_osv64_isv2 || wo % 64 != 0) &&
-            (wl != WeightsLayout::os_iyx_osv16 || wo % 16 != 0)) {
-            DO_NOT_USE_THIS_KERNEL(params.layerID);
-        }
+    // GWS[0] = OFM / ofm_per_work_item must be exact and divisible by LWS[0].
+    const size_t ofm_per_work_item = get_ofm_per_work_item(get_gemv_weights_layout(fc_params));
+    if (weights.OFM().v % (ofm_per_work_item * gemv_lws[0]) != 0) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (input.GetLayout() == DataLayout::bfyx) {
@@ -119,17 +161,8 @@ FullyConnected_GEMV::DispatchData FullyConnected_GEMV::SetDefault(const fully_co
                                                                   int /*kernel_number*/) const {
     auto dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = {params.weights.OFM().v, 1, 16};
-    if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
-        global[0] = params.weights.OFM().v;
-    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
-        global[0] = params.weights.OFM().v / 2;
-    } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
-        global[0] = params.weights.OFM().v / 4;
-    }
-
-    dispatchData.gws = global;
-    dispatchData.lws = {16, 1, 16};
+    dispatchData.gws = {params.weights.OFM().v / get_ofm_per_work_item(params.weights.GetLayout()), 1, gemv_lws[2]};
+    dispatchData.lws = {gemv_lws[0], gemv_lws[1], gemv_lws[2]};
 
     return dispatchData;
 }
@@ -202,42 +235,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 
 KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex) const {
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
-    auto output_f = get_output_aligned_bf_size(fc_params, false).second;
-
-    WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (is_swiglu_fused(fc_params)) {
-        weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
-    } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
-               (fc_params.weights.GetLayout() == WeightsLayout::oiyx ||
-                fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) &&
-               (fc_params.weights.GetDType() == WeightsType::INT4 ||
-                fc_params.weights.GetDType() == WeightsType::UINT4) &&
-               is_weight_horizontal(fc_params, output_f)) {
-        // Large N + small K case (horizontal weight) to use osv64_isv2
-        weights_layout = WeightsLayout::os_is_yx_osv64_isv2;
-    } else if (fc_params.compressed && fc_params.inputs[0].GetDType() == Datatype::F16 &&
-               (fc_params.weights.GetDType() == WeightsType::INT4 ||
-                fc_params.weights.GetDType() == WeightsType::UINT4) &&
-               (fc_params.weights.GetLayout() == WeightsLayout::oiyx ||
-                fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) &&
-               is_weight_vertical(fc_params, output_f)) {
-        // Large K + Small N case (vertical weight)  to use osv16
-        weights_layout = WeightsLayout::os_iyx_osv16;
-    } else if (fc_params.compressed &&
-               fc_params.inputs[0].GetDType() == Datatype::F16
-               // ioyx => os_is_yx_osv32_isv2 is not supported yet
-               && (fc_params.weights.GetLayout() == WeightsLayout::oiyx ||
-                   fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) &&
-               (fc_params.weights.GetDType() == WeightsType::INT4 ||
-                fc_params.weights.GetDType() == WeightsType::UINT4)) {
-        weights_layout = WeightsLayout::os_iyx_osv16;
-    }
-
-    if ((fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) ||
-        (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) ||
-        (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)) {
-        weights_layout = fc_params.weights.GetLayout();
-    }
+    WeightsLayout weights_layout = get_gemv_weights_layout(fc_params);
 
     KernelsData kernels_data;
     kernels_data = GetCommonKernelsData(params,
