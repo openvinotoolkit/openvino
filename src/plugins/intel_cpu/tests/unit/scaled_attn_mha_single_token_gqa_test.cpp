@@ -222,7 +222,8 @@ TEST_P(MhaSingleTokenGqaTest, MatchesReference) {
     // f32 scores and accumulators; only the output is rounded to f16.
     constexpr double f16_tol = 2e-3;
 #endif
-    // Absolute tolerance on outputs of magnitude below 1, several times the largest error measured.
+    // Absolute tolerances on outputs of magnitude below 1: several times the largest error measured on Apple M5, and
+    // with f32 accumulators several times the f16 rounding of the output (at most 2.4e-4).
     const double tol = c.q_prec == ov::element::f16 ? f16_tol : 1e-5;
     // With 1 thread every batch has at least as many sequences as threads, which selects the per-sequence value
     // path; with 3 threads, batches of 1 and 2 take the path that splits the cache across threads.
@@ -250,6 +251,8 @@ const std::vector<Case> cases = {
     // Several quantization groups, and a group size that leaves a scalar tail.
     {f32, 1,  8, 2, 1,    33,   64,  32, false, false, false},
     {f32, 1,  8, 2, 1,    33,   80,  40, false, false, false},
+    // One query head per key/value head over several key groups with a tail: the per-head key path.
+    {f32, 1,  2, 2, 1,    33,   80,  40, false, false, false},
     // A single cached token.
     {f32, 1, 14, 2, 1,     1,   64,  64, false, false, false},
     // Query tokens with a past (rows are token and head pairs), beams, and causal truncation.
@@ -260,8 +263,9 @@ const std::vector<Case> cases = {
     {f32, 2,  6, 2, 3,    40,   64,  64, false, true,  false},
     // Keys quantized per channel keep the per-head key path; values still use the grouped path.
     {f32, 1,  8, 2, 1,    64,   64,  32, false, false, true},
-    // f16 queries: converted to f32 for the grouped key path (G = 1 in the third case, which does not group); f16
-    // scores and value rows when the macro above is defined (as with Apple clang), else the f32 path.
+    // f16 queries: converted to f32 for the grouped key path (G = 1 in the third case, which does not group and, with
+    // GCC, is the only test of common.hpp's f16 u8 dot product); f16 scores and value rows when the macro above is
+    // defined (as with Apple clang), else the f32 path.
     {f16, 2,  6, 2, 3,    33,   64,  64, false, false, false},
     {f16, 4,  6, 2, 3,    33,   64,  64, true,  false, false},
     {f16, 1,  2, 2, 1,    33,   64,  64, false, false, false},
@@ -269,6 +273,7 @@ const std::vector<Case> cases = {
     // f16 queries over several quantization groups, with an 8-element tail in the 16-wide NEON loops; the f16 value
     // loops of the NEON_FP16 and SVE builds are covered by smoke_ConcatSDPGQAF16Test_ValueGroups.
     {f16, 1,  8, 2, 1,    33,   80,  40, false, false, false},
+    {f16, 1,  2, 2, 1,    33,   80,  40, false, false, false},
 };
 // clang-format on
 

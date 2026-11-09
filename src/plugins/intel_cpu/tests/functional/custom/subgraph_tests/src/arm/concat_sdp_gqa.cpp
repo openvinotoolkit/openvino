@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "custom/subgraph_tests/src/classes/concat_sdp.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/system_conf.hpp"
+#include "utils/cpu_test_utils.hpp"
 
 namespace ov {
 namespace test {
 namespace {
 
-// Grouped-query attention (8 query heads over 2 or 1 key/value heads) through the stateful SDPA node, with the
-// default u8 cache. The grouped-query kernel paths are ARM64 only.
+// Grouped-query attention (several query heads per key/value head) through the stateful SDPA node, with the
+// default u8 cache, plus an MHA control in the f16 suite. The grouped-query kernel paths are ARM64 only.
 #if defined(OPENVINO_ARCH_ARM64)
 
 const std::vector<std::vector<InputShape>> input_shapes = {
@@ -54,32 +56,61 @@ protected:
         abs_threshold = 0.03;
     }
 
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        ConcatSDPTest::generate_inputs(targetInputStaticShapes);
+        if (!m_scale_query) {
+            return;
+        }
+        // With q and k ~ N(0, 0.2), q.k / sqrt(S) has a deviation of 0.04: the softmax is nearly uniform and the
+        // outputs hardly depend on the key scores. A 25 times larger query gives logits of unit deviation.
+        auto& q = inputs.at(function->get_parameters()[0]);
+        auto* data = q.data<float>();
+        for (size_t i = 0; i < q.get_size(); ++i) {
+            data[i] *= 25.0F;
+        }
+    }
+
     void run() override {
-        ConcatSDPTest::run();
-        // The same model and cache with f32 kernels: the cache quantization noise cancels, so a tighter bound
-        // checks the f16 kernels against the f32 ones.
+        // f16 kernels against the f32 ones on the same model and cache, where the cache quantization noise mostly
+        // cancels, with key scores that matter; then against the decomposed reference with the base inputs, whose
+        // larger tolerance covers the cache quantization.
         auto f32_config = configuration;
         f32_config[ov::hint::inference_precision.name()] = ov::element::f32;
+        m_scale_query = true;
         const auto expected = run_test(function, f32_config);
         const auto actual = run_test(function, configuration);
+        m_scale_query = false;
+        const auto abs = abs_threshold;
+        const auto rel = rel_threshold;
         abs_threshold = F16_VS_F32_ABS;
         rel_threshold = 0.0;
         for (size_t i = 0; i < actual.size(); ++i) {
             compare(expected[i], actual[i]);
         }
+        abs_threshold = abs;
+        rel_threshold = rel;
+        ConcatSDPTest::run();
     }
 
-    // About 2 f16 ulps at the output magnitude (~1.2), and over 5 times the largest difference measured.
-    static constexpr double F16_VS_F32_ABS = 2e-3;
+    // About 10 f16 ulps for outputs in [1, 2) (the subgraph adds 1 to the attention). Largest difference measured over
+    // all inference steps on Apple M5 with the scaled query: 4.9e-3 (GQA) and 4.3e-3 (MHA); breaking the f16 key loop
+    // gives 0.16 to 0.24.
+    static constexpr double F16_VS_F32_ABS = 1e-2;
+    bool m_scale_query = false;
 };
 
 TEST_P(ConcatSDPGQAF16Test, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    // The stateful fusion must keep the cache in the node, as ConcatSDPTest checks.
+    // The stateful fusion must keep the cache in the node, as ConcatSDPTest checks, and the node must run in f16:
+    // with an f32 fallback both runs above would use the same kernels.
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
     CheckNumberOfNodesWithType(compiledModel, "Gather", 0);
+    for (const auto& node : GetNodesWithTypes(compiledModel.get_runtime_model(), {"ScaledDotProductAttention"})) {
+        EXPECT_EQ(node->get_rt_info().at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(),
+                  ov::element::f16);
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPGQAF16Test,
@@ -92,9 +123,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPGQAF16Test,
                                             ::testing::Values<int64_t>(2)),
                          ConcatSDPTest::getTestCaseName);
 
-// Head size 80 in value quantization groups of 40, for the f16 value rows: per group, 2 steps of 16 and a tail of 8
-// with NEON_FP16 and 128-bit SVE, 1 step of 32 and a tail of 8 with 256-bit SVE, only the scalar loop at 512 bits.
-// 6 query heads over 2 or 1 key/value heads give tiles of 3, and of 4 and 2, query heads.
+// MHA control: with one query head per key/value head, scores take dot_product_fp16<u8> (f16 products) and values
+// accumulate per head, instead of the grouped paths; its NEON_FP16 loop runs on hosts without SVE. Greedy (B = 1,
+// with a 20-token continuation) and beam search (B = 4).
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPGQAF16Test_MHAControl,
+                         ConcatSDPGQAF16Test,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::Values(input_shapes[0], input_shapes[1]),
+                                            ::testing::Values(ov::AnyMap{}),
+                                            ::testing::Values(false),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values<int64_t>(8)),
+                         ConcatSDPTest::getTestCaseName);
+
+// Head size 80 in key and value quantization groups of 40. For the f16 value rows, per group: 2 steps of 16 and a
+// tail of 8 with NEON_FP16 and 128-bit SVE, 1 step of 32 and a tail of 8 with 256-bit SVE, only the scalar loop at
+// 512 bits; the key loops also run 2 steps of 16 and a tail of 8 per group. 6 query heads over 2 or 1 key/value heads
+// give tiles of 3, and of 4 and 2, query heads; over 6, the per-head key path (dot_product_fp16<u8>).
 const std::vector<std::vector<InputShape>> input_shapes_head80 = {
     {
         {{-1, 6, -1, 80}, {{4, 6, 10, 80}, {4, 6, 1, 80}, {4, 6, 1, 80}, {4, 6, 1, 80}, {4, 6, 1, 80}}},
@@ -106,10 +151,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPGQAF16Test_ValueGroups,
                          ConcatSDPGQAF16Test,
                          ::testing::Combine(::testing::Values(ElementType::f32),
                                             ::testing::ValuesIn(input_shapes_head80),
-                                            ::testing::Values(ov::AnyMap{{ov::value_cache_group_size.name(), "40"}}),
+                                            ::testing::Values(ov::AnyMap{{ov::value_cache_group_size.name(), "40"},
+                                                                         {ov::key_cache_group_size.name(), "40"}}),
                                             ::testing::Values(false),
                                             ::testing::Values<int64_t>(6),
-                                            ::testing::Values<int64_t>(2, 1)),
+                                            ::testing::Values<int64_t>(6, 2, 1)),
                          ConcatSDPTest::getTestCaseName);
 
 #endif  // OPENVINO_ARCH_ARM64
