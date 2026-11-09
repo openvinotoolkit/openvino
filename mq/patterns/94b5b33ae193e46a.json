@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "merge queue workflow run conclusion failure despite all jobs completing with success or skipped no failed job or step identifiable|Infrastructure",
+  "signature_hash": "94b5b33ae193e46a",
+  "title": "Linux Ubuntu 24.04 merge-queue run reports failure though every job succeeded or was skipped",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-09T18:52:27Z",
+  "last_seen": "2026-11-09T18:52:27Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42668697693"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39444"
+  ],
+  "recent_timestamps": [
+    "2026-11-09T18:52:27Z"
+  ],
+  "rerun_search_string": null
+}

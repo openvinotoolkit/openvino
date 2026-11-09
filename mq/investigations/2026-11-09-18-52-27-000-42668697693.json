@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-09-18-52-27-000-42668697693",
+  "timestamp": "2026-11-09T18:52:27Z",
+  "run_id": "42668697693",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42668697693",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39444",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39444",
+  "author": "arshil42",
+  "category": "Infrastructure",
+  "title": "Linux Ubuntu 24.04 merge-queue run reports failure though every job succeeded or was skipped",
+  "signature": "merge queue workflow run conclusion failure despite all jobs completing with success or skipped no failed job or step identifiable|Infrastructure",
+  "signature_hash": "94b5b33ae193e46a",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "(none identifiable)",
+      "conclusion": "unknown",
+      "symptom": "get_job_logs(failed_only=true) reported 0 failed jobs out of 13; list_workflow_jobs shows every job as success or skipped, including the terminal ci/gha_overall_status_ubuntu_24 gate job, yet get_workflow_run reports the run's overall conclusion as failure."
+    }
+  ],
+  "key_errors": [
+    "get_job_logs failed_only=true -> {\"failed_jobs\":0,\"message\":\"No failed jobs found in this workflow run\",\"run_id\":42668697693,\"total_jobs\":13}",
+    "list_workflow_jobs -> Smart_CI: success, Docker: success, Build / Build: success, Build (C++20, non-blocking): skipped, C++ unit tests: success, Python API tests: success, Python unit tests: success, OpenVINO tokenizers extension: success, Samples: success, dGPU Arc-BMG Tests Nightly: skipped, Pytorch FX Layer Tests: success, JAX Layer Tests: success, ci/gha_overall_status_ubuntu_24: success",
+    "get_workflow_run -> conclusion: \"failure\", status: \"completed\" (contradicts the per-job data above)"
+  ],
+  "root_cause": "The run-level 'conclusion' field returned by the Actions API for run 42668697693 is 'failure', but every constituent job (including the explicit gating job 'ci/gha_overall_status_ubuntu_24', whose only purpose is to aggregate and report overall pass/fail) completed with 'success', and the one remaining job is 'skipped'. No job or step in the run has a failure/cancelled/timed_out conclusion, and get_job_logs(failed_only=true) independently confirms zero failed jobs. This points to a GitHub Actions run-conclusion/job-conclusion consistency anomaly (a known, intermittent class of issue in GitHub's own Actions backend where the run-level summary briefly disagrees with job-level data, sometimes self-corrects, or results from a stale run-conclusion cache at query time) rather than an actual product or CI defect in this PR's change. All artifacts for the run (wheels, test results, packages) were produced successfully, and the commit/PR under test (#39444) is a narrow CPU/x64 JIT emitter fix with no indication in the diff of anything that could cause a platform-level merge-queue gating failure.",
+  "reproduction_steps": "N/A - this cannot be reproduced locally; it is an anomaly in GitHub Actions' own run-conclusion reporting. To confirm in-CI, re-query the run via `gh api repos/openvinotoolkit/openvino/actions/runs/42668697693` and compare `conclusion` against `gh api .../jobs` per-job conclusions; if the run conclusion later shows success/resolves, it corroborates a transient reporting bug.",
+  "recommended_actions": [
+    "Re-check the run status a few minutes later via the GitHub UI or API to see if the conclusion value self-corrects (known GitHub Actions eventual-consistency behavior).",
+    "If the merge-queue PR (#39444) was dropped from the queue solely due to this anomalous failure conclusion with no actual job failure, re-add it to the queue; no code changes are needed.",
+    "If this anomaly recurs with the same signature, consider filing a GitHub Support ticket referencing run 42668697693, since it is outside repository control.",
+    "No action is needed on the PR's source changes themselves - they are unrelated to this infra-reporting anomaly."
+  ],
+  "prevention_strategies": "This class of failure originates in GitHub's Actions infrastructure (run-level conclusion vs. job-level conclusion inconsistency) and cannot be prevented from the repository side. The CI Doctor's remediation (re-run failed jobs / re-add to queue) is the correct mitigation since a retry is expected to produce a consistent conclusion.",
+  "historical_context": "No prior investigation in the merge-queue pattern database matches this exact signature (run-conclusion/job-conclusion mismatch with zero failed jobs). Prior Infrastructure-category patterns in memory involve concrete runner/service failures (e.g., 'Failed to resolve action download info', 'runner has received a shutdown signal', cancelled jobs with no logs) but none previously recorded a run reporting failure while every job was success/skipped."
+}
