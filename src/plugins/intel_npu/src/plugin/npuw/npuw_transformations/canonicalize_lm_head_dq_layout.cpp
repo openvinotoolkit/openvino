@@ -7,6 +7,7 @@
 #include "../logging.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -71,7 +72,17 @@ CanonicalizeLMHeadDQLayout::CanonicalizeLMHeadDQLayout() {
         // Re-view the compressed Constants with the new shape: shares the data buffer, which
         // matters for the vocab-sized weight.
         const auto reshaped = [](const std::shared_ptr<v0::Constant>& cnst, const ov::Shape& shape) {
-            return std::make_shared<v0::Constant>(*cnst, shape);
+            auto new_cnst = std::make_shared<v0::Constant>(*cnst, shape);
+            ov::copy_runtime_info(cnst, new_cnst);
+            // WeightlessCacheAttribute is not copyable, so copy_runtime_info skips it. NPUW needs it
+            // to reference the weights by their file offset; without it the whole tensor is copied
+            // (~389 MB for the LM head). The data layout is unchanged, so the attribute stays valid.
+            const auto key = ov::WeightlessCacheAttribute::get_type_info_static();
+            const auto& rt_info = cnst->get_rt_info();
+            if (const auto it = rt_info.find(key); it != rt_info.end()) {
+                new_cnst->get_rt_info()[key] = it->second;
+            }
+            return new_cnst;
         };
 
         // Subtract requires equal types of its inputs, so both Converts target the Subtract's type.
