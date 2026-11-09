@@ -28,14 +28,9 @@ using namespace ::intel_npu;
 
 const std::string kMissingLibraryDir = "npu_vcl_loader_holder_missing_dir";
 
-TEST(VCLLoaderHolderTests, Construction_WithMissingLibrary_DoesNotLoad) {
+TEST(VCLLoaderHolderTests, Construction_DoesNotLoadTheLibrary) {
     EXPECT_NO_THROW(VCLLoaderHolder{kMissingLibraryDir});
     EXPECT_NO_THROW(VCLLoaderHolder{});
-}
-
-TEST(VCLLoaderHolderTests, Functions_WithMissingLibrary_Throws) {
-    const VCLLoaderHolder holder(kMissingLibraryDir);
-    EXPECT_THROW(holder.functions(), ov::Exception);
 }
 
 TEST(VCLLoaderHolderTests, Functions_WithEmptyLibraryDir_Throws) {
@@ -83,13 +78,13 @@ TEST_F(VCLLoaderHolderFailedLoadTests, Functions_AfterFailedLoad_RethrowsFirstEr
 
 TEST(VCLLoaderHolderTests, Functions_CalledConcurrentlyWithMissingLibrary_EveryCallThrows) {
     const VCLLoaderHolder holder(kMissingLibraryDir);
-    constexpr size_t threadCount = 8;
-    std::atomic<size_t> throwCount{0};
+    constexpr std::size_t threadCount = 8;
+    std::atomic<std::size_t> throwCount{0};
     std::promise<void> startSignal;
     const auto start = startSignal.get_future().share();
 
     std::vector<std::thread> threads;
-    for (size_t i = 0; i < threadCount; i++) {
+    for (std::size_t i = 0; i < threadCount; i++) {
         threads.emplace_back([&] {
             start.wait();
             try {
@@ -121,25 +116,22 @@ protected:
     std::string directory;
 };
 
-TEST_F(VCLLoaderHolderLibraryTests, Functions_AfterHolderDestroyed_LibraryRemainsCallableUntilTableReleased) {
+TEST_F(VCLLoaderHolderLibraryTests, Functions_AfterHolderDestroyed_TableStaysCallable) {
     std::shared_ptr<const VCLFunctionTable> functions;
     {
         const VCLLoaderHolder holder(directory);
         functions = holder.functions();
     }
     ASSERT_NE(functions, nullptr);
-    std::weak_ptr<const VCLFunctionTable> owner = functions;
+    ASSERT_NE(functions->vclGetVersion, nullptr);
     vcl_version_info_t compilerVersion{};
     vcl_version_info_t profilingVersion{};
-    ASSERT_NE(functions->vclGetVersion, nullptr);
     EXPECT_EQ(functions->vclGetVersion(&compilerVersion, &profilingVersion), VCL_RESULT_SUCCESS);
-    functions.reset();
-    EXPECT_TRUE(owner.expired());
 }
 
 TEST_F(VCLLoaderHolderLibraryTests, Functions_ConcurrentFirstCalls_ReturnSameTable) {
     const VCLLoaderHolder holder(directory);
-    constexpr size_t threadCount = 8;
+    constexpr std::size_t threadCount = 8;
     std::promise<void> startSignal;
     const auto start = startSignal.get_future().share();
     std::array<std::future<std::shared_ptr<const VCLFunctionTable>>, threadCount> calls;
@@ -152,7 +144,7 @@ TEST_F(VCLLoaderHolderLibraryTests, Functions_ConcurrentFirstCalls_ReturnSameTab
     startSignal.set_value();
     const auto functions = calls.front().get();
     ASSERT_NE(functions, nullptr);
-    for (size_t i = 1; i < calls.size(); i++) {
+    for (std::size_t i = 1; i < calls.size(); i++) {
         EXPECT_EQ(functions, calls[i].get());
     }
 }

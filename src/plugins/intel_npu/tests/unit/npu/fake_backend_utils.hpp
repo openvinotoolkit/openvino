@@ -10,32 +10,40 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "intel_npu/common/npu.hpp"
+#include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 
-namespace npu_mock {
+namespace ov::test::npu {
 
-/// What MockEngineBackend::getInitStructs() throws while failInitStructs is set.
-inline constexpr std::string_view kNoInitStructsMessage = "No Level Zero structures in the mock backend";
-
-class MockDevice final : public ::intel_npu::IDevice {
+// Hand written fakes of the backend interfaces: they have no call expectations, only canned values and a device lookup
+// like the real one.
+class FakeDevice final : public ::intel_npu::IDevice {
 public:
+    static constexpr uint32_t kDeviceId = 0;
+    static constexpr uint32_t kSubDevId = 3;
+    static constexpr uint32_t kMaxNumSlices = 4;
     static constexpr uint64_t kAllocMemSize = 4096;
 
-    explicit MockDevice(std::string name = "4000") : _name(std::move(name)) {}
+    explicit FakeDevice(std::string name) : _name(std::move(name)) {}
 
     std::string getName() const override {
         return _name;
     }
     std::string getFullDeviceName() const override {
-        return "Mock NPU " + _name;
+        return "Fake NPU " + _name;
     }
     uint64_t getAllocMemSize() const override {
         return kAllocMemSize;
+    }
+    uint32_t getSubDevId() const override {
+        return kSubDevId;
+    }
+    uint32_t getMaxNumSlices() const override {
+        return kMaxNumSlices;
     }
     std::shared_ptr<::intel_npu::InferRequest> createInferRequest(
         const std::shared_ptr<const ::intel_npu::ICompiledModel>&,
@@ -47,21 +55,21 @@ public:
         return true;
     }
     DeviceProperties getDeviceProperties() const override {
-        return {};
+        return {kDeviceId, kSubDevId, kMaxNumSlices};
     }
 
 private:
     std::string _name;
 };
 
-/// An engine backend over MockDevices, one per given name; no names means no devices, like in offline compilation.
-/// Mirrors the device lookup of ZeroEngineBackend: an empty id selects the first device, a number is an index when it
-/// is in range and a name otherwise, and an unknown name throws.
-class MockEngineBackend final : public ::intel_npu::IEngineBackend {
+// Mirrors the device lookup of ZeroEngineBackend: an empty id selects the first device, a number is an index when it is
+// in range and a name otherwise, and an unknown name throws. No names means no devices, like offline compilation.
+class FakeEngineBackend final : public ::intel_npu::IEngineBackend {
 public:
-    explicit MockEngineBackend(const std::vector<std::string>& deviceNames) {
+    explicit FakeEngineBackend(const std::vector<std::string>& deviceNames, bool contextExtensionSupported = false)
+        : _contextExtensionSupported(contextExtensionSupported) {
         for (const auto& name : deviceNames) {
-            _devices.push_back(std::make_shared<MockDevice>(name));
+            _devices.push_back(std::make_shared<FakeDevice>(name));
         }
     }
 
@@ -75,7 +83,10 @@ public:
         if (name.empty()) {
             return getDevice();
         }
-        if (std::all_of(name.begin(), name.end(), ::isdigit)) {
+        const auto isDigit = [](unsigned char character) {
+            return std::isdigit(character) != 0;
+        };
+        if (std::all_of(name.begin(), name.end(), isDigit)) {
             const auto index = static_cast<std::size_t>(std::stoul(name));
             if (index < _devices.size()) {
                 return _devices[index];
@@ -96,39 +107,30 @@ public:
         return names;
     }
     const std::string getName() const override {
-        return "MOCK_BACKEND";
+        return "FAKE_BACKEND";
     }
     bool isCommandQueueExtSupported() const override {
         return false;
     }
     bool isLUIDExtSupported() const override {
-        return luidExt;
+        return false;
     }
     bool isContextExtSupported() const override {
-        return contextExt;
+        return _contextExtensionSupported;
     }
     void updateInfo(const ov::AnyMap& properties) override {
-        for (const auto& property : properties) {
-            updatedKeys.push_back(property.first);
-        }
-    }
-    const std::shared_ptr<::intel_npu::ZeroInitStructsHolder> getInitStructs() const override {
-        if (failInitStructs) {
-            OPENVINO_THROW(kNoInitStructsMessage);
-        }
-        return nullptr;
+        _updatedProperties = properties;
     }
 
-    bool luidExt = false;
-    bool contextExt = false;
-    // The driver compiler adapter needs Level Zero structures. Failing here lets a test that ends up on the driver
-    // path observe that, instead of dereferencing missing structures.
-    bool failInitStructs = false;
-    // Keys of the properties passed to updateInfo(), in call order.
-    std::vector<std::string> updatedKeys;
+    /// What the last updateInfo() call received.
+    const ov::AnyMap& updatedProperties() const {
+        return _updatedProperties;
+    }
 
 private:
-    std::vector<std::shared_ptr<MockDevice>> _devices;
+    const bool _contextExtensionSupported;
+    ov::AnyMap _updatedProperties;
+    std::vector<std::shared_ptr<FakeDevice>> _devices;
 };
 
-}  // namespace npu_mock
+}  // namespace ov::test::npu

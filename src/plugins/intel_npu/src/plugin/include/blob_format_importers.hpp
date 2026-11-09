@@ -11,7 +11,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 

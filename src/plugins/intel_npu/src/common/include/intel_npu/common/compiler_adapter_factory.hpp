@@ -14,7 +14,7 @@
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
@@ -52,8 +52,9 @@ public:
      *
      * PREFER_PLUGIN is resolved like in decideCompilerType(), and a compiler that the probe creates is returned as is.
      * A request that resolved to PLUGIN without probing, or that asked for PLUGIN explicitly, creates the
-     * compiler-in-plugin and throws if that fails; there is no fallback to the driver compiler at that point, and an
-     * explicit PLUGIN request retries every time.
+     * compiler-in-plugin and throws if that fails; there is no fallback to the driver compiler at that point. An
+     * explicit PLUGIN request is not remembered: it asks the provider again. A provider that loads the library once,
+     * like the loader holder of the plugin, rethrows its first load failure instead of loading again.
      *
      * @param engineBackend The backend that provides the device and the Level Zero structures. May be empty for
      *        offline compilation with the compiler-in-plugin.

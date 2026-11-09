@@ -17,6 +17,7 @@
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/gqa_compiled_model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -198,11 +199,14 @@ Plugin::Plugin()
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
     _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, _compilerAdapterFactory);
-    _propertiesManager = std::make_unique<PluginPropertyManager>(options,
-                                                                 _backend,
-                                                                 _compilerOptionSupportHelper,
-                                                                 _compilerAdapterFactory,
-                                                                 _logger);
+    _propertiesManager =
+        std::make_unique<PluginPropertyManager>(options, _backend, _compilerOptionSupportHelper, _logger);
+}
+
+VCLFunctionTableProvider Plugin::vcl_functions() const {
+    return [holder = _vclLoaderHolder] {
+        return holder->functions();
+    };
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {

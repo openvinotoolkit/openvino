@@ -26,6 +26,14 @@ public:
 
     const std::shared_ptr<OptionSupportCache>& getOptionSupportCache() const;
 
+    /**
+     * @brief The factory that creates the compilers used to answer option queries.
+     *
+     * Share it with whatever else asks the compiler, so that all of it sees the same outcome of the compiler-in-plugin
+     * probe.
+     */
+    const std::shared_ptr<const CompilerAdapterFactory>& getAdapterFactory() const;
+
     bool isOptionSupported(ov::intel_npu::CompilerType compilerType,
                            const std::string& optionName,
                            const std::optional<std::string>& optionValue = std::nullopt);

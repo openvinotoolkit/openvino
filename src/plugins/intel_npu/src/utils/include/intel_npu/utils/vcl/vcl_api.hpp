@@ -5,13 +5,13 @@
 #pragma once
 
 #include <exception>
-#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "openvino/core/except.hpp"
 #include "vcl.h"
 namespace intel_npu {
@@ -111,16 +111,6 @@ private:
     std::shared_ptr<void> lib;
     Logger _logger;
 };
-
-/**
- * @brief Obtains the VCL entry points on demand.
- *
- * Providers defer loading until the entry points are requested to resolve or construct a compiler-in-plugin,
- * or to create a profiling decoder. Profiling imports can request them even when using the driver compiler.
- * A provider should remember a failed load, so that callers do not repeat it, and always supply the same set of
- * entry points: what is built from them, such as a CompilerAdapterFactory, is bound to that set.
- */
-using VCLFunctionTableProvider = std::function<std::shared_ptr<const VCLFunctionTable>()>;
 
 /**
  * @brief Owns one lazily loaded VCL compiler library and its one set of entry points.

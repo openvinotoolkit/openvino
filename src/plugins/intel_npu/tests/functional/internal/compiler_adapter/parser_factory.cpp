@@ -18,6 +18,7 @@
 namespace {
 
 using namespace ::intel_npu;
+namespace vcl_provider = ov::test::npu::vcl_provider;
 
 class ParserFactoryFunctionalTests : public ::testing::Test {
 protected:

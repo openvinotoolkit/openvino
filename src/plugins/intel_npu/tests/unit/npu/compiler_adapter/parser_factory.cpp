@@ -12,6 +12,7 @@
 namespace {
 
 using namespace ::intel_npu;
+namespace vcl_provider = ov::test::npu::vcl_provider;
 
 TEST(ParserFactoryTests, GetParser_WithoutInitStructs_ThrowsBeforeInvokingProvider) {
     const ParserFactory factory;

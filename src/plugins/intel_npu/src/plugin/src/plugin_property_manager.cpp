@@ -97,23 +97,25 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     }
 }
 
+std::shared_ptr<const intel_npu::CompilerAdapterFactory> adapterFactoryOf(
+    const std::shared_ptr<intel_npu::CompilerOptionSupportHelper>& optionSupportHelper) {
+    OPENVINO_ASSERT(optionSupportHelper != nullptr, "PluginPropertyManager requires a CompilerOptionSupportHelper");
+    return optionSupportHelper->getAdapterFactory();
+}
+
 }  // namespace
 
 namespace intel_npu {
 
-PluginPropertyManager::PluginPropertyManager(
-    const std::shared_ptr<OptionsDesc>& options,
-    const ov::SoPtr<IEngineBackend>& backend,
-    const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
-    const std::shared_ptr<const CompilerAdapterFactory>& compilerAdapterFactory,
-    Logger& logger)
+PluginPropertyManager::PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
+                                             const ov::SoPtr<IEngineBackend>& backend,
+                                             const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
+                                             Logger& logger)
     : _config(options),
       _backend(backend),
       _compilerOptionSupportHelper(optionSupportHelper),
-      _compilerAdapterFactory(compilerAdapterFactory),
+      _compilerAdapterFactory(adapterFactoryOf(optionSupportHelper)),
       _logger(logger) {
-    OPENVINO_ASSERT(_compilerAdapterFactory != nullptr,
-                    "PluginPropertyManager requires a non-null CompilerAdapterFactory");
     if (_backend == nullptr) {
         _logger.info("No backend is available. Backend/device-dependent properties will be unavailable.");
     }

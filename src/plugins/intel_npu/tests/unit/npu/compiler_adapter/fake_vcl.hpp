@@ -19,6 +19,15 @@
 
 namespace fake_vcl {
 
+/// The options a default FakeVcl advertises as supported.
+inline constexpr const char* kOptionA = "OPT_A";
+inline constexpr const char* kOptionB = "OPT_B";
+inline constexpr const char* kOptionC = "OPT_C";
+
+/// Entry point names, as they appear in FakeVcl::calls and the failWith/callCount arguments.
+inline constexpr const char* kCompilerCreate = "vclCompilerCreate";
+inline constexpr const char* kGetCompilerSupportedOptions = "vclGetCompilerSupportedOptions";
+
 //
 // The VCL entry points are plain C function pointers with no user-data parameter, so the fake has to
 // route through a file-static "current instance" pointer. FakeVcl sets it on construction and clears
@@ -121,7 +130,7 @@ public:
     std::optional<uint64_t> compatibilityStringSizeOverride;
 
     /// Raw buffer returned by vclGetCompilerSupportedOptions (trailing NULs are meaningful).
-    std::string supportedOptionsBuffer = std::string("OPT_A OPT_B OPT_C");
+    std::string supportedOptionsBuffer = std::string(kOptionA) + ' ' + kOptionB + ' ' + kOptionC;
 
     /// Options vclGetCompilerIsOptionSupported reports as UNSUPPORTED_FEATURE. Everything else
     /// follows failWith("vclGetCompilerIsOptionSupported", ...), so a fake can model a compiler

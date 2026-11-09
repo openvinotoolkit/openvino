@@ -8,15 +8,18 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "intel_npu/npu_private_properties.hpp"
-#include "npu/mock_backend_utils.hpp"
+#include "npu/fake_backend_utils.hpp"
 
 namespace {
 
-ov::SoPtr<::intel_npu::IEngineBackend> makeBackend(const std::vector<std::string>& deviceNames) {
-    return ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<npu_mock::MockEngineBackend>(deviceNames));
+using ov::test::npu::FakeEngineBackend;
+
+ov::SoPtr<::intel_npu::IEngineBackend> makeBackend(std::vector<std::string> deviceNames) {
+    return ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<FakeEngineBackend>(std::move(deviceNames)));
 }
 
 const std::string NPU4000{ov::intel_npu::Platform::NPU4000};

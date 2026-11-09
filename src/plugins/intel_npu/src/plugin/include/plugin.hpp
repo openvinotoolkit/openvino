@@ -15,12 +15,14 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/vcl/vcl_api.hpp"
+#include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
 
 namespace intel_npu {
+
+class VCLLoaderHolder;
 
 class Plugin : public ov::IPlugin {
 public:
@@ -77,11 +79,7 @@ private:
      * component keeps it. The library loads on the first call and stays loaded while any provider
      * or returned table still owns it.
      */
-    VCLFunctionTableProvider vcl_functions() const {
-        return [holder = _vclLoaderHolder] {
-            return holder->functions();
-        };
-    }
+    VCLFunctionTableProvider vcl_functions() const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
