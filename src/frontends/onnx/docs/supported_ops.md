@@ -23,7 +23,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Attention                                               |24, 23                  |24, 23                          |                                |
 |                        |AveragePool                                             |1                       |22, 19, 11, 10, 7, 1            |                                |
 |                        |BatchNormalization                                      |14, 7, 1                |15, 14, 9, 7, 6, 1              |                                |
-|                        |Bernoulli                                               |                        |22, 15                          |                                |
+|                        |Bernoulli                                               |22, 15                  |22, 15                          |                                |
 |                        |BitShift                                                |11                      |11                              |                                |
 |                        |BitwiseAnd                                              |18                      |18                              |                                |
 |                        |BitwiseNot                                              |18                      |18                              |                                |
