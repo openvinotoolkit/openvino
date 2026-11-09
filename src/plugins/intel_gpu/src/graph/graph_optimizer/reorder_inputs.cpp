@@ -16,6 +16,10 @@
 #include "mvn_inst.h"
 #include "reduce_inst.h"
 
+#ifdef ENABLE_MLIR_FOR_GPU
+#include "mlir_primitive_inst.h"
+#endif
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "gemm_inst.h"
 #include "broadcast_inst.h"
@@ -828,6 +832,34 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             reduce_node.recalc_output_layouts(false);
         }
     };
+
+#ifdef ENABLE_MLIR_FOR_GPU
+    // The compiled MLIR program bakes its input memref layouts in. Reorder constant (non data-flow)
+    // inputs explicitly, to match required input layouts
+    const auto reorder_input_mlir_primitive = [&p, &rf](typed_program_node<mlir_primitive>& mlir_node) {
+        const auto& prim = mlir_node.get_primitive();
+        for (size_t i = 0; i < mlir_node.get_dependencies().size(); ++i) {
+            auto dep = mlir_node.get_dependency_with_port(i);
+            // Data-flow inputs get reordered by insert_reorders (from the formats reported by query_formats);
+            // it skips non data-flow (constant) inputs, so those are handled here.
+            if (dep.first->is_in_data_flow()) {
+                continue;
+            }
+            const auto input_layout = dep.first->get_output_layout(false, dep.second);
+            auto new_layout = input_layout;
+            new_layout.format = prim->get_required_input_format(i, input_layout.get_rank());
+            if (new_layout.format == input_layout.format) {
+                continue;
+            }
+            auto new_input = rf.get_reorder(dep.first->id(), dep.second, input_layout, new_layout);
+            if (new_input.first) {
+                p.add_intermediate(new_input.first, mlir_node, i, !new_input.second);
+                mlir_node.get_dependency(i).recalc_output_layout(false);
+            }
+        }
+    };
+#endif  // ENABLE_MLIR_FOR_GPU
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
         if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
@@ -872,6 +904,10 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             reorder_input_pooling,
             reorder_input_mvn,
             reorder_input_reduce);
+
+#ifdef ENABLE_MLIR_FOR_GPU
+        program_helpers::do_for_types<mlir_primitive>(*prim, reorder_input_mlir_primitive);
+#endif  // ENABLE_MLIR_FOR_GPU
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(
