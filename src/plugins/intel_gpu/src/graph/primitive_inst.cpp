@@ -3599,7 +3599,9 @@ ImplementationsFactory::ImplementationsFactory(const program_node* node)
 std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_params(primitive_inst& inst,
                                                                                       const kernel_impl_params& params,
                                                                                       bool use_async_compilation) {
-    auto find_impl = [this](const program_node* node, const kernel_impl_params& params, shape_types shape_type) -> std::unique_ptr<primitive_impl> {
+    // Managers are selected (shape type, support_shapes) with `params`; the impl is created from `create_params` if given.
+    auto find_impl = [this](const program_node* node, const kernel_impl_params& params, shape_types shape_type,
+                            const kernel_impl_params* create_params = nullptr) -> std::unique_ptr<primitive_impl> {
         OPENVINO_ASSERT(node != nullptr);
         for (auto& impl_manager : m_available_impls) {
             if ((impl_manager->get_shape_type() & shape_type) != shape_type) {
@@ -3610,7 +3612,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
                 continue;
             }
 
-            auto impl = impl_manager->create(*node, params);
+            auto impl = impl_manager->create(*node, create_params ? *create_params : params);
             if (impl) {
                 return impl;
             }
@@ -3700,15 +3702,19 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 4. Try to create new shape agnostic impl & cache it
-    // If dynamic impls are cached but none supports these shapes, a new one built from the concrete runtime params
-    // is not shape agnostic and must not be reused for other shapes: use the static path (step 6) instead.
-    if (!dynamic_impl && m_dynamic_impls_cache.empty()) {
-        dynamic_impl = find_impl(node, params, shape_types::dynamic_shape);
+    // The impl is selected with the concrete runtime params, so a manager that rejects them (e.g. CM for a fused epilogue
+    // needing broadcast) is skipped, but it is created and compiled from the node's own params: built from the runtime
+    // params it would be shape specific and must not be reused for other shapes.
+    if (!dynamic_impl) {
+        const auto node_params = node->get_kernel_impl_params();
+        dynamic_impl = find_impl(node, params, shape_types::dynamic_shape, node_params.get());
         if (dynamic_impl && !inst.can_be_optimized()) {
             dynamic_impl->set_node_params(*node);
-            auto kernels = kernels_cache.compile(params, dynamic_impl->get_kernels_source());
+            auto kernels = kernels_cache.compile(*node_params, dynamic_impl->get_kernels_source());
             dynamic_impl->set_kernels(std::move(kernels));
-            m_dynamic_impls_cache.push_back(dynamic_impl);
+            if (dynamic_impl->is_dynamic()) {
+                m_dynamic_impls_cache.push_back(dynamic_impl);
+            }
         }
     }
 
