@@ -3,6 +3,7 @@
 //
 
 #include <numeric>
+#include <unordered_set>
 
 #include "block_utils.hpp"
 #include "openvino/core/except.hpp"
@@ -12,6 +13,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "tp_transformations/analyzer.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov {
 namespace tp {
@@ -26,6 +28,34 @@ using namespace ov::pass::pattern;
 /// MatMul or MatMul + bias Add.
 std::shared_ptr<ov::Node> with_bias(const std::shared_ptr<ov::Node>& matmul) {
     return matmul | wrap_type<ov::op::v1::Add>({matmul, any_input()});
+}
+
+/// Bytes of the constants behind `matmul`'s weight when another reader uses that weight too (a tied
+/// embedding), 0 otherwise.
+size_t shared_weight_bytes(const std::shared_ptr<ov::Node>& matmul) {
+    std::unordered_set<ov::Node*> chain;
+    ov::op::util::visit_path(
+        matmul->get_input_node_ptr(1),
+        chain,
+        [](ov::Node*) {},
+        [](ov::Node*) {
+            return false;
+        });
+    bool shared = false;
+    size_t bytes = 0;
+    for (auto* node : chain) {
+        const auto* constant = ov::as_type<ov::op::v0::Constant>(node);
+        // Shape constants (Reshape targets) may be shared by unrelated ops.
+        if (constant && (constant->get_element_type() == ov::element::i64 || constant->get_element_type() == ov::element::i32))
+            continue;
+        for (const auto& output : node->outputs()) {
+            for (const auto& target : output.get_target_inputs())
+                shared = shared || (target.get_node() != matmul.get() && chain.count(target.get_node()) == 0);
+        }
+        if (constant)
+            bytes += constant->get_byte_size();
+    }
+    return shared ? bytes : 0;
 }
 
 std::shared_ptr<ov::Node> activation(const std::shared_ptr<ov::Node>& input) {
@@ -178,6 +208,8 @@ TPVocabParallelBlock::TPVocabParallelBlock(const TPAnalyzerConfig& config, TPAna
         // The gather assumes equal slices.
         if (vocab <= 0 || vocab % static_cast<int64_t>(config.world_size) != 0)
             return false;
+        // Read before the split gives the LM head a copy of the chain to cut.
+        report->lm_head_copy_bytes = shared_weight_bytes(lm_head) / config.world_size;
         if (!annotate_projection(lm_head,
                                  ShardStrategy::COLUMN_PARALLEL,
                                  {{static_cast<size_t>(vocab), 1}},

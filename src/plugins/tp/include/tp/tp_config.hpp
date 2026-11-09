@@ -82,10 +82,6 @@ struct TPConfig : public ov::PluginConfig {
         return TP_DEBUG_GLOBAL_OPT(verbose, ov::log::Level::NO);
     }
 
-    bool disable_lm_head_sharding() const {
-        return TP_DEBUG_OPT(*this, disable_lm_head_sharding, false);
-    }
-
     std::string dump_sharding_states() const {
         return TP_DEBUG_OPT(*this, dump_sharding_states, std::string{});
     }

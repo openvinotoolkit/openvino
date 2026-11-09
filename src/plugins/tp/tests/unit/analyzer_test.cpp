@@ -312,4 +312,29 @@ TEST(TPAnalyzerTest, KeepsATiedEmbeddingTableWhole) {
     }
 }
 
+// The report prices the cut copy a tied LM head adds on every rank; an LM head with a weight of
+// its own adds none.
+TEST(TPAnalyzerTest, ReportsTheCopyATiedLmHeadAdds) {
+    constexpr size_t vocab = 1024;
+    const auto tied = [] {
+        auto model = make_block_with_lm_head(BlockConfig{}, vocab);
+        for (const auto& node : model->get_ordered_ops()) {
+            if (node->get_friendly_name() != "lm_head")
+                continue;
+            auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+            auto embedding = std::make_shared<ov::op::v8::Gather>(node->input_value(1), ids, axis);
+            model->add_parameters({ids});
+            model->add_results({std::make_shared<ov::op::v0::Result>(embedding)});
+            break;
+        }
+        return model;
+    };
+    EXPECT_EQ(analyze(make_block_with_lm_head(BlockConfig{}, vocab), 2)->lm_head_copy_bytes, 0u);
+    const auto on_two = analyze(tied(), 2)->lm_head_copy_bytes;
+    // At least half of the u4 table itself.
+    EXPECT_GE(on_two, vocab * BlockConfig{}.hidden / 2 / 2);
+    EXPECT_EQ(analyze(tied(), 4)->lm_head_copy_bytes, on_two / 2);
+}
+
 }  // namespace ov::tp::tests

@@ -203,6 +203,13 @@ void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
                 << " head_dim=" << report.head_dim
                 << " intermediate=" << report.intermediate_size
                 << " sharded variables=" << report.sharded_variables.size() << std::endl;
+    if (report.lm_head_copy_bytes != 0) {
+        TP_LOG_INFO << "[TP] The LM head shares its weight with the embedding, which stays whole: splitting the LM "
+                       "head adds a cut copy of "
+                    << report.lm_head_copy_bytes / (1024 * 1024) << " MiB on every rank. Set OV_"
+                    << ov::tp::disable_lm_head_sharding.name()
+                    << "=YES to keep it whole: less device memory, a slower decode step." << std::endl;
+    }
 
     // Neither is an error, but both cost: whoever hits them needs to know without having
     // been told to look.
@@ -545,7 +552,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto analyzed = model->clone();
     auto report = std::make_shared<TPAnalysisReport>();
     {
-        TPAnalyzerConfig analyzer_config{shard_degree, !cfg.disable_lm_head_sharding()};
+        TPAnalyzerConfig analyzer_config{shard_degree, !cfg.get_disable_lm_head_sharding()};
         analyzer_config.dump_sharding_states = sharding_states_file(cfg, *model, shard_degree);
         ov::pass::Manager manager("TP analysis");
         manager.register_pass<TPLayerAnalyzer>(analyzer_config, report);
@@ -680,6 +687,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         auto properties = rank_caching_properties(arguments);
         properties.emplace_back(ov::device::priorities.name(), ov::PropertyMutability::RW);
         properties.emplace_back(ov::tp::tp_strategy.name(), ov::PropertyMutability::RW);
+        // Changes the rank models and the collectives baked into the blob.
+        properties.emplace_back(ov::tp::disable_lm_head_sharding.name(), ov::PropertyMutability::RW);
         // Properties for single rank devices change their blobs as well.
         properties.emplace_back(ov::device::properties.name(), ov::PropertyMutability::RW);
         return properties;
@@ -689,6 +698,12 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     } else if (name == ov::weights_path.name()) {
         const auto it = m_device_config.find(name);
         return it != m_device_config.end() ? it->second : ov::Any{std::string{}};
+    } else if (name == ov::tp::disable_lm_head_sharding.name()) {
+        // Set through the environment or the config file only: the cache key needs the value in effect.
+        TPConfig cfg;
+        ov::AnyMap forwarded;
+        build_call_config(arguments, cfg, forwarded);
+        return cfg.get_disable_lm_head_sharding();
     } else if (m_config.owns(name)) {
         // Unset options answer with their default rather than refusing: the
         // cache hash queries every caching property before any topology has

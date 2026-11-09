@@ -166,18 +166,37 @@ TEST_F(TPOptionsOnDevicesTest, ResetStateStartsEveryRankOver) {
     EXPECT_NE(std::memcmp(alone.data(), after_prompt.data(), alone.get_byte_size()), 0);
 }
 
-#ifdef ENABLE_TP_DEBUG_CAPS
-
-// The debug options are read from the environment (OV_ + the key) only.
-TEST_F(TPOptionsOnDevicesTest, AnUnshardedVocabularyProjectionGivesTheSameLogits) {
+TEST_F(TPOptionsOnDevicesTest, AWholeVocabularyProjectionGivesTheSameLogits) {
     const BlockConfig config;
     const auto model = make_block_with_lm_head(config, 768);
     const auto input = make_input(config);
     const ov::AnyMap f32{ov::hint::inference_precision(ov::element::f32)};
     const auto sharded = run(model, input, f32);
-    ScopedEnv unsharded("OV_TP_DISABLE_LM_HEAD_SHARDING", "YES");
+    ScopedEnv whole("OV_TP_DISABLE_LM_HEAD_SHARDING", "YES");
     ov::test::utils::compare(sharded, run(model, input, f32), 1e-5, 1e-5);
 }
+
+// The option changes the rank models, so an entry cached with it is not loaded without it.
+TEST_F(TPOptionsOnDevicesTest, AWholeVocabularyProjectionGetsItsOwnCacheEntry) {
+    const auto dir = std::filesystem::temp_directory_path() / "ov_tp_lm_head_cache_test";
+    std::filesystem::remove_all(dir);
+    core.set_property(ov::cache_dir(dir.string()));
+    const auto model = make_block_with_lm_head(BlockConfig{}, 768);
+    const auto from_cache = [&] {
+        return core.compile_model(model, tp_device(world_size)).get_property(ov::loaded_from_cache);
+    };
+    EXPECT_FALSE(from_cache());
+    {
+        ScopedEnv whole("OV_TP_DISABLE_LM_HEAD_SHARDING", "YES");
+        EXPECT_FALSE(from_cache());
+        EXPECT_TRUE(from_cache());
+    }
+    EXPECT_TRUE(from_cache());
+    core.set_property(ov::cache_dir(""));
+    std::filesystem::remove_all(dir);
+}
+
+#ifdef ENABLE_TP_DEBUG_CAPS
 
 TEST_F(TPOptionsOnDevicesTest, DumpsTheShardingStates) {
     const auto dir = std::filesystem::temp_directory_path() / "ov_tp_sharding_states_test";

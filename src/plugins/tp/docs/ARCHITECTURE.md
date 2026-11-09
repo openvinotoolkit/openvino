@@ -135,7 +135,8 @@ The vocabulary projection is sharded too, along the vocabulary axis, and its
 slices are collected into rank 0 by a `TPGather` rather than summed:
 each rank owns a distinct band of logits, so there is nothing to reduce.
 Only rank 0's buffer is written, because that is the only rank whose outputs the infer
-request reads. `TP_DISABLE_LM_HEAD_SHARDING` turns this off. When the LM head shares its weight
+request reads. `TP_DISABLE_LM_HEAD_SHARDING` (a release option, read from the environment, part of
+the cache key) turns this off. When the LM head shares its weight
 with the embedding (tied weights), the embedding table stays whole and the LM head gets a copy of
 the chain to cut: the split costs `table / N` more device memory per rank, and in exchange each
 rank computes only its share of the vocabulary projection, one of the largest MatMuls of a decode

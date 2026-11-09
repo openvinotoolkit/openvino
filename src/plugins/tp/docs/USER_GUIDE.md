@@ -146,6 +146,13 @@ messages are small and never split. On more than two ranks a chunked prompt
 is summed in a different order, so the outputs may differ from the unchunked
 run in the last bits, the same way on every run.
 
+The vocabulary projection (LM head) is split across the ranks too. When it shares its weight
+with the embedding (tied weights), the embedding table stays whole on every rank and the split
+adds a cut copy of the table, `table / N`, on each; `OV_TP_VERBOSE=LOG_INFO` (a build with
+`-DENABLE_TP_DEBUG_CAPS=ON`) reports its size.
+The environment variable `OV_TP_DISABLE_LM_HEAD_SHARDING=YES` keeps the LM head whole instead:
+less device memory, a slower decode step. It is part of the model cache key.
+
 Any additional properties are passed through to the device plugin that
 compiles each rank model. Properties for one
 device or device type go through `ov::device::properties`, e.g.
@@ -297,7 +304,8 @@ The weights fit, but what comes on top does not. The current sharding divides
 the weights of the column- and row-parallel MatMuls and the vocabulary
 projection across ranks, but does **not** shard the embedding table or
 activation memory (a vocabulary projection that shares its weights with the
-embedding adds its slice on top of the whole table). Effective memory per rank is
+embedding adds its slice on top of the whole table; `OV_TP_DISABLE_LM_HEAD_SHARDING=YES` keeps it
+whole). Effective memory per rank is
 roughly `(sharded weights / N) + (unsharded weights) + (full activation
 budget)`; `OV_TP_VERBOSE=LOG_INFO` prints each rank's weights next to its
 device's free memory.

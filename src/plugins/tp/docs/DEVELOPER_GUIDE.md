@@ -97,6 +97,7 @@ taken with one of them set does not describe a stock run.
 | `OV_GPU_TP_ENABLE_HALVING`     | `true`   | Recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes. Turn off to compare the two schedules on the same payload.              |
 | `OV_GPU_TP_HALVING_MAX_BYTES`  | `262144` | Payload ceiling above which halving falls back to the ring. The `schedule of N recordings` line in the report says whether the current ceiling is anywhere near right. |
 | `OV_TP_INPUT_STAGE_MAX_BYTES`  | `4096`   | Size ceiling for copying a user input into a host tensor of every rank's context (`create_host_tensor`), which the rank then reads directly. `0` hands every input over as it is. |
+| `OV_TP_DISABLE_LM_HEAD_SHARDING` | `false` | Leave the vocabulary projection whole on every rank, dropping the gather. Results stay the same; saves the cut copy of a tied embedding table at the cost of a slower decode step. Part of the cache key. |
 
 ### Diagnostics
 
@@ -157,8 +158,6 @@ should; they exist to price a part of the pipeline by removing it.
 |--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `OV_GPU_TP_FORCE_SYNC_COLLECTIVE=1`  | Take collectives off the spliced model queue onto their own queue with a full drain.                                                                          |
 |                                      | Results stay correct; this is the one switch here that does not break them. Use it to measure what splicing buys.                                             |
-| `OV_TP_DISABLE_LM_HEAD_SHARDING=1`   | Leave the vocabulary projection unsharded, dropping the gather.                                                                                               |
-|                                      | Results stay correct. Not part of the cache key: with `ov::cache_dir` an entry compiled without it is loaded as it is.                                       |
 | `OV_TP_SHARD_ONLY=1`                 | **Wrong by construction.** Compile one rank's shard with every collective stripped, to measure the upper bound a rank could reach if communication were free. |
 | `OV_GPU_TP_SKIP_COLLECTIVE=1`        | **Wrong by construction.** Return from every AllReduce without doing anything. The difference against a normal run is the whole cost of the collective.       |
 

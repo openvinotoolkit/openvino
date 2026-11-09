@@ -28,6 +28,9 @@ struct TPAnalysisReport {
     size_t attention_blocks = 0;
     size_t mlp_blocks = 0;
     bool lm_head = false;
+    /// Device memory each rank adds for its cut copy of an LM head weight shared with another
+    /// reader (a tied embedding, which stays whole); 0 when the LM head has the weight to itself.
+    size_t lm_head_copy_bytes = 0;
     /// Weights cut by a Slice at run time: their chain cannot be cut at the rank boundaries.
     std::vector<std::string> runtime_slices;
     /// Linear layers no block pass claimed; they stay whole on every rank.
