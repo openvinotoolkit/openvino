@@ -8,9 +8,11 @@
 
 #include <algorithm>
 #include <cstring>
+#include <ios>
 #include <limits>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -1061,6 +1063,75 @@ TEST(HsmReaderStreamTest, section_read_reports_a_throwing_stream_as_a_failed_rea
     const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
     stream.exceptions(std::ios::failbit | std::ios::badbit);
+
+    const auto section = reader->section(fake_device_id, tag.id());
+    ASSERT_TRUE(section.has_value());
+    std::vector<std::byte> destination(section->size());
+    bool read_ok = true;
+    EXPECT_NO_THROW(read_ok = section->read(destination.data()));
+    EXPECT_FALSE(read_ok);
+}
+
+// Throws from the streambuf itself, not through the stream state - an istream swallows it unless badbit is in the
+// exception mask.
+class ThrowingStreamBuf : public std::stringbuf {
+public:
+    bool armed = false;
+    bool throw_non_std_type = false;
+
+protected:
+    std::streamsize xsgetn(char* s, std::streamsize n) override {
+        if (armed) {
+            if (throw_non_std_type) {
+                throw 42;
+            }
+            throw std::runtime_error("streambuf failure");
+        }
+        return std::stringbuf::xsgetn(s, n);
+    }
+};
+
+class HsmReaderThrowingStreamBufTest : public ::testing::TestWithParam<std::ios::iostate> {};
+
+TEST_P(HsmReaderThrowingStreamBufTest, section_read_reports_a_throwing_streambuf_as_a_failed_read) {
+    const auto tag = hsm::SectionTag::make_device_tag(1, false);
+    const auto blob = make_container({{make_pointer_entry(fake_device_id, tag), "unreadable-payload"}});
+    ThrowingStreamBuf buf;
+    buf.str(std::string(blob.begin(), blob.end()));
+    std::istream stream(&buf);
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader.has_value());
+    buf.armed = true;
+    stream.exceptions(GetParam());
+
+    const auto section = reader->section(fake_device_id, tag.id());
+    ASSERT_TRUE(section.has_value());
+    std::vector<std::byte> destination(section->size());
+    bool read_ok = true;
+    EXPECT_NO_THROW(read_ok = section->read(destination.data()));
+    EXPECT_FALSE(read_ok);
+}
+
+INSTANTIATE_TEST_SUITE_P(exception_mask,
+                         HsmReaderThrowingStreamBufTest,
+                         ::testing::Values(std::ios::goodbit, std::ios::badbit | std::ios::failbit),
+                         [](const ::testing::TestParamInfo<std::ios::iostate>& info) {
+                             return info.param == std::ios::goodbit ? std::string("default_mask")
+                                                                    : std::string("badbit_mask");
+                         });
+
+TEST(HsmReaderStreamTest, section_read_reports_a_streambuf_throwing_a_non_std_type_as_a_failed_read) {
+    const auto tag = hsm::SectionTag::make_device_tag(1, false);
+    const auto blob = make_container({{make_pointer_entry(fake_device_id, tag), "unreadable-payload"}});
+    ThrowingStreamBuf buf;
+    buf.str(std::string(blob.begin(), blob.end()));
+    std::istream stream(&buf);
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader.has_value());
+    buf.armed = true;
+    buf.throw_non_std_type = true;
+    // With badbit in the mask the stream rethrows the original exception.
+    stream.exceptions(std::ios::badbit);
 
     const auto section = reader->section(fake_device_id, tag.id());
     ASSERT_TRUE(section.has_value());
