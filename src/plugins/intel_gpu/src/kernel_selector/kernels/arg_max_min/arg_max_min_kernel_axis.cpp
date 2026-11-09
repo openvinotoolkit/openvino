@@ -99,7 +99,7 @@ bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
 
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
 
-    if (params.inputs[0].GetDType() == Datatype::BF16 && (params.topK != 1 || params.has_dynamic_tensors())) {
+    if (params.inputs[0].GetDType() == Datatype::BF16 && params.has_dynamic_tensors()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
@@ -130,7 +130,8 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelAxis::SetDefault(const arg_max_
 namespace {
 std::vector<InternalBuffer> get_internal_buffer_sizes(const arg_max_min_params& params) {
     const size_t elem_size = params.inputs[0].ElementSize();
-    const size_t iav_type_size = Align(elem_size + 4, 4);
+    const size_t value_size = params.inputs[0].GetDType() == Datatype::BF16 ? sizeof(float) : elem_size;
+    const size_t iav_type_size = Align(value_size + sizeof(uint32_t), sizeof(uint32_t));
     const size_t sort_size = getSortSize(params);
     const size_t ops_size = getOperationNumber(params);
     const size_t group_size = params.topK >= 8 ? params.topK : 8;
