@@ -284,7 +284,8 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            const auto ngroups = scale_layout.get_dim(get_ifm_dim_idx(scale_layout, transpose_b_scale, weight_rank));
+            const auto weights_layout_for_scale = arg.get_dependency(1).get_output_layout();
+            const auto ngroups = get_ngroups(weights_layout_for_scale, scale_layout, prim->weights_transposed);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1 && !has_batch_dim) {
@@ -304,7 +305,8 @@ public:
                 if (dzp_layout.count() == 1) {
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, transpose_b_zp, weight_rank));
+                    const auto weights_layout_for_zp = arg.get_dependency(1).get_output_layout();
+                    auto ngroups = get_ngroups(weights_layout_for_zp, dzp_layout, prim->weights_transposed);
                     if (ngroups == 1 && !has_batch_dim) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
@@ -384,9 +386,8 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                const auto groups = get_scale_groups(weights_layout, scale_layout, prim->weights_transposed, prim->transpose_b_scale);
-                const auto ngroups = groups.first;
-                group_size = static_cast<int>(groups.second);
+                const auto [ngroups, scale_group_size] = get_scale_groups(weights_layout, scale_layout, prim->weights_transposed);
+                group_size = static_cast<int>(scale_group_size);
                 OPENVINO_ASSERT(is_supported_scale_group(ngroups, group_size),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
@@ -414,7 +415,7 @@ public:
                     auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
-                    auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, prim->transpose_b_zp, weight_rank));
+                    auto ngroups = get_ngroups(weights_layout, dzp_layout, prim->weights_transposed);
                     if (ngroups == 1 && dzp_rank <= 2 && !has_batch_dim) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
