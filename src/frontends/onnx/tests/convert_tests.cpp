@@ -133,3 +133,15 @@ TEST(ONNXFeConvertException, exception_if_crop_border_empty) {
                     ov::AssertFailure,
                     testing::HasSubstr("expects at least 2 values in 'border' attribute, found: 0"));
 }
+
+TEST(ONNXFeConvertException, exception_if_bernoulli_input_not_floating_point) {
+    OV_EXPECT_THROW(convert_model("bernoulli_wrong_input_type.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("Unsupported input type i32"));
+}
+
+TEST(ONNXFeConvertException, exception_if_bernoulli_dtype_unsupported) {
+    OV_EXPECT_THROW(convert_model("bernoulli_wrong_dtype.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("Unsupported dtype string"));
+}
