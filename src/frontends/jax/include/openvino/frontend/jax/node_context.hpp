@@ -11,9 +11,7 @@
 #include "openvino/frontend/jax/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
+namespace ov::frontend::jax {
 
 class TranslateSession;
 
@@ -147,6 +145,4 @@ private:
 
 using CreatorFunction = std::function<ov::OutputVector(const ov::frontend::jax::NodeContext&)>;
 
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax

@@ -625,6 +625,10 @@ bool RoPE::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Only RoPE operation is supported";
             return false;
         }
+        if (node->get_config().input_interleaved) {
+            errorMessage = "RoPE with interleaved input is not supported";
+            return false;
+        }
     } catch (...) {
         return false;
     }

@@ -10,10 +10,7 @@ using namespace std;
 using namespace ov::op;
 using namespace ov;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_const_op(const NodeContext& node) {
     default_op_checks(node, 0, {"Const"});
@@ -29,7 +26,4 @@ OutputVector translate_const_op(const NodeContext& node) {
     set_node_name(node.get_name(), const_node);
     return {const_node};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

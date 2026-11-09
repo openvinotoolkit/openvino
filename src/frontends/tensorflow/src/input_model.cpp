@@ -17,9 +17,7 @@
 #include "place.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 void extract_operation_name_and_port(const std::string& port_name,
                                      std::string& operation_name,
                                      size_t& port_index,
@@ -870,6 +868,4 @@ ov::element::Type InputModel::get_element_type(const ov::frontend::Place::Ptr& p
 void InputModel::set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) {
     _impl->set_tensor_value(place, value);
 }
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

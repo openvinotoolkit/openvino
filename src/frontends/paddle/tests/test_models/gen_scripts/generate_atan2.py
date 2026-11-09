@@ -32,8 +32,10 @@ def atan2(name , x , y):
 
 def main():
     if paddle.__version__ >= '2.0.0':
-        input_x = np.array([-1, 1, 1, -1]).astype(np.float32)
-        input_y = np.array([-1, -1, 1, 1]).astype(np.float32)
+        # issue 37831: add the x==0 quadrants; atan2(-1, 0) == -pi/2 (5th point) and
+        # atan2(1, 0) == +pi/2 (6th point) were previously both mapped to +pi/2.
+        input_x = np.array([-1, 1, 1, -1, -1, 1]).astype(np.float32)
+        input_y = np.array([-1, -1, 1, 1, 0, 0]).astype(np.float32)
         atan2("atan2",input_x,input_y)
 
 if __name__ == "__main__":

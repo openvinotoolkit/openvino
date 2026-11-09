@@ -117,8 +117,9 @@ public:
         auto& pp = params;
 
         pp.poolType = cldnn_2_pool_type(primitive->mode);
-        pp.remainderAction = primitive->rounding_type == ov::op::RoundingType::CEIL ? kernel_selector::pool_remainder::CEIL
-                                                                                    : kernel_selector::pool_remainder::FLOOR;
+        const bool ceil_mode = primitive->rounding_type == ov::op::RoundingType::CEIL ||
+                               primitive->rounding_type == ov::op::RoundingType::CEIL_TORCH;
+        pp.remainderAction = ceil_mode ? kernel_selector::pool_remainder::CEIL : kernel_selector::pool_remainder::FLOOR;
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
         // adjusted to that, to work properly this calculation must take pad_end into account.

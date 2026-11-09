@@ -26,11 +26,25 @@ uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& 
 
 namespace intel_npu {
 
-std::vector<size_t> IPipeline::get_strides(const std::vector<size_t>& strides_in_bytes,
-                                           size_t element_size,
-                                           bool reverse_order) {
-    OPENVINO_ASSERT(element_size != 0, "Element size must be greater than 0");
+std::vector<size_t> IPipeline::get_strides(const ov::ITensor& tensor, bool reverse_order) {
+    const auto& element_type = tensor.get_element_type();
+    if (element_type.bitwidth() < 8) {
+        // Packed sub-byte tensors have no byte strides, so contiguous element strides are derived from the shape
+        const auto& shape = tensor.get_shape();
+        std::vector<size_t> element_strides(shape.size());
+        size_t stride = 1;
+        for (size_t dim = shape.size(); dim > 0; --dim) {
+            element_strides[dim - 1] = stride;
+            stride *= shape[dim - 1];
+        }
+        if (reverse_order) {
+            std::reverse(element_strides.begin(), element_strides.end());
+        }
+        return element_strides;
+    }
 
+    const auto element_size = element_type.size();
+    const auto& strides_in_bytes = tensor.get_strides();
     std::vector<size_t> element_strides(strides_in_bytes.size());
     const auto convert_to_element_stride = [element_size](size_t byte_stride) {
         OPENVINO_ASSERT(byte_stride % element_size == 0,
@@ -73,6 +87,20 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger(logName, _config.get<LOG_LEVEL>()) {
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
+}
+
+void Pipeline::configure_profiling() {
+    const auto enable_profiling = [this]() {
+        auto profiling_pool =
+            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
+
+        if (profiling_pool->create()) {
+            _profiling_query->create(profiling_pool);
+        } else {
+            _logger.warning("enable_profiling - failed to create profiling pool, profiling will not be available");
+        }
+    };
 
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
@@ -87,11 +115,13 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                 "profiling type is 'INFER'");
                 enable_profiling();
             }
-        } else if (compiled_with_profiling.value_or(false)) {
-            _logger.warning("IPipeline - model was compiled with layer profiling enabled, PERF_COUNT is NOT set and "
-                            "timestamps will "
-                            "not be extracted");
-            enable_profiling();
+        } else {
+            _logger.warning("IPipeline - PROFILING_TYPE=INFER requires PERF_COUNT=ON; inference profiling is disabled");
+            if (compiled_with_profiling.value_or(false)) {
+                _logger.warning("IPipeline - model was compiled with layer profiling enabled, PERF_COUNT is NOT set "
+                                "and timestamps will not be extracted");
+                enable_profiling();
+            }
         }
     } else {
         if (compiled_with_profiling.has_value()) {
@@ -111,9 +141,9 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
             enable_profiling();
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
-};
+}
 
-std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
+std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     _logger.debug("get_profiling_info - started");
     if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
         _logger.warning("get_profiling_info - completed with empty result");
@@ -124,30 +154,11 @@ std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
         _logger.debug("get_profiling_info - completed with _npu_profiling->getNpuInferStatistics()");
         return _npu_profiling->getNpuInferStatistics();
     }
+
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
-        _logger.debug("get_profiling_info - completed with _profiling_query->getLayerStatistics()");
-        return _profiling_query->getLayerStatistics();
-    } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-        // For plugin compiler retrieve raw profiling data from backend and delegate
-        // processing to the compiler
-        _logger.debug("get_profiling_info - completed with _graph->process_profiling_output()");
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-    } else {
-        OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
-    }
-}
+    OPENVINO_ASSERT(_profiling_query != nullptr, "Profiling query is unavailable for model-level profiling");
 
-void IPipeline::enable_profiling() {
-    auto profiling_pool =
-        std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
-    _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
-
-    if (profiling_pool->create()) {
-        _profiling_query->create(profiling_pool);
-    } else {
-        _logger.warning("enable_profiling - failed to create profiling pool, profiling will not be available");
-    }
+    return zeroProfiling::getModelLayerStatistics(*_graph, *_profiling_query);
 }
 
 Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -160,6 +171,9 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
 
     _logger.debug("Pipeline - initialization started, batch size: %i", _batch_size);
+
+    // must run before the command lists are built below: populates _npu_profiling/_profiling_query
+    configure_profiling();
 
     if (_run_inferences_sequentially) {
         _graph->resize_last_submitted_event(_batch_size);
@@ -206,10 +220,9 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     tensor->get_strides().empty()) {
                     _graph->set_argument_value(desc.indexUsedByDriver, tensor->data());
                 } else {
-                    _graph->set_argument_value_with_strides(
-                        desc.indexUsedByDriver,
-                        tensor->data(),
-                        get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                    _graph->set_argument_value_with_strides(desc.indexUsedByDriver,
+                                                            tensor->data(),
+                                                            get_strides(*tensor, true));
                 }
                 ++io_index;
                 continue;
@@ -224,7 +237,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 _graph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                    get_strides(*tensor, true));
             }
 
             ++io_index;
@@ -241,7 +254,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                 _graph->set_argument_value_with_strides(
                     desc.indexUsedByDriver,
                     static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                    get_strides(*tensor, true));
             }
             ++io_index;
         }
@@ -387,7 +400,7 @@ void Pipeline::update_graph_arguments(uint32_t index,
             _command_lists.at(i)->updateMutableCommandListWithStrides(
                 index,
                 static_cast<const unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+                get_strides(*tensor, true));
         }
     }
 };
@@ -409,10 +422,7 @@ void Pipeline::update_graph_arguments(uint32_t index,
         _command_lists.at(batch_index)->updateMutableCommandList(index, tensor->data());
     } else {
         _command_lists.at(batch_index)
-            ->updateMutableCommandListWithStrides(
-                index,
-                tensor->data(),
-                get_strides(tensor->get_strides(), tensor->get_element_type().size(), true));
+            ->updateMutableCommandListWithStrides(index, tensor->data(), get_strides(*tensor, true));
     }
 };
 

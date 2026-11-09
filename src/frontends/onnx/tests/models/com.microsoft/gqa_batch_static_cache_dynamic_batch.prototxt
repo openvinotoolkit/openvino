@@ -1,0 +1,302 @@
+ir_version: 10
+graph {
+  node {
+    input: "query"
+    input: ""
+    input: ""
+    input: "past_key"
+    input: "past_value"
+    input: "seqlens_k"
+    input: "total_sequence_length"
+    input: "cos_cache"
+    input: "sin_cache"
+    output: "output"
+    output: "present_key"
+    output: "present_value"
+    name: "GroupQueryAttention_0"
+    op_type: "GroupQueryAttention"
+    attribute {
+      name: "do_rotary"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "kv_num_heads"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "local_window_size"
+      i: 3
+      type: INT
+    }
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "gqa_batch_static_cache_dynamic_batch"
+  initializer {
+    dims: 8
+    dims: 8
+    data_type: 1
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 0.5403023
+    float_data: 0.95041525
+    float_data: 0.9950042
+    float_data: 0.99950004
+    float_data: 0.99995
+    float_data: 0.999995
+    float_data: 0.9999995
+    float_data: 0.99999994
+    float_data: -0.4161468
+    float_data: 0.8065784
+    float_data: 0.9800666
+    float_data: 0.9980007
+    float_data: 0.9998
+    float_data: 0.99998
+    float_data: 0.999998
+    float_data: 0.9999998
+    float_data: -0.9899925
+    float_data: 0.5827536
+    float_data: 0.9553365
+    float_data: 0.99550337
+    float_data: 0.99955004
+    float_data: 0.999955
+    float_data: 0.9999955
+    float_data: 0.9999995
+    float_data: -0.6536436
+    float_data: 0.30113748
+    float_data: 0.921061
+    float_data: 0.99201065
+    float_data: 0.9992001
+    float_data: 0.99992
+    float_data: 0.999992
+    float_data: 0.9999992
+    float_data: 0.28366217
+    float_data: -0.010342338
+    float_data: 0.87758255
+    float_data: 0.987526
+    float_data: 0.99875027
+    float_data: 0.999875
+    float_data: 0.9999875
+    float_data: 0.99999875
+    float_data: 0.96017027
+    float_data: -0.32079637
+    float_data: 0.8253356
+    float_data: 0.98205394
+    float_data: 0.99820054
+    float_data: 0.99982
+    float_data: 0.999982
+    float_data: 0.9999982
+    float_data: 0.75390226
+    float_data: -0.5994375
+    float_data: 0.7648422
+    float_data: 0.9755999
+    float_data: 0.997551
+    float_data: 0.999755
+    float_data: 0.9999755
+    float_data: 0.99999756
+    name: "cos_cache"
+  }
+  initializer {
+    dims: 8
+    dims: 8
+    data_type: 1
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.841471
+    float_data: 0.3109836
+    float_data: 0.09983342
+    float_data: 0.031617507
+    float_data: 0.009999833
+    float_data: 0.0031622725
+    float_data: 0.0009999999
+    float_data: 0.0003162278
+    float_data: 0.9092974
+    float_data: 0.5911271
+    float_data: 0.19866933
+    float_data: 0.0632034
+    float_data: 0.019998666
+    float_data: 0.0063245133
+    float_data: 0.0019999987
+    float_data: 0.0006324555
+    float_data: 0.14112
+    float_data: 0.8126489
+    float_data: 0.29552022
+    float_data: 0.09472609
+    float_data: 0.0299955
+    float_data: 0.009486691
+    float_data: 0.0029999956
+    float_data: 0.00094868324
+    float_data: -0.7568025
+    float_data: 0.95358074
+    float_data: 0.38941833
+    float_data: 0.12615408
+    float_data: 0.039989334
+    float_data: 0.012648774
+    float_data: 0.0039999895
+    float_data: 0.0012649108
+    float_data: -0.9589243
+    float_data: 0.99994653
+    float_data: 0.47942555
+    float_data: 0.1574559
+    float_data: 0.049979165
+    float_data: 0.01581073
+    float_data: 0.0049999794
+    float_data: 0.0015811382
+    float_data: -0.2794155
+    float_data: 0.9471482
+    float_data: 0.5646425
+    float_data: 0.18860029
+    float_data: 0.059964005
+    float_data: 0.01897253
+    float_data: 0.005999964
+    float_data: 0.0018973656
+    float_data: 0.6569866
+    float_data: 0.8004216
+    float_data: 0.64421767
+    float_data: 0.21955611
+    float_data: 0.06994285
+    float_data: 0.022134136
+    float_data: 0.006999943
+    float_data: 0.0022135926
+    name: "sin_cache"
+  }
+  input {
+    name: "query"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 64
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_key"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_value"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 8
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "seqlens_k"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "total_sequence_length"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "present_key"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "present_value"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 21
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

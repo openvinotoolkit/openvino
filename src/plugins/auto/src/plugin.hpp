@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cache_warmup.hpp"
 #include "common.hpp"
 #include "compiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -62,8 +63,9 @@ public:
                   const std::string& model_precision = "FP32",
                   unsigned int priority = 0,
                   const DeviceSelectionPolicy& selection_policy = {},
-                  const std::string& low_power_device = {});
+                  const std::optional<DeviceInformation>& low_power_device = {});
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
+        const std::unordered_map<std::string, float>& device_utilizations,
         const std::list<DeviceInformation>& valid_devices,
         const ov::intel_auto::PerfCurveTable& perf_curve_table,
         size_t* out_scored_count = nullptr);
@@ -81,11 +83,15 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
-                                                              const std::string& device_type = "");
+    // Returns utilization values for the specified devices.
+    MOCKTESTMACRO std::unordered_map<std::string, float> get_device_utilizations(
+        const std::list<DeviceInformation>& devices);
 
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
     MOCKTESTMACRO std::optional<bool> get_low_power_mode();
+
+    // Whether the telemetry backend (IPF) is operational; without it the resource aware selection cannot work.
+    MOCKTESTMACRO bool is_telemetry_available() const;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;
@@ -93,6 +99,14 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
+
+    CacheWarmupManager& get_cache_warmup_manager() {
+        return *m_cache_warmup_manager;
+    }
+
+    const CacheWarmupManager& get_cache_warmup_manager() const {
+        return *m_cache_warmup_manager;
+    }
 
 private:
     std::shared_ptr<ov::ICompiledModel> compile_model_impl(const std::filesystem::path& model_path,
@@ -103,10 +117,12 @@ private:
                                                  const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                           const std::shared_ptr<const ov::Model>& model,
-                                                          PluginConfig& load_config) const;
+                                                          PluginConfig& load_config,
+                                                          bool& is_stateful_model) const;
     std::string get_log_tag() const noexcept;
     // Base family name, perf_curve_table lookup key ("iGPU"/"dGPU" for GPUs via ov::device::type,
-    // empty when it cannot be determined), and the ov::device::type string used by get_device_utilization.
+    // empty when it cannot be determined), and the ov::device::type string used to resolve a
+    // device's IPF utilization metric key.
     struct DeviceKey {
         std::string base_name;
         std::string logical_key;
@@ -117,8 +133,9 @@ private:
     static std::shared_ptr<std::mutex> m_mtx;
     static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
     PluginConfig m_plugin_config;
-    std::once_flag m_telemetry_client_init_once;
-    std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    mutable std::once_flag m_telemetry_client_init_once;
+    mutable std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    std::unique_ptr<CacheWarmupManager> m_cache_warmup_manager = std::make_unique<CacheWarmupManager>();
 };
 
 }  // namespace auto_plugin

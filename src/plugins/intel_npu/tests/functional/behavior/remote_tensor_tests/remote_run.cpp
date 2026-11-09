@@ -24,6 +24,19 @@ using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
+TEST(NPURemoteContextHostTensor, StringElementsAreConstructedAndDestroyed) {
+    auto core = ov::test::utils::PluginCache::get().core();
+    auto context = core->get_default_context("NPU");
+    auto tensor = context.create_host_tensor(ov::element::string, ov::Shape{2});
+    ASSERT_FALSE(std::dynamic_pointer_cast<intel_npu::ZeroHostTensor>(ov::get_tensor_impl(tensor)._ptr));
+    EXPECT_EQ(tensor.get_shape(), (ov::Shape{2}));
+    tensor.data<std::string>()[0] = std::string(64, 'A');
+    tensor.data<std::string>()[1] = "short";
+    EXPECT_EQ(tensor.data<std::string>()[0], std::string(64, 'A'));
+    EXPECT_EQ(tensor.data<std::string>()[1], "short");
+    tensor = {};
+}
+
 namespace ov {
 namespace test {
 namespace behavior {

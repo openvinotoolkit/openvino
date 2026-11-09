@@ -16,10 +16,7 @@
 #include "utils/common.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 
 namespace {
 
@@ -278,7 +275,4 @@ ov::OutputVector scan(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Scan", OPSET_SINCE(9), ai_onnx::opset_9::scan);
 }  // namespace opset_9
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

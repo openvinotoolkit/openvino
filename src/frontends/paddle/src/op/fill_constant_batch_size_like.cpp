@@ -8,10 +8,7 @@
 #include "openvino/frontend/paddle/visibility.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 static std::shared_ptr<Node> get_val(int32_t idx, const Output<Node>& data) {
     auto startsNode = ov::opset6::Constant::create(element::i32, {1}, {idx});
     auto endsNode = ov::opset6::Constant::create(element::i32, {1}, {idx + 1});
@@ -118,7 +115,4 @@ NamedOutputs fill_constant_batch_size_like(const NodeContext& node) {
     return node.default_single_output_mapping({std::make_shared<ov::opset6::Broadcast>(val_node, shape_node)}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

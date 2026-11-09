@@ -116,15 +116,13 @@ memory::ptr ocl_engine::import_buffer(const layout& layout, ov::intel_gpu::os_ha
                     "[GPU] Selected OpenCL device does not advertise cl_khr_external_memory; "
                     "external memory import is not supported");
 
-#ifndef CL_VERSION_3_0
+#if !defined(CL_VERSION_3_0) || (!defined(_WIN32) && !defined(__linux__))
     OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
 #else
 #    ifdef _WIN32
     constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_OPAQUE_WIN32_KHR;
-#    elif defined(__linux__)
-    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
 #    else
-    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+    constexpr auto handle_type_token = CL_EXTERNAL_MEMORY_HANDLE_DMA_BUF_KHR;
 #    endif
 
     cl_mem_properties props[] = {
@@ -214,9 +212,16 @@ memory::ptr ocl_engine::create_subbuffer(const memory& memory, const layout& new
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (memory_capabilities::is_usm_type(memory.get_allocation_type())) {
+            OPENVINO_ASSERT(byte_offset + new_layout.bytes_count() <= memory.size(),
+                            "[GPU] Sub-buffer size (",
+                            new_layout.bytes_count(),
+                            ") + offset (",
+                            byte_offset,
+                            ") exceeds parent buffer size (",
+                            memory.size(),
+                            ")");
             const auto& new_buf = reinterpret_cast<const ocl::gpu_usm&>(memory);
-            auto* ptr = new_buf.get_buffer().get();
-            auto sub_buffer = cl::UsmMemory(get_usm_helper(), ptr, byte_offset);
+            auto sub_buffer = cl::UsmMemory(new_buf.get_buffer(), byte_offset);
 
             return std::make_shared<ocl::gpu_usm>(this, new_layout, sub_buffer, memory.get_allocation_type(), memory.get_mem_tracker());
         } else {
@@ -327,7 +332,7 @@ memory::ptr ocl_engine::reinterpret_handle(const layout& new_layout, shared_mem_
     }
 }
 
-bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
+bool ocl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
     if (mem1.get_engine() != this || mem2.get_engine() != this) {
         return false;
     }

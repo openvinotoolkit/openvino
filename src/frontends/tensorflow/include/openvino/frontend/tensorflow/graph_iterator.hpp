@@ -6,12 +6,8 @@
 
 #include "openvino/frontend/graph_iterator.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 using ov::frontend::GraphIterator;
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

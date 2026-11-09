@@ -12,6 +12,13 @@ for more information.
 * [System Info Print](#system-info-print)
 * Smart CI (see details: [feature documentation](./smart_ci.md))
 * OpenVINO Provider (see details: [documentation](./openvino_provider.md))
+* Docker image handling (see details: [Docker image documentation](./docker_images.md))
+* Artifact storage and restoration (`store_artifacts`, `restore_artifacts`)
+* Dependency and compiler cache management (`cache`)
+* Wheel installation (`install_ov_wheels`)
+* Manifest creation (`create_manifest`)
+* Coverage collection (`coverage_toolkit`)
+* Check completion waiting (`wait-for-check-completion`)
 
 ## Python Setup
 

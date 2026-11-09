@@ -9,15 +9,21 @@
 #include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 // Feed-forward sublayers of the decoder block, mirroring llm_graph_context::build_ffn /
 // build_moe_ffn. `prefix` is the layer prefix ("blk.<il>."), `ffn_norm` the pre-FFN normed hidden,
 // Each returns the sublayer output tensor name,
 // before the residual add.
+
+std::string swiglu_gate_up(GraphEmitter& e,
+                           const std::string& gate_w,
+                           const std::string& up_w,
+                           const std::string& ffn_norm,
+                           const std::string& gate_name,
+                           const std::string& up_name,
+                           const std::string& glu_name,
+                           bool has_bias);
 
 // Dense SwiGLU FFN (llama/qwen/phi3/minicpm). Supports the fused gate+up projection (phi-3, no
 // ffn_gate.weight) and optional per-projection biases (pangu-embedded), both auto-detected from
@@ -37,9 +43,17 @@ std::string geglu_ffn(GraphEmitter& e,
 // Routing: logits = gate_inp·x; probs = softmax/identity; pick top-k experts; per-token expert
 // matmuls via MUL_MAT_ID; gated activation; weighted sum over the used experts; plus the optional
 // always-active shared experts.
-std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& prefix, const std::string& ffn_norm);
+std::string moe_ffn(GraphEmitter& e,
+                    const DecoderConfig& cfg,
+                    const std::string& prefix,
+                    const std::string& input,
+                    const std::string& router_input = "");
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+// Gemma4 uses separately normalized dense and routed experts and a scaled router.
+std::string gemma4_moe_ffn(GraphEmitter& e,
+                           const DecoderConfig& cfg,
+                           const std::string& prefix,
+                           const std::string& input,
+                           const std::string& dense_norm);
+
+}  // namespace ov::frontend::gguf::blocks

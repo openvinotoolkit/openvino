@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import importlib
 import os
 import sys
 
@@ -41,9 +42,7 @@ def get_environment_setup(framework):
     env_setup['python_version'] = python_version
     try:
         if framework == 'tf':
-            exec("import tensorflow")
-            env_setup['tensorflow'] = get_imported_module_version(sys.modules["tensorflow"])
-            exec("del tensorflow")
+            env_setup['tensorflow'] = get_imported_module_version(importlib.import_module("tensorflow"))
     except (AttributeError, ImportError):
         pass
     env_setup['sys_platform'] = sys.platform

@@ -55,7 +55,7 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
 
 namespace intel_npu {
 
-CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig& config,
+CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
                                                            const ov::AnyMap& properties,
                                                            const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
@@ -110,8 +110,7 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
     if (propertyIt != _properties.end()) {
         OPENVINO_ASSERT(propertyIt->second.isSupported(ov::AnyMap{}), "Unsupported configuration key: ", name);
         if (propertyIt->second.mutability == ov::PropertyMutability::WO) {
-            _logger.warning("Trying to get WRITE-ONLY property: %s. Returning empty `ov::Any` object", name.c_str());
-            return ov::Any();
+            _logger.warning("Trying to get WRITE-ONLY property: %s. Returning its empty value", name.c_str());
         }
         return propertyIt->second.get(ov::AnyMap{});
     }
@@ -123,7 +122,7 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
     }
 }
 
-FilteredConfig CompiledModelPropertyManager::getConfig() const {
+Config CompiledModelPropertyManager::getConfig() const {
     std::lock_guard<std::mutex> lock(_mutex);
     return _config;
 }
@@ -266,7 +265,7 @@ void CompiledModelPropertyManager::registerProperties() {
             return ov::EncryptionCallbacks{nullptr, nullptr};
         },
         [this](const ov::Any& value) {
-            _config.updateAny(ov::cache_encryption_callbacks.name(), value);
+            _config.update(ov::cache_encryption_callbacks.name(), value);
         }
     );
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RO,
@@ -305,8 +304,8 @@ void CompiledModelPropertyManager::registerProperties() {
         [](const ov::AnyMap&) {
             return true;
         },
-        [](const ov::AnyMap&) {
-            return ov::Any(std::vector<std::string>{"NPU"});
+        [this](const ov::AnyMap&) {
+            return _device != nullptr ? decltype(ov::execution_devices)::value_type{"NPU.0"} : decltype(ov::execution_devices)::value_type{};
         },
         readOnlySetter
     );

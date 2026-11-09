@@ -14,9 +14,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 class GraphEmitter;
 
@@ -33,14 +31,11 @@ struct MetadataAccess {
     }
 };
 
-// Borrowed parser weight and quantization tables.
+// Borrowed parser weight table.
 struct WeightStore {
-    std::unordered_map<std::string, ov::Tensor>& weights;
-    std::unordered_map<std::string, GgufTensorType>& qtypes;
+    const GgufWeightTable& weights;
     const std::unordered_map<std::string, CreatorFunction>* translators = nullptr;
 };
 
 }  // namespace detail
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

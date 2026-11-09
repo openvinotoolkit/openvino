@@ -108,7 +108,7 @@ std::shared_ptr<ov::Model> build_fusable_model_with_gathered_state() {
     return std::make_shared<ov::Model>(ResultVector{out, present_state}, params);
 }
 
-// Mirrors flatten_blhd_to_thd from paged_gated_delta_net_fusion.cpp.
+// Mirrors flatten_batch_length(input, {2, 3}) from paged_gated_delta_net_fusion.cpp.
 ov::Output<ov::Node> ref_flatten_blhd_to_thd(const ov::Output<ov::Node>& input) {
     const auto shape_of = std::make_shared<v3::ShapeOf>(input, element::i64);
     const auto idx_hd = v0::Constant::create(element::i64, Shape{2}, {2, 3});
@@ -119,7 +119,7 @@ ov::Output<ov::Node> ref_flatten_blhd_to_thd(const ov::Output<ov::Node>& input) 
     return std::make_shared<v1::Reshape>(input, flat_shape, false);
 }
 
-// Mirrors flatten_blh_to_th from paged_gated_delta_net_fusion.cpp.
+// Mirrors flatten_batch_length(input, {2}) from paged_gated_delta_net_fusion.cpp.
 ov::Output<ov::Node> ref_flatten_blh_to_th(const ov::Output<ov::Node>& input) {
     const auto shape_of = std::make_shared<v3::ShapeOf>(input, element::i64);
     const auto idx_h = v0::Constant::create(element::i64, Shape{1}, {2});
@@ -163,15 +163,8 @@ ov::Output<ov::Node> build_paged_gdn_block(const std::shared_ptr<v0::Parameter>&
                                                                     cache_interval->output(0));
     paged_gdn->set_friendly_name(gdn_friendly_name + "/PagedGatedDeltaNet");
 
-    const auto q_shape = std::make_shared<v3::ShapeOf>(query, element::i64);
     const auto v_shape = std::make_shared<v3::ShapeOf>(value, element::i64);
-    const auto axis_0 = v0::Constant::create(element::i64, Shape{}, {0});
-    const auto idx_q = v0::Constant::create(element::i64, Shape{3}, {0, 1, 2});
-    const auto idx_v = v0::Constant::create(element::i64, Shape{1}, {3});
-    const auto q_dims = std::make_shared<v8::Gather>(q_shape, idx_q, axis_0);
-    const auto v_dim = std::make_shared<v8::Gather>(v_shape, idx_v, axis_0);
-    const auto out_shape = std::make_shared<v0::Concat>(OutputVector{q_dims, v_dim}, 0);
-    auto paged_gdn_out = std::make_shared<v1::Reshape>(paged_gdn, out_shape, false);
+    auto paged_gdn_out = std::make_shared<v1::Reshape>(paged_gdn, v_shape, false);
     paged_gdn_out->set_friendly_name(gdn_friendly_name);
     return paged_gdn_out->output(0);
 }
@@ -351,10 +344,85 @@ std::shared_ptr<ov::Model> build_reference_fused_model_with_gathered_state() {
     return std::make_shared<ov::Model>(ResultVector{out, present_state}, params);
 }
 
+// Grouped-query variant: 2 query/key heads shared by 4 value heads.
+std::shared_ptr<ov::Model> build_fusable_gqa_model() {
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 2, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 2, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
+
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
+    auto read_value = std::make_shared<v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
+
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
+
+    auto gdn = std::make_shared<internal::GatedDeltaNet>(query, key, value, read_value, gate, beta);
+
+    auto out = std::make_shared<v0::Result>(gdn->output(0));
+    auto present_state = std::make_shared<v0::Result>(gdn->output(1));
+    present_state->get_output_tensor(0).set_names({"cache_params.present.recurrent_state.0"});
+
+    ParameterVector params{query, key, value, recurrent_state, gate, beta};
+    return std::make_shared<ov::Model>(ResultVector{out, present_state}, params);
+}
+
+// Reference graph for build_fusable_gqa_model(): the restored output keeps the value head count.
+std::shared_ptr<ov::Model> build_reference_fused_gqa_model() {
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 2, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 2, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
+
+    const auto read_value = std::make_shared<v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
+
+    auto subseq_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "subsequence_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.past_lens");
+    auto cache_interval = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.cache_interval");
+    auto state_table = ov::test::utils::make_param(element::dynamic,
+                                                   PartialShape{Dimension::dynamic(), 4, 6, 8},
+                                                   "gated_delta_state_table.0");
+
+    const auto paged_gdn_out = build_paged_gdn_block(query,
+                                                     key,
+                                                     value,
+                                                     gate,
+                                                     beta,
+                                                     state_table,
+                                                     subseq_begins,
+                                                     block_indices,
+                                                     block_indices_begins,
+                                                     past_lens,
+                                                     cache_interval,
+                                                     "GatedDeltaNet");
+
+    auto out = std::make_shared<v0::Result>(paged_gdn_out);
+    auto present_state = std::make_shared<v0::Result>(read_value->output(0));
+    present_state->get_output_tensor(0).set_names({"cache_params.present.recurrent_state.0"});
+
+    ParameterVector params{query,
+                           key,
+                           value,
+                           recurrent_state,
+                           gate,
+                           beta,
+                           subseq_begins,
+                           block_indices,
+                           block_indices_begins,
+                           past_lens,
+                           cache_interval,
+                           state_table};
+    return std::make_shared<ov::Model>(ResultVector{out, present_state}, params);
+}
+
 }  // namespace
 
 class PagedGatedDeltaNetFusionTest : public ::TransformationTestsF {};
-
 void run_paged_gated_delta_net_fusion(const std::shared_ptr<ov::Model>& model) {
     ov::pass::paged_attention::PaParams pa_params{model->get_parameters()};
     std::unordered_set<std::string> var_ids_to_remove;
@@ -388,4 +456,16 @@ TEST_F(PagedGatedDeltaNetFusionTest, FusesWhenStateInputIsGatherFromReadValue) {
     model = build_fusable_model_with_gathered_state();
     model_ref = build_reference_fused_model_with_gathered_state();
     run_paged_gated_delta_net_fusion(model);
+}
+
+TEST_F(PagedGatedDeltaNetFusionTest, RestoredOutputKeepsValueHeadsForGroupedQueryAttention) {
+    model = build_fusable_gqa_model();
+    model_ref = build_reference_fused_gqa_model();
+    run_paged_gated_delta_net_fusion(model);
+
+    for (const auto& result : model->get_results()) {
+        if (result->get_output_tensor(0).get_names().count("cache_params.present.recurrent_state.0") == 0) {
+            EXPECT_EQ(result->get_input_partial_shape(0), (PartialShape{2, 3, 4, 6}));
+        }
+    }
 }

@@ -18,6 +18,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "util.hpp"
+#include "variable_state.hpp"
 
 namespace ov {
 namespace npuw {
@@ -1372,6 +1373,58 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Note: _compiled_tile_model and _compiled_final_tile_model will be set later by
     // compile_host_flash_attention_model()
 }
+
+bool HostFlashAttention::is_valid() const {
+    if (_compiled_tile_model == nullptr || _compiled_final_tile_model == nullptr || _past_tile_size <= 0 ||
+        _final_tile_size <= 0 || _sdpa_attention_info._query_size == 0 ||
+        static_cast<std::size_t>(_final_tile_size) != _sdpa_attention_info._query_size) {
+        return false;
+    }
+
+    // _context_size drives the mask tile buffer allocation loop in
+    // HFARuntimeContext::initialize_mask_cache (ceil(context_size / past_tile_size) iterations, one device
+    // allocation each), so a corrupted blob must not be able to turn it into an unbounded loop.
+    const std::size_t context_size = _sdpa_attention_info._context_size;
+    const std::size_t past_tile_size = static_cast<std::size_t>(_past_tile_size);
+    const std::size_t num_tiles = context_size / past_tile_size + (context_size % past_tile_size != 0);
+    if (context_size == 0 || num_tiles > kMaxTiles) {
+        return false;
+    }
+
+    const auto& tile_inputs = _compiled_tile_model->inputs();
+    const auto& final_inputs = _compiled_final_tile_model->inputs();
+    const auto& tile_outputs = _compiled_tile_model->outputs();
+    const auto& final_outputs = _compiled_final_tile_model->outputs();
+    const auto& tin = _sdpa_attention_info._tile_input_indices;
+    const auto& tout = _sdpa_attention_info._tile_output_indices;
+
+    auto in_range = [](std::size_t idx, std::size_t size) {
+        return idx < size;
+    };
+
+    auto seq_dim_in_range = [](std::size_t seq_dim, const ov::Output<const ov::Node>& port) {
+        const auto rank = port.get_partial_shape().rank();
+        return rank.is_static() && seq_dim < static_cast<std::size_t>(rank.get_length());
+    };
+
+    // q/k/v/acc/max/d are always present on both the regular and the final tile model.
+    // mask may legitimately be absent from the regular tile model (mask-skipping optimization);
+    // the runtime detects that case by comparing tin.mask against inputs().size(), so it is only
+    // required to be in range for the final tile model, which always consumes a mask.
+    return in_range(tin.q, tile_inputs.size()) && in_range(tin.q, final_inputs.size()) &&
+           in_range(tin.k, tile_inputs.size()) && in_range(tin.k, final_inputs.size()) &&
+           in_range(tin.v, tile_inputs.size()) && in_range(tin.v, final_inputs.size()) &&
+           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, tile_inputs[tin.k]) &&
+           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, final_inputs[tin.k]) &&
+           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, tile_inputs[tin.v]) &&
+           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, final_inputs[tin.v]) &&
+           in_range(tin.mask, final_inputs.size()) && in_range(tin.acc, tile_inputs.size()) &&
+           in_range(tin.acc, final_inputs.size()) && in_range(tin.max, tile_inputs.size()) &&
+           in_range(tin.max, final_inputs.size()) && in_range(tin.d, tile_inputs.size()) &&
+           in_range(tin.d, final_inputs.size()) && in_range(tout.acc, tile_outputs.size()) &&
+           in_range(tout.max, tile_outputs.size()) && in_range(tout.d, tile_outputs.size()) && !final_outputs.empty();
+}
+
 }  // namespace compiled
 
 namespace runtime {
@@ -1432,6 +1485,39 @@ void PositionIDs::prepare(int64_t past_len) {
 int64_t PositionIDs::context_length() const {
     // Use original_query_length for context calculation (not query_size which may be sliced to 1)
     return _original_query_length + _past_length;
+}
+
+// HistorySize constructor
+HistorySize::HistorySize(std::size_t original_query_length) : _original_query_length(original_query_length) {
+    _case = _original_query_length == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+void HistorySize::prepare(int64_t past_len) {
+    // past_len is the request's history_size(): what the host last set through npuw_history_size,
+    // or 0 if it is unset. Same chunk rounding as PositionIDs, which takes its prefill past from
+    // past_len too. HFA is prefill-only; for a query length of 1 (GENERATE, rejected by the HFA
+    // runtime) the rounding is the identity.
+    _past_length = ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
+}
+
+int64_t HistorySize::context_length() const {
+    return _original_query_length + _past_length;
+}
+
+Selector::Ptr HistorySize::find(std::size_t original_query_length, const ov::ISyncInferRequest& rq) {
+    for (const auto& state : rq.query_state()) {
+        if (state->get_name() != ov::npuw::HistorySizeState::name) {
+            continue;
+        }
+        // Still unset at the first infer(): the host never reports the history, and every chunk
+        // would silently run without its past. A later reset() (a new conversation) is fine and
+        // reads as an empty history.
+        if (state->get_state()->data<int64_t>()[0] == ov::npuw::HistorySizeState::kUnset) {
+            return Selector::Ptr{};
+        }
+        return std::make_shared<HistorySize>(original_query_length);
+    }
+    return Selector::Ptr{};
 }
 
 // ============================================================================

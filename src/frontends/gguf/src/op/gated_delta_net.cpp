@@ -7,38 +7,100 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <numeric>
+#include <optional>
 #include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
+namespace {
+
+struct FeatureSlice {
+    std::shared_ptr<ov::op::v1::Reshape> reshape;
+    std::shared_ptr<ov::op::v8::Slice> slice;
+    int64_t begin, end;
+};
+
+std::optional<FeatureSlice> match_feature_slice(const Output<Node>& value, const std::vector<int64_t>& target) {
+    using ov::op::util::has_constant_value;
+    const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(value.get_node_shared_ptr());
+    if (!reshape || !reshape->get_special_zero() ||
+        !has_constant_value<int64_t>(reshape->get_input_node_shared_ptr(1), target))
+        return std::nullopt;
+    const auto slice = ov::as_type_ptr<ov::op::v8::Slice>(reshape->get_input_node_shared_ptr(0));
+    if (!slice || slice->get_input_size() != 5 ||
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(3), 1) ||
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(4), 3))
+        return std::nullopt;
+    const auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(1));
+    const auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(2));
+    if (!begin || !end || ov::shape_size(begin->get_shape()) != 1 || ov::shape_size(end->get_shape()) != 1)
+        return std::nullopt;
+    return FeatureSlice{reshape, slice, begin->cast_vector<int64_t>()[0], end->cast_vector<int64_t>()[0]};
+}
+
+}  // namespace
+
+static Output<Node> join_adjacent_qk(const Output<Node>& q, const Output<Node>& k) {
+    const auto shape = q.get_partial_shape();
+    if (shape.rank() != 4 || !shape[2].is_static() || !shape[3].is_static() ||
+        q.get_element_type() != k.get_element_type())
+        return {};
+    const auto heads = shape[2].get_length(), width = shape[3].get_length();
+    const std::vector<int64_t> target{0, -1, heads, width};
+    const auto qs = match_feature_slice(q, target);
+    const auto ks = match_feature_slice(k, target);
+    if (!qs || !ks || qs->slice->input_value(0) != ks->slice->input_value(0))
+        return {};
+    const auto source_shape = qs->slice->get_input_partial_shape(0);
+    if (qs->begin < 0 || qs->end - qs->begin != heads * width || ks->begin != qs->end ||
+        ks->end - ks->begin != heads * width || source_shape.rank() != 4 || source_shape[1] != 1 ||
+        !source_shape[3].is_static() || ks->end > source_shape[3].get_length())
+        return {};
+    const auto slice = std::make_shared<ov::op::v8::Slice>(qs->slice->input_value(0),
+                                                           qs->slice->input_value(1),
+                                                           ks->slice->input_value(2),
+                                                           qs->slice->input_value(3),
+                                                           qs->slice->input_value(4));
+    const auto joined = std::make_shared<ov::op::v1::Reshape>(
+        slice,
+        ov::op::v0::Constant::create<int64_t>(ov::element::i64, {4}, {0, -1, 2 * heads, width}),
+        true);
+    ov::copy_runtime_info({qs->slice, ks->slice, qs->reshape, ks->reshape}, {slice, joined});
+    return joined;
+}
+
 // GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the internal (non-opset) op
 // ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
-// IR-serializable (see docs/internal_ops.md). The fused op only supports scalar gating, so the
+// IR-serializable (see docs/runtime.md). The fused op only supports scalar gating, so the
 // per-key-dimension gating case (kda) uses the serializable Loop reference path below.
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
@@ -60,9 +122,14 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
                                   "GATED_DELTA_NET supports a single recurrent-state snapshot, got K = ",
                                   snapshot_slots);
 
+    // Builder graphs take attention and the state as separate outputs, the state in the op's
+    // [B, H_v, key_dim, value_dim] layout; ggml graphs pack both in ggml's state layout.
+    const bool split_outputs = context.get_attribute<bool>("split_outputs", false);
+
     // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
     // against the ggml-CPU oracle for the scalar-gate case too.
     if (kda || context.get_attribute<bool>("force_ref", false)) {
+        FRONT_END_OP_CONVERSION_CHECK(!split_outputs, "GATED_DELTA_NET split outputs require the fused path");
         return translate_gated_delta_net_ref(context);
     }
 
@@ -73,9 +140,25 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
+    // ggml normalizes with x / max(||x||, eps); the op's fused normalization adds eps under the
+    // square root instead, which differs for small vectors, so normalize here.
+    if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
+        const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+        if (const auto joined = join_adjacent_qk(q, k); joined.get_node()) {
+            const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+            const auto normalized = std::make_shared<ov::op::v1::Split>(make_l2_norm(joined, eps), axis, 2);
+            q = normalized->output(0);
+            k = normalized->output(1);
+        } else {
+            q = make_l2_norm(q, eps);
+            k = make_l2_norm(k, eps);
+        }
+    }
+
     // ggml maps GQA heads in tiled order, while the OV op maps repeated heads in grouped order:
-    // tile Q/K along the head axis so their head count matches V.
-    if (H_v != H_k) {
+    // tile Q/K along the head axis so their head count matches V. A builder that already stored
+    // the V heads in grouped order sets "gqa_grouped" and needs no Tile.
+    if (H_v != H_k && !context.get_attribute<bool>("gqa_grouped", false)) {
         const int64_t repeat = H_v / H_k;
         auto repeats = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, repeat, 1});
         q = std::make_shared<ov::op::v0::Tile>(q, repeats);
@@ -85,16 +168,39 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // ggml state layout (OV notation) is [B, H_v, value_dim, key_dim]; the op expects
     // [B, H_v, key_dim, value_dim].
     auto state_perm = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 1, 3, 2});
-    state = std::make_shared<ov::op::v1::Transpose>(state, state_perm);
+    if (!split_outputs)
+        state = std::make_shared<ov::op::v1::Transpose>(state, state_perm);
 
     // Gate/beta carry a trailing singleton in the scalar-gate case; the op takes them rank-3.
     auto sq_axis_3 = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
-    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta);
+    if (context.has_input("chunk_valid_len")) {
+        const auto& g_shape = g.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(
+            g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
+            "GATED_DELTA_NET pad masking requires a static token dimension");
+        const int64_t n_tokens = g_shape[1].get_length();
+        std::vector<int64_t> positions(n_tokens);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(n_tokens)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v0::Unsqueeze>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{0, 2}));
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
+
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta, false);
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
+    if (split_outputs) {
+        rename_outputs_with_suffix({attn_4d}, context.get_name());
+        return {attn_4d, state_4d};
+    }
 
     // Transpose state back to ggml's [B, H_v, value_dim, key_dim] and pack [attn | state] flat,
     // matching the reference path.
@@ -134,6 +240,31 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
+    const bool gqa_grouped = context.get_attribute<bool>("gqa_grouped", false);
+
+    // ggml's l2_norm (x / max(||x||, eps)) when the builder asked the fused op to normalize q/k.
+    if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
+        const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+        q = make_l2_norm(q, eps);
+        k = make_l2_norm(k, eps);
+    }
+
+    if (context.has_input("chunk_valid_len")) {
+        FRONT_END_OP_CONVERSION_CHECK(v_shape[1].is_static(),
+                                      "GATED_DELTA_NET pad masking requires a static token dimension");
+        const int64_t T = v_shape[1].get_length();
+        std::vector<int64_t> positions(T);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(T)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v1::Reshape>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, T, 1, 1}),
+            false);
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
 
     auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
@@ -158,7 +289,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
             std::make_shared<ov::op::v3::Broadcast>(q_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto k_bcast =
             std::make_shared<ov::op::v3::Broadcast>(k_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto perm_5d = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{0, 2, 1, 3, 4});
+        auto perm_5d = ov::op::v0::Constant::create(
+            ov::element::i64,
+            {5},
+            gqa_grouped ? std::vector<int64_t>{0, 1, 2, 3, 4} : std::vector<int64_t>{0, 2, 1, 3, 4});
         auto q_transposed = std::make_shared<ov::op::v1::Transpose>(q_bcast, perm_5d);
         auto k_transposed = std::make_shared<ov::op::v1::Transpose>(k_bcast, perm_5d);
         // [B, H_v, T, S_v] with T dynamic (-1).
@@ -270,7 +404,4 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

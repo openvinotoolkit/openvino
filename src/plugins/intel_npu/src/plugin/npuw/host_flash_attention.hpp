@@ -10,6 +10,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -208,6 +209,10 @@ struct HostFlashAttentionInfo {
 
 // Compile-time host flash attention information
 struct HostFlashAttention {
+    // Upper bound on the number of tiles a single HFA inference may be split into. Only used to
+    // reject corrupted _context_size / _query_size combinations coming from a cache blob.
+    static constexpr std::size_t kMaxTiles = 1u << 20;
+
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
@@ -246,10 +251,13 @@ struct HostFlashAttention {
         _final_tile_model_to_compile.reset();  // Free memory after compilation
     }
 
-    bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _past_tile_size > 0 &&
-               _final_tile_size > 0;
+    // Past K/V split into per-block inputs by SplitKVCacheIntoBlocks.
+    bool is_block_mode() const {
+        const auto& indices = _sdpa_attention_info._sdpa_indices;
+        return indices.past_key_blocks.size() > 1 && indices.past_value_blocks.size() > 1;
     }
+
+    bool is_valid() const;
 };
 
 }  // namespace compiled
@@ -360,7 +368,7 @@ struct HFARuntimeContext {
         // to be exact — context_size includes the final tile's present KV, which isn't itself
         // chunked into past_tile_size units, so the division may not be exact.
         const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
-        const size_t max_num_tiles = (context_size + past_tile_size - 1) / past_tile_size;
+        const size_t max_num_tiles = context_size / past_tile_size + (context_size % past_tile_size != 0);
 
         m_mask_tile_buffers.reserve(max_num_tiles);
         for (size_t i = 0; i < max_num_tiles; ++i) {
@@ -517,6 +525,23 @@ class PositionIDs final : public Selector {
     int64_t context_length() const override;
 
 public:
+    static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
+};
+
+// Define execution selection based on the history size alone. For a plain compiled model with no
+// "position_ids" input, driven by a host that reports the number of tokens already in the KV cache
+// through the npuw_history_size variable state (e.g. LiteRT). Prefill only, like HFA itself.
+class HistorySize final : public Selector {
+    int64_t _past_length = 0;
+    std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
+
+public:
+    explicit HistorySize(std::size_t original_query_length);
+    void prepare(int64_t past_len) override;
+    int64_t context_length() const override;
+
+    // Returns nullptr unless rq exposes the npuw_history_size state and the host has set it, i.e.
+    // unless the host is known to report the history. Meant to be called once, on the first infer().
     static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
 };
 

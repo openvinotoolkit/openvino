@@ -89,6 +89,7 @@ static size_t get_per_iter_elements_number(const dynamic_quantize_params& params
 ParamsKey DynamicQuantizeKernelKVCache::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT4);
@@ -291,8 +292,11 @@ bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    // Limit the size of the innermost dimension
-    if (input_dims.back().v > 256) {
+    // Limit the size of the innermost dimension.
+    // 512 matches the SDPA fusion head-size limit (transformations_pipeline.cpp): above it SDPA decomposes,
+    // so a compressed KV-cache never needs a larger innermost dimension here. The ref kernel fallback cannot
+    // append, so keeping this in sync with the fusion limit is what keeps the append path selectable.
+    if (input_dims.back().v > 512) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 

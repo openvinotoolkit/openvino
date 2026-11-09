@@ -6,8 +6,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 SequenceLength::SequenceLength(const Output<Node>& input_sequence) : FrameworkNode({input_sequence}, 1) {
     validate_and_infer_types();
@@ -22,5 +21,4 @@ std::shared_ptr<Node> SequenceLength::clone_with_new_inputs(const OutputVector& 
     return std::make_shared<SequenceLength>(inputs[0]);
 }
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

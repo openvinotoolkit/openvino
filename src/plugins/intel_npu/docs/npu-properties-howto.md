@@ -146,54 +146,45 @@ struct OptionBase {
     // static std::string_view key() 
 
     static constexpr std::string_view getTypeName() { 
-        if constexpr (TypePrinter<T>::hasName()) { 
-            return TypePrinter<T>::name(); 
-        } 
-        static_assert(TypePrinter<T>::hasName(), 
-                      "Options type is not a standard type, please add `getTypeName()` to your option"); 
-    } 
-    // Overload this to provide environment variable support. 
-    static std::string_view envVar() { 
-        return ""; 
-    } 
+        if constexpr (TypePrinter<T>::hasName()) {
+            return TypePrinter<T>::name();
+        }
+        static_assert(TypePrinter<T>::hasName(),
+                      "Options type is not a standard type, please add `getTypeName()` to your option");
+    }
 
-    // Overload this to provide deprecated keys names. 
-    static std::vector<std::string_view> deprecatedKeys() { 
-        return {}; 
-    } 
+    // Overload this to provide environment variable support.
+    static std::string_view envVar() {
+        return "";
+    }
 
-    // Overload this to provide default value if it wasn't specified by user. 
-    // If it is std::nullopt - exception will be thrown in case of missing option access. 
-    static std::optional<T> defaultValue() { 
-        return std::nullopt; 
-    } 
+    // Overload this to provide deprecated keys names.
+    static std::vector<std::string_view> deprecatedKeys() {
+        return {};
+    }
 
-    // Overload this to provide more specific parser. 
-    static ValueType parse(std::string_view val) { 
-        return OptionParser<ValueType>::parse(val); 
-    } 
+    // Overload this to provide default value if it wasn't specified by user.
+    // If it is std::nullopt - exception will be thrown in case of missing option access.
+    static std::optional<T> defaultValue() {
+        return std::nullopt;
+    }
 
-    // Overload this to provide more specific validation 
-    static void validateValue(const ValueType&) {} 
+    // Overload this to provide more specific parser.
+    static ValueType parse(std::string_view val) {
+        return OptionParser<ValueType>::parse(val);
+    }
 
-    // Overload this to provide more specific implementation. 
-    static OptionMode mode() { 
-        return OptionMode::Both; 
-    } 
+    // Overload this to provide more specific validation
+    static void validateValue(const ValueType&) {}
 
-    // Overload this for private options. 
-    static bool isPublic() { 
-        return false; 
-    } 
+    // Overload this to provide more specific implementation.
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 
-    // Overload this for read-only properties 
-    static ov::PropertyMutability mutability() { 
-        return ov::PropertyMutability::RW; 
-    } 
-
-    static std::string toString(const ValueType& val) { 
-        return OptionPrinter<ValueType>::toString(val); 
-    } 
+    static std::string toString(const ValueType& val) {
+        return OptionPrinter<ValueType>::toString(val);
+    }
 }; 
 ```
 
@@ -206,12 +197,8 @@ then with the full plugin and backend options before property-manager initializa
 ### Config
 `Config` is the high-level configuration database that maps `OptionBase` descriptors to typed option values. It maps and
 stores user-defined values from the `OptionsDesc` layer and implements the top-level configuration functions:
-get/update/updateAny/has/getString/toString/fromString and handles typecasts, type verification, parsing and conversions.
+get/update/has/getString/toString/fromString and handles typecasts, type verification, parsing and conversions.
 It also applies availability and support filtering based on the current system configuration and compiler type.
-
-The target design is one unified `Config` class that combines the current `Config` and `FilteredConfig` responsibilities.
-Today, `FilteredConfig` is still a derived implementation used by the NPU plugin; it is not a separate conceptual
-configuration layer in the target design.
 
 In plugin bootstrap, `Config` is created early from a minimal descriptor (`LOG_LEVEL`), then expanded in place as the
 shared `OptionsDesc` is populated and environment variables are reparsed.
@@ -256,70 +243,75 @@ Example:
 // 
 // EXAMPLE_PROPERTY 
 //  
-struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::ExampleType> {  
+struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::ExampleType> {
 
-    static std::string_view key() { 
+    static std::string_view key() {
         return ov::intel_npu::example_property.name();
-        } 
+    }
 
-    static constexpr std::string_view getTypeName() { 
-        return "ov::intel_npu::ExampleType"; 
-    } 
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::ExampleType";
+    }
 
-    static ov::intel_npu::ExampleType defaultValue() { 
-        return ov::intel_npu::ExampleType::VAL3; 
-    } 
+    static ov::intel_npu::ExampleType defaultValue() {
+        return ov::intel_npu::ExampleType::VAL3;
+    }
 
-    static bool isPublic() { 
-        return true; 
-    } 
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 
-    static OptionMode mode() { 
-        return OptionMode::Both; 
-    } 
-     
-    static ov::PropertyMutability mutability() { 
-        return ov::PropertyMutability::RW; 
-    } 
-     
-    static std::string_view envVar() { 
-        return "IE_NPU_EXAMPLE_PROPERTY"; 
-    } 
+    static std::string_view envVar() {
+        return "IE_NPU_EXAMPLE_PROPERTY";
+    }
 
-    static ov::intel_npu::ExampleType parse(std::string_view val) { 
-        if (val == "VAL1") { 
-            return ov::intel_npu::ExampleType::VAL1; 
-        } else if (val == "VAL2") { 
-            return ov::intel_npu::ExampleType::VAL2; 
-        } else if (val == "VAL3") { 
-            return ov::intel_npu::ExampleType::VAL3; 
-        } 
+    /*
+     * @note `parse` / `toString` methods are optional. If the value type provides `operator>>` / `operator<<`,
+     * the defaults in `OptionParser` / `OptionPrinter` handle it.
+     * Only implement them for types with no stream operators, or when the string form differs from the stream form.
+     */
+    static ov::intel_npu::ExampleType parse(std::string_view val) {
+        if (val == "VAL1") {
+            return ov::intel_npu::ExampleType::VAL1;
+        } else if (val == "VAL2") {
+            return ov::intel_npu::ExampleType::VAL2;
+        } else if (val == "VAL3") {
+            return ov::intel_npu::ExampleType::VAL3;
+        }
 
-        OPENVINO_THROW("Value '", val, "'is not a valid EXAMPLE_PROPERTY option"); 
-    } 
+        OPENVINO_THROW("Value '", val, "' is not a valid EXAMPLE_PROPERTY option");
+    }
 
-    static std::string toString(const ov::intel_npu::ExampleType& val) { 
-        std::stringstream strStream; 
+    static void validateValue(const ov::intel_npu::ExampleType& val) {
+        OPENVINO_ASSERT(val != ov::intel_npu::ExampleType::VAL2,
+                        "Wrong value ",
+                        val,
+                        " for property key ",
+                        ov::intel_npu::example_property.name(),
+                        ". Supported values: VAL1, VAL3");
+    }
 
-        strStream << val; 
+    static std::string toString(const ov::intel_npu::ExampleType& val) {
+        std::stringstream strStream;
 
-        return strStream.str(); 
-    } 
-}; 
+        strStream << val;
+
+        return strStream.str();
+    }
+};
 ```
 Notes:  
 - key(): needs to return the string name of the property (the NPU_EXAMPLE_PROPERTY defined in the property at step 1)  
 - getTypeName: returns the type name as a human-readable string  
 - defaultValue: returns the option's default value (if there was no user-defined value set, config.get or get_property(EXAMPLE_PROPERTY) will call this function)
-- isPublic: defines whether the option is a **public or a private** one  
 - mode: defines the OptionMode of this option. Can be:  
     - CompileTime (for options used ONLY by the compiler)  
     - Runtime (for options only used by plugin and runtime)  
     - Both (for options used by both).  
     **Only options of CompileTime and Both will be sent to compiler at model compilation.**  
-- mutability: whether the option is **Read-Write** or **Read-Only**  
 - envVar: environment variable (if needed) for this property. The config manager will check if the options have envVar defined. For each option which has envVar, it will look in environment variables and update the option value from there at init.  
 - parse: string to custom datatype parser. If the property will be set with a string value, this parser will convert it into the internal datatype.  
+- validateValue: additional validation of the option value, called right after parsing (both for string and for `ov::Any` updates) and before the value is stored in the config. Use it to reject values which are of the correct datatype but out of the accepted range/set. If no extra validation is needed, do not define it - the default implementation accepts any parsed value.  
 - toString: for converting the option value from the custom datatype to string 
 
 **(!!)** None of the member functions are mandatory to be defined.  
@@ -351,13 +343,13 @@ register_property(
         return _config.get<EXAMPLE_PROPERTY>();
     },
     [this](const ov::Any& value) {
-        _config.updateAny(EXAMPLE_PROPERTY::key(), value);
+        _config.update(EXAMPLE_PROPERTY::key(), value);
     });
 ```
 **Explanation:**
 `register_property` stores the property name, visibility, mutability, support predicate, getter, and setter in one
 descriptor. The support predicate determines whether the property is exposed. The getter reads the typed option from
-`Config`, and the setter validates and stores the supplied value through `updateAny`.
+`Config`, and the setter validates and stores the supplied value through `update`.
 ### For compiled-model (if required)
 src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp

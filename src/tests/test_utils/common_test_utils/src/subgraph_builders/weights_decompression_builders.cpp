@@ -5,10 +5,13 @@
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -82,8 +85,11 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
     }
 
-    auto up_to = weights_precision == ov::element::u2 ? 3 : weights_precision == ov::element::i4 ? 7 : 15;
-    auto start_from = weights_precision == ov::element::u2 ? 0 : 1;
+    auto up_to = weights_precision == ov::element::u2   ? 3
+                 : weights_precision == ov::element::u3 ? 7
+                 : weights_precision == ov::element::i4 ? 7
+                                                        : 15;
+    auto start_from = (weights_precision == ov::element::u2 || weights_precision == ov::element::u3) ? 0 : 1;
 
     std::shared_ptr<ov::Node> weights = nullptr;
     if (param_weights) {
@@ -218,11 +224,12 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     const std::optional<bool>& insert_transpose_node,
     const size_t seed) {
     // Validate that the precision is supported for real quantization
-    OPENVINO_ASSERT(weights_precision == ov::element::u2 || weights_precision == ov::element::u4 ||
-                        weights_precision == ov::element::i4 || weights_precision == ov::element::u8 ||
-                        weights_precision == ov::element::i8,
-                    "initMatMulDecompressionSubgraphQuantization only supports u2, u4, i4, u8, i8 precisions. Got: ",
-                    weights_precision);
+    OPENVINO_ASSERT(
+        weights_precision == ov::element::u2 || weights_precision == ov::element::u3 ||
+            weights_precision == ov::element::u4 || weights_precision == ov::element::i4 ||
+            weights_precision == ov::element::u8 || weights_precision == ov::element::i8,
+        "initMatMulDecompressionSubgraphQuantization only supports u2, u3, u4, i4, u8, i8 precisions. Got: ",
+        weights_precision);
 
     auto transpose_if_necessary = [&](const ov::Shape& shape) {
         auto result_shape = shape;
@@ -240,6 +247,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     // G - group size
     auto transformed_weights_shape = transpose_if_necessary(weights_shape);
     const auto IC = *(weights_shape.rbegin() + 1);
+    const float fp32_min = -0.1f;
+    const float fp32_max = 0.1f;
+    std::shared_ptr<ov::op::v0::Constant> fp32_weights;
     if (group_decompression) {
         OPENVINO_ASSERT(IC % group_size == 0,
                         "Weights output channels count (",
@@ -249,32 +259,57 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
                         ").");
         auto in_channel_idx =
             transpose_weights ? transformed_weights_shape.size() - 1 : transformed_weights_shape.size() - 2;
-        transformed_weights_shape[in_channel_idx] = IC / group_size;
+        const size_t n_groups = IC / group_size;
+        transformed_weights_shape[in_channel_idx] = n_groups;
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
-    }
 
-    // mt19937 distribution: gtest's LCG repeats every k_range, collapsing per-group min/max diversity.
-    const float fp32_min = -0.1f;
-    const float fp32_max = 0.1f;
-    auto fp32_weights_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32,
-                                                                                         transformed_weights_shape,
-                                                                                         fp32_min,
-                                                                                         fp32_max,
-                                                                                         static_cast<int>(seed));
+        // With a single [fp32_min, fp32_max) distribution, all groups get nearly the same min/max, i.e. near-identical
+        // scales and zero points, so a plugin that reads the decompression constants
+        // in a wrong layout (e.g. misses a [N, K/gs] -> [K/gs, N] reorder) may still not cause the test failure.
+        // So every slice along the groups axis is generated from its own sub-range, and the slices are concatenated.
+        constexpr std::array<float, 3> width_ratios{1.0f, 0.5f, 0.25f};
+        constexpr std::array<float, 5> position_ratios{0.0f, 1.0f, 0.5f, 0.25f, 0.75f};
+        const float full_width = fp32_max - fp32_min;
+        auto slice_shape = transformed_weights_shape;
+        slice_shape[in_channel_idx] = 1;
+        ov::OutputVector slices;
+        for (size_t g = 0; g < n_groups; ++g) {
+            const float width = full_width * width_ratios[g % width_ratios.size()];
+            const float slice_min = fp32_min + position_ratios[g % position_ratios.size()] * (full_width - width);
+            auto slice_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32,
+                                                                                          slice_shape,
+                                                                                          slice_min,
+                                                                                          slice_min + width,
+                                                                                          static_cast<int>(seed + g));
+            slices.push_back(std::make_shared<ov::op::v0::Constant>(slice_tensor));
+        }
+        const auto concat = std::make_shared<ov::op::v0::Concat>(slices, static_cast<int64_t>(in_channel_idx));
+        fp32_weights = ov::util::get_constant_from_source(concat);
+        OPENVINO_ASSERT(fp32_weights, "Failed to constant-fold the concatenated FP32 weights");
+    } else {
+        fp32_weights = std::make_shared<ov::op::v0::Constant>(
+            ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32,
+                                                                      transformed_weights_shape,
+                                                                      fp32_min,
+                                                                      fp32_max,
+                                                                      static_cast<int>(seed)));
+    }
 
     // Calculate quantization parameters
     const auto qmin = weights_precision == ov::element::u2   ? 0.0f
+                      : weights_precision == ov::element::u3 ? 0.0f
                       : weights_precision == ov::element::i4 ? -8.0f
                       : weights_precision == ov::element::u4 ? 0.0f
                       : weights_precision.is_signed()        ? -128.0f
                                                              : 0.0f;
     const auto qmax = weights_precision == ov::element::u2   ? 3.0f
+                      : weights_precision == ov::element::u3 ? 7.0f
                       : weights_precision == ov::element::i4 ? 7.0f
                       : weights_precision == ov::element::u4 ? 15.0f
                       : weights_precision.is_signed()        ? 127.0f
                                                              : 255.0f;
 
-    auto* fp32_data = fp32_weights_tensor.data<float>();
+    const auto* fp32_data = fp32_weights->get_data_ptr<float>();
     const size_t total_size = ov::shape_size(transformed_weights_shape);
 
     const auto OC = weights_shape.back();
@@ -348,7 +383,8 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     };
 
     // Quantize based on weights_precision type
-    if (weights_precision == ov::element::u2 || weights_precision == ov::element::u4) {
+    if (weights_precision == ov::element::u2 || weights_precision == ov::element::u3 ||
+        weights_precision == ov::element::u4) {
         // For sub-byte unsigned types, use element::iterator
         std::vector<uint8_t> quantized_buffer(total_size);
         for (size_t i = 0; i < total_size; ++i) {
@@ -358,6 +394,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
         }
         if (weights_precision == ov::element::u4) {
             auto iter = ov::element::iterator<ov::element::u4>(quantized_weights_tensor.data());
+            std::copy(quantized_buffer.begin(), quantized_buffer.end(), iter);
+        } else if (weights_precision == ov::element::u3) {
+            auto iter = ov::element::iterator<ov::element::u3>(quantized_weights_tensor.data());
             std::copy(quantized_buffer.begin(), quantized_buffer.end(), iter);
         } else {
             auto iter = ov::element::iterator<ov::element::u2>(quantized_weights_tensor.data());
@@ -414,6 +453,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
             } else if (weights_precision == ov::element::u2) {
                 auto iter = ov::element::iterator<ov::element::u2>(shift_tensor.data());
                 *iter = static_cast<uint8_t>(std::round(avg_zp));
+            } else if (weights_precision == ov::element::u3) {
+                auto iter = ov::element::iterator<ov::element::u3>(shift_tensor.data());
+                *iter = static_cast<uint8_t>(std::round(avg_zp));
             } else if (weights_precision == ov::element::i4) {
                 auto iter = ov::element::iterator<ov::element::i4>(shift_tensor.data());
                 *iter = static_cast<int8_t>(std::round(avg_zp));
@@ -437,6 +479,13 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
                     zp_buffer[i] = static_cast<uint8_t>(std::round(zero_points[i]));
                 }
                 auto iter = ov::element::iterator<ov::element::u2>(shift_tensor.data());
+                std::copy(zp_buffer.begin(), zp_buffer.end(), iter);
+            } else if (weights_precision == ov::element::u3) {
+                std::vector<uint8_t> zp_buffer(num_groups);
+                for (size_t i = 0; i < num_groups; ++i) {
+                    zp_buffer[i] = static_cast<uint8_t>(std::round(zero_points[i]));
+                }
+                auto iter = ov::element::iterator<ov::element::u3>(shift_tensor.data());
                 std::copy(zp_buffer.begin(), zp_buffer.end(), iter);
             } else if (weights_precision == ov::element::i4) {
                 std::vector<int8_t> zp_buffer(num_groups);

@@ -152,6 +152,21 @@ TEST_F(TransformationTestsF, NegativeTest) {
     }
 }
 
+TEST_F(TransformationTestsF, StaticZeroDimMustNotBecomeSpecialZero) {
+    auto data = make_shared<v0::Parameter>(element::f32, PartialShape{5, 0, 4, 4});
+
+    // Keep the reshape pattern non-Constant so ReshapeOptimizations matches it.
+    auto minus_one = v0::Constant::create(element::i64, Shape{1}, {-1});
+    auto pattern = make_shared<v0::Concat>(OutputVector{minus_one}, 0);
+
+    auto reshape = make_shared<v1::Reshape>(data, pattern, true);
+    model = make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
+
+    ASSERT_EQ(model->get_output_partial_shape(0), PartialShape({0}));
+
+    manager.register_pass<pass::ReshapeOptimizations>();
+}
+
 TEST_F(TransformationTestsF, ZeroDimsInOutputShape) {
     // [A, B]
     auto shape = PartialShape{0, 0};

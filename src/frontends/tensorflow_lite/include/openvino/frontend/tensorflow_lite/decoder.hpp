@@ -10,9 +10,7 @@
 #include "openvino/frontend/tensorflow_lite/sparsity_info.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 struct TENSORFLOW_LITE_FRONTEND_API TensorMetaInfo {
     std::shared_ptr<QuantizationInfo> m_quantization_info;
@@ -97,6 +95,4 @@ public:
     ~DecoderBaseTensor() override;
 };
 
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

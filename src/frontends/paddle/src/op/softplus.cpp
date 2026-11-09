@@ -4,10 +4,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs softplus(const NodeContext& node) {
     auto data = node.get_input("X");
     auto beta = node.get_attribute<float>("beta");
@@ -21,7 +18,4 @@ NamedOutputs softplus(const NodeContext& node) {
     }
     return node.default_single_output_mapping({std::make_shared<default_opset::SoftPlus>(data)}, {"Out"});
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

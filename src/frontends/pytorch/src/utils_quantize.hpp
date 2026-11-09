@@ -7,9 +7,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 class QuantizedDecoder : public DummyDecoder {
 public:
@@ -220,6 +218,4 @@ Output<Node> dequantize_ct_weight(const NodeContext& context,
                                   const Output<Node>& like,
                                   const Output<Node>& zero_point_packed);
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

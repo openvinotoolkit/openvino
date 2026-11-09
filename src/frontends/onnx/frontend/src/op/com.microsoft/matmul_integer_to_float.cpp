@@ -12,11 +12,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 
 ov::OutputVector matmulintegertofloat(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 4);
@@ -81,8 +77,4 @@ ov::OutputVector matmulintegertofloat(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("MatMulIntegerToFloat", OPSET_SINCE(1), com_microsoft::opset_1::matmulintegertofloat, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

@@ -18,19 +18,18 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
-#include "quant/weights.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
+
+// Split "<something>.weight" into "<something>"; return the name unchanged when it does not end
+// in ".weight" (biases and other plain tensors keep their full name as the base).
+std::string strip_weight_suffix(const std::string& name);
 
 // Builds OpenVINO values through the shared GGML converters.
 class GraphEmitter {
 public:
-    // `weights` / `qtypes` are the parser's tensor tables; they are referenced, not copied, and
-    // must outlive the emitter.
-    GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
-                 std::unordered_map<std::string, GgufTensorType>& qtypes,
+    // `weights` is the parser's tensor table; it is referenced, not copied, and must outlive the emitter.
+    GraphEmitter(const GgufWeightTable& weights,
                  std::string arch,
                  const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
 
@@ -39,26 +38,16 @@ public:
         return m_graph;
     }
 
-    // ---- weight-table queries ----
     bool has_weight(const std::string& name) const {
-        return m_weights.count(name) > 0;
+        return m_weights.count(name) > 0 || m_graph_weights.count(name) > 0;
     }
 
-    // Look up a weight tensor by GGUF name, failing with the tensor NAME if the GGUF is missing it
-    // (a bare .at(name) throws std::out_of_range with no context). Used wherever a builder reads a
-    // weight's shape to size an op; a missing expected tensor means the file does not match the
-    // detected architecture.
-    const ov::Tensor& weight_tensor(const std::string& name) const;
-
-    // First extent of a weight's OV shape (its row count), 1 when the weight is absent/scalar.
+    const ov::Shape& weight_shape(const std::string& name) const;
     int64_t weight_rows(const std::string& name) const;
-
-    std::unordered_map<std::string, ov::Tensor>& weights() {
-        return m_weights;
-    }
-    std::unordered_map<std::string, GgufTensorType>& qtypes() {
-        return m_qtypes;
-    }
+    GgufTensorType weight_qtype(const std::string& base) const;
+    // Whether selecting `columns` of a parser weight keeps its quantization groups whole.
+    bool column_groups_aligned(const std::string& name, const std::vector<int64_t>& columns) const;
+    void add_generated_weight(const std::string& name, const ov::Tensor& tensor);
 
     const ov::Output<ov::Node>& value(const std::string& name) const;
 
@@ -74,7 +63,8 @@ public:
                        const std::string& name,
                        const std::vector<std::string>& inputs,
                        int op_case = 0,
-                       std::map<std::string, ov::Any> attrs = {});
+                       std::map<std::string, ov::Any> attrs = {},
+                       std::vector<std::string> extra_outputs = {});
 
     std::shared_ptr<ov::op::v0::Parameter> add_input(const std::string& name,
                                                      ov::element::Type type,
@@ -84,38 +74,55 @@ public:
 
     void add_extra_input_node(const std::string& name, const std::shared_ptr<ov::Node>& node);
 
-    // The shared weight converter constructs the compressed OpenVINO subgraph from parsed tensors.
-    void emit_weight_op(const std::string& node_name, const WeightTensors& tensors, GgufTensorType qtype);
-
-    // `ggml_name` is the full tensor name ending in ".weight" (the name translators reference).
     void add_weight(const std::string& ggml_name);
-
-    // Emit a weight node `node_name` (ends in ".weight") reusing the parser's extracted tensors of
-    // another weight `src_base` (base without ".weight"). Used for MQA tie-V, where V shares K's
-    // weight tensor; the two GGML_OP_NONE leaves reference the same underlying ov::Tensor blobs
-    // (cheap: SharedBuffer views into the parser's single quant buffer).
     void add_weight_from(const std::string& node_name, const std::string& src_base);
-
-    // Emit a plain (non-quantized) weight stored under its full GGUF name, e.g. a bias tensor
-    // "blk.N.attn_q.bias" (no ".weight" suffix). It flows through the same GGML_OP_NONE +
-    // translate_weight path; make_weight_node treats an F16/F32/BF16 blob as a plain Constant.
-    void add_named_weight(const std::string& ggml_name);
+    // Emit weight `name` computed by `op_type` from weights `sources`. It takes the first source's
+    // qtype and Hadamard rotation; all sources must agree on the rotation.
+    std::string derive_weight(const std::string& name,
+                              const std::string& op_type,
+                              const std::vector<std::string>& sources,
+                              int op_case,
+                              std::map<std::string, ov::Any> attrs = {});
 
     bool weight_emitted(const std::string& name) const {
         return m_emitted_weights.count(name) > 0;
     }
 
+    void configure_hadamard(const std::map<std::string, GGUFMetaData>& config);
+    void validate_hadamard() const;
+    bool has_hadamard() const {
+        return m_hadamard_block != 0;
+    }
+    bool has_grouped_hadamard_gdn() const {
+        return m_hadamard_v_heads > 0;
+    }
+
 private:
-    std::unordered_map<std::string, ov::Tensor>& m_weights;
-    std::unordered_map<std::string, GgufTensorType>& m_qtypes;
+    void register_graph_weight(const std::string& name, GgufTensorType qtype);
+    struct GraphWeight {
+        ov::Shape shape;
+        GgufTensorType qtype;
+    };
+    void emit_weight(const std::string& name, const GgufWeight& source);
+
+    const GgufWeightTable& m_weights;
+    std::unordered_map<std::string, GraphWeight> m_graph_weights;
     // Architecture name, used only to make a missing-tensor diagnostic actionable.
     std::string m_arch;
 
     std::shared_ptr<GgufGraph> m_graph;
+    std::shared_ptr<ConstantCache> m_constant_cache = std::make_shared<ConstantCache>();
     std::unordered_map<std::string, CreatorFunction> m_translators;
     // Names of weights already emitted as GGML_OP_NONE leaves, so a weight referenced by several
     // ops (or tied, e.g. MQA tie-V) is emitted once.
     std::set<std::string> m_emitted_weights;
+    int64_t m_hadamard_block = 0;
+    int64_t m_hadamard_v_heads = 0;
+    int64_t m_hadamard_k_heads = 0;
+    std::set<std::string> m_hadamard_weights;
+    std::set<std::string> m_hadamard_inverse_weights;
+    std::set<std::string> m_hadamard_consumed;
+    std::map<int64_t, ov::Tensor> m_hadamard_signs;
 };
 
 // Shapes are kept in the OpenVINO/GGML logical order [ne3, ne2, ne1, ne0] (reverse of GGUF
@@ -124,6 +131,4 @@ inline ov::PartialShape ps(std::vector<int64_t> dims) {
     return ov::PartialShape(std::move(dims));
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

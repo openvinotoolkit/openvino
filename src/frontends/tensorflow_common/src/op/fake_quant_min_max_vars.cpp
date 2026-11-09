@@ -19,10 +19,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_fake_quant_aux_op(const NodeContext& node,
                                          const Output<Node>& inputs,
                                          const Output<Node>& min,
@@ -87,7 +84,4 @@ OutputVector translate_fake_quant_with_min_max_args(const NodeContext& node) {
     return translate_fake_quant_aux_op(node, inputs, min, max);
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

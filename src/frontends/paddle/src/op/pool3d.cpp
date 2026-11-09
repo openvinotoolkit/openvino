@@ -1,18 +1,13 @@
-//*****************************************************************************
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-//*****************************************************************************
 
 #include <string>
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 // helper func - get pad_begin and pad_end
 static void get_paddings(const NodeContext& node,
                          ov::Shape& pad_begin,
@@ -322,7 +317,4 @@ NamedOutputs pool3d_with_index(const NodeContext& node) {
     return NamedOutputs{{"Out", {pool_outputs[0]}}, {"Mask", {pool_outputs[1]}}};
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

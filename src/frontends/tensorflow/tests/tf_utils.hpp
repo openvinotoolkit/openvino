@@ -10,10 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace tests {
+namespace ov::frontend::tensorflow::tests {
 extern const std::string TF_FE;
 
 // a wrapper to create TensorFlow Frontend and configure the conversion pipeline
@@ -28,7 +25,4 @@ std::shared_ptr<Model> convert_model(const std::string& model_path,
                                      const bool disable_mmap = false,
                                      const std::vector<std::string>& output_names = {});
 
-}  // namespace tests
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::tests
