@@ -48,7 +48,7 @@ size_t getSortSize(const arg_max_min_params& params) {
 
 bool useParallelValueSort(const arg_max_min_params& params) {
     return params.argMaxMinSortType == ArgMaxMinSortType::VALUE &&
-           !(params.inputs[0].GetDType() == Datatype::BF16 && params.topK == 1);
+           (params.inputs[0].GetDType() != Datatype::BF16 || params.topK != 1);
 }
 }  // namespace
 
