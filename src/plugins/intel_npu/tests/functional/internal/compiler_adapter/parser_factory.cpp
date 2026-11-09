@@ -34,7 +34,7 @@ protected:
     ParserFactory factory;
 };
 
-TEST_F(ParserFactoryFunctionalTests, GetParser_ProfilingDisabled_DoesNotInvokeProvider) {
+TEST_F(ParserFactoryFunctionalTests, GetParserProfilingDisabledDoesNotInvokeProvider) {
     std::size_t calls = 0;
     const auto parser =
         factory.getParser(initStructs, vcl_provider::counted(calls, vcl_provider::processWide()), false);
@@ -42,18 +42,18 @@ TEST_F(ParserFactoryFunctionalTests, GetParser_ProfilingDisabled_DoesNotInvokePr
     EXPECT_EQ(calls, 0u);
 }
 
-TEST_F(ParserFactoryFunctionalTests, GetParser_ProfilingEnabledWithUnavailableProvider_StillReturnsParser) {
+TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithUnavailableProviderStillReturnsParser) {
     std::size_t calls = 0;
     const auto parser = factory.getParser(initStructs, vcl_provider::counted(calls, vcl_provider::unavailable()), true);
     EXPECT_NE(parser, nullptr);
     EXPECT_EQ(calls, 1u);
 }
 
-TEST_F(ParserFactoryFunctionalTests, GetParser_ProfilingEnabledWithoutProvider_Throws) {
+TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithoutProviderThrows) {
     EXPECT_THROW(factory.getParser(initStructs, VCLFunctionTableProvider{}, true), ov::Exception);
 }
 
-TEST_F(ParserFactoryFunctionalTests, GetParser_ProfilingEnabledWithAvailableProvider_InvokesProviderOnce) {
+TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithAvailableProviderInvokesProviderOnce) {
     try {
         vcl_provider::processWide()();
     } catch (const std::exception&) {

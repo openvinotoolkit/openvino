@@ -14,7 +14,7 @@ namespace {
 using namespace ::intel_npu;
 namespace vcl_provider = ov::test::npu::vcl_provider;
 
-TEST(ParserFactoryTests, GetParser_WithoutInitStructs_ThrowsBeforeInvokingProvider) {
+TEST(ParserFactoryTests, GetParserWithoutInitStructsThrowsBeforeInvokingProvider) {
     const ParserFactory factory;
     EXPECT_THROW(
         factory.getParser(nullptr, vcl_provider::forbidden("The Level Zero structures are validated first"), true),

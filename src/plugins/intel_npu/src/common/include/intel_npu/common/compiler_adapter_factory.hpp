@@ -20,7 +20,7 @@
 namespace intel_npu {
 
 /**
- * @brief Creates compiler adapters on top of one set of VCL entry points.
+ * @brief Creates an adapter for the selected NPU compiler.
  *
  * A factory knows how to build a compiler-in-plugin only from the entry points of the provider it was given. A plugin
  * has one VCL loader holder, which loads the library at most once and holds one set of entry points, and one factory.

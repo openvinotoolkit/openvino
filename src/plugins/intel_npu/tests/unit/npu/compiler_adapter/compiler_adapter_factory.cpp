@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -26,6 +27,7 @@ namespace {
 using namespace ::intel_npu;
 using CompilerType = ov::intel_npu::CompilerType;
 using ov::test::npu::FakeDevice;
+using ov::test::npu::FakeEngineBackend;
 namespace vcl_provider = ov::test::npu::vcl_provider;
 
 // kPluginPlatform and kOtherPluginPlatform are served by the compiler-in-plugin. kDriverOnlyPlatform is served only by
@@ -46,7 +48,7 @@ std::shared_ptr<FakeDevice> deviceOf(std::string_view platform) {
     return std::make_shared<FakeDevice>(std::string(platform));
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_AfterPresentOutcome_DoesNotProbeAgain) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeAfterPresentOutcomeDoesNotProbeAgain) {
     fake_vcl::FakeVcl fake;
     std::size_t calls = 0;
     const CompilerAdapterFactory factory(vcl_provider::counted(calls, fake.provider()));
@@ -57,7 +59,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_AfterPresentOutcome_DoesNot
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 1u);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_WhenPluginCompilerCannotBeCreated_Throws) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeWhenPluginCompilerCannotBeCreatedThrows) {
     const auto expectProbeFailure = [](const VCLFunctionTableProvider& provider) {
         const CompilerAdapterFactory factory(provider);
         OV_EXPECT_THROW_HAS_SUBSTRING(decide(factory), ov::Exception, kFailedProbeMessage);
@@ -72,7 +74,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_WhenPluginCompilerCannotBeC
     expectProbeFailure(fake.provider());
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_ExplicitCompilerType_DoesNotInvokeProvider) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeExplicitCompilerTypeDoesNotInvokeProvider) {
     const CompilerAdapterFactory factory(
         vcl_provider::forbidden("An explicit compiler type must not be resolved through the provider"));
     for (const auto explicitType : {CompilerType::DRIVER, CompilerType::PLUGIN}) {
@@ -82,7 +84,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_ExplicitCompilerType_DoesNo
     }
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_AfterAbsentOutcome_ThrowsWithoutProbingAgain) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeAfterAbsentOutcomeThrowsWithoutProbingAgain) {
     fake_vcl::FakeVcl fake;
     fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     const CompilerAdapterFactory factory(fake.provider());
@@ -93,7 +95,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_AfterAbsentOutcome_ThrowsWi
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 1u);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_SeparateFactories_ProbeIndependently) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeSeparateFactoriesProbeIndependently) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory first(fake.provider());
     const CompilerAdapterFactory second(fake.provider());
@@ -102,7 +104,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_SeparateFactories_ProbeInde
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 2u);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlinePluginPlatform_WithWorkingCompiler_ResolvesToPlugin) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformWithWorkingCompilerResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory(fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
@@ -113,7 +115,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlinePluginPlatform_WithWo
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 1u);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineDriverOnlyPlatform_DoesNotInvokeProvider) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlineDriverOnlyPlatformDoesNotInvokeProvider) {
     const CompilerAdapterFactory factory(
         vcl_provider::forbidden("Driver only online compilation must not probe the compiler-in-plugin"));
     auto type = CompilerType::PREFER_PLUGIN;
@@ -123,7 +125,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlineDriverOnlyPlatform_Do
     EXPECT_EQ(type, CompilerType::DRIVER);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlinePluginPlatform_FallsBackToDriverWhenPluginIsAbsent) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformFallsBackToDriverWhenPluginIsAbsent) {
     fake_vcl::FakeVcl fake;
     fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     const CompilerAdapterFactory factory(fake.provider());
@@ -135,7 +137,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_OnlinePluginPlatform_FallsB
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 1u);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerType_CrossPlatformWithoutPlugin_Throws) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeCrossPlatformWithoutPluginThrows) {
     fake_vcl::FakeVcl fake;
     fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     const CompilerAdapterFactory factory(fake.provider());
@@ -147,7 +149,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerType_CrossPlatformWithoutPlugin_
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 1u);
 }
 
-TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginAfterPresentOutcome_CreatesCompilerWithoutProbing) {
+TEST(CompilerAdapterFactoryTests, GetCompilerPreferPluginAfterPresentOutcomeCreatesCompilerWithoutProbing) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory(fake.provider());
     ASSERT_EQ(decide(factory), CompilerType::PLUGIN);
@@ -159,7 +161,7 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginAfterPresentOutcome_Cr
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 2u);
 }
 
-TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginAfterPresentOutcome_ThrowsWithoutFallback) {
+TEST(CompilerAdapterFactoryTests, GetCompilerPreferPluginAfterPresentOutcomeThrowsWithoutFallback) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory(fake.provider());
     ASSERT_EQ(decide(factory), CompilerType::PLUGIN);
@@ -172,7 +174,7 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_PreferPluginAfterPresentOutcome_Th
     EXPECT_EQ(type, CompilerType::PLUGIN);
 }
 
-TEST(CompilerAdapterFactoryTests, GetCompiler_ExplicitPluginWithFailingCompilerCreation_RetriesAndKeepsOutcomeUnknown) {
+TEST(CompilerAdapterFactoryTests, GetCompilerExplicitPluginWithFailingCompilerCreationRetriesAndKeepsOutcomeUnknown) {
     fake_vcl::FakeVcl fake;
     fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     const CompilerAdapterFactory factory(fake.provider());
@@ -190,7 +192,7 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_ExplicitPluginWithFailingCompilerC
     EXPECT_EQ(decide(factory), CompilerType::PLUGIN);
 }
 
-TEST(CompilerAdapterFactoryTests, GetCompiler_DriverType_ThrowsWithoutInvokingProvider) {
+TEST(CompilerAdapterFactoryTests, GetCompilerDriverTypeThrowsWithoutInvokingProvider) {
     const CompilerAdapterFactory factory(
         vcl_provider::forbidden("Driver compilation must not request VCL entry points"));
     auto type = CompilerType::DRIVER;
@@ -199,17 +201,39 @@ TEST(CompilerAdapterFactoryTests, GetCompiler_DriverType_ThrowsWithoutInvokingPr
                                   "Could not find an NPU device");
 }
 
+TEST(CompilerAdapterFactoryTests, GetCompilerDriverTypeForAnotherPlatformThanTheDeviceThrowsWithoutInvokingProvider) {
+    const CompilerAdapterFactory factory(
+        vcl_provider::forbidden("Driver compilation must not request VCL entry points"));
+    const auto backend =
+        std::make_shared<FakeEngineBackend>(std::vector<std::string>{std::string(kDriverOnlyPlatform)});
+    auto type = CompilerType::DRIVER;
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(factory.getCompiler(ov::SoPtr<IEngineBackend>(backend), type, kPluginPlatform),
+                                  ov::Exception,
+                                  "Could not find a valid NPU device");
+}
+
+TEST(CompilerAdapterFactoryTests, GetCompilerInvalidCompilerTypeThrowsWithoutInvokingProvider) {
+    const CompilerAdapterFactory factory(
+        vcl_provider::forbidden("An invalid compiler type must not request VCL entry points"));
+    auto type = static_cast<CompilerType>(999);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(factory.getCompiler({}, type, kPluginPlatform),
+                                  ov::Exception,
+                                  "Invalid NPU_COMPILER_TYPE");
+}
+
 // Offline compilation can target any platform, including the ones that only the driver compiler serves when the
 // compilation is online. Without a device the platform is not looked at, so one platform of each kind is enough.
 class CompilerAdapterFactoryPlatformTests : public ::testing::TestWithParam<std::string> {};
 
-TEST_P(CompilerAdapterFactoryPlatformTests, DecideCompilerType_WithWorkingCompiler_ResolvesToPlugin) {
+TEST_P(CompilerAdapterFactoryPlatformTests, DecideCompilerTypeWithWorkingCompilerResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory(fake.provider());
     EXPECT_EQ(decide(factory, GetParam()), CompilerType::PLUGIN);
 }
 
-TEST_P(CompilerAdapterFactoryPlatformTests, GetCompiler_PreferPluginFirstCall_ReturnsTheProbedCompiler) {
+TEST_P(CompilerAdapterFactoryPlatformTests, GetCompilerPreferPluginFirstCallReturnsTheProbedCompiler) {
     fake_vcl::FakeVcl fake;
     const CompilerAdapterFactory factory(fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;

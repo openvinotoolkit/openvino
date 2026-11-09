@@ -28,12 +28,12 @@ using namespace ::intel_npu;
 
 const std::string kMissingLibraryDir = "npu_vcl_loader_holder_missing_dir";
 
-TEST(VCLLoaderHolderTests, Construction_DoesNotLoadTheLibrary) {
+TEST(VCLLoaderHolderTests, ConstructionDoesNotLoadTheLibrary) {
     EXPECT_NO_THROW(VCLLoaderHolder{kMissingLibraryDir});
     EXPECT_NO_THROW(VCLLoaderHolder{});
 }
 
-TEST(VCLLoaderHolderTests, Functions_WithEmptyLibraryDir_Throws) {
+TEST(VCLLoaderHolderTests, FunctionsWithEmptyLibraryDirThrows) {
     const VCLLoaderHolder holder{std::string{}};
     EXPECT_THROW(holder.functions(), ov::Exception);
 }
@@ -54,7 +54,7 @@ protected:
     std::filesystem::path directory;
 };
 
-TEST_F(VCLLoaderHolderFailedLoadTests, Functions_AfterFailedLoad_RethrowsFirstErrorWithoutLoadingAgain) {
+TEST_F(VCLLoaderHolderFailedLoadTests, FunctionsAfterFailedLoadRethrowsFirstErrorWithoutLoadingAgain) {
     const VCLLoaderHolder holder(ov::util::path_to_string(directory));
     std::string firstError;
     try {
@@ -76,7 +76,7 @@ TEST_F(VCLLoaderHolderFailedLoadTests, Functions_AfterFailedLoad_RethrowsFirstEr
     }
 }
 
-TEST(VCLLoaderHolderTests, Functions_CalledConcurrentlyWithMissingLibrary_EveryCallThrows) {
+TEST(VCLLoaderHolderTests, FunctionsCalledConcurrentlyWithMissingLibraryEveryCallThrows) {
     const VCLLoaderHolder holder(kMissingLibraryDir);
     constexpr std::size_t threadCount = 8;
     std::atomic<std::size_t> throwCount{0};
@@ -116,7 +116,7 @@ protected:
     std::string directory;
 };
 
-TEST_F(VCLLoaderHolderLibraryTests, Functions_AfterHolderDestroyed_TableStaysCallable) {
+TEST_F(VCLLoaderHolderLibraryTests, FunctionsAfterHolderDestroyedTableStaysCallable) {
     std::shared_ptr<const VCLFunctionTable> functions;
     {
         const VCLLoaderHolder holder(directory);
@@ -129,7 +129,7 @@ TEST_F(VCLLoaderHolderLibraryTests, Functions_AfterHolderDestroyed_TableStaysCal
     EXPECT_EQ(functions->vclGetVersion(&compilerVersion, &profilingVersion), VCL_RESULT_SUCCESS);
 }
 
-TEST_F(VCLLoaderHolderLibraryTests, Functions_ConcurrentFirstCalls_ReturnSameTable) {
+TEST_F(VCLLoaderHolderLibraryTests, FunctionsConcurrentFirstCallsReturnSameTable) {
     const VCLLoaderHolder holder(directory);
     constexpr std::size_t threadCount = 8;
     std::promise<void> startSignal;

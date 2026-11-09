@@ -31,7 +31,7 @@ std::shared_ptr<const CompilerAdapterFactory> factoryWithoutVclLibrary() {
         vcl_provider::forbidden("The VCL function table provider must not be invoked by this test"));
 }
 
-TEST(CompilerOptionSupportHelperTests, Construction_WithoutAdapterFactory_Throws) {
+TEST(CompilerOptionSupportHelperTests, ConstructionWithoutAdapterFactoryThrows) {
     EXPECT_THROW(CompilerOptionSupportHelper({nullptr}, nullptr), ov::Exception);
 }
 
@@ -80,7 +80,7 @@ TEST(CompilerOptionSupportHelperTests, ExposesSharedOptionSupportCache) {
     ASSERT_NE(helper.getOptionSupportCache(), nullptr);
 }
 
-TEST(CompilerOptionSupportHelperTests, IsOptionSupported_DriverWithoutBackend_Throws) {
+TEST(CompilerOptionSupportHelperTests, IsOptionSupportedDriverWithoutBackendThrows) {
     CompilerOptionSupportHelper helper({nullptr}, factoryWithoutVclLibrary());
 
     EXPECT_THROW(helper.isOptionSupported(CompilerType::DRIVER, "ANY_OPTION"), ov::Exception);
@@ -96,7 +96,7 @@ TEST(CompilerOptionSupportHelperTests, OptionValueBypassesCacheAndReachesCompile
     EXPECT_THROW(helper.isOptionSupported(CompilerType::DRIVER, "ANY_OPTION", std::string("1")), ov::Exception);
 }
 
-TEST(CompilerOptionSupportHelperTests, IsOptionSupported_PluginWithoutBackend_FollowsTheCompiler) {
+TEST(CompilerOptionSupportHelperTests, IsOptionSupportedPluginWithoutBackendFollowsTheCompiler) {
     fake_vcl::FakeVcl fake;
     fake.unsupportedOptions.insert("UNSUPPORTED_OPTION");
     CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const CompilerAdapterFactory>(fake.provider()));
@@ -105,7 +105,7 @@ TEST(CompilerOptionSupportHelperTests, IsOptionSupported_PluginWithoutBackend_Fo
     EXPECT_FALSE(helper.isOptionSupported(CompilerType::PLUGIN, "UNSUPPORTED_OPTION"));
 }
 
-TEST(CompilerOptionSupportHelperTests, IsOptionSupported_PluginWithoutBackend_LoadsTheCompilerOptionsOnce) {
+TEST(CompilerOptionSupportHelperTests, IsOptionSupportedPluginWithoutBackendLoadsTheCompilerOptionsOnce) {
     fake_vcl::FakeVcl fake;
     CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const CompilerAdapterFactory>(fake.provider()));
 

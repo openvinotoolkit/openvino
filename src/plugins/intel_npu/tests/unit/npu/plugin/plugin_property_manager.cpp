@@ -5,10 +5,13 @@
 #include "plugin_property_manager.hpp"
 
 #include <gtest/gtest.h>
+#include <ze_api.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -20,6 +23,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "metadata.hpp"
 #include "npu/compiler_adapter/fake_vcl.hpp"
 #include "npu/fake_backend_utils.hpp"
 #include "openvino/core/except.hpp"
@@ -36,10 +40,22 @@ namespace {
 
 using namespace ::intel_npu;
 using CompilerType = ov::intel_npu::CompilerType;
+using ov::test::npu::FakeBackendOptions;
 using ov::test::npu::FakeDevice;
 using ov::test::npu::FakeEngineBackend;
 
 constexpr std::string_view kBackendPlatform = ov::intel_npu::Platform::NPU5010;
+constexpr uint32_t kDriverVersion = 1234;
+
+// The strides option needs a driver with this graph extension version, or a later one.
+constexpr uint32_t kStridesGraphExtVersion = ZE_MAKE_VERSION(1, 16);
+
+// Reading it as a string fails, like the id of a caller that passes anything else than a string.
+struct ThrowsWhenPrinted {};
+
+std::ostream& operator<<(std::ostream&, const ThrowsWhenPrinted&) {
+    OPENVINO_THROW("Cannot be printed");
+}
 
 // Only the options the tests below use. A property whose option is not registered is unsupported, and the production
 // list is file local to plugin.cpp, so there is nothing to keep in sync.
@@ -61,6 +77,7 @@ void registerOptions(OptionsDesc& options) {
     options.add<CACHE_ENCRYPTION_CALLBACKS>();
     options.add<MODEL_PTR>();
     options.add<DISABLE_IDLE_MEMORY_PRUNING>();
+    options.add<ENABLE_STRIDES_FOR>();
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     options.add<ENABLE_CPU_PINNING>();
@@ -73,9 +90,20 @@ bool contains(const std::vector<ov::PropertyName>& properties, const std::string
     });
 }
 
-std::shared_ptr<FakeEngineBackend> makeBackend(bool contextExtensionSupported) {
-    return std::make_shared<FakeEngineBackend>(std::vector<std::string>{std::string(kBackendPlatform)},
-                                               contextExtensionSupported);
+std::shared_ptr<FakeEngineBackend> makeBackend(const FakeBackendOptions& options = {}) {
+    return std::make_shared<FakeEngineBackend>(std::vector<std::string>{std::string(kBackendPlatform)}, options);
+}
+
+FakeBackendOptions withContextExtension() {
+    FakeBackendOptions options;
+    options.contextExtensionSupported = true;
+    return options;
+}
+
+FakeBackendOptions withGraphExtVersion(uint32_t version) {
+    FakeBackendOptions options;
+    options.graphExtVersion = version;
+    return options;
 }
 
 class PluginPropertyManagerTests : public ::testing::Test {
@@ -111,11 +139,11 @@ protected:
     ov::log::Level globalLogLevel = ov::log::Level::NO;
 };
 
-TEST_F(PluginPropertyManagerTests, Construction_WithoutOptionSupportHelper_Throws) {
+TEST_F(PluginPropertyManagerTests, ConstructionWithoutOptionSupportHelperThrows) {
     EXPECT_THROW(PluginPropertyManager(options, noBackend, nullptr, Logger::global()), ov::Exception);
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_RuntimeOption_IsReadBack) {
+TEST_F(PluginPropertyManagerTests, SetPropertyRuntimeOptionIsReadBack) {
     EXPECT_FALSE(manager->getProperty(ov::enable_profiling.name()).as<bool>());
 
     manager->setProperty({{ov::enable_profiling.name(), true}});
@@ -123,13 +151,13 @@ TEST_F(PluginPropertyManagerTests, SetProperty_RuntimeOption_IsReadBack) {
     EXPECT_TRUE(manager->getProperty(ov::enable_profiling.name()).as<bool>());
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_ValueGivenAsString_IsParsed) {
+TEST_F(PluginPropertyManagerTests, SetPropertyValueGivenAsStringIsParsed) {
     manager->setProperty({{ov::enable_profiling.name(), std::string("YES")}});
 
     EXPECT_TRUE(manager->getProperty(ov::enable_profiling.name()).as<bool>());
 }
 
-TEST_F(PluginPropertyManagerTests, SetAndGet_DeprecatedCpuPinning_UsesTheRuntimeConfig) {
+TEST_F(PluginPropertyManagerTests, SetAndGetDeprecatedCpuPinningUsesTheRuntimeConfig) {
     OPENVINO_SUPPRESS_DEPRECATED_START
     EXPECT_FALSE(manager->isPropertySupported(ov::hint::enable_cpu_pinning.name()));
     manager->setProperty({{ov::hint::enable_cpu_pinning.name(), true}});
@@ -142,14 +170,14 @@ TEST_F(PluginPropertyManagerTests, SetAndGet_DeprecatedCpuPinning_UsesTheRuntime
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_ReadOnlyProperty_Throws) {
+TEST_F(PluginPropertyManagerTests, SetPropertyReadOnlyPropertyThrows) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->setProperty({{ov::available_devices.name(), std::string("anything")}}),
                                   ov::Exception,
                                   "READ-ONLY configuration key");
 }
 
 // The plugin registers MODEL_PRIORITY and WORKLOAD_TYPE only when there is a backend, and registerOptions() does not.
-TEST_F(PluginPropertyManagerTests, SetProperty_OptionThatIsNotRegistered_IsUnsupported) {
+TEST_F(PluginPropertyManagerTests, SetPropertyOptionThatIsNotRegisteredIsUnsupported) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->setProperty({{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}),
                                   ov::Exception,
                                   "Unsupported configuration key");
@@ -163,7 +191,7 @@ TEST_F(PluginPropertyManagerTests, SetProperty_OptionThatIsNotRegistered_IsUnsup
                                   "Unsupported configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_WithAnInvalidKey_AppliesNothing) {
+TEST_F(PluginPropertyManagerTests, SetPropertyWithAnInvalidKeyAppliesNothing) {
     OV_EXPECT_THROW_HAS_SUBSTRING(
         manager->setProperty({{ov::enable_profiling.name(), true}, {ov::available_devices.name(), std::string{}}}),
         ov::Exception,
@@ -172,37 +200,37 @@ TEST_F(PluginPropertyManagerTests, SetProperty_WithAnInvalidKey_AppliesNothing) 
     EXPECT_FALSE(manager->getProperty(ov::enable_profiling.name()).as<bool>());
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_LogLevel_IsAppliedToTheGlobalLogger) {
+TEST_F(PluginPropertyManagerTests, SetPropertyLogLevelIsAppliedToTheGlobalLogger) {
     manager->setProperty({{ov::log::level.name(), ov::log::Level::ERR}});
 
     EXPECT_EQ(manager->getProperty(ov::log::level.name()).as<ov::log::Level>(), ov::log::Level::ERR);
     EXPECT_EQ(Logger::global().level(), ov::log::Level::ERR);
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_UnknownKey_Throws) {
+TEST_F(PluginPropertyManagerTests, GetPropertyUnknownKeyThrows) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->getProperty("NOT_A_PROPERTY"),
                                   ov::Exception,
                                   "Unsupported configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, IsPropertySupported_PrivateProperty_IsHiddenButReadable) {
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedPrivatePropertyIsHiddenButReadable) {
     const auto cachingWithMmap = ov::internal::caching_with_mmap.name();
 
     EXPECT_FALSE(manager->isPropertySupported(cachingWithMmap));
     EXPECT_TRUE(manager->getProperty(cachingWithMmap).as<bool>());
 }
 
-TEST_F(PluginPropertyManagerTests, IsPropertySupported_UnknownProperty_IsFalse) {
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedUnknownPropertyIsFalse) {
     EXPECT_FALSE(manager->isPropertySupported("NOT_A_PROPERTY"));
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_WriteOnlyEncryptionCallbacks_ReturnsEmptyAny) {
+TEST_F(PluginPropertyManagerTests, GetPropertyWriteOnlyEncryptionCallbacksReturnsEmptyAny) {
     manager->setProperty({{ov::cache_encryption_callbacks.name(), ov::EncryptionCallbacks{nullptr, nullptr}}});
 
     EXPECT_TRUE(manager->getProperty(ov::cache_encryption_callbacks.name()).empty());
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_StableRuntimeMetadata_ReturnsValues) {
+TEST_F(PluginPropertyManagerTests, GetPropertyStableRuntimeMetadataReturnsValues) {
     EXPECT_EQ(manager->getProperty(ov::device::capabilities.name()).as<std::vector<std::string>>(),
               (std::vector<std::string>{ov::device::capability::FP16,
                                         ov::device::capability::INT8,
@@ -216,7 +244,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_StableRuntimeMetadata_ReturnsValu
     EXPECT_EQ(streamsRange, std::make_tuple(0u, 8u));
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_InternalMetadata_ReturnsValues) {
+TEST_F(PluginPropertyManagerTests, GetPropertyInternalMetadataReturnsValues) {
     EXPECT_TRUE(manager->getProperty(ov::internal::caching_with_mmap.name()).as<bool>());
     EXPECT_FALSE(manager->getProperty(ov::internal::cache_header_alignment.name()).empty());
 
@@ -231,7 +259,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_InternalMetadata_ReturnsValues) {
     EXPECT_TRUE(contains(cachingProperties, ov::enable_profiling.name()));
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_ModelAndCompileLogLevel_UseOfflineConfig) {
+TEST_F(PluginPropertyManagerTests, GetPropertyModelAndCompileLogLevelUseOfflineConfig) {
     EXPECT_EQ(manager->getProperty(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>(), nullptr);
     EXPECT_EQ(manager->getProperty(ov::intel_npu::compile_log_level.name()).as<ov::log::Level>(),
               manager->getProperty(ov::log::level.name()).as<ov::log::Level>());
@@ -240,7 +268,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_ModelAndCompileLogLevel_UseOfflin
     EXPECT_EQ(manager->getProperty(ov::intel_npu::compile_log_level.name()).as<ov::log::Level>(), ov::log::Level::ERR);
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_SupportedProperties_ListsPublicSupportedPropertiesWithMutability) {
+TEST_F(PluginPropertyManagerTests, GetPropertySupportedPropertiesListsPublicSupportedPropertiesWithMutability) {
     const auto supported = manager->getProperty(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
 
     EXPECT_TRUE(contains(supported, ov::enable_profiling.name()));
@@ -255,7 +283,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_SupportedProperties_ListsPublicSu
     EXPECT_FALSE(devices->is_mutable());
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_SupportedProperties_FollowsWhatTheCompilerSupports) {
+TEST_F(PluginPropertyManagerTests, GetPropertySupportedPropertiesFollowsWhatTheCompilerSupports) {
     fake.unsupportedOptions.insert(std::string(ov::intel_npu::tiles.name()));
     manager = makeManager();
     auto supported = manager->getProperty(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
@@ -267,7 +295,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_SupportedProperties_FollowsWhatTh
     EXPECT_TRUE(contains(supported, ov::intel_npu::tiles.name()));
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_SupportedProperties_OmitsCompilerOptionsWhenCompilerTypeIsEmpty) {
+TEST_F(PluginPropertyManagerTests, GetPropertySupportedPropertiesOmitsCompilerOptionsWhenCompilerTypeIsEmpty) {
     const auto supported =
         manager->getProperty(ov::supported_properties.name(), {{ov::intel_npu::compiler_type.name(), ov::Any()}})
             .as<std::vector<ov::PropertyName>>();
@@ -276,7 +304,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_SupportedProperties_OmitsCompiler
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 0u);
 }
 
-TEST_F(PluginPropertyManagerTests, IsPropertySupported_PropertiesThatNeedADevice_AreFalse) {
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedPropertiesThatNeedADeviceAreFalse) {
     const std::vector<std::string> needDevice = {ov::intel_npu::driver_version.name(),
                                                  ov::intel_npu::backend_name.name(),
                                                  ov::intel_npu::max_tiles.name(),
@@ -297,14 +325,14 @@ TEST_F(PluginPropertyManagerTests, IsPropertySupported_PropertiesThatNeedADevice
     EXPECT_TRUE(manager->getProperty(ov::available_devices.name()).as<std::vector<std::string>>().empty());
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_DisableIdleMemoryPruning_IsUnsupported) {
+TEST_F(PluginPropertyManagerTests, SetPropertyDisableIdleMemoryPruningIsUnsupported) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->setProperty({{ov::intel_npu::disable_idle_memory_prunning.name(), true}}),
                                   ov::Exception,
                                   "Unsupported configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_DisableIdleMemoryPruning_WithContextExtension_UpdatesBackend) {
-    const auto backend = makeBackend(true);
+TEST_F(PluginPropertyManagerTests, SetPropertyDisableIdleMemoryPruningWithContextExtensionUpdatesBackend) {
+    const auto backend = makeBackend(withContextExtension());
     manager = makeManager(ov::SoPtr<IEngineBackend>(backend));
     const auto property = ov::intel_npu::disable_idle_memory_prunning.name();
 
@@ -316,14 +344,14 @@ TEST_F(PluginPropertyManagerTests, SetProperty_DisableIdleMemoryPruning_WithCont
     EXPECT_TRUE(backend->updatedProperties().at(property).as<bool>());
 }
 
-TEST_F(PluginPropertyManagerTests, IsPropertySupported_DisableIdleMemoryPruning_WithoutContextExtension_IsFalse) {
-    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend(false)));
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedDisableIdleMemoryPruningWithoutContextExtensionIsFalse) {
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend()));
 
     EXPECT_FALSE(manager->isPropertySupported(ov::intel_npu::disable_idle_memory_prunning.name()));
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_DeviceDerivedValues_UseTheSelectedBackendDevice) {
-    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend(true)));
+TEST_F(PluginPropertyManagerTests, GetPropertyDeviceDerivedValuesUseTheSelectedBackendDevice) {
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend()));
 
     EXPECT_EQ(manager->getProperty(ov::device::architecture.name()).as<std::string>(), kBackendPlatform);
     EXPECT_EQ(manager->getProperty(ov::intel_npu::max_tiles.name()).as<int64_t>(),
@@ -334,13 +362,41 @@ TEST_F(PluginPropertyManagerTests, GetProperty_DeviceDerivedValues_UseTheSelecte
                                               {{ov::device::id.name(), std::string("missing")}}));
 }
 
-TEST_F(PluginPropertyManagerTests, Determine_Defaults_ComeFromTheConfig) {
+TEST_F(PluginPropertyManagerTests, GetPropertyBackendMetadataComesFromTheBackend) {
+    FakeBackendOptions options;
+    options.driverVersion = kDriverVersion;
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend(options)));
+
+    EXPECT_EQ(manager->getProperty(ov::intel_npu::driver_version.name()).as<uint32_t>(), kDriverVersion);
+    EXPECT_EQ(manager->getProperty(ov::intel_npu::backend_name.name()).as<std::string>(), FakeEngineBackend::kName);
+    const auto uuid = manager->getProperty(ov::device::uuid.name()).as<ov::device::UUID>();
+    EXPECT_TRUE(std::all_of(uuid.uuid.begin(), uuid.uuid.end(), [](uint8_t byte) {
+        return byte == FakeDevice::kUuidByte;
+    }));
+}
+
+TEST_F(PluginPropertyManagerTests, GetPropertyMaxTilesWhenTheDeviceCannotReportThemIsMinusOne) {
+    const auto device = std::make_shared<FakeDevice>(std::string(kBackendPlatform), false);
+    const auto backend = std::make_shared<FakeEngineBackend>(std::vector<std::shared_ptr<FakeDevice>>{device});
+    manager = makeManager(ov::SoPtr<IEngineBackend>(backend));
+
+    EXPECT_EQ(manager->getProperty(ov::intel_npu::max_tiles.name()).as<int64_t>(), -1);
+}
+
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedDeviceIdThatCannotBeReadAsStringIsFalse) {
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend()));
+
+    EXPECT_FALSE(
+        manager->isPropertySupported(ov::device::architecture.name(), {{ov::device::id.name(), ThrowsWhenPrinted{}}}));
+}
+
+TEST_F(PluginPropertyManagerTests, DetermineDefaultsComeFromTheConfig) {
     EXPECT_EQ(manager->determinePlatform({}), ov::intel_npu::Platform::AUTO_DETECT);
     EXPECT_EQ(manager->determineDeviceId({}), "0");
     EXPECT_EQ(manager->determineCompilerType({}), CompilerType::PREFER_PLUGIN);
 }
 
-TEST_F(PluginPropertyManagerTests, Determine_Properties_OverrideTheConfig) {
+TEST_F(PluginPropertyManagerTests, DeterminePropertiesOverrideTheConfig) {
     const std::string configuredId(ov::intel_npu::Platform::NPU4000);
     const std::string argumentId(ov::intel_npu::Platform::NPU5010);
     const std::string configuredPlatform(ov::intel_npu::Platform::NPU3720);
@@ -360,19 +416,19 @@ TEST_F(PluginPropertyManagerTests, Determine_Properties_OverrideTheConfig) {
               CompilerType::DRIVER);
 }
 
-TEST_F(PluginPropertyManagerTests, DetermineCompilerType_InvalidValue_Throws) {
+TEST_F(PluginPropertyManagerTests, DetermineCompilerTypeInvalidValueThrows) {
     EXPECT_THROW(manager->determineCompilerType({{ov::intel_npu::compiler_type.name(), std::string("NOT_A_TYPE")}}),
                  ov::Exception);
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_CompilerType_EmptyArgumentFallsBackToConfiguredValue) {
+TEST_F(PluginPropertyManagerTests, GetPropertyCompilerTypeEmptyArgumentFallsBackToConfiguredValue) {
     EXPECT_EQ(
         manager->getProperty(ov::intel_npu::compiler_type.name(), {{ov::intel_npu::compiler_type.name(), ov::Any()}})
             .as<CompilerType>(),
         CompilerType::PREFER_PLUGIN);
 }
 
-TEST_F(PluginPropertyManagerTests, IsPropertySupported_CompilerTypeGivenAsString_IsParsedAndInvalidIsUnsupported) {
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedCompilerTypeGivenAsStringIsParsedAndInvalidIsUnsupported) {
     EXPECT_EQ(manager
                   ->getProperty(ov::intel_npu::compiler_type.name(),
                                 {{ov::intel_npu::compiler_type.name(), std::string("PLUGIN")}})
@@ -384,7 +440,7 @@ TEST_F(PluginPropertyManagerTests, IsPropertySupported_CompilerTypeGivenAsString
                                               {{ov::intel_npu::compiler_type.name(), std::string("NOT_A_TYPE")}}));
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_Stepping_UsesDefaultWithoutBackendAndExplicitValueWhenSet) {
+TEST_F(PluginPropertyManagerTests, GetPropertySteppingUsesDefaultWithoutBackendAndExplicitValueWhenSet) {
     constexpr int64_t kExplicitStepping = 2;
     EXPECT_EQ(manager->getProperty(ov::intel_npu::stepping.name()).as<int64_t>(), -1);
 
@@ -393,7 +449,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_Stepping_UsesDefaultWithoutBacken
     EXPECT_EQ(manager->getProperty(ov::intel_npu::stepping.name()).as<int64_t>(), kExplicitStepping);
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_WriteOnlyCompiledModelMetadata_Throws) {
+TEST_F(PluginPropertyManagerTests, GetPropertyWriteOnlyCompiledModelMetadataThrows) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->getProperty(ov::loaded_from_cache.name()),
                                   ov::Exception,
                                   "only be provided when importing a compiled model");
@@ -402,31 +458,47 @@ TEST_F(PluginPropertyManagerTests, GetProperty_WriteOnlyCompiledModelMetadata_Th
                                   "only be provided when importing a compiled model");
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_WorkloadCompileCallNumber_Throws) {
+TEST_F(PluginPropertyManagerTests, GetPropertyWorkloadCompileCallNumberThrows) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->getProperty(ov::intel_npu::ws_compile_call_number.name()),
                                   ov::Exception,
                                   "cannot be accessed");
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_ModelOutsideImport_Throws) {
+TEST_F(PluginPropertyManagerTests, SetPropertyModelOutsideImportThrows) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->setProperty({{ov::hint::model.name(), std::shared_ptr<const ov::Model>{}}}),
                                   ov::Exception,
                                   "can only be provided when importing a compiled model");
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_Turbo_IsReadBackWhenTheCompilerSupportsIt) {
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedEnableStridesForWithoutBackendFollowsTheCompiler) {
+    EXPECT_TRUE(manager->isPropertySupported(ov::intel_npu::enable_strides_for.name()));
+
+    fake.unsupportedOptions.insert(std::string(ov::intel_npu::enable_strides_for.name()));
+    manager = makeManager();
+    EXPECT_FALSE(manager->isPropertySupported(ov::intel_npu::enable_strides_for.name()));
+}
+
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedEnableStridesForFollowsTheGraphExtensionVersion) {
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend(withGraphExtVersion(kStridesGraphExtVersion - 1))));
+    EXPECT_FALSE(manager->isPropertySupported(ov::intel_npu::enable_strides_for.name()));
+
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend(withGraphExtVersion(kStridesGraphExtVersion))));
+    EXPECT_TRUE(manager->isPropertySupported(ov::intel_npu::enable_strides_for.name()));
+}
+
+TEST_F(PluginPropertyManagerTests, SetPropertyTurboIsReadBackWhenTheCompilerSupportsIt) {
     manager->setProperty({{ov::intel_npu::turbo.name(), true}});
 
     EXPECT_TRUE(manager->getProperty(ov::intel_npu::turbo.name()).as<bool>());
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_CompilerOption_IsAcceptedWhenTheCompilerSupportsIt) {
+TEST_F(PluginPropertyManagerTests, SetPropertyCompilerOptionIsAcceptedWhenTheCompilerSupportsIt) {
     manager->setProperty({{fake_vcl::kOptionA, std::string("1")}});
 
     EXPECT_EQ(manager->getProperty(fake_vcl::kOptionA).as<std::string>(), "1");
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_CompilerOption_IsRejectedWhenTheCompilerDoesNotSupportIt) {
+TEST_F(PluginPropertyManagerTests, SetPropertyCompilerOptionIsRejectedWhenTheCompilerDoesNotSupportIt) {
     fake.unsupportedOptions.insert("NOT_A_COMPILER_OPTION");
 
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->setProperty({{"NOT_A_COMPILER_OPTION", std::string("1")}}),
@@ -434,7 +506,7 @@ TEST_F(PluginPropertyManagerTests, SetProperty_CompilerOption_IsRejectedWhenTheC
                                   "Unsupported configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, SetProperty_CompilerOption_WithTheDriverCompiler_IsRejectedWithoutBackend) {
+TEST_F(PluginPropertyManagerTests, SetPropertyCompilerOptionWithTheDriverCompilerIsRejectedWithoutBackend) {
     manager->setProperty({{ov::intel_npu::compiler_type.name(), CompilerType::DRIVER}});
 
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->setProperty({{fake_vcl::kOptionA, std::string("1")}}),
@@ -443,13 +515,13 @@ TEST_F(PluginPropertyManagerTests, SetProperty_CompilerOption_WithTheDriverCompi
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 0u);
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_CompilerOptionThatWasNeverSet_Throws) {
+TEST_F(PluginPropertyManagerTests, GetPropertyCompilerOptionThatWasNeverSetThrows) {
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->getProperty(fake_vcl::kOptionC),
                                   ov::Exception,
                                   "Unsupported configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, GetProperty_InternalCompilerOption_WhenCompilerCheckThrows_IsUnsupported) {
+TEST_F(PluginPropertyManagerTests, GetPropertyInternalCompilerOptionWhenCompilerCheckThrowsIsUnsupported) {
     manager->setProperty({{fake_vcl::kOptionA, std::string("1")}});
     manager->setProperty({{ov::intel_npu::compiler_type.name(), CompilerType::DRIVER}});
 
@@ -458,7 +530,7 @@ TEST_F(PluginPropertyManagerTests, GetProperty_InternalCompilerOption_WhenCompil
                                   "Unsupported configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, IsPropertySupported_CompilerVersion_FollowsTheCompilerCreation) {
+TEST_F(PluginPropertyManagerTests, IsPropertySupportedCompilerVersionFollowsTheCompilerCreation) {
     EXPECT_TRUE(manager->isPropertySupported(ov::intel_npu::compiler_version.name()));
     EXPECT_NO_THROW(manager->getProperty(ov::intel_npu::compiler_version.name()));
 
@@ -468,7 +540,7 @@ TEST_F(PluginPropertyManagerTests, IsPropertySupported_CompilerVersion_FollowsTh
     EXPECT_FALSE(manager->isPropertySupported(ov::intel_npu::compiler_version.name()));
 }
 
-TEST_F(PluginPropertyManagerTests, CompilerQueries_AfterAFailedCompilerCreation_DoNotProbeAgain) {
+TEST_F(PluginPropertyManagerTests, CompilerQueriesAfterAFailedCompilerCreationDoNotProbeAgain) {
     fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     manager = makeManager();
 
@@ -481,7 +553,7 @@ TEST_F(PluginPropertyManagerTests, CompilerQueries_AfterAFailedCompilerCreation_
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 1u);
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_AppliesKnownOptionsToACopy) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCompileAppliesKnownOptionsToACopy) {
     const auto [config, unknown] =
         manager->getMergedConfigAndUnknownProperties({{ov::enable_profiling.name(), true}}, ConfigMergeMode::Compile);
 
@@ -490,7 +562,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_AppliesKnownOptionsTo
     EXPECT_FALSE(manager->getProperty(ov::enable_profiling.name()).as<bool>());
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_AppliesCompilerPropertiesTheCompilerSupports) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCompileAppliesCompilerPropertiesTheCompilerSupports) {
     const auto [config, unknown] =
         manager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo.name(), true}}, ConfigMergeMode::Compile);
 
@@ -498,7 +570,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_AppliesCompilerProper
     EXPECT_TRUE(unknown.empty());
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_RejectsACompilerPropertyTheCompilerDoesNotSupport) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCompileRejectsACompilerPropertyTheCompilerDoesNotSupport) {
     fake.unsupportedOptions.insert(std::string(ov::intel_npu::tiles.name()));
 
     OV_EXPECT_THROW_HAS_SUBSTRING(
@@ -508,7 +580,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_RejectsACompilerPrope
         "is not supported for current configuration");
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_KeepsCompilerOptionsAsInternalOnes) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCompileKeepsCompilerOptionsAsInternalOnes) {
     const auto [config, unknown] =
         manager->getMergedConfigAndUnknownProperties({{fake_vcl::kOptionA, std::string("7")}},
                                                      ConfigMergeMode::Compile);
@@ -518,7 +590,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_KeepsCompilerOptionsA
     EXPECT_TRUE(unknown.empty());
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_ForwardsUnknownProperties) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCompileForwardsUnknownProperties) {
     fake.unsupportedOptions.insert("FOR_THE_COMPILED_MODEL");
 
     const auto [config, unknown] = manager->getMergedConfigAndUnknownProperties(
@@ -531,7 +603,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_ForwardsUnknownProper
     EXPECT_FALSE(config.hasInternal("FOR_THE_COMPILED_MODEL"));
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_KeepsTheRequestedPlatformAndCompilerType) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCompileKeepsTheRequestedPlatformAndCompilerType) {
     const std::string platform(ov::intel_npu::Platform::NPU3720);
     const auto [config, unknown] = manager->getMergedConfigAndUnknownProperties(
         {{ov::intel_npu::platform.name(), platform}, {ov::intel_npu::compiler_type.name(), CompilerType::PLUGIN}},
@@ -542,7 +614,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_KeepsTheRequestedPlat
     EXPECT_TRUE(unknown.empty());
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Query_RejectsUnknownProperties) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigQueryRejectsUnknownProperties) {
     fake.unsupportedOptions.insert("FOR_THE_COMPILED_MODEL");
 
     OV_EXPECT_THROW_HAS_SUBSTRING(
@@ -552,7 +624,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Query_RejectsUnknownPropertie
         "Unsupported configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_UnknownProperty_WhenCompilerCheckThrows_IsForwarded) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCompileUnknownPropertyWhenCompilerCheckThrowsIsForwarded) {
     manager->setProperty({{ov::intel_npu::compiler_type.name(), CompilerType::DRIVER}});
 
     const auto [config, unknown] =
@@ -563,7 +635,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Compile_UnknownProperty_WhenC
     EXPECT_EQ(unknown.at("DRIVER_ONLY_UNKNOWN").as<std::string>(), "value");
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_ReadOnlyProperty_Throws) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigReadOnlyPropertyThrows) {
     OV_EXPECT_THROW_HAS_SUBSTRING(
         manager->getMergedConfigAndUnknownProperties({{ov::available_devices.name(), std::string{}}},
                                                      ConfigMergeMode::Compile),
@@ -571,7 +643,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_ReadOnlyProperty_Throws) {
         "READ-ONLY configuration key");
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_SkipsCompileTimeOptions) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigImportSkipsCompileTimeOptions) {
     const auto [config, unknown] = manager->getMergedConfigAndUnknownProperties(
         {{ov::intel_npu::tiles.name(), int64_t{2}}, {ov::enable_profiling.name(), true}},
         ConfigMergeMode::Import);
@@ -581,7 +653,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_SkipsCompileTimeOption
     EXPECT_TRUE(unknown.empty());
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_SkipsUnsupportedBothOptionWithoutCompilerType) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigImportSkipsUnsupportedBothOptionWithoutCompilerType) {
     const auto [config, unknown] =
         manager->getMergedConfigAndUnknownProperties({{ov::intel_npu::turbo.name(), true}}, ConfigMergeMode::Import);
 
@@ -589,7 +661,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_SkipsUnsupportedBothOp
     EXPECT_TRUE(unknown.empty());
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_ForwardsUnknownPropertiesOfAModelThatWasNotCached) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigImportForwardsUnknownPropertiesOfAModelThatWasNotCached) {
     const auto [config, unknown] =
         manager->getMergedConfigAndUnknownProperties({{fake_vcl::kOptionA, std::string("1")}}, ConfigMergeMode::Import);
 
@@ -597,7 +669,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_ForwardsUnknownPropert
     EXPECT_FALSE(config.hasInternal(fake_vcl::kOptionA));
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_DropsCompilerOptionsOfAModelLoadedFromTheCache) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigImportDropsCompilerOptionsOfAModelLoadedFromTheCache) {
     const auto [config, unknown] = manager->getMergedConfigAndUnknownProperties(
         {{fake_vcl::kOptionA, std::string("1")}, {ov::loaded_from_cache.name(), true}},
         ConfigMergeMode::Import);
@@ -607,7 +679,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_DropsCompilerOptionsOf
     EXPECT_TRUE(config.get<LOADED_FROM_CACHE>());
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_DoesNotKeepTheCompilerType) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigImportDoesNotKeepTheCompilerType) {
     const auto [compiled, compiledUnknown] =
         manager->getMergedConfigAndUnknownProperties({{ov::intel_npu::compiler_type.name(), CompilerType::PLUGIN}},
                                                      ConfigMergeMode::Compile);
@@ -619,7 +691,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_DoesNotKeepTheCompiler
     EXPECT_FALSE(imported.has(ov::intel_npu::compiler_type.name()));
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_StoresModelPointer) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigImportStoresModelPointer) {
     const auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     const auto result = std::make_shared<ov::op::v0::Result>(parameter);
     const auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{parameter});
@@ -637,7 +709,7 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_Import_StoresModelPointer) {
     }
 }
 
-TEST_F(PluginPropertyManagerTests, GetMergedConfig_CommandQueueOptions_EnforcesOfflineCombinationRules) {
+TEST_F(PluginPropertyManagerTests, GetMergedConfigCommandQueueOptionsEnforcesOfflineCombinationRules) {
     EXPECT_FALSE(manager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
     EXPECT_FALSE(manager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
 
@@ -662,6 +734,103 @@ TEST_F(PluginPropertyManagerTests, GetMergedConfig_CommandQueueOptions_EnforcesO
                                                      ConfigMergeMode::Compile),
         ov::Exception,
         "is not supported for current configuration");
+}
+
+// The fake backend has no Level Zero structures, so the compatibility check goes through the compiler of the plugin.
+class PluginPropertyManagerCompatibilityCheckTests : public PluginPropertyManagerTests {
+protected:
+    void SetUp() override {
+        PluginPropertyManagerTests::SetUp();
+        manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend()));
+    }
+
+    static std::string requirementsWith(std::optional<std::string_view> compatibilityDescriptor) {
+        Metadata<METADATA_VERSION_2_6> metadata(0,
+                                                CURRENT_OPENVINO_VERSION,
+                                                std::nullopt,
+                                                std::nullopt,
+                                                std::nullopt,
+                                                std::nullopt,
+                                                std::nullopt,
+                                                std::nullopt,
+                                                compatibilityDescriptor);
+        std::ostringstream stream;
+        metadata.write_as_text(stream);
+        return stream.str();
+    }
+
+    ov::CompatibilityCheck check(const std::string& runtimeRequirements) const {
+        return manager
+            ->getProperty(ov::compatibility_check.name(), {{ov::runtime_requirements.name(), runtimeRequirements}})
+            .as<ov::CompatibilityCheck>();
+    }
+
+    const std::string compatibilityCheck = ov::compatibility_check.name();
+    const std::string descriptor = "platform=NPU3720;tiles=2;something=ELSE";
+
+    // The compiler must have been asked about the descriptor, or the outcome comes from somewhere else.
+    void expectDescriptorWasQueried() const {
+        ASSERT_FALSE(fake.optionSupportQueries.empty());
+        EXPECT_EQ(fake.optionSupportQueries.back().first, compatibilityCheck);
+        EXPECT_EQ(fake.optionSupportQueries.back().second, descriptor);
+    }
+};
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, IsPropertySupportedFollowsTheCompiler) {
+    EXPECT_TRUE(manager->isPropertySupported(compatibilityCheck));
+
+    fake.unsupportedOptions.insert(compatibilityCheck);
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend()));
+    EXPECT_FALSE(manager->isPropertySupported(compatibilityCheck));
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, IsPropertySupportedWhenCompilerCreationFailsIsFalse) {
+    fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
+    manager = makeManager(ov::SoPtr<IEngineBackend>(makeBackend()));
+
+    EXPECT_FALSE(manager->isPropertySupported(compatibilityCheck));
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, GetPropertyWithoutRuntimeRequirementsIsNotApplicable) {
+    EXPECT_EQ(manager->getProperty(compatibilityCheck).as<ov::CompatibilityCheck>(),
+              ov::CompatibilityCheck::NOT_APPLICABLE);
+    EXPECT_EQ(manager->getProperty(compatibilityCheck, {{ov::device::id.name(), std::string("0")}})
+                  .as<ov::CompatibilityCheck>(),
+              ov::CompatibilityCheck::NOT_APPLICABLE);
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, GetPropertyWithEmptyRuntimeRequirementsIsNotApplicable) {
+    EXPECT_EQ(check(""), ov::CompatibilityCheck::NOT_APPLICABLE);
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, GetPropertyWithMalformedRuntimeRequirementsIsUnsupported) {
+    EXPECT_EQ(check("not_a_metadata_text"), ov::CompatibilityCheck::UNSUPPORTED);
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, GetPropertyWithoutCompatibilityDescriptorIsNotApplicable) {
+    EXPECT_EQ(check(requirementsWith(std::nullopt)), ov::CompatibilityCheck::NOT_APPLICABLE);
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, GetPropertyAsksTheCompilerAboutTheDescriptor) {
+    ASSERT_TRUE(manager->isPropertySupported(compatibilityCheck));
+
+    EXPECT_EQ(check(requirementsWith(descriptor)), ov::CompatibilityCheck::SUPPORTED);
+    expectDescriptorWasQueried();
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, GetPropertyWhenTheCompilerRejectsTheDescriptorIsUnsupported) {
+    ASSERT_TRUE(manager->isPropertySupported(compatibilityCheck));
+    fake.unsupportedOptions.insert(compatibilityCheck);
+
+    EXPECT_EQ(check(requirementsWith(descriptor)), ov::CompatibilityCheck::UNSUPPORTED);
+    expectDescriptorWasQueried();
+}
+
+TEST_F(PluginPropertyManagerCompatibilityCheckTests, GetPropertyWhenTheCompilerCannotBeCreatedIsNotApplicable) {
+    ASSERT_TRUE(manager->isPropertySupported(compatibilityCheck));
+    fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
+
+    EXPECT_EQ(check(requirementsWith(descriptor)), ov::CompatibilityCheck::NOT_APPLICABLE);
 }
 
 }  // namespace
