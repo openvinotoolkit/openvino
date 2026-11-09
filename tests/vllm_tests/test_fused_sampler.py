@@ -2,19 +2,9 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Coverage for the OV-fused stochastic sampler (sampler.py), which no generation test reaches.
+"""The OV-fused seeded sampler must pick exactly the token vLLM's own CPU recipe picks.
 
-The generation tests run TinyLlama (32000-token vocab, below the default
-OV_FUSED_SAMPLER_MIN_VOCAB=100000 gate) at temperature=0 (all_greedy, also
-ineligible), so the fused top-k/top-p + seeded-noise path never runs there.
-These tests drive Sampler.sample directly on random logits with the gate
-lowered, and compare the fused result token-for-token against vLLM's own
-CPU seeded-sampling recipe (apply_top_k_top_p + softmax + exponential
-noise drawn from the request generator over the full vocab). The fused
-path draws the same noise from the same generator, so with a seed the
-two must pick the same token -- not just a statistically equivalent one.
-
-No model download needed.
+No generation test reaches it (TinyLlama is below the vocab gate and decodes greedily), so these call it directly.
 """
 
 import pytest
@@ -29,16 +19,8 @@ from openvino.frontend.pytorch.torchdynamo.vllm import sampler as ov_sampler
 
 VOCAB = 32000
 
-CASES = [
-    # temperature, top_k, top_p
-    (0.7, 50, 0.9),
-    (1.0, None, 0.8),
-    (1.3, 20, None),
-    (0.5, 1000, 0.95),
-    (2.0, None, 0.5),
-    (1.0, None, None),
-    (0.8, 40, 0.3),
-]
+# temperature, top_k, top_p: both filters, top-p only, top-k only, neither
+CASES = [(0.7, 50, 0.9), (1.0, None, 0.8), (1.3, 20, None), (1.0, None, None)]
 
 
 def _pristine_sample():
@@ -88,16 +70,21 @@ def _reference(logits, temperature, top_k, top_p, seed):
     return int(probs.div(noise).argmax(dim=-1)), torch.isfinite(filtered[0])
 
 
-@pytest.fixture
-def fused_sampler(monkeypatch):
-    """Install the OV sampler patch over a fallback that records every call.
-
-    Restores Sampler.sample and the compiled-sampler cache afterwards so no
-    other test in the session sees this test's patch.
-    """
+def _install(monkeypatch, fallback):
+    """Install the OV sampler patch over `fallback`; monkeypatch undoes it for later tests."""
     monkeypatch.setenv("OV_FUSED_SAMPLER_MIN_VOCAB", "1")
     monkeypatch.delenv("OV_DISABLE_FUSED_SAMPLER", raising=False)
     monkeypatch.delenv("OV_NATIVE_SAMPLER", raising=False)
+    monkeypatch.setattr(Sampler, "sample", fallback)
+    monkeypatch.setattr(Sampler, "_ov_fused_installed", False, raising=False)
+    monkeypatch.setattr(ov_sampler, "_OV_SAMPLE_COMPILED", None)
+    ov_sampler.install()
+    assert Sampler.sample is not fallback, "sampler.install() did not patch Sampler.sample"
+
+
+@pytest.fixture
+def fused_sampler(monkeypatch):
+    """The fallback calls vLLM's sampler and records each call."""
     pristine = _pristine_sample()
     fallbacks = []
 
@@ -105,11 +92,7 @@ def fused_sampler(monkeypatch):
         fallbacks.append(sampling_metadata)
         return pristine(self, logits, sampling_metadata, logprobs_mode_override=logprobs_mode_override)
 
-    monkeypatch.setattr(Sampler, "sample", _recording_fallback)
-    monkeypatch.setattr(Sampler, "_ov_fused_installed", False, raising=False)
-    monkeypatch.setattr(ov_sampler, "_OV_SAMPLE_COMPILED", None)
-    ov_sampler.install()
-    assert Sampler.sample is not _recording_fallback, "sampler.install() did not patch Sampler.sample"
+    _install(monkeypatch, _recording_fallback)
     return fallbacks
 
 
@@ -132,31 +115,16 @@ def test_fused_sampler_matches_vllm_seeded(fused_sampler, temperature, top_k, to
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("allowed", [1, 3, 200])
-def test_fused_sampler_masked_logits(fused_sampler, allowed):
-    """-inf logits (allowed_token_ids / bad_words, applied before sample) must never be sampled."""
+@pytest.mark.parametrize("far_negative", [False, True], ids=["random", "far_negative"])
+def test_fused_sampler_masked_logits(fused_sampler, allowed, far_negative):
+    """-inf logits (allowed_token_ids / bad_words) are never sampled, even when the allowed ones sit below -1e30."""
     torch.manual_seed(1)
     sampler = Sampler()
     for seed in range(5):
-        logits = torch.randn(1, VOCAB) * 4.0
         keep = torch.randperm(VOCAB)[:allowed]
-        masked = torch.full_like(logits, float("-inf"))
-        masked[0, keep] = logits[0, keep]
-        expected, _ = _reference(masked, 0.9, 50, 0.9, seed)
-        got, _ = sampler.sample(masked.clone(), _metadata(0.9, 50, 0.9, seed))
-        assert not fused_sampler, "fused sampler fell back to vLLM's sampler"
-        assert int(got[0]) in keep.tolist()
-        assert int(got[0]) == expected
-
-
-@pytest.mark.precommit
-@pytest.mark.parametrize("allowed", [1, 3])
-def test_fused_sampler_masked_logits_far_negative(fused_sampler, allowed):
-    """Allowed logits below a finite mask value (-1e30) must still win over the filtered tokens."""
-    sampler = Sampler()
-    for seed in range(5):
-        keep = torch.randperm(VOCAB, generator=torch.Generator().manual_seed(seed))[:allowed]
         masked = torch.full((1, VOCAB), float("-inf"))
-        masked[0, keep] = -1e31 * (1.0 + 0.1 * torch.arange(allowed, dtype=torch.float32))
+        masked[0, keep] = (-1e31 * (1.0 + 0.1 * torch.arange(allowed, dtype=torch.float32)) if far_negative
+                           else torch.randn(allowed) * 4.0)
         expected, _ = _reference(masked, 0.9, 50, 0.9, seed)
         got, _ = sampler.sample(masked.clone(), _metadata(0.9, 50, 0.9, seed))
         assert not fused_sampler, "fused sampler fell back to vLLM's sampler"
@@ -167,11 +135,7 @@ def test_fused_sampler_masked_logits_far_negative(fused_sampler, allowed):
 @pytest.mark.precommit
 @pytest.mark.parametrize("logprobs_mode", ["raw_logprobs", "processed_logprobs"])
 def test_fused_sampler_logprobs_zero(fused_sampler, logprobs_mode):
-    """logprobs=0 (max_num_logprobs == 0) still needs the sampled token's logprob.
-
-    In processed_* modes that logprob comes from sample()'s second return
-    value, which the fused path always sets to None.
-    """
+    """logprobs=0 still needs the sampled token's logprob, which processed_* modes take from sample()'s output."""
     sampler = Sampler(logprobs_mode=logprobs_mode)
     logits = torch.randn(1, VOCAB) * 4.0
     out = sampler(logits, _metadata(1.0, 50, 0.9, seed=3, max_num_logprobs=0))
@@ -222,9 +186,6 @@ def test_fused_sampler_fp64_gumbel_falls_back(fused_sampler):
 @pytest.mark.precommit
 def test_fused_sampler_failure_restores_default_rng(monkeypatch):
     """A failed fused call must leave the default CPU RNG as it found it, so the fallback draws what vLLM would."""
-    monkeypatch.setenv("OV_FUSED_SAMPLER_MIN_VOCAB", "1")
-    monkeypatch.delenv("OV_DISABLE_FUSED_SAMPLER", raising=False)
-    monkeypatch.delenv("OV_NATIVE_SAMPLER", raising=False)
     states = []
 
     def _fallback(self, logits, sampling_metadata, logprobs_mode_override=None):
@@ -234,9 +195,7 @@ def test_fused_sampler_failure_restores_default_rng(monkeypatch):
     def _broken(*args):
         raise RuntimeError("injected fused sampler failure")
 
-    monkeypatch.setattr(Sampler, "sample", _fallback)
-    monkeypatch.setattr(Sampler, "_ov_fused_installed", False, raising=False)
-    ov_sampler.install()
+    _install(monkeypatch, _fallback)
     monkeypatch.setattr(ov_sampler, "_OV_SAMPLE_COMPILED", _broken)
     torch.manual_seed(123)
     logits = torch.randn(1, VOCAB)

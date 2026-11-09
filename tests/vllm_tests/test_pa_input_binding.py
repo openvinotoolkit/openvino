@@ -2,14 +2,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Verify build_call_kwargs binds positional values to the non-__pa__ ports in order, and refuses a count mismatch.
-
-The positional values come from the FX graph's arguments and bind by position, so if the converted model ever had
-one input more or fewer than the values passed, every later port would silently take its neighbour's tensor. That
-must fail loudly instead.
-
-No model download needed: stand-in ports and side channels.
-"""
+"""build_call_kwargs binds positional values to the non-__pa__ ports in order, and refuses a count mismatch."""
 
 import pytest
 

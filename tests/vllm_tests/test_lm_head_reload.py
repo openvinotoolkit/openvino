@@ -2,22 +2,13 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Verify the OV lm_head rebuilds on weight reload/update, instead of going stale.
+"""The lm_head bakes its weight in at install, so the reload_weights / finish_weight_update patches must rebuild it.
 
-build_ov_lm_head bakes lm_head.weight into an OV constant at install time
-(plugin._install_ov_lm_head). Without the reload_weights/finish_weight_update
-patches, any in-place weight mutation after load -- checkpoint reload, RLHF
-weight sync -- would leave the compiled lm_head silently serving logits off
-the pre-reload weight. This checks both halves: _install_ov_lm_head actually
-picks up a mutated weight when re-run, and the two vLLM entry points are
-genuinely wrapped rather than silently skipped.
-
-No model download needed: exercises plugin functions against a minimal
-stand-in lm_head, and the patch machinery against the real (but
-uninitialized) CPUModelRunner/CPUWorker classes.
+No model download needed: a stand-in lm_head and runner on the real vLLM CPUModelRunner/CPUWorker classes.
 """
 
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -27,234 +18,75 @@ import torch
 
 from openvino.frontend.pytorch.torchdynamo.vllm import plugin
 
+H, V = 8, 32
 
-class _FakeLMHead:
+
+class _FakeRunner:
+    """Stands in for both the model runner and the worker (whose model_runner is itself)."""
+
+    vllm_config = SimpleNamespace(compilation_config=SimpleNamespace(
+        mode=SimpleNamespace(name="STOCK_TORCH_COMPILE"), backend="openvino"))
+
     def __init__(self, weight):
-        self.weight = weight
-        self.cpu_linear = None
+        self.model = SimpleNamespace(lm_head=SimpleNamespace(
+            weight=torch.nn.Parameter(weight.clone(), requires_grad=False), cpu_linear=None))
+        self.model_runner = self
 
-
-class _FakeModel:
-    def __init__(self, weight):
-        self.lm_head = _FakeLMHead(weight)
-
-
-def _param(w):
-    return torch.nn.Parameter(w.clone(), requires_grad=False)
+    def get_model(self):
+        return self.model
 
 
 def _ref(x, w):
     return (x.float() @ w.float().T).to(torch.bfloat16)
 
 
-@pytest.fixture(autouse=True, params=["1", "0"], ids=["ov_lm_head", "onednn_lm_head"])
-def lm_head_impl(request, monkeypatch):
-    """Run every test against both lm_head implementations, restoring the weight hooks afterwards.
-
-    _install_ov_lm_head reads OV_LM_HEAD at call time, so monkeypatch.setenv
-    is enough. "1" is the OV-constant path; "0" is the default oneDNN path,
-    whose packed weight goes just as stale on reload.
-    """
-    monkeypatch.setenv("OV_LM_HEAD", request.param)
-    # The hook tests replace these class attributes with stand-ins; snapshot them so
-    # teardown restores the real methods and markers for later tests in the process.
-    from vllm.v1.worker.cpu_model_runner import CPUModelRunner
-    from vllm.v1.worker.cpu_worker import CPUWorker
-    for cls, names in ((CPUModelRunner, ("reload_weights", "_ov_plugin_reload_patched")),
-                       (CPUWorker, ("finish_weight_update", "_ov_plugin_update_patched"))):
-        for name in names:
-            monkeypatch.setattr(cls, name, getattr(cls, name, None), raising=False)
-    return request.param
-
-
 def _assert_impl(cpu_linear, impl):
     """A failed OV build falls back to oneDNN silently, so check which one was installed."""
     name = getattr(cpu_linear, "__qualname__", "")
-    if impl == "1":
-        assert name.startswith("build_ov_lm_head."), f"expected the OV lm_head, got {name}"
-    else:
-        assert name.startswith("dispatch_cpu_unquantized_gemm."), f"expected the oneDNN lm_head, got {name}"
+    prefix = "build_ov_lm_head." if impl == "1" else "dispatch_cpu_unquantized_gemm."
+    assert name.startswith(prefix), f"expected {prefix}, got {name}"
+
+
+def _hook(name):
+    from vllm.v1.worker.cpu_model_runner import CPUModelRunner
+    from vllm.v1.worker.cpu_worker import CPUWorker
+
+    if name == "reload_weights":
+        return CPUModelRunner, "_ov_plugin_reload_patched", plugin._patch_reload_weights
+    return CPUWorker, "_ov_plugin_update_patched", plugin._patch_worker_update_weights
 
 
 @pytest.mark.precommit
-def test_install_ov_lm_head_picks_up_reloaded_weight(lm_head_impl):
-    """Re-running _install_ov_lm_head must reflect the new weight, not the old one."""
+@pytest.mark.parametrize("impl", ["1", "0"], ids=["ov_lm_head", "onednn_lm_head"])
+@pytest.mark.parametrize("hook", ["reload_weights", "finish_weight_update"])
+def test_weight_update_hook_rebuilds_lm_head(hook, impl, monkeypatch):
+    monkeypatch.setenv("OV_LM_HEAD", impl)
+    cls, flag, patch = _hook(hook)
     torch.manual_seed(0)
-    H, V = 8, 32
-    w1 = torch.randn(V, H, dtype=torch.bfloat16)
-    model = _FakeModel(_param(w1))
-
-    plugin._install_ov_lm_head(model)
-    cpu_linear_1 = model.lm_head.cpu_linear
-    assert cpu_linear_1 is not None, "lm_head was not dispatched"
-    _assert_impl(cpu_linear_1, lm_head_impl)
-
+    w1, w2 = torch.randn(V, H, dtype=torch.bfloat16), torch.randn(V, H, dtype=torch.bfloat16)
+    runner = _FakeRunner(w1)
+    lm_head = runner.model.lm_head
+    plugin._install_ov_lm_head(runner.model)
+    old = lm_head.cpu_linear
+    _assert_impl(old, impl)
     x = torch.randn(3, H, dtype=torch.bfloat16)
-    out1 = cpu_linear_1(x, model.lm_head.weight, None)
-    assert torch.allclose(out1.float(), _ref(x, w1).float(), atol=0.1), (
-        "lm_head output does not match the weight it was built from")
+    assert torch.allclose(old(x, lm_head.weight, None).float(), _ref(x, w1).float(), atol=0.1)
 
-    # Simulate what reload_weights/update_weights do to the parameter.
-    w2 = torch.randn(V, H, dtype=torch.bfloat16)
-    model.lm_head.weight.data.copy_(w2)
+    def fake_original(self, *args, **kwargs):
+        self.get_model().lm_head.weight.data.copy_(w2)
 
-    # Confirm the test is actually exercising staleness: the old closure
-    # baked w1 into an OV constant or a packed oneDNN weight, so it must NOT already track w2.
-    stale = cpu_linear_1(x, model.lm_head.weight, None)
-    assert not torch.allclose(stale.float(), _ref(x, w2).float(), atol=0.1), (
-        "old closure already reflects the new weight -- test setup is wrong")
+    # monkeypatch restores the real method and marker for later tests in the process.
+    monkeypatch.setattr(cls, hook, fake_original)
+    monkeypatch.setattr(cls, flag, False, raising=False)
+    patch()
+    patched = getattr(cls, hook)
+    assert patched is not fake_original and getattr(cls, flag)
+    patch()
+    assert getattr(cls, hook) is patched, "re-patching wrapped an already-patched method"
 
-    # This is what the reload_weights/finish_weight_update patches do afterward.
-    plugin._install_ov_lm_head(model)
-    cpu_linear_2 = model.lm_head.cpu_linear
-    assert cpu_linear_2 is not cpu_linear_1, "lm_head.cpu_linear was not rebuilt"
-    _assert_impl(cpu_linear_2, lm_head_impl)
-
-    out2 = cpu_linear_2(x, model.lm_head.weight, None)
-    assert torch.allclose(out2.float(), _ref(x, w2).float(), atol=0.1), (
-        "rebuilt lm_head does not reflect the reloaded weight")
-
-
-@pytest.mark.precommit
-def test_reload_and_update_weights_are_patched():
-    """The two hook points must actually be wrapped, idempotently.
-
-    Force a pristine (unpatched) starting state first: other tests in this
-    session build real vLLM engines, which patch these classes for real via
-    plugin.register() -- without this reset, this test would see
-    already-patched methods and its before/after identity check would be
-    meaningless depending on test order.
-    """
-    from vllm.v1.worker.cpu_model_runner import CPUModelRunner
-    from vllm.v1.worker.cpu_worker import CPUWorker
-
-    def _pristine(self, *args, **kwargs):
-        pass
-
-    CPUModelRunner.reload_weights = _pristine
-    CPUModelRunner._ov_plugin_reload_patched = False
-    CPUWorker.finish_weight_update = _pristine
-    CPUWorker._ov_plugin_update_patched = False
-
-    orig_reload = CPUModelRunner.reload_weights
-    orig_finish = CPUWorker.finish_weight_update
-
-    plugin._patch_reload_weights()
-    plugin._patch_worker_update_weights()
-
-    assert CPUModelRunner.reload_weights is not orig_reload, (
-        "CPUModelRunner.reload_weights was not patched")
-    assert CPUWorker.finish_weight_update is not orig_finish, (
-        "CPUWorker.finish_weight_update was not patched")
-    assert getattr(CPUModelRunner, "_ov_plugin_reload_patched", False)
-    assert getattr(CPUWorker, "_ov_plugin_update_patched", False)
-
-    # Patching again must not double-wrap.
-    once_more = CPUModelRunner.reload_weights
-    plugin._patch_reload_weights()
-    assert CPUModelRunner.reload_weights is once_more, (
-        "re-patching wrapped an already-patched method")
-
-
-class _FakeCompilationConfig:
-    class _Mode:
-        name = "STOCK_TORCH_COMPILE"
-    mode = _Mode()
-    backend = "openvino"
-
-
-class _FakeVllmConfig:
-    compilation_config = _FakeCompilationConfig()
-
-
-@pytest.mark.precommit
-def test_patched_reload_weights_rebuilds_lm_head(lm_head_impl):
-    """Drive the real CPUModelRunner.reload_weights wrapper end to end.
-
-    The original vLLM reload_weights needs a fully loaded engine to run, so
-    it is swapped for a minimal stand-in that does the one thing this hook
-    depends on: mutate lm_head.weight in place.
-    """
-    from vllm.v1.worker.cpu_model_runner import CPUModelRunner
-
-    torch.manual_seed(1)
-    H, V = 8, 32
-    w1 = torch.randn(V, H, dtype=torch.bfloat16)
-    model = _FakeModel(_param(w1))
-    plugin._install_ov_lm_head(model)
-    cpu_linear_1 = model.lm_head.cpu_linear
-
-    w2 = torch.randn(V, H, dtype=torch.bfloat16)
-
-    def _fake_orig_reload_weights(self, *args, **kwargs):
-        self.model.lm_head.weight.data.copy_(w2)
-
-    CPUModelRunner.reload_weights = _fake_orig_reload_weights
-    CPUModelRunner._ov_plugin_reload_patched = False
-    plugin._patch_reload_weights()
-
-    class _FakeRunner:
-        vllm_config = _FakeVllmConfig()
-
-        def __init__(self, model):
-            self.model = model
-
-    runner = _FakeRunner(model)
-    CPUModelRunner.reload_weights(runner)
-
-    assert runner.model.lm_head.cpu_linear is not cpu_linear_1, (
-        "reload_weights patch did not rebuild lm_head")
-    _assert_impl(runner.model.lm_head.cpu_linear, lm_head_impl)
-    x = torch.randn(2, H, dtype=torch.bfloat16)
-    out = runner.model.lm_head.cpu_linear(x, runner.model.lm_head.weight, None)
-    assert torch.allclose(out.float(), _ref(x, w2).float(), atol=0.1), (
-        "rebuilt lm_head does not reflect the weight reload_weights wrote")
-
-
-@pytest.mark.precommit
-def test_patched_finish_weight_update_rebuilds_lm_head(lm_head_impl):
-    """Same as above, for the end of an RLHF-style weight sync (CPUWorker.finish_weight_update)."""
-    from vllm.v1.worker.cpu_worker import CPUWorker
-
-    torch.manual_seed(2)
-    H, V = 8, 32
-    w1 = torch.randn(V, H, dtype=torch.bfloat16)
-    model = _FakeModel(_param(w1))
-    plugin._install_ov_lm_head(model)
-    cpu_linear_1 = model.lm_head.cpu_linear
-
-    w2 = torch.randn(V, H, dtype=torch.bfloat16)
-
-    # The chunks were written by update_weights earlier in the session.
-    model.lm_head.weight.data.copy_(w2)
-
-    def _fake_orig_finish_weight_update(self, *args, **kwargs):
-        pass
-
-    CPUWorker.finish_weight_update = _fake_orig_finish_weight_update
-    CPUWorker._ov_plugin_update_patched = False
-    plugin._patch_worker_update_weights()
-
-    class _FakeModelRunner:
-        vllm_config = _FakeVllmConfig()
-
-        def __init__(self, model):
-            self._model = model
-
-        def get_model(self):
-            return self._model
-
-    class _FakeWorker:
-        def __init__(self, model_runner):
-            self.model_runner = model_runner
-
-    worker = _FakeWorker(_FakeModelRunner(model))
-    CPUWorker.finish_weight_update(worker)
-
-    assert model.lm_head.cpu_linear is not cpu_linear_1, (
-        "finish_weight_update patch did not rebuild lm_head")
-    _assert_impl(model.lm_head.cpu_linear, lm_head_impl)
-    x = torch.randn(2, H, dtype=torch.bfloat16)
-    out = model.lm_head.cpu_linear(x, model.lm_head.weight, None)
-    assert torch.allclose(out.float(), _ref(x, w2).float(), atol=0.1), (
-        "rebuilt lm_head does not reflect the weight update_weights wrote")
+    patched(runner)
+    assert not torch.allclose(old(x, lm_head.weight, None).float(), _ref(x, w2).float(), atol=0.1), (
+        "the old lm_head already follows the new weight, so this test checks nothing")
+    assert lm_head.cpu_linear is not old, f"{hook} patch did not rebuild lm_head"
+    _assert_impl(lm_head.cpu_linear, impl)
+    assert torch.allclose(lm_head.cpu_linear(x, lm_head.weight, None).float(), _ref(x, w2).float(), atol=0.1)

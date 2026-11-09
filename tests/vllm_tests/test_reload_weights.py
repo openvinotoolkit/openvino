@@ -2,13 +2,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Verify the OV model picks up weights changed in place after load.
-
-AOT freezing bakes every weight into the OV model as a constant, and vLLM's
-reload_weights copies new values into the existing Parameters (same address,
-same shape). Unless the plugin recompiles, the OV model keeps serving the
-pre-reload weights while eager vLLM would already use the new ones.
-"""
+"""In-place weight reloads must reach the OV model, which holds the weights as constants."""
 
 import pytest
 import torch
@@ -19,7 +13,7 @@ PROMPT = "The capital of France is"
 
 
 def _zero_down_proj(worker):
-    """Shipped to the engine worker by `LLM.collective_rpc`: reload every MLP down projection as zeros."""
+    """Run in the engine worker: reload every MLP down projection as zeros."""
     runner = worker.model_runner
     model = runner.get_model()
     cfg = runner.model_config.hf_config
@@ -32,7 +26,7 @@ def _zero_down_proj(worker):
 
 
 def _live_compiled_models(worker):
-    """Shipped to the engine worker: the number of OV models alive there."""
+    """Run in the engine worker: the number of live OV compiled models."""
     import gc
 
     import openvino as ov
@@ -42,7 +36,7 @@ def _live_compiled_models(worker):
 
 @pytest.mark.precommit
 def test_reload_weights_reaches_ov_model():
-    """Zeroing the MLP outputs must change the generated text; a stale OV model would repeat it."""
+    """Zeroed MLP outputs must change the text; a stale OV model would repeat it."""
     from vllm import SamplingParams
 
     params = SamplingParams(temperature=0.0, max_tokens=16)
@@ -57,14 +51,13 @@ def test_reload_weights_reaches_ov_model():
         del llm
     assert all(recompiled), "reload_weights did not recompile the OV forward"
     assert after != before, f"OV output did not change after reload_weights: {after!r}"
-    # The rebuild replays vLLM's warmup like the load does; without it the first request
-    # compiles an extra static-shape OV model (with its own copy of the weights).
+    # Without replaying the warmup, the next request compiles an extra static-shape model.
     assert models_after == models_before, f"OV models alive: {models_before} before reload, {models_after} after"
 
 
 @pytest.mark.precommit
 def test_clear_caches_drops_unpacked_moe_weights():
-    """The unpacked MoE expert copies and halves are keyed by the packed address, which in-place reloads keep."""
+    """The unpacked MoE weights are keyed by the packed address, which an in-place reload keeps."""
     from openvino.frontend.pytorch.torchdynamo import execute
     from openvino.frontend.pytorch.torchdynamo.vllm import fused_moe
 
