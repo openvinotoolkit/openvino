@@ -81,7 +81,8 @@ value). K pages are token-major on every device ("Paged-attention cache layouts"
 (heads 64 / 128 / 256 / 96 / 512, 21 cases each: past lengths on and off a page boundary, new tokens around a 32-query tile,
 a long past, batches mixing MIXED, PREFILL and one-token subsequences, GQA / MQA, windows that start in the past, a
 sink, all with a sharp softmax, and three cases whose page tails are NaN) passes on the HPG lane and asserts that
-`sdpa_ocl` ran. At those heads an f16 MIXED runs the xe_hpg PA PREFILL kernel (below), so the generic arm takes it with
+`sdpa_ocl` ran, or for a small GQA step the kernel `select_gqa_multi_tokens_kernel()` names ("Small GQA MIXED step on the
+token-major page (2026-11-08)"). At those heads an f16 MIXED runs the xe_hpg PA PREFILL kernel (below), so the generic arm takes it with
 `SDPA_OCL_HPG_PA_MIXED=0`, and there `SDPA_OCL_NEG_SG8=36` / `37` / `38` (the two keys of a K pair swapped / the V pages
 of adjacent blocks swapped / the odd V row of a pair read past k) must fail it: 36 and 37 fail 100 of the 105 cases, 38 exactly the 15
 NaN-poisoned ones. 36 passes only the window-1 case (each query sees one key, whose softmax weight is 1 whatever K
@@ -2554,6 +2555,16 @@ keys, so its time does not depend on the token count and grows with the context.
 - Not measured: devices other than the B70 (the thresholds are its), several subsequences of different lengths (the
   choice takes the longest subsequence and the largest context), head sizes other than 64 / 128 / 256, the i8 and f16
   caches and a token_type_ids draft end to end, an EAGLE3 tree (qq_bias) end to end.
+- xe_hpg (DG2 on the HPG lane, merged 2026-11-09): `pa_small_q_opt.cl` cannot run there, so the last branch decides
+  every small GQA MIXED step: the fallback for an f16 step of at most 12 new tokens and for every compressed step,
+  `sdpa_ocl` above 12 f16 tokens. The lane ran `sdpa_ocl` for all of them before. `smoke_paged_attention_mixed_tm` and
+  `smoke_paged_attention_comp_tm` assert the kernel the rule names (`expected_gqa_multi_tokens_kernel()`, shared with
+  the gqa suite's oracle) and compare its output at their tolerances; 11 of their rows run the fallback now (the
+  `{7, 5}` row at each head size, and the compressed GQA rows with 4 new tokens; the fallback reads the new tokens back
+  from the cache, so the u4 row's reference takes them from there too, `reference_new_from_cache`). With the GQA path off
+  (`OV_GPU_PA_GQA_MULTI_TOKENS_MAX=0`) all 164 rows run `sdpa_ocl` and pass, as before, and with the fallback forced
+  (`OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=2`) every row in its window runs it and passes (the oracle reads both). Which
+  kernel is faster on DG2 was not measured: the thresholds are the B70's.
 
 ### Token-major K pages only (2026-11-08)
 

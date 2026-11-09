@@ -315,6 +315,58 @@ namespace {
 bool sdpa_ocl_serves_prefill_mixed(uint32_t hpg_tiers = 0) {
     return tests::expected_dpas_backend(tests::get_test_engine(), true, hpg_tiers) == tests::dpas_backend::ocl;
 }
+
+// The kernel select_gqa_multi_tokens_kernel() (paged_attention_opt.cpp) gives this op: the GQA fallback
+// ("_gqa_multi_tokens_fallback"), pa_small_q_opt.cl ("pa_small_q_opt") or, where sdpa_ocl serves MIXED on the op's page
+// (`sdpa_ocl_mixed`), sdpa_ocl ("sdpa_ocl_mixed"); "" outside its window (not a MIXED step, kv group 1, a sink or a
+// scores output, more than OV_GPU_PA_GQA_MULTI_TOKENS_MAX (16) new tokens in a subsequence), where the stage's own kernel
+// runs. Mirrors supports_gqa_multi_tokens_dpas_kernel(), prefer_gqa_multi_tokens_fallback_kernel(), the token_major_gqa_*
+// helpers and OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL (0 none, 1 pa_small_q_opt.cl where it can run, 2 the fallback).
+std::string expected_gqa_multi_tokens_kernel(const paged_attention_test_params& p, bool sdpa_ocl_mixed) {
+    size_t max_tokens = 0;
+    size_t max_context_len = 0;
+    bool past = false;
+    bool generate = true;
+    for (const auto& s : p.subsequences) {
+        max_tokens = std::max(max_tokens, static_cast<size_t>(s.num_tokens));
+        max_context_len = std::max(max_context_len, static_cast<size_t>(s.past_len + s.num_tokens));
+        past = past || s.past_len != 0;
+        generate = generate && s.num_tokens == 1;
+    }
+    const int kv_group_size = p.num_heads / p.num_kv_heads;
+    const char* max_env = std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_MAX");
+    const long max_new_tokens = max_env ? std::strtol(max_env, nullptr, 10) : 16;
+    if (!past || generate || kv_group_size < 2 || p.has_sink_input || p.scores_mode != ScoresMode::DISABLED || max_new_tokens <= 0 ||
+        max_tokens > static_cast<size_t>(max_new_tokens))
+        return "";
+    const char* forced_env = std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL");
+    const long forced = forced_env ? std::strtol(forced_env, nullptr, 10) : -1;
+    if (forced == 0)
+        return "";
+    if (forced == 2)
+        return "_gqa_multi_tokens_fallback";
+
+    const auto& info = tests::get_test_engine().get_device_info();
+    const bool expect_dpas = info.supports_immad && info.arch >= cldnn::gpu_arch::xe_hpc && 8 % kv_group_size == 0 && p.k_head_size == p.v_head_size &&
+                             p.k_head_size % 32 == 0 && p.k_head_size <= 256 && !p.token_type_ids.has_value();
+    if (sdpa_ocl_mixed) {
+        // Per cache kind, scaled down below head size 128
+        const double head_factor = std::min(1.0, p.k_head_size / 128.0);
+        const bool int8_cache = p.kv_cache_compression && p.kv_cache_precision != ov::element::u4;
+        const std::string without_small_q = (!p.kv_cache_compression && max_tokens > 12) ? "sdpa_ocl_mixed" : "_gqa_multi_tokens_fallback";
+        if (!expect_dpas)
+            return without_small_q;
+        if (forced == 1)
+            return "pa_small_q_opt";
+        if (static_cast<double>(max_tokens * max_tokens * max_context_len) <= (int8_cache ? 192.0 : 320.0) * 1024.0 * head_factor)
+            return "_gqa_multi_tokens_fallback";
+        if (static_cast<double>(max_context_len) >= 1536.0 * head_factor)
+            return "pa_small_q_opt";
+        return without_small_q;
+    }
+    const bool prefer_fallback = max_tokens * max_tokens * max_context_len <= 64 * 1024;
+    return expect_dpas && (forced == 1 || !prefer_fallback) ? "pa_small_q_opt" : "_gqa_multi_tokens_fallback";
+}
 }  // namespace
 
 TEST_P(paged_attention_feature_pad_test, matches_reference) {
@@ -1860,36 +1912,11 @@ TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
 
     auto result = run_gpu_inference(pam, p);
 
-    // Mirrors supports_gqa_multi_tokens_dpas_kernel() and prefer_gqa_multi_tokens_fallback_kernel()
-    const auto& info = tests::get_test_engine().get_device_info();
-    const int kv_group_size = p.num_heads / p.num_kv_heads;
-    const bool expect_dpas = info.supports_immad && info.arch >= cldnn::gpu_arch::xe_hpc && 8 % kv_group_size == 0 && p.k_head_size == p.v_head_size &&
-                             p.k_head_size % 32 == 0 && p.k_head_size <= 256 && !p.token_type_ids.has_value();
-    size_t max_tokens = 0;
-    size_t max_context_len = 0;
-    for (const auto& s : p.subsequences) {
-        max_tokens = std::max(max_tokens, static_cast<size_t>(s.num_tokens));
-        max_context_len = std::max(max_context_len, static_cast<size_t>(s.past_len + s.num_tokens));
-    }
     const bool sdpa_ocl_mixed = sdpa_ocl_serves_prefill_mixed() && pa_dpas_kernel_enabled_by_config();
-    std::string expected_kernel;
-    if (sdpa_ocl_mixed) {
-        // Mirrors the token_major_gqa_* helpers: per cache kind, scaled down below head size 128
-        const double head_factor = std::min(1.0, p.k_head_size / 128.0);
-        const bool int8_cache = p.kv_cache_compression && p.kv_cache_precision != ov::element::u4;
-        const std::string without_small_q = (!p.kv_cache_compression && max_tokens > 12) ? "sdpa_ocl_mixed" : "_gqa_multi_tokens_fallback";
-        if (!expect_dpas)
-            expected_kernel = without_small_q;
-        else if (static_cast<double>(max_tokens * max_tokens * max_context_len) <= (int8_cache ? 192.0 : 320.0) * 1024.0 * head_factor)
-            expected_kernel = "_gqa_multi_tokens_fallback";
-        else if (static_cast<double>(max_context_len) >= 1536.0 * head_factor)
-            expected_kernel = "pa_small_q_opt";
-        else
-            expected_kernel = without_small_q;
-    } else {
-        const bool prefer_fallback = max_tokens * max_tokens * max_context_len <= 64 * 1024;
-        expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt" : "_gqa_multi_tokens_fallback";
-    }
+    const std::string expected_kernel = expected_gqa_multi_tokens_kernel(p, sdpa_ocl_mixed);
+    if (expected_kernel.empty() && (std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_MAX") || std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL")))
+        GTEST_SKIP() << "OV_GPU_PA_GQA_MULTI_TOKENS_MAX / _KERNEL turn the GQA multi-token path off";
+    ASSERT_FALSE(expected_kernel.empty()) << "the case is outside the GQA multi-token window";
     auto pa_inst = result.network->get_primitive("paged_attention");
     ASSERT_NE(pa_inst, nullptr);
     const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
@@ -2899,7 +2926,14 @@ void paged_attention_mixed_tm_test::run_token_major(paged_attention_test_params 
     ASSERT_NE(pa_inst, nullptr);
     ASSERT_NE(pa_inst->get_impl(), nullptr);
     const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
-    ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "kernels: " << entries;
+    // A small GQA MIXED step may go to another kernel by select_gqa_multi_tokens_kernel()'s rule (on xe_hpg the GQA
+    // fallback for an f16 step of at most 12 new tokens and for every compressed one): then that kernel must have run, and
+    // the comparison below checks it on the same page. The fallback reads the new tokens back from the cache, so a reference
+    // that takes the past from the caches (u4) takes them from there too.
+    const auto gqa_kernel = expected_gqa_multi_tokens_kernel(p, true);
+    const std::string expected_kernel = gqa_kernel.empty() ? "sdpa_ocl" : gqa_kernel;
+    ASSERT_NE(entries.find(expected_kernel), std::string::npos) << "expected " << expected_kernel << ", kernels: " << entries;
+    this->pam->reference_new_from_cache = !gqa_kernel.empty() && gqa_kernel != "sdpa_ocl_mixed";
     if (p.poison_cache_tail) {
         size_t tail_slots = 0;
         const size_t nan_count = this->pam->count_nan_cache_tail(result.key_cache_mem, tail_slots);
@@ -2920,7 +2954,9 @@ namespace {
 // token (comp_stress) so that the scale or zp of a wrong token or channel fails, and has a sharp softmax so that a wrong K is
 // seen. SDPA_OCL_NEG_SG8=19 / 20 / 21 / 22 must fail the BY_TOKEN cases and 20 / 21 / 22 / 23 / 24 the BY_CHANNEL ones (the
 // PREFILL-only cases 13, 27 and 43 excepted: they read no page), 25 / 26 (the other nibble of the K / V bytes) and 20 / 21 /
-// 23 / 24 the u4 ones, and 27 / 28 (the next token's Kc / Vc row) the MIXED cases where a new token wins the sharp softmax.
+// 23 / 24 the u4 ones, and 27 / 28 (the next token's Kc / Vc row) the MIXED cases where a new token wins the sharp softmax;
+// the GQA rows with 4 new tokens (7, 11, 22, 29, 38, 45) go to the GQA fallback (expected_gqa_multi_tokens_kernel()), which
+// the sdpa_ocl NEG switches do not reach.
 paged_attention_test_params
 comp_case(std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads, int k_head, int v_head, int window = 0, int stress = 3) {
     auto p = sharp_softmax(feature_case(std::move(subsequences), heads, kv_heads, k_head, v_head, window));
