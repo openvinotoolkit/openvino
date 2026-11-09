@@ -220,7 +220,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Plain_Static_2D,
                          SliceScatterLayerCPUTest,
                          ::testing::Combine(::testing::Values(static_shapes_to_test_representation({{32, 16}})),
                                             ::testing::ValuesIn(paramsPlain2D),
-                                            ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                            ::testing::ValuesIn(inputLayerTypes),
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::Values(emptyCPUSpec)),
                          SliceScatterLayerCPUTest::getTestCaseName);

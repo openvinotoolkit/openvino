@@ -359,6 +359,16 @@ bool StridedSlice::isExecutable() const {
 }
 
 void StridedSlice::createPrimitive() {
+    if (srcMemory.empty()) {
+        for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
+            srcMemory.push_back(getSrcMemoryAtPort(i));
+        }
+    }
+    if (dstMemory.empty()) {
+        for (size_t i = 0; i < getOriginalOutputsNumber(); i++) {
+            dstMemory.push_back(getDstMemoryAtPort(i));
+        }
+    }
     if (inputShapesDefined() && isExecutable() && hasConstAttrInputs) {
         if (needPrepareParams()) {
             prepareParams();
@@ -392,6 +402,11 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute([[maybe_unused]] const dnnl::stream& strm) {
+    if (!isDynamicNode()) {
+        if (needPrepareParams()) {
+            prepareParams();
+        }
+    }
     CPU_NODE_ASSERT(execPtr, "doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
