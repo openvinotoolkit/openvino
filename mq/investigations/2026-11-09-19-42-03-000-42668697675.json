@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-09-19-42-03-000-42668697675",
+  "timestamp": "2026-11-09T19:42:03Z",
+  "run_id": "42668697675",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42668697675",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39444",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39444",
+  "author": "arshil42",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Expand-Archive step fails extracting openvino_tests.zip because tbb12.dll from a previous package extraction is still locked by another process (Access denied) on self-hosted runner ov-dmz-35."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:",
+    "Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs PowerShell Expand-Archive -Force twice (package zip then tests zip), which tries to delete existing files in the install directory before overwriting them. tbb12.dll from the prior extraction (or a lingering process/antivirus scan holding the DLL open) was still locked on self-hosted Windows runner ov-dmz-35, so Remove-Item raised UnauthorizedAccessException and the whole Expand-Archive command aborted with exit code 1. This is unrelated to the PR's content (a CPU x64 comparison-emitter precision fix) and is a recurring class of transient file-lock failure on persistent self-hosted Windows runners that do not get a clean workspace between jobs.",
+  "reproduction_steps": "Not reproducible on demand; requires a stale handle on tbb12.dll in C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin on runner ov-dmz-35 left over from a previous job. Locally: run the GPU unit test job's 'Extract OpenVINO packages' step twice without cleaning the install dir while a process (e.g. a previous ov_gpu_unit_tests.exe or antivirus) still has tbb12.dll open, and PowerShell's Expand-Archive -Force fails removing it the same way.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job on the merge-queue run; the lock is typically transient and a retry recreates/overwrites cleanly once the holding process exits.",
+    "Add a pre-step on self-hosted Windows GPU runners to fully remove the workspace install directory (with retries/handle checks) before extraction instead of relying on Expand-Archive -Force to replace locked files in place.",
+    "Investigate whether a prior job step (gtest process or antivirus) on runner ov-dmz-35 is not releasing handles on tbb12.dll promptly after the previous job completes.",
+    "Consider an ephemeral/clean workspace per job on this self-hosted pool, or an explicit taskkill of leftover test processes before extraction."
+  ],
+  "prevention_strategies": "Ensure self-hosted Windows runners used for GPU unit tests clean their workspace (or forcibly release file handles) between consecutive jobs before extracting new packages; prefer deleting and recreating the install directory over in-place overwrite with Expand-Archive -Force; add a retry wrapper around the extraction step.",
+  "historical_context": "This is the second recorded occurrence of this exact tbb12.dll/Extract-step lock signature (signature_hash 95bb23aa2ed8a84d): the first was ~35 minutes earlier on run 42662261631 (PR #39034, also 'GPU unit tests' on the Windows VS2022 Release workflow, same runner ov-dmz-35). A related but distinct Windows file-lock pattern (JS API E2E Electron cleanup failing with 'Permission denied' removing electron.exe/dll, signature_hash 85df26485ff568d8) shows this class of self-hosted Windows runner file-lock flakiness recurs across different jobs/files on this runner pool."
+}
