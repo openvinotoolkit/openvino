@@ -116,8 +116,9 @@ using Milliseconds = std::chrono::duration<int64_t, std::milli>;
 using StringToInt64Map = std::map<std::string, int64_t>;
 
 static constexpr std::string_view hardcodedTestValue1 = "TESTVALUE_1";
-static constexpr std::string_view hardcodedTestValue2 = "TESTVALUE_2";
-static constexpr std::string_view expectedParseErrorMessage = "Cannot parse DummyTestOption: TESTVALUE_2";
+[[maybe_unused]] static constexpr std::string_view hardcodedTestValue2 = "TESTVALUE_2";
+[[maybe_unused]] static constexpr std::string_view expectedParseErrorMessage =
+    "Cannot parse DummyTestOption: TESTVALUE_2";
 
 //
 // Dummy options used to exercise the `OptionsDesc` / `Config` plumbing

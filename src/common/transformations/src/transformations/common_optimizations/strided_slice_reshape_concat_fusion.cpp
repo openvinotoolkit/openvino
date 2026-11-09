@@ -187,7 +187,7 @@ StridedSliceReshapeConcatFusion::StridedSliceReshapeConcatFusion() {
 
     auto concat_pattern = pattern::wrap_type<op::v0::Concat>(pattern::has_static_rank());
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto concat = ov::as_type_ptr<op::v0::Concat>(pattern_to_output.at(concat_pattern).get_node_shared_ptr());
         if (!concat || concat->get_input_size() < 2) {

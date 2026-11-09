@@ -15,6 +15,7 @@
 #include <openvino/op/exp.hpp>
 #include <openvino/op/floor.hpp>
 #include <openvino/op/gather.hpp>
+#include <openvino/op/grouped_matmul.hpp>
 #include <openvino/op/log.hpp>
 #include <openvino/op/matmul.hpp>
 #include <openvino/op/multiply.hpp>
@@ -42,6 +43,7 @@
 #include "../common/converters/concat.hpp"
 #include "../common/converters/floor.hpp"
 #include "../common/converters/gather.hpp"
+#include "../common/converters/grouped_matmul.hpp"
 #include "../common/converters/matmul.hpp"
 #include "../common/converters/reduce.hpp"
 #include "../common/converters/relu.hpp"
@@ -68,6 +70,14 @@ ConcatPattern::ConcatPattern() : MarkPattern(wrap_type<v0::Concat>(), ConvertCon
 FloorPattern::FloorPattern() : MarkPattern(wrap_type<v0::Floor>({any_input()}), ConvertFloor()) {}
 
 GatherPattern::GatherPattern() : MarkPattern(wrap_type<v8::Gather>({any_input(), any_input(), any_input()}), ConvertGather()) {}
+
+// linalgx.grouped_matmul covers the 2Dx3D (MoE forward pass) case of GroupedMatMul-17 only:
+// its lhs must be rank 2.
+GroupedMatMulPattern::GroupedMatMulPattern()
+    : MarkPattern(wrap_type<v17::GroupedMatMul>({any_input(rank_equals(2) && type_matches_any({element::f16, element::bf16})),
+                                                 any_input(shape_matches("E, N, K") && type_matches_any({element::f16, element::bf16})),
+                                                 any_input(shape_matches("E"))}),
+                  ConvertGroupedMatMul()) {}
 
 MatMulPattern::MatMulPattern()
     : MarkPattern(wrap_type<v0::MatMul>({any_input(), any_input()},

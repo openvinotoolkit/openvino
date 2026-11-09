@@ -2716,20 +2716,28 @@ TEST(select_gpu_f32, select_different_formats) {
     }
 }
 
-TEST(select_gpu_f32, dynamic) {
+struct select_dynamic_params {
+    format::type input_format;
+    std::vector<float> expected_output;
+};
+
+class select_gpu_f32_dynamic : public ::testing::TestWithParam<select_dynamic_params> {};
+
+TEST_P(select_gpu_f32_dynamic, basic) {
+    const auto& p = GetParam();
     auto& engine = get_test_engine();
 
     ov::PartialShape in1_shape  = { 2, 2, 2, 2 };
     ov::PartialShape in2_shape  = { 2, 2, 2, 2 };
     ov::PartialShape mask_shape = { 2, 2, 2, 1 };
 
-    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, format::bfyx };
-    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, format::bfyx };
-    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, format::bfyx };
+    layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, p.input_format };
+    layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, p.input_format };
+    layout mask_layout   { ov::PartialShape::dynamic(mask_shape.size()), data_types::f32, p.input_format };
 
-    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, format::bfyx });
-    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, format::bfyx });
-    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, format::bfyx });
+    auto input1 = engine.allocate_memory({ in1_shape,  data_types::f32, p.input_format });
+    auto input2 = engine.allocate_memory({ in2_shape,  data_types::f32, p.input_format });
+    auto mask   = engine.allocate_memory({ mask_shape, data_types::f32, p.input_format });
 
     set_values(input1, {
         1.f,  0.f,
@@ -2795,27 +2803,50 @@ TEST(select_gpu_f32, dynamic) {
     auto outputs = network.execute();
 
     auto output = outputs.at("select").get_memory();
-
-    float answers[16] = {
-        0.5f,  2.5f,
-        1.5f,  3.f,
-
-        2.f,   0.f,
-        6.f,   5.2f,
-
-        15.f,  17.f,
-        7.f,   12.f,
-
-        4.f,   -0.5f,
-        -0.5f, -2.5f
-    };
+    // byxf input is propagated to the output so no reorder is needed after select
+    ASSERT_EQ(output->get_layout().format, p.input_format);
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), p.expected_output.size());
 
-    for (int i = 0; i < 16; i++) {
-        ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+    for (size_t i = 0; i < p.expected_output.size(); i++) {
+        ASSERT_TRUE(are_equal(p.expected_output[i], output_ptr[i]));
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(select_gpu_f32,
+                         select_gpu_f32_dynamic,
+                         ::testing::Values(
+                             select_dynamic_params{format::bfyx, {
+                                 0.5f,  2.5f,
+                                 1.5f,  3.f,
+
+                                 2.f,   0.f,
+                                 6.f,   5.2f,
+
+                                 15.f,  17.f,
+                                 7.f,   12.f,
+
+                                 4.f,   -0.5f,
+                                 -0.5f, -2.5f
+                             }},
+                             // inputs are the same buffers interpreted in byxf order, output is byxf (physical order)
+                             select_dynamic_params{format::byxf, {
+                                 0.5f,  2.5f,
+                                 1.5f,  3.f,
+
+                                 2.f,   0.f,
+                                 6.f,   5.2f,
+
+                                 15.f,  0.5f,
+                                 8.f,   12.f,
+
+                                 4.f,   6.5f,
+                                 8.f,   -2.5f
+                             }}),
+                         [](const ::testing::TestParamInfo<select_dynamic_params>& info) {
+                             return format(info.param.input_format).to_string();
+                         });
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(select_gpu_f32, select_basic_cached) {

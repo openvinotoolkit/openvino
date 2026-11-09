@@ -137,22 +137,22 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Werror)
 endif()
 
-# Directory-wide on purpuse: the macro guards virtual methods in
-# include/intel_gpu/runtime, so ENABLE_MLIR_FOR_GPU must be defined consistently in all targets
-# sharing those headers.
+# Directory-wide on purpose: the macro guards cldnn::network data members in
+# include/intel_gpu/graph/network.hpp, so ENABLE_MLIR_FOR_GPU must be defined consistently in all
+# targets sharing that header.
 if(ENABLE_MLIR_FOR_GPU)
     add_compile_definitions(ENABLE_MLIR_FOR_GPU)
 endif()
 
-file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+set(PLUGIN_SOURCES ${GPU_PLUGIN_SOURCES})
 
 # MLIR sources are always excluded from the main plugin target. When
 # ENABLE_MLIR_FOR_GPU=ON they are built into a dedicated OBJECT library
 # (openvino_intel_gpu_mlir_obj) that has MLIR/Graph-Compiler include paths;
 # when OFF they must not be compiled at all.
 set(OV_GPU_MLIR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/transformations/mlir)
-file(GLOB_RECURSE GPU_MLIR_SOURCES ${OV_GPU_MLIR_DIR}/*.cpp)
-list(REMOVE_ITEM PLUGIN_SOURCES ${GPU_MLIR_SOURCES})
+set(GPU_MLIR_SOURCES ${GPU_PLUGIN_MLIR_SOURCES})
 
 # Fetches GraphCompiler, so it must run once rather than once per stack.
 if(ENABLE_MLIR_FOR_GPU)
@@ -172,16 +172,9 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})
     add_subdirectory(src/graph           graph${SUFFIX})
 
-    # MLIR runs on OpenCL only: ocl_stream is the sole implementer of the ENABLE_MLIR_FOR_GPU
-    # stream hooks, so a COMBINED build gives the backend to the OCL twin alone.
-    set(stack_with_mlir ${ENABLE_MLIR_FOR_GPU})
-    if(GPU_RT_TYPE STREQUAL "COMBINED" AND NOT RT_TYPE STREQUAL "OCL")
-        set(stack_with_mlir OFF)
-    endif()
-
     # One per stack: the objects link this stack's graph library, so a COMBINED build cannot
     # share a single target between the twins.
-    if(stack_with_mlir)
+    if(ENABLE_MLIR_FOR_GPU)
         set(mlir_lib openvino_intel_gpu_mlir_obj${SUFFIX})
         add_library(${mlir_lib} OBJECT ${GPU_MLIR_SOURCES})
         target_link_libraries(${mlir_lib} PRIVATE openvino::runtime openvino_intel_gpu_graph${SUFFIX} GraphCompiler)
@@ -192,14 +185,12 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
         ov_apply_clang_tidy(TARGET ${mlir_lib})
 
         set(GPU_PLUGIN_OBJECT_LIBRARIES ${mlir_lib})
-        set(GPU_PLUGIN_OPTIONS LINKABLE)
     endif()
 
     ov_add_plugin(NAME ${MODULE_NAME}
                   DEVICE_NAME "GPU"
                   SOURCES ${PLUGIN_SOURCES}
                   OBJECT_LIBRARIES ${GPU_PLUGIN_OBJECT_LIBRARIES}
-                  ${GPU_PLUGIN_OPTIONS}
                   DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
                   VERSION_DEFINES_FOR src/plugin/plugin.cpp
                   # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
@@ -222,7 +213,7 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 
     target_link_libraries(${MODULE_NAME} PRIVATE openvino_intel_gpu_graph${SUFFIX} openvino::pugixml)
 
-    if(stack_with_mlir)
+    if(ENABLE_MLIR_FOR_GPU)
         target_link_libraries(${MODULE_NAME} PRIVATE GraphCompiler)
         # Per target, unlike ENABLE_MLIR_FOR_GPU: must be defined by everyone linking
         # openvino_intel_gpu_mlir_obj, since only it provides mlir::transformMLIR().

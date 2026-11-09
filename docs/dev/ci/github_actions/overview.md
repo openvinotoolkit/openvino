@@ -235,6 +235,38 @@ both successful or failed. To find artifacts for a pipeline, follow these steps:
 
 6. Click on the artifact name to download it.
 
+### Initial GOLD BOM baseline
+
+Missing GOLD BOMs can be proposed by the manual
+[`Initialize GOLD BOM Baseline` workflow](../../../../.github/workflows/initialize_gold_boms.yml).
+It accepts successful build workflow run IDs, collects every `bom_*` artifact from those runs,
+and creates a PR against the branch selected when starting the workflow, including `master` or
+`releases/*`. Manifests are stored under `boms/<configuration>/<component>.json`. The
+configuration directory comes from the artifact name (for example,
+`bom_ubuntu_22_04_x86_64` becomes `boms/ubuntu_22_04_x86_64/`), so Linux distributions,
+architectures, and build variants can each have their own baseline. The platform subdirectory
+inside the artifact is only an artifact layout detail; it is not repeated in the GOLD path.
+
+Run it from **Actions → Initialize GOLD BOM Baseline → Run workflow**, selecting the target
+branch first. Enter a JSON array of successful build run IDs from the same repository,
+covering the configurations to initialize. Both PR runs and branch runs are accepted, 
+regardless of their source or target branch.
+The branch selected for initialization only determines where the GOLD BOM PR is created.
+For example:
+
+```json
+["123456789", "123456790", "123456791"]
+```
+
+The workflow adds only BOM files that are missing on the selected branch. Existing GOLD files
+are never overwritten. If all selected manifests already exist, the workflow fails without
+creating a PR. For an existing configuration, developers must update changed BOMs manually in
+the PR that changes the packaged file list.
+
+When the regular BOM comparison is added, it should be configuration-specific. If the expected
+GOLD BOM is absent, there is no baseline to compare: the check should emit a warning with a link
+to this documentation and skip comparison for that BOM. This bootstrap workflow can then
+initialize the missing BOM through a reviewed PR without changing existing baselines.
 
 ### Logs
 

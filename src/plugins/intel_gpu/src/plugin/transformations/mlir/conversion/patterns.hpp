@@ -37,6 +37,12 @@ public:
     GatherPattern();
 };
 
+class GroupedMatMulPattern : public MarkPattern {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("GroupedMatMulPattern");
+    GroupedMatMulPattern();
+};
+
 class MatMulPattern : public MarkPattern {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MatMulPattern");
