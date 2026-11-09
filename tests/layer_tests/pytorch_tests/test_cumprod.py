@@ -63,7 +63,7 @@ class TestCumProd(PytorchLayerTest):
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"input_dtype": input_dtype})
 
-    @pytest.mark.parametrize("shape", [(1,), (2,), (8,), (16,), (3, 1), (3, 32), (4, 33)])
+    @pytest.mark.parametrize("shape", [(1,), (2,), (8,), (16,), (3, 1), (3, 32), (4, 33), (513,), (2, 1025)])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
