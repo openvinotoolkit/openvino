@@ -92,15 +92,10 @@ class TorchDecoderBase(Decoder):
     def get_rt_info(self):
         return {}
 
-    # -- torch's default float type -----------------------------------------------------
-
     def get_default_float_type(self):
-        """Torch's default float type for the model, as an OpenVINO type.
+        """Return the model's float dtype (f32 unless given) as an OpenVINO type.
 
-        The dtype ``torch.set_default_dtype`` had when the model was created, which is the type
-        of its float weights and activations. PyTorch's own default, f32, unless the decoder was
-        created with another value. When it isn't f32, the frontend converts the model to f32
-        activations with the weights kept in that type. Read from the top-level decoder only.
+        When it isn't f32, the frontend converts the model to f32 activations with the weights kept in that type.
         """
         return self._default_float_type
 

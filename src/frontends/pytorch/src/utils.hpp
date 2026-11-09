@@ -245,8 +245,7 @@ std::shared_ptr<ov::op::v0::Parameter> make_tagged_parameter(const NodeContext& 
                                                              const element::Type& et,
                                                              const PartialShape& ps);
 
-/// \brief Get-or-create side-channel Parameter `tag`, shared by every op of the conversion session
-/// (per-sequence metadata reused by all paged layers).
+/// \brief Get-or-create side-channel Parameter `tag`, shared by every op of the conversion session.
 std::shared_ptr<ov::op::v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
                                                                    const std::string& tag,
                                                                    const element::Type& et,

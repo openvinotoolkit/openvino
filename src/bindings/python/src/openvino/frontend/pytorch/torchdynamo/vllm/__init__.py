@@ -4,11 +4,7 @@
 
 # mypy: ignore-errors
 
-"""vLLM-specific glue for the OpenVINO torchdynamo backend.
-
-Everything here is kept out of the generic torchdynamo backend so it stays
-free of vLLM-specific knowledge. The entry point is plugin.register().
-"""
+"""vLLM-specific glue for the OpenVINO torchdynamo backend; the entry point is plugin.register()."""
 
 import logging
 
@@ -16,10 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def maybe_register_pa_op(support_dict, options):
-    """Mark the OV paged_attention and gdn_attention custom ops supported.
-
-    Keeps them inside the OV partition. No-op unless "pa_translate" is set.
-    """
+    """Mark the OV paged_attention and gdn_attention ops supported when "pa_translate" is set."""
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
     if bool_opt(options, "pa_translate", False):
         support_dict["torch.ops.ov_ext.paged_attention.default"] = None
@@ -27,23 +20,17 @@ def maybe_register_pa_op(support_dict, options):
 
 
 def owns_kv_cache_update(options) -> bool:
-    """True if the KV-cache write belongs to the OV attention op: the rewrite is on and OV runs it."""
+    """True if the KV-cache write belongs to the OV attention op."""
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt, is_vllm_preset
     return (is_vllm_preset(options) and bool_opt(options, "paged_attention", True)
             and bool_opt(options, "pa_translate", False))
 
 
 def keep_paged_attention_partitioned(graph_module, partitions, supported_ops, options) -> int:
-    """Give each ov_ext.paged_attention call left outside the proposed partitions a partition of its own.
+    """Give each paged_attention call left outside `partitions` its own partition; return how many were added.
 
-    When OV owns the KV-cache write, the call's eager fallback (vLLM's attention op) reads a cache nobody
-    writes, so the call must run in OV. The partitioner drops single-node partitions outside testing, which
-    leaves an attention call between two unsupported ops on that fallback. A call OV doesn't support at all
-    raises. Appends to `partitions` and returns the number of partitions added.
-
-    A layer that shares another layer's KV cache is translated with its target's K/V, which the frontend
-    finds only when both are converted together; in different partitions (or graphs) it would write its raw
-    K/V into the shared cache. Such a split raises too.
+    Once OV owns the KV-cache write, vLLM's eager attention would read an unwritten cache, so an unsupported call
+    raises, and so does a KV-sharing layer split from its target (the frontend needs both in one graph).
     """
     if not owns_kv_cache_update(options):
         return 0
@@ -82,18 +69,9 @@ def keep_paged_attention_partitioned(graph_module, partitions, supported_ops, op
 
 
 def maybe_rewrite_paged_attention(graph_module, options):
-    """Rewrite vLLM's opaque attention, Gated DeltaNet and fused-MoE ops into OV-translatable ones.
+    """Rewrite vLLM's attention, Gated DeltaNet and fused-MoE ops into OV-translatable ones; return the count.
 
-    Each turns an auto_functionalized_v2 call site OV cannot hold into an op it can keep inside its
-    partition: unified_attention_with_output -> ov_ext.paged_attention, cpu_gdn_attention_core ->
-    ov_ext.gdn_attention ("gdn_translate"), and _C.cpu_fused_moe -> a tiled MoE block ("moe_translate").
-    All are off when "paged_attention" is. Returns the total number of rewrites; a failing GDN or MoE
-    rewrite leaves its call sites on vLLM's op.
-
-    On the vLLM path the attention rewrite is mandatory: the plugin has moved the KV-cache write
-    into the attention op (see plugin._own_kv_cache_update), and vLLM's own attention op doesn't
-    write it. So any attention call site left on vLLM's op raises instead of decoding against a
-    cache nobody updates.
+    When OV owns the KV-cache write, an attention call left on vLLM's op raises: it would read an unwritten cache.
     """
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt, is_vllm_preset
     if not bool_opt(options, "paged_attention", True):

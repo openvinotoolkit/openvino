@@ -350,9 +350,7 @@ PadType convert_pad(const std::string& pt_pad) {
 };
 
 Output<Node> flatten_list_element_for_concat(const Output<Node>& elem) {
-    // Elements of a shape-building list reach us with inconsistent ranks
-    // (rank-0 literal ints vs rank-1 Gather(ShapeOf,dim)); reshape to 1-D
-    // rather than unsqueeze, so Concat doesn't reject the mixed ranks.
+    // Shape-list elements mix ranks 0 and 1; reshape to 1-D, since Unsqueeze would make Concat reject them.
     const auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
     return std::make_shared<v1::Reshape>(elem, minus_one, false);
 }

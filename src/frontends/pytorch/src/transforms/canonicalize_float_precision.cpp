@@ -52,9 +52,7 @@ namespace v4 = ov::op::v4;
 namespace v5 = ov::op::v5;
 namespace v8 = ov::op::v8;
 
-// Narrow Constants up to this many elements (scalars, eps, rotary tables) are folded to f32 instead of
-// kept behind a decompression Convert. A size heuristic, not part of the decompression form itself:
-// the f32 copy of such a Constant costs next to nothing.
+// Narrow Constants up to this many elements (scalars, eps, rotary tables) are folded to f32 instead.
 constexpr size_t fold_to_f32_max_elements = 1024;
 
 bool is_narrow(const element::Type& type) {
@@ -65,8 +63,7 @@ bool is_side_channel(const std::shared_ptr<v0::Parameter>& param) {
     return param->get_friendly_name().rfind("__pa__", 0) == 0;
 }
 
-// A consumer whose result jumps on a one-ulp difference of its input: integer and boolean results (Convert,
-// comparisons, TopK indices, ...) and the rounding ops. ShapeOf reads only the shape.
+// A consumer whose result jumps on a one-ulp input difference: integer/boolean results and rounding ops.
 bool is_rounding_sensitive(const Node* node) {
     if (ov::is_type_any_of<v0::ShapeOf, v3::ShapeOf>(node)) {
         return false;
@@ -80,8 +77,7 @@ bool is_rounding_sensitive(const Node* node) {
     });
 }
 
-// An op that passes its float input on unchanged: a cast to the same or a wider float type, or data movement. A
-// rounding-sensitive consumer behind it still sees the rounded value.
+// Passes its float input on unchanged (same or wider float cast, data movement), rounded value included.
 bool is_value_preserving(const Node* node) {
     if (const auto convert = ov::as_type<const v0::Convert>(node)) {
         const auto& src = convert->get_input_element_type(0);
@@ -102,9 +98,8 @@ bool is_value_preserving(const Node* node) {
                               v1::VariadicSplit>(node);
 }
 
-// True if the node is rounding-sensitive or passes its input on, through value-preserving ops only, to a
-// rounding-sensitive consumer: x.to(bf16).float().to(int32) depends on the bf16 rounding as much as
-// x.to(bf16).to(int32) does.
+// True if the node is rounding-sensitive or reaches a rounding-sensitive consumer through
+// value-preserving ops only (x.to(bf16).float().to(int32)).
 bool reaches_rounding_sensitive(const Node* node, std::unordered_map<const Node*, bool>& memo) {
     if (const auto it = memo.find(node); it != memo.end()) {
         return it->second;
@@ -125,15 +120,9 @@ bool reaches_rounding_sensitive(const Node* node, std::unordered_map<const Node*
     return reaches;
 }
 
-// An explicit cast to bf16/f16 rounds: 1.999 -> bf16 2.0, i32 257 -> bf16 256. Retargeting it to f32 like the other
-// narrow Converts drops that rounding; float math downstream is meant to run in f32 anyway, but a rounding-sensitive
-// consumer (see above) can turn the difference into a different integer, boolean or step, which the output types
-// restored at the end can't repair; the consumer may also read it through value-preserving ops (see above), which
-// then read the rounded value as well. A Range with a narrow output type rounds the same way: it becomes an f32 Range,
-// and its sensitive consumers read it through such a cast. Gives the sensitive consumers a narrowing Convert of
-// their own (shared with other consumers it would be retyped) and returns those Converts for ConvertPrecision to
-// skip. A consumer other than a Convert reads it through a same-type Convert, which ConvertPrecision then widens to
-// f32 like any read-through.
+// An explicit cast to bf16/f16 (or a narrow Range) rounds, e.g. 1.999 -> 2.0, and retyping it to f32
+// would let a rounding-sensitive consumer produce a different integer, boolean or step. Gives those
+// consumers a narrowing Convert of their own and returns them for ConvertPrecision to skip.
 std::unordered_set<const Node*> isolate_rounding_casts(const std::shared_ptr<ov::Model>& model) {
     std::unordered_set<const Node*> rounding_casts;
     std::unordered_map<const Node*, bool> memo;
@@ -159,8 +148,7 @@ std::unordered_set<const Node*> isolate_rounding_casts(const std::shared_ptr<ov:
             }
         } else {
             convert = ov::as_type_ptr<v0::Convert>(node);
-            // A same-type Convert is a read-through bridge; anything else (wider float, integer, the other narrow
-            // type) rounds.
+            // A same-type Convert is a read-through bridge; any other cast rounds.
             if (!convert || !is_narrow(convert->get_destination_type()) ||
                 convert->get_input_element_type(0) == convert->get_destination_type()) {
                 continue;
@@ -201,8 +189,7 @@ std::unordered_set<const Node*> isolate_rounding_casts(const std::shared_ptr<ov:
 }  // namespace
 
 bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    // A body keeps the types it was converted with, so retyping the outer graph would feed f32 into bf16
-    // bodies and fail validation. Leave such models as they are.
+    // Bodies keep their converted types, so retyping the outer graph would fail validation.
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::util::MultiSubGraphOp>(node)) {
             OPENVINO_DEBUG("CanonicalizeFloatPrecision skipped: the model has subgraph ops");
@@ -215,9 +202,8 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         result_types.push_back(result->get_input_element_type(0));
     }
 
-    // Weights and the model's inputs keep their narrow type, so ConvertPrecision must leave them alone.
-    // Their consumers read them through a Convert to the same type: the model stays valid for
-    // ConvertPrecision, which then retargets that Convert to f32 like any other narrow Convert.
+    // Weights and inputs stay narrow; consumers read them through a same-type Convert, which
+    // ConvertPrecision then retargets to f32.
     std::vector<std::shared_ptr<Node>> kept;
     const auto read_through_convert = [](const Output<Node>& output) {
         std::vector<Input<Node>> consumers;
@@ -247,8 +233,8 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
             if (!is_narrow(constant->get_element_type())) {
                 continue;
             }
-            // Small Constants (scalars, eps, rotary tables) are left to ConvertPrecision, which folds them
-            // to f32; one that is only read by a Convert(f32) or a Result is already in its final form.
+            // Small Constants are folded to f32 by ConvertPrecision; skip one already read only by a Convert(f32)
+            // or a Result.
             const auto& targets = constant->output(0).get_target_inputs();
             const bool final_form = std::all_of(targets.begin(), targets.end(), [](const Input<Node>& target) {
                 const auto convert = ov::as_type<v0::Convert>(target.get_node());
@@ -272,13 +258,12 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         }
     }
 
-    // Retype the rest of the graph, including the ops whose output type is an attribute (Range, Eye,
-    // RandomUniform, ...). The inputs are kept above and the outputs get their type back below.
+    // Retype the rest, including ops with an output-type attribute (Range, Eye, RandomUniform).
     for (const auto& node : kept) {
         ov::enable_keep_const_precision(node);
     }
-    // ConvertPrecision drops the Converts that become identities, merging their tensor names into their
-    // input; for a Convert that feeds a Result that would rename the model output. Keep those Converts.
+    // ConvertPrecision drops identity Converts and merges their tensor names into the input, which would
+    // rename a model output; keep the Converts feeding a Result.
     std::vector<std::shared_ptr<Node>> output_converts;
     for (const auto& result : model->get_results()) {
         const auto convert = result->get_input_node_shared_ptr(0);
@@ -308,14 +293,10 @@ bool CanonicalizeFloatPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     for (const auto& convert : output_converts) {
         ov::pass::enable_constant_folding(convert);
     }
-    // ConvertPrecision returns false even when it retyped the graph, so `changed` only covers the read-through
-    // above: f32 Parameter -> Convert(bf16) -> Relu -> Result has nothing to read through, yet its output is now f32.
-    // Restore the outputs regardless.
+    // ConvertPrecision returns false even when it retyped the graph, so restore the outputs regardless.
     model->validate_nodes_and_infer_types();
 
-    // Give every output back its original type; move the tensor names onto
-    // the new Convert so the output port keeps them. Results that read the same
-    // tensor (`return y, y`) share one Convert: the names move only once.
+    // Give every output back its type; Results reading one tensor share a Convert, names move once.
     std::map<std::pair<Output<Node>, element::Type>, Output<Node>> restored;
     const auto& results = model->get_results();
     for (size_t i = 0; i < results.size(); ++i) {

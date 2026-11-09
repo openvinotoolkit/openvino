@@ -4,14 +4,9 @@
 
 # mypy: ignore-errors
 
-"""Run lm_head through OV instead of torch (OV_LM_HEAD=1, default off).
+"""Run lm_head through OV instead of oneDNN (OV_LM_HEAD=1).
 
-vLLM calls compute_logits() outside the OV-compiled region, so lm_head's GEMM
-normally runs on torch/oneDNN. Moving it to OV frees it from OMP_NUM_THREADS
-tuning (oneDNN needs a per-model, per-machine thread count; OV doesn't), but
-a second live InferRequest interleaved with the main graph's roughly doubles
-the main graph's per-step time -- a plugin-level cost, not tunable here. Off
-by default because that costs more than the OMP_NUM_THREADS tuning it avoids.
+Off by default: a second live InferRequest slows the main graph more than the OMP_NUM_THREADS tuning it saves.
 """
 
 import logging
@@ -19,13 +14,12 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Distinct row-counts to keep staging buffers for; past it we realloc rather
-# than grow without bound.
+# Distinct row counts to keep staging buffers for; beyond that, reallocate.
 _MAX_CACHED_SHAPES = 32
 
 
 def _ov_type_for(torch_dtype):
-    """Map a torch float dtype to the OV type, or None if we should not try."""
+    """Map a torch float dtype to the OV type, or None if unsupported."""
     import openvino as ov
     import torch
 
@@ -37,12 +31,7 @@ def _ov_type_for(torch_dtype):
 
 
 def _copy_into(ov_tensor, tensor):
-    """Fill an OV tensor from a torch tensor, preserving bf16 bits.
-
-    numpy has no bfloat16, so bf16 goes through a uint16 re-tag on both sides
-    (see execute._torch_to_numpy) rather than wrapping an ndarray directly,
-    which would declare the port f16 and get rejected.
-    """
+    """Fill an OV tensor from a torch tensor; bf16 goes through uint16 bits, since numpy has no bfloat16."""
     import numpy as np
     import torch
 
@@ -55,11 +44,7 @@ def _copy_into(ov_tensor, tensor):
 
 
 def build_ov_lm_head(weight, nthreads=None):
-    """Compile ``[M, H] x [H, V]`` on OV and return a cpu_linear-shaped callable.
-
-    Returns None if the dtype is not one we handle or anything fails, so the
-    caller can fall back to the oneDNN dispatch.
-    """
+    """Compile ``[M, H] x [H, V]`` on OV as a cpu_linear-shaped callable; None makes the caller use oneDNN."""
     import numpy as np
     import openvino as ov
     import openvino.opset13 as op
@@ -71,22 +56,19 @@ def build_ov_lm_head(weight, nthreads=None):
         return None
 
     if nthreads is None:
-        # Same pool the main graph gets; the two never run concurrently, so
-        # there is nothing to share it with. 0 means "let OV decide".
+        # The same thread pool as the main graph, which never runs concurrently; 0 lets OV decide.
         nthreads = int(os.environ.get("OV_INFERENCE_NUM_THREADS", "0") or 0)
 
     vocab_size, hidden_size = weight.shape
     wt = ov.Tensor(et, [vocab_size, hidden_size])
     _copy_into(wt, weight)
 
-    # transpose_b: vLLM stores lm_head as [vocab, hidden]; avoids copying a
-    # 131-467 MB weight to consume it the other way.
+    # transpose_b: vLLM stores lm_head as [vocab, hidden], and this avoids copying it.
     param = op.parameter([-1, hidden_size], et, name="x")
     model = ov.Model([op.result(op.matmul(param, op.constant(wt), False, True))],
                      [param], "ov_lm_head")
 
-    # Compute at the model's own dtype, not preset's f16->bf16 substitute --
-    # bf16's narrower mantissa would flip greedy argmax on near-ties.
+    # The model's own dtype, not the preset's bf16 substitute, which would flip greedy argmax on near-ties.
     cfg = {"INFERENCE_PRECISION_HINT": et.get_type_name()}
     if nthreads:
         cfg["INFERENCE_NUM_THREADS"] = nthreads
@@ -108,8 +90,7 @@ def build_ov_lm_head(weight, nthreads=None):
         req.infer(share_outputs=True)
 
         out = req.get_tensor(oport).data
-        # .clone(): the next infer() overwrites this buffer in place, but
-        # callers may hold logits across steps.
+        # The next infer() overwrites this buffer, and callers may hold logits across steps.
         out = torch.from_numpy(np.asarray(out)).clone()
         if et == ov.Type.bf16:
             out = out.view(torch.bfloat16)

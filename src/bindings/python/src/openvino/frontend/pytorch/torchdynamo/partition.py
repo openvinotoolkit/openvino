@@ -139,10 +139,7 @@ class Partitioner:
         self.capture_gptq_patterns(graph_module)
         self.capture_nncf_patterns(graph_module)
 
-        # Optional: rewrites vLLM's attention HOP node into
-        # torch.ops.ov_ext.paged_attention.default. No-op on non-vLLM graphs.
-        # Not wrapped in try: on the vLLM path a failed rewrite must stop compilation
-        # (see vllm.maybe_rewrite_paged_attention); elsewhere it already returns 0.
+        # Rewrites vLLM attention into ov_ext.paged_attention; not wrapped in try, a failed rewrite must stop.
         from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
         _vllm.maybe_rewrite_paged_attention(graph_module, options)
 

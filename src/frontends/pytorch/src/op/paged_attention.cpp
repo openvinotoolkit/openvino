@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Translator for torch.ops.ov_ext.paged_attention.default. KV cache/block
-// tables aren't in the FX graph; creates side-channel Parameters instead.
+// Translator for torch.ops.ov_ext.paged_attention.default; KV cache and block tables come in as side-channel
+// Parameters.
 
 #include "openvino/op/paged_attention.hpp"
 
@@ -50,9 +50,7 @@ std::string optional_const_string(const NodeContext& context, size_t idx) {
 }  // namespace
 
 OutputVector translate_paged_attention(const NodeContext& context) {
-    // Args: (query, key, value, layer_name[, scale, kv_sharing_target]).
-    // The trailing two are optional so graphs produced by an older
-    // paged_attention.py still translate; both then fall back to derivation.
+    // Args: (query, key, value, layer_name[, scale, kv_sharing_target]); the last two are optional.
     num_inputs_check(context, 4, 6);
 
     auto query = context.get_input(0);
@@ -61,17 +59,13 @@ OutputVector translate_paged_attention(const NodeContext& context) {
 
     std::string layer_name = optional_const_string(context, 3);
     if (layer_name.empty()) {
-        // Give each occurrence a distinct tag (side_channel.py's
-        // "unknown_layer"/"unknown_layer_N" convention): otherwise every
-        // layer in the model falls back to the SAME tag and they all alias
-        // one side-channel Parameter, even when their real KV-cache shapes
-        // differ (e.g. per-layer varying head_dim).
+        // A distinct tag per occurrence: a shared fallback tag would alias one Parameter across layers whose
+        // KV-cache shapes differ.
         auto* session = context.get_session();
         size_t idx = session ? session->m_unknown_pa_layer_count++ : 0;
         layer_name = idx == 0 ? "unknown_layer" : "unknown_layer_" + std::to_string(idx);
     }
-    // Attention scale as vLLM computed it (layer.impl.scale). 0 means the op
-    // did not carry one, so fall back to 1/sqrt(head_dim) below.
+    // vLLM's layer.impl.scale; 0 if the op carries none, then 1/sqrt(head_dim) below.
     double scale_arg = 0.0;
     if (context.get_input_size() >= 5) {
         try {
@@ -85,16 +79,10 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         }
     }
 
-    // Name of the layer whose KV cache this one reuses, or empty (not shared).
     std::string kv_sharing_target = context.get_input_size() >= 6 ? optional_const_string(context, 5) : std::string{};
 
-    // KV sharing. vLLM hands a sharing layer raw k/v -- no k_norm, no v_norm,
-    // no RoPE -- because its own backends skip the cache write for such
-    // layers. PagedAttentionExtension always writes, so using those raw
-    // tensors would overwrite the very cache this layer is meant to read.
-    // Substituting the target layer's already-normed k/v makes the write
-    // idempotent, which is equivalent to not writing at all. The query is
-    // left alone: a sharing layer has its own q_proj/q_norm/RoPE.
+    // vLLM hands a KV-sharing layer raw k/v and skips its cache write, but PagedAttentionExtension always
+    // writes. Using the target's normed k/v makes that write idempotent. The query stays the layer's own.
     auto* kv_session = context.get_session();
     if (!kv_sharing_target.empty() && kv_session) {
         auto it = kv_session->m_pa_layer_kv.find(kv_sharing_target);
@@ -102,14 +90,12 @@ OutputVector translate_paged_attention(const NodeContext& context) {
             key = it->second.first;
             value = it->second.second;
         } else {
-            // Target not translated yet. vLLM always points at an earlier
-            // layer, so this means the map is unexpected; keeping the raw
-            // tensors is wrong, but refusing to translate is worse.
+            // Target not translated yet (vLLM always points at an earlier layer): keep the raw tensors rather
+            // than fail.
             std::cerr << "[PA_TRANS] warning: layer '" << layer_name << "' shares KV with '" << kv_sharing_target
                       << "', which has not been translated yet; using its own key/value" << std::endl;
         }
     } else if (kv_session) {
-        // Only non-sharing layers own their k/v and may be a sharing target.
         kv_session->m_pa_layer_kv[layer_name] = {key, value};
     }
 
@@ -121,11 +107,10 @@ OutputVector translate_paged_attention(const NodeContext& context) {
 
     const std::string prefix = "__pa__" + layer_name + "__";
 
-    // PagedAttentionExtension requires rank-2 q/k/v; flatten any higher-rank
-    // input, and read head_dim off q pre-flattening for the scale.
+    // PagedAttentionExtension requires rank-2 q/k/v; read head_dim off q before flattening.
     Output<Node> scale_from_q;
     {
-        // scale must be f16 or f32 per PA validator; bf16 rejected
+        // The PA validator accepts an f16 or f32 scale only.
         auto scale_et_tmp = query.get_element_type();
         if (scale_et_tmp == element::dynamic || scale_et_tmp == element::bf16)
             scale_et_tmp = element::f32;
@@ -133,10 +118,8 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         bool have_scale = false;
         double scale_val = 0.0;
         if (scale_arg > 0.0) {
-            // Authoritative: whatever vLLM's Attention layer uses. Not always
-            // 1/sqrt(head_dim) -- Gemma-4 uses 1.0 and folds the
-            // normalization into its learnable Q/K norm weights, so deriving
-            // would scale every score down by sqrt(head_dim) a second time.
+            // Authoritative: not always 1/sqrt(head_dim) (Gemma-4 uses 1.0 and folds the normalization into
+            // its Q/K norms).
             scale_val = scale_arg;
             have_scale = true;
         } else {
@@ -153,8 +136,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         }
     }
 
-    // Capture per-layer K/V head geometry before flattening -- the CPU
-    // plugin reads it via rt_info to size each layer's cache independently.
+    // The CPU plugin reads the per-layer K/V head geometry from rt_info to size each cache.
     auto capture_kv_geom = [](const Output<Node>& t, size_t& num_heads_out, size_t& head_size_out) {
         const auto& ps = t.get_partial_shape();
         if (ps.rank().is_static() && ps.rank().get_length() >= 3 && ps[ps.rank().get_length() - 1].is_static() &&
@@ -167,16 +149,13 @@ OutputVector translate_paged_attention(const NodeContext& context) {
     capture_kv_geom(key, k_num_heads, k_head_size);
     capture_kv_geom(value, v_num_heads, v_head_size);
 
-    // Flatten q/k/v to rank-2. Prefer a static Reshape([-1, H*D]) when
-    // trailing dims are known -- cheaper than the dynamic ShapeOf chain.
+    // Prefer a static Reshape([-1, H*D]) over a ShapeOf chain when the trailing dims are known.
     auto force_rank2 = [&](Output<Node>& t, bool safe_to_fuse_upstream = false) {
         const auto& ps = t.get_partial_shape();
         const auto r = ps.rank();
         if (r.is_static() && r.get_length() == 2) {
             return;
         }
-        // Try static path: all dims after the leading num_tokens dim are
-        // known, so target shape is [-1, product(rest)].
         if (r.is_static()) {
             bool trailing_static = true;
             int64_t trailing = 1;
@@ -189,8 +168,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
                 }
             }
             if (trailing_static) {
-                // If this input is a single-consumer Reshape, retarget it
-                // to [-1, trailing] instead of adding a second Reshape.
+                // Retarget a single-consumer Reshape instead of adding a second one.
                 static const bool _pa_fuse_upstream = std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE") == nullptr ||
                                                       std::string(std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE")) != "0";
                 if (_pa_fuse_upstream && safe_to_fuse_upstream) {
@@ -199,7 +177,6 @@ OutputVector translate_paged_attention(const NodeContext& context) {
                         auto target = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, trailing});
                         up->input(1).replace_source_output(target->output(0));
                         up->validate_and_infer_types();
-                        // t already points at up's output; refresh partial shape
                         t = up->output(0);
                         return;
                     }
@@ -209,7 +186,6 @@ OutputVector translate_paged_attention(const NodeContext& context) {
                 return;
             }
         }
-        // Fallback: build [-1, *] at runtime via ShapeOf + trailing-dims.
         auto shp = std::make_shared<v3::ShapeOf>(t, element::i64);
         auto zero_i = v0::Constant::create(element::i64, Shape{1}, {0});
         auto axis0 = v0::Constant::create(element::i64, Shape{}, {0});
@@ -218,30 +194,25 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         auto target = std::make_shared<v0::Concat>(OutputVector{dim0, neg1}, 0);
         t = std::make_shared<v1::Reshape>(t, target, false);
     };
-    // Only Q's upstream Reshape can be fused: K/V's has a second consumer
-    // that needs the original rank-3 shape.
+    // Only Q's upstream Reshape can be fused: K/V's has a consumer that needs the rank-3 shape.
     force_rank2(query, /*safe_to_fuse_upstream=*/true);
     force_rank2(key);
     force_rank2(value);
 
-    // Q/K/V flow at their native dtype; KV cache Parameters use it as a
-    // placeholder, with the plugin's config driving actual precision.
+    // The KV cache Parameters take Q/K/V's dtype as a placeholder; the plugin config sets the precision.
     auto original_q_et = query.get_element_type();
     element::Type pa_dtype = original_q_et;
 
-    // Side-channel Parameters bound at infer time from ForwardContext, one
-    // key_cache/value_cache pair per layer (rank 2-5 per the PA validator).
+    // Side-channel Parameters bound at infer time: one key_cache/value_cache pair per layer.
     auto kv_et = pa_dtype;
     auto key_cache = make_tagged_parameter(context, prefix + "key_cache", kv_et, PartialShape{-1, -1, -1, -1});
     auto value_cache = make_tagged_parameter(context, prefix + "value_cache", kv_et, PartialShape{-1, -1, -1, -1});
-    // Per-sequence metadata is identical across layers, so share one
-    // Parameter set, tagged "__pa__shared__*", across all PA ops.
+    // Per-sequence metadata is shared by all PA ops ("__pa__shared__*").
     const std::string sprefix = "__pa__shared__";
     auto seq_lens = get_or_make_shared_pa_param(context, sprefix + "seq_lens", element::i32, PartialShape{-1});
     auto query_start_loc =
         get_or_make_shared_pa_param(context, sprefix + "query_start_loc", element::i32, PartialShape{-1});
-    // block_indices/block_indices_begins are per-layer, not shared: models
-    // with multiple KV-cache groups have a distinct block_table per group.
+    // Per layer: models with several KV-cache groups have a block_table per group.
     auto block_indices = make_tagged_parameter(context, prefix + "block_indices", element::i32, PartialShape{-1});
     auto block_indices_begins =
         make_tagged_parameter(context, prefix + "block_indices_begins", element::i32, PartialShape{-1});
@@ -272,26 +243,21 @@ OutputVector translate_paged_attention(const NodeContext& context) {
         return std::make_shared<v1::Subtract>(seq_lens, q_lens);
     });
 
-    // subsequence_begins = query_start_loc (same semantics).
     Output<Node> subsequence_begins = query_start_loc;
 
-    // max_context_len = ReduceMax(seq_lens) along axis 0, kept scalar.
     Output<Node> max_context_len = derive_or_cache("max_context_len", [&]() -> Output<Node> {
         auto axis0 = v0::Constant::create(element::i32, Shape{1}, {0});
-        // keep_dims=false -> scalar output, which matches PA's expected shape.
+        // keep_dims=false: PA expects a scalar.
         return std::make_shared<v1::ReduceMax>(seq_lens, axis0, false);
     });
 
-    // Default scalar/empty constants for unused PA inputs. f32 for LUTs
-    // regardless of pa_dtype: the PA validator rejects bf16 here.
+    // f32 regardless of pa_dtype: the PA validator rejects bf16 here.
     auto scale_et = (pa_dtype == element::bf16) ? element::f32 : pa_dtype;
-    // scale is attention 1/sqrt(head_dim); extracted from q's pre-flatten shape
-    // above. Falls back to 0.125 (head_dim=64) if q's rank/last-dim was dynamic.
+    // 0.125 (head_dim 64) only when the scale is neither given nor derivable.
     Output<Node> scale =
         scale_from_q.get_node_shared_ptr() ? scale_from_q : v0::Constant::create(scale_et, Shape{}, {0.125f});
 
-    // sliding_window is per-layer (hybrid models mix sliding/full attention);
-    // emit as a side-channel Parameter bound to each layer's real value.
+    // Per layer: hybrid models mix sliding and full attention.
     auto sliding_window = make_tagged_parameter(context, prefix + "sliding_window", element::i32, PartialShape{});
     auto alibi_slopes = v0::Constant::create(scale_et, Shape{0}, std::vector<float>{});
     auto score_aggr_window = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
@@ -344,8 +310,6 @@ OutputVector translate_paged_attention(const NodeContext& context) {
     };
 
     auto pa = context.mark_node(std::make_shared<PagedAttentionExtension>(pa_inputs));
-    // Attach per-layer KV head geometry as rt_info so ConvertPagedAttnInputs
-    // can size each layer's cache Parameter to its actual head dims.
     if (k_num_heads && k_head_size && v_num_heads && v_head_size) {
         pa->get_rt_info()["num_k_heads"] = k_num_heads;
         pa->get_rt_info()["k_head_size"] = k_head_size;
@@ -358,8 +322,7 @@ OutputVector translate_paged_attention(const NodeContext& context) {
                   << ")"
                   << ", v=(" << v_num_heads << "," << v_head_size << ")" << std::endl;
     }
-    // The FX op returns only output 0; convert back to query's original
-    // dtype so downstream MatMul weight dtypes match.
+    // The FX op returns only output 0; convert it back to query's dtype.
     Output<Node> pa_out = pa->output(0);
     if (original_q_et != element::f32 && !original_q_et.is_dynamic()) {
         pa_out = std::make_shared<ov::op::v0::Convert>(pa_out, original_q_et);

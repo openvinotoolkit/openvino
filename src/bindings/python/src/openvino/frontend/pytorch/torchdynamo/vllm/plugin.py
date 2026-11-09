@@ -4,14 +4,7 @@
 
 # mypy: ignore-errors
 
-"""vLLM general plugin for the OpenVINO torch.compile backend.
-
-Registered via the `vllm.general_plugins` entry point. Patches
-`CPUModelRunner.load_model` to wire `torch.compile(backend="openvino")`, plus
-`reload_weights`/`CPUWorker.finish_weight_update` to recompile the OV model
-and lm_head after a post-load weight mutation. No-op unless the user requested
-the OV backend.
-"""
+"""vLLM general plugin (`vllm.general_plugins`) wiring torch.compile(backend="openvino") into the CPU runner."""
 
 import contextlib
 import itertools
@@ -20,18 +13,12 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# One id per compiled model, threaded into execute.py's compile caches so a
-# second model can never reuse the first's compiled graph (and its weights)
-# via an id(gm)/id(self.model)-style key that Python can recycle after GC.
+# One id per compiled model for execute.py's caches; id()-based keys can be recycled after GC.
 _next_model_id = itertools.count()
 
 
 def _ov_active(self) -> bool:
-    """True if `self.vllm_config.compilation_config` requests the OV backend.
-
-    Shared by the model-runner and worker patches below -- both expose
-    `self.vllm_config`.
-    """
+    """True if `self.vllm_config.compilation_config` requests the OV backend."""
     return _ov_requested(getattr(self, "vllm_config", None))
 
 
@@ -58,13 +45,7 @@ def _find_lm_head(model):
 
 
 def _install_ov_lm_head(model) -> None:
-    """(Re)compile lm_head on OV and swap it onto `lm_head.cpu_linear`.
-
-    Rerun on every weight mutation (reload_weights/update_weights below) since
-    build_ov_lm_head bakes the weight into an OV constant. Defaults to the
-    oneDNN dispatch (OV_LM_HEAD=0): the OV path roughly doubles main-graph
-    per-step time (see lm_head.py). Set OV_LM_HEAD=1 to opt in.
-    """
+    """(Re)build `lm_head.cpu_linear` from the current weight: oneDNN by default, OV with OV_LM_HEAD=1."""
     try:
         import vllm._custom_ops as _ops
         from vllm.model_executor.layers.utils import dispatch_cpu_unquantized_gemm
@@ -83,8 +64,7 @@ def _install_ov_lm_head(model) -> None:
                 _saved = getattr(_ops, "_supports_onednn", True)
                 _ops._supports_onednn = True
                 try:
-                    # remove_weight=False: create_onednn_mm consumes the
-                    # weight, and the OV path may still need it.
+                    # Keep the weight: a later rebuild needs it.
                     dispatch_cpu_unquantized_gemm(lm_head, remove_weight=False)
                     logger.info("[OV plugin] lm_head re-dispatched with onednn enabled")
                 except Exception as _e:
@@ -99,13 +79,7 @@ _KV_UPDATE_BACKENDS: dict = {}
 
 
 def _kv_update_owned_backend(base):
-    """Memoized `base` subclass reporting forward_includes_kv_cache_update=True.
-
-    Memoized because the runner dedupes attention groups by backend class
-    (`full_cls_name`, gpu_model_runner.py:6997) and also collects the classes
-    themselves into a set: handing out a freshly built class per layer would
-    split the one CPU_ATTN group into N.
-    """
+    """`base` subclass with forward_includes_kv_cache_update=True, one per base (vLLM groups layers by class)."""
     cached = _KV_UPDATE_BACKENDS.get(base)
     if cached is None:
         from vllm.v1.attention.backend import subclass_attention_backend_with_overrides
@@ -119,13 +93,7 @@ def _kv_update_owned_backend(base):
 
 
 def _unsupported_attention_features(module) -> list:
-    """Attention settings the OV PagedAttention rewrite does not carry over, for one layer.
-
-    The translator (frontends/pytorch/src/op/paged_attention.cpp) passes empty
-    ALiBi slopes and sinks, has no soft-cap input, and always builds causal
-    decoder attention, so a layer using any of these would compute different
-    attention without an error.
-    """
+    """Settings of one attention layer the OV PagedAttention translator would silently drop."""
     from vllm.v1.attention.backend import AttentionType
     impl = getattr(module, "impl", None)
     features = []
@@ -142,16 +110,9 @@ def _unsupported_attention_features(module) -> list:
 
 
 def _own_kv_cache_update(model) -> int:
-    """Point this model's attention layers at a kv-update-owning backend.
+    """Let OV's PagedAttention own this model's KV-cache write, per layer (CPUAttentionBackend is process-global).
 
-    OV's PagedAttention does the paged write itself, so vLLM's separate
-    unified_kv_cache_update op is redundant and, having
-    no OV translator, would be stranded in eager PyTorch by the partitioner.
-    Scoped per layer, not on CPUAttentionBackend, which is process-global.
-
-    Refuses, before touching any layer, a model with attention settings the
-    rewrite can't express: once OV owns the KV-cache write there is no falling
-    back to vLLM's attention for those layers.
+    Refuses a model with unsupported attention first: there is no falling back to vLLM's attention afterwards.
     """
     from vllm.v1.attention.backend import AttentionBackend
     layers = []
@@ -174,21 +135,12 @@ def _own_kv_cache_update(model) -> int:
     return len(layers)
 
 
-# Past this many guard specializations, dynamo silently drops to eager --
-# and _own_kv_cache_update above already disabled vLLM's fallback KV-cache
-# write, so eager fallback corrupts decode. Raise the limit to make that
-# far less likely to trigger.
+# Past the limit dynamo falls back to eager, which corrupts decode once OV owns the KV-cache write.
 _DYNAMO_CACHE_SIZE_LIMIT_DEFAULT = 64
 
 
 def _raise_dynamo_cache_limit():
-    """Raise torch._dynamo's cache_size_limit, unless already customized.
-
-    OV_DYNAMO_CACHE_SIZE_LIMIT overrides the floor below.
-    OV_DYNAMO_FAIL_ON_CACHE_LIMIT=1 hard-errors on exhaustion instead of
-    falling back silently -- but kills the whole engine, not just the
-    offending request, so it's opt-in, not default.
-    """
+    """Raise dynamo's cache_size_limit unless customized; OV_DYNAMO_FAIL_ON_CACHE_LIMIT=1 errors on exhaustion."""
     try:
         import torch._dynamo.config as _dynamo_cfg
     except Exception as _e:
@@ -216,29 +168,19 @@ def _compile_ov_forward(model, options) -> None:
 
 
 def _rebuild_ov_model(runner, model) -> None:
-    """Recompile the OV forward and lm_head after the weights were updated in place.
-
-    AOT freezing baked every weight into the OV model as a constant, and the
-    caches behind it (compiled models, unpacked MoE experts) are keyed by
-    storage address, which an in-place update keeps. Without a rebuild the
-    model would keep serving the old weights.
-    """
+    """Recompile the OV forward and lm_head after an in-place weight update, which frozen constants don't see."""
     recompiled = getattr(model, "_ov_eager_forward", None) is not None
     if recompiled:
         import torch
         from openvino.frontend.pytorch.torchdynamo import execute
         execute.clear_caches()
-        # Dynamo's cached frames still hold the old OV graphs. This resets every
-        # compiled function in the process; the sampler recompiles on first use.
+        # Dynamo's cached frames hold the old OV graphs; the sampler recompiles on first use.
         torch._dynamo.reset()
         options = dict(model._ov_compile_options, model_id=next(_next_model_id))
         _compile_ov_forward(model, options)
     _install_ov_lm_head(model)
     if recompiled and hasattr(runner, "warming_up_model"):
-        # As at load: the warmup takes dynamo's first, shape-specialized trace
-        # (it runs eagerly), so OV only compiles the dynamic graph. Otherwise the
-        # first request after the rebuild gets a static OV model of its own
-        # next to the dynamic one, each holding a copy of the weights.
+        # As at load, the warmup takes dynamo's static first trace, so OV compiles only the dynamic graph.
         runner.warming_up_model()
 
 
@@ -254,8 +196,7 @@ def _patch_cpu_model_runner():
     _orig_load_model = CPUModelRunner.load_model
 
     def patched_load_model(self, load_dummy_weights: bool = False) -> None:
-        # Flip _supports_onednn before load so vLLM's FC layers see it built.
-        # else restores it for a later non-OV model in the same process.
+        # vLLM's FC layers read _supports_onednn at load; restore it for a later non-OV model.
         is_ov = _ov_active(self)
         if not is_ov:
             try:
@@ -281,23 +222,16 @@ def _patch_cpu_model_runner():
 
         _check_layername()
         _warn_if_unpinned()
-        # vLLM picks each Linear's CPU kernel while loading weights, so the
-        # SGL kernel is turned off for exactly this model's load.
+        # vLLM picks each Linear's CPU kernel while loading weights.
         with _sgl_kernel_disabled():
             _orig_load_model(self, load_dummy_weights)
 
-        # "vllm": True turns on every vLLM-required flag (see preset.py).
-        # Precision keys are deliberately absent: derived per-model dtype.
         options = {"aot_autograd": True, "vllm": True, "model_id": next(_next_model_id)}
-        # vLLM built the model with torch's default dtype set to model_config.dtype
-        # (model_loader/base_loader.py); the frontend's decoder gets the same value.
+        # The dtype vLLM built the model with, for the frontend decoder.
         _model_dtype = getattr(getattr(self, "model_config", None), "dtype", None)
         if _model_dtype is not None:
             options["default_float_type"] = _model_dtype
 
-        # Hand the KV-cache write to OV's PagedAttention for this model's
-        # layers only; see _own_kv_cache_update. Only when OV runs the attention:
-        # the partitioner then refuses any call site it can't rewrite.
         from openvino.frontend.pytorch.torchdynamo.vllm import owns_kv_cache_update
         if owns_kv_cache_update(options):
             try:
@@ -311,8 +245,7 @@ def _patch_cpu_model_runner():
                 logger.debug(
                     "[OV plugin] kv_cache_update suppression skipped: %s", _e)
 
-        # Gated here rather than in register() so eager/inductor workers do not
-        # get monkey-patched with the OV sampler path.
+        # Here, not in register(), so eager/inductor workers keep vLLM's sampler.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import sampler as _vs
             _vs.install()
@@ -325,8 +258,7 @@ def _patch_cpu_model_runner():
             logger.warning("OV plugin: failed to import openvino.torch: %s", e)
             return
 
-        # Undo vLLM's 1-core pin before torch.compile so OV's pool inherits
-        # the wide mask at creation.
+        # Undo vLLM's 1-core pin before OV's thread pool is created.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_aff
             _vh_aff.widen_affinity_if_needed()
@@ -336,18 +268,14 @@ def _patch_cpu_model_runner():
         _raise_dynamo_cache_limit()
 
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
-        # Stops dynamo specializing num_tokens==1, so decode reuses
-        # prefill's compiled model instead of compiling its own copy.
+        # Stops dynamo specializing num_tokens==1, so decode reuses prefill's compiled model.
         import torch.fx.experimental._config as _dynamo_cfg
         _dynamo_cfg.backed_size_oblivious = True
-        # dynamic=None: specializes first, then symbolizes only the dim that
-        # varies -- cheaper than dynamic=True (~1.7x steady-state cost).
         self.model._ov_eager_forward = self.model.forward
         self.model._ov_compile_options = options
         _compile_ov_forward(self.model, options)
 
-        # lm_head runs outside the compiled forward(); disabling onednn above
-        # left it on plain F.linear, so give it back a fast GEMM (see lm_head.py).
+        # lm_head runs outside forward(), and disabling onednn left it on plain F.linear.
         _install_ov_lm_head(self.model)
 
     CPUModelRunner.load_model = patched_load_model
@@ -356,11 +284,7 @@ def _patch_cpu_model_runner():
 
 
 def _patch_reload_weights():
-    """Rebuild the OV model and lm_head after CPUModelRunner.reload_weights.
-
-    reload_weights copies the new weights into the existing Parameters, but the
-    OV model and lm_head hold them as constants frozen at load time.
-    """
+    """Rebuild the OV model and lm_head after CPUModelRunner.reload_weights."""
     try:
         from vllm.v1.worker.cpu_model_runner import CPUModelRunner
     except Exception:
@@ -382,12 +306,7 @@ def _patch_reload_weights():
 
 
 def _patch_worker_update_weights():
-    """Rebuild the OV model and lm_head after an RLHF weight sync on CPUWorker.
-
-    Lives on the worker, not the model runner, so it needs its own patch. The
-    rebuild hooks finish_weight_update, which ends the session, rather than
-    update_weights, which runs once per chunk.
-    """
+    """Rebuild the OV model and lm_head at CPUWorker.finish_weight_update, once per RLHF sync, not per chunk."""
     try:
         from vllm.v1.worker.cpu_worker import CPUWorker
     except Exception:
@@ -410,12 +329,7 @@ def _patch_worker_update_weights():
 
 
 def _check_layername():
-    """Warn if vLLM latched VLLM_USE_LAYERNAME=1 before this plugin loaded.
-
-    Too late to fix here -- vllm.utils.torch_utils freezes it at import,
-    before any entry point loads -- so just warn instead of an obscure
-    AttributeError later in openvino_compile.
-    """
+    """Warn if vLLM latched VLLM_USE_LAYERNAME=1 at import; too late to fix here."""
     try:
         from vllm.utils.torch_utils import _USE_LAYERNAME
     except Exception:
@@ -435,9 +349,7 @@ def _check_layername():
 def _apply_default_env():
     """Fill in unset env vars only; any user-set value takes priority."""
     defaults = {
-        # execute.py fast path caching set_tensor bindings and output views
-        # across steps. +5-15% greedy, no correctness regression. Read only
-        # by the OV backend, so it's inert for other vLLM runs.
+        # Caches input bindings and output views across steps; read only by the OV backend.
         "OV_FAST_INFER": "1",
     }
     for key, value in defaults.items():
@@ -447,12 +359,7 @@ def _apply_default_env():
 
 
 def _warn_if_unpinned():
-    """Warn when the process is not pinned to a subset of CPUs.
-
-    Full-machine affinity lets threads land on multiple NUMA nodes, which
-    halves decode memory bandwidth. Best-effort: silently skipped where
-    sched_getaffinity is unavailable (macOS, Windows).
-    """
+    """Warn when the process is not pinned: threads on several NUMA nodes cut decode memory bandwidth."""
     try:
         allowed = os.sched_getaffinity(0)
     except (AttributeError, OSError):
@@ -468,21 +375,15 @@ def _warn_if_unpinned():
         )
 
 
-# Only swap allocations at least this large: targets the KV pool while
-# leaving small bookkeeping tensors (which may rely on zeros) alone.
+# Only the KV pool; small bookkeeping tensors may rely on zeros.
 _LAZY_KV_MIN_BYTES = 64 << 20
 
 
 @contextlib.contextmanager
 def _sgl_kernel_disabled():
-    """Make vLLM CPU linear dispatch skip torch.ops._C.weight_packed_linear, for one model load.
+    """Keep vLLM's CPU linears off the SGL kernel for one model load (OV_DISABLE_SGL_KERNEL=0 opts out).
 
-    That op is an auto_functionalized_v2 HOP the OV Partitioner treats as
-    unsupported, so it fragments the graph into one partition per layer
-    (e.g. 71 partitions / 77 alive CompiledModels on Gemma-4-E2B). Forcing
-    the oneDNN / aten.linear fallback keeps the whole model in a single
-    OV partition. Restored afterwards, so other models in the process keep
-    vLLM's choice. On by default; opt out with OV_DISABLE_SGL_KERNEL=0.
+    Its op is unsupported by the partitioner and would split the graph into one partition per layer.
     """
     if os.environ.get("OV_DISABLE_SGL_KERNEL", "1") == "0":
         logger.info("[OV plugin] SGL-kernel disable OFF (OV_DISABLE_SGL_KERNEL=0)")
@@ -503,21 +404,12 @@ def _sgl_kernel_disabled():
         _vllm_utils.check_cpu_sgl_kernel = saved
 
 
-# KV-cache pool size (GiB) used when the OV backend is requested and the user
-# set no size. vLLM's own default fills node memory, which OOM-kills on shared
-# NUMA nodes. 4 covers 1-2B models at 2k ctx.
+# KV-cache GiB for OV runs with no size set; vLLM's default fills node memory and OOMs on shared nodes.
 _OV_DEFAULT_KVCACHE_GIB = 4
 
 
 def _patch_kv_cache_default():
-    """Default the KV-cache size for OV runs only.
-
-    Hooks CpuPlatform.check_and_update_config, which is where vLLM turns
-    VLLM_CPU_KVCACHE_SPACE into cache_config.kv_cache_memory_bytes and the
-    first point where the compilation config is known. Setting the same field
-    keeps the behaviour of the env var (including its skip of the startup
-    free-memory check) without changing non-OV runs.
-    """
+    """Default kv_cache_memory_bytes for OV runs, where vLLM applies VLLM_CPU_KVCACHE_SPACE."""
     try:
         from vllm.platforms.cpu import CpuPlatform
     except Exception as _e:
@@ -546,15 +438,8 @@ def _patch_kv_cache_default():
 def _patch_omp_wait_policy():
     """Spawn OV workers with OMP_WAIT_POLICY=PASSIVE unless the user set it.
 
-    vLLM pins one libgomp thread per core, and the CPU plugin pins its TBB
-    workers to the same cores during infer. By default each libgomp worker
-    spins for about 1 ms after every torch parallel region, which steals those
-    cores from the next OV infer (TinyLlama decode 21.1 -> 18.3 ms/token,
-    Qwen3-8B 102 -> 98 ms/token). Inductor runs only OMP and needs the spin, so
-    this is limited to OV configs and to the worker spawn:
-    OMPProcessManager.configure_omp_envs scopes vLLM's own OMP variables the
-    same way, so the parent process and later non-OV engines are unaffected.
-    libgomp reads the variable at load, hence the spawn and not load_model.
+    Spinning libgomp threads steal the cores OV's TBB workers are pinned to. Set at spawn, since libgomp reads it at
+    load, and scoped like vLLM's own OMP variables, so other engines keep the spin.
     """
     try:
         from vllm.utils.ompmultiprocessing import OMPProcessManager
@@ -588,12 +473,7 @@ def _patch_omp_wait_policy():
 
 
 def _patch_lazy_kv_cache():
-    """Allocate the KV pool lazily (OV_LAZY_KVCACHE=1).
-
-    vLLM sizes the pool from VLLM_CPU_KVCACHE_SPACE and zero-fills it, which
-    faults every page in at startup even though PagedAttention writes each
-    block before reading it. torch.empty lets RSS track blocks actually used.
-    """
+    """Allocate the KV pool with torch.empty (OV_LAZY_KVCACHE=1): PA writes each block before reading it."""
     if os.environ.get("OV_LAZY_KVCACHE", "0") == "0":
         return
     try:
@@ -611,8 +491,7 @@ def _patch_lazy_kv_cache():
     def _patched_alloc(self, *args, **kwargs):
         if not _ov_active(self):
             return _orig_alloc(self, *args, **kwargs)
-        # Swap only for the duration of this call, so unrelated torch.zeros
-        # users are untouched and upstream's own logic stays authoritative.
+        # Only for the duration of this call.
         real_zeros = torch.zeros
 
         def _maybe_lazy_zeros(*a, **kw):
@@ -634,19 +513,12 @@ def _patch_lazy_kv_cache():
 
 
 def _register_quantization():
-    """Teach vLLM the weight-only integer methods in quantization.py.
-
-    Unconditional, unlike the patches below: the registry is read when
-    ModelConfig is built, long before load_model can tell whether the OV
-    backend was requested, and registering a name changes nothing for a model
-    that does not ask for it.
-    """
+    """Register the NNCF quantization method and loader; unconditional, as vLLM reads them before load_model."""
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import quantization as _q
         _q.register()
     except Exception as _e:
         logger.debug("[OV plugin] quantization registration skipped: %s", _e)
-    # The loader that reads NNCF's hook-storage layout into those methods.
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import model_loader as _ml
         _ml.register()
@@ -655,13 +527,7 @@ def _register_quantization():
 
 
 def register():
-    """Entry point for `vllm.general_plugins`.
-
-    vLLM loads plugins in every process, before the config exists, so nothing
-    here may change behaviour for non-OV runs: OV-active detection is deferred
-    to the patched config hook and load_model, which can read the real
-    compilation_config.backend instead of guessing from env vars.
-    """
+    """Entry point for `vllm.general_plugins`; runs in every process, so nothing here may affect non-OV runs."""
     _apply_default_env()
     _register_quantization()
     _patch_kv_cache_default()

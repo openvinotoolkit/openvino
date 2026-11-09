@@ -144,7 +144,7 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
     for (const auto& item : rt_info) {
         model->set_rt_info(item.second, item.first);
     }
-    // Read back by normalize(), which converts a model whose default float type isn't f32 (see TorchDecoder).
+    // Read back by normalize(), which converts a model whose default float type isn't f32.
     const auto default_float_type = decoder->get_default_float_type();
     if (default_float_type != element::f32) {
         model->set_rt_info(default_float_type.get_type_name(), "default_float_type");
@@ -465,8 +465,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         // Since parameters can be added we need to list all current parameters
         std::set<size_t> param_names;
         for (const auto& param : *parameters) {
-            // Skip externally-added parameters with no numeric tensor id
-            // (e.g. "__pa__"-tagged side-channel inputs).
+            // Skip external parameters with no numeric tensor id ("__pa__" side-channel inputs).
             const auto& names = param->output(0).get_names();
             bool has_numeric = false;
             for (const auto& n : names) {

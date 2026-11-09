@@ -59,7 +59,6 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
         default_float_type=None,
     ):
         super().__init__()
-        # torch dtype the model was built with, e.g. torch.bfloat16; see TorchDecoderBase.get_default_float_type.
         self._set_default_float_type(to_ov_float_type(default_float_type))
         self._shared_memory = shared_memory
         self._input_is_list = False
