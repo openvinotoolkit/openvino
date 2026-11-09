@@ -7811,15 +7811,31 @@ TEST_F(SDPAToPATest, SDPAToPA_Gemma4MTP_Gemma4MTPStateManagementPattern_Rank1Sca
 // Q/K/V are projected from inputs_embeds, so SDPAToPagedAttention packs the tokens as in the exported model:
 //   inputs_embeds -> MatMul -> Reshape -> Transpose -> Q, current K/V
 //   ReadValue -> Gather(beam_idx) -> Concat(current K/V, axis 2) -> SparseAttention <- Q, selection, key_length
+// The optional scale and sinks inputs and the selection element type vary between the test cases.
 namespace paged_sparse_attention_pattern {
 constexpr int64_t hidden_size = 16;
 constexpr int64_t num_heads = 4;
 constexpr int64_t num_kv_heads = 2;
 constexpr int64_t head_size = 64;
+constexpr float explicit_scale = 0.1f;
+
+enum class Scale { Absent, Scalar, Vector1 };
+
+struct Case {
+    std::string name;
+    element::Type data_type = element::f32;  // Q/K/V, the K/V states and the scale
+    element::Type selection_type = element::i32;
+    Scale scale = Scale::Absent;
+    element::Type sinks_type = element::dynamic;  // dynamic: no sinks input
+};
+
+void PrintTo(const Case& test_case, std::ostream* os) {
+    *os << test_case.name;
+}
 
 // [B, L, hidden] -> [B, L, heads * S] -> [B, L, heads, S] -> [B, heads, L, S]
-Output<Node> project_heads(const Output<Node>& inputs_embeds, int64_t heads) {
-    auto weights = v0::Constant::create(element::f32,
+Output<Node> project_heads(const Output<Node>& inputs_embeds, int64_t heads, const element::Type& data_type) {
+    auto weights = v0::Constant::create(data_type,
                                         Shape{static_cast<size_t>(hidden_size), static_cast<size_t>(heads * head_size)},
                                         {0.1f});
     auto projection = std::make_shared<v0::MatMul>(inputs_embeds, weights);
@@ -7830,17 +7846,37 @@ Output<Node> project_heads(const Output<Node>& inputs_embeds, int64_t heads) {
     return std::make_shared<v1::Transpose>(reshape, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
 }
 
-std::shared_ptr<ov::Model> make_model(const PartialShape& inputs_embeds_shape = PartialShape{DYN, DYN, hidden_size}) {
-    auto inputs_embeds = ov::test::utils::make_param(element::f32, inputs_embeds_shape, "inputs_embeds");
+// The explicit SparseAttention scale: a scalar or a single-element vector of the Q/K/V type.
+std::shared_ptr<Node> make_scale(const Case& test_case) {
+    const auto shape = test_case.scale == Scale::Vector1 ? Shape{1} : Shape{};
+    return v0::Constant::create(test_case.data_type, shape, {explicit_scale});
+}
+
+// One sink logit per query head, possibly of a higher precision than Q/K/V.
+std::shared_ptr<Node> make_sinks(const Case& test_case) {
+    return v0::Constant::create(test_case.sinks_type, Shape{num_heads}, {0.5f, 1.0f, 1.5f, 2.0f});
+}
+
+std::shared_ptr<ov::op::util::Variable> make_kv_variable(const std::string& name, const element::Type& data_type) {
+    return std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape{DYN, num_kv_heads, DYN, head_size}, data_type, name});
+}
+
+std::shared_ptr<ov::Model> make_model(const Case& test_case,
+                                      const PartialShape& inputs_embeds_shape = PartialShape{DYN, DYN, hidden_size}) {
+    OPENVINO_ASSERT(test_case.sinks_type.is_dynamic() || test_case.scale != Scale::Absent,
+                    "SparseAttention inputs are positional: sinks require an explicit scale.");
+    const auto& data_type = test_case.data_type;
+    auto inputs_embeds = ov::test::utils::make_param(data_type, inputs_embeds_shape, "inputs_embeds");
     auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
     auto block_indices =
-        ov::test::utils::make_param(element::i32, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
-    auto block_count = ov::test::utils::make_param(element::i32, PartialShape{DYN, 1, DYN}, "selected_block_count");
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
+    auto block_count =
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN}, "selected_block_count");
     auto key_length = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "key_length");
 
     auto make_cache = [&](const std::string& name, const Output<Node>& current) {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape{DYN, num_kv_heads, DYN, head_size}, element::f32, name});
+        auto variable = make_kv_variable(name, data_type);
         auto read_value = std::make_shared<v6::ReadValue>(variable);
         auto past =
             std::make_shared<v8::Gather>(read_value, beam_idx, v0::Constant::create(element::i64, Shape{}, {0}));
@@ -7848,25 +7884,97 @@ std::shared_ptr<ov::Model> make_model(const PartialShape& inputs_embeds_shape = 
         return std::make_pair(concat, std::make_shared<v6::Assign>(concat, variable));
     };
 
-    auto query = project_heads(inputs_embeds, num_heads);
-    const auto [key_concat, key_assign] = make_cache("key.0", project_heads(inputs_embeds, num_kv_heads));
-    const auto [value_concat, value_assign] = make_cache("value.0", project_heads(inputs_embeds, num_kv_heads));
+    auto query = project_heads(inputs_embeds, num_heads, data_type);
+    const auto [key_concat, key_assign] = make_cache("key.0", project_heads(inputs_embeds, num_kv_heads, data_type));
+    const auto [value_concat, value_assign] =
+        make_cache("value.0", project_heads(inputs_embeds, num_kv_heads, data_type));
 
-    auto sparse_attention = std::make_shared<ov::op::v17::SparseAttention>(
-        OutputVector{query, key_concat, value_concat, block_indices, block_count, key_length},
-        /*key_block_size=*/4);
+    OutputVector inputs{query, key_concat, value_concat, block_indices, block_count, key_length};
+    if (test_case.scale != Scale::Absent) {
+        inputs.push_back(make_scale(test_case));
+    }
+    if (!test_case.sinks_type.is_dynamic()) {
+        inputs.push_back(make_sinks(test_case));
+    }
+    auto sparse_attention = std::make_shared<ov::op::v17::SparseAttention>(inputs, /*key_block_size=*/4);
     return std::make_shared<ov::Model>(
         OutputVector{sparse_attention},
         SinkVector{key_assign, value_assign},
         ParameterVector{inputs_embeds, beam_idx, block_indices, block_count, key_length});
 }
 
-std::shared_ptr<ov::Model> make_model_ref() {
-    auto inputs_embeds = ov::test::utils::make_param(element::f32, PartialShape{DYN, DYN}, "inputs_embeds");
+// Q/K/V: [B_token, H, 1, S] -> [B_token, 1, H, S] -> [B_token, H * S]
+Output<Node> pack_heads(const Output<Node>& input) {
+    auto transpose = std::make_shared<v1::Transpose>(input, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+    return std::make_shared<v1::Reshape>(transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
+}
+
+// Selection: [B_token, Hs, 1, KB] -> [B_token, Hs, KB] and [B_token, Hs, 1] -> [B_token, Hs], converted to the i32
+// required by PagedSparseAttention when SparseAttention gets i64 selections.
+Output<Node> squeeze_query_axis(const Output<Node>& input) {
+    Output<Node> squeezed = std::make_shared<v15::Squeeze>(input, v0::Constant::create(element::i64, Shape{1}, {2}));
+    if (input.get_element_type() != element::i32) {
+        squeezed = std::make_shared<v0::Convert>(squeezed, element::i32);
+    }
+    return squeezed;
+}
+
+// PagedSparseAttention as created by the fusion, with its output restored to the [B_token, H, 1, Sv] layout.
+// paging holds key_cache, value_cache, past_lens, subsequence_begins, block_indices and block_indices_begins.
+Output<Node> make_paged_sparse_attention(const Case& test_case,
+                                         const Output<Node>& query,
+                                         const Output<Node>& key,
+                                         const Output<Node>& value,
+                                         const OutputVector& paging,
+                                         const Output<Node>& selected_block_indices,
+                                         const Output<Node>& selected_block_count) {
+    // The scale is kept, a single-element one is squeezed, and an absent one defaults to 1 / sqrt(S).
+    Output<Node> scale;
+    switch (test_case.scale) {
+    case Scale::Absent:
+        scale = v0::Constant::create(test_case.data_type, Shape{}, {1.0f / std::sqrt(static_cast<float>(head_size))});
+        break;
+    case Scale::Scalar:
+        scale = make_scale(test_case);
+        break;
+    case Scale::Vector1:
+        scale = std::make_shared<v15::Squeeze>(make_scale(test_case));
+        break;
+    }
+    // The sinks are kept with their own precision; absent sinks become an empty tensor of the Q/K/V type.
+    Output<Node> sinks = test_case.sinks_type.is_dynamic()
+                             ? v0::Constant::create(test_case.data_type, Shape{0}, std::vector<float>{})
+                             : make_sinks(test_case);
+
+    OutputVector inputs{pack_heads(query), pack_heads(key), pack_heads(value)};
+    inputs.insert(inputs.end(), paging.begin(), paging.end());
+    inputs.insert(inputs.end(),
+                  {squeeze_query_axis(selected_block_indices), squeeze_query_axis(selected_block_count), scale, sinks});
+    auto paged_sparse_attention =
+        std::make_shared<ov::op::internal::PagedSparseAttention>(inputs, /*key_block_size=*/4);
+    auto& rt_info = paged_sparse_attention->get_rt_info();
+    rt_info["num_k_heads"] = num_kv_heads;
+    rt_info["k_head_size"] = head_size;
+    rt_info["num_v_heads"] = num_kv_heads;
+    rt_info["v_head_size"] = head_size;
+
+    // [B_token, H * Sv] -> [B_token, 1, H, Sv] -> [B_token, H, 1, Sv]
+    auto reshape = std::make_shared<v1::Reshape>(
+        paged_sparse_attention,
+        v0::Constant::create(element::i64, Shape{4}, {int64_t{0}, int64_t{1}, int64_t{-1}, head_size}),
+        true);
+    return std::make_shared<v1::Transpose>(reshape, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+}
+
+// The model after the whole SDPAToPagedAttention: inputs_embeds is packed to [B_token, hidden], the K/V states and
+// beam_idx are gone, and the inputs created by the pass are added in its order.
+std::shared_ptr<ov::Model> make_model_ref(const Case& test_case) {
+    const auto& data_type = test_case.data_type;
+    auto inputs_embeds = ov::test::utils::make_param(data_type, PartialShape{DYN, DYN}, "inputs_embeds");
     auto selected_block_indices =
-        ov::test::utils::make_param(element::i32, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
     auto selected_block_count =
-        ov::test::utils::make_param(element::i32, PartialShape{DYN, 1, DYN}, "selected_block_count");
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN}, "selected_block_count");
     auto key_length = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "key_length");
 
     auto max_context_len = ov::test::utils::make_param(element::i32, PartialShape{}, "max_context_len");
@@ -7883,47 +7991,14 @@ std::shared_ptr<ov::Model> make_model_ref() {
     // [B_token, hidden] -> [B_token, 1, hidden]
     auto tokens = std::make_shared<v0::Unsqueeze>(inputs_embeds, v0::Constant::create(element::i32, Shape{}, {1}));
 
-    // Q/K/V: [B_token, H, 1, S] -> [B_token, 1, H, S] -> [B_token, H * S]
-    auto pack_heads = [](const Output<Node>& input) -> Output<Node> {
-        auto transpose =
-            std::make_shared<v1::Transpose>(input, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
-        return std::make_shared<v1::Reshape>(transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
-    };
-    // Selection: [B_token, Hs, 1, KB] -> [B_token, Hs, KB] and [B_token, Hs, 1] -> [B_token, Hs]
-    auto squeeze_query_axis = [](const Output<Node>& input) -> Output<Node> {
-        return std::make_shared<v15::Squeeze>(input, v0::Constant::create(element::i64, Shape{1}, {2}));
-    };
-    // Defaults for the absent inputs: scale = 1 / sqrt(64)
-    auto scale = v0::Constant::create(element::f32, Shape{}, {0.125f});
-    auto sinks = v0::Constant::create(element::f32, Shape{0}, std::vector<float>{});
-
-    auto paged_sparse_attention = std::make_shared<ov::op::internal::PagedSparseAttention>(
-        OutputVector{pack_heads(project_heads(tokens, num_heads)),
-                     pack_heads(project_heads(tokens, num_kv_heads)),
-                     pack_heads(project_heads(tokens, num_kv_heads)),
-                     key_cache,
-                     value_cache,
-                     past_lens,
-                     subsequence_begins,
-                     block_indices,
-                     block_indices_begins,
-                     squeeze_query_axis(selected_block_indices),
-                     squeeze_query_axis(selected_block_count),
-                     scale,
-                     sinks},
-        /*key_block_size=*/4);
-    auto& rt_info = paged_sparse_attention->get_rt_info();
-    rt_info["num_k_heads"] = num_kv_heads;
-    rt_info["k_head_size"] = head_size;
-    rt_info["num_v_heads"] = num_kv_heads;
-    rt_info["v_head_size"] = head_size;
-
-    // [B_token, H * Sv] -> [B_token, 1, H, Sv] -> [B_token, H, 1, Sv]
-    auto reshape = std::make_shared<v1::Reshape>(
-        paged_sparse_attention,
-        v0::Constant::create(element::i64, Shape{4}, {int64_t{0}, int64_t{1}, int64_t{-1}, head_size}),
-        true);
-    auto output = std::make_shared<v1::Transpose>(reshape, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+    auto output = make_paged_sparse_attention(
+        test_case,
+        project_heads(tokens, num_heads, data_type),
+        project_heads(tokens, num_kv_heads, data_type),
+        project_heads(tokens, num_kv_heads, data_type),
+        {key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins},
+        selected_block_indices,
+        selected_block_count);
 
     return std::make_shared<ov::Model>(OutputVector{output},
                                        ParameterVector{inputs_embeds,
@@ -7943,13 +8018,14 @@ std::shared_ptr<ov::Model> make_model_ref() {
 // The model right after PagedSparseAttentionFusion alone, for the packed make_model([B_token, 1, hidden]):
 // SparseAttention is replaced by PagedSparseAttention, while the K/V states stay in the graph, because removing
 // their Assigns and registering the new inputs are done by SDPAToPagedAttention after its matcher passes.
-std::shared_ptr<ov::Model> make_fusion_model_ref() {
-    auto inputs_embeds = ov::test::utils::make_param(element::f32, PartialShape{DYN, 1, hidden_size}, "inputs_embeds");
+std::shared_ptr<ov::Model> make_fusion_model_ref(const Case& test_case) {
+    const auto& data_type = test_case.data_type;
+    auto inputs_embeds = ov::test::utils::make_param(data_type, PartialShape{DYN, 1, hidden_size}, "inputs_embeds");
     auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
     auto selected_block_indices =
-        ov::test::utils::make_param(element::i32, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN, 2}, "selected_block_indices");
     auto selected_block_count =
-        ov::test::utils::make_param(element::i32, PartialShape{DYN, 1, DYN}, "selected_block_count");
+        ov::test::utils::make_param(test_case.selection_type, PartialShape{DYN, 1, DYN}, "selected_block_count");
     auto key_length = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "key_length");
 
     // Inputs created by the fusion, in the order it adds them to PaParams.
@@ -7963,12 +8039,11 @@ std::shared_ptr<ov::Model> make_fusion_model_ref() {
     auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "block_indices_begins");
 
     // The current K/V feed both the remaining state chain and PagedSparseAttention.
-    auto query = project_heads(inputs_embeds, num_heads);
-    auto key = project_heads(inputs_embeds, num_kv_heads);
-    auto value = project_heads(inputs_embeds, num_kv_heads);
+    auto query = project_heads(inputs_embeds, num_heads, data_type);
+    auto key = project_heads(inputs_embeds, num_kv_heads, data_type);
+    auto value = project_heads(inputs_embeds, num_kv_heads, data_type);
     auto make_cache = [&](const std::string& name, const Output<Node>& current) {
-        auto variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{PartialShape{DYN, num_kv_heads, DYN, head_size}, element::f32, name});
+        auto variable = make_kv_variable(name, data_type);
         auto read_value = std::make_shared<v6::ReadValue>(variable);
         auto past =
             std::make_shared<v8::Gather>(read_value, beam_idx, v0::Constant::create(element::i64, Shape{}, {0}));
@@ -7978,47 +8053,14 @@ std::shared_ptr<ov::Model> make_fusion_model_ref() {
     auto key_assign = make_cache("key.0", key);
     auto value_assign = make_cache("value.0", value);
 
-    // Q/K/V: [B_token, H, 1, S] -> [B_token, 1, H, S] -> [B_token, H * S]
-    auto pack_heads = [](const Output<Node>& input) -> Output<Node> {
-        auto transpose =
-            std::make_shared<v1::Transpose>(input, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
-        return std::make_shared<v1::Reshape>(transpose, v0::Constant::create(element::i64, Shape{2}, {0, -1}), true);
-    };
-    // Selection: [B_token, Hs, 1, KB] -> [B_token, Hs, KB] and [B_token, Hs, 1] -> [B_token, Hs]
-    auto squeeze_query_axis = [](const Output<Node>& input) -> Output<Node> {
-        return std::make_shared<v15::Squeeze>(input, v0::Constant::create(element::i64, Shape{1}, {2}));
-    };
-    // Defaults for the absent inputs: scale = 1 / sqrt(64), no sinks.
-    auto scale = v0::Constant::create(element::f32, Shape{}, {0.125f});
-    auto sinks = v0::Constant::create(element::f32, Shape{0}, std::vector<float>{});
-
-    auto paged_sparse_attention = std::make_shared<ov::op::internal::PagedSparseAttention>(
-        OutputVector{pack_heads(query),
-                     pack_heads(key),
-                     pack_heads(value),
-                     key_cache,
-                     value_cache,
-                     past_lens,
-                     subsequence_begins,
-                     block_indices,
-                     block_indices_begins,
-                     squeeze_query_axis(selected_block_indices),
-                     squeeze_query_axis(selected_block_count),
-                     scale,
-                     sinks},
-        /*key_block_size=*/4);
-    auto& rt_info = paged_sparse_attention->get_rt_info();
-    rt_info["num_k_heads"] = num_kv_heads;
-    rt_info["k_head_size"] = head_size;
-    rt_info["num_v_heads"] = num_kv_heads;
-    rt_info["v_head_size"] = head_size;
-
-    // [B_token, H * Sv] -> [B_token, 1, H, Sv] -> [B_token, H, 1, Sv]
-    auto reshape = std::make_shared<v1::Reshape>(
-        paged_sparse_attention,
-        v0::Constant::create(element::i64, Shape{4}, {int64_t{0}, int64_t{1}, int64_t{-1}, head_size}),
-        true);
-    auto output = std::make_shared<v1::Transpose>(reshape, v0::Constant::create(element::i64, Shape{4}, {0, 2, 1, 3}));
+    auto output = make_paged_sparse_attention(
+        test_case,
+        query,
+        key,
+        value,
+        {key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins},
+        selected_block_indices,
+        selected_block_count);
 
     return std::make_shared<ov::Model>(OutputVector{output},
                                        SinkVector{key_assign, value_assign},
@@ -8034,9 +8076,24 @@ std::shared_ptr<ov::Model> make_fusion_model_ref() {
                                                        block_indices,
                                                        block_indices_begins});
 }
+
+const std::vector<Case> cases = {
+    {"default_scale"},
+    {"i64_selection", element::f32, element::i64},
+    {"scalar_scale", element::f32, element::i32, Scale::Scalar},
+    {"vector_scale", element::f32, element::i32, Scale::Vector1},
+    {"sinks", element::f32, element::i32, Scale::Scalar, element::f32},
+    {"f16_with_f32_sinks", element::f16, element::i32, Scale::Scalar, element::f32},
+};
 }  // namespace paged_sparse_attention_pattern
 
-class PagedSparseAttentionFusionTest : public TransformationTestsF {
+class PagedSparseAttentionFusionTest : public TransformationTestsF,
+                                       public WithParamInterface<paged_sparse_attention_pattern::Case> {
+public:
+    static std::string getTestCaseName(const TestParamInfo<paged_sparse_attention_pattern::Case>& info) {
+        return info.param.name;
+    }
+
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
@@ -8050,26 +8107,40 @@ protected:
     std::unordered_set<std::string> var_ids_to_remove;
 };
 
-TEST_F(PagedSparseAttentionFusionTest, SDPAToPA_Qwen38FlashNext_PagedSparseAttentionFusion) {
+TEST_P(PagedSparseAttentionFusionTest, SDPAToPA_Qwen38FlashNext_PagedSparseAttentionFusion) {
     // Packed shapes, as the fusion sees them inside SDPAToPagedAttention.
     model =
-        paged_sparse_attention_pattern::make_model(PartialShape{DYN, 1, paged_sparse_attention_pattern::hidden_size});
-    model_ref = paged_sparse_attention_pattern::make_fusion_model_ref();
+        paged_sparse_attention_pattern::make_model(GetParam(),
+                                                   PartialShape{DYN, 1, paged_sparse_attention_pattern::hidden_size});
+    model_ref = paged_sparse_attention_pattern::make_fusion_model_ref(GetParam());
 
     comparator.enable(FunctionsComparator::CONST_VALUES);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     disable_rt_info_check();
 }
 
-TEST_F(TransformationTestsF, SDPAToPA_Qwen38FlashNext_PagedSparseAttentionFusionPattern) {
-    model = paged_sparse_attention_pattern::make_model();
-    model_ref = paged_sparse_attention_pattern::make_model_ref();
+class SDPAToPAPagedSparseAttentionTest : public TransformationTestsF,
+                                         public WithParamInterface<paged_sparse_attention_pattern::Case> {};
+
+TEST_P(SDPAToPAPagedSparseAttentionTest, SDPAToPA_Qwen38FlashNext_PagedSparseAttentionFusionPattern) {
+    model = paged_sparse_attention_pattern::make_model(GetParam());
+    model_ref = paged_sparse_attention_pattern::make_model_ref(GetParam());
     manager.register_pass<ov::pass::SDPAToPagedAttention>();
 
     comparator.enable(FunctionsComparator::CONST_VALUES);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     disable_rt_info_check();
 }
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         PagedSparseAttentionFusionTest,
+                         ValuesIn(paged_sparse_attention_pattern::cases),
+                         PagedSparseAttentionFusionTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPAPagedSparseAttentionTest,
+                         ValuesIn(paged_sparse_attention_pattern::cases),
+                         PagedSparseAttentionFusionTest::getTestCaseName);
 
 /*
 As there's often a need to cover specific model's architecutres in these

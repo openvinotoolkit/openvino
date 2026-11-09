@@ -111,7 +111,6 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &pa_params, &var_ids_to_remove](
                                              pattern::Matcher& m) {
-        std::cout << matcher_name << " STARTED" << std::endl;
         const auto& pm = m.get_pattern_value_map();
 
         const auto current_key = pm.at(p_key.current);
@@ -126,8 +125,9 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
         var_ids_to_remove.insert(key_read->get_variable_id());
         var_ids_to_remove.insert(value_read->get_variable_id());
 
-        // Share the regular paged-attention input namespace without overwriting caches
-        // already allocated by another attention conversion.
+        // As PagedSparseAttention shares the regular PagedAttentionExtension input names,
+        // we need to count how many cache inputs have already allocated by another
+        // attention conversion.
         while (pa_params.exists("key_cache." + std::to_string(m_layer_index)) ||
                pa_params.exists("value_cache." + std::to_string(m_layer_index)) ||
                (options.use_per_layer_block_indices_inputs &&
@@ -207,7 +207,6 @@ ov::pass::PagedSparseAttentionFusion::PagedSparseAttentionFusion(ov::pass::paged
         ov::copy_runtime_info(sparse_node, paged_sparse);
         ov::replace_node(sparse_node, output);
         ++m_layer_index;
-        std::cout << matcher_name << " FINISHED" << std::endl;
         return true;
     };
 
