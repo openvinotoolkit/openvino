@@ -89,8 +89,6 @@ macro(ov_gpu_add_backend_target)
         ${ARG_BYPASS}
     )
 
-    ov_gpu_set_debug_information_format(${ARG_NAME})
-
     get_property(CURRENT_LIBS GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
     list(APPEND CURRENT_LIBS ${ARG_LINK_LIBRARIES})
     set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL ${CURRENT_LIBS})
@@ -158,8 +156,6 @@ ov_add_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
-
-ov_gpu_set_debug_information_format(${TARGET_NAME})
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 
