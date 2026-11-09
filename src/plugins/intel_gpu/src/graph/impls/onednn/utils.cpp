@@ -394,7 +394,7 @@ public:
     }
 
     // Preserves the original tensor rank during conversion. cldnn::layout only supports 4D to 6D tensors.
-    // If it's a blocked format or grouped format, a 4D tensor cannot be converted to 3D, so it must be set by the caller.
+    // A blocked format keeps 4D without it; other formats with no 3D entry (e.g. grouped ones) need it set by the caller.
     MemoryDescriptorBuilder& keep_rank() {
         _keep_rank = true;
         return *this;
@@ -489,6 +489,9 @@ private:
                     fmt_tag = it->second;
                 } else if (_layout.format == cldnn::format::custom) {
                     fmt_tag = dnnl::memory::format_tag::any;
+                } else if (cldnn::format::is_blocked(_layout.format)) {
+                    // format_map_cldnn_4d_to_onednn_3d has no blocked format: keep the 4D dims, as keep_rank() does
+                    dims = convert_tensor(_layout.get_tensor(), cldnn::format::dimension(_layout.format), cldnn::format::is_grouped(_layout.format));
                 } else {
                     OPENVINO_THROW("[GPU] Unexpected layout format " + _layout.to_short_string());
                 }
