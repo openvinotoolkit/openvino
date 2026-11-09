@@ -76,10 +76,8 @@ query's row / at batch 0, head 0 / with the two 8-key halves of each 16-key bloc
 cache. PREFILL reads the K/V inputs like plain SDPA; at heads 64, 96, 128, 256 and 512 it runs its own kernel ("xe_hpg PA
 PREFILL kernel" below). MIXED reads the pages: the K page through the `int8` arm of `pa_k_tile_gather` (lane = channel pair, dword
 loads: a token-major page gives the two channels of a key), the V page through the shared `pa_v_tile_gather` (lane =
-value). xe_hpg K pages are always d-major (`k_token_major_device()` needs Xe2+), and since 2026-11-02 the MIXED stage
-reads the token-major page only, so on xe_hpg MIXED runs `pa_multi_token`: `PA_MIXED_F16` now only lets the SG8 MIXED
-stage compile with PREFILL. Its d-major arm (the two keys of a channel in one dword, repacked with 16-bit shifts) was
-removed with it. The token-major arm runs on DG2 on a page a test forces token-major: `smoke_paged_attention_mixed_tm`
+value). K pages are token-major on every device ("Paged-attention cache layouts"); the d-major arm of the SG8 reader
+(the two keys of a channel in one dword, repacked with 16-bit shifts) was removed on 2026-11-02. `smoke_paged_attention_mixed_tm`
 (heads 64 / 128 / 256 / 96 / 512, 21 cases each: past lengths on and off a page boundary, new tokens around a 32-query tile,
 a long past, batches mixing MIXED, PREFILL and one-token subsequences, GQA / MQA, windows that start in the past, a
 sink, all with a sharp softmax, and three cases whose page tails are NaN) passes on the HPG lane and asserts that
@@ -1466,72 +1464,51 @@ and came back on 2026-11-06 together with BY_CHANNEL readers, when the page beca
 
 ## Paged-attention cache layouts
 
-A K cache page is either d-major (`[head_size, block_size]`, the upstream layout) or token-major
-(`[block_size, head_size]`, the same as V). The layout is decided once per model in `transformations_pipeline.cpp`, by one
-static rule for every kind of page, `paged_attention::k_token_major_rule()`. It looks at the device and the config, never
-at the ops: the page is token-major where
+A K cache page is token-major, `[block_size, head_size]` like V, on every device, for every inference precision and every
+cache kind. The upstream d-major page (`[head_size, block_size]`) and every reader and writer of it were removed on
+2026-11-08 ("Token-major K pages only (2026-11-08)" in "Known issues"). `transformations_pipeline.cpp` gives the key cache
+the dim order `{0, 1, 2, 3}`, as XAttention's; `graph/paged_attention.cpp` reads the (adjusted) block size at dim 2 and
+`ops/paged_attention.cpp` the head size at dim 3. No layout rule, shape detection, layout jit or layout switch is left, so a cache an
+application allocates itself must have the token-major shape: a d-major one fails the block-size check of
+`graph/paged_attention.cpp` ("Incorrect block size").
 
-- `k_token_major_device()`: Xe2+ with XMX and a oneDNN build, the devices that have `sdpa_ocl` (MIXED) and
-  `sdpa_ocl_decode` (GENERATE), and xe_hpg with XMX on its lane (`TEST_USE_SDPA_OCL_HPG=1`, which is what gives it
-  those kernels, SG8). No kernel switch: `TEST_USE_SDPA_OCL_DECODE=0` and `OV_GPU_ENABLE_SDPA_MICRO=0` keep the
-  token-major page. Other devices (no XMX, xe_hpg off its lane, xe_hpc) keep the upstream d-major page and kernels;
-- the inference precision is f16 (`sdpa_ocl_decode` reads an f16 query only, and the compressed pages' comp is f16 only
-  there); f32 and bf16 inference keep the d-major page;
-- the page is a kind every reader reads token-major (`k_token_major_kind()`, given the configured kv-cache precision):
-  f16, i8 BY_TOKEN, i8 or u4 BY_CHANNEL; not u8 (`sdpa_ocl_decode` widens the byte as signed), i4, f32 or bf16.
+A token-major page has eight readers: the cache writer (`pa_kv_cache_update_ref.cl`), rotate, `pa_kv_reorder`,
+`sdpa_ocl` (MIXED), `pa_small_q_opt.cl` (MIXED with at most 16 new tokens per subsequence, GQA; xe_hpc and newer),
+`sdpa_ocl_decode` (GENERATE), `paged_attention_opt.cl` (MIXED and GENERATE) and the adaptive R-KV diversity kernel. Each
+reads every page kind it accepts, so a gate that refuses an op changes only which kernel reads the page.
+`paged_attention_opt.cl` (`pa_single_token`, `pa_gqa_single_token`, `pa_multi_token` and its GQA multi-token fallback)
+reads f16 and f32 with a per-lane `vload16` or, on Xe2 where the block2d pitch rule allows, a 32-bit transpose of the
+page (`USE_2D_BLOCK_IO_K_TM`); i8 BY_TOKEN and BY_CHANNEL with `vload16` rows; u4 BY_CHANNEL K by row bytes, and the
+relaid-out u4 V page (split nibbles, trailing per-token comp). It serves what `sdpa_ocl` and `sdpa_ocl_decode` refuse: an
+op with alibi, a scores output (cache eviction) or adaptive R-KV, a head size either rejects, k != v without an `sdpa_ocl`
+tiling, non-f16 inference, every device without those kernels (no XMX, xe_hpg off its lane, xe_hpc), and every MIXED step
+under `OV_GPU_ENABLE_SDPA_MICRO=0` or GENERATE step under `TEST_USE_SDPA_OCL_DECODE=0`.
+`smoke_paged_attention_by_channel_tm_any_reader` and `smoke_paged_attention_tm_opt_reader_scores` run the opt kernels
+on BY_CHANNEL pages and on scores-output ops.
 
-Every kernel that can serve a paged-attention stage reads the token-major page, so a gate that refuses an op changes
-only which kernel reads it. `paged_attention_opt.cl` (`pa_single_token`, `pa_gqa_single_token`, `pa_multi_token` and its
-GQA multi-token fallback) reads every kind: f16 with a per-lane `vload16` or, where the block2d pitch rule allows, a
-32-bit transpose of the page (`USE_2D_BLOCK_IO_K_TM`); i8 BY_TOKEN and BY_CHANNEL with `vload16` rows; u4 BY_CHANNEL K
-by row bytes, and the relaid-out u4 V page (split nibbles, trailing per-token comp). It serves what `sdpa_ocl` and
-`sdpa_ocl_decode` refuse: an op with alibi, a scores output (cache eviction) or adaptive R-KV, a head size either
-rejects, k != v without an `sdpa_ocl` tiling, and every MIXED step under `OV_GPU_ENABLE_SDPA_MICRO=0` or GENERATE step
-under `TEST_USE_SDPA_OCL_DECODE=0`. The adaptive R-KV diversity kernel reads every kind too. Until 2026-11-06 the rule
-was per op (`k_token_major_readable()`): one op that `sdpa_ocl` or `sdpa_ocl_decode` would refuse kept the whole model
-d-major, and `PagedAttentionOptImpl::update_rt_params()` threw when a token-major page met another reader. What the
-static rule costs such an op is the opt kernels' token-major read in place of their d-major one ("Token-major K page by
-a static rule (2026-11-06)" in "Known issues"). `smoke_paged_attention_by_channel_tm_any_reader` and
-`smoke_paged_attention_tm_opt_reader_scores` force a token-major page onto ops the DPAS kernels do not serve (scores
-output, `OV_GPU_ENABLE_SDPA_MICRO=0` / `TEST_USE_SDPA_OCL_DECODE=0`); `OV_GPU_PA_K_TOKEN_MAJOR=0` runs them on the
-d-major page as the control.
+The page kinds are f16, f32 (f32 inference with an f32 cache; the opt kernels only), i8 BY_TOKEN, i8 BY_CHANNEL and u4
+BY_CHANNEL. The execution config maps a u8 cache to i8 and an i4 one to u4, and refuses a 4-bit BY_TOKEN K for a PA
+model; the writer and the readers have no 4-bit BY_TOKEN K either (`#error`), and `PA_KV_reorder::validate_impl()`
+refuses one, so a 4-bit K is BY_CHANNEL only. The `sdpa_ocl` MIXED stage reads f16, i8 BY_TOKEN, i8 and u4 BY_CHANNEL
+(`sdpa_ocl_mixed_page_ok()` on the host, `classify_pa_cache().dequant_ok` in the jit), with block reads, or the per-key
+gathers (`PA_K_TOKEN_STRIDE` / `PA_K_HIDDEN_STRIDE`) where the block2d rule rejects the pitch; `can_use_sdpa_ocl_for()`
+sends MIXED on any other kind to `pa_multi_token`. The MIXED stage still compiles there, because the constructor adds it
+with PREFILL, and is never dispatched.
 
-Where `sdpa_ocl` serves MIXED on the token-major page, a small GQA MIXED step (at most 16 new tokens per subsequence)
-goes to the GQA fallback, `pa_small_q_opt.cl` or `sdpa_ocl`, chosen in `select_gqa_multi_tokens_kernel()` by cache kind,
-head size, new tokens and context ("Small GQA MIXED step on the token-major page (2026-11-08)" in "Known issues"). An op
-`sdpa_ocl` refuses, and a d-major page, keep upstream's choice: the fallback while new tokens^2 x context is at most 64K
-(`prefer_gqa_multi_tokens_fallback_kernel()`), `pa_small_q_opt.cl` above it.
+Where `sdpa_ocl` serves MIXED, a small GQA MIXED step (at most 16 new tokens per subsequence) goes to the GQA fallback,
+`pa_small_q_opt.cl` or `sdpa_ocl`, chosen in `select_gqa_multi_tokens_kernel()` by cache kind, head size, new tokens and
+context ("Small GQA MIXED step on the token-major page (2026-11-08)" in "Known issues"). An op `sdpa_ocl` refuses keeps
+upstream's choice: the fallback while new tokens^2 x context is at most 64K (`prefer_gqa_multi_tokens_fallback_kernel()`),
+`pa_small_q_opt.cl` above it.
 
-`OV_GPU_PA_K_TOKEN_MAJOR=0` makes every page d-major (the control for the token-major readers); unset is the rule. `1`
-(the f16 / BY_TOKEN page token-major on every device, read by the opt kernels) and `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` are
-retired and rejected. Every consumer -- the writer, rotate, `pa_kv_reorder`, the
-attention kernels, `graph/paged_attention.cpp` and `ops/paged_attention.cpp` -- reads the layout back off the physical
-cache shape with `paged_attention::k_cache_token_major()` (the block dimension sits at dim 2 in a token-major page and at
-dim 3 in a d-major one; where the shape cannot tell, a dynamic dim or a square page, the page is d-major), and every OCL
-kernel that reads a token-major page gets the result as one jit flag, `IS_KEY_TOKEN_MAJOR`, which it splits by the quant
-mode (`KEY_BY_TOKEN_TM` /
-`KEY_BY_CHANNEL_TM`; `sdpa_ocl` gets no layout flag, only `IS_PA_K_BY_CHANNEL`). The `sdpa_ocl` MIXED stage reads the
-token-major page only, with block reads, or the per-key gathers (`PA_K_TOKEN_STRIDE` / `PA_K_HIDDEN_STRIDE`) where the
-block2d rule rejects the pitch, and `can_use_sdpa_ocl_for()` sends MIXED on a d-major page to `pa_multi_token`. Until
-2026-11-02 it also read a d-major f16 page with a 32-bit transpose read ("Paged-attention MIXED: i8 and f16 caches") and
-a d-major i8 BY_TOKEN page through a per-key gather. On a d-major page the MIXED stage still compiles, because the
-constructor adds it with PREFILL; it is compiled as the token-major reader and never dispatched.
-
-A token-major page has eight readers: the cache writer, rotate, `pa_kv_reorder`, `sdpa_ocl` (MIXED),
-`pa_small_q_opt.cl` (MIXED with at most 16 new tokens per subsequence, GQA), `sdpa_ocl_decode` (GENERATE),
-`paged_attention_opt.cl` (MIXED and GENERATE) and the adaptive R-KV diversity kernel.
-
-qq_bias models (EAGLE3) get the token-major page too: EAGLE3 reorders the cache from a separate kv-update model through
-`pa_kv_reorder`, which has no paged-attention op to learn the layout from. Its impl reads the layout off the cache shape:
-a static shape picks the d-major or token-major kernel at construction; a dynamic one compiles both where a token-major
-page can exist (`k_token_major_device()`) and picks per dispatch, forcing the kernel
-arguments on the first run of each. The token-major BY_CHANNEL arms mirror the d-major ones expression for expression; a
-u4 lane owns one byte column (both of its channels), so no byte is written by two lanes, and the relaid-out u4 V page
-is copied as rows of `PACKED_V_HEAD_SIZE` plus the per-token comp arrays. `smoke_pa_kv_reorder_layout` reorders the same
-random cache in both layouts (f16, i8 BY_TOKEN, i8 and u4 BY_CHANNEL; static and dynamic index inputs) and compares codes
-and comp bit for bit; breaking the i8 or u4 token-major arm fails only those cases, and pinning the dynamic impl to the
-d-major kernel fails only the dynamic ones. `smoke_qq_bias_d_major` keeps the `pa_single_token` / `pa_multi_token`
-qq_bias paths covered on a forced d-major page.
+qq_bias models (EAGLE3) reorder the cache from a separate kv-update model through `pa_kv_reorder`, which has no
+paged-attention op to learn anything from; its one kernel reads the token-major page of every kind. The BY_CHANNEL arms
+requantize the destination channel: i8 on every move, u4 on a move between pages (a move within a page copies the byte).
+A u4 lane owns one byte column (both of its channels), so no byte is written by two lanes, and the relaid-out u4 V page
+is copied as rows of `PACKED_V_HEAD_SIZE` plus the per-token comp arrays. `smoke_pa_kv_reorder_layout` reorders a random
+cache of each kind (f16, i8 BY_TOKEN, i8 and u4 BY_CHANNEL; static and dynamic index inputs) and compares it with a host
+model of the same moves: bit for bit where the kernel copies, and dequantized within the requantization error where it
+requantizes. `pa_kv_reorder_gpu.compressed_{u4,i4}_by_token_key_is_refused` check the 4-bit BY_TOKEN refusal.
 
 A page is a data region followed by a comp region holding the dequantisation parameters. The
 comp region grows whichever of the two page factors it is indexed by, so the host jits
@@ -1558,14 +1535,13 @@ How the host classifies the cache MIXED reads (`classify_pa_cache()`):
 
 - `IS_PA_KV_COMPRESSED` follows the cache data type (i8/u8), not the quantization mode. Paged
   attention adds the PREFILL and MIXED stages together, so a MIXED kernel that fails to compile
-  takes a PREFILL-only case down with it. The kernel reads the token-major page only (f16, i8
-  BY_TOKEN, i8 and u4 BY_CHANNEL); every d-major page compiles as that reader (the BY_CHANNEL
-  flags stay off there) and is kept off dispatch by `can_use_sdpa_ocl_for()`.
+  takes a PREFILL-only case down with it. The kernel reads f16, i8 BY_TOKEN, i8 and u4 BY_CHANNEL
+  pages; any other kind compiles as that reader and is kept off dispatch by `can_use_sdpa_ocl_for()`.
 - u4 is recognised from the configured kv-cache precision: the tensor is u8 (an i4 cache is i8),
   so its layout type cannot tell. u4 only, not i4: the int4 quantizer clamps to [0, 15], so u4
   nibbles are unsigned, while i4 would need a signed widen that nothing implements.
-- Whether BY_CHANNEL was relayed token-major is read from the physical cache shape (the adjusted
-  block size sits at dim 2), the single decision made in `transformations_pipeline.cpp`.
+- A BY_CHANNEL page is always token-major (the adjusted block size at dim 2), so MIXED on a
+  compressed BY_CHANNEL cache is the token-major BY_CHANNEL reader.
 - BY_CHANNEL's per-channel scale and zero point fold as a per-lane scalar. The KQ A operand is K,
   so the lane index is the head dim, which is what BY_CHANNEL indexes; BY_TOKEN's are per key,
   i.e. per element within a lane, and need a broadcast each. This is the mirror of
@@ -2102,8 +2078,6 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths (on xe_hpg only `_M` and `_SG_PER_WG` up to 8) |
 | `SDPA_OCL_DECODE_LOW_REG` | Decode low-register layout: `0`/`1` forces it off/on (bit-identical either way) |
 | `SDPA_OCL_DECODE_V_PAGE_1D`, `_K_LANE_TILES` | Decode per-lane pages: `0` restores the V byte gather and the head-dim split; K tiles per per-lane load, 1 / 2 / 4 dividing the tile count (bit-identical) |
-| `OV_GPU_PA_K_TOKEN_MAJOR` | K cache layout ("Paged-attention cache layouts"): `0` every page d-major (MIXED then runs `pa_multi_token`, GENERATE the opt kernels), unset the rule. `1` and `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` are retired and rejected |
-| `OV_GPU_PA_K_TM_BREAK=<consumer>` | Forces one consumer back to the d-major read, to test whether a suite observes it |
 
 The negative controls must fail the token-type suites when disabled; a pass means the suite does
 not observe the feature.
@@ -2581,6 +2555,39 @@ keys, so its time does not depend on the token count and grows with the context.
   choice takes the longest subsequence and the largest context), head sizes other than 64 / 128 / 256, the i8 and f16
   caches and a token_type_ids draft end to end, an EAGLE3 tree (qq_bias) end to end.
 
+### Token-major K pages only (2026-11-08)
+
+The K page is token-major everywhere ("Paged-attention cache layouts"). Removed: the layout rule
+(`k_token_major_rule()`, `_device()`, `_kind()`), the shape detection `k_cache_token_major()`, the `IS_KEY_TOKEN_MAJOR`
+jits and the d-major arms of the writer, rotate, `pa_kv_reorder` (one kernel now), `paged_attention_opt.cl`,
+`pa_small_q_opt.cl` and the R-KV diversity kernel, and with them `OV_GPU_PA_K_TOKEN_MAJOR` and `OV_GPU_PA_K_TM_BREAK`
+(ignored if set). The 4-bit BY_TOKEN K went too: the execution config already refused it for a PA model, and only the
+unit harness built one. Moved from the d-major to the token-major page: devices without the DPAS kernels (no XMX, xe_hpg
+off its lane, xe_hpc), non-f16 inference, and the pages the rule turned down on Xe2 (f16 head 16, a square page).
+
+- Checked on DG2 (A770, Windows driver 32.0.101.9175, Release with debug caps), both lanes: the unit and func kit groups
+  match the Linux run of the same commit by name except the head-512 class of "xe_hpg follow-ups" and data-dependent
+  rows (MSVC's `std::uniform_int_distribution` draws other test data than libstdc++). The tests that built a d-major
+  page or a 4-bit BY_TOKEN K (`pa_kv_reorder` BY_CHANNEL fixtures, `smoke_pa_kv_reorder_layout`, `gqa_multi_tokens/28`,
+  the shared `PagedAttentionTokenType` func test, 16 rows) were rewritten for the token-major page and pass on both
+  lanes.
+- Real models (llm_bench, 4-bit weights, so a u4 BY_CHANNEL cache; llama-3.2-1b, phi-3.5-mini, qwen3-8b, phi-4-mini,
+  gemma-3-4b, gemma-4-e2b, gpt-oss-20b, qwen3-vl-4b, gemma-2-9b; 32- and 1024-token prompts, 128 new tokens) on the
+  default lane and the HPG lane, against the pip 2026.5 RC (d-major page on DG2): every run gives coherent text, the same
+  on the warm-up and the measured iteration; the lanes diverge from the RC after a few to some tens of words, as much as
+  each other (other kernels, other rounding). cliloader shows `sdpa_ocl_prefill` / `sdpa_ocl_decode` on the HPG lane
+  (llama-3.2-1b, gpt-oss-20b, gemma-3-4b, gemma-4-e2b, qwen3-vl-4b) and the opt kernels on the default lane
+  (llama-3.2-1b). f32 inference on llama-3.2-1b with an f32 cache and with an i8 BY_TOKEN one gives the RC's text word
+  for word on both lanes (the opt kernels on the token-major page against the RC's d-major one).
+- The same with the 2026.5 RC, so not the layout: bf16 inference stops in the core op
+  (`rotation_trig_lut` must be f16 or f32); f32 inference with a BY_CHANNEL cache (the default of a 4-bit model) fails
+  "Incorrect block size" in `graph/paged_attention.cpp`, because `transformations_pipeline.cpp` sizes the comp region
+  with the inference precision (u4 16, i8 24) while the graph expects the f16 comp (12, 20); f32 inference with an f16
+  cache fails to build a kernel (`CL_BUILD_PROGRAM_FAILURE`).
+- Not checked: devices without XMX and xe_hpc (no such device on the test PC), Xe2 (the B70, owed), EAGLE3 / R-KV /
+  `pa_small_q_opt.cl` with a non-f16 comp. The remote branch keeps the rule and the d-major page, so the two diverge
+  until the same lands there.
+
 ### Correctness
 
 - Plain SDPA with `is_causal` and an attention mask: the spec ignores the mask when `causal` is true, and so do the
@@ -2734,10 +2741,10 @@ re-measures against the opt kernels.
   2026-10-30/31): PA PREFILL 6.5-14x at 1K tokens (1.2-2.1x at 32), PA MIXED after a long prompt 4.3-8.3x against
   `sdpa_micro__generate` (measured at head 128), plain SDPA 3.6-4.2x (phi-4-multimodal's vision encoder at head 72,
   flux.1-schnell's VAE at head 512); the PREFILL kernel serves those plain SDPA heads now.
-- Every qq_bias feature case is MIXED, which runs `pa_multi_token` on xe_hpg while its pages are d-major, so
-  `SDPA_OCL_NEG_SG8=8` has nothing to detect there yet. Where `sdpa_ocl` ran them (an earlier d-major SG8 MIXED reader)
-  the control failed them only just past the tolerance (first error about 0.003); a case with a short past, where the
-  speculative keys weigh more, would make it sharper.
+- Every qq_bias feature case is MIXED. On the d-major SG8 MIXED reader (gone since 2026-11-02) `SDPA_OCL_NEG_SG8=8`
+  failed them only just past the tolerance (first error about 0.003); on the token-major page (2026-11-07) `sdpa_ocl`
+  ran them on the lane again and the control failed its 3 MIXED cases ("Token-major K pages on the xe_hpg lane"). A
+  case with a short past, where the speculative keys weigh more, would make it sharper.
 - On DG2, `SDPAWithKVCacheTest` bf16 `batch=2 causal=1 compressed=1` head 64 fails in a group run on both lanes and
   passes alone (order or state dependent, not investigated), and f32 PA (`smoke_PagedAttentionTokenType` `Prc=f32`,
   4 heads, 500 tokens) ends in `CL_OUT_OF_RESOURCES` on every lane.
@@ -2775,9 +2782,8 @@ fails (kit F2, 2026-11-06):
 No test reaches paged-attention bf16, qq_bias with an f16, u4 or
 BY_TOKEN cache, a compressed cache with token_type_ids, or the u4 scalar page arms (head 48, 96,
 112). For a u4 V head whose packed row (`V / 2`) is not a multiple of 16 (48, 80, 112) the harness cannot build a
-case: it lays the u4 V row out as `V / 2` (+ 4 comp bytes on the d-major page) where the kernels pad it to a multiple of
-16 (`PACKED_V_HEAD_SIZE`, `PACKED_ADJUSTED_V_HEAD_SIZE`), so every reader, on either page layout, returns inf / NaN
-there; the scalar u4 V reads of `paged_attention_opt.cl` and `sdpa_ocl` are unverified. `sdpa_ocl_decode`'s
+case: it lays the u4 V row out as `V / 2` (and 4 comp bytes per token) where the kernels pad it to a multiple of
+16 (`PACKED_V_HEAD_SIZE`, `PACKED_ADJUSTED_V_HEAD_SIZE`), so every reader returns inf / NaN there; the scalar u4 V reads of `paged_attention_opt.cl` and `sdpa_ocl` are unverified. `sdpa_ocl_decode`'s
 low-register layout at `Q_PER_WG = 8` is reached by
 `smoke_paged_attention` basic/186-189 (u4, kv group 8, heads 512 with `V_TWIN_PAIR` and 256), but only
 the `sharp_softmax` rows (187, 189) fail when the twin store or the zp-correction bias is broken; the

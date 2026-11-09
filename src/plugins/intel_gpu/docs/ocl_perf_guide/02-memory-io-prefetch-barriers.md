@@ -484,7 +484,8 @@ On top of that, `transpose_32b_16r8x1c` could cut the 8 scatters to 1 block, but
 2026-10-27: sdpa_ocl MIXED now reads the **d-major** f16 page with block reads (§4.5) at token-major speed (406 vs 401 us per
 call on qwen3.5-9b), so for f16 MIXED the relayout no longer buys speed. 2026-11-01: the token-major page is the default on
 the Xe2+ `sdpa_ocl` lane for every cache precision anyway (GENERATE and i8 BY_TOKEN MIXED gain; `sdpa_ocl.md` "Paged-attention
-cache layouts"); `OV_GPU_PA_K_TOKEN_MAJOR=0` keeps the d-major page as the control.
+cache layouts"); `OV_GPU_PA_K_TOKEN_MAJOR=0` kept the d-major page as the control until 2026-11-08, when K pages became
+token-major only.
 
 ### 9.3 Page layout table (current `docs/sdpa_ocl.md` "Paged-attention cache layouts", h = head size, block 16)
 
