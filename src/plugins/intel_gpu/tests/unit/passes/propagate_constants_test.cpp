@@ -412,3 +412,44 @@ TEST(propagate_constants, in_place_reshape_in_subgraph) {
         ASSERT_FLOAT_EQ(out[i], in_values[i] + 2.f * w_values[i]) << "i=" << i;
     }
 }
+
+// Verifies that custom outputs, which name nodes of the main program (as Loop and If bodies set them), do not stop the
+// constant subgraphs from being executed.
+//
+// Topology:
+//   data("a") --+--> eltwise("w_sum", a + b) --> eltwise("out", sum with input), custom output "out"
+//   data("b") --+
+TEST(propagate_constants, custom_outputs_of_the_main_program) {
+    auto& engine = get_test_engine();
+
+    const auto l = layout{{1, 1, 2, 2}, data_types::f32, format::bfyx};
+    const std::vector<float> a_values = {1.f, 2.f, 3.f, 4.f};
+    const std::vector<float> b_values = {0.5f, -1.f, 2.f, 0.25f};
+    const std::vector<float> in_values = {10.f, 20.f, 30.f, 40.f};
+    auto a = engine.allocate_memory(l);
+    auto b = engine.allocate_memory(l);
+    set_values(a, a_values);
+    set_values(b, b_values);
+
+    topology topology(input_layout("input", l),
+                      data("a", a),
+                      data("b", b),
+                      eltwise("w_sum", input_info("a"), input_info("b"), eltwise_mode::sum),
+                      eltwise("out", input_info("input"), input_info("w_sum"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"out"}));
+    network network(engine, topology, config);
+
+    ASSERT_TRUE(network.get_program()->get_node("w_sum").is_type<data>());
+
+    auto input = engine.allocate_memory(l);
+    set_values(input, in_values);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    auto out = get_output_values_to_float(network, outputs.at("out"));
+    for (size_t i = 0; i < in_values.size(); ++i) {
+        ASSERT_FLOAT_EQ(out[i], in_values[i] + a_values[i] + b_values[i]) << "i=" << i;
+    }
+}

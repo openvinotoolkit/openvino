@@ -118,7 +118,10 @@ void propagate_constants::run(program& p) {
         build_kernels(p, subgraphs);
 
         // An empty network only provides the stream and the memory allocation for the instances of the constant nodes.
-        auto context = program::build_program(p.get_engine(), topology(), p.get_config(), p.get_task_executor(), true);
+        // The custom outputs name nodes of the main program, which this one does not have.
+        ExecutionConfig context_config = p.get_config().clone();
+        context_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{}));
+        auto context = program::build_program(p.get_engine(), topology(), context_config, p.get_task_executor(), true);
         auto net = network::allocate_network(p.get_engine(), context, true, true);
         for (const auto& subgraph : subgraphs) {
             std::vector<program_node*> inputs;
