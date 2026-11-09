@@ -7,6 +7,7 @@
 #include "data_inst.h"
 #include "pooling_inst.h"
 #include "fully_connected_inst.h"
+#include "reshape_inst.h"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include <algorithm>
 #include <utility>
@@ -187,6 +188,18 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
         return false;
     };
 
+    // A reshape may run in place and share its input's buffer. The sum would then write into the
+    // buffer of the first node above that is not a reshape. primitive_inst only gives a direct
+    // input_layout a buffer to write into. A network input behind reshapes has none yet, and the
+    // sum would overwrite the caller's input tensor.
+    auto dep_is_view_of_network_input = [&]() {
+        const program_node* owner = &dep_node;
+        while (owner->is_type<reshape>() && !owner->get_dependencies().empty()) {
+            owner = &owner->get_dependency(0);
+        }
+        return owner != &dep_node && owner->is_type<input_layout>();
+    };
+
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
             && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
@@ -196,7 +209,8 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
             && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)
-            && !p_node_consumes_dep_node()) {
+            && !p_node_consumes_dep_node()
+            && !dep_is_view_of_network_input()) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {

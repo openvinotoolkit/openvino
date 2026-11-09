@@ -12,6 +12,7 @@
 #include "eltwise_inst.h"
 #include "activation_inst.h"
 #include "reorder_inst.h"
+#include "reshape_inst.h"
 #include "convolution_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
@@ -174,6 +175,46 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
     program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
 
     auto& fc_node = prog->get_node("fc2");
+    auto& fused = fc_node.get_fused_primitives();
+    ASSERT_EQ(fused.size(), 1);
+
+    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
+    ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
+}
+
+// The addend is a network input seen through a reshape, as in a decoder's first residual after
+// MoveEltwiseUpThroughDataMovFusableProducer. A sum would accumulate into the input's buffer, which
+// has no memory at build time and belongs to the caller.
+TEST(add_onednn_optimization_attributes, fc_sum_refused_for_reshaped_network_input) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    auto weights_mem = engine.allocate_memory({ov::PartialShape({16, 16}), data_types::f16, format::bfyx});
+
+    topology topology;
+    topology.add(data("weights", weights_mem));
+    topology.add(input_layout("input", layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx}));
+    topology.add(input_layout("residual", layout{ov::PartialShape({1, 32, 16}), data_types::f16, format::bfyx}));
+    topology.add(fully_connected("fc", input_info("input"), "weights"));
+    topology.add(reshape("residual_view", input_info("residual"), false, {32, 16}, ov::PartialShape{32, 16}));
+    topology.add(eltwise("sum", {input_info("fc"), input_info("residual_view")}, eltwise_mode::sum));
+    topology.add(reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    auto& fc_node = prog->get_node("fc");
     auto& fused = fc_node.get_fused_primitives();
     ASSERT_EQ(fused.size(), 1);
 
