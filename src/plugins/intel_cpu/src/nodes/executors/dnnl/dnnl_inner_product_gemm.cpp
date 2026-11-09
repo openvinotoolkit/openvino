@@ -220,14 +220,14 @@ DnnlMemoryDescPtr add_batch_dim(const BlockedMemoryDescPtr& desc, size_t batchDi
 }
 
 std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_size,
-                                                                 ov::element::Type wei_precision,
-                                                                 ov::element::Type src_precision,
-                                                                 ov::element::Type zp_precision,
-                                                                 bool zp_non_negative_i8,
-                                                                 size_t K,
-                                                                 const VectorDims& scale_shape,
-                                                                 const VectorDims& zp_shape,
-                                                                 bool allow_u4) {
+                                                            ov::element::Type wei_precision,
+                                                            ov::element::Type src_precision,
+                                                            ov::element::Type zp_precision,
+                                                            bool zp_non_negative_i8,
+                                                            size_t K,
+                                                            const VectorDims& scale_shape,
+                                                            const VectorDims& zp_shape,
+                                                            bool allow_u4) {
     const auto disabled = std::make_pair(size_t{0}, dnnl::memory::data_type::f32);
     if (dq_group_size == 0 || dq_group_size == std::numeric_limits<uint64_t>::max() || dq_group_size % 32 != 0) {
         return disabled;
@@ -241,7 +241,8 @@ std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_si
                               ov::element::u4,
                               ov::element::dynamic) ||
                        (zp_precision == ov::element::i8 && zp_non_negative_i8);
-    const bool is_supported_weights = wei_precision == ov::element::u3 || (allow_u4 && wei_precision == ov::element::u4);
+    const bool is_supported_weights =
+        wei_precision == ov::element::u3 || (allow_u4 && wei_precision == ov::element::u4);
     if (!is_supported_weights || !zp_ok) {
         return disabled;
     }

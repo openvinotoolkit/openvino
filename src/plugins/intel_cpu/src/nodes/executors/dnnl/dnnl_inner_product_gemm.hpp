@@ -111,13 +111,13 @@ DnnlMemoryDescPtr add_batch_dim(const BlockedMemoryDescPtr& desc, size_t batchDi
 // (0 if disabled) and the zero point data type to use. u3 weights come with i8 zero points; they are
 // converted to u8 which is lossless only when none of them is negative (zp_non_negative_i8).
 std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_size,
-                                                                 ov::element::Type wei_precision,
-                                                                 ov::element::Type src_precision,
-                                                                 ov::element::Type zp_precision,
-                                                                 bool zp_non_negative_i8,
-                                                                 size_t K,
-                                                                 const VectorDims& scale_shape,
-                                                                 const VectorDims& zp_shape,
-                                                                 bool allow_u4 = false);
+                                                            ov::element::Type wei_precision,
+                                                            ov::element::Type src_precision,
+                                                            ov::element::Type zp_precision,
+                                                            bool zp_non_negative_i8,
+                                                            size_t K,
+                                                            const VectorDims& scale_shape,
+                                                            const VectorDims& zp_shape,
+                                                            bool allow_u4 = false);
 
 }  // namespace ov::intel_cpu::dnnl_utils

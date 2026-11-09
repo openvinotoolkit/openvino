@@ -62,7 +62,7 @@ bool GroupedMatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         const bool is_compressed = ov::is_type<ov::op::internal::GroupedMatMulCompressed>(op);
         if (!is_compressed && !ov::is_type<ov::op::v17::GroupedMatMul>(op)) {
             error_message = "Only GroupedMatMul and GroupedMatMulCompressed operations are supported. Got: " +
-                           std::string(op->get_type_info().name);
+                            std::string(op->get_type_info().name);
             return false;
         }
 
@@ -109,7 +109,7 @@ bool GroupedMatMul::isSupportedCompressedOperation(const std::shared_ptr<ov::Nod
         if (std::find(activations.begin(), activations.end(), op->get_input_element_type(0)) == activations.end()) {
             return false;
         }
-    
+
         std::string error_message;
         if (!isSupportedOperation(op, error_message)) {
             return false;
