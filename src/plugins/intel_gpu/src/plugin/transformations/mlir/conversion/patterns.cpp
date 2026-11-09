@@ -56,7 +56,9 @@
 #include "../common/converters/transpose.hpp"
 #include "../common/converters/unary_eltwise.hpp"
 #include "../common/converters/unsqueeze.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 
 namespace ov::intel_gpu::mlir {
 
@@ -78,6 +80,42 @@ GroupedMatMulPattern::GroupedMatMulPattern()
                                                  any_input(shape_matches("E, N, K") && type_matches_any({element::f16, element::bf16})),
                                                  any_input(shape_matches("E"))}),
                   ConvertGroupedMatMul()) {}
+
+// Weight-compressed 2Dx3D GroupedMatMul (produced by ConvertGroupedMatMulToGroupedMatMulCompressed):
+//   [mat_a, mat_b [E, N, K], offsets [E], scale [E, N, G], (zero_point [E, N, G] or a single value)]
+// G is 1 (per-channel) or the number of groups along K. The weights are dequantized by a linalg.generic
+// which feeds linalgx.grouped_matmul.
+GroupedMatMulCompressedPattern::GroupedMatMulCompressedPattern()
+    : MarkPattern(
+          [] {
+              auto lhs = [] {
+                  return any_input(rank_equals(2) && type_matches_any({element::f16, element::bf16}));
+              };
+              auto weights = [] {
+                  return any_input(has_static_shape() && shape_matches("E, N, K") && type_matches_any({element::u4, element::i4, element::u8, element::i8}));
+              };
+              auto offsets = [] {
+                  return any_input(shape_matches("E"));
+              };
+              auto scale = [] {
+                  return any_input(has_static_shape() && shape_matches("E, N, G") && type_matches_any({element::f16, element::bf16, element::f32}));
+              };
+              auto zero_point = [] {
+                  const auto single_value = ov::pass::pattern::op::Predicate([](const Output<Node>& output) {
+                      return output.get_partial_shape().is_static() && ov::shape_size(output.get_shape()) == 1;
+                  });
+                  // Integer up to 8 bits or float, see decompression::decompress_weights.
+                  const auto zp_type = ov::pass::pattern::op::Predicate([](const Output<Node>& output) {
+                      const auto type = output.get_element_type();
+                      return type.is_real() || (type.is_integral_number() && type != element::boolean && type.bitwidth() <= 8);
+                  });
+                  return any_input((single_value || (has_static_shape() && shape_matches("E, N, G"))) && zp_type);
+              };
+              auto no_zp = wrap_type<ov::op::internal::GroupedMatMulCompressed>({lhs(), weights(), offsets(), scale()});
+              auto with_zp = wrap_type<ov::op::internal::GroupedMatMulCompressed>({lhs(), weights(), offsets(), scale(), zero_point()});
+              return std::make_shared<ov::pass::pattern::op::Or>(OutputVector{no_zp, with_zp});
+          }(),
+          ConvertGroupedMatMul()) {}
 
 MatMulPattern::MatMulPattern()
     : MarkPattern(wrap_type<v0::MatMul>({any_input(), any_input()},

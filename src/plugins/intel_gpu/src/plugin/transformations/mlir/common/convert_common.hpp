@@ -73,7 +73,15 @@ mlir::arith::ConstantOp getConstant(OpBuilder& builder, const ov::element::Type&
 inline arith::ConstantOp getConstant(OpBuilder& builder, const ov::op::v0::Constant* constant, std::optional<Location> loc = std::nullopt) {
     auto tensorTy = dyn_cast<RankedTensorType>(importTensor(builder.getContext(), constant->get_output_partial_shape(0), constant->get_element_type()));
     DenseElementsAttr attr;
-    if (constant->get_all_data_elements_bitwise_identical()) {
+    if (constant->get_element_type().bitwidth() < 8) {
+        // Sub-byte types (u4/i4) are packed in OV (two elements per byte), while DenseElementsAttr keeps one
+        // element per byte, so the raw buffer can't be reused. Only splats are inlined (e.g. a single zero-point
+        // value): non-splat constants are passed as function arguments, so unpack the single value.
+        OPENVINO_ASSERT(constant->get_all_data_elements_bitwise_identical(), "Inlining non-splat sub-byte constants is not supported");
+        const auto elemTy = mlir::cast<IntegerType>(tensorTy.getElementType());
+        const APInt value(elemTy.getWidth(), static_cast<uint64_t>(constant->cast_vector<int64_t>(1)[0]), constant->get_element_type().is_signed());
+        attr = DenseElementsAttr::get(tensorTy, value);
+    } else if (constant->get_all_data_elements_bitwise_identical()) {
         auto raw = llvm::ArrayRef<char>(static_cast<const char*>(constant->get_data_ptr()), constant->get_element_type().size());
         auto scalarAttr = DenseElementsAttr::getFromRawBuffer(tensorTy.cloneWith({}, tensorTy.getElementType()), raw);
         attr = DenseElementsAttr::get(tensorTy, scalarAttr.getSplatValue<Attribute>());

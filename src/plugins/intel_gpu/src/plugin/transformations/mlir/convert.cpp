@@ -35,6 +35,7 @@
 #include "gc/Transforms/Passes.h"
 #include "graph_converter.hpp"
 #include "intel_gpu/op/mlir_op.hpp"
+#include "intel_gpu/primitives/mlir_primitive.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -42,6 +43,7 @@
 #include "mlir/Dialect/Linalg/TransformOps/DialectExtension.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Utils/IndexingUtils.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -108,11 +110,64 @@ void dropUnusedInputArgs(mlir::func::FuncOp func, size_t numInputs, SmallVector<
     assert(mlir::succeeded(result) && "Failed to erase unused function arguments");
 }
 
+// Whether a function argument of `type` can be passed in the physical dimension `order`:
+// a permutation of a plain static-shaped memref that has a matching cldnn format.
+bool is_supported_order(MemRefType type, ArrayRef<int64_t> order) {
+    // Static shapes only: a dynamic shape would need dynamic strides (strided<[?, 1, ?]>), which the current
+    // graph-compiler pipeline can't handle yet. This is not a fundamental limitation.
+    if (order.size() != static_cast<size_t>(type.getRank()) || !type.hasStaticShape() || !type.getLayout().isIdentity()) {
+        return false;
+    }
+    if (!mlir::isPermutationVector(order)) {
+        return false;
+    }
+    return cldnn::mlir_primitive::format_from_dim_order(std::vector<size_t>(order.begin(), order.end())).has_value();
+}
+
+// Builds a memref type with the dimensions of `type` stored in `order` (only the strides change).
+MemRefType get_ordered_memref_type(MemRefType type, ArrayRef<int64_t> order) {
+    const auto shape = type.getShape();
+    SmallVector<int64_t> strides(shape.size());
+    int64_t stride = 1;
+    for (int64_t dim : llvm::reverse(order)) {
+        strides[dim] = stride;
+        stride *= shape[dim];
+    }
+    return MemRefType::get(shape, type.getElementType(), StridedLayoutAttr::get(type.getContext(), /*offset=*/0, strides));
+}
+
+// Gives the function arguments the physical orders requested by the converters. The IR built from
+// the arguments stays the same: only the memref types (and so the expected buffers) change.
+// Returns the applied orders keyed by runtime input index (inputs without an entry stay plain).
+ov::intel_gpu::op::InputOrders apply_requested_orders(mlir::func::FuncOp func, const ov::OutputVector& runtime_inputs, const GraphConverter& converter) {
+    ov::intel_gpu::op::InputOrders orders;
+    for (size_t i = 0; i < runtime_inputs.size(); ++i) {
+        const auto requested = converter.get_requested_order(runtime_inputs[i]);
+        if (requested.empty() || mlir::isIdentityPermutation(requested)) {
+            continue;  // plain, nothing to change
+        }
+        auto arg = func.getArgument(i);
+        auto type = mlir::cast<MemRefType>(arg.getType());
+        if (!is_supported_order(type, requested)) {
+            OPENVINO_MLIR_DEBUG_PRINT("The physical order requested for " << runtime_inputs[i] << " can't be honoured, the plain one is used");
+            continue;
+        }
+        arg.setType(get_ordered_memref_type(type, requested));
+        orders.emplace(i, std::vector<size_t>(requested.begin(), requested.end()));
+    }
+    if (!orders.empty()) {
+        SmallVector<mlir::Type> argTypes(func.front().getArgumentTypes());
+        func.setFunctionType(mlir::FunctionType::get(func.getContext(), argTypes, func.getResultTypes()));
+    }
+    return orders;
+}
+
 mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
                                                  const ov::OutputVector& inputs,
                                                  const ov::NodeVector& nodes,
                                                  const ov::OutputVector& outputs,
                                                  SmallVector<size_t>& keptInputIndices,
+                                                 ov::intel_gpu::op::InputOrders& keptInputOrders,
                                                  const std::string& function_name = "entry") {
     // Split inputs: splat constants are inlined, runtime inputs become function args.
     ov::OutputVector runtime_inputs;
@@ -182,6 +237,8 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
         graph_converter.convert(node);
     }
 
+    auto runtime_orders = apply_requested_orders(func, runtime_inputs, graph_converter);
+
     SmallVector<mlir::Value> funcOutputs;
     funcOutputs.reserve(outputs.size());
 
@@ -215,14 +272,22 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
     llvm::transform(keptRuntimeIndices, std::back_inserter(keptInputIndices), [&](size_t i) {
         return runtime_to_original[i];
     });
+    // dropUnusedInputArgs may have removed some arguments, so renumber the orders to the remaining ones.
+    for (size_t k = 0; k < keptRuntimeIndices.size(); ++k) {
+        auto it = runtime_orders.find(keptRuntimeIndices[k]);
+        if (it != runtime_orders.end()) {
+            keptInputOrders.emplace(k, std::move(it->second));
+        }
+    }
     return module;
 }
 
 // This pass converts a group of nodes into a single MLIROp
 NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, uint32_t device_id) {
     SmallVector<size_t> keptInputIndices;
+    ov::intel_gpu::op::InputOrders keptInputOrders;
     mlir::OwningOpRef<mlir::ModuleOp> module =
-        ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices, subgraph->function_name);
+        ngraph_to_mlir(context, subgraph->inputs, subgraph->nodes, subgraph->outputs, keptInputIndices, keptInputOrders, subgraph->function_name);
 
     ov::OutputVector inputs;
     inputs.reserve(keptInputIndices.size());
@@ -268,7 +333,7 @@ NodePtr ngraph_to_mlir_op(MLIRContext* context, const SubgraphPtr& subgraph, uin
     }
 
     auto program = ov::intel_gpu::mlir::create_gpu_program(std::move(module), device_id);
-    return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs, std::move(program), output_types, output_map);
+    return std::make_shared<ov::intel_gpu::op::MLIROp>(inputs, std::move(program), output_types, output_map, std::move(keptInputOrders));
 };
 
 void replace_subgraph(const SubgraphPtr& subgraph, const NodePtr& node) {
@@ -515,6 +580,7 @@ void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, c
     manager.register_pass<UnaryEltwisePattern<v0::Tanh, linalg::ElementwiseKind::tanh>>();
     manager.register_pass<GatherPattern>();
     manager.register_pass<GroupedMatMulPattern>();
+    manager.register_pass<GroupedMatMulCompressedPattern>();
     manager.register_pass<ShapeOfPattern>();
     manager.register_pass<SlicePattern>();
     manager.register_pass<SqueezePattern>();

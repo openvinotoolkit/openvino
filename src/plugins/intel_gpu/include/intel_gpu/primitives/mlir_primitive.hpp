@@ -5,7 +5,9 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "openvino/core/partial_shape.hpp"
@@ -38,6 +40,31 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
 
     std::shared_ptr<ov::intel_gpu::op::MLIROp> op;
     shape_infer_function shape_infer_f;
+
+    // Physical format required for some inputs (key == dependency index == MLIR function argument index).
+    // The compiled MLIR program bakes the input memref layouts in, so cldnn must deliver exactly these
+    // formats. Inputs without an entry must be in the default (plain) format for their rank.
+    std::map<size_t, format::type> required_input_fmts;
+
+    [[nodiscard]] format::type get_required_input_format(size_t idx, size_t rank) const {
+        const auto it = required_input_fmts.find(idx);
+        return it != required_input_fmts.end() ? it->second : format::get_default_format(rank).value;
+    }
+
+    // Returns the cldnn format with the given physical dimension order (e.g. {0, 2, 1} -> byfx),
+    // or nullopt if there is no such format.
+    static std::optional<format::type> format_from_dim_order(std::vector<size_t> order) {
+        // Ranks below 4 are represented as 4D by cldnn: the missing trailing dimensions keep their place.
+        for (size_t i = order.size(); i < 4; ++i) {
+            order.push_back(i);
+        }
+        try {
+            return static_cast<format::type>(format::find_format(order, {}));
+        } catch (const ov::Exception&) {
+            // find_format throws (OPENVINO_ASSERT) if no format or more than one format has this order.
+            return std::nullopt;
+        }
+    }
 
     void save(BinaryOutputBuffer& /*ob*/) const override {
         OPENVINO_THROW("[GPU] Compiled model export / model caching is not supported for models with MLIR "
