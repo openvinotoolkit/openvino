@@ -10,6 +10,7 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/log.hpp"
+#include "openvino/op/logical_or.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
@@ -40,10 +41,15 @@ OutputVector translate_expm1(const NodeContext& context) {
     Output<Node> expm1 = context.mark_node(std::make_shared<v1::Multiply>(exp_minus_one, scale));
     auto u_is_one = context.mark_node(std::make_shared<v1::Equal>(exp, const_1));
     expm1 = context.mark_node(std::make_shared<v1::Select>(u_is_one, x, expm1));
-    // Where exp(x) underflows to 0 (expm1 = -1) or overflows to +inf, log(u) is not finite and the formula
-    // above gives nan, while exp(x) - 1 is already exact.
-    auto log_is_inf = context.mark_node(std::make_shared<v10::IsInf>(log));
-    expm1 = context.mark_node(std::make_shared<v1::Select>(log_is_inf, exp_minus_one, expm1));
+    // For large negative x, exp(x) - 1 rounds to exactly -1, which is already the correct result. There u may be
+    // subnormal or 0, where log(u) is imprecise or -inf and the formula above is wrong. Where exp(x) overflows to
+    // +inf, the formula gives nan while exp(x) - 1 is +inf.
+    auto const_minus_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+    const_minus_1 = context.mark_node(std::make_shared<v1::ConvertLike>(const_minus_1, exp));
+    auto is_minus_one = context.mark_node(std::make_shared<v1::Equal>(exp_minus_one, const_minus_1));
+    auto exp_is_inf = context.mark_node(std::make_shared<v10::IsInf>(exp));
+    auto keep_exp_minus_one = context.mark_node(std::make_shared<v1::LogicalOr>(is_minus_one, exp_is_inf));
+    expm1 = context.mark_node(std::make_shared<v1::Select>(keep_exp_minus_one, exp_minus_one, expm1));
 
     if (!context.input_is_none(1)) {
         context.mutate_input(1, expm1);

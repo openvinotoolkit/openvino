@@ -392,7 +392,8 @@ class TestLog1pExpm1SpecialValues(PytorchLayerTest):
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(("op_name", "values"), [
         ("log1p", [np.inf, -1.0, -1.5, np.nan, 3e38]),
-        ("expm1", [np.inf, -np.inf, -100.0, 80.0]),
+        # -87.5, -100 and -103 make exp(x) subnormal, where expm1 must still be exactly -1
+        ("expm1", [np.inf, -np.inf, -87.5, -100.0, -103.0, 80.0]),
     ])
     def test_special_values(self, op_name, values, ie_device, precision, ir_version):
         if precision == "FP16":
