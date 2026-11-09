@@ -79,6 +79,19 @@ class JustInferRequest final : public IBaseInferRequest, public ISubrequestAcces
 public:
     explicit JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
+    struct LayerMajorPlan {
+        using Inputs = std::map<ov::Output<const ov::Node>, TensorPtr>;
+        std::vector<Inputs> chunks;
+        std::size_t max_chunks = 0;
+        std::function<void(std::size_t)> before_chunk;
+        std::function<void(std::size_t, std::size_t)> on_subgraph_chunk_done;
+    };
+    std::string layer_major_fallback_reason() const;
+    void infer_layer_major(const LayerMajorPlan& plan);
+    bool is_repeated_function_call(std::size_t idx) const;
+    std::size_t layer_major_global_link_count() const;
+    TensorPtr allocate_layer_major_input(const ov::Output<const ov::Node>& port);
+
     ////////////////////////////////////
     // Implement ISubrequestAccessor interface
     ov::SoPtr<ov::IAsyncInferRequest> get_subrequest(size_t idx) override;
@@ -147,6 +160,11 @@ protected:
 protected:
     void connect_subrequests();
     void initialize_subgraph_behaviors();
+    void allocate_layer_major_banks(std::size_t max_chunks);
+    using LayerMajorBind = std::function<void(const RqPtr&, const ov::Output<const ov::Node>&, const TensorPtr&)>;
+    void bind_layer_major_banks(std::size_t idx, std::size_t chunk, const LayerMajorBind& bind_normal);
+    std::map<LinkFrom, std::shared_ptr<std::vector<TensorPtr>>> m_layer_major_banks;
+    std::optional<std::size_t> m_layer_major_chunk;
 
     // Helper function to initialize/reinitialize MoE executor
     void initialize_moe_executor();

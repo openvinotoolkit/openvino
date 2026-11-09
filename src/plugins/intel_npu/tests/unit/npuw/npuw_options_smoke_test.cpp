@@ -151,6 +151,7 @@ std::vector<Case> make_cases() {
                                                            "DEVICE_ROUTED"),
         bool_case<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>("NPUW_LLM_GENERATE_PYRAMID", "YES", true),
         numeric_case<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>("NPUW_LLM_PREFILL_CHUNK_SIZE", "256", uint64_t{256}),
+        bool_case<::intel_npu::NPUW_LLM_PREFILL_LAYER_MAJOR>("NPUW_LLM_PREFILL_LAYER_MAJOR", "YES", true),
         bool_case<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>("NPUW_LLM_ENABLE_PREFIX_CACHING", "YES", true),
         numeric_case<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>("NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE",
                                                                       "128",

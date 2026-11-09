@@ -748,6 +748,233 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Done");
 }
 
+std::string ov::npuw::JustInferRequest::layer_major_fallback_reason() const {
+    for (const auto& desc : m_npuw_model->m_compiled_submodels) {
+        if (ov::npuw::attn::get_compiled_hfa(desc.pipeline.context) != nullptr) {
+            return "HFA subgraph";
+        }
+        if (ov::npuw::moe::has_compiled_state(desc.pipeline)) {
+            return "MoE subgraph";
+        }
+    }
+    return {};
+}
+
+bool ov::npuw::JustInferRequest::is_repeated_function_call(std::size_t idx) const {
+    const auto& desc = m_npuw_model->m_compiled_submodels.at(idx);
+    return desc.replaced_by && *desc.replaced_by != idx;
+}
+
+std::size_t ov::npuw::JustInferRequest::layer_major_global_link_count() const {
+    std::set<LinkFrom> links;
+    for (const auto& link : m_npuw_model->m_submodels_input_to_prev_output) {
+        if (std::find(m_npuw_model->m_outputs_to_submodels_outputs.begin(),
+                      m_npuw_model->m_outputs_to_submodels_outputs.end(),
+                      link.second) != m_npuw_model->m_outputs_to_submodels_outputs.end()) {
+            links.insert(link.second);
+        }
+    }
+    return links.size();
+}
+
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocate_layer_major_input(const ov::Output<const ov::Node>& port) {
+    const auto& inputs = m_npuw_model->inputs();
+    const auto input = std::find(inputs.begin(), inputs.end(), port);
+    OPENVINO_ASSERT(input != inputs.end());
+    auto tensor = allocOut(port, global_input_mem_device(std::distance(inputs.begin(), input)));
+    m_input_allocated.insert(tensor->data());
+    return tensor;
+}
+
+void ov::npuw::JustInferRequest::allocate_layer_major_banks(std::size_t max_chunks) {
+    if (!m_layer_major_banks.empty()) {
+        return;
+    }
+    std::map<LinkFrom, std::size_t> last_consumers;
+    for (const auto& link : m_npuw_model->m_submodels_input_to_prev_output) {
+        if (!valid_subrequest(link.first.first) || !valid_subrequest(link.second.first)) {
+            continue;
+        }
+        auto& last = last_consumers[link.second];
+        last = std::max(last, link.first.first);
+    }
+    struct Bank {
+        ov::element::Type type;
+        ov::Shape shape;
+        std::string device;
+        std::size_t last;
+        std::shared_ptr<std::vector<TensorPtr>> tensors;
+    };
+    std::vector<Bank> banks;
+    decltype(m_layer_major_banks) table;
+    for (const auto& entry : last_consumers) {
+        const auto& from = entry.first;
+        const auto& desc = m_npuw_model->m_compiled_submodels[from.first];
+        auto request = get_real_subrequest(from.first);
+        auto original =
+            desc.replaced_by ? m_funcall_result.at(from) : request->get_tensor(request->get_outputs().at(from.second));
+        const auto device = desc.replaced_by ? m_npuw_model->funcall_mem_device(real(from.first))
+                                             : m_npuw_model->submodel_device(from.first);
+        auto free_bank = std::find_if(banks.begin(), banks.end(), [&](const Bank& bank) {
+            return bank.last < from.first && bank.type == original->get_element_type() &&
+                   bank.shape == original->get_shape() && bank.device == device;
+        });
+        if (free_bank == banks.end()) {
+            auto tensors = std::make_shared<std::vector<TensorPtr>>();
+            for (std::size_t c = 0; c < max_chunks; ++c) {
+                tensors->push_back(allocMem(original->get_element_type(), original->get_shape(), device));
+            }
+            banks.push_back({original->get_element_type(), original->get_shape(), device, entry.second, tensors});
+            table.emplace(from, std::move(tensors));
+        } else {
+            free_bank->last = entry.second;
+            table.emplace(from, free_bank->tensors);
+        }
+    }
+    m_layer_major_banks = std::move(table);
+}
+
+void ov::npuw::JustInferRequest::bind_layer_major_banks(std::size_t idx,
+                                                        std::size_t chunk,
+                                                        const LayerMajorBind& bind_normal) {
+    auto bind_producer = [&](const LinkFrom& from, const TensorPtr& tensor) {
+        if (m_npuw_model->m_compiled_submodels[from.first].replaced_by) {
+            m_funcall_result[from] = tensor;
+        } else {
+            auto request = m_subrequests[from.first];
+            bind_normal(request, request->get_outputs().at(from.second), tensor);
+        }
+    };
+    for (const auto& bank : m_layer_major_banks) {
+        if (bank.first.first == idx) {
+            bind_producer(bank.first, bank.second->at(chunk));
+        }
+    }
+    for (const auto& link : m_npuw_model->m_submodels_input_to_prev_output) {
+        if (link.first.first != idx) {
+            continue;
+        }
+        auto bank = m_layer_major_banks.find(link.second);
+        if (bank == m_layer_major_banks.end()) {
+            continue;
+        }
+        const auto& tensor = bank->second->at(chunk);
+        bind_producer(link.second, tensor);
+        if (!m_npuw_model->m_compiled_submodels[idx].replaced_by) {
+            auto request = m_subrequests[idx];
+            bind_normal(request, request->get_inputs().at(link.first.second), tensor);
+        }
+    }
+}
+
+void ov::npuw::JustInferRequest::infer_layer_major(const LayerMajorPlan& plan) {
+    OPENVINO_ASSERT(layer_major_fallback_reason().empty(), "Unsupported layer-major prefill model");
+    OPENVINO_ASSERT(!plan.chunks.empty() && plan.chunks.size() <= plan.max_chunks);
+    for (std::size_t out = 0; out < m_npuw_model->outputs().size(); ++out) {
+        const auto from = m_npuw_model->m_outputs_to_submodels_outputs.at(out);
+        if (!m_funcall_result.count(from)) {
+            m_funcall_result[from] = get_tensor(m_npuw_model->outputs()[out]);
+        }
+    }
+    allocate_layer_major_banks(plan.max_chunks);
+    std::map<LinkFrom, TensorPtr> dual_outputs;
+    for (const auto& from : m_npuw_model->m_outputs_to_submodels_outputs) {
+        if (m_layer_major_banks.count(from)) {
+            dual_outputs.emplace(from, m_funcall_result.at(from));
+        }
+    }
+    auto saved_storage = m_port_to_tensor;
+    auto saved_results = m_funcall_result;
+    auto saved_spatial = m_spatial_io;
+    auto saved_subrequests = m_subrequests;
+    auto saved_pipeline = m_funcall_pipeline;
+    struct Binding {
+        RqPtr request;
+        ov::Output<const ov::Node> port;
+        TensorPtr tensor;
+    };
+    std::map<std::pair<ov::IAsyncInferRequest*, ov::Output<const ov::Node>>, Binding> bindings;
+    const LayerMajorBind bind_normal =
+        [&](const RqPtr& request, const ov::Output<const ov::Node>& port, const TensorPtr& tensor) {
+            const auto key = std::make_pair(request._ptr.get(), port);
+            if (!bindings.count(key)) {
+                bindings.emplace(key, Binding{request, port, request->get_tensor(port)});
+            }
+            request->set_tensor(port, tensor);
+        };
+    auto restore = [&]() {
+        m_layer_major_chunk.reset();
+        m_port_to_tensor = saved_storage;
+        m_funcall_result = saved_results;
+        m_spatial_io = saved_spatial;
+        m_subrequests = saved_subrequests;
+        m_funcall_pipeline = saved_pipeline;
+        for (const auto& binding : bindings) {
+            binding.second.request->set_tensor(binding.second.port, binding.second.tensor);
+        }
+    };
+    try {
+        for (std::size_t idx = 0; idx < m_num_submodels; ++idx) {
+            if (!valid_subrequest(idx)) {
+                continue;
+            }
+            const auto real_idx = real(idx);
+            auto* behavior = get_subgraph_behavior(idx);
+            subscribe_subrequest(idx, [](std::exception_ptr) {});
+            m_profile[profile_tag(idx)].record([&]() {
+                for (std::size_t c = 0; c < plan.chunks.size(); ++c) {
+                    m_layer_major_chunk = c;
+                    for (const auto& input : plan.chunks[c]) {
+                        m_port_to_tensor.at(input.first).tensor = input.second;
+                    }
+                    if (plan.before_chunk) {
+                        plan.before_chunk(c);
+                    }
+                    if (m_spatial_selector) {
+                        m_spatial_selector->prepare();
+                    }
+                    if (behavior) {
+                        auto ctx = make_behavior_context(real_idx, idx);
+                        behavior->prepare(ctx);
+                    }
+                    bind_layer_major_banks(idx, c, bind_normal);
+                    bind_global_parameters(idx);
+                    bind_global_results(idx);
+                    if (m_npuw_model->m_compiled_submodels[idx].replaced_by &&
+                        !behavior_handles_function_prologue(idx)) {
+                        function_prologue(idx);
+                    }
+                    if (behavior) {
+                        auto ctx = make_behavior_context(real_idx, idx);
+                        behavior->prologue(ctx);
+                    }
+                    dump_input_tensors(idx);
+                    unsafe_infer(real_idx, idx);
+                    dump_output_tensors(idx);
+                    if (behavior) {
+                        auto ctx = make_behavior_context(real_idx, idx);
+                        behavior->epilogue(ctx);
+                    }
+                    for (const auto& output : dual_outputs) {
+                        if (output.first.first == idx) {
+                            m_layer_major_banks.at(output.first)->at(c)->copy_to(output.second._ptr);
+                        }
+                    }
+                    if (plan.on_subgraph_chunk_done) {
+                        plan.on_subgraph_chunk_done(idx, c);
+                    }
+                }
+            });
+            complete_subrequest(idx);
+        }
+    } catch (...) {
+        restore();
+        throw;
+    }
+    restore();
+    ++m_run_iter;
+}
+
 ov::npuw::IBaseInferRequest::RqPtr ov::npuw::JustInferRequest::get_real_subrequest(std::size_t idx) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
@@ -786,7 +1013,7 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
     // pick which subrequest we actually work on here
-    if (now_idx() && real_idx == real(now_idx().value()) && is_pipelined(now_idx().value())) {
+    if (!m_layer_major_chunk && now_idx() && real_idx == real(now_idx().value()) && is_pipelined(now_idx().value())) {
         LOG_DEBUG("Accessing the pipeline subrequest");
         // The real index of request we need to prepare IS
         // the same request which executes now AND
@@ -809,6 +1036,15 @@ void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
         // itself. Note it may be implemented more efficently than now
         // (and in some cases, the tensor can be pre-set)
         LOG_DEBUG("Skipping bind_glo - function will do it for itself");
+        return;
+    }
+    if (m_layer_major_chunk) {
+        for (const auto& result : m_subrequests_gio[idx].global_results) {
+            if (!m_layer_major_banks.count({idx, result.second})) {
+                m_subrequests[idx]->set_tensor(m_subrequests[idx]->get_outputs().at(result.second),
+                                               get_tensor(m_npuw_model->outputs().at(result.first)));
+            }
+        }
         return;
     }
     IBaseInferRequest::bind_global_results(idx, m_subrequests[idx]);
@@ -880,7 +1116,8 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
     // for details.
-    if (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall) {
+    if (m_layer_major_chunk ? *m_layer_major_chunk == 0 && m_closure_update_required && !func_desc.forced_to_fcall
+                            : (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall)) {
         LOG_DEBUG("Unpacking closures...");
         LOG_BLOCK();
         unpack_closure(idx, m_subrequests[real_idx]);

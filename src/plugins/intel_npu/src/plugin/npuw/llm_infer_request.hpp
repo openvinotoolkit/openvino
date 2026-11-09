@@ -37,6 +37,7 @@ struct LLMContinuedPrefillTestAccess;
 struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
 struct LLMNoPositionIdsTestAccess;
+struct LLMLayerMajorPrefillTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -102,6 +103,21 @@ protected:
                                ov::SoPtr<ov::ITensor> per_layer_inputs,
                                ov::SoPtr<ov::ITensor> visual_pos_masks,
                                ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
+    struct PrefillChunkInputs {
+        ov::SoPtr<ov::ITensor> input_ids, attention_mask, position_ids, token_type_ids;
+        ov::SoPtr<ov::ITensor> per_layer_inputs, visual_pos_masks, deepstack_visual_embeds;
+    };
+    void prepare_prefill_chunk(const PrefillChunkInputs& inputs, uint32_t length, size_t& visual_tokens_scattered);
+    void init_layer_major_prefill();
+    void infer_layer_major_prefill(const PrefillChunkInputs& inputs);
+    using KVPair = std::pair<std::string, std::string>;
+    void update_layer_kvcache(const std::vector<KVPair>& pairs, uint32_t start, uint32_t length);
+    std::vector<std::vector<KVPair>> m_layer_major_kv_pairs;
+    std::vector<std::map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>>> m_layer_major_inputs;
+    bool m_layer_major_inputs_ready = false;
+    bool m_use_layer_major_prefill = false;
+    bool m_layer_major_continuation_warned = false;
+    uint64_t m_layer_major_runs = 0;
     PrefixCachingHelper* get_prefix_caching_helper(const ov::SoPtr<ov::ITensor>& position_ids);
     bool use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const;
 
@@ -283,6 +299,7 @@ protected:
     friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
     friend struct ov::test::npuw::LLMNoPositionIdsTestAccess;
+    friend struct ov::test::npuw::LLMLayerMajorPrefillTestAccess;
 };
 
 }  // namespace npuw
