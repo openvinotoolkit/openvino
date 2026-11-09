@@ -7857,7 +7857,7 @@ TEST_F(fully_connected_gpu_tests, gemv_rejects_unaligned_ofm_with_dynamic_batch)
 #ifdef ENABLE_ONEDNN_FOR_GPU
 namespace {
 // Each case changes at most one of these from the plain single-FC case
-enum class f16_zp_variant { plain, cached, input_3d, shared_zp, groups_major };
+enum class f16_zp_variant { plain, cached, input_3d, shared_zp, groups_major, group_8 };
 
 struct compressed_f16_zp_params {
     data_types wei_dt;
@@ -7871,7 +7871,7 @@ class fully_connected_compressed_f16_zp : public ::testing::TestWithParam<compre
 public:
     static std::string GetTestCaseName(const testing::TestParamInfo<compressed_f16_zp_params>& obj) {
         const auto& p = obj.param;
-        static const char* variants[] = {"", "_cached", "_3d", "_shared_zp", "_groups_major"};
+        static const char* variants[] = {"", "_cached", "_3d", "_shared_zp", "_groups_major", "_group_8"};
         return std::string(p.wei_dt == data_types::u4 ? "u4" : "u8") + "_b" + std::to_string(p.batch_num) + (p.is_dynamic ? "_dynamic" : "_static") +
                (p.impl == impl_types::onednn ? "_onednn" : "_ocl") + variants[static_cast<size_t>(p.variant)];
     }
@@ -7891,7 +7891,7 @@ TEST_P(fully_connected_compressed_f16_zp, compare_with_exact_dequantization) {
     const long int batch_num = p.batch_num;
     const long int ifm_num = 512;
     const long int ofm_num = 256;
-    const long int group_size = 32;
+    const long int group_size = p.variant == f16_zp_variant::group_8 ? 8 : 32;
     const long int group_num = ifm_num / group_size;
 
     const ov::PartialShape in_shape = input_3d ? ov::PartialShape{1, batch_num, ifm_num} : ov::PartialShape{batch_num, ifm_num};
@@ -7958,7 +7958,8 @@ TEST_P(fully_connected_compressed_f16_zp, compare_with_exact_dequantization) {
     auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), fc_ids.size());
 
-    const bool sbzp = use_onednn;
+    // oneDNN takes the FC only with a group size it accepts; otherwise the FC keeps its zero point and runs on OpenCL
+    const bool sbzp = use_onednn && group_size % 16 == 0;
     const auto ref = reference(false);
     const auto ref_rounded_zp = reference(true);
     for (const auto& id : fc_ids) {
@@ -8001,6 +8002,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            compressed_f16_zp_params{data_types::u4, 64, false, impl_types::onednn, f16_zp_variant::shared_zp},
                                            compressed_f16_zp_params{data_types::u4, 64, false, impl_types::onednn, f16_zp_variant::groups_major},
                                            compressed_f16_zp_params{data_types::u4, 1, true, impl_types::onednn, f16_zp_variant::groups_major},
+                                           compressed_f16_zp_params{data_types::u4, 64, false, impl_types::onednn, f16_zp_variant::group_8},
                                            compressed_f16_zp_params{data_types::u4, 1, false, impl_types::ocl},
                                            compressed_f16_zp_params{data_types::u4, 64, true, impl_types::ocl},
                                            compressed_f16_zp_params{data_types::u4, 64, false, impl_types::ocl, f16_zp_variant::shared_zp}),

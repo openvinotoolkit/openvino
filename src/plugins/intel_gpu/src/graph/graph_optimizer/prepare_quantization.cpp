@@ -16,6 +16,9 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "to_string_utils.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#    include "graph/impls/onednn/utils.hpp"
+#endif
 
 #include <algorithm>
 #include <array>
@@ -628,6 +631,11 @@ static void use_zero_point_after_scale(fully_connected_node& fc_node, program& p
     const size_t rows = static_cast<size_t>(param_shape[n_major ? 0 : 1].get_length());
     const size_t groups = static_cast<size_t>(param_shape[n_major ? 1 : 0].get_length());
     if (groups < 2 || rows * groups != zp_layout.count()) {
+        return;
+    }
+    // the OpenCL kernels no longer take the FC once it is flagged, so the group size must be one oneDNN accepts
+    const auto [ngroups, group_size] = onednn::get_scale_groups(fc_node.get_input_layout(1), scale_layout, fc_prim->weights_transposed);
+    if (!onednn::is_supported_scale_group(ngroups, group_size)) {
         return;
     }
 
