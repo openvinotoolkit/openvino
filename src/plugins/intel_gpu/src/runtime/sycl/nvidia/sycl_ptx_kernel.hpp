@@ -20,14 +20,26 @@
 namespace cldnn {
 namespace sycl {
 
-// Assignment of the three NDRange dimensions to the three CUDA axes:
-// dim_mapping[d] is the axis (0 = x, 1 = y, 2 = z) that carries NDRange dimension d.
-using dim_mapping = std::array<uint8_t, 3>;
+// How a launch places the NDRange on the CUDA axes, which cap block.z at 64 and grid.y/z at 65535. See
+// "Work-group layout on CUDA" in compat_common.cl for what the kernel sees in each block layout.
+enum class block_layout : uint8_t {
+    plain,      // dimension d on axis d
+    exchanged,  // local size (X, 1, Z) with Z > 64: the block (X, Z, 1)
+    folded,     // local size (X, Y, Z) with Z > 64 and Y > 1: the block (X, Z, Y), dimensions 1 and 2 folded
+};
+enum class grid_layout : uint8_t {
+    plain,     // work-group dimension d on axis d
+    swap_x_y,  // work-group dimensions 0 and 1 exchanged
+    swap_x_z,  // work-group dimensions 0 and 2 exchanged
+};
 
-// Every permutation of the three axes, identity first.  A kernel is launched through the
-// first entry whose block and grid extents satisfy the CUDA limits, so anything that fits
-// the natural mapping keeps using it.
-const std::array<dim_mapping, 6>& dim_mappings();
+// A launch layout is one block layout with one grid layout, numbered for the per-layout module caches.
+constexpr size_t launch_layout_count = 9;
+constexpr size_t launch_layout_index(block_layout block, grid_layout grid) {
+    return static_cast<size_t>(block) * 3 + static_cast<size_t>(grid);
+}
+constexpr block_layout launch_layout_block(size_t layout_idx) { return static_cast<block_layout>(layout_idx / 3); }
+constexpr grid_layout launch_layout_grid(size_t layout_idx) { return static_cast<grid_layout>(layout_idx % 3); }
 
 // A CUmodule loaded from PTX, unloaded when the last reference goes.  That can be on any thread - an
 // application thread releasing the last kernel, with no context or another one current - so the module
@@ -57,9 +69,9 @@ struct cuda_function {
 // loaded once for the batch rather than once for every kernel in it.
 class ptx_program {
 public:
-    // One module per dimension mapping: the mapping is baked into the PTX special registers,
-    // so a kernel launched through a non-identity mapping needs its own rewritten module.
-    static constexpr size_t mapping_count = 6;
+    // One module per launch layout: the layout is baked into the PTX special registers, so each layout a
+    // kernel is launched through needs its own rewritten module.
+    static constexpr size_t layout_count = launch_layout_count;
 
     // The largest alignment an OpenCL type needs (double16, long16), used for a __local parameter whose alignment
     // the PTX does not record: binaries cached before patch_ptx_local kept it.
@@ -69,29 +81,34 @@ public:
 
     const std::string& source() const { return _ptx; }
 
+    // Whether kernels of this PTX can run with a block layout other than block_layout::plain: false when the PTX reads
+    // %tid.y/z or %ntid.y/z other than through the placeholders of the NVIDIA compatibility prelude.
+    bool can_fold_block() const { return _can_fold_block; }
+
     // Alignment, by parameter index, that each __local pointer parameter of entry point `kernel_name` needs: the
     // N of the '.align N' NVVM declares, which patch_ptx_local keeps as a comment. Entries for other parameters are
     // 0, and the vector is empty for an entry point the PTX does not have.
     const std::vector<uint32_t>& local_param_alignments(const std::string& kernel_name) const;
 
-    // Module for the given dimension mapping, loaded on first use (inside host_task).  requested_by
+    // Module for the given launch layout, loaded on first use (inside host_task).  requested_by
     // names the kernel that asked for it in error messages.
-    std::shared_ptr<cuda_module> module(size_t mapping_idx, const std::string& requested_by);
+    std::shared_ptr<cuda_module> module(size_t layout_idx, const std::string& requested_by);
 
     // The same module compiled with CU_JIT_THREADS_PER_BLOCK = block_threads (inside host_task).
-    std::shared_ptr<cuda_module> capped_module(size_t mapping_idx,
+    std::shared_ptr<cuda_module> capped_module(size_t layout_idx,
                                                unsigned int block_threads,
                                                const std::string& requested_by);
 
 private:
     const std::string _ptx;
+    const bool _can_fold_block;
     // local_param_alignments of every entry point, read from the PTX once.
     std::map<std::string, std::vector<uint32_t>> _local_alignments;
 
-    std::array<std::once_flag, mapping_count> _module_once;
-    std::array<std::shared_ptr<cuda_module>, mapping_count> _modules;
+    std::array<std::once_flag, layout_count> _module_once;
+    std::array<std::shared_ptr<cuda_module>, layout_count> _modules;
 
-    // Register-capped modules, keyed by dimension mapping and block size.
+    // Register-capped modules, keyed by launch layout and block size.
     std::mutex _capped_mutex;
     std::map<std::pair<size_t, unsigned int>, std::shared_ptr<cuda_module>> _capped_modules;
 };
@@ -102,13 +119,13 @@ private:
 struct ptx_kernel_state {
     ptx_kernel_state(std::shared_ptr<ptx_program> program, std::string kernel_name);
 
-    // Function to launch a block of `block_threads` work-items through the given mapping (called
+    // Function to launch a block of `block_threads` work-items through the given launch layout (called
     // inside host_task).  The JIT sizes a kernel's registers without knowing the work-group size,
     // so a register-heavy kernel can come out unable to launch with a large block: at 133
     // registers, 512 work-items need 68096 of the 65536 an A100 multiprocessor has.  When the
     // block is larger than the plain module allows, the function is taken from a module compiled
     // with CU_JIT_THREADS_PER_BLOCK, which keeps ptxas within the registers that block size leaves.
-    std::shared_ptr<cuda_function> function_for_launch(size_t mapping_idx, unsigned int block_threads);
+    std::shared_ptr<cuda_function> function_for_launch(size_t layout_idx, unsigned int block_threads);
 
     const std::shared_ptr<ptx_program> program;
     const std::string kernel_name;
@@ -116,10 +133,10 @@ struct ptx_kernel_state {
     const std::vector<uint32_t> local_alignments;
 
 private:
-    std::array<std::once_flag, ptx_program::mapping_count> _function_once;
-    std::array<std::shared_ptr<cuda_function>, ptx_program::mapping_count> _functions;
+    std::array<std::once_flag, ptx_program::layout_count> _function_once;
+    std::array<std::shared_ptr<cuda_function>, ptx_program::layout_count> _functions;
 
-    // Functions from register-capped modules, keyed by dimension mapping and block size.
+    // Functions from register-capped modules, keyed by launch layout and block size.
     std::mutex _capped_mutex;
     std::map<std::pair<size_t, unsigned int>, std::shared_ptr<cuda_function>> _capped_functions;
 };
@@ -128,8 +145,6 @@ private:
 // CUmodule/CUfunction are loaded lazily on first use inside a SYCL host_task.
 class sycl_ptx_kernel : public sycl_base_kernel {
 public:
-    static constexpr size_t dim_mapping_count = ptx_program::mapping_count;
-
     // A kernel for the entry point `kernel_name` of `program`.
     sycl_ptx_kernel(std::shared_ptr<ptx_program> program, const std::string& kernel_name, const std::string& kernel_id)
         : _state(std::make_shared<ptx_kernel_state>(std::move(program), kernel_name))

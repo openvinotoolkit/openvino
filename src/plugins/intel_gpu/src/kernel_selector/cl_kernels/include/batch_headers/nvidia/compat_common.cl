@@ -38,8 +38,9 @@
 // get_global_linear_id() and get_local_linear_id() branch on that register (one, two or three dimensions) and fall
 // through to 0 when it holds anything else, so every work-item got linear id 0: grid_sample_opt_bilinear_zeros, with a
 // {1, 256, 1} local size, had all its work-items handle the first element and left the rest of the output at 0.
-// The helpers below read the hardware special registers instead, which are set however the kernel is launched and need
-// no patching; OpenVINO always launches with a zero global offset. Trying the built-ins through clEnqueueNDRangeKernel
+// The helpers below replace these built-ins, and the other work-item ones, and read the special registers instead -
+// directly, or through placeholders the runtime replaces with them (see "Work-group layout on CUDA" below); OpenVINO
+// always launches with a zero global offset. Trying the built-ins through clEnqueueNDRangeKernel
 // does not show the problem, since the OpenCL runtime does set %envreg9 there.
 // The asm is not volatile, here and for _nv_laneid in compat_sg.cl: these registers do not change while a work-item
 // runs, so the compiler may fold repeated reads, which cuts the S2R count. The code shape this gives exposed three
@@ -56,50 +57,115 @@
 // A kernel whose SLM accesses between work-items are not synchronised can still change behaviour with the code shape;
 // compute-sanitizer --tool racecheck reports such accesses even when the results happen to be right.
 
-// Linear id of the work-item inside its work-group, dim 0 fastest (OpenCL's get_local_linear_id()).
+// Work-group layout on CUDA.
+// CUDA allows at most 64 threads along blockDim.z, while an OpenCL work-group may have up to max_work_group_size
+// work-items along any dimension. sycl_ptx_kernel.cpp therefore launches a work-group of local size (X, Y, Z) with
+// Z > 64 as the CUDA block (X, Z, Y): it folds dimensions 1 and 2 into one axis of Y * Z work-items, counted by
+// r = tid.y + ntid.y * tid.z, and keeps Y in %ntid.z (Y * Z <= 1024 and Z > 64 leave Y <= 15). The hardware still
+// numbers the threads x fastest, so r and the linear local id - and with them the warp lanes the sub-group emulation
+// relies on - are those of the OpenCL work-group, and the local ids are recovered as r % Y and r / Y. When Y is 1
+// that is a plain exchange of the two axes and needs no division.
+//
+// So that the same PTX serves every layout, the helpers below do not read the values that depend on it from
+// special registers but from %envreg23-31, which cuLaunchKernel never sets and the NVIDIA OpenCL built-ins do not use
+// (they use %envreg0-9). When sycl_ptx_kernel.cpp loads the PTX it replaces each of them with the special register
+// the chosen layout calls for, so the asm here never reaches the hardware as written:
+//     %envreg23-26  %tid.y, %tid.z, %ntid.y, %ntid.z in every layout. Reading even these through a placeholder lets
+//                   the runtime tell the helpers from an OpenCL built-in they do not replace: a %tid.y/z or %ntid.y/z
+//                   left in the PTX comes from such a built-in, which would read the wrong axis once the layout
+//                   folds Y and Z, and the runtime then refuses to fold them for that program.
+//     %envreg27-30  local id 1, local id 2, local size 1, local size 2: the axes they sit on in the layout.
+//     %envreg31     the divisor of the fold: %ntid.z when Y > 1 is folded, %ntid.y otherwise. Compared with %ntid.y
+//                   it selects the division, and in the other layouts ptxas folds the comparison and drops it.
+// The numbering puts the placeholders that a simpler, unchecked scheme could do without first, so that dropping them
+// leaves no gap. Dimension 0 and the work-group ids and counts are read from their special registers directly: the
+// layout never moves dimension 0, and the grid axes are remapped by renaming %ctaid/%nctaid.
+static inline uint _nv_hw_tid_y(void)      { uint v; __asm__("mov.b32 %0, %%envreg23;" : "=r"(v)); return v; }
+static inline uint _nv_hw_tid_z(void)      { uint v; __asm__("mov.b32 %0, %%envreg24;" : "=r"(v)); return v; }
+static inline uint _nv_hw_ntid_y(void)     { uint v; __asm__("mov.b32 %0, %%envreg25;" : "=r"(v)); return v; }
+static inline uint _nv_hw_ntid_z(void)     { uint v; __asm__("mov.b32 %0, %%envreg26;" : "=r"(v)); return v; }
+static inline uint _nv_local_id_1(void)    { uint v; __asm__("mov.b32 %0, %%envreg27;" : "=r"(v)); return v; }
+static inline uint _nv_local_id_2(void)    { uint v; __asm__("mov.b32 %0, %%envreg28;" : "=r"(v)); return v; }
+static inline uint _nv_local_size_1(void)  { uint v; __asm__("mov.b32 %0, %%envreg29;" : "=r"(v)); return v; }
+static inline uint _nv_local_size_2(void)  { uint v; __asm__("mov.b32 %0, %%envreg30;" : "=r"(v)); return v; }
+static inline uint _nv_relin_divisor(void) { uint v; __asm__("mov.b32 %0, %%envreg31;" : "=r"(v)); return v; }
+
+static inline uint _nv_hw_tid_x(void)  { uint v; __asm__("mov.u32 %0, %%tid.x;"  : "=r"(v)); return v; }
+static inline uint _nv_hw_ntid_x(void) { uint v; __asm__("mov.u32 %0, %%ntid.x;" : "=r"(v)); return v; }
+
+static inline uint _nv_group_id(uint dim) {
+    uint v = 0;
+    if (dim == 0) __asm__("mov.u32 %0, %%ctaid.x;" : "=r"(v));
+    else if (dim == 1) __asm__("mov.u32 %0, %%ctaid.y;" : "=r"(v));
+    else if (dim == 2) __asm__("mov.u32 %0, %%ctaid.z;" : "=r"(v));
+    return v;
+}
+
+static inline uint _nv_num_groups(uint dim) {
+    uint v = 1;
+    if (dim == 0) __asm__("mov.u32 %0, %%nctaid.x;" : "=r"(v));
+    else if (dim == 1) __asm__("mov.u32 %0, %%nctaid.y;" : "=r"(v));
+    else if (dim == 2) __asm__("mov.u32 %0, %%nctaid.z;" : "=r"(v));
+    return v;
+}
+
+// OpenCL's get_local_id().
+static inline uint _nv_local_id(uint dim) {
+    if (dim == 0) return _nv_hw_tid_x();
+    if (dim > 2) return 0;
+    // Y > 1 folded with Z: the ids from the position along the folded axis. They are computed outside any branch and
+    // picked with selects, so that all the calls in a function share one division (a division in a branch per call
+    // site stays one per call site). In the other layouts the selects fold and ptxas drops the division.
+    const uint d = _nv_relin_divisor();
+    const uint r = _nv_hw_tid_y() + _nv_hw_ntid_y() * _nv_hw_tid_z();
+    const uint q = r / d;
+    const uint m = r - q * d;
+    const bool folded = d != _nv_hw_ntid_y();
+    return dim == 1 ? (folded ? m : _nv_local_id_1()) : (folded ? q : _nv_local_id_2());
+}
+
+// OpenCL's get_local_size().
+static inline uint _nv_local_size(uint dim) {
+    if (dim == 0) return _nv_hw_ntid_x();
+    if (dim == 1) return _nv_local_size_1();
+    if (dim == 2) return _nv_local_size_2();
+    return 1;
+}
+
+// OpenCL's get_global_id() and get_global_size() with a zero global offset, formed in size_t so that NDRanges of
+// more than 2^32 work-items do not wrap.
+static inline size_t _nv_global_id(uint dim) {
+    if (dim > 2) return 0;
+    return (size_t)_nv_group_id(dim) * _nv_local_size(dim) + _nv_local_id(dim);
+}
+
+static inline size_t _nv_global_size(uint dim) {
+    if (dim > 2) return 1;
+    return (size_t)_nv_num_groups(dim) * _nv_local_size(dim);
+}
+
+// Linear id of the work-item inside its work-group, dim 0 fastest (OpenCL's get_local_linear_id()). The hardware
+// numbering is the OpenCL one in every layout (see above), so it is formed from the hardware registers.
 static inline uint _nv_get_linear_tid(void){
-    uint bdx, bdy;
-    uint tdx, tdy, tdz;
-    __asm__("mov.u32 %0, %%ntid.x;" : "=r"(bdx));
-    __asm__("mov.u32 %0, %%ntid.y;" : "=r"(bdy));
-    __asm__("mov.u32 %0, %%tid.x;"  : "=r"(tdx));
-    __asm__("mov.u32 %0, %%tid.y;"  : "=r"(tdy));
-    __asm__("mov.u32 %0, %%tid.z;"  : "=r"(tdz));
-    uint linear = (bdx * bdy) * tdz + bdx * tdy + tdx;
-    return linear;
+    return _nv_hw_tid_x() + _nv_hw_ntid_x() * (_nv_hw_tid_y() + _nv_hw_ntid_y() * _nv_hw_tid_z());
 }
 
 // Number of work-items in the work-group.
 static inline uint _nv_get_total_threads(void){
-    uint nx, ny, nz;
-    __asm__("mov.u32 %0, %%ntid.x;" : "=r"(nx));
-    __asm__("mov.u32 %0, %%ntid.y;" : "=r"(ny));
-    __asm__("mov.u32 %0, %%ntid.z;" : "=r"(nz));
-    return nx * ny * nz;
+    return _nv_hw_ntid_x() * _nv_hw_ntid_y() * _nv_hw_ntid_z();
 }
 
-// Linear id of the work-item in the NDRange, dim 0 fastest (OpenCL's get_global_linear_id() with a zero offset). The
-// products are formed in size_t so that NDRanges of more than 2^32 work-items do not wrap.
+// Linear id of the work-item in the NDRange, dim 0 fastest (OpenCL's get_global_linear_id() with a zero offset).
 static inline size_t _nv_get_global_linear_id(void){
-    uint tx, ty, tz, nx, ny, nz, cx, cy, cz, gx, gy;
-    __asm__("mov.u32 %0, %%tid.x;"    : "=r"(tx));
-    __asm__("mov.u32 %0, %%tid.y;"    : "=r"(ty));
-    __asm__("mov.u32 %0, %%tid.z;"    : "=r"(tz));
-    __asm__("mov.u32 %0, %%ntid.x;"   : "=r"(nx));
-    __asm__("mov.u32 %0, %%ntid.y;"   : "=r"(ny));
-    __asm__("mov.u32 %0, %%ntid.z;"   : "=r"(nz));
-    __asm__("mov.u32 %0, %%ctaid.x;"  : "=r"(cx));
-    __asm__("mov.u32 %0, %%ctaid.y;"  : "=r"(cy));
-    __asm__("mov.u32 %0, %%ctaid.z;"  : "=r"(cz));
-    __asm__("mov.u32 %0, %%nctaid.x;" : "=r"(gx));
-    __asm__("mov.u32 %0, %%nctaid.y;" : "=r"(gy));
-    const size_t idx = (size_t)cx * nx + tx;
-    const size_t idy = (size_t)cy * ny + ty;
-    const size_t idz = (size_t)cz * nz + tz;
-    return idx + (size_t)gx * nx * (idy + (size_t)gy * ny * idz);
+    return _nv_global_id(0) + _nv_global_size(0) * (_nv_global_id(1) + _nv_global_size(1) * _nv_global_id(2));
 }
 
-#define get_local_linear_id()  ((size_t)_nv_get_linear_tid())
-#define get_global_linear_id() _nv_get_global_linear_id()
+#define get_local_id(dim)            ((size_t)_nv_local_id(dim))
+#define get_local_size(dim)          ((size_t)_nv_local_size(dim))
+#define get_enqueued_local_size(dim) ((size_t)_nv_local_size(dim))
+#define get_global_id(dim)           _nv_global_id(dim)
+#define get_global_size(dim)         _nv_global_size(dim)
+#define get_local_linear_id()        ((size_t)_nv_get_linear_tid())
+#define get_global_linear_id()       _nv_get_global_linear_id()
 
 #endif // __NV_CL_C_VERSION
