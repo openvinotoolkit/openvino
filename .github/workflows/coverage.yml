@@ -110,8 +110,8 @@ jobs:
         -DENABLE_OV_TF_FRONTEND=ON
         -DENABLE_OV_TF_LITE_FRONTEND=ON
         ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || inputs.run-npu-tests) && '-DENABLE_INTEL_NPU=ON' || '-DENABLE_INTEL_NPU=OFF' }}
-        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
-        ${{ (github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_INTEL_GPU=ON' || '-DENABLE_INTEL_GPU=OFF' }}
+        ${{ (github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true') && '-DENABLE_ONEDNN_FOR_GPU=ON' || '-DENABLE_ONEDNN_FOR_GPU=OFF' }}
 
   CoverageCpp:
     name: Coverage C++ (${{ matrix.profile }})
@@ -121,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: ${{ fromJSON(github.event_name == 'pull_request' && '["npu"]' || (github.event_name == 'schedule' || (inputs.run-cpu-tests && inputs.run-npu-tests)) && '["cpu","npu"]' || inputs.run-cpu-tests && '["cpu"]' || '["npu"]') }}
+        profile: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'pull_request' || (inputs.run-cpu-tests && inputs.run-npu-tests)) && '["cpu","npu"]' || inputs.run-cpu-tests && '["cpu"]' || '["npu"]') }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -239,7 +239,7 @@ jobs:
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -423,7 +423,7 @@ jobs:
   CoveragePython:
     name: Coverage Python (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-16-cores-32gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -562,7 +562,7 @@ jobs:
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
     needs: [ Build, Docker ]
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-gpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
@@ -755,7 +755,7 @@ jobs:
   CoverageJS:
     name: Coverage JS (CPU)
     needs: [Docker, Build]
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.run-cpu-tests == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' }}
     runs-on: aks-linux-4-cores-16gb
     container:
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
@@ -941,7 +941,7 @@ jobs:
           RUN_NPU_TESTS: ${{ github.event.inputs.run-npu-tests || '' }}
         run: |
           selected_lanes='none'
-          if [[ "$EVENT_NAME" == 'schedule' ]]; then
+          if [[ "$EVENT_NAME" == 'schedule' || "$EVENT_NAME" == 'pull_request' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
           elif [[ "$RUN_CPU_TESTS" == 'true' && "$RUN_GPU_TESTS" == 'true' ]]; then
             selected_lanes='cpu,igpu,igpu-unit,igpu-func,dgpu,dgpu-unit,dgpu-func'
