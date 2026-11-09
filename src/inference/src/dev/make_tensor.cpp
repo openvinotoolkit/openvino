@@ -42,6 +42,19 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
     return roi_shape;
 }
 
+// Extends strides to the rank of shape, which adds leading dimensions to the strides' shape.
+Strides extend_strides(const Strides& strides, const Shape& shape) {
+    const auto added_dims = shape.size() - strides.size();
+    Strides extended;
+    extended.reserve(shape.size());
+    extended.resize(added_dims);
+    extended.insert(extended.end(), strides.begin(), strides.end());
+    for (auto dim = added_dims; dim-- > 0;) {
+        extended[dim] = shape[dim + 1] * extended[dim + 1];
+    }
+    return extended;
+}
+
 // Hints for the [offset, offset + size) range of a file mapping.
 class MappedRangeHints final : public util::IMemoryHints {
 public:
@@ -501,7 +514,7 @@ public:
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
         m_shape = std::move(new_shape);
-        update_expanded_strides();
+        update_strides();
     }
 
     size_t get_offset() const {
@@ -514,7 +527,7 @@ public:
 
 protected:
     const Strides& get_roi_strides() const {
-        return m_expanded_strides.empty() ? m_owner->get_strides() : m_expanded_strides;
+        return m_strides.empty() ? m_owner->get_strides() : m_strides;
     }
 
     std::shared_ptr<ITensor> m_owner;
@@ -523,23 +536,16 @@ protected:
     const size_t m_offset;
 
 private:
-    // set_shape() can add leading dimensions of one, but the owner's strides keep the owner's rank. Consumers such as
-    // ITensor::copy_to() walk shape and strides together, so an expanded ROI needs strides of its own rank.
-    void update_expanded_strides() {
+    void update_strides() {
         const auto& owner_strides = m_owner->get_strides();
-        if (m_shape.size() <= owner_strides.size()) {
-            m_expanded_strides.clear();
-            return;
-        }
-        const auto added_dims = m_shape.size() - owner_strides.size();
-        m_expanded_strides.assign(m_shape.size(), 0);
-        std::copy(owner_strides.begin(), owner_strides.end(), m_expanded_strides.begin() + added_dims);
-        for (auto dim = added_dims; dim-- > 0;) {
-            m_expanded_strides[dim] = m_shape[dim + 1] * m_expanded_strides[dim + 1];
+        if (m_shape.size() > owner_strides.size()) {
+            m_strides = extend_strides(owner_strides, m_shape);
+        } else {
+            m_strides.clear();
         }
     }
 
-    Strides m_expanded_strides;
+    Strides m_strides;
 };
 
 /**
