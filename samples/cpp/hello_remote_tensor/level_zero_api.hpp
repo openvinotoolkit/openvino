@@ -53,7 +53,7 @@ private:
     Loader() {
 #ifdef _WIN32
         const char* library = "ze_loader.dll";
-        _handle = LoadLibraryA(library);
+        _handle = LoadLibraryExA(library, nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 #else
         const char* library = "libze_loader.so.1";
         _handle = dlopen(library, RTLD_NOW | RTLD_LOCAL);
@@ -74,7 +74,10 @@ private:
 #else
         function = reinterpret_cast<Function>(dlsym(_handle, name));
 #endif
-        OPENVINO_ASSERT(function != nullptr, "The Level Zero loader has no ", name, ". Update the GPU driver.");
+        OPENVINO_ASSERT(function != nullptr,
+                        "The installed Level Zero loader is too old or incompatible: it has no ",
+                        name,
+                        ". Update the GPU driver or Level Zero runtime.");
     }
 
 #ifdef _WIN32
