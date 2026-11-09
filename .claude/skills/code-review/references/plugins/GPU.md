@@ -58,27 +58,7 @@ Perform the review in the following order.
 
 ### Step 0: Establish the review baseline
 
-Record the facts needed to ensure that the review targets the current change:
-
-- PR head SHA, base SHA, and whether the PR changed while it was being reviewed
-- Files and diff hunks at the final PR head
-- CI/check conclusion for each relevant check: passed, failed, pending, skipped,
-  cancelled, or neutral; do not summarize this merely as "completed"
-- Existing approvals, change requests, unresolved review threads, and their
-  relevance at the final PR head
-- Existing bot or human findings and the commit/line to which each applies
-
-For each relevant existing finding, classify it before relying on it:
-
-1. **Still applicable** — the final PR head retains the triggering code.
-2. **Fixed** — cite the final-head code or test that resolves it.
-3. **Outdated or inapplicable** — explain the changed condition or incorrect
-   premise.
-4. **Not yet verifiable** — identify the missing file, variant, runtime, test,
-   or platform evidence.
-
-Do not describe an approval by an assignee or author as merge-readiness evidence.
-If repository policy is unavailable, report required-approval status as unknown.
+Apply according to [code review guidance](../../SKILL.md) 'Establish the review baseline'
 
 ### Step 1: Understand the PR intent
 
@@ -313,6 +293,8 @@ Separate these measurement scopes:
 
 Do not equate a kernel-level speedup with an end-to-end improvement.
 
+Please focus on modern Intel hardware generations (Xe2 and newver).
+
 When reporting a performance concern, explain the expected mechanism. For
 example:
 
@@ -352,6 +334,8 @@ Check:
 - Whether comments explain why a workaround is required
 - Whether temporary workarounds have a removal condition or tracking reference
 - Whether the design supports likely extensions without speculative abstraction
+- For new files locations, whether they put into logically meaningful subdirectory and for new subdirectories themselves
+- Explicitly flag new third parties or third-party changes for the human reviewer
 
 Do not request broad refactoring unless the current structure creates a
 concrete correctness risk, performance risk, or substantial maintenance risk.
