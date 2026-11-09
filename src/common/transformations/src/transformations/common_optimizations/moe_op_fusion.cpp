@@ -32,6 +32,7 @@
 #include "ov_ops/gather_matmul.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
 
@@ -158,6 +159,26 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
+            const auto is_zp_supported = [](const ov::Output<ov::Node>& zp, const ov::Output<ov::Node>& weights) {
+                // Scalar zero point is supported only for u3 weights in MoE (OneDNN grouped GEMM common zero point).
+                // Note: other compressed types usually don't have scalar zero points
+                return weights.get_element_type() == ov::element::u3 || ov::shape_size(zp.get_shape()) != 1;
+            };
+            if (!is_zp_supported(pm.at(gate_zp_m), gate_w) || !is_zp_supported(pm.at(up_zp_m), up_w) ||
+                !is_zp_supported(pm.at(down_zp_m), down_w)) {
+                return false;
+            }
+
+            const auto prepare_zero_point = [](const ov::Output<ov::Node>& zp, const ov::Output<ov::Node>& weights) {
+                // Note: OneDNN groupedMM has no u3 zero points: convert them to u8 (as for FullyConnectedCompressed)
+                if (weights.get_element_type() != ov::element::u3 || zp.get_element_type() != ov::element::u3) {
+                    return zp;
+                }
+                auto result = ov::op::util::make_try_fold<v0::Convert>(zp, ov::element::u8);
+                ov::copy_runtime_info(zp.get_node_shared_ptr(), result);
+                return result->output(0);
+            };
+
             // Build MOECompressed with 12 inputs: hidden, routing, topk,
             // gate_w, gate_scale, gate_zp, up_w, up_scale, up_zp, down_w, down_scale, down_zp
             ov::OutputVector moe_inputs = {
@@ -166,13 +187,13 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                 topk_indices,
                 gate_w,
                 pm.at(gate_scale_m),
-                pm.at(gate_zp_m),
+                prepare_zero_point(pm.at(gate_zp_m), gate_w),
                 up_w,
                 pm.at(up_scale_m),
-                pm.at(up_zp_m),
+                prepare_zero_point(pm.at(up_zp_m), up_w),
                 down_w,
                 pm.at(down_scale_m),
-                pm.at(down_zp_m),
+                prepare_zero_point(pm.at(down_zp_m), down_w),
             };
 
             // Populate compressed config from weight shapes

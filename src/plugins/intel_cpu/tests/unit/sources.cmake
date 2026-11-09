@@ -19,6 +19,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/graph/resolve_edge_conflicts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_desc/empty_memory_desc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/tensoriterator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/cpu_runtime_configurator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/enforce_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/mul_add_to_fma.cpp
@@ -89,6 +90,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/group_convolution_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gru_cell_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gru_sequence_shape_inference_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/histc_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/i420_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/identity_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/interpolate_shape_inference_test.cpp
@@ -222,6 +224,10 @@ set(CPU_UNIT_TESTS_MLAS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/gemm_api_test.cpp
 )
 
+set(CPU_UNIT_TESTS_KLEIDIAI_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/executors/kleidiai/kleidiai_int8_ukernel_test.cpp
+)
+
 set(CPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES)
 if(ARM OR AARCH64)
     list(APPEND CPU_UNIT_TESTS_SRCS ${CPU_UNIT_TESTS_ARM_SRCS})
@@ -245,6 +251,12 @@ if(ENABLE_MLAS_FOR_CPU)
     list(APPEND CPU_UNIT_TESTS_SRCS ${CPU_UNIT_TESTS_MLAS_SRCS})
 else()
     list(APPEND CPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${CPU_UNIT_TESTS_MLAS_SRCS})
+endif()
+
+if(ENABLE_KLEIDIAI_FOR_CPU)
+    list(APPEND CPU_UNIT_TESTS_SRCS ${CPU_UNIT_TESTS_KLEIDIAI_SRCS})
+else()
+    list(APPEND CPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${CPU_UNIT_TESTS_KLEIDIAI_SRCS})
 endif()
 
 function(group_source_files GROUP_NAME)

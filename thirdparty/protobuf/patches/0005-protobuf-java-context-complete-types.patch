@@ -1,0 +1,22 @@
+Subject: [PATCH] java: complete FieldGeneratorInfo/OneofGeneratorInfo in context.h
+
+Context declares `absl::flat_hash_map<const FieldDescriptor*, FieldGeneratorInfo>`
+and `absl::flat_hash_map<const OneofDescriptor*, OneofGeneratorInfo>` members while
+those structs are only forward-declared (they are defined in field_common.h).
+Abseil's open-addressing containers compute trivial-type traits on the map's
+value_type at class instantiation, which requires the value type to be complete.
+Clang with libstdc++ evaluates these eagerly and fails to build:
+
+    stl_pair.h: error: field has incomplete type 'FieldGeneratorInfo'
+    type_traits: static_assert failed ... __is_complete_or_unbounded
+
+Include field_common.h so both structs are complete at the point of the map
+declarations.
+--- a/src/google/protobuf/compiler/java/context.h
++++ b/src/google/protobuf/compiler/java/context.h
+@@ -12,4 +12,5 @@
+ #include <vector>
+ 
+ #include "absl/container/flat_hash_map.h"
++#include "google/protobuf/compiler/java/field_common.h"
+ #include "google/protobuf/compiler/java/helpers.h"
