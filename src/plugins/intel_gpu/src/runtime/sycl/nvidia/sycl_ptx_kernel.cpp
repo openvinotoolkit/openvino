@@ -11,7 +11,7 @@
 #include <cuda.h>
 
 #include <algorithm>
-#include <array>
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -19,6 +19,7 @@
 #include <regex>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #define CUDA_CHECK(call)                                                                 \
@@ -37,131 +38,104 @@ namespace sycl {
 
 namespace {
 
-// CUDA launch limits.  The axes are capped asymmetrically, which is what makes the
-// NDRange-to-axis assignment matter: an extent of 192 is fine on x or y but not on z.
+// CUDA launch limits.
 constexpr unsigned int CUDA_MAX_BLOCK_XY = 1024;
 constexpr unsigned int CUDA_MAX_BLOCK_Z = 64;
 constexpr unsigned int CUDA_MAX_BLOCK_THREADS = 1024;
 constexpr unsigned int CUDA_MAX_GRID_X = 2147483647u;
 constexpr unsigned int CUDA_MAX_GRID_YZ = 65535;
 
-// Distributes the per-dimension extents over the CUDA axes according to `mapping`.
-void apply_dim_mapping(const unsigned int (&per_dim)[3], const dim_mapping& mapping, unsigned int (&per_axis)[3]) {
-    per_axis[0] = per_axis[1] = per_axis[2] = 1;
-    for (size_t d = 0; d < 3; ++d)
-        per_axis[mapping[d]] = per_dim[d];
-}
+// The %envreg placeholders the NVIDIA compatibility prelude reads instead of the special registers that depend on the
+// work-group layout, and the register each block layout replaces them with. Entry i stands for
+// %envreg(first_layout_envreg + i); keep the table in sync with "Work-group layout on CUDA" in compat_common.cl.
+constexpr unsigned int first_layout_envreg = 23;
+constexpr size_t layout_envreg_count = 9;
+constexpr const char* layout_envreg_targets[3][layout_envreg_count] = {
+    // hardware tid.y, tid.z, ntid.y, ntid.z | local id 1, local id 2, local size 1, local size 2 | fold divisor
+    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%ntid.y"},  // plain
+    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%tid.z", "%tid.y", "%ntid.z", "%ntid.y", "%ntid.y"},  // exchanged
+    {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z", "%tid.y", "%tid.z", "%ntid.z", "%ntid.y", "%ntid.z"},  // folded
+};
 
-// The NVIDIA sub-group emulation builds its warp member masks from the hardware %laneid but takes
-// the sub-group local id from the OpenCL linear local id (see compat_sg.cl).  The two only
-// describe the same lanes while the work-group dimensions that actually span more than one
-// work-item keep their relative order across the CUDA axes, which the hardware enumerates
-// x-fastest.  Dimensions of extent 1 contribute to neither linear id, so they are free to move.
-bool preserves_local_id_order(const unsigned int (&block_per_dim)[3], const dim_mapping& mapping) {
-    int previous_axis = -1;
-    for (size_t d = 0; d < 3; ++d) {
-        if (block_per_dim[d] <= 1)
-            continue;
-        if (static_cast<int>(mapping[d]) <= previous_axis)
-            return false;
-        previous_axis = static_cast<int>(mapping[d]);
+// Whether the PTX reads %tid.y/z or %ntid.y/z itself. The prelude reads them only through the placeholders, so such a
+// read comes from an OpenCL built-in the prelude does not replace, or from PTX built without the prelude (the clang
+// path, or a binary cached before the placeholders), and gives the hardware axis, which is the wrong one once the
+// block layout moves dimensions 1 and 2.
+bool reads_yz_registers_directly(const std::string& ptx) {
+    for (const char* reg : {"%tid.y", "%tid.z", "%ntid.y", "%ntid.z"}) {
+        if (ptx.find(reg) != std::string::npos)
+            return true;
     }
-    return true;
+    return false;
 }
 
-bool dims_fit_cuda_limits(const unsigned int (&block_per_dim)[3],
-                          const unsigned int (&grid_per_dim)[3],
-                          const dim_mapping& mapping) {
-    unsigned int block[3];
-    unsigned int grid[3];
-    apply_dim_mapping(block_per_dim, mapping, block);
-    apply_dim_mapping(grid_per_dim, mapping, grid);
-
-    // The thread count per block is the same for every mapping; only the per-axis caps
-    // tell the mappings apart.  It is still checked here so that a work-group that is too
-    // large outright matches no mapping and is rejected at launch.
-    if (static_cast<uint64_t>(block[0]) * block[1] * block[2] > CUDA_MAX_BLOCK_THREADS)
-        return false;
-
-    return block[0] <= CUDA_MAX_BLOCK_XY && block[1] <= CUDA_MAX_BLOCK_XY && block[2] <= CUDA_MAX_BLOCK_Z &&
-           grid[0] <= CUDA_MAX_GRID_X && grid[1] <= CUDA_MAX_GRID_YZ && grid[2] <= CUDA_MAX_GRID_YZ;
-}
-
-// NVVM and the LLVM NVPTX backend read work-item coordinates from %tid/%ntid and work-group
-// coordinates from %ctaid/%nctaid, the suffix naming the axis.  Carrying an NDRange dimension
-// on a different axis therefore means rewriting those suffixes, plus the .reqntid/.maxntid
-// directives that state the block shape the driver validates the launch against.
-std::string remap_ptx_dims(const std::string& ptx, const dim_mapping& mapping) {
-    if (mapping[0] == 0 && mapping[1] == 1 && mapping[2] == 2)
-        return ptx;
+// The PTX to load for a launch layout: the placeholders replaced with the registers of its block layout, the y and z
+// extents of .reqntid/.maxntid exchanged when the block layout exchanges those axes, and %ctaid/%nctaid renamed to the
+// axes its grid layout puts the work-group dimensions on.
+std::string apply_launch_layout(const std::string& ptx, size_t layout_idx) {
+    const block_layout block = launch_layout_block(layout_idx);
+    const grid_layout grid = launch_layout_grid(layout_idx);
+    const auto& envreg_targets = layout_envreg_targets[static_cast<size_t>(block)];
 
     static constexpr char axis_suffix[3] = {'x', 'y', 'z'};
-    static const char* const reg_prefixes[] = {"%tid.", "%ntid.", "%ctaid.", "%nctaid."};
+    // grid_axis[d] is the CUDA grid axis that carries work-group dimension d.
+    size_t grid_axis[3] = {0, 1, 2};
+    if (grid == grid_layout::swap_x_y)
+        std::swap(grid_axis[0], grid_axis[1]);
+    else if (grid == grid_layout::swap_x_z)
+        std::swap(grid_axis[0], grid_axis[2]);
 
-    std::string remapped;
-    remapped.reserve(ptx.size());
+    static constexpr char envreg_prefix[] = "%envreg";
+    constexpr size_t envreg_prefix_len = sizeof(envreg_prefix) - 1;
+    std::string out;
+    out.reserve(ptx.size());
     for (size_t i = 0; i < ptx.size();) {
-        bool rewritten = false;
-        // The leading '%' keeps the prefixes from overlapping: '%ntid.' never matches
-        // '%tid.', and '%nctaid.' never matches '%ctaid.'.
         if (ptx[i] == '%') {
-            for (const char* prefix : reg_prefixes) {
+            if (ptx.compare(i, envreg_prefix_len, envreg_prefix) == 0) {
+                size_t end = i + envreg_prefix_len;
+                while (end < ptx.size() && std::isdigit(static_cast<unsigned char>(ptx[end])))
+                    ++end;
+                if (end - i - envreg_prefix_len == 2) {
+                    const auto n = static_cast<unsigned int>(std::stoul(ptx.substr(i + envreg_prefix_len, 2)));
+                    if (n >= first_layout_envreg && n < first_layout_envreg + layout_envreg_count) {
+                        out += envreg_targets[n - first_layout_envreg];
+                        i = end;
+                        continue;
+                    }
+                }
+            }
+            // The leading '%' keeps the prefixes apart: '%ctaid.' never matches inside '%nctaid.'.
+            bool renamed = false;
+            for (const char* prefix : {"%ctaid.", "%nctaid."}) {
                 const size_t len = std::strlen(prefix);
                 if (i + len >= ptx.size() || ptx.compare(i, len, prefix) != 0)
                     continue;
                 const char* suffix = std::find(std::begin(axis_suffix), std::end(axis_suffix), ptx[i + len]);
                 if (suffix == std::end(axis_suffix))
                     continue;
-                remapped += prefix;
-                remapped += axis_suffix[mapping[static_cast<size_t>(suffix - std::begin(axis_suffix))]];
+                out += prefix;
+                out += axis_suffix[grid_axis[static_cast<size_t>(suffix - std::begin(axis_suffix))]];
                 i += len + 1;
-                rewritten = true;
+                renamed = true;
                 break;
             }
+            if (renamed)
+                continue;
         }
-        if (!rewritten)
-            remapped += ptx[i++];
+        out += ptx[i++];
     }
 
-    // Both directives list the extents in x, y, z order.  Only the three-operand spelling is
-    // rewritten, which is the one both compilers emit for reqd_work_group_size.
-    static const std::regex ntid_re(R"(\.(reqntid|maxntid)\s+(\d+)\s*,\s*(\d+)\s*,\s*(\d+))");
-    std::string out;
-    out.reserve(remapped.size());
-    size_t last = 0;
-    for (std::sregex_iterator it(remapped.begin(), remapped.end(), ntid_re), end; it != end; ++it) {
-        const size_t pos = static_cast<size_t>(it->position());
-        out.append(remapped, last, pos - last);
-        const std::string per_dim[3] = {(*it)[2].str(), (*it)[3].str(), (*it)[4].str()};
-        std::string per_axis[3] = {"1", "1", "1"};
-        for (size_t d = 0; d < 3; ++d)
-            per_axis[mapping[d]] = per_dim[d];
-        out += "." + (*it)[1].str() + " " + per_axis[0] + ", " + per_axis[1] + ", " + per_axis[2];
-        last = pos + static_cast<size_t>(it->length());
+    if (block != block_layout::plain) {
+        // Both directives list the extents in x, y, z order. Only the three-operand spelling is rewritten, which is
+        // the one both compilers emit for reqd_work_group_size; the shorter ones leave z at 1, which never needs a
+        // layout other than the plain one.
+        static const std::regex ntid_re(R"(\.(reqntid|maxntid)\s+(\d+)\s*,\s*(\d+)\s*,\s*(\d+))");
+        out = std::regex_replace(out, ntid_re, ".$1 $2, $4, $3");
     }
-    out.append(remapped, last, std::string::npos);
     return out;
 }
 
-}  // anonymous namespace
 
-// Ordered by how far each one moves the dimensions: the identity so that anything already
-// launchable keeps its current behaviour exactly, then the three single exchanges, then the two
-// rotations.  The launch path takes the first entry that both preserves the linear local id order
-// and fits the CUDA limits, so a work-group is disturbed as little as the hardware allows.
-const std::array<dim_mapping, 6>& dim_mappings() {
-    static const std::array<dim_mapping, 6> table = {{
-        {{0, 1, 2}},  // identity
-        {{0, 2, 1}},  // dimensions 1 and 2 exchanged
-        {{2, 1, 0}},  // dimensions 0 and 2 exchanged
-        {{1, 0, 2}},  // dimensions 0 and 1 exchanged
-        {{1, 2, 0}},  // rotated left
-        {{2, 0, 1}},  // rotated right
-    }};
-    return table;
-}
-
-namespace {
 
 // Makes `ctx` current on this thread for its lifetime and restores the thread's previous context afterwards.
 // Nothing is pushed when `ctx` is null or already current.
@@ -315,7 +289,7 @@ std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_modu
 
 }  // anonymous namespace
 
-ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)) {
+ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)), _can_fold_block(!reads_yz_registers_directly(_ptx)) {
     // A parameter list holds no ')', so it ends at the first one after '.entry name('; parameters are separated by
     // ',', which neither a declaration nor the comment patch_ptx_local leaves contains.
     static const std::regex entry_re(R"(\.entry\s+([\w.$]+)\s*\(([^)]*)\))");
@@ -344,22 +318,22 @@ const std::vector<uint32_t>& ptx_program::local_param_alignments(const std::stri
     return it != _local_alignments.end() ? it->second : none;
 }
 
-std::shared_ptr<cuda_module> ptx_program::module(size_t mapping_idx, const std::string& requested_by) {
-    OPENVINO_ASSERT(mapping_idx < mapping_count,
-                    "[GPU][NVIDIA] Invalid dimension mapping index ", mapping_idx, " for kernel '", requested_by, "'");
-    std::call_once(_module_once[mapping_idx], [&]() {
-        _modules[mapping_idx] = load_cuda_module(remap_ptx_dims(_ptx, dim_mappings()[mapping_idx]), 0, requested_by);
+std::shared_ptr<cuda_module> ptx_program::module(size_t layout_idx, const std::string& requested_by) {
+    OPENVINO_ASSERT(layout_idx < layout_count,
+                    "[GPU][NVIDIA] Invalid work-group layout index ", layout_idx, " for kernel '", requested_by, "'");
+    std::call_once(_module_once[layout_idx], [&]() {
+        _modules[layout_idx] = load_cuda_module(apply_launch_layout(_ptx, layout_idx), 0, requested_by);
     });
-    return _modules[mapping_idx];
+    return _modules[layout_idx];
 }
 
-std::shared_ptr<cuda_module> ptx_program::capped_module(size_t mapping_idx,
+std::shared_ptr<cuda_module> ptx_program::capped_module(size_t layout_idx,
                                                         unsigned int block_threads,
                                                         const std::string& requested_by) {
     std::lock_guard<std::mutex> lock(_capped_mutex);
-    auto& capped = _capped_modules[{mapping_idx, block_threads}];
+    auto& capped = _capped_modules[{layout_idx, block_threads}];
     if (!capped) {
-        capped = load_cuda_module(remap_ptx_dims(_ptx, dim_mappings()[mapping_idx]), block_threads, requested_by);
+        capped = load_cuda_module(apply_launch_layout(_ptx, layout_idx), block_threads, requested_by);
     }
     return capped;
 }
@@ -369,21 +343,21 @@ ptx_kernel_state::ptx_kernel_state(std::shared_ptr<ptx_program> program, std::st
     , kernel_name(std::move(kernel_name))
     , local_alignments(this->program->local_param_alignments(this->kernel_name)) {}
 
-std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t mapping_idx, unsigned int block_threads) {
-    OPENVINO_ASSERT(mapping_idx < ptx_program::mapping_count,
-                    "[GPU][NVIDIA] Invalid dimension mapping index ", mapping_idx, " for kernel '", kernel_name, "'");
-    std::call_once(_function_once[mapping_idx], [&]() {
-        _functions[mapping_idx] = get_cuda_function(program->module(mapping_idx, kernel_name), kernel_name);
+std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t layout_idx, unsigned int block_threads) {
+    OPENVINO_ASSERT(layout_idx < ptx_program::layout_count,
+                    "[GPU][NVIDIA] Invalid work-group layout index ", layout_idx, " for kernel '", kernel_name, "'");
+    std::call_once(_function_once[layout_idx], [&]() {
+        _functions[layout_idx] = get_cuda_function(program->module(layout_idx, kernel_name), kernel_name);
     });
-    const auto& plain = _functions[mapping_idx];
+    const auto& plain = _functions[layout_idx];
     if (block_threads <= static_cast<unsigned int>(plain->max_threads_per_block))
         return plain;
 
     // Lock order is always this state, then the program: the program never calls back into a kernel's state.
     std::lock_guard<std::mutex> lock(_capped_mutex);
-    auto& capped = _capped_functions[{mapping_idx, block_threads}];
+    auto& capped = _capped_functions[{layout_idx, block_threads}];
     if (!capped) {
-        capped = get_cuda_function(program->capped_module(mapping_idx, block_threads, kernel_name), kernel_name);
+        capped = get_cuda_function(program->capped_module(layout_idx, block_threads, kernel_name), kernel_name);
     }
 
     if (block_threads > static_cast<unsigned int>(capped->max_threads_per_block)) {
@@ -413,63 +387,62 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         grid_extent[d] = global / local + (global % local != 0 ? 1 : 0);
     }
 
-    // CUDA caps the three axes asymmetrically (block.z <= 64, grid.y and grid.z <= 65535),
-    // while OpenCL work-groups routinely put the only non-unit extent last, e.g. lws = {1, 1, 192}.
-    // Splitting such a work-group across blocks would break barriers and __local sharing, and a
-    // kernel built from reqd_work_group_size carries a .reqntid the driver rejects the launch
-    // over.  Carrying the NDRange dimensions on different axes keeps the work-group whole; the
-    // PTX of the selected mapping is rewritten to read the matching special registers.
-    //
-    // No mapping fits an extent beyond the largest per-axis limits (block.x/y, grid.x), and anything within them is
-    // representable as unsigned int, so the search only runs on extents that pass this check.
-    bool within_cuda_range = true;
-    for (size_t d = 0; d < 3; ++d) {
-        within_cuda_range = within_cuda_range && block_extent[d] <= CUDA_MAX_BLOCK_XY &&
-                            grid_extent[d] <= CUDA_MAX_GRID_X;
-    }
+    // CUDA caps the axes asymmetrically (block.z <= 64, grid.y and grid.z <= 65535), so the launch picks how the
+    // NDRange sits on them; see "Work-group layout on CUDA" in compat_common.cl for what each choice means to the
+    // kernel. Splitting a work-group across blocks instead would break barriers and __local sharing.
+    //  - Block: a local size (X, Y, Z) with Z > 64 runs as the block (X, Z, Y), dimensions 1 and 2 folded so that the
+    //    linear local id stays the OpenCL one; Y * Z <= 1024 then leaves Y <= 15 on z. With Y == 1 this is a plain
+    //    exchange of the two axes.
+    //  - Grid: a work-group count above 65535 along dimension 1 or 2 is moved to x. Work-groups are independent, so
+    //    their order does not matter and any exchange will do.
+    block_layout block_choice = block_layout::plain;
+    if (block_extent[2] > CUDA_MAX_BLOCK_Z)
+        block_choice = block_extent[1] == 1 ? block_layout::exchanged : block_layout::folded;
+    grid_layout grid_choice = grid_layout::plain;
+    if (grid_extent[1] > CUDA_MAX_GRID_YZ)
+        grid_choice = grid_layout::swap_x_y;
+    else if (grid_extent[2] > CUDA_MAX_GRID_YZ)
+        grid_choice = grid_layout::swap_x_z;
 
-    unsigned int block_per_dim[3] = {1u, 1u, 1u};
-    unsigned int grid_per_dim[3] = {1u, 1u, 1u};
-    size_t mapping_idx = 0;
-    bool mapping_found = false;
-    if (within_cuda_range) {
-        for (size_t d = 0; d < 3; ++d) {
-            block_per_dim[d] = static_cast<unsigned int>(block_extent[d]);
-            grid_per_dim[d] = static_cast<unsigned int>(grid_extent[d]);
-        }
-        for (size_t i = 0; i < dim_mapping_count; ++i) {
-            const dim_mapping& candidate = dim_mappings()[i];
-            if (preserves_local_id_order(block_per_dim, candidate) &&
-                dims_fit_cuda_limits(block_per_dim, grid_per_dim, candidate)) {
-                mapping_idx = i;
-                mapping_found = true;
-                break;
-            }
-        }
-    }
+    size_t block_axes[3] = {block_extent[0], block_extent[1], block_extent[2]};
+    if (block_choice != block_layout::plain)
+        std::swap(block_axes[1], block_axes[2]);
+    size_t grid_axes[3] = {grid_extent[0], grid_extent[1], grid_extent[2]};
+    if (grid_choice == grid_layout::swap_x_y)
+        std::swap(grid_axes[0], grid_axes[1]);
+    else if (grid_choice == grid_layout::swap_x_z)
+        std::swap(grid_axes[0], grid_axes[2]);
 
-    if (!mapping_found) {
-        // Resizing the work-group to fit would change get_local_size/get_group_id and split
-        // barriers and __local sharing, so an unmappable launch is rejected instead.
+    if (block_choice != block_layout::plain && !_state->program->can_fold_block()) {
+        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _state->kernel_name, "' cannot be launched with work-group (",
+                       block_extent[0], ", ", block_extent[1], ", ", block_extent[2],
+                       "): more than 64 work-items along dimension 2 need dimensions 1 and 2 folded on the CUDA axes, "
+                       "but its PTX reads %tid.y/z or %ntid.y/z directly, through an OpenCL built-in that the "
+                       "NVIDIA compatibility prelude (compat_common.cl) does not replace");
+    }
+    // The per-axis checks come first, so that the product cannot overflow.
+    const bool fits = block_axes[0] <= CUDA_MAX_BLOCK_XY && block_axes[1] <= CUDA_MAX_BLOCK_XY &&
+                      block_axes[2] <= CUDA_MAX_BLOCK_Z &&
+                      block_axes[0] * block_axes[1] * block_axes[2] <= CUDA_MAX_BLOCK_THREADS &&
+                      grid_axes[0] <= CUDA_MAX_GRID_X && grid_axes[1] <= CUDA_MAX_GRID_YZ &&
+                      grid_axes[2] <= CUDA_MAX_GRID_YZ;
+    if (!fits) {
         OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _state->kernel_name, "' cannot be launched: work-group (",
                        block_extent[0], ", ", block_extent[1], ", ", block_extent[2],
                        ") with work-group count (",
                        grid_extent[0], ", ", grid_extent[1], ", ", grid_extent[2],
-                       ") does not fit the CUDA launch limits (block <= 1024 threads, block.x/y <= 1024, "
-                       "block.z <= 64, grid.x <= 2147483647, grid.y/z <= 65535) under any dimension mapping "
-                       "that keeps the local id order");
+                       ") does not fit the CUDA launch limits: at most 1024 work-items per work-group and 1024 "
+                       "along a dimension, and at most 65535 work-groups along every dimension but one");
     }
 
-    unsigned int block[3];
-    unsigned int grid[3];
-    apply_dim_mapping(block_per_dim, dim_mappings()[mapping_idx], block);
-    apply_dim_mapping(grid_per_dim, dim_mappings()[mapping_idx], grid);
-    const unsigned int bx = block[0];
-    const unsigned int by = block[1];
-    const unsigned int bz = block[2];
-    const unsigned int gx = grid[0];
-    const unsigned int gy = grid[1];
-    const unsigned int gz = grid[2];
+    // Every extent is within unsigned int here.
+    const size_t layout_idx = launch_layout_index(block_choice, grid_choice);
+    const unsigned int bx = static_cast<unsigned int>(block_axes[0]);
+    const unsigned int by = static_cast<unsigned int>(block_axes[1]);
+    const unsigned int bz = static_cast<unsigned int>(block_axes[2]);
+    const unsigned int gx = static_cast<unsigned int>(grid_axes[0]);
+    const unsigned int gy = static_cast<unsigned int>(grid_axes[1]);
+    const unsigned int gz = static_cast<unsigned int>(grid_axes[2]);
 
     // Categorize args: gpu_buffer (need SYCL accessors) vs gpu_usm (direct pointer)
     std::vector<size_t> buf_arg_indices;
@@ -519,9 +492,9 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
                                  buf_arg_indices,
                                  usm_ptrs,
                                  state = _state,
-                                 mapping_idx,
+                                 layout_idx,
                                  gx, gy, gz, bx, by, bz](::sycl::interop_handle ih) {
-        const auto function = state->function_for_launch(mapping_idx, bx * by * bz);
+        const auto function = state->function_for_launch(layout_idx, bx * by * bz);
         auto cu_stream = ih.get_native_queue<::sycl::backend::ext_oneapi_cuda>();
         auto cu_func = static_cast<CUfunction>(function->cu_function);
 
@@ -603,8 +576,8 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         const auto launch_shape = [&]() {
             return "grid (" + std::to_string(gx) + ", " + std::to_string(gy) + ", " + std::to_string(gz) +
                    "), block (" + std::to_string(bx) + ", " + std::to_string(by) + ", " + std::to_string(bz) +
-                   "), " + std::to_string(shared_mem) + " bytes of shared memory, dimension mapping " +
-                   std::to_string(mapping_idx);
+                   "), " + std::to_string(shared_mem) + " bytes of shared memory, work-group layout " +
+                   std::to_string(layout_idx);
         };
 
         CUresult res = cuLaunchKernel(cu_func,
