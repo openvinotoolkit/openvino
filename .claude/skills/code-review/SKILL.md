@@ -50,6 +50,18 @@ tested scope. Report unavailable validation explicitly.
    unsupported usage, or stricter rules. If the available evidence does not
    establish a defect, omit the finding.
 
+For each relevant existing finding, classify it before relying on it:
+
+1. **Still applicable** — the final PR head retains the triggering code.
+2. **Fixed** — cite the final-head code or test that resolves it.
+3. **Outdated or inapplicable** — explain the changed condition or incorrect
+   premise.
+4. **Not yet verifiable** — identify the missing file, variant, runtime, test,
+   or platform evidence.
+
+Do not describe an approval by an assignee or author as merge-readiness evidence.
+If repository policy is unavailable, report required-approval status as unknown.
+
 ## Conditional review modes
 
 ### Revert pull requests
