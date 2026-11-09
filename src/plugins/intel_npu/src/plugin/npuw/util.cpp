@@ -1194,6 +1194,65 @@ bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
            ov::npuw::util::starts_with(input_name, "value_cache.");
 }
 
+std::shared_ptr<ov::Model> ov::npuw::util::with_dynamic_pa_tokens(const std::shared_ptr<ov::Model>& model) {
+    const auto is_pa = [](const std::shared_ptr<ov::Node>& node) {
+        return std::string(node->get_type_name()) == "PagedAttentionExtension";
+    };
+    const auto ops = model->get_ordered_ops();
+    if (std::none_of(ops.begin(), ops.end(), is_pa)) {
+        return model;
+    }
+
+    auto relaxed = model->clone();
+    std::vector<ov::PartialShape> result_shapes;
+    for (const auto& result : relaxed->get_results()) {
+        result_shapes.push_back(result->get_input_partial_shape(0));
+    }
+    for (const auto& node : relaxed->get_ordered_ops()) {
+        if (!is_pa(node)) {
+            continue;
+        }
+        // Inputs 0, 1 and 2 are the queries, keys and values, [tokens, heads * head_size].
+        // With F16IC they come from the block's f16 parameters through a Convert.
+        for (std::size_t i = 0; i < 3; ++i) {
+            auto source = node->get_input_node_shared_ptr(i);
+            while (ov::is_type<ov::op::v0::Convert>(source)) {
+                source = source->get_input_node_shared_ptr(0);
+            }
+            auto param = ov::as_type_ptr<ov::op::v0::Parameter>(source);
+            if (!param) {
+                continue;
+            }
+            auto shape = param->get_partial_shape();
+            if (shape.rank().is_dynamic() || shape.size() == 0) {
+                continue;
+            }
+            shape[0] = ov::Dimension::dynamic();
+            param->set_partial_shape(shape);
+        }
+    }
+    relaxed->validate_nodes_and_infer_types();
+
+    const auto& results = relaxed->get_results();
+    for (std::size_t i = 0; i < results.size(); ++i) {
+        const auto& shape = result_shapes[i];
+        if (results[i]->get_input_partial_shape(0) == shape || shape.is_dynamic()) {
+            continue;
+        }
+        const auto dims = shape.to_shape();
+        auto target = ov::op::v0::Constant::create(ov::element::i64,
+                                                   ov::Shape{dims.size()},
+                                                   std::vector<int64_t>(dims.begin(), dims.end()));
+        auto source = results[i]->input_value(0);
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(source, target, false);
+        reshape->output(0).get_tensor().set_names(source.get_names());
+        source.get_tensor().set_names({});
+        results[i]->input(0).replace_source_output(reshape);
+    }
+    relaxed->validate_nodes_and_infer_types();
+    return relaxed;
+}
+
 bool ov::npuw::util::is_remote(const ov::SoPtr<ov::ITensor>& tensor) {
     return std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) != nullptr;
 }

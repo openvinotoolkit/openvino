@@ -2469,7 +2469,7 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
-    return core->compile_model(submodel, device, device_config);
+    return core->compile_model(ov::npuw::util::with_dynamic_pa_tokens(submodel), device, device_config);
 }
 
 void ov::npuw::CompiledModel::dump_on_fail(std::size_t id, const std::string& device_to_try, const char* extra) {
