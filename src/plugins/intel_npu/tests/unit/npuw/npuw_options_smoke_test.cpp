@@ -216,29 +216,78 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
 }
 
-TEST(NPUWConfigOptionsSmokeTest, ExtractReturnsOnlyMatchingKeys) {
-    auto cfg = make_config({
+TEST(NPUWConfigOptionsSmokeTest, ParseStringRoundTripsToString) {
+    const auto cfg = make_config({
+        {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU,CPU"},
         {std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()), "5"},
-        {std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
     });
 
-    std::unordered_set<std::string> wanted{std::string(::intel_npu::NPUW_FOLD::key()), "NO_SUCH_KEY"};
-    auto result = cfg.extract(wanted);
+    const auto parsed = ::intel_npu::Config::parseString(cfg.toString());
 
-    EXPECT_EQ(result.size(), 1);
-    EXPECT_EQ(result.count(std::string(::intel_npu::NPUW_FOLD::key())), 1);
+    EXPECT_EQ(parsed.size(), 2);
+    EXPECT_EQ(parsed.at(std::string(::intel_npu::NPUW_DEVICES::key())), "NPU,CPU");
+    EXPECT_EQ(parsed.at(std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key())), "5");
 }
 
-TEST(NPUWConfigOptionsSmokeTest, ExtractEmptyKeysReturnsEmpty) {
-    auto cfg = make_config({{std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()), "1"}});
-
-    auto result = cfg.extract({});
-    EXPECT_TRUE(result.empty());
+TEST(NPUWConfigOptionsSmokeTest, ParseStringEmptyReturnsEmpty) {
+    EXPECT_TRUE(::intel_npu::Config::parseString("").empty());
 }
 
-TEST(NPUWConfigOptionsSmokeTest, CachedNPUWOptionKeys) {
-    const auto& keys = ::intel_npu::cachedNPUWOptionKeys();
-    EXPECT_FALSE(keys.empty());
+TEST(NPUWConfigOptionsSmokeTest, ParseStringRejectsMalformedEntries) {
+    EXPECT_ANY_THROW(::intel_npu::Config::parseString("NO_EQUALS_SIGN"));
+    EXPECT_ANY_THROW(::intel_npu::Config::parseString("KEY=unquoted"));
+    EXPECT_ANY_THROW(::intel_npu::Config::parseString("KEY=\""));
+}
+
+// Blob config filtering relies on HIDDEN options never being CACHED: otherwise a cache blob could set options the
+// host application never exposed.
+TEST(NPUWConfigOptionsSmokeTest, CachedNPUWOptionsAreExposed) {
+    std::unordered_set<std::string> exposed;
+    ::intel_npu::for_each_exposed_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        exposed.insert(std::string(Opt::key()));
+    });
+
+    ::intel_npu::for_each_cached_npuw_option([&](auto tag) {
+        using Opt = typename decltype(tag)::type;
+        EXPECT_EQ(exposed.count(std::string(Opt::key())), 1) << Opt::key() << " is CACHED but not EXPOSED";
+    });
+}
+
+TEST(NPUWConfigOptionsSmokeTest, FilterCachedNPUWOptionsKeepsCachedKeys) {
+    const auto filtered = ::intel_npu::filterCachedNPUWOptions({
+        {std::string(::intel_npu::NPUW_DEVICES::key()), "CPU"},
+        {std::string(::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE::key()), "256"},
+    });
+
+    EXPECT_EQ(filtered.size(), 2);
+    EXPECT_EQ(filtered.at(std::string(::intel_npu::NPUW_DEVICES::key())), "CPU");
+    EXPECT_EQ(filtered.at(std::string(::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE::key())), "256");
+}
+
+TEST(NPUWConfigOptionsSmokeTest, FilterCachedNPUWOptionsDropsUncachedAndUnknownKeys) {
+    const auto filtered = ::intel_npu::filterCachedNPUWOptions({
+        {std::string(::intel_npu::NPUW_CACHE_DIR::key()), "/tmp/attacker"},
+        {std::string(::intel_npu::NPUW_ACC_CHECK::key()), "YES"},
+        {std::string(::intel_npu::NPUW_PLAN::key()), "/tmp/attacker.xml"},
+        {"NPUW_DUMP_SUBS_DIR", "/tmp/attacker"},  // not registered in release builds
+        {"COMPLETELY_UNKNOWN_KEY", "value"},
+    });
+
+    EXPECT_TRUE(filtered.empty());
+}
+
+TEST(NPUWConfigOptionsSmokeTest, BlobConfigAppliesOnlyCachedOptions) {
+    // Simulates the blob import path: an untrusted toString()-formatted config with uncached and unknown entries.
+    const std::string blob = std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()) + "=\"7\" " +
+                             std::string(::intel_npu::NPUW_CACHE_DIR::key()) + "=\"/tmp/attacker\" " +
+                             "COMPLETELY_UNKNOWN_KEY=\"value\"";
+
+    auto cfg = make_config();
+    ASSERT_NO_THROW(cfg.update(::intel_npu::filterCachedNPUWOptions(::intel_npu::Config::parseString(blob))));
+
+    EXPECT_EQ(cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>(), 7);
+    EXPECT_FALSE(cfg.has<::intel_npu::NPUW_CACHE_DIR>());
 }
 
 }  // namespace

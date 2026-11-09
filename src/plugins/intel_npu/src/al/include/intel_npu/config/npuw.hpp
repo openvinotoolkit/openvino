@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <string>
 #include <thread>
-#include <unordered_set>
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -46,8 +44,8 @@ void registerNPUWOptions(OptionsDesc& desc);
 void registerNPUWLLMOptions(OptionsDesc& desc);
 void registerNPUWKokoroOptions(OptionsDesc& desc);
 
-// NPUW option keys marked CACHED.
-const std::unordered_set<std::string>& cachedNPUWOptionKeys();
+// Keeps only the entries whose keys are CACHED NPUW options.
+Config::ConfigMap filterCachedNPUWOptions(const Config::ConfigMap& options);
 
 #define DEFINE_NPUW_SIMPLE_OPT(Name, Type, DefaultValue, KeyLiteral) \
     struct Name final : OptionBase<Name, Type> {                     \

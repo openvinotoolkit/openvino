@@ -16,7 +16,6 @@
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -486,9 +485,6 @@ public:
 
     void parseEnvVars();
 
-    // Returns this config's currently-set options whose keys are contained in `keys`.
-    ConfigMap extract(const std::unordered_set<std::string>& keys) const;
-
     template <class Opt>
     bool has() const;
 
@@ -501,6 +497,8 @@ public:
     typename std::string getString() const;
 
     void fromString(const std::string& str);
+
+    static ConfigMap parseString(const std::string& str);
 
     // Returns a string with all config keys which have set values
     std::string toString() const;

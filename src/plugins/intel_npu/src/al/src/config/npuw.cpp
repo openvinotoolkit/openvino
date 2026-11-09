@@ -4,6 +4,9 @@
 
 #include "intel_npu/config/npuw.hpp"
 
+#include <string>
+#include <unordered_set>
+
 using namespace intel_npu;
 using namespace ov::intel_npu;
 
@@ -32,16 +35,23 @@ void intel_npu::registerNPUWKokoroOptions(OptionsDesc& desc) {
     });
 }
 
-const std::unordered_set<std::string>& intel_npu::cachedNPUWOptionKeys() {
-    static const std::unordered_set<std::string> keys = [] {
-        std::unordered_set<std::string> result;
+intel_npu::Config::ConfigMap intel_npu::filterCachedNPUWOptions(const Config::ConfigMap& options) {
+    static const std::unordered_set<std::string> cached = [] {
+        std::unordered_set<std::string> keys;
         for_each_cached_npuw_option([&](auto tag) {
             using Opt = typename decltype(tag)::type;
-            result.insert(std::string(Opt::key()));
+            keys.insert(std::string(Opt::key()));
         });
-        return result;
+        return keys;
     }();
-    return keys;
+
+    Config::ConfigMap out;
+    for (const auto& p : options) {
+        if (cached.count(p.first) != 0) {
+            out.emplace(p);
+        }
+    }
+    return out;
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

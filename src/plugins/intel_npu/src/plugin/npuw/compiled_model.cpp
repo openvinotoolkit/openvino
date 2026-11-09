@@ -1260,11 +1260,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         meta_stream & compiled->m_dev_list;
 
         // Security: the config comes from a potentially untrusted cache blob.
-        // Read it into a temporary Config and copy over only the options meant to round-trip through a blob (CACHED).
-        // Any UNCACHED / HIDDEN debug knobs (e.g. NPUW_DUMP_*, NPUW_CACHE_DIR) are dropped.
-        ::intel_npu::Config blob_cfg(compiled->m_options_desc);
+        // Apply only the options meant to round-trip through a blob (CACHED). Any other entries, e.g. UNCACHED debug
+        // knobs (NPUW_DUMP_*, NPUW_CACHE_DIR) or unregistered keys, are dropped.
+        std::string blob_cfg;
         meta_stream & blob_cfg;
-        compiled->m_cfg.update(blob_cfg.extract(::intel_npu::cachedNPUWOptionKeys()));
+        compiled->m_cfg.update(::intel_npu::filterCachedNPUWOptions(::intel_npu::Config::parseString(blob_cfg)));
         compiled->m_cfg.parseEnvVars();
 
         meta_stream & compiled->m_non_npuw_props;
