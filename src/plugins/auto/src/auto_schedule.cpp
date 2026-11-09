@@ -320,7 +320,7 @@ void AutoSchedule::init() {
                                                 : cpuhelp_all_end_times.back() - cpuhelp_all_start_times.front();
                             m_cpuhelp_fps = cpuhelp_all_start_times.size() * 1000 / duration.count();
                             LOG_INFO_TAG("CPU_HELP: first inference time:%lf ms", first_infer_time.count());
-                            LOG_INFO_TAG("CPU_HELP:infer:%zu", m_cpuhelp_infer_count);
+                            LOG_INFO_TAG("CPU_HELP:infer:%lu", static_cast<unsigned long>(m_cpuhelp_infer_count));
                             LOG_INFO_TAG("CPU_HELP:fps:%lf", m_cpuhelp_fps);
                         }
                     });
@@ -616,8 +616,8 @@ bool AutoSchedule::schedule_dynamic_task(ov::threading::Task pipeline_task, cons
         }
         if (m_gate_busy) {
             m_gate_pending_tasks.emplace_back(std::move(pipeline_task), preferred_device);
-            LOG_DEBUG_TAG("[dynamic] an inference is still running, request queued, queue size:%zu",
-                          m_gate_pending_tasks.size());
+            LOG_DEBUG_TAG("[dynamic] an inference is still running, request queued, queue size:%lu",
+                          static_cast<unsigned long>(m_gate_pending_tasks.size()));
             return false;
         }
         m_gate_busy = true;
@@ -926,10 +926,10 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
         tasks_it->second = nullptr;
     }
     m_dynamic_compiled_models.erase(cached);
-    LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released; the statistics of its %zu "
+    LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released; the statistics of its %lu "
                  "inferences are dropped from the final summary",
                  device_name.c_str(),
-                 dropped_infer_count);
+                 static_cast<unsigned long>(dropped_infer_count));
 }
 
 void AutoSchedule::release_execution_slot() {
@@ -990,9 +990,9 @@ AutoSchedule::~AutoSchedule() {
         });
     }
     if (dynamic_executor) {
-        LOG_INFO_TAG("[dynamic] total inference:%zu, device switch:%zu",
-                     m_dynamic_infer_count.load(),
-                     m_dynamic_switch_count.load());
+        LOG_INFO_TAG("[dynamic] total inference:%lu, device switch:%lu",
+                     static_cast<unsigned long>(m_dynamic_infer_count.load()),
+                     static_cast<unsigned long>(m_dynamic_switch_count.load()));
         // do not clear the executor manager's "AutoDynamicSchedule" entry here: clear() works by name and would
         // also evict the executors of other alive AutoSchedule instances. get_idle_cpu_streams_executor() only
         // hands out an executor nobody else holds, so instances never share one; just drop our own reference

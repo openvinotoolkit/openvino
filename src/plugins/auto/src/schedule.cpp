@@ -354,7 +354,7 @@ Schedule::~Schedule() {
                     LOG_INFO_TAG("%s: first inference time:%lf ms",
                                  worker_request.first.c_str(),
                                  first_infer_duration.count());
-                    LOG_INFO_TAG("%s:infer:%zu", worker_request.first.c_str(), count);
+                    LOG_INFO_TAG("%s:infer:%lu", worker_request.first.c_str(), static_cast<unsigned long>(count));
                     std::chrono::duration<double, std::milli> durtation =
                         req_all_end_times.back() - time;
                     LOG_INFO_TAG("%s:fps:%lf", worker_request.first.c_str(),
