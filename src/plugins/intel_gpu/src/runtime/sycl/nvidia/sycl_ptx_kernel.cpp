@@ -57,22 +57,6 @@ constexpr const char* layout_envreg_targets[3][layout_envreg_count] = {
     {"%tid.y", "%tid.z", "%ntid.z", "%ntid.y", "%ntid.z"},  // folded
 };
 
-// Whether the PTX was built with the NVIDIA compatibility prelude, whose work-item helpers the block layouts other
-// than the plain one rely on: the OpenCL built-ins they replace read the hardware axes, which are the wrong ones once
-// dimensions 1 and 2 move. The prelude's fold divisor placeholder marks it. PTX built without the prelude (the clang
-// path, or a binary cached before the placeholders) lacks it, and so does a kernel that never asks for an id or size
-// of dimension 1 or 2, which is refused a fold it would not need to notice.
-bool has_layout_placeholders(const std::string& ptx) {
-    static const std::string divisor =
-        "%envreg" + std::to_string(first_layout_envreg + layout_envreg_count - 1);
-    for (size_t pos = ptx.find(divisor); pos != std::string::npos; pos = ptx.find(divisor, pos + 1)) {
-        const size_t end = pos + divisor.size();
-        if (end == ptx.size() || !std::isdigit(static_cast<unsigned char>(ptx[end])))
-            return true;
-    }
-    return false;
-}
-
 // The PTX to load for a launch layout: the placeholders replaced with the registers of its block layout, the y and z
 // extents of .reqntid/.maxntid exchanged when the block layout exchanges those axes, and %ctaid/%nctaid renamed to the
 // axes its grid layout puts the work-group dimensions on.
@@ -293,7 +277,7 @@ std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_modu
 
 }  // anonymous namespace
 
-ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)), _can_fold_block(has_layout_placeholders(_ptx)) {
+ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)) {
     // A parameter list holds no ')', so it ends at the first one after '.entry name('; parameters are separated by
     // ',', which neither a declaration nor the comment patch_ptx_local leaves contains.
     static const std::regex entry_re(R"(\.entry\s+([\w.$]+)\s*\(([^)]*)\))");
@@ -417,13 +401,6 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
     else if (grid_choice == grid_layout::swap_x_z)
         std::swap(grid_axes[0], grid_axes[2]);
 
-    if (block_choice != block_layout::plain && !_state->program->can_fold_block()) {
-        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _state->kernel_name, "' cannot be launched with work-group (",
-                       block_extent[0], ", ", block_extent[1], ", ", block_extent[2],
-                       "): more than 64 work-items along dimension 2 need dimensions 1 and 2 folded on the CUDA axes, "
-                       "but its PTX was built without the work-item helpers of the NVIDIA compatibility prelude "
-                       "(compat_common.cl) that the folding relies on");
-    }
     // The per-axis checks come first, so that the product cannot overflow.
     const bool fits = block_axes[0] <= CUDA_MAX_BLOCK_XY && block_axes[1] <= CUDA_MAX_BLOCK_XY &&
                       block_axes[2] <= CUDA_MAX_BLOCK_Z &&

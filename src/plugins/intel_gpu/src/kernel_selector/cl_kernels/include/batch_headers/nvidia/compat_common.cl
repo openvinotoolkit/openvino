@@ -73,12 +73,11 @@
 //     %envreg27-30  local id 1, local id 2, local size 1, local size 2: the axes they sit on in the layout.
 //     %envreg31     the divisor of the fold: %ntid.z when Y > 1 is folded, %ntid.y otherwise. Compared with %ntid.y
 //                   it selects the division, and in the other layouts ptxas folds the comparison and drops it.
-// The runtime folds a program only when its PTX has %envreg31, which shows it was built with these helpers: the
-// OpenCL built-ins they replace would read the wrong axis once the layout moves dimensions 1 and 2. %envreg27-30
-// only spare the division when Y is 1 and could be dropped first, so they take the lower numbers. Dimension 0, the
-// hardware y and z values and the work-group ids and counts are read from their special registers directly: the
-// layout never moves dimension 0, the hardware numbering is what the fold is built on, and the grid axes are
-// remapped by renaming %ctaid/%nctaid.
+// The OpenCL built-ins these helpers replace would read the wrong axis once the layout moves dimensions 1 and 2.
+// %envreg27-30 only spare the division when Y is 1 and could be dropped first, so they take the lower numbers.
+// Dimension 0, the hardware y and z values and the work-group ids and counts are read from their special registers
+// directly: the layout never moves dimension 0, the hardware numbering is what the fold is built on, and the grid
+// axes are remapped by renaming %ctaid/%nctaid.
 static inline uint _nv_hw_tid_y(void)      { uint v; __asm__("mov.u32 %0, %%tid.y;"  : "=r"(v)); return v; }
 static inline uint _nv_hw_tid_z(void)      { uint v; __asm__("mov.u32 %0, %%tid.z;"  : "=r"(v)); return v; }
 static inline uint _nv_hw_ntid_y(void)     { uint v; __asm__("mov.u32 %0, %%ntid.y;" : "=r"(v)); return v; }
