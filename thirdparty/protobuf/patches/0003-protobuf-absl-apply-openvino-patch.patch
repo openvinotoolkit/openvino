@@ -1,0 +1,26 @@
+Subject: [PATCH] cmake: apply OpenVINO abseil source fix when fetching Abseil
+
+Protobuf downloads Abseil via FetchContent when it is not found locally (e.g.
+when cross-compiling, where no target-arch Abseil package is available). The
+bundled Abseil 20250127 fails to compile with some GCC versions because
+raw_hash_set::GetPolicyFunctions() uses a `static constexpr PolicyFunctions`
+whose initializer compares a function-template address against nullptr.
+
+Attach a PATCH_COMMAND to the Abseil FetchContent_Declare so the OpenVINO source
+fix is applied at populate time. The helper script and patch live in OpenVINO's
+thirdparty/protobuf/patches directory, referenced relative to this file so it
+works for both the main build and the native host protoc build.
+--- a/cmake/abseil-cpp.cmake
++++ b/cmake/abseil-cpp.cmake
+@@ -24,6 +24,9 @@
+     include(FetchContent)
+     FetchContent_Declare(
+       absl
+       GIT_REPOSITORY "https://github.com/abseil/abseil-cpp.git"
+       GIT_TAG "${abseil-cpp-version}"
++      PATCH_COMMAND "${CMAKE_COMMAND}"
++        "-DPATCH=${CMAKE_CURRENT_LIST_DIR}/../../patches/0002-absl-gcc-constexpr-fixes.patch"
++        -P "${CMAKE_CURRENT_LIST_DIR}/../../patches/git_apply_once.cmake"
+     )
+     if (protobuf_INSTALL)
+       # When protobuf_INSTALL is enabled and Abseil will be built as a module,
