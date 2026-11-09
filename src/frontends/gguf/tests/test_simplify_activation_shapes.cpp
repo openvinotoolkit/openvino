@@ -63,26 +63,33 @@ TEST_F(GGUFActivationShapes, KeepsReshapeFeedingMatMul) {
     model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{x});
 }
 
+std::shared_ptr<ov::Model> get_matmul_output_consumers_model() {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{2, 1, -1, 8});
+    const auto w = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(x, w, false, true);
+    const auto add = std::make_shared<v1::Add>(fc, x);
+    return std::make_shared<ov::Model>(
+        ov::OutputVector{std::make_shared<v4::Swish>(add), std::make_shared<v0::Exp>(add)},
+        ov::ParameterVector{x});
+}
+
+std::shared_ptr<ov::Model> get_matmul_output_consumers_model_ref() {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{2, 1, -1, 8});
+    const auto w = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(x, w, false, true);
+    const auto add = std::make_shared<v1::Add>(fc, x);
+    const auto axis = v0::Constant::create(ov::element::i64, {1}, {1});
+    const auto squeezed = std::make_shared<v0::Squeeze>(add, axis);
+    return std::make_shared<ov::Model>(
+        ov::OutputVector{std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Swish>(squeezed), axis),
+                         std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Exp>(squeezed), axis)},
+        ov::ParameterVector{x});
+}
+
 TEST_F(GGUFActivationShapes, KeepsMatMulOutputConsumersAtRankFour) {
-    const auto make_model = [](bool compact) {
-        const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{2, 1, -1, 8});
-        const auto w = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
-        const auto fc = std::make_shared<v0::MatMul>(x, w, false, true);
-        const auto add = std::make_shared<v1::Add>(fc, x);
-        const auto axis = v0::Constant::create(ov::element::i64, {1}, {1});
-        if (!compact) {
-            return std::make_shared<ov::Model>(
-                ov::OutputVector{std::make_shared<v4::Swish>(add), std::make_shared<v0::Exp>(add)},
-                ov::ParameterVector{x});
-        }
-        const auto squeezed = std::make_shared<v0::Squeeze>(add, axis);
-        return std::make_shared<ov::Model>(
-            ov::OutputVector{std::make_shared<v0::Unsqueeze>(std::make_shared<v4::Swish>(squeezed), axis),
-                             std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Exp>(squeezed), axis)},
-            ov::ParameterVector{x});
-    };
-    model = make_model(false);
-    model_ref = make_model(true);
+    model = get_matmul_output_consumers_model();
+    model_ref = get_matmul_output_consumers_model_ref();
+    comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
 }
 
 TEST_F(GGUFActivationShapes, PreservesOtherOutputsOfReshapeProducer) {
