@@ -8,8 +8,6 @@
 #define DATA_COUNT ((uint)(INPUT0_BATCH_NUM * INPUT0_FEATURE_NUM * INPUT0_SIZE_V * INPUT0_SIZE_U * INPUT0_SIZE_W * INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X))
 #define SG_CHUNK (SIMD * VEC_SIZE)
 
-// Runs BODY(x) for every input element assigned to this work-item. Sub-groups stride over SG_CHUNK-element chunks
-// read with block reads (the element order does not matter for a histogram); the remainder is read per work-item.
 #define FOR_EACH_INPUT(BODY)                                                                                       \
     {                                                                                                              \
         const uint sg_id = get_group_id(0) * get_num_sub_groups() + get_sub_group_id();                            \
@@ -28,14 +26,12 @@
     }
 
 #if HISTC_STAGE_MINMAX
-// Every work-group reduces a strided part of the input to a partial [min, max] pair.
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(histc_minmax)(OPTIONAL_SHAPE_INFO_ARG
                      const __global INPUT0_TYPE* restrict data,
                      __global float* restrict ranges) {
     float lo = INFINITY;
     float hi = -INFINITY;
-// fmin/fmax drop NaN, so a NaN widens the range to infinity, which is rejected like an infinite range.
 #define UPDATE_RANGE(x) lo = isnan(x) ? -INFINITY : fmin(lo, x); hi = isnan(x) ? INFINITY : fmax(hi, x)
     FOR_EACH_INPUT(UPDATE_RANGE)
 #undef UPDATE_RANGE
@@ -49,7 +45,6 @@ KERNEL(histc_minmax)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HISTC_STAGE_COUNT
-// Every work-group counts a strided part of the input into its own partial histogram.
 REQD_SUB_GROUP_SIZE(SIMD)
 KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
                     const __global INPUT0_TYPE* restrict data,
@@ -71,7 +66,6 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
     lo = work_group_reduce_min(lo);
     hi = work_group_reduce_max(hi);
     if (lo == hi) {
-        // The spec widens with nextafter only for f32 (and f64, which runs as f32).
 #if INPUT0_IS_FP && INPUT0_TYPE_SIZE == 4
         lo = fmin(nextafter(lo, -INFINITY), lo - 1.0f);
         hi = fmax(nextafter(hi, INFINITY), hi + 1.0f);
@@ -86,7 +80,6 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HIST_IN_SLM
-    // Interleaved copies: neighbouring work-items that hit the same bin use different SLM banks.
     __local uint hist[BINS * HIST_COPIES];
     const uint copy = lid % HIST_COPIES;
     #define HIST_SIZE (BINS * HIST_COPIES)
@@ -102,7 +95,6 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
     }
     barrier(HIST_MEM_FENCE);
 
-    // An invalid range (e.g. taken from data with infinities) yields an empty histogram.
     if (isfinite(lo) && isfinite(hi) && lo < hi) {
         const float range = hi - lo;
 #define COUNT_ELEMENT(x)                                                                          \
@@ -141,7 +133,6 @@ KERNEL(histc_merge)(const __global uint* restrict partial_hist,
     for (uint g = 0; g < num_groups; ++g) {
         count += partial_hist[g * BINS + bin];
     }
-    // Counts not representable in the output type are implementation defined, so skip saturation.
     output[bin] = TO_OUTPUT_TYPE(count);
 }
 #endif

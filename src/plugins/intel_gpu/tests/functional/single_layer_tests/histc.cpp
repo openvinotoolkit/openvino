@@ -36,7 +36,6 @@ protected:
         targetDevice = ov::test::utils::DEVICE_GPU;
         const auto& [shape, attrs, prc, preserve_input_type] = GetParam();
         const auto& [bins, min, max] = attrs;
-        // A count above the output type max is implementation defined (GPU wraps, the reference saturates).
         const size_t max_count = !preserve_input_type      ? SIZE_MAX
                                  : prc == ElementType::f16 ? 65504
                                  : prc == ElementType::u8  ? 255
@@ -51,19 +50,16 @@ protected:
         const auto data = std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes[0]);
         const auto histc = std::make_shared<ov::op::v17::Histc>(data, bins, min, max, preserve_input_type);
         function = std::make_shared<ov::Model>(histc->outputs(), ov::ParameterVector{data}, "Histc");
-        // Counts must match exactly.
         abs_threshold = 0.0;
         rel_threshold = 0.0;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        // Quarter steps put many values exactly on bin edges and outside the explicit ranges.
         ov::test::utils::InputGenerateData in_data(-5, 10, 4, 1234);
         const auto& param = function->get_parameters()[0];
         auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[0], in_data);
         const auto& [shape, attrs, prc, preserve_input_type] = GetParam();
-        // Special values are ignored for an explicit range, but make a range taken from data invalid.
         if (std::get<1>(attrs) != std::get<2>(attrs) && tensor.get_size() >= 3) {
             switch (prc) {
             case ElementType::f32:
@@ -123,7 +119,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Bool()),
     HistcLayerGPUTest::getTestCaseName);
 
-// Counts above 2048 are not exact in f16, so Histc must stay in f32 with f16 inference precision.
+// Counts above 2048 are not exact in f16, so Histc must stay in f32 with f16 inference precision
 TEST(smoke_HistcGPU, f16_inference_precision) {
     const auto data = std::make_shared<ov::op::v0::Parameter>(ElementType::f32, ov::Shape{74097});
     const auto histc = std::make_shared<ov::op::v17::Histc>(data, 2, -1.0, 1.0);
