@@ -1,5 +1,5 @@
 gitdb==4.0.12
-GitPython==3.1.59
+GitPython==3.2.1
 packaging==26.3
 PyYAML==6.0.3
 smmap==5.0.3
