@@ -454,9 +454,7 @@ public:
     }
 
     dnnl::memory::desc build() const {
-        auto [dims, updated_fmt] = (_dynamic_support && _layout.is_dynamic())
-                                       ? calculate_dims_dynamic()
-                                       : calculate_dims();
+        auto [dims, updated_fmt] = (_dynamic_support && _layout.is_dynamic()) ? calculate_dims_dynamic() : calculate_dims();
         auto dt = convert_data_type(_layout.data_type);
 
         if (_use_strides) {
@@ -617,11 +615,8 @@ private:
         } else if (fmt_tag == dnnl::memory::format_tag::ba) {
             dims.push_back(partial_feature(_layout));
             dims.push_back(count_except(1));
-        } else if (fmt_tag == dnnl::memory::format_tag::abcd ||
-                   fmt_tag == dnnl::memory::format_tag::abcde ||
-                   fmt_tag == dnnl::memory::format_tag::abcdef) {
-            size_t target_rank = (fmt_tag == dnnl::memory::format_tag::abcd) ? 4 :
-                                 (fmt_tag == dnnl::memory::format_tag::abcde) ? 5 : 6;
+        } else if (fmt_tag == dnnl::memory::format_tag::abcd || fmt_tag == dnnl::memory::format_tag::abcde || fmt_tag == dnnl::memory::format_tag::abcdef) {
+            size_t target_rank = (fmt_tag == dnnl::memory::format_tag::abcd) ? 4 : (fmt_tag == dnnl::memory::format_tag::abcde) ? 5 : 6;
             dims = partial_shape_to_dims(_layout.get_partial_shape(), target_rank);
         } else {
             OPENVINO_THROW("[GPU] Unsupported format_tag for dynamic layout " + _layout.to_short_string());

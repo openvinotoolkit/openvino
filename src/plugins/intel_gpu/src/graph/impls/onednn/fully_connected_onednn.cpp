@@ -21,32 +21,25 @@ namespace onednn {
 
 // Helper to construct the weights memory descriptor, handling padded i4/u4/u2 layouts.
 static dnnl::memory::desc make_weights_md(const layout& weights_layout, dnnl::memory::format_tag fmt) {
-    if (weights_layout.data_padding
-        && format::is_default_format(weights_layout.format)
-        && one_of(weights_layout.data_type, {data_types::i4, data_types::u4, data_types::u2})) {
+    if (weights_layout.data_padding && format::is_default_format(weights_layout.format) &&
+        one_of(weights_layout.data_type, {data_types::i4, data_types::u4, data_types::u2})) {
         return onednn::layout_to_memory_desc_strides(weights_layout, fmt);
     }
     return onednn::layout_to_memory_desc(weights_layout, fmt);
 }
 
-static std::pair<dnnl::memory::format_tag, dnnl::memory::format_tag>
-get_matmul_formats(size_t prim_input_size, bool weights_transposed = true) {
+static std::pair<dnnl::memory::format_tag, dnnl::memory::format_tag> get_matmul_formats(size_t prim_input_size, bool weights_transposed = true) {
     if (prim_input_size == 3) {
-        return {dnnl::memory::format_tag::abc,
-                weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc};
+        return {dnnl::memory::format_tag::abc, weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc};
     } else if (prim_input_size == 4) {
-        return {dnnl::memory::format_tag::abcd,
-                weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd};
+        return {dnnl::memory::format_tag::abcd, weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd};
     } else if (prim_input_size == 5) {
-        return {dnnl::memory::format_tag::abcde,
-                weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde};
+        return {dnnl::memory::format_tag::abcde, weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde};
     } else if (prim_input_size == 6) {
-        return {dnnl::memory::format_tag::abcdef,
-                weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef};
+        return {dnnl::memory::format_tag::abcdef, weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef};
     }
 
-    return {dnnl::memory::format_tag::ab,
-            weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab};
+    return {dnnl::memory::format_tag::ab, weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab};
 }
 
 // Flatten [d0, ..., dn-2, K] to [M, K] (M = d0 * ... * dn-2). Trailing dummy dims beyond logical_rank are dropped.
@@ -83,10 +76,7 @@ static layout trim_matmul_output_layout(layout output_layout, size_t prim_input_
     return output_layout;
 }
 
-static layout expand_matmul_weights_layout(layout weights_layout,
-                                          const layout& input_layout,
-                                          size_t prim_input_size,
-                                          size_t prim_weights_rank) {
+static layout expand_matmul_weights_layout(layout weights_layout, const layout& input_layout, size_t prim_input_size, size_t prim_weights_rank) {
     ov::PartialShape new_weights_pshape;
     std::vector<ov::Dimension::value_type> lower_sizes;
     std::vector<ov::Dimension::value_type> upper_sizes;
@@ -132,8 +122,8 @@ protected:
 
         // Only a primitive created with runtime dims needs memory descriptors built from the actual shapes.
         // Static impls (also used for dynamic nodes) keep the descriptors of _pd.
-        const bool is_runtime_dims_impl = has_runtime_dims(_pd.dnnl::primitive_desc_base::src_desc(0)) ||
-                                          has_runtime_dims(_pd.dnnl::primitive_desc_base::dst_desc(0));
+        const bool is_runtime_dims_impl =
+            has_runtime_dims(_pd.dnnl::primitive_desc_base::src_desc(0)) || has_runtime_dims(_pd.dnnl::primitive_desc_base::dst_desc(0));
 
         auto input_layout = instance.get_input_layout(0);
         auto output_layout = instance.get_output_layout();
@@ -181,8 +171,11 @@ protected:
         if (_scratchpad_md.get_size() != 0) {
             const auto& intermediates = instance.get_intermediates_memories();
             OPENVINO_ASSERT(!intermediates.empty(),
-                            "[GPU] oneDNN primitive ", instance.id(), " requires scratchpad of size ",
-                            _scratchpad_md.get_size(), " bytes, but intermediates memory is missing");
+                            "[GPU] oneDNN primitive ",
+                            instance.id(),
+                            " requires scratchpad of size ",
+                            _scratchpad_md.get_size(),
+                            " bytes, but intermediates memory is missing");
             auto scratchpad = intermediates[0];
             args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
         }
@@ -254,8 +247,7 @@ protected:
 
         if (is_dynamic_shape) {
             if (prim_weights_rank != 2) {
-                OPENVINO_THROW("[GPU] oneDNN fully_connected dynamic shape path supports only 2D weights (weights_rank=",
-                               prim_weights_rank, ")");
+                OPENVINO_THROW("[GPU] oneDNN fully_connected dynamic shape path supports only 2D weights (weights_rank=", prim_weights_rank, ")");
             }
             if (prim_input_size > 2) {
                 input_layout = flatten_layout_to_2d(input_layout, prim_input_size);
