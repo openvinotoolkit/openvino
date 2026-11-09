@@ -293,6 +293,14 @@ bool is_swa_kv_cache_name(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
+// The GPU sizes the internal buffers of a PagedAttention op from its max_context_len value.
+// With a static token count the PA output is static, so the GPU allocates it and those
+// buffers while it builds the network, before any input values exist, and fails. Returns a
+// copy of the model with a dynamic token count on the queries, keys and values of its PA ops
+// (through the F16IC converts) and the results reshaped back, so the ports keep their static
+// shapes, or the model itself when it has no PA op.
+std::shared_ptr<ov::Model> with_dynamic_pa_tokens(const std::shared_ptr<ov::Model>& model);
+
 // A device tensor (GPU memory, for one) has no host pointer: data() throws.
 bool is_remote(const ov::SoPtr<ov::ITensor>& tensor);
 
