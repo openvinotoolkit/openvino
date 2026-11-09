@@ -4,6 +4,8 @@
 
 #include <intel_gpu/primitives/histc.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <limits>
+#include <numeric>
 
 #include "openvino/reference/histc.hpp"
 #include "random_generator.hpp"
@@ -102,6 +104,57 @@ TEST(histc_gpu, basic) {
 
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(std::vector<float>(output_ptr.begin(), output_ptr.end()), (std::vector<float>{0.f, 2.f, 2.f, 1.f}));
+}
+
+// preserve_input_type = false: counts above 255 stay exact for u8 input.
+TEST(histc_gpu, u8_input_i32_output) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{300}, data_types::u8, format::bfyx});
+    set_values(input, std::vector<uint8_t>(300, 7));
+
+    auto prim = histc("histc", input_info("input"), 2, 0.0, 0.0);
+    prim.output_data_types = {optional_data_type{data_types::i32}};
+    topology topology(input_layout("input", input->get_layout()), prim);
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto output = network.execute().at("histc").get_memory();
+
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(std::vector<int32_t>(output_ptr.begin(), output_ptr.end()), (std::vector<int32_t>{0, 300}));
+}
+
+// A NaN makes the range taken from data invalid, which yields an empty histogram.
+TEST(histc_gpu, nan_data_range) {
+    auto& engine = get_test_engine();
+    // Large enough for the block-read path; NaN is a single element in the middle.
+    std::vector<float> values(1000);
+    std::iota(values.begin(), values.end(), 0.f);
+    values[500] = std::numeric_limits<float>::quiet_NaN();
+    auto input = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(values.size())}, data_types::f32, format::bfyx});
+    set_values(input, values);
+
+    topology topology(input_layout("input", input->get_layout()), histc("histc", input_info("input"), 2, 0.0, 0.0));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto output = network.execute().at("histc").get_memory();
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(std::vector<float>(output_ptr.begin(), output_ptr.end()), (std::vector<float>{0.f, 0.f}));
+}
+
+// f16 widens an equal range to [x - 1, x + 1]; nextafter in f16 would give [2047, 2050] and pick bin 0.
+TEST(histc_gpu, f16_equal_values_range) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{3}, data_types::f16, format::bfyx});
+    set_values(input, std::vector<ov::float16>(3, ov::float16(2048.f)));
+
+    topology topology(input_layout("input", input->get_layout()), histc("histc", input_info("input"), 2, 0.0, 0.0));
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto output = network.execute().at("histc").get_memory();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(std::vector<float>(output_ptr.begin(), output_ptr.end()), (std::vector<float>{0.f, 3.f}));
 }
 
 }  // namespace

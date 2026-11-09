@@ -14,30 +14,42 @@ namespace ov::test {
 
 using HistcGPUParams = std::tuple<InputShape,
                                   std::tuple<int64_t, double, double>,  // bins, min, max
-                                  ElementType>;
+                                  ElementType,
+                                  bool>;  // preserve_input_type
 
 class HistcLayerGPUTest : public testing::WithParamInterface<HistcGPUParams>, virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<HistcGPUParams>& obj) {
-        const auto& [shape, attrs, prc] = obj.param;
+        const auto& [shape, attrs, prc, preserve_input_type] = obj.param;
         const auto& [bins, min, max] = attrs;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({shape.first}) << "_TS=";
         for (const auto& item : shape.second) {
             result << ov::test::utils::vec2str(item) << "_";
         }
-        result << "bins=" << bins << "_min=" << min << "_max=" << max << "_prc=" << prc;
+        result << "bins=" << bins << "_min=" << min << "_max=" << max << "_prc=" << prc << "_preserve_input_type=" << preserve_input_type;
         return result.str();
     }
 
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        const auto& [shape, attrs, prc] = GetParam();
+        const auto& [shape, attrs, prc, preserve_input_type] = GetParam();
         const auto& [bins, min, max] = attrs;
+        // A count above the output type max is implementation defined (GPU wraps, the reference saturates).
+        const size_t max_count = !preserve_input_type      ? SIZE_MAX
+                                 : prc == ElementType::f16 ? 65504
+                                 : prc == ElementType::u8  ? 255
+                                 : prc == ElementType::i8  ? 127
+                                                           : SIZE_MAX;
+        for (const auto& static_shape : shape.second) {
+            if (ov::shape_size(static_shape) > max_count) {
+                GTEST_SKIP() << "Counts may overflow the output type";
+            }
+        }
         init_input_shapes({shape});
         const auto data = std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes[0]);
-        const auto histc = std::make_shared<ov::op::v17::Histc>(data, bins, min, max);
+        const auto histc = std::make_shared<ov::op::v17::Histc>(data, bins, min, max, preserve_input_type);
         function = std::make_shared<ov::Model>(histc->outputs(), ov::ParameterVector{data}, "Histc");
         // Counts must match exactly.
         abs_threshold = 0.0;
@@ -50,7 +62,7 @@ protected:
         ov::test::utils::InputGenerateData in_data(-5, 10, 4, 1234);
         const auto& param = function->get_parameters()[0];
         auto tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[0], in_data);
-        const auto& [shape, attrs, prc] = GetParam();
+        const auto& [shape, attrs, prc, preserve_input_type] = GetParam();
         // Special values are ignored for an explicit range, but make a range taken from data invalid.
         if (std::get<1>(attrs) != std::get<2>(attrs) && tensor.get_size() >= 3) {
             switch (prc) {
@@ -85,7 +97,7 @@ namespace {
 const std::vector<InputShape> shapes = {
     {{}, {{}}},
     {{}, {{2, 3, 17}}},
-    // Single-bin counts above 255 (u8) and 127 (i8).
+    // Single-bin counts above 255 (u8) and 127 (i8), exact with preserve_input_type = false.
     {{}, {{50, 50}}},
     // Several work-groups.
     {{}, {{1, 3, 224, 224}}},
@@ -107,7 +119,8 @@ INSTANTIATE_TEST_SUITE_P(
     HistcLayerGPUTest,
     ::testing::Combine(::testing::ValuesIn(shapes),
                        ::testing::ValuesIn(attrs),
-                       ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32, ElementType::i64, ElementType::u8, ElementType::i8)),
+                       ::testing::Values(ElementType::f32, ElementType::f16, ElementType::i32, ElementType::i64, ElementType::u8, ElementType::i8),
+                       ::testing::Bool()),
     HistcLayerGPUTest::getTestCaseName);
 
 // Counts above 2048 are not exact in f16, so Histc must stay in f32 with f16 inference precision.

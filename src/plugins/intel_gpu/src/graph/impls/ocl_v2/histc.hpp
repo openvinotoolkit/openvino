@@ -29,7 +29,8 @@ struct Histc : public ImplementationManager {
 
         const auto& in_layout = node.get_input_layout(0);
         const auto& out_layout = node.get_output_layout(0);
-        if (!one_of(in_layout.data_type, supported_types) || in_layout.data_type != out_layout.data_type) {
+        // Output is the input type or i32 (preserve_input_type = false).
+        if (!one_of(in_layout.data_type, supported_types) || !one_of(out_layout.data_type, {in_layout.data_type, data_types::i32})) {
             return false;
         }
 

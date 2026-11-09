@@ -35,7 +35,8 @@ KERNEL(histc_minmax)(OPTIONAL_SHAPE_INFO_ARG
                      __global float* restrict ranges) {
     float lo = INFINITY;
     float hi = -INFINITY;
-#define UPDATE_RANGE(x) lo = fmin(lo, x); hi = fmax(hi, x)
+// fmin/fmax drop NaN, so a NaN widens the range to infinity, which is rejected like an infinite range.
+#define UPDATE_RANGE(x) lo = isnan(x) ? -INFINITY : fmin(lo, x); hi = isnan(x) ? INFINITY : fmax(hi, x)
     FOR_EACH_INPUT(UPDATE_RANGE)
 #undef UPDATE_RANGE
     lo = work_group_reduce_min(lo);
@@ -70,9 +71,10 @@ KERNEL(histc_count)(OPTIONAL_SHAPE_INFO_ARG
     lo = work_group_reduce_min(lo);
     hi = work_group_reduce_max(hi);
     if (lo == hi) {
-#if INPUT0_IS_FP
-        lo = fmin(convert_float(nextafter((INPUT0_TYPE)lo, (INPUT0_TYPE)(-INFINITY))), lo - 1.0f);
-        hi = fmax(convert_float(nextafter((INPUT0_TYPE)hi, (INPUT0_TYPE)INFINITY)), hi + 1.0f);
+        // The spec widens with nextafter only for f32 (and f64, which runs as f32).
+#if INPUT0_IS_FP && INPUT0_TYPE_SIZE == 4
+        lo = fmin(nextafter(lo, -INFINITY), lo - 1.0f);
+        hi = fmax(nextafter(hi, INFINITY), hi + 1.0f);
 #else
         lo -= 1.0f;
         hi += 1.0f;
@@ -139,7 +141,8 @@ KERNEL(histc_merge)(const __global uint* restrict partial_hist,
     for (uint g = 0; g < num_groups; ++g) {
         count += partial_hist[g * BINS + bin];
     }
-    output[bin] = TO_OUTPUT_TYPE_SAT(count);
+    // Counts not representable in the output type are implementation defined, so skip saturation.
+    output[bin] = TO_OUTPUT_TYPE(count);
 }
 #endif
 
