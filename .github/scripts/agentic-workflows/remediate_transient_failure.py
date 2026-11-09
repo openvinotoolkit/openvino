@@ -71,12 +71,12 @@ def _eligibility_comment(
     else:
         action = (
             "The PR is no longer in the merge queue; the separate re-queue workflow will act only "
-            "if GitHub confirms it was dequeued because of failed checks."
+            "if GitHub confirms it was dequeued because of `CI_FAILURE`."
         )
     return (
         "### CI Doctor — Transient Merge Queue Failure\n\n"
         "CI Doctor classified this failure as transient and marked this PR as eligible for automatic "
-        "re-queueing if it was removed from the merge queue because of failed checks. "
+        "re-queueing if it was removed from the merge queue because of `CI_FAILURE`. "
         f"{action}\n\n"
         f"- **Failed run**: {run.html_url}\n"
         f"- **Reason**: {reason or 'transient failure'}\n"

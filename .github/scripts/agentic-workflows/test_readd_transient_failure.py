@@ -4,10 +4,11 @@
 import unittest
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from readd_transient_failure import (
     BOT_LOGIN,
+    QUEUE_EVENTS_QUERY,
     dequeue_reason,
     find_eligibility_marker,
     latest_queue_events,
@@ -26,6 +27,22 @@ MARKER_BODY = (
     f"{HEAD_SHA} source_run_id=456 analysis_run_id=789 -->"
 )
 NOW = datetime(2026, 11, 6, 8, 0, tzinfo=timezone.utc)
+OTHER_REMOVAL_REASONS = (
+    "UNKNOWN_REMOVAL_REASON",
+    "MANUAL",
+    "MERGE",
+    "MERGE_CONFLICT",
+    "CI_TIMEOUT",
+    "ALREADY_MERGED",
+    "QUEUE_CLEARED",
+    "ROLL_BACK",
+    "BRANCH_PROTECTIONS",
+    "GIT_TREE_INVALID",
+    "INVALID_MERGE_COMMIT",
+    "failed_checks",
+    "ci_failure",
+    "UNRECOGNIZED_REASON",
+)
 
 
 class MarkerTests(unittest.TestCase):
@@ -88,21 +105,38 @@ class MarkerTests(unittest.TestCase):
 
 
 class EventTests(unittest.TestCase):
-    def test_dequeued_event_requires_failed_checks_reason(self):
-        self.assertEqual(dequeue_reason({"reason": "failed_checks"}), "failed_checks")
-        self.assertEqual(
-            dequeue_reason({"pull_request": {"reason": "manual"}}),
-            "manual",
-        )
+    def test_dequeued_event_reads_top_level_reason(self):
+        self.assertEqual(dequeue_reason({"reason": "CI_FAILURE"}), "CI_FAILURE")
+        self.assertEqual(dequeue_reason({"reason": "MANUAL"}), "MANUAL")
 
-    def test_manual_dequeue_is_ignored_before_pr_lookup(self):
+    def test_dequeued_event_requires_non_empty_string_reason(self):
+        invalid_events = [
+            {},
+            {"pull_request": {"reason": "CI_FAILURE"}},
+            {"reason": None},
+            {"reason": ""},
+            {"reason": 123},
+            {"reason": ["CI_FAILURE"]},
+        ]
+        for event in invalid_events:
+            with self.subTest(event=event):
+                with self.assertRaisesRegex(SystemExit, "top-level reason string"):
+                    dequeue_reason(event)
+
+    def test_other_removal_reasons_are_ignored_before_pr_lookup(self):
+        for reason in OTHER_REMOVAL_REASONS:
+            with self.subTest(reason=reason):
+                repo = Mock()
+                process_event({"action": "dequeued", "reason": reason}, Mock(), repo, "owner/repo")
+                repo.get_pull.assert_not_called()
+
+    def test_dequeue_without_required_reason_fails_before_pr_lookup(self):
         repo = Mock()
-
-        process_event({"action": "dequeued", "reason": "manual"}, Mock(), repo, "owner/repo")
-
+        with self.assertRaisesRegex(SystemExit, "top-level reason string"):
+            process_event({"action": "dequeued"}, Mock(), repo, "owner/repo")
         repo.get_pull.assert_not_called()
 
-    def test_dequeue_without_reason_checks_authoritative_queue_timeline(self):
+    def test_ci_failure_dequeue_checks_marker(self):
         pull = Mock()
         pull.number = 123
         pull.head.sha = HEAD_SHA
@@ -111,7 +145,7 @@ class EventTests(unittest.TestCase):
         repo.get_pull.return_value = pull
 
         process_event(
-            {"action": "dequeued", "pull_request": {"number": 123}},
+            {"action": "dequeued", "reason": "CI_FAILURE", "pull_request": {"number": 123}},
             Mock(),
             repo,
             "owner/repo",
@@ -119,7 +153,7 @@ class EventTests(unittest.TestCase):
 
         repo.get_pull.assert_called_once_with(123)
 
-    def test_analysis_completion_accepts_merge_group_origin(self):
+    def test_analysis_completion_does_not_require_webhook_reason(self):
         pull = Mock()
         pull.number = 123
         pull.head.sha = HEAD_SHA
@@ -132,7 +166,7 @@ class EventTests(unittest.TestCase):
                 "action": "completed",
                 "workflow_run": {
                     "name": "CI Failure Doctor — Merge Queue",
-                    "event": "merge_group",
+                    "event": "workflow_run",
                     "conclusion": "success",
                     "display_title": "CI Doctor MQ: gh-readonly-queue/master/pr-123-abcdef123456",
                 },
@@ -154,6 +188,7 @@ class EventTests(unittest.TestCase):
         event = {
             "workflow_run": {
                 "name": "CI Failure Doctor — Merge Queue",
+                "event": "workflow_run",
                 "conclusion": "success",
                 "display_title": "CI Doctor MQ: gh-readonly-queue/master/pr-123-abcdef123456",
             }
@@ -188,23 +223,223 @@ class EventTests(unittest.TestCase):
     def test_latest_queue_event_includes_removal_reason_and_enqueue_time(self):
         added_at = NOW.replace(hour=6)
         removed_at = NOW.replace(hour=7)
-        pull = SimpleNamespace(
-            as_issue=lambda: SimpleNamespace(
-                get_timeline=lambda: [
-                    SimpleNamespace(event="added_to_merge_queue", created_at=added_at),
-                    SimpleNamespace(
-                        event="removed_from_merge_queue",
-                        created_at=removed_at,
-                        reason="failed_checks",
-                    ),
-                ]
-            )
+        gh = Mock()
+        gh.requester.requestJsonAndCheck.return_value = (None, {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "timelineItems": {
+                            "nodes": [
+                                {"__typename": "AddedToMergeQueueEvent", "createdAt": added_at.isoformat()},
+                                {
+                                    "__typename": "RemovedFromMergeQueueEvent",
+                                    "createdAt": removed_at.isoformat(),
+                                    "reason": "CI_FAILURE",
+                                },
+                            ],
+                            "pageInfo": {"hasPreviousPage": False, "startCursor": None},
+                        }
+                    }
+                }
+            }
+        })
+
+        latest, latest_added = latest_queue_events(gh, "owner/repo", 123)
+
+        self.assertEqual(latest, ("removed_from_merge_queue", removed_at, "CI_FAILURE"))
+        self.assertEqual(latest_added, added_at)
+        request = gh.requester.requestJsonAndCheck.call_args
+        self.assertEqual(request.args[:2], ("POST", "/graphql"))
+        self.assertIn("RemovedFromMergeQueueEvent", request.kwargs["input"]["query"])
+        self.assertEqual(request.kwargs["input"]["variables"]["number"], 123)
+
+    def test_latest_queue_event_paginates_until_latest_admission(self):
+        added_at = NOW.replace(hour=6)
+        removed_at = NOW.replace(hour=7)
+        gh = Mock()
+        gh.requester.requestJsonAndCheck.side_effect = [
+            (None, {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "timelineItems": {
+                                "nodes": [{
+                                    "__typename": "RemovedFromMergeQueueEvent",
+                                    "createdAt": removed_at.isoformat(),
+                                    "reason": "CI_FAILURE",
+                                }],
+                                "pageInfo": {"hasPreviousPage": True, "startCursor": "cursor-2"},
+                            }
+                        }
+                    }
+                }
+            }),
+            (None, {
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "timelineItems": {
+                                "nodes": [{
+                                    "__typename": "AddedToMergeQueueEvent",
+                                    "createdAt": added_at.isoformat(),
+                                }],
+                                "pageInfo": {"hasPreviousPage": False, "startCursor": "cursor-1"},
+                            }
+                        }
+                    }
+                }
+            }),
+        ]
+
+        latest, latest_added = latest_queue_events(gh, "owner/repo", 123)
+
+        self.assertEqual(latest, ("removed_from_merge_queue", removed_at, "CI_FAILURE"))
+        self.assertEqual(latest_added, added_at)
+        second_variables = gh.requester.requestJsonAndCheck.call_args_list[1].kwargs["input"]["variables"]
+        self.assertEqual(second_variables["before"], "cursor-2")
+
+    def test_graphql_queue_reason_can_be_null(self):
+        gh = Mock()
+        gh.requester.requestJsonAndCheck.return_value = (None, {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "timelineItems": {
+                            "nodes": [{
+                                "__typename": "RemovedFromMergeQueueEvent",
+                                "createdAt": NOW.isoformat(),
+                                "reason": None,
+                            }],
+                            "pageInfo": {"hasPreviousPage": False, "startCursor": None},
+                        }
+                    }
+                }
+            }
+        })
+
+        latest, latest_added = latest_queue_events(gh, "owner/repo", 123)
+
+        self.assertEqual(latest, ("removed_from_merge_queue", NOW, ""))
+        self.assertIsNone(latest_added)
+
+
+class ReaddDecisionTests(unittest.TestCase):
+    def setUp(self):
+        self.pull = Mock()
+        self.pull.number = 123
+        self.pull.head.sha = HEAD_SHA
+        self.pull.get_issue_comments.return_value = [
+            SimpleNamespace(user=SimpleNamespace(login=BOT_LOGIN), body=MARKER_BODY, created_at=NOW)
+        ]
+        self.removal = SimpleNamespace(
+            event="removed_from_merge_queue",
+            reason="CI_FAILURE",
+            created_at=NOW.replace(hour=7),
+        )
+        self.pull.as_issue.return_value.get_timeline.return_value = [
+            SimpleNamespace(event="added_to_merge_queue", created_at=NOW.replace(hour=6)),
+            self.removal,
+        ]
+        self.repo = Mock()
+        self.repo.get_pull.return_value = self.pull
+        self.repo.get_workflow_run.return_value = SimpleNamespace(
+            event="merge_group",
+            conclusion="failure",
+            head_branch="gh-readonly-queue/master/pr-123-abcdef123456",
+        )
+        self.event = {"action": "dequeued", "reason": "CI_FAILURE", "pull_request": {"number": 123}}
+        self.gh = Mock()
+        self.readd = self._patch("readd_to_queue")
+        self.timeline = self._patch("latest_queue_events")
+        self.timeline.return_value = (
+            ("removed_from_merge_queue", NOW.replace(hour=7), "CI_FAILURE"),
+            NOW.replace(hour=6),
+        )
+        self._patch("merge_queue_status").return_value = "not_in_queue"
+        self._patch("require_env").return_value = "test-token"
+
+    def _patch(self, name):
+        patcher = patch(f"readd_transient_failure.{name}")
+        result = patcher.start()
+        self.addCleanup(patcher.stop)
+        return result
+
+    def test_ci_failure_with_valid_marker_reaches_enqueue(self):
+        process_event(self.event, self.gh, self.repo, "owner/repo")
+
+        self.readd.assert_called_once_with(
+            self.pull, "123", "owner/repo", "transient merge-queue failure", "test-token", self.gh, self.repo
         )
 
-        latest, latest_added = latest_queue_events(pull)
+    def test_dequeued_webhook_reason_is_authoritative_when_graphql_reason_is_null(self):
+        self.timeline.return_value = (
+            ("removed_from_merge_queue", NOW.replace(hour=7), ""),
+            NOW.replace(hour=6),
+        )
 
-        self.assertEqual(latest, ("removed_from_merge_queue", removed_at, "failed_checks"))
-        self.assertEqual(latest_added, added_at)
+        process_event(self.event, self.gh, self.repo, "owner/repo")
+
+        self.readd.assert_called_once()
+
+    def test_dequeued_webhook_rejects_conflicting_graphql_reason(self):
+        for reason in OTHER_REMOVAL_REASONS:
+            with self.subTest(reason=reason):
+                self.timeline.return_value = (
+                    ("removed_from_merge_queue", NOW.replace(hour=7), reason),
+                    NOW.replace(hour=6),
+                )
+                process_event(self.event, self.gh, self.repo, "owner/repo")
+                self.readd.assert_not_called()
+
+    def test_ci_failure_still_requires_a_trusted_marker(self):
+        self.pull.get_issue_comments.return_value = []
+
+        process_event(self.event, self.gh, self.repo, "owner/repo")
+
+        self.readd.assert_not_called()
+
+    def test_analysis_completion_checks_ci_failure_without_webhook_reason(self):
+        event = {
+            "action": "completed",
+            "workflow_run": {
+                "id": 789,
+                "name": "CI Failure Doctor — Merge Queue",
+                "event": "workflow_run",
+                "conclusion": "success",
+                "display_title": "CI Doctor MQ: gh-readonly-queue/master/pr-123-abcdef123456",
+            },
+        }
+
+        process_event(event, self.gh, self.repo, "owner/repo")
+
+        self.readd.assert_called_once()
+        self.readd.reset_mock()
+        self.timeline.return_value = (
+            ("removed_from_merge_queue", NOW.replace(hour=7), "MANUAL"),
+            NOW.replace(hour=6),
+        )
+        process_event(event, self.gh, self.repo, "owner/repo")
+        self.readd.assert_not_called()
+
+    def test_analysis_completion_fails_closed_when_graphql_reason_is_missing(self):
+        event = {
+            "action": "completed",
+            "workflow_run": {
+                "id": 789,
+                "name": "CI Failure Doctor — Merge Queue",
+                "event": "workflow_run",
+                "conclusion": "success",
+                "display_title": "CI Doctor MQ: gh-readonly-queue/master/pr-123-abcdef123456",
+            },
+        }
+        self.timeline.return_value = (
+            ("removed_from_merge_queue", NOW.replace(hour=7), ""),
+            NOW.replace(hour=6),
+        )
+
+        process_event(event, self.gh, self.repo, "owner/repo")
+
+        self.readd.assert_not_called()
 
 
 if __name__ == "__main__":

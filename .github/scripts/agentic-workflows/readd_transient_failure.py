@@ -39,6 +39,35 @@ ELIGIBLE_MARKER_RE = re.compile(
 )
 READD_MARKER = "<!-- ci-doctor-mq-readd -->"
 
+QUEUE_EVENTS_QUERY = """
+query($owner: String!, $repo: String!, $number: Int!, $before: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      timelineItems(
+        last: 100,
+        before: $before,
+        itemTypes: [ADDED_TO_MERGE_QUEUE_EVENT, REMOVED_FROM_MERGE_QUEUE_EVENT]
+      ) {
+        nodes {
+          __typename
+          ... on AddedToMergeQueueEvent {
+            createdAt
+          }
+          ... on RemovedFromMergeQueueEvent {
+            createdAt
+            reason
+          }
+        }
+        pageInfo {
+          hasPreviousPage
+          startCursor
+        }
+      }
+    }
+  }
+}
+"""
+
 
 @dataclass(frozen=True)
 class EligibilityMarker:
@@ -79,9 +108,11 @@ def find_eligibility_marker(
 
 
 def dequeue_reason(event: dict[str, Any]) -> str:
-    """Read the reason field from a pull_request dequeued webhook payload."""
-    pull_request = event.get("pull_request") or {}
-    return str(event.get("reason") or pull_request.get("reason") or "")
+    """Read the required top-level reason from a pull_request dequeued payload."""
+    reason = event.get("reason")
+    if not isinstance(reason, str) or not reason:
+        raise SystemExit("Dequeued event requires a non-empty top-level reason string.")
+    return reason
 
 
 def pr_number_from_event(event: dict[str, Any]) -> str:
@@ -93,6 +124,8 @@ def pr_number_from_event(event: dict[str, Any]) -> str:
     workflow_run = event.get("workflow_run") or {}
     if workflow_run.get("name") != ANALYSIS_WORKFLOW_NAME:
         raise SystemExit("workflow_run event did not originate from CI Doctor MQ.")
+    if workflow_run.get("event") != "workflow_run":
+        raise SystemExit("CI Doctor MQ was not triggered by workflow_run.")
     if workflow_run.get("conclusion") not in ("success", "failure"):
         raise SystemExit("CI Doctor MQ did not complete normally; skipping re-queue.")
     branch = str(workflow_run.get("display_title") or "")
@@ -102,27 +135,79 @@ def pr_number_from_event(event: dict[str, Any]) -> str:
     return number
 
 
-def _timeline_event_data(event: Any) -> tuple[str, datetime | None, str]:
-    raw_data = getattr(event, "raw_data", {}) or {}
-    name = str(getattr(event, "event", None) or raw_data.get("event") or "")
-    created_at = getattr(event, "created_at", None)
-    reason = str(getattr(event, "reason", None) or raw_data.get("reason") or "")
-    return name, created_at, reason
+def latest_queue_events(
+    gh: Any, repository: str, pr_number: int
+) -> tuple[tuple[str, datetime, str] | None, datetime | None]:
+    """Return the latest queue event and admission from GraphQL timeline data."""
+    owner, _, repo_name = repository.partition("/")
+    if not owner or not repo_name:
+        raise SystemExit(f"Invalid repository name for merge-queue timeline lookup: {repository!r}")
 
-
-def latest_queue_events(pull: PullRequest) -> tuple[tuple[str, datetime, str] | None, datetime | None]:
-    """Return the latest add/remove event and latest enqueue timestamp."""
-    queue_events: list[tuple[str, datetime, str]] = []
+    before = None
+    latest: tuple[str, datetime, str] | None = None
     latest_added: datetime | None = None
-    for event in pull.as_issue().get_timeline():
-        name, created_at, reason = _timeline_event_data(event)
-        if name not in ("added_to_merge_queue", "removed_from_merge_queue") or created_at is None:
-            continue
-        queue_events.append((name, created_at, reason))
-        if name == "added_to_merge_queue" and (latest_added is None or created_at > latest_added):
-            latest_added = created_at
-    latest = max(queue_events, key=lambda item: item[1]) if queue_events else None
-    return latest, latest_added
+    while True:
+        _, response = gh.requester.requestJsonAndCheck(
+            "POST",
+            "/graphql",
+            input={
+                "query": QUEUE_EVENTS_QUERY,
+                "variables": {
+                    "owner": owner,
+                    "repo": repo_name,
+                    "number": pr_number,
+                    "before": before,
+                },
+            },
+        )
+        if response.get("errors"):
+            raise SystemExit(f"Merge-queue timeline lookup failed: {response['errors']}")
+
+        pull_request = (
+            (response.get("data") or {}).get("repository") or {}
+        ).get("pullRequest")
+        if not pull_request:
+            raise SystemExit(f"Merge-queue timeline lookup did not return PR #{pr_number}.")
+
+        timeline = pull_request.get("timelineItems")
+        if not timeline:
+            raise SystemExit(f"Merge-queue timeline lookup returned no timeline for PR #{pr_number}.")
+        for event in timeline.get("nodes") or []:
+            typename = event.get("__typename")
+            if typename == "AddedToMergeQueueEvent":
+                name = "added_to_merge_queue"
+                reason = ""
+            elif typename == "RemovedFromMergeQueueEvent":
+                name = "removed_from_merge_queue"
+                reason = event.get("reason") or ""
+            else:
+                continue
+
+            created_at_value = event.get("createdAt")
+            if not isinstance(created_at_value, str):
+                raise SystemExit("Merge-queue timeline event is missing its createdAt timestamp.")
+            try:
+                created_at = datetime.fromisoformat(created_at_value.replace("Z", "+00:00"))
+            except ValueError as error:
+                raise SystemExit(f"Invalid merge-queue event timestamp: {created_at_value!r}") from error
+
+            if latest is None or created_at > latest[1]:
+                latest = (name, created_at, str(reason))
+            if name == "added_to_merge_queue" and (
+                latest_added is None or created_at > latest_added
+            ):
+                latest_added = created_at
+
+        if latest_added is not None:
+            return latest, latest_added
+
+        page_info = timeline.get("pageInfo") or {}
+        if not page_info.get("hasPreviousPage"):
+            return latest, None
+        cursor = page_info.get("startCursor")
+        if not cursor or cursor == before:
+            raise SystemExit("Merge-queue timeline pagination did not advance.")
+        before = cursor
 
 
 def marker_is_current(marker: EligibilityMarker, latest_added: datetime | None) -> bool:
@@ -207,7 +292,7 @@ def readd_to_queue(
         f"{READD_MARKER}\n\n"
         "### CI Doctor — Merge Queue Re-add\n\n"
         "CI Doctor re-added this PR after confirming that the merge queue removed it for "
-        f"`failed_checks` and its current head was marked transient.\n\n"
+        "`CI_FAILURE` and its current head was marked transient.\n\n"
         f"- **Reason**: {reason or 'transient failure'}\n"
     )
     write_pull.create_issue_comment(comment)
@@ -226,10 +311,11 @@ def _set_github_env(key: str, value: str) -> None:
 def process_event(event: dict[str, Any], gh: Any, repo: Repository, repository: str) -> None:
     """Validate the event, marker, source run, queue state, then re-add if safe."""
     is_dequeued = event.get("action") == "dequeued"
-    event_reason = dequeue_reason(event)
-    if is_dequeued and event_reason and event_reason != "failed_checks":
-        print(f"Dequeued event reason is {event_reason!r}, not 'failed_checks'; skipping.")
-        return
+    if is_dequeued:
+        event_reason = dequeue_reason(event)
+        if event_reason != "CI_FAILURE":
+            print(f"Dequeued event reason is {event_reason!r}, not 'CI_FAILURE'; skipping.")
+            return
 
     if not is_dequeued:
         workflow_run = event.get("workflow_run") or {}
@@ -253,9 +339,17 @@ def process_event(event: dict[str, Any], gh: Any, repo: Repository, repository: 
             print("Eligibility marker does not match the completed CI Doctor MQ run; skipping.")
             return
 
-    latest_event, latest_added = latest_queue_events(pull)
-    if not latest_event or latest_event[0] != "removed_from_merge_queue" or latest_event[2] != "failed_checks":
-        print("Latest merge-queue event is not a failed_checks removal; skipping.")
+    latest_event, latest_added = latest_queue_events(gh, repository, pull.number)
+    if not latest_event or latest_event[0] != "removed_from_merge_queue":
+        print("Latest merge-queue event is not a removal; skipping.")
+        return
+    if is_dequeued:
+        timeline_reason = latest_event[2]
+        if timeline_reason and timeline_reason != event_reason:
+            print("Dequeued payload reason does not match the latest GraphQL removal reason; skipping.")
+            return
+    elif latest_event[2] != "CI_FAILURE":
+        print("Latest GraphQL merge-queue removal is not a CI_FAILURE removal; skipping.")
         return
     if not marker_is_current(marker, latest_added):
         print("Eligibility marker predates the latest merge-queue admission; skipping.")

@@ -7,7 +7,7 @@ description: |
   and sends a second escalation alert to Microsoft Teams when the same failure pattern
   has 3 or more occurrences within the last 12 hours. For transient failures, it
   posts a trusted eligibility marker; a separate workflow re-adds the PR only
-  after a failed-checks dequeue is confirmed.
+  after a `CI_FAILURE` dequeue is confirmed.
 
   The investigation protocol shared with the Post-Commit doctor lives in the
   parameterised `shared/agentic-workflows/ci-doctor-*.md` fragments imported below;
@@ -211,7 +211,7 @@ For `propose_rerun_pattern`:
 ```markdown
 ### Automatic Remediation
 
-- If you called `remediate_transient_failure`: `✅ Transient failure marked` followed by the one-line `reason` you passed. The job re-runs failed jobs if the PR remains queued and posts a marker; a separate workflow may re-add it only after confirming a `failed_checks` dequeue.
+- If you called `remediate_transient_failure`: `✅ Transient failure marked` followed by the one-line `reason` you passed. The job re-runs failed jobs if the PR remains queued and posts a marker; a separate workflow may re-add it only after confirming a `CI_FAILURE` dequeue.
 - Otherwise: `❌ Not triggered` followed by a short justification (e.g. deterministic code failure that a restart cannot fix).
 - Then one line `Rerun pattern:` with either `📝 Proposed for review` followed by the candidate in backticks (when you called `propose_rerun_pattern`), or `— not proposed` followed by a short reason (non-transient, no verified candidate, already approved).
 ```
@@ -276,7 +276,7 @@ Call the `remediate_transient_failure` safe-output tool **only** when your Root 
 
 When you call `remediate_transient_failure`, the job resolves the PR behind the analysed run and reads its **live** merge-queue status:
 - **PR still in the queue** → it re-runs only the failed jobs (unless the run already had a retry) and posts a transient-eligibility marker.
-- **PR no longer in the queue** → it posts the same marker without re-adding the PR. The separate `ci-doctor-mq-readd` workflow validates the bot-authored marker, current PR head, failed merge-group source run, latest `failed_checks` removal, and live queue status before re-queueing.
+- **PR no longer in the queue** → it posts the same marker without re-adding the PR. The separate `ci-doctor-mq-readd` workflow validates the bot-authored marker, current PR head, failed merge-group source run, latest `CI_FAILURE` removal, and live queue status before re-queueing.
 - **PR already merged, no PR is associated, or status indeterminate** → it takes no action (fail safe).
 
 Call it **at most once** per investigation. It re-runs only the **failed** jobs (passing jobs are untouched) and refuses to re-run a run already on its second attempt, to avoid restart loops. The marker is bound to the current PR head SHA, source failure run ID, and CI Doctor analysis run ID. The re-queue workflow accepts only comments authored by `github-actions[bot]` and will re-add a PR at most once.
@@ -316,7 +316,7 @@ In addition to `notify_teams`, `noop` and `missing_data` from the shared protoco
 
 - **`notify_teams_recurring`**: Send a recurring-failure escalation alert. Call this **only** if Phase 5.5 determines that there are 3+ occurrences in the last 12 hours. Call at most once per run.
 - **`add_comment`**: Post a remediation comment on the affected merge-queue PR. Call this **only** when the failure is associated with a PR (provide `item_number` and `body`). Call at most once per run.
-- **`remediate_transient_failure`**: Mark a transient merge-queue failure for possible re-queueing. Call this **only** when the failure is transient (Infrastructure / Flaky Test / Network / External Service). The job re-runs failed jobs if the PR remains queued, then posts a trusted marker. A separate deterministic workflow handles re-queueing only after validating a `failed_checks` dequeue. Call at most once per run.
+- **`remediate_transient_failure`**: Mark a transient merge-queue failure for possible re-queueing. Call this **only** when the failure is transient (Infrastructure / Flaky Test / Network / External Service). The job re-runs failed jobs if the PR remains queued, then posts a trusted marker. A separate deterministic workflow handles re-queueing only after validating a `CI_FAILURE` dequeue. Call at most once per run.
 - **`propose_rerun_pattern`**: Open a human-review PR against `master` that would add the verified rerun search string candidate to `.github/scripts/workflow_rerun/errors_to_look_for.json`. Call this **only** under the conditions in its decision guidance above. Call at most once per run.
 
 **Valid call combinations:**

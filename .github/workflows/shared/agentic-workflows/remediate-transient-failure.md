@@ -53,7 +53,7 @@ safe-outputs:
           run: echo "CI Doctor re-ran the failed jobs for the analysed run (PR still in the merge queue)."
         - name: Transient eligibility marker was posted
           if: ${{ env.TRANSIENT_ELIGIBILITY_MARKED == 'true' }}
-          run: echo "CI Doctor marked the PR as eligible for re-queueing after a failed_checks dequeue."
+          run: echo "CI Doctor marked the PR as eligible for re-queueing after a CI_FAILURE dequeue."
 ---
 
 # CI Doctor MQ — Remediate Transient Failure
@@ -79,7 +79,7 @@ When invoked, the job:
    ID, and analysis run ID. It does this whether the PR is still queued or has
    already been dequeued.
 5. Does not re-add the PR. The separate workflow validates the marker, the
-   latest `failed_checks` dequeue, current PR head, and live queue status before
+   latest `CI_FAILURE` dequeue event, current PR head, and live queue status before
    using `MERGE_QUEUE_TOKEN` to re-queue it.
 
 Re-running uses the default ``GITHUB_TOKEN`` with ``actions: write``; the

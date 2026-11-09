@@ -6,6 +6,9 @@ name: CI Doctor MQ Re-add
 on:
   pull_request_target:
     types: [dequeued]
+  workflow_run:
+    workflows: ["CI Failure Doctor — Merge Queue"]
+    types: [completed]
 
 concurrency:
   group: ci-doctor-mq-readd-${{ github.event.pull_request.number || github.event.workflow_run.id }}
@@ -16,6 +19,11 @@ permissions:
 
 jobs:
   readd:
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'workflow_run' &&
+      (github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure'))
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -26,6 +34,7 @@ jobs:
       - name: Checkout trusted workflow scripts
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: .github/scripts/agentic-workflows
           persist-credentials: false
 

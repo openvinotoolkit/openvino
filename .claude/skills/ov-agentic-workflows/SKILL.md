@@ -177,8 +177,12 @@ them — see below):
 - **Merge-queue re-add marker race** — a PR `dequeued` event can reach the deterministic companion
   before CI Doctor MQ finishes analysis. Pair the dequeue trigger with an analysis-completion fallback,
   bind the marker to the current PR head and both run IDs, and verify the bot author and latest
-  `failed_checks` removal. Any `pull_request_target` companion must use trusted default-branch code and
-  never check out or execute PR-head content.
+  `CI_FAILURE` removal. The dequeue webhook has a required top-level `reason`; use that as the
+  authoritative reason for the dequeue path. The REST timeline does not document a removal reason;
+  use the GraphQL `RemovedFromMergeQueueEvent.reason` field for the completion fallback and fail
+  closed if it is missing or not `CI_FAILURE`. Do not substitute invented values such as
+  `failed_checks`. Follow the [CI security policy](../../../docs/dev/ci/github_actions/security.md)
+  when choosing triggers; `pull_request_target` requires prior CI task-force consultation.
 - **Teams source badge** (`notify-teams.md`) — the shared Teams job is used by both `ci-doctor-mq` and
   `ci-doctor-post-commit`; each must pass the `source` input (`merge_queue` / `post_commit`) so the
   card shows the right `[MQ]` / `[PC]` badge and uploads the correctly-named statistics artifact.

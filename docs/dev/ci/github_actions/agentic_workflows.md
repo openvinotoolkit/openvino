@@ -113,7 +113,7 @@ companion is not compiled by `gh aw`.
 | Scope | **Every** failed pipeline on the PR head commit | A **single** failed merge-queue run | A **single** failed post-commit run | One PR dequeue with a trusted transient marker |
 | Knowledge base | Reads the MQ pattern database (read-only) | **Writes** the MQ pattern database (investigations + patterns) | **Writes** its own post-commit pattern database (investigations + patterns) | None |
 | Output | One consolidated PR comment | Teams notification, optional PR comment, failed-job re-run, transient marker | Microsoft Teams notification only | Re-add eligible PR at most once |
-| Remediation | Report only | Re-runs failed jobs if still queued; marks transient failures for possible re-add | Report only (never re-runs or re-queues) | Re-adds only for `failed_checks` after marker validation |
+| Remediation | Report only | Re-runs failed jobs if still queued; marks transient failures for possible re-add | Report only (never re-runs or re-queues) | Re-adds only for `CI_FAILURE` after marker validation |
 | Engine / model | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` | None (deterministic) |
 
 ## CI Doctor (pull request, on-demand)
@@ -203,7 +203,7 @@ completion fallback with the affected PR.
   handles `pull_request_target: dequeued` and CI Doctor MQ completion. The completion trigger covers the
   race where analysis posts its marker after the dequeue event. The workflow re-adds only if the
   marker is authored by `github-actions[bot]`, matches the current PR head and source merge-group run,
-  the latest queue removal reason is `failed_checks`, and the PR is not already queued. It never
+  the latest queue removal reason is `CI_FAILURE`, and the PR is not already queued. It never
   checks out or executes PR code, supports fork PRs, and re-adds a PR at most once.
 * **Rerun-pattern proposals**: for a transient failure with a verified `rerun_search_string`
   candidate, the agent calls `propose_rerun_pattern`, which opens a **human-review pull request** against
@@ -239,12 +239,22 @@ completion starts the same validation again.
 
 The workflow accepts only a bot-authored eligibility comment whose marker matches the PR number and
 current head SHA, and whose source run was a failed `merge_group` run for that PR. It also checks that
-the latest queue removal is `failed_checks`, that the marker was created after the latest queue
-admission, and that live merge-queue state confirms the PR is out of the queue. Merged, closed, draft,
+the latest queue event is a removal, that the marker was created after the latest queue admission,
+and that live merge-queue state confirms the PR is out of the queue. For a dequeue event, it uses the
+required top-level webhook `reason`; on the completion fallback, it verifies the GraphQL
+`RemovedFromMergeQueueEvent.reason` field. Both paths accept only `CI_FAILURE`. Merged, closed, draft,
 stale, already-queued, unmarked, or previously re-added PRs are skipped. The workflow checks out only
 trusted repository scripts from the default branch and never checks out or executes PR code.
 The checks and enqueue operation are implemented in
 [`readd_transient_failure.py`](../../../../.github/scripts/agentic-workflows/readd_transient_failure.py).
+
+The dequeue webhook's top-level `reason` is a required string, using the
+[documented removal reasons](https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request).
+Only `CI_FAILURE` is eligible; `CI_TIMEOUT`, manual removals, all other reasons, and unknown values are
+skipped. A dequeue event must have its documented top-level reason. The queue timeline is read from
+GraphQL because the REST timeline-event contract does not document a removal-reason field. A missing
+GraphQL reason is tolerated only on the direct webhook path, where the webhook provides the required
+reason; the completion fallback fails closed if GraphQL does not provide `CI_FAILURE`.
 
 ## CI Doctor — Post-Commit (automatic)
 
@@ -403,7 +413,7 @@ marker comment.
 **`ci-doctor-mq-readd.yml`** is the deterministic companion workflow. It runs on PR dequeue and on CI
 Doctor MQ completion (to handle a marker posted after the dequeue trigger). It only re-adds after
 checking the bot-authored current-head marker, matching failed merge-group source run, latest
-`failed_checks` queue removal, and live queue state. It skips merged, closed, draft, stale, already
+`CI_FAILURE` queue removal, and live queue state. It skips merged, closed, draft, stale, already
 queued, or previously re-added PRs. It uses trusted default-branch scripts only; it never checks out
 PR code. `MERGE_QUEUE_TOKEN` performs the enqueue because `GITHUB_TOKEN` cannot re-trigger
 `merge_group` checks.
