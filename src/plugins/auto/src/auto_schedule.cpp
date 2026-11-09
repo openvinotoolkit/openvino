@@ -693,7 +693,14 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
                         ": failed to compile the model on the device pinned by the remote tensor ",
                         requested_device_name);
         if (previous_device != device.device_name) {
-            release_inactive_device(previous_device);
+            try {
+                release_inactive_device(previous_device);
+            } catch (const std::exception& ex) {
+                // releasing is only a memory optimization and must not fail a prepared inference
+                LOG_DEBUG_TAG("[dynamic] failed to release inactive device:%s: %s",
+                              previous_device.c_str(),
+                              ex.what());
+            }
         }
         const auto& device_name = device.device_name;
         {
