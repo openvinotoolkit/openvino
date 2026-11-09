@@ -350,7 +350,7 @@ private:
         _pd = create_sdpa_primitive_desc(impl_params, engine, *_attrs, _use_host_scale, _use_runtime_mask, _mask_md, _scale_md);
         _scratchpad_md = _pd.scratchpad_desc();
         _kernel_name = _pd.impl_info_str();
-        _prim = dnnl::primitive(_pd);
+        _prim = jit_primitive(config);
         _enable_profiling = config.get_enable_profiling();
     }
 };

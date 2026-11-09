@@ -237,7 +237,7 @@ void save(BinaryOutputBuffer& ob) const override {
 
         std::vector<uint8_t> prim_cache;
         ib >> prim_cache;
-        _prim = make_primitive_from_blob(prim_cache);
+        _prim = make_primitive_from_blob(prim_cache, impl_params->get_program().get_config());
 #endif
     }
 

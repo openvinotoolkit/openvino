@@ -379,6 +379,9 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
         if (dump_sources && dump_file.good())
             dump_file << "\n/* Offline (ocloc, HW-free): no driver build log */\n";
     } else {
+        OPENVINO_ASSERT(!_config.get_disallow_runtime_compilation(),
+                        "[GPU] Runtime compilation is disallowed: OCL source build of batch ", batch.hash_value,
+                        " (", batch.kernels_counter, " kernels, first entry point ", batch.entry_point_to_id.begin()->first, ")");
         auto combined_source = join_strings(batch.source);
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
         OPENVINO_ASSERT(!kernels.empty(), "[GPU] Expected to compile more than 0 kernels in the batch");

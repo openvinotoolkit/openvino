@@ -364,11 +364,11 @@ private:
         }
 
         if (cache_outpath.empty()) {
-            _prim = PrimType(_pd);
+            _prim = jit_primitive(config);
         } else {
             std::vector<uint8_t> key = _pd.get_cache_blob_id();
             if (key.empty()) {  // runtime does not support cache blobs (e.g. SYCL)
-                _prim = PrimType(_pd);
+                _prim = jit_primitive(config);
                 return;
             }
             assert(!key.empty());
@@ -380,7 +380,7 @@ private:
             }
 
             if (cache.empty()) {
-                _prim = PrimType(_pd);
+                _prim = jit_primitive(config);
                 cache = _prim.get_cache_blob();
 
                 {
@@ -410,10 +410,16 @@ protected:
         return cache;
     }
 
+    PrimType jit_primitive(const ExecutionConfig& config) const {
+        OPENVINO_ASSERT(!config.get_disallow_runtime_compilation(),
+                        "[GPU] Runtime compilation is disallowed: oneDNN primitive ", _pd.impl_info_str(), " has no cache blob");
+        return PrimType(_pd);
+    }
+
     // Falls back to constructing the primitive from _pd alone when the blob is empty.
-    PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob) const {
+    PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob, const ExecutionConfig& config) const {
         if (cache_blob.empty()) {
-            return PrimType(_pd);
+            return jit_primitive(config);
         }
         return PrimType(_pd, cache_blob);
     }

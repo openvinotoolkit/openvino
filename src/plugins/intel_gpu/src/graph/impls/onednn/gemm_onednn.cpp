@@ -430,7 +430,8 @@ public:
 
         _scratchpad_md = _pd.scratchpad_desc();
 
-        _prim = make_primitive_from_blob(prim_cache);
+        const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
+        _prim = make_primitive_from_blob(prim_cache, impl_params->get_program().get_config());
 #endif
     }
 

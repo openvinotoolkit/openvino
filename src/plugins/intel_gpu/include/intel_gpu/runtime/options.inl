@@ -72,6 +72,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_sdpa_micro, true, "Enabl
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, use_cm, true, "Enable/Disable CM for usage for particular model/platform")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offline_compile, false, "HW-free offline compilation: compile kernels via ocloc, skip network build, export program blob")
 OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, offline_compile_device, std::string(""), "ocloc -device target for offline compilation, e.g. 0x4680 or 12.2.0")
+OV_CONFIG_RELEASE_OPTION(ov::intel_gpu, disallow_runtime_compilation, false, "Throw instead of JIT-compiling a kernel (OCL source build or oneDNN primitive without a cache blob)")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, max_kernels_per_batch, 8, "Controls how many kernels we combine into batch for more efficient ocl compilation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, impls_cache_capacity, 300, "Controls capacity of LRU implementations cache that is created for each program object for dynamic models")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, asym_dynamic_quantization, false, "Enforce asymmetric mode for dynamically quantized activations")

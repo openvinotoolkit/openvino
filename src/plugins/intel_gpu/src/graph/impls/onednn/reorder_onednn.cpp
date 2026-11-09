@@ -105,7 +105,7 @@ public:
         ib >> prim_cache;
 
         _scratchpad_md = _pd.scratchpad_desc();
-        _prim = make_primitive_from_blob(prim_cache);
+        _prim = make_primitive_from_blob(prim_cache, impl_params->get_program().get_config());
 #endif
     }
 
