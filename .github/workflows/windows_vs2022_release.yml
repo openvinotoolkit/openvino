@@ -712,7 +712,7 @@ jobs:
   GPU_Unit_Tests:
     name: GPU unit tests
     needs: [ Build, Smart_CI ]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
     timeout-minutes: 120 # to be adjusted when the stage is marked as required for merge
     defaults:
       run:
