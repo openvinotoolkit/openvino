@@ -952,15 +952,15 @@ TEST_F(memory_pool, dynamic_reuse_respects_utilization_boundary_and_restrictions
     config.set_property(ov::intel_gpu::mem_pool_util_threshold(0.5f));
     cldnn::memory_pool pool(engine, config);
     const auto alloc_type = engine.get_preferred_memory_allocation_type();
-    const layout large({1, 1, 1, 256}, data_types::i32, format::bfyx);
+    const layout large_layout({1, 1, 1, 256}, data_types::i32, format::bfyx);
     const layout eligible({1, 1, 1, 192}, data_types::i32, format::bfyx);
     const layout boundary({1, 1, 1, 128}, data_types::i32, format::bfyx);
 
     memory_restricter<uint32_t> none;
-    auto a = pool.get_memory(large, "a", 11, 0, none, alloc_type);
+    auto a = pool.get_memory(large_layout, "a", 11, 0, none, alloc_type);
     memory_restricter<uint32_t> restricted;
     restricted.insert(11);
-    auto b = pool.get_memory(large, "b", 12, 0, restricted, alloc_type);
+    auto b = pool.get_memory(large_layout, "b", 12, 0, restricted, alloc_type);
     ASSERT_FALSE(engine.is_the_same_buffer(*a, *b));
 
     auto reused = pool.get_memory(eligible, "reused", 13, 0, restricted, alloc_type, true, false, true);
@@ -976,25 +976,25 @@ TEST_F(memory_pool, dynamic_reuse_edge_thresholds_and_static_reuse) {
     config.set_property(ov::intel_gpu::mem_pool_util_threshold(0.0f));
     cldnn::memory_pool pool(engine, config);
     const auto alloc_type = engine.get_preferred_memory_allocation_type();
-    const layout large({1, 1, 1, 256}, data_types::i32, format::bfyx);
-    const layout small({1, 1, 1, 16}, data_types::i32, format::bfyx);
+    const layout large_layout({1, 1, 1, 256}, data_types::i32, format::bfyx);
+    const layout small_layout({1, 1, 1, 16}, data_types::i32, format::bfyx);
     memory_restricter<uint32_t> none;
-    auto a = pool.get_memory(large, "a", 11, 0, none, alloc_type);
-    auto dynamic = pool.get_memory(small, "dynamic", 12, 0, none, alloc_type, true, false, true);
+    auto a = pool.get_memory(large_layout, "a", 11, 0, none, alloc_type);
+    auto dynamic = pool.get_memory(small_layout, "dynamic", 12, 0, none, alloc_type, true, false, true);
     EXPECT_TRUE(engine.is_the_same_buffer(*a, *dynamic));
 
     auto static_config = get_test_default_config(engine);
     static_config.set_property(ov::intel_gpu::mem_pool_util_threshold(1.0f));
     cldnn::memory_pool static_pool(engine, static_config);
-    auto b = static_pool.get_memory(large, "b", 21, 0, none, alloc_type);
-    auto reused = static_pool.get_memory(small, "static", 22, 0, none, alloc_type, true, false, false);
+    auto b = static_pool.get_memory(large_layout, "b", 21, 0, none, alloc_type);
+    auto reused = static_pool.get_memory(small_layout, "static", 22, 0, none, alloc_type, true, false, false);
     EXPECT_TRUE(engine.is_the_same_buffer(*b, *reused));
 
     auto unordered_config = get_test_default_config(engine);
     unordered_config.set_property(ov::intel_gpu::mem_pool_util_threshold(std::numeric_limits<float>::quiet_NaN()));
     cldnn::memory_pool unordered_pool(engine, unordered_config);
-    auto c = unordered_pool.get_memory(large, "c", 31, 0, none, alloc_type);
-    auto not_reused = unordered_pool.get_memory(small, "unordered", 32, 0, none, alloc_type, true, false, true);
+    auto c = unordered_pool.get_memory(large_layout, "c", 31, 0, none, alloc_type);
+    auto not_reused = unordered_pool.get_memory(small_layout, "unordered", 32, 0, none, alloc_type, true, false, true);
     EXPECT_FALSE(engine.is_the_same_buffer(*c, *not_reused));
 }
 
@@ -1006,22 +1006,22 @@ TEST_F(memory_pool, release_reinterpreted_buffers_preserves_other_users) {
         SCOPED_TRACE(::testing::Message() << type);
         auto config = get_test_default_config(engine);
         cldnn::memory_pool pool(engine, config);
-        const layout large({1, 1, 1, 64}, data_types::i32, format::bfyx);
-        const layout small({1, 1, 1, 16}, data_types::i32, format::bfyx);
+        const layout large_layout({1, 1, 1, 64}, data_types::i32, format::bfyx);
+        const layout small_layout({1, 1, 1, 16}, data_types::i32, format::bfyx);
         memory_restricter<uint32_t> none;
-        auto a = pool.get_memory(large, "a", 11, 0, none, type);
-        auto view = pool.get_memory(small, "view", 12, 0, none, type);
+        auto a = pool.get_memory(large_layout, "a", 11, 0, none, type);
+        auto view = pool.get_memory(small_layout, "view", 12, 0, none, type);
         ASSERT_TRUE(engine.is_the_same_buffer(*a, *view));
         pool.release_memory(view.get(), 12, "view", 0);
         EXPECT_EQ(pool.get_non_padded_pool_size(), 1);
 
         memory_restricter<uint32_t> restricted;
         restricted.insert(11);
-        auto b = pool.get_memory(large, "b", 13, 0, restricted, type);
+        auto b = pool.get_memory(large_layout, "b", 13, 0, restricted, type);
         ASSERT_FALSE(engine.is_the_same_buffer(*a, *b));
         pool.release_memory(a.get(), 11, "a", 0);
         EXPECT_EQ(pool.get_non_padded_pool_size(), 1);
-        auto reused = pool.get_memory(large, "reused", 14, 0, none, type);
+        auto reused = pool.get_memory(large_layout, "reused", 14, 0, none, type);
         EXPECT_TRUE(engine.is_the_same_buffer(*b, *reused));
         pool.release_memory(b.get(), 13, "b", 0);
         EXPECT_EQ(pool.get_non_padded_pool_size(), 1);
