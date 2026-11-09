@@ -1745,6 +1745,7 @@ void primitive_inst::update_impl(bool use_async_compilation) {
     if (!get_node().is_type<data>() && (!get_node().is_type<mutable_data>() || !get_node().get_dependencies().empty())) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (_impls_factory->has(impl_types::onednn)) {
+            // create() modifies attrs_onednn: only one thread may create impls from it, see the async push in get_primitive_impl_for_params.
             auto attrs_onednn = std::make_shared<dnnl::primitive_attr>();
             std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
             get_node().create_onednn_primitive_attributes(_impl_params->fused_desc, attrs_onednn, fused_desc_onednn, _impl_params.get());
@@ -3681,6 +3682,7 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
 
     // 4. If async compilation is enabled and a dynamic impl serves this shape - compile the static impl asynchronously.
     //    Otherwise step 6 compiles it synchronously, and an async duplicate would run create() concurrently on the same onednn attributes.
+    //    A shape-agnostic oneDNN impl would also create() on them in step 3, so revisit this if one is added for an async-eligible type.
     if (compile_async && dynamic_impl) {
         auto& compilation_context = prog.get_compilation_context();
         compilation_context.push_task(updated_params, [&inst, &compilation_context, updated_params, find_impl]() {
