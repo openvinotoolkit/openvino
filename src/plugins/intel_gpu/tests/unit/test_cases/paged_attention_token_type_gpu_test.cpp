@@ -42,11 +42,10 @@ static std::string lane_dpas_kernel() {
     return tests::expected_dpas_backend(tests::get_test_engine(), true, tests::pa_hpg_tiers(true)) == tests::dpas_backend::ocl ? "sdpa_ocl" : "";
 }
 
-// The same for MIXED, which sdpa_ocl serves on the token-major K page only: on a d-major one (OV_GPU_PA_K_TOKEN_MAJOR=0)
-// MIXED runs pa_multi_token, and so it does with the DPAS kernel off (OV_GPU_ENABLE_SDPA_MICRO=0). Empty where sdpa_ocl
-// does not run MIXED.
-static std::string mixed_dpas_kernel(const PagedAttentionManager& pam) {
-    return pam.k_cache_token_major() && pa_dpas_kernel_enabled_by_config() ? lane_dpas_kernel() : "";
+// The same for MIXED, which runs pa_multi_token with the DPAS kernel off (OV_GPU_ENABLE_SDPA_MICRO=0). Empty where
+// sdpa_ocl does not run MIXED.
+static std::string mixed_dpas_kernel(const PagedAttentionManager&) {
+    return pa_dpas_kernel_enabled_by_config() ? lane_dpas_kernel() : "";
 }
 
 class paged_attention_token_type_test : public PagedAttentionTest<paged_attention_token_type_test_params> {
