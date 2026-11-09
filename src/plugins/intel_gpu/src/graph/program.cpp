@@ -98,6 +98,10 @@
 
 #include "kernel_base.h"
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_ocl.h>
+#endif
+
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -2221,6 +2225,13 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         std::vector<primitive_id> impl_ids;
         ib >> impl_ids;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // oneDNN primitives here come from cache blobs, so their pds can skip kernel generation checks.
+        struct cache_blob_pd_hint {
+            cache_blob_pd_hint() { dnnl_ocl_interop_set_cache_blob_pd_hint(1); }
+            ~cache_blob_pd_hint() { dnnl_ocl_interop_set_cache_blob_pd_hint(0); }
+        } pd_hint;
+#endif
         for (auto& impl_id : impl_ids) {
             auto& p_node = get_node(impl_id);
             std::string type_name;
