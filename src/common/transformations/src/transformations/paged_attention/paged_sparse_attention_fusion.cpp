@@ -50,7 +50,7 @@ PagedSparseAttentionFusion::PagedSparseAttentionFusion(paged_attention::PaParams
     constexpr size_t scale_input_index = 6;
     constexpr size_t sinks_input_index = 7;
 
-    const auto activation = [] {
+    const auto activation = [heads_axis, head_dim_axis] {
         return any_input(rank_equals(4) && has_static_dims({heads_axis, head_dim_axis}));
     };
     const auto p_query = any_input(rank_equals(4) && has_static_dims({heads_axis, head_dim_axis}) &&
