@@ -888,6 +888,9 @@ struct PagedAttentionManager {
 
     // paged_attention_test_params::reference_past_from_cache.
     bool reference_past_from_cache = false;
+    // With reference_past_from_cache, take the new tokens from the caches too: for a kernel that reads them back from the
+    // cache (the GQA multi-token fallback) rather than from the f16 K / V inputs (sdpa_ocl's Kc / Vc).
+    bool reference_new_from_cache = false;
 
     float get_default_scale() {
         return scale_multiplier * static_cast<float>(1.f / std::sqrt(k_head_size));
@@ -1156,10 +1159,11 @@ struct PagedAttentionReference {
 
             auto key_data = pam.key_data[i];
             auto value_data = pam.value_data[i];
-            if (pam.reference_past_from_cache && subsequence_desc.past_len > 0) {
+            const int from_cache = pam.reference_new_from_cache ? kv_seq_len : subsequence_desc.past_len;
+            if (pam.reference_past_from_cache && from_cache > 0) {
                 OPENVINO_ASSERT(key_cache_mem && value_cache_mem && !pam.rotation_config.apply_rotation,
                                 "reference_past_from_cache needs both caches and no rotation");
-                past_from_cache(key_data, value_data, key_cache_mem, value_cache_mem, i, subsequence_desc.past_len, kv_seq_len);
+                past_from_cache(key_data, value_data, key_cache_mem, value_cache_mem, i, from_cache, kv_seq_len);
             }
             if (pam.rotation_config.apply_rotation) {
                 auto blocks_start = pam.block_indices_begins[i];
