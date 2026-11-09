@@ -3,13 +3,14 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <algorithm>
+#include <chrono>
+
 #include "auto_schedule.hpp"
 
 #include <stdexcept>
 
 #include "async_infer_request.hpp"
-#include "openvino/runtime/compilation_context.hpp"
-#include "openvino/util/file_util.hpp"
 #include "plugin.hpp"
 
 // ------------------------------AutoSchedule----------------------------
@@ -124,9 +125,6 @@ void AutoSchedule::init() {
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     m_compile_context[ACTUALDEVICE].m_is_enabled = true;
-    if (m_context->m_runtime_fallback) {
-        m_compile_context[FALLBACKDEVICE].m_is_enabled = true;
-    }
     m_compile_context[ACTUALDEVICE].m_model_precision = m_context->m_model_precision;
     m_compile_context[ACTUALDEVICE].m_meta_devices = m_context->m_device_priorities;
     m_compile_context[ACTUALDEVICE].m_device_info =
@@ -138,6 +136,31 @@ void AutoSchedule::init() {
     if (m_context->m_dynamic_device_selection) {
         // nothing was reserved by select_device() in this mode
         m_compile_context[ACTUALDEVICE].m_priority_released = true;
+    }
+    if (m_context->m_compile_for_all) {
+        const auto& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+        const auto& candidates = m_compile_context[ACTUALDEVICE].m_meta_devices;
+        const bool has_warmup_candidate = std::any_of(candidates.begin(), candidates.end(), [&](const auto& device) {
+            return device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU";
+        });
+        if (!has_warmup_candidate) {
+            LOG_WARNING_TAG("compile_for_all is ignored: no other non-CPU candidate device to compile");
+            m_context->m_compile_for_all = false;
+        } else {
+            // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.
+            LOG_INFO_TAG("compile_for_all disables startup and runtime fallback");
+            m_context->m_startup_fallback = false;
+            m_context->m_runtime_fallback = false;
+            // Capture before the actual-device task releases the model.
+            m_cache_warmup = std::make_shared<CacheWarmup>(m_plugin->get_cache_warmup_manager(),
+                                                           m_context->m_ov_core,
+                                                           m_context->m_model,
+                                                           m_context->m_model_path,
+                                                           get_log_tag());
+        }
+    }
+    if (m_context->m_runtime_fallback) {
+        m_compile_context[FALLBACKDEVICE].m_is_enabled = true;
     }
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
@@ -350,6 +373,12 @@ void AutoSchedule::init() {
         }
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
+    // compile_for_all disables the CPU helper, so the warm-up can start as soon as the actual device is ready.
+    if (m_cache_warmup && m_compile_context[ACTUALDEVICE].m_is_already) {
+        // Failed startup devices were already removed from the actual context's candidates.
+        m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                              m_compile_context[ACTUALDEVICE].m_meta_devices);
+    }
 }
 
 void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::shared_ptr<ov::Model>& model) {
@@ -455,9 +484,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         }
     }
     // if the select device is CPU, need to check the config of m_compile_context[CPU]
-    // if they are same, do not need to compile again
+    // if they are same, do not need to compile again (only when the CPU helper is enabled)
     cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);
-    if (cur_dev_is_cpu) {
+    if (cur_dev_is_cpu && m_compile_context[CPU].m_is_enabled) {
         auto compare = [](ov::AnyMap& a, ov::AnyMap& b) -> bool {
             if (a.size() != b.size()) {
                 return false;
@@ -877,6 +906,10 @@ AutoSchedule::~AutoSchedule() {
         // it's necessary to wait the compile model threads to stop here.
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
         m_executor.reset();
+    }
+    // After the recycle task has stopped, so no new warm-up can be queued.
+    if (m_cache_warmup) {
+        m_cache_warmup->stop();
     }
     if (m_plugin && !m_context->m_dynamic_device_selection) {
         m_plugin->unregister_priority(m_context->m_model_priority,
