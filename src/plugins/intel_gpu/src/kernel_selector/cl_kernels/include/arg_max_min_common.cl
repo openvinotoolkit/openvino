@@ -8,7 +8,7 @@
     typedef struct
     {
         uint index;
-        INPUT0_TYPE value;
+        INPUT0_COMPUTE_TYPE value;
     } iav_type;
     #define IAV_STRUCT_DEFINED
 #endif

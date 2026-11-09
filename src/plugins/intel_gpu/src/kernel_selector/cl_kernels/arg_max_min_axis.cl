@@ -320,7 +320,8 @@ KERNEL(arg_max_min_modified)(
 
 // Using simple sorting for sorting by indices and when TOP_K == 1
 #elif TOP_K == 1
-    INPUT0_TYPE val = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+    INPUT0_COMPUTE_TYPE val = DECODE_INPUT0_COMPUTE_TYPE(
+        input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])]);
     result[0].index = 0;
     result[0].value = val;
     bool already_exist = false;
@@ -339,7 +340,8 @@ KERNEL(arg_max_min_modified)(
             }
 
             indices[AXIS] = i;
-            INPUT0_TYPE in_data = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+            INPUT0_COMPUTE_TYPE in_data = DECODE_INPUT0_COMPUTE_TYPE(
+                input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])]);
             if (COMPARE_SIGN(val, in_data)) {
                 result[top_k].index = i;
                 result[top_k].value = in_data;
