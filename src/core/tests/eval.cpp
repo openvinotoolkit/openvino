@@ -3303,6 +3303,50 @@ TEST(eval, evaluate_fake_convert_f32_to_f8e4m3_no_scale_no_shift_default_type_ct
                                                 -0.6875f,    -0.8125f,   -0.875f,   -1.f}));
 }
 
+namespace {
+// With a zero shift, FakeConvert must keep the sign of zero, also for values that round to zero (-0 + 0 is +0).
+template <element::Type_t ET>
+void check_fake_convert_f8e4m3_keeps_sign_of_zero() {
+    using T = fundamental_type_for<ET>;
+    // f8e4m3 subnormal step is 2^-9; all inputs are exact in f16 and bf16.
+    const std::vector<float> input{-0.f,
+                                   -0.00048828125f,   // -2^-11 -> -0
+                                   -0.0009765625f,    // -0.5 * 2^-9, tie -> -0
+                                   -0.001220703125f,  // -0.625 * 2^-9 -> -2^-9
+                                   0.f,
+                                   0.0009765625f};  // 0.5 * 2^-9, tie -> +0
+    const std::vector<float> expected{-0.f, -0.f, -0.f, -0.001953125f, 0.f, 0.f};
+
+    const auto data_shape = Shape{input.size()};
+    auto data = make_shared<ov::op::v0::Parameter>(ET, data_shape);
+    auto scale = op::v0::Constant::create(ET, Shape{1}, {1.f});
+    auto shift = op::v0::Constant::create(ET, Shape{1}, {0.f});
+    auto op = make_shared<op::v13::FakeConvert>(data, scale, shift, element::f8e4m3);
+    auto model = make_shared<Model>(OutputVector{op}, ParameterVector{data});
+
+    auto out_vector = ov::TensorVector{ov::Tensor()};
+    auto in_vector = ov::TensorVector{make_tensor<ET>(data_shape, std::vector<T>(input.begin(), input.end()))};
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+
+    const auto result = read_vector<T>(out_vector.at(0));
+    ASSERT_EQ(result.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const auto value = static_cast<float>(result[i]);
+        EXPECT_EQ(value, expected[i]) << "index " << i;
+        // EXPECT_EQ treats -0 and +0 as equal, so check the sign separately.
+        EXPECT_EQ(std::signbit(value), std::signbit(expected[i])) << "index " << i;
+    }
+}
+}  // namespace
+
+TEST(eval, evaluate_fake_convert_f16_to_f8e4m3_keeps_sign_of_zero) {
+    check_fake_convert_f8e4m3_keeps_sign_of_zero<element::f16>();
+}
+
+TEST(eval, evaluate_fake_convert_bf16_to_f8e4m3_keeps_sign_of_zero) {
+    check_fake_convert_f8e4m3_keeps_sign_of_zero<element::bf16>();
+}
+
 ///////////////////////////////////// FakeConvert f8e5m2
 TEST(eval, evaluate_fake_convert_f32_to_f8e5m2_scale_1) {
     using namespace testing;
