@@ -3702,17 +3702,18 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 4. Try to create new shape agnostic impl & cache it
-    // The impl is selected with the concrete runtime params, so a manager that rejects them (e.g. CM for a fused epilogue
-    // needing broadcast) is skipped, but it is created and compiled from the node's own params: built from the runtime
-    // params it would be shape specific and must not be reused for other shapes.
+    // If cached dynamic impls all reject these shapes (e.g. CM for a fused epilogue needing broadcast), the fallback is selected
+    // with the runtime params but created from the node's own params, so it stays shape agnostic for other shapes.
+    // Without any cached dynamic impl, the node may not support dynamic params at all (e.g. a forced conv kernel): keep using the runtime params.
     if (!dynamic_impl) {
-        const auto node_params = node->get_kernel_impl_params();
+        const auto node_params = m_dynamic_impls_cache.empty() ? nullptr : node->get_kernel_impl_params();
+        const kernel_impl_params& create_params = node_params ? *node_params : params;
         dynamic_impl = find_impl(node, params, shape_types::dynamic_shape, node_params.get());
         if (dynamic_impl && !inst.can_be_optimized()) {
             dynamic_impl->set_node_params(*node);
-            auto kernels = kernels_cache.compile(*node_params, dynamic_impl->get_kernels_source());
+            auto kernels = kernels_cache.compile(create_params, dynamic_impl->get_kernels_source());
             dynamic_impl->set_kernels(std::move(kernels));
-            if (dynamic_impl->is_dynamic()) {
+            if (!node_params || dynamic_impl->is_dynamic()) {
                 m_dynamic_impls_cache.push_back(dynamic_impl);
             }
         }
