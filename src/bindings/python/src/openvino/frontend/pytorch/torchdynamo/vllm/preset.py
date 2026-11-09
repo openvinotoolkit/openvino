@@ -11,26 +11,15 @@ from typing import Optional
 
 
 def set_pre_import_env() -> None:
-    """Pin the env vLLM latches at import time. Must run before `import vllm`.
+    """Set VLLM_USE_LAYERNAME=0 (an opaque layer_name input breaks compile.py); must run before `import vllm`.
 
-    VLLM_USE_LAYERNAME=1 hoists layer_name as an opaque graph input instead of
-    a constant, which torchdynamo/compile.py can't handle. vllm.utils reads
-    this at import, so setting it later or unpatching it after has no effect.
-
-    Callers must invoke this explicitly (see setup docs) -- it is not run on
-    import here, since this module is also reached by the generic (non-vLLM)
-    torchdynamo path, which must not have this env var set for it.
+    Not run on import: the generic torchdynamo path also imports this module.
     """
     os.environ["VLLM_USE_LAYERNAME"] = "0"
 
 
 def bool_opt(options, key: str, default: bool) -> bool:
-    """Resolve a boolean option: options[key] > vLLM preset > default.
-
-    Strings "false"/"0" count as False. Generic torchdynamo callers should
-    inline ``bool(options and options.get(key, default))`` instead — they do
-    not need the preset lookup.
-    """
+    """Resolve a boolean option: options[key] > vLLM preset > default; "false"/"0" count as False."""
     if options is not None and key in options:
         value = options[key]
     elif key in _PRESET_FLAGS and is_vllm_preset(options):
@@ -40,7 +29,7 @@ def bool_opt(options, key: str, default: bool) -> bool:
     return bool(value) and str(value).lower() not in ("false", "0")
 
 
-# Expanded from options["vllm"]=True; caller-supplied flags win (see bool_opt).
+# Expanded from options["vllm"]=True; caller-supplied flags win.
 _PRESET_FLAGS = {
     "paged_attention": True,
     "pa_translate": True,
@@ -49,37 +38,24 @@ _PRESET_FLAGS = {
     "dynamic_shapes": False,
 }
 
-# Model-independent OV CPU config defaults; caller-supplied keys win.
-# Float-precision keys are absent -- derived per-model by precision_config().
+# Model-independent OV CPU config defaults; caller-supplied keys win. Precision comes from precision_config().
 _PRESET_CONFIG = {
-    # On-the-fly int8 FC activations: vnni int8 GEMM beats f32 GEMM by a lot.
-    # Matches OV GenAI CPU behavior.
+    # On-the-fly int8 FC activations, as in OV GenAI on CPU.
     "DYNAMIC_QUANTIZATION_GROUP_SIZE": 32,
 }
 
-# Narrow float dtypes recognizable on a converted model. Anything else (f32, or
-# a graph we could not read a dtype off) runs at _FALLBACK_FLOAT_PRECISION.
+# Anything else (f32, or no readable dtype) runs at _FALLBACK_FLOAT_PRECISION.
 SUPPORTED_FLOAT_PRECISIONS = ("bf16", "f16")
 
-# bf16 rather than f32: the narrow-float GEMM path is substantially faster, and
-# f32 models are known to work under it.
+# bf16 rather than f32: much faster, and f32 models work under it.
 _FALLBACK_FLOAT_PRECISION = "bf16"
 
-# Recognized dtypes we deliberately do not compute in -> what we use instead.
-# See precision_config() for why f16 is here.
+# Recognized dtypes we do not compute in -> what we use instead.
 _COMPUTE_PRECISION_SUBSTITUTE = {"f16": "bf16"}
 
 
 def _amx_bf16_supported() -> bool:
-    """Whether this CPU has the AMX-BF16 tile ISA extension.
-
-    OV's CPU PagedAttention kernel only has a bf16-KV-cache implementation
-    for AMX-capable cores (Sapphire Rapids+); on AVX512F-only CPUs it asserts
-    `expect kvcache type f32` and `compile_model` raises. Same detection
-    vLLM's own SGL-kernel gate uses (`check_cpu_sgl_kernel`,
-    `torch.cpu._is_amx_tile_supported`), so it stays consistent with what
-    vLLM itself already decided this process's CPU can do.
-    """
+    """Whether the CPU has AMX-BF16, which OV CPU PagedAttention needs for a bf16 KV cache (same check as vLLM)."""
     try:
         import torch
         return bool(torch.cpu._is_amx_tile_supported())
@@ -88,14 +64,9 @@ def _amx_bf16_supported() -> bool:
 
 
 def precision_config(model_precision: Optional[str] = None) -> dict:
-    """Return the matching OV INFERENCE_PRECISION_HINT/KV_CACHE_PRECISION pair.
+    """Return matching INFERENCE_PRECISION_HINT/KV_CACHE_PRECISION values (CPU PagedAttention needs them equal).
 
-    Both keys must name the same type (OV CPU PagedAttention only instantiates
-    matching compute/cache-type triples). f16 computes as bf16: vLLM's unfused
-    RMSNorm overflows f16's range but not bf16's. bf16 itself only runs on
-    AMX-BF16 hardware -- falls back to f32 otherwise (see
-    _amx_bf16_supported), rather than handing compile_model a config it will
-    reject at runtime.
+    f16 computes as bf16 (vLLM's unfused RMSNorm overflows f16), and bf16 falls back to f32 without AMX-BF16.
     """
     et = (model_precision if model_precision in SUPPORTED_FLOAT_PRECISIONS
           else _FALLBACK_FLOAT_PRECISION)

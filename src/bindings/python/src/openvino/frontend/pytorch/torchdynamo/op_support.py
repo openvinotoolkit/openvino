@@ -292,8 +292,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.quantized_decomposed.dequantize_per_tensor.default": None,
             "torch.ops.quantized_decomposed.dequantize_per_channel.default": None,
         }
-        # Optional: adds the OV paged_attention op to support_dict when
-        # options["pa_translate"] is set. No-op on non-vLLM graphs.
+        # Adds the OV paged_attention op when options["pa_translate"] is set.
         try:
             from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
             _vllm.maybe_register_pa_op(support_dict, options)

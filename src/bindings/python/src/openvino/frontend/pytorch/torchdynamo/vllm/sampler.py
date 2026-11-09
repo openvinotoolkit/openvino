@@ -21,8 +21,7 @@ def _is_fastpath_eligible(sampling_metadata) -> bool:
         return False
     procs = getattr(sampling_metadata, "logitsprocs", None)
     if procs is not None:
-        # Allow processors that are no-ops on the current batch (e.g.
-        # MinPLogitsProcessor when no row has min_p set).
+        # Allow processors that are no-ops on this batch (e.g. min_p unset everywhere).
         def _is_noop(proc):
             if hasattr(proc, "min_p_count"):
                 return proc.min_p_count == 0
@@ -51,11 +50,7 @@ _TOPK_TIE_WINDOW = 32
 
 
 def _build_native_sampler(vocab: int, top_k: int):
-    """Build the sampler as a native opset13 Model, skipping torch.compile.
-
-    logits[B,V] + temperature[B] -> sampled_token[B] via Gumbel-max: scale,
-    topk(k), softmax, add Gumbel noise, argmax over k, gather the winner.
-    """
+    """Build a native opset13 Gumbel-max top-k sampler: logits[B, V], temperature[B] -> token[B]."""
     from openvino import opset13 as op
     from openvino import Type, PartialShape, Model, Core
 
@@ -171,15 +166,13 @@ def install():
         if not _is_fastpath_eligible(sampling_metadata) or getattr(self, "use_fp64_gumbel", False):
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
-        # logprobs=0 still returns the sampled token's logprob; processed_*
-        # modes take it from sample()'s second output, which this path leaves None.
+        # processed_* modes take the logprobs from sample()'s second output, which this path leaves None.
         mode = logprobs_mode_override or self.logprobs_mode
         if (sampling_metadata.max_num_logprobs is not None
                 and mode in ("processed_logits", "processed_logprobs")):
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
-        # Below ~100k vocab, torch's topk_topp_sampler on CPU beats a round
-        # trip through a compiled OV graph. Batches > 1 are untested.
+        # Below ~100k vocab torch's CPU sampler is faster; batches > 1 are untested.
         _min_vocab = int(os.environ.get("OV_FUSED_SAMPLER_MIN_VOCAB", "100000"))
         if logits.shape[-1] < _min_vocab or logits.shape[0] > 1:
             return _orig_sample(self, logits, sampling_metadata,
@@ -189,9 +182,7 @@ def install():
         batch_size, vocab_size = logits.shape
 
         if _use_native:
-            # OV_NATIVE_SAMPLER=1: skips torch.compile, ignores top_p (diverges
-            # when top_p < 1.0), and can't honor a per-request seed -- its
-            # RandomUniform is unseeded (global_seed=op_seed=0), always random.
+            # Ignores top_p and per-request seeds (its RandomUniform is unseeded).
             top_k_meta = getattr(sampling_metadata, "top_k", None)
             try:
                 k_val = int(top_k_meta.max().item()) if top_k_meta is not None else 0
@@ -229,7 +220,6 @@ def install():
                     logger.warning("[OV plugin] Native sampler call failed, falling back: %s", e)
                     _use_native = False
 
-        # Torch-compiled fused sampler (the default path).
         if _OV_SAMPLE_COMPILED is None:
             try:
                 _OV_SAMPLE_COMPILED = _build_fused_sampler()

@@ -117,8 +117,7 @@ public:
         return m_translate_session;
     }
 
-    // Registers a side-channel Parameter not part of the decoded graph so
-    // it passes Model validation.
+    // Registers a side-channel Parameter that isn't part of the decoded graph.
     void add_external_parameter(const std::shared_ptr<ov::op::v0::Parameter>& param) const {
         m_external_parameters->push_back(param);
     }

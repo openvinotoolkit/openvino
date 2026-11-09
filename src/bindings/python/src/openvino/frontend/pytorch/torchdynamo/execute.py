@@ -50,29 +50,17 @@ compiled_cache = {}
 req_cache = {}
 max_openvino_partitions = 0
 partitioned_modules = {}
-# Cache keyed by structural hash, reusing a compiled model across dynamo
-# retraces where the graph is structurally identical (decode loops).
+# Structural hash -> (compiled, req), reused across dynamo retraces of identical graphs.
 structural_cache = {}
-# cache_key -> whether int args have no OV Parameter (see openvino_execute).
+# cache_key -> whether int args have no OV Parameter.
 skip_ints_cache = {}
 
 
 def _shape_agnostic_compile(gm, args, options):
-    """Will the OV model compiled from this graph accept any input shape?
+    """Return True if the OV model compiled from this graph accepts any input shape.
 
-    True only when nothing about the trace-time sizes gets frozen into the
-    model, which needs both halves to hold:
-
-      * every int (symbolic size) input is rebuilt from a ShapeOf of the
-        tensor whose dimension it denotes -- a single int left baked as a
-        Constant pins the model to this trace, and
-      * the tensor Parameters are given dynamic shapes.
-
-    vllm.compile_hooks.bake_symint_constants couples these: it forces dynamic
-    tensor shapes exactly when it sourced every int from a ShapeOf, since
-    otherwise the ShapeOf would const-fold back to the frozen size. So the
-    first condition implies the second, and the remaining case is a graph with
-    no int inputs at all, which is shape-agnostic iff dynamic shapes are on.
+    That needs every int input sourced from a ShapeOf (bake_symint_constants then forces dynamic Parameters);
+    a graph without int inputs is shape-agnostic iff dynamic shapes are on.
     """
     if os.environ.get("OV_SHAPE_AGNOSTIC_CACHE", "1") == "0":
         return False  # kill switch: go back to one compiled model per shape
@@ -80,8 +68,7 @@ def _shape_agnostic_compile(gm, args, options):
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
         from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
         n_int = sum(1 for a in args if isinstance(a, int))
-        # Same guard as vllm.compile_hooks.apply_input_shapes: falling
-        # through pins every Parameter to its trace-time shape.
+        # Same guard as compile_hooks.apply_input_shapes, which otherwise pins Parameters to trace shapes.
         if not (bool_opt(options, "vllm", False) or n_int):
             return False
         if n_int == 0:
@@ -95,11 +82,8 @@ def _shape_agnostic_compile(gm, args, options):
 def _use_structural_cache(options):
     """Return True if this compile may reuse a model across dynamo re-traces.
 
-    Opt-in: a hit asserts two graphs are equivalent, so anything
-    _structural_key omits serves the wrong model. It covers node targets,
-    literal args and kwargs, and get_attr constants (see _key_constant).
-    On by default only under the vllm preset, where a miss costs a ~14 s
-    recompile every decode step. OV_STRUCTURAL_CACHE=1/0 forces it on or off.
+    Opt-in (default on under the vllm preset; OV_STRUCTURAL_CACHE=1/0 forces it): a hit asserts two graphs are
+    equivalent, so anything _structural_key omits would serve the wrong model.
     """
     env = os.environ.get("OV_STRUCTURAL_CACHE")
     if env is not None:
@@ -111,8 +95,7 @@ def _use_structural_cache(options):
     return bool_opt(options, "vllm", False)
 
 
-# Constants up to this many elements are keyed by content: freezing may rebuild them as new tensors on
-# every re-trace, so their storage address isn't stable. Larger ones (weights) are keyed by storage.
+# Small constants are keyed by content (re-traces may rebuild them at a new address); weights by storage.
 _KEY_CONTENT_NUMEL = 1 << 16
 _KEY_LITERAL_TYPES = (bool, int, float, complex, str, type(None), torch.dtype, torch.device,
                       torch.memory_format, torch.layout)
@@ -131,7 +114,7 @@ def _key_arg(arg, node_id):
         return f"slice({_key_arg(arg.start, node_id)},{_key_arg(arg.stop, node_id)},{_key_arg(arg.step, node_id)})"
     if isinstance(arg, _KEY_LITERAL_TYPES):
         return repr(arg)
-    # Anything else (e.g. an op overload passed as an argument): its type; repr may embed an address.
+    # Anything else: its type, since repr may embed an address.
     return type(arg).__name__
 
 
@@ -158,17 +141,9 @@ def _key_constant(gm, target):
 
 
 def _structural_key(gm, args, options=None):
-    """Structural hash of the FX graph that's stable across re-traces.
+    """Return a hash of the FX graph structure that is stable across re-traces.
 
-    Uses normalized node ops + consumer chain instead of gm.code (which has
-    arbitrary name suffixes like 'arg99_1' vs 'arg132_1' that differ across
-    traces despite identical structure).
-
-    Input sizes are part of the key only when the compiled model actually
-    depends on them. A shape-agnostic model keyed by exact sizes would be
-    recompiled for every new prefill length -- measured at ~14 s each on
-    Llama-3.2-1B, against a 0.25 s infer -- while the model already in the
-    cache would have served that shape unchanged.
+    Input sizes are part of the key only when the compiled model depends on them (not shape-agnostic).
     """
     shape_agnostic = _shape_agnostic_compile(gm, args, options)
     placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
@@ -180,10 +155,8 @@ def _structural_key(gm, args, options=None):
                 dynamic_dims.setdefault(tensor_idx, set()).add(dim)
         except Exception as e:
             logger.debug("dynamic-dim sourcing unavailable: %s", e)
-        # symint_shape_sources names one source tensor per int, so a second
-        # tensor sharing that size (e.g. positions alongside input_ids) would
-        # stay concrete and miss the cache on every new prompt length. Dynamo's
-        # own placeholder metadata marks every symbolic dim.
+        # symint_shape_sources names one tensor per int; dynamo's placeholder metadata marks the other tensors
+        # sharing that size (e.g. positions next to input_ids).
         if len(placeholders) == len(args):
             for i, node in enumerate(placeholders):
                 fake = node.meta.get("val", node.meta.get("example_value"))
@@ -192,8 +165,7 @@ def _structural_key(gm, args, options=None):
                         if isinstance(size, torch.SymInt):
                             dynamic_dims.setdefault(i, set()).add(dim)
     try:
-        # Label placeholders by identity, not position: dynamo orders args
-        # differently across traces (prefill T,I,T,I vs decode T,I,I,T).
+        # Label placeholders by kind, not position: dynamo orders args differently across traces.
         ph_label = {}
         if shape_agnostic and len(placeholders) == len(args):
             tensor_i = 0
@@ -204,8 +176,7 @@ def _structural_key(gm, args, options=None):
                     ph_label[node] = f"phT{tensor_i}"
                     tensor_i += 1
         parts = []
-        # Assign index-based ids to placeholders so arg99_1/arg132_1 don't
-        # produce different hashes for structurally identical graphs.
+        # Index-based ids, so arg99_1 vs arg132_1 naming doesn't change the hash.
         node_id = {}
         ph_i = 0
         op_i = 0
@@ -214,10 +185,8 @@ def _structural_key(gm, args, options=None):
                 node_id[node] = ph_label.get(node, f"ph{ph_i}")
                 ph_i += 1
                 continue
-            # node target (stable)
             target = str(node.target) if hasattr(node, "target") else str(node.op)
-            # Inputs by node id; literal args and kwargs by value, since two graphs that differ only in a
-            # scalar, an axis or an index must not share a compiled model.
+            # Literals by value: graphs differing only in a scalar or an axis must not share a model.
             arg_descs = [_key_arg(arg, node_id) for arg in node.args]
             arg_descs += [f"{k}={_key_arg(v, node_id)}" for k, v in sorted(node.kwargs.items())]
             if node.op == "get_attr":
@@ -229,15 +198,12 @@ def _structural_key(gm, args, options=None):
         parts.append(f"nph={ph_i}")
     except Exception:
         parts = [str(id(gm))]
-    # Scopes reuse to one model: structural equality alone can't tell two
-    # same-architecture models apart (their weights differ, not their ops).
+    # Scope reuse to one model: same-architecture models differ only in weights.
     sig = [f"M{options.get('model_id') if options else None}", "|".join(parts)]
     for i, arg in enumerate(args):
         if isinstance(arg, torch.Tensor):
             if shape_agnostic:
-                # Abstract only the symbolic dims; keep fixed ones concrete so
-                # call sites with different static shapes (e.g. per-layer
-                # head_dim) don't collide on one cache entry.
+                # Only symbolic dims are abstracted, so different static shapes don't collide.
                 dyn = dynamic_dims.get(i, set())
                 shape_sig = ",".join(
                     "*" if d in dyn else str(size) for d, size in enumerate(arg.shape)
@@ -246,7 +212,7 @@ def _structural_key(gm, args, options=None):
             else:
                 sig.append(f"T{arg.dtype}:{tuple(arg.size())}")
         elif isinstance(arg, int):
-            # Shape-agnostic: Parameter is stripped, so it can't affect the key.
+            # Shape-agnostic: the int Parameter is stripped.
             if not shape_agnostic:
                 sig.append(f"I:{arg}")
         else:
@@ -280,29 +246,14 @@ import numpy as np
 
 
 def _torch_to_numpy(tensor):
-    """Hand a torch tensor to OV as numpy, preserving bf16.
-
-    `tensor.numpy()` raises "Got unsupported ScalarType BFloat16" because numpy has
-    no bfloat16 dtype. OV's Python bindings represent a bf16 buffer as a numpy
-    float16 array of the same 2-byte elements (see pyopenvino common.cpp), so
-    re-tag the bits as float16 and pass those through. The OV Parameter is
-    declared bf16, so the bytes land in the right place. `view` is zero-copy;
-    it renames the dtype without touching the data. Inverse of
-    _ov_result_to_torch.
-    """
+    """Hand a torch tensor to OV as numpy; bf16 goes as a zero-copy float16 view, as OV's bindings expect."""
     if tensor.dtype == torch.bfloat16:
         return tensor.view(torch.float16).numpy()
     return tensor.numpy()
 
 
 def _ov_result_to_torch(res, port):
-    """Rebuild a torch tensor from an OV output, undoing the bf16 re-tag.
-
-    A bf16 output arrives as numpy float16 for the reason above, so consult
-    the port's declared element type rather than the array dtype -- otherwise
-    a genuine bf16 result silently becomes f16 and every downstream op runs at
-    the wrong precision.
-    """
+    """Rebuild a torch tensor from an OV output; a bf16 port arrives as numpy float16 and is viewed back."""
     tensor = torch.from_numpy(res[port])
     if port.get_element_type() == Type.bf16 and tensor.dtype == torch.float16:
         tensor = tensor.view(torch.bfloat16)
@@ -341,16 +292,14 @@ def openvino_execute(
         if not fully_supported:
             model_hash_str = model_hash_str + "_p" + str(partition_id)
 
-    # Input shape is part of the cache key: reusing a compiled partition at a
-    # different shape yields zero-sized outputs (OV bakes shapes in).
+    # Shape is part of the key: a partition reused at another shape yields zero-sized outputs.
     shape_key = tuple(
         tuple(a.size()) if isinstance(a, torch.Tensor) else (type(a).__name__, a)
         for a in args
     )
     cache_key = (partition_id, shape_key)
 
-    # Set on a fresh compile so the OV_EVICT_PROFILE_COMPILE path can free
-    # exactly the entries this call created (and nothing a later step reuses).
+    # Lets OV_EVICT_PROFILE_COMPILE free exactly the entries this call created.
     struct_key = None
     _fresh_compile = False
 
@@ -358,8 +307,6 @@ def openvino_execute(
         compiled = compiled_cache[cache_key]
         req = req_cache[cache_key]
     else:
-        # Hashed on the graph, not partition_id, so it survives dynamo
-        # re-traces -- hence opt-in, see _use_structural_cache.
         if _use_structural_cache(options):
             struct_key = _structural_key(gm, args, options)
         if struct_key is not None and use_cache and struct_key in structural_cache:
@@ -374,9 +321,7 @@ def openvino_execute(
         req_cache[cache_key] = req
 
     flat_args, _ = tree_flatten(args)
-    # Skip int args only if their Parameter is gone, or remaining tensors
-    # bind wrong ports; compare against positional (non-__pa__) ports only.
-    # Fixed per cache entry, so the port walk runs once, not every step.
+    # Skip int args only if their Parameter is gone, else the tensors bind wrong ports. Cached per entry.
     _skip_ints = skip_ints_cache.get(cache_key)
     if _skip_ints is None:
         _n_flat = len(flat_args)
@@ -402,17 +347,14 @@ def openvino_execute(
             tensor = tensor.contiguous()
         ov_inputs.append(_torch_to_numpy(tensor))
 
-    # PagedAttention side-channel: None on non-PA graphs (positional infer),
-    # PA_SKIP during profile/dummy_run (eager gm), or the raw output-dict.
+    # run_pa_infer: None on non-PA graphs, PA_SKIP on profile/dummy runs (eager), else the outputs.
     res = None
     if _rh is not None:
         try:
             _pa_out = _rh.run_pa_infer(compiled, req, ov_inputs)
             if _pa_out is _rh.PA_SKIP:
                 _eager_out = gm(*args)
-                # Profile/dummy run: this compile is never reused for real infer.
-                # Drop its cache references so the repacked weights free on scope exit
-                # (OV_EVICT_PROFILE_COMPILE, default on).
+                # A profile compile is never reused; drop it so its repacked weights are freed.
                 if _fresh_compile and os.environ.get("OV_EVICT_PROFILE_COMPILE", "1") != "0":
                     compiled_cache.pop(cache_key, None)
                     req_cache.pop(cache_key, None)
@@ -424,9 +366,7 @@ def openvino_execute(
                 return _eager_out
             res = _pa_out
         except Exception:
-            # A PA-shaped graph failing mid-bind must surface: falling
-            # through to positional infer would silently skip its __pa__
-            # side-channel inputs (see apply_input_shapes in compile.py).
+            # Positional infer would silently skip a PA graph's __pa__ inputs, so its errors must surface.
             if _rh.has_pa_inputs(compiled):
                 raise
     if res is None:
@@ -467,7 +407,7 @@ class OpenVINOGraphModule(torch.nn.Module):
             logger.debug("OV partition %d execution failed; falling back to PyTorch",
                          self.partition_id, exc_info=True)
             if _no_fallback:
-                raise  # Fail loudly so we can see where OV actually breaks
+                raise
             logger.debug(
                 f"OpenVINO execution failed with {e}. Falling back to native PyTorch execution."
             )
@@ -508,13 +448,11 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     )
     model_hash_str = executor_parameters.get("model_hash_str", None)
 
-    # model_id (set once per compiled model in vllm/plugin.py) stops a second
-    # model from reusing the first's compiled graph if id(gm) gets recycled.
+    # model_id guards against a recycled id(gm) reusing another model's graph.
     _model_id = options.get("model_id") if options else None
     signature = f"{_model_id}_{id(gm)}"
     if (not _get_aot_autograd(options)):
-        # Coarsen to dtype/rank and drop int values only when
-        # _shape_agnostic_compile agrees -- same predicate _structural_key uses.
+        # Coarsen to dtype/rank only when the compile is shape-agnostic, as in _structural_key.
         shape_agnostic = _shape_agnostic_compile(gm, args, options)
         for idx, input_data in enumerate(args):
             if isinstance(input_data, torch.Tensor):
@@ -545,15 +483,10 @@ def clear_caches():
 
     compiled_cache.clear()
     partitioned_modules.clear()
-    # structural_cache holds the compiled models reused across dynamo
-    # retraces, and req_cache their InferRequests
     structural_cache.clear()
     req_cache.clear()
     skip_ints_cache.clear()
-    # The vLLM side-channel and fast-infer caches are keyed by id() of the
-    # objects just dropped, so they must go too or a recycled id() would
-    # hand a new model the old one's bindings.
-    # The unpacked MoE expert copies are keyed by the packed weight's address.
+    # These are keyed by id()/address of the objects just dropped, which may be recycled.
     if _rh is None:
         return
     from openvino.frontend.pytorch.torchdynamo.vllm import fused_moe, side_channel

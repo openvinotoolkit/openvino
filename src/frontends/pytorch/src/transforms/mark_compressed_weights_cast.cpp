@@ -28,13 +28,11 @@ MarkCompressedWeightsCast::MarkCompressedWeightsCast() {
     using namespace ov::pass::pattern;
     using ov::pass::operator|;  // declared in ov::pass, not in ov::pass::pattern
 
-    // At most one Reshape and one Transpose between the Multiply and the
-    // cast, matching what CompressedWeightsBlock can absorb.
+    // At most one Reshape and one Transpose, as CompressedWeightsBlock can absorb.
     auto weights = wrap_type<v0::Constant>(type_matches_any({element::u4, element::i4, element::u8, element::i8}));
     auto convert = wrap_type<v0::Convert>({weights});
 
-    // Zero point (asymmetric compression only), left unconstrained like the
-    // scale below -- the compressed form is the integer Constant + Multiply.
+    // Zero point (asymmetric only); like the scale, left unconstrained.
     auto subtract = wrap_type<v1::Subtract>({convert, any_input()});
     auto scaled_input = subtract | convert;
     auto multiply = wrap_type<v1::Multiply>({scaled_input, any_input()});
@@ -59,8 +57,7 @@ MarkCompressedWeightsCast::MarkCompressedWeightsCast() {
                              return false;
                          }
                          ov::mark_as_decompression(cast_node);
-                         // Weights must not materialize in the cast's destination type;
-                         // covers pipelines that don't already mark the cast via MarkDequantization.
+                         // Weights must not materialize in the cast's destination type.
                          ov::disable_constant_folding(cast_node);
                          // Nothing else in the graph changed, so report no rewrite.
                          return false;

@@ -224,7 +224,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                  input_types=None, dynamic_shapes=False,
                  op_type_mapping=None, output_names=None, default_float_type=None):
         super().__init__(mark_node_callback)
-        # torch dtype the model was built with, e.g. torch.bfloat16; see TorchDecoderBase.get_default_float_type.
         self._set_default_float_type(to_ov_float_type(default_float_type))
         if isinstance(pt_module, torch.fx.GraphModule):
             lowered = lower_vmap_regions(pt_module)

@@ -4,45 +4,10 @@
 
 # mypy: ignore-errors
 
-"""vLLM model loader for NNCF hook-storage checkpoints: `load_format="nncf_hooks"`.
+"""vLLM model loader for NNCF hook-storage checkpoints (`load_format="nncf_hooks"`), safetensors or `.pt2`.
 
-`nncf.compress_weights()` followed by `save_pretrained()` keeps HF parameter
-names but writes NNCF's own tensor layout, with each quantizer's state stored
-under a hook key:
-
-    model.layers.0.self_attn.q_proj.weight                                       u8  [out*in/2, 1]
-    __nncf_hooks.post_hooks.model:layers:0:self_attn:q_proj:weight__0.0._scale   f16 [out, groups, 1]
-    __nncf_hooks.post_hooks.model:layers:0:self_attn:q_proj:weight__0.0._zero_point  (asym only)
-
-quantization.py's `"nncf"` method declares `qweight [out, in/2]`,
-`scale [out, groups]` and, for asym, an unpacked `zero_point [out, groups]`.
-This loader translates at load time, so the checkpoint needs no offline
-conversion -- only a `quantization_config` in config.json naming the int4
-modules, because vLLM fixes each layer's parameters before any weight is read.
-
-The same tensors can instead arrive as a `.pt2`: `torch.export.export()` of
-the compressed model keeps NNCF's hook modules as submodules, so its persistent
-state_dict carries exactly these names. A directory with no `*.safetensors` is
-read from its `*.pt2` (export with `return_dict=False`; see `_pt2_state_dict`).
-config.json and the tokenizer still sit beside it, since vLLM reads the config
-before any weight. Only the weights are used; vLLM builds its own model.
-
-The form each weight takes is decided by the model vLLM built rather than
-inferred: if the target layer declares a `qweight` the weight goes in packed,
-otherwise it is decompressed to dense. That covers the int8 backup layers,
-embeddings, lm_head, and int4 layers fused (qkv_proj, gate_up_proj) with an
-int8 sibling, which quantization.py leaves unquantized.
-
-KV-shared attention layers (Gemma-4's last `num_kv_shared_layers`) have no
-`k_proj`/`v_proj`/`k_norm` in a transformers export -- HF never builds them --
-but vLLM builds a full `qkv_proj` and `k_norm` on every layer. They are filled
-with zeros, and only on layers vLLM itself marks `is_kv_shared_layer`: there
-forward skips `k_norm`/RoPE and attention reads the target layer's cache, so
-the slices are computed and discarded. Zeros rather than uninitialized memory
-so that, should the OV KV-sharing substitution ever miss, PA writes zeros and
-not NaN into the shared cache.
-
-vLLM is imported only inside `register`, keeping it out of module import.
+Translates NNCF's layout to quantization.py's "nncf" parameters at load time; config.json still needs a
+`quantization_config`, since vLLM fixes each layer's parameters before reading any weight.
 """
 
 import logging
@@ -62,11 +27,7 @@ def _hook_key(weight_name, field):
 
 
 def _dequantize(stored, scale, zero_point, out_dtype):
-    """Dense [out, in] weight from any NNCF weight mode.
-
-    Arithmetic in the scale's dtype, cast after, as NNCF's decompressors do.
-    A grouped int4 scale is [out, groups, 1]; an int8 one is [out, 1].
-    """
+    """Dense [out, in] weight from any NNCF mode, computed in the scale's dtype as NNCF's decompressors do."""
     out_features = scale.shape[0]
     if scale.dim() == 3:
         groups = scale.shape[1]
@@ -87,13 +48,7 @@ def _dequantize(stored, scale, zero_point, out_dtype):
 
 
 def _pt2_state_dict(path):
-    """Persistent parameters and buffers of a `torch.export.save` archive.
-
-    The non-persistent buffers in `constants` (HF's rotary `inv_freq`) are not
-    checkpoint data; `save_pretrained` never writes them either. Loading
-    rebuilds the graph, so its output type must deserialize here: HF's
-    `CausalLMOutputWithPast` does not, a `return_dict=False` tuple does.
-    """
+    """Persistent parameters and buffers of a `torch.export.save` archive (exported with return_dict=False)."""
     import torch
 
     try:
@@ -120,9 +75,7 @@ def _define_loader():
 
         @staticmethod
         def _to_vllm(model, module):
-            """HF module name -> vLLM's, or None if the model drops it."""
-            # Unstacked, as vLLM hands it to quant configs: q_proj stays
-            # q_proj; callers resolve the fused leaf themselves.
+            """HF module name -> vLLM's unstacked one (q_proj stays q_proj), or None if the model drops it."""
             mapper = getattr(model, "hf_to_vllm_mapper", None)
             if mapper is None:
                 return module
@@ -133,7 +86,6 @@ def _define_loader():
             """Does the vLLM layer this HF module loads into hold a qweight?"""
             module = self._to_vllm(model, module)
             if module is None:
-                # The model drops this weight; it has no layer to pack into.
                 return False
             parent, _, leaf = module.rpartition(".")
             mapping = getattr(model, "packed_modules_mapping", {})
@@ -144,10 +96,9 @@ def _define_loader():
             return f"{parent}.{leaf}.qweight" in params
 
         def _kv_shared_zeros(self, model, params, seen, out_dtype):
-            """Zeros for the k/v/k_norm a KV-shared layer has no weights for.
+            """Zeros for the k/v/k_norm vLLM builds on a KV-shared layer (HF has none); computed, then discarded.
 
-            Keyed off each attention block whose q_proj arrived; shapes come
-            from the layer vLLM built.
+            Zeros rather than empty memory, so a missed KV-sharing substitution writes zeros, not NaN, to the cache.
             """
             import torch
 
@@ -163,8 +114,7 @@ def _define_loader():
                 vllm_base = self._to_vllm(model, f"{base}.q_proj")
                 attn = modules.get(vllm_base.rpartition(".")[0]) if vllm_base else None
                 if not getattr(attn, "is_kv_shared_layer", False):
-                    # Not ours to fill (e.g. MLA has q_proj and no k_proj); a
-                    # real gap still fails load_weights' missing check.
+                    # Not ours to fill (e.g. MLA); a real gap still fails the missing-weights check.
                     continue
                 qkv = attn.qkv_proj
                 if self._target_is_quantized(model, params, f"{base}.k_proj"):
@@ -183,12 +133,7 @@ def _define_loader():
         @staticmethod
         @contextlib.contextmanager
         def _checkpoint(model_dir):
-            """`(keys, get_tensor)` over every checkpoint file: safetensors, else pt2.
-
-            Checkpoint-wide, not per file: a sharded `save_pretrained()` keeps
-            NNCF's hook storage in its own module, so a weight and its scale or
-            zero point can land in different shards.
-            """
+            """`(keys, get_tensor)` over all safetensors (else pt2) files; a scale may sit in another shard."""
             paths = sorted(glob.glob(os.path.join(model_dir, "*.safetensors")))
             if paths:
                 with contextlib.ExitStack() as stack:
@@ -225,14 +170,12 @@ def _define_loader():
 
                     if scale.dim() == 3 and self._target_is_quantized(
                             model, params, module):
-                        # The packed buffer is already row-major over
-                        # (out, in/2), so the reshapes are free.
+                        # Already row-major over (out, in/2), so the reshapes are free.
                         out_features, groups = scale.shape[:2]
                         yield f"{module}.qweight", stored.reshape(out_features, -1)
                         yield f"{module}.scale", scale.reshape(out_features, groups)
                         if zp is not None:
-                            # quantization.py stores the zero point
-                            # unpacked so it concatenates like `scale`.
+                            # Unpacked, so it concatenates like `scale`.
                             yield (f"{module}.zero_point",
                                    _unpack_uint4(zp).reshape(out_features, groups))
                     else:
@@ -241,8 +184,7 @@ def _define_loader():
 
         def load_weights(self, model, model_config):
             loaded = model.load_weights(self._weights(model, model_config))
-            # DefaultModelLoader skips this check for quantized models; here a
-            # missed key means a layout this loader does not understand.
+            # DefaultModelLoader skips this check for quantized models; here it catches unknown layouts.
             missing = {n for n, _ in model.named_parameters()} - set(loaded or ())
             if missing:
                 raise ValueError(
@@ -253,10 +195,7 @@ def _define_loader():
 
 
 def register():
-    """Add `load_format="nncf_hooks"` to vLLM. Inert unless a run asks for it.
-
-    Memoized: vLLM warns when a load format is registered twice.
-    """
+    """Add `load_format="nncf_hooks"` to vLLM, once (vLLM warns on a second registration)."""
     global _registered
     if _registered is None:
         try:

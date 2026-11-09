@@ -2,40 +2,11 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""vLLM PagedAttention integration for the OV torchdynamo backend.
+"""Rewrite vLLM's attention HOP into ov_ext::paged_attention, which the translator lowers to PagedAttentionExtension.
 
-Registers a custom torch op
-`ov_ext::paged_attention(q, k, v, layer_name, scale, kv_sharing_target)`
-whose Python impl delegates to vLLM's `unified_attention_with_output`, plus an
-FX pre-pass that rewrites `auto_functionalized_v2(unified_attention_with_output)`
-call sites into it. That turns attention from an untranslatable HOP into an
-op the partitioner can keep inside an OV partition.
-
-The C++ translator emits a PagedAttentionExtension for the op; side_channel.py
-binds the KV cache, block tables and lengths from vllm.forward_context.
-
-`scale` and `kv_sharing_target` are carried on the op because neither can be
-recovered from the FX graph, and guessing either one silently corrupts output:
-
-* **scale** -- the frontend otherwise falls back to ``1/sqrt(head_dim)``. That
-  is wrong for any model that scales differently, e.g. Gemma-4, which uses
-  ``scaling = 1.0`` and folds the normalization into its learnable Q/K norm
-  weights. Guessing divides every score by ``sqrt(head_dim)`` a second time
-  and flattens the softmax toward uniform. 0.0 means "not supplied, derive it".
-
-* **kv_sharing_target** -- layers that reuse an earlier layer's KV cache are
-  handed *raw* k/v by vLLM (no k_norm, no v_norm, no RoPE), because its
-  attention backends suppress the cache write for them::
-
-      # vllm/v1/attention/backends/cpu_attn.py
-      if (self.kv_sharing_target_layer_name is None
-              and key is not None and value is not None):
-          ops.cpu_attn_reshape_and_cache(...)
-
-  `PagedAttentionExtension` has no read-only mode and always writes, so without
-  this the shared layers scribble that placeholder junk over the cache they are
-  supposed to be reading. Naming the target lets the translator reuse its
-  already-normed k/v, which makes the write idempotent. "" means not shared.
+The op carries what the FX graph can't recover: `scale` (Gemma 4 uses 1.0, not 1/sqrt(head_dim); 0.0 means derive it)
+and `kv_sharing_target` (vLLM hands KV-sharing layers raw k/v and skips their cache write, but PA always writes, so the
+translator reuses the target's k/v instead; "" means not shared).
 """
 
 # mypy: ignore-errors
@@ -68,10 +39,7 @@ def _register_custom_op():
         scale: float,
         kv_sharing_target: str,
     ) -> torch.Tensor:
-        # Only hit on the torch-eager fallback path. vLLM's CPU backend
-        # implements just the "_with_output" variant, so pass in an output.
-        # scale/kv_sharing_target are consumed by the OV translator; on this
-        # path vLLM's own Attention layer already applies both.
+        # Eager fallback only; vLLM's Attention layer applies scale and KV sharing itself here.
         out = torch.empty_like(query).contiguous()
         torch.ops.vllm.unified_attention_with_output(
             query, key, value, out, layer_name
@@ -94,16 +62,7 @@ def _register_custom_op():
 
 
 def _attention_layer_meta(layer_name):
-    """(scale, kv_sharing_target) for a vLLM attention layer, by name.
-
-    Read from the live forward context, which is the same place
-    `unified_attention_with_output` resolves `layer_name` and the same source
-    side_channel uses at infer time. The rewrite runs inside the model's first
-    forward, so the context exists.
-
-    Returns (0.0, "") when the layer cannot be resolved, which tells the
-    translator to fall back to its own derivation rather than trust a guess.
-    """
+    """Return a layer's (scale, kv_sharing_target); (0.0, "") lets the translator derive them."""
     try:
         from vllm.forward_context import get_forward_context
 
@@ -131,24 +90,18 @@ def _is_unified_attention_with_output(node) -> bool:
 
 
 def count_unified_attention(gm) -> int:
-    """Number of vLLM attention call sites (auto_functionalized_v2(unified_attention_with_output)) in gm."""
+    """Count the vLLM attention call sites in gm."""
     return sum(1 for n in gm.graph.nodes if _is_unified_attention_with_output(n))
 
 
 def rewrite_unified_attention_to_paged_attention(gm) -> int:
-    """Rewrite every attention HOP node to a call of the OV paged_attention op.
-
-    Matches auto_functionalized_v2(unified_attention_with_output, ...) nodes
-    and rewrites them to torch.ops.ov_ext.paged_attention.default. Returns
-    the number of rewrites performed.
-    """
+    """Rewrite every attention HOP node to ov_ext.paged_attention; returns the number of rewrites."""
     import torch
 
     _register_custom_op()
 
     paged_attention_op = torch.ops.ov_ext.paged_attention.default
 
-    # Collect first; do not mutate while iterating.
     to_rewrite = [n for n in gm.graph.nodes if _is_unified_attention_with_output(n)]
     if not to_rewrite:
         return 0
@@ -176,8 +129,7 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
 
         # auto_functionalized_v2 writes output to _all_bases[_output_base_index].
         if not replace_mutated_output(gm, node, new_node, kw.get("_output_base_index")):
-            # Consumers remain for bases we did not rewrite, so the original
-            # node stays and the partitioner splits here. Correct, just slower.
+            # Other consumers keep the original node; the partitioner splits here (correct, just slower).
             logger.debug(
                 f"Left original auto_functionalized_v2 node for layer "
                 f"{layer_name}: it still has {len(node.users)} non-attention "

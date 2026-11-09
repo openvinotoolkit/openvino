@@ -70,19 +70,13 @@ public:
 
     OutputVector convert_node(const NodeContext& context);
 
-    // Shared PagedAttention side-channel Parameters, keyed by tag, so all
-    // PA ops in the model reuse the same Parameter set.
+    // Shared PagedAttention side-channel Parameters, keyed by tag.
     std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> m_shared_pa_params;
-    // Shared derived PA side-channel Outputs (graph-level computations of
-    // past_lens, max_context_len etc. from seq_lens + query_start_loc).
+    // Shared PA inputs derived from seq_lens and query_start_loc (past_lens, max_context_len, ...).
     std::map<std::string, ov::Output<ov::Node>> m_shared_pa_outputs;
-    // Per-layer PagedAttention key/value, keyed by vLLM layer name, so a
-    // KV-sharing layer can reuse the normed/RoPE'd tensors its target layer
-    // already built instead of the raw placeholders vLLM hands it.
+    // Per-layer PagedAttention key/value by vLLM layer name, reused by the layers sharing that KV cache.
     std::map<std::string, std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> m_pa_layer_kv;
-    // Counts PagedAttention calls whose layer_name didn't const-fold, so each
-    // gets a distinct "unknown_layer"/"unknown_layer_N" tag instead of all
-    // of them colliding on one shared (and wrongly-shaped) side-channel Parameter.
+    // PagedAttention calls without a constant layer_name, to give each a distinct tag.
     size_t m_unknown_pa_layer_count{0};
 
 private:

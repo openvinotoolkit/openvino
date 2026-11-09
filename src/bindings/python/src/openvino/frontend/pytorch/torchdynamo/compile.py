@@ -124,8 +124,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
-        # vLLM-specific compile hooks (PA Parameters, Concat ranks). No-op on
-        # graphs without the matching patterns.
+        # vLLM compile hooks; no-op on graphs without the matching patterns.
         try:
             if _vh is not None:
                 _vh.apply_post_convert(om, options)
@@ -147,10 +146,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
-    # vLLM path bakes/rebuilds int inputs itself; returns False for
-    # non-vLLM graphs to fall through to the upstream loop below.
-    # Not wrapped in try/except: apply_input_shapes removes Parameters from
-    # `om`, so a failure must surface rather than mis-shape.
+    # False for non-vLLM graphs. Not wrapped in try: it removes Parameters, so a failure must surface.
     _shaped = _vh is not None and _vh.apply_input_shapes(om, args, options, gm)
 
     if not _shaped:
@@ -170,8 +166,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
-    # vLLM-specific OV-config defaults (KV cache precision, FC quantization,
-    # narrow-float hint). `om` lets precisions derive from the model's dtype.
+    # vLLM OV-config defaults; `om` lets precisions derive from the model's dtype.
     try:
         if _vh is not None:
             _vh.apply_post_config(config, device, options, om)

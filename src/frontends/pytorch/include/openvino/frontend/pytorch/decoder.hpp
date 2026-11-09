@@ -152,10 +152,8 @@ public:
         return {};
     }
 
-    /// \brief Returns torch's default float type for the model: the dtype `torch.set_default_dtype` had when the
-    /// model was created, which is the type of its float weights and activations. f32 (PyTorch's own default) unless
-    /// the decoder was given another value. When it isn't f32, the frontend converts the model to f32 activations
-    /// with the weights kept in that type, and records the type in the model's rt_info as "default_float_type".
+    /// \brief Returns the model's float dtype, f32 unless given. Otherwise the frontend converts the model to f32
+    /// activations with the weights kept in that type, and records it in rt_info as "default_float_type".
     virtual element::Type get_default_float_type() const {
         return element::f32;
     }

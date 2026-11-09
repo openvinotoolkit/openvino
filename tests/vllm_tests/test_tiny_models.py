@@ -2,28 +2,9 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""OV backend vs vLLM eager on tiny random-weight MoE and Gated DeltaNet models.
+"""OV vs vLLM eager, step by step, on tiny random MoE and Gated DeltaNet models (no download needed).
 
-The generation tests load dense TinyLlama, so neither the MoE rewrite
-(fused_moe.rewrite_cpu_fused_moe, lowered to GatherMatmul) nor the GDN
-rewrite (gated_delta_net.rewrite_gdn_to_ov, lowered to PagedGatedDeltaNet with
-its convolution/recurrent state written back each step) runs there. Each
-case writes a tiny random checkpoint with transformers, runs a prefill plus
-16 greedy decode steps through vLLM eager and through the OV backend, and
-compares the tokens and their logprobs step by step. Decode steps start from
-the state the previous step wrote back, so a state-layout or writeback bug
-shows up as a divergence at the first decode step.
-
-Random tiny models have flat logits, so some steps are near ties that
-rounding alone can flip. A token mismatch is only accepted where eager's own
-top-1/top-2 margin is within the tolerance; the comparison stops there, after
-at least MIN_STEPS matching steps.
-
-Qwen3.5 (GDN) runs in bfloat16: vLLM's CPU causal_conv1d kernel has no
-float32 implementation. The MoE models run in float32 (see test_run.py for
-why that needs the OV precision overrides).
-
-No model download needed.
+Flat random logits: a mismatch is accepted at a near tie after MIN_STEPS. GDN runs in bf16 (no f32 CPU causal_conv1d).
 """
 
 import pytest
@@ -31,7 +12,6 @@ import torch
 
 from conftest import select_cpu_platform
 
-# Generated tokens compared per case, after the prefill.
 DECODE_STEPS = 16
 MIN_STEPS = 4
 KV_CACHE_BYTES = 256 << 20
@@ -45,7 +25,7 @@ _QWEN3_5_ROPE = {
     "rope_theta": 10000000, "partial_rotary_factor": 0.25,
 }
 
-# name: (model_type, config, dtype, block_size, prompt seed/length, logprob tolerance, OV layer the rewrite lowers to)
+# name: (model_type, config, dtype, block_size, prompt seed/length, logprob tolerance, OV layer expected)
 CASES = {
     "qwen3_moe_silu": (
         "qwen3_moe",
@@ -69,8 +49,7 @@ CASES = {
         "float32", 64, (5, 34), 1e-3, "GatherMatmul"),
     "qwen3_5_gdn": (
         "qwen3_5_text",
-        # initializer_range 0.1: at the default 0.02 the GDN branch barely moves the residual stream, so a
-        # dropped state writeback stays within bf16 noise.
+        # At the default initializer_range 0.02 a dropped GDN state writeback stays within bf16 noise.
         dict(architectures=["Qwen3_5ForCausalLM"], hidden_size=256, intermediate_size=512, num_hidden_layers=4,
              layer_types=["linear_attention"] * 3 + ["full_attention"], full_attention_interval=4,
              num_attention_heads=2, num_key_value_heads=1, head_dim=256, attn_output_gate=True,
@@ -152,11 +131,7 @@ def test_openvino_matches_eager_tiny(case, tmp_path, monkeypatch):
 
 
 def _assert_same_decode(eager_tokens, eager_lps, ov_tokens, ov_lps, tol):
-    """Tokens and their logprobs agree step by step; a mismatch is only accepted at a near tie, then comparison stops.
-
-    A near tie means each side ranks the other's token within `tol` of its own pick, so both tokens must appear in
-    both sides' logprobs (vLLM always returns the sampled token's logprob alongside the top ones).
-    """
+    """Tokens and logprobs agree step by step; a mismatch ends the comparison, and only at a near tie (within tol)."""
     lengths = (len(eager_tokens), len(eager_lps), len(ov_tokens), len(ov_lps))
     assert len(set(lengths)) == 1 and lengths[0] > MIN_STEPS, f"token/logprob lengths {lengths}"
     for step, (eager_token, ov_token) in enumerate(zip(eager_tokens, ov_tokens)):
@@ -177,7 +152,7 @@ def _assert_same_decode(eager_tokens, eager_lps, ov_tokens, ov_lps, tol):
 
 @pytest.mark.precommit
 def test_near_tie_acceptance():
-    """The comparison accepts a divergence only between near-tied tokens, never a far-off pick."""
+    """_assert_same_decode accepts a divergence only between near-tied tokens."""
     match = ([5] * MIN_STEPS, [{5: -0.1, 6: -3.0}] * MIN_STEPS)
     eager_tokens, eager_lps = match[0] + [1], match[1] + [{1: -1.0, 2: -1.0005, 900: -20.0}]
     tied = ([2], [{2: -1.0, 1: -1.0004, 7: -5.0}])
@@ -199,8 +174,7 @@ def test_near_tie_acceptance():
 
 @pytest.mark.precommit
 def test_alibi_model_is_refused(tmp_path, monkeypatch):
-    """A model with ALiBi attention fails at load with a clear error, instead of running OV attention without the
-    slopes. In-process engine, so the worker's exception reaches the test unwrapped."""
+    """ALiBi attention fails at load; the in-process engine lets the worker's exception through unwrapped."""
     from vllm import LLM
 
     select_cpu_platform()
@@ -233,7 +207,7 @@ def _routed_reference(tokens, w1, w3, w2, topk_weights, topk_ids, act):
 @pytest.mark.precommit
 @pytest.mark.parametrize("act", ["silu", "gelu", "gelu_tanh"])
 def test_moe_tiled_matches_routed_reference(act):
-    """moe_tiled's math, which the OV graph keeps whether or not GatherMatmul fusion fires, against plain routing."""
+    """moe_tiled, which the OV graph keeps with or without GatherMatmul fusion, matches plain routing."""
     from openvino.frontend.pytorch.torchdynamo.vllm.fused_moe import moe_tiled
 
     generator = torch.Generator().manual_seed(0)

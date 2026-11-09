@@ -4,11 +4,7 @@
 
 # mypy: ignore-errors
 
-"""vLLM-specific runtime hooks for the OV inference path.
-
-Called from torchdynamo.execute to keep the generic infer code free of
-vLLM-specific PA-binding knowledge.
-"""
+"""vLLM PagedAttention binding for torchdynamo.execute's infer path."""
 
 import os
 
@@ -23,12 +19,12 @@ _fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
 
 
 def clear_caches():
-    """Drop the fast-infer caches. Their keys are id(compiled)/id(req), reused once those are freed."""
+    """Drop the fast-infer caches: their id() keys are reused once the objects are freed."""
     for cache in (_fastinfer_port_cache, _fastinfer_bound_ids, _fastinfer_out_cache, _fastinfer_out_static):
         cache.clear()
 
 
-# Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
+# Returned by run_pa_infer: skip this infer and run eager.
 class _PaSkip:
     __slots__ = ()
 
@@ -37,15 +33,9 @@ PA_SKIP = _PaSkip()
 
 
 def run_pa_infer(compiled, req, ov_inputs):
-    """PA-side-channel infer entry point, called from execute.openvino_execute.
+    """Infer with the PA side channel bound.
 
-    Returns one of:
-
-    - ``PA_SKIP`` -- vLLM warmup/profile_run; run eager ``gm(*args)`` instead.
-    - ``dict`` -- infer result, OV output port -> numpy view. Caller wraps
-      with ``torch.from_numpy(...)``.
-    - ``None`` -- no ``__pa__`` inputs; use the normal positional
-      ``req.infer(ov_inputs, ...)`` path.
+    Returns PA_SKIP during warmup (run eager), {output port: numpy view}, or None without ``__pa__`` inputs.
     """
     if not has_pa_inputs(compiled):
         return None
@@ -61,7 +51,7 @@ def run_pa_infer(compiled, req, ov_inputs):
 
 
 def has_pa_inputs(compiled) -> bool:
-    """Return True if any compiled.inputs[] has a ``__pa__`` Parameter name."""
+    """Return True if any input of `compiled` is a ``__pa__`` Parameter."""
     for inp in compiled.inputs:
         names = inp.get_names()
         if not names:
@@ -73,17 +63,10 @@ def has_pa_inputs(compiled) -> bool:
 
 
 def should_skip_pa_infer() -> bool:
-    """Detect the vLLM warm-up / profile_run state (attn_metadata is None/empty).
+    """Detect vLLM warmup / profile_run (empty attn_metadata), whose output nobody reads, so eager is safe.
 
-    There the side channel can only supply zero-length metadata, so the OV
-    PA kernel would read uninitialized memory. Neither caller of this state
-    (determine_available_memory, dummy_run) consumes the output, so skipping
-    to eager is safe.
-
-    A missing forward context is not such a state and returns False on
-    purpose: the eager path can't write the KV cache (the OV attention op
-    owns that write), so skipping a real step would decode garbage silently,
-    while running PA without a context fails loudly in the binder.
+    A missing forward context returns False on purpose: eager can't write the KV cache, so skipping a real step would
+    decode garbage silently, while PA without a context fails loudly in the binder.
     """
     try:
         from vllm.forward_context import get_forward_context
@@ -96,8 +79,7 @@ def should_skip_pa_infer() -> bool:
     if ctx is None:
         return False
     am = getattr(ctx, "attn_metadata", None)
-    # None at bootstrap, otherwise a dict keyed by layer. Empty during
-    # profile_run, which likewise means "no real attention state".
+    # None at bootstrap, an empty dict during profile_run.
     if am is None:
         return True
     if isinstance(am, dict) and not am:
@@ -106,12 +88,9 @@ def should_skip_pa_infer() -> bool:
 
 
 def build_call_kwargs(compiled, ov_inputs):
-    """Build the ``req.infer(...)`` kwargs dict for a PA-equipped graph.
+    """Map ``__pa__`` inputs to side-channel tensors and the rest to `ov_inputs` in order.
 
-    Walks compiled.inputs in order, mapping each ``__pa__`` Parameter to its
-    bound side-channel tensor and every other one to the next entry of
-    ``ov_inputs``. Returns ``(call_kwargs, scatter_back)``; call_kwargs is None without PA inputs,
-    and scatter_back (if any) must run after infer.
+    Returns (call_kwargs, scatter_back): call_kwargs is None without PA inputs; scatter_back must run after infer.
     """
     pa_inputs_by_pos = _bind_paged_attention_side_channel(compiled)
     gdn_inputs, scatter_back = _bind_gdn_side_channel(compiled)
@@ -138,14 +117,10 @@ def build_call_kwargs(compiled, ov_inputs):
 
 
 def infer_with_pa(req, compiled, call_kwargs):
-    """Run req.infer with the vLLM PA-side-channel call_kwargs.
+    """Run req.infer with `call_kwargs`; OV_FAST_INFER=1 skips rebinding unchanged inputs.
 
-    Under OV_FAST_INFER=1, skip set_tensor for ports whose value id is
-    unchanged and reuse output views for statically-shaped outputs. Falls
-    back to plain req.infer(call_kwargs, ...) when unset or when binding the
-    inputs fails. Errors from inference itself propagate: it has already
-    updated the KV cache and GDN state in place, so a rerun would advance
-    them twice for one step.
+    Falls back to plain req.infer only if binding fails. Inference errors propagate: inference already advanced the KV
+    cache and GDN state, so a rerun would advance them twice.
     """
     if os.environ.get("OV_FAST_INFER", "0") == "0":
         return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
@@ -174,8 +149,7 @@ def infer_with_pa(req, compiled, call_kwargs):
             if isinstance(_val, _ov.Tensor):
                 _t = _val
             elif _port.get_element_type() == _ov.Type.bf16 and getattr(_val, "dtype", None) == np.float16:
-                # execute._torch_to_numpy passes bf16 as float16 bits; wrap them
-                # (zero-copy) with the port's type, or set_tensor rejects f16.
+                # bf16 arrives as float16 bits; wrap them with the port's type, or set_tensor rejects f16.
                 _t = _ov.Tensor(_val, _val.shape, _ov.Type.bf16)
             else:
                 _t = _ov.Tensor(_val, shared_memory=True)
@@ -188,8 +162,7 @@ def infer_with_pa(req, compiled, call_kwargs):
         return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
     try:
         req.infer(share_outputs=True)
-        # Cached output views pin the first call's shape; only reuse for
-        # statically-shaped outputs, or a dynamic model hands back a stale one.
+        # Cached output views pin the first call's shape, so reuse them only for static outputs.
         _static_out = _fastinfer_out_static.get(_pc_key)
         if _static_out is None:
             _static_out = all(o.get_partial_shape().is_static for o in compiled.outputs)

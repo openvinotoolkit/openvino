@@ -23,11 +23,9 @@ def is_auto_functionalized(node, get_op) -> bool:
 
 
 def replace_mutated_output(gm, node, new_node, base_index) -> bool:
-    """Route users of the mutated base `base_index` of `node` to `new_node`.
+    """Route users of `node`'s mutated base `base_index` (output 1 + index) to `new_node`.
 
-    auto_functionalized_v2 returns the op result at 0 and each mutated base at 1 + index.
-    Erases `node` and its now-unused base allocations once nothing else reads them;
-    returns whether `node` was erased.
+    Erases `node` and its base allocations once nothing else reads them; returns whether `node` was erased.
     """
     out_index = 1 + (base_index or 0)
     for user in list(node.users):

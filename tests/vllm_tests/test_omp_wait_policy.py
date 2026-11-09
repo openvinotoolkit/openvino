@@ -2,12 +2,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""OV workers are spawned with OMP_WAIT_POLICY=PASSIVE; nothing else is.
-
-Exercises the patched OMPProcessManager without loading a model. The
-end-to-end check (the variable as seen inside real eager and OV workers) is
-in test_run.py.
-"""
+"""OV workers are spawned with OMP_WAIT_POLICY=PASSIVE; nothing else is (end to end check: test_run.py)."""
 
 import os
 from types import SimpleNamespace
@@ -29,8 +24,7 @@ def manager_cls(monkeypatch):
 
     monkeypatch.delenv("OMP_WAIT_POLICY", raising=False)
     plugin._patch_omp_wait_policy()
-    # A non-CPU platform makes the original __init__ return before it reads
-    # the parallel config, and configure_omp_envs yield without touching env.
+    # On a non-CPU platform the original code leaves the environment alone.
     monkeypatch.setattr(omp_mp, "current_platform", SimpleNamespace(is_cpu=lambda: False))
     return omp_mp.OMPProcessManager
 

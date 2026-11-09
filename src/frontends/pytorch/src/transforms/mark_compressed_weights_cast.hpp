@@ -12,22 +12,8 @@ namespace ov::frontend::pytorch::pass {
  * @interface MarkCompressedWeightsCast
  * @brief Marks the trailing precision cast of a weight-decompression subgraph as decompression.
  *
- * A model emitted in a dtype other than the one its weights are dequantized in ends the
- * decompression chain with a cast. A bf16 torch model with int4 weights, for instance, arrives as
- *
- *     Constant(i4) -> Convert(f16) -> [Subtract(zp)] -> Multiply(scale) -> [Reshape/Transpose]
- *                  -> Convert(bf16) -> MatMul
- *
- * Nothing marks that final Convert as decompression: ov::pass::MarkCompressedFloatConstants only
- * marks Converts that target f32 and sit directly on a Constant, and ov::pass::MarkDequantization
- * uses the separate dequantization attribute. Consumers that gate on ov::is_decompression() --
- * notably the CPU plugin's ConvertMatMulToFC -- therefore reject such weights, and the dequant is
- * left in the graph as a runtime Convert + Multiply per layer instead of folding into
- * FullyConnectedCompressed.
- *
- * Marking here makes those consumers accept the chain. The fold itself needs nothing further:
- * ov::pass::pattern::op::CompressedWeightsBlock already ends in an optional trailing Convert, with
- * no predicate on it, so ConvertFullyConnectedToFullyConnectedCompressed absorbs the cast.
+ * E.g. Constant(i4) -> Convert(f16) -> [Subtract] -> Multiply -> Convert(bf16) in a bf16 model: no other pass
+ * marks that cast, so consumers gating on ov::is_decompression() (CPU ConvertMatMulToFC) would reject the weights.
  */
 class MarkCompressedWeightsCast : public ov::pass::MatcherPass {
 public:

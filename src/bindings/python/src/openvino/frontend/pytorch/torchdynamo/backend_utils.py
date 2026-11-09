@@ -53,7 +53,7 @@ def _get_aot_autograd(options) -> Optional[Any]:
 
 
 def _get_no_fallback(options) -> bool:
-    """Resolve "no_fallback" through the vLLM preset when it's present (implicit True for vllm users)."""
+    """Resolve "no_fallback", through the vLLM preset when it is available."""
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
     except ImportError:

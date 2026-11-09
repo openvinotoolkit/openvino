@@ -2,16 +2,9 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Verify the plugin refuses attention settings its PagedAttention rewrite can't express.
+"""The plugin must refuse attention its PagedAttention rewrite can't express (ALiBi, sinks, soft-cap, non-causal).
 
-The OV translator passes empty ALiBi slopes and sinks, has no soft-cap input,
-and builds causal decoder attention only. A layer using any of those would
-silently compute different attention, and once the plugin owns the KV-cache
-write there is no falling back to vLLM's attention. So _own_kv_cache_update
-must refuse such a model before touching any layer, and still take over a
-plain decoder model.
-
-No model download needed: stand-in layers on vLLM's real CPU backend class.
+Once the plugin owns the KV-cache write there is no falling back to vLLM's attention, so it refuses before taking over.
 """
 
 from types import SimpleNamespace

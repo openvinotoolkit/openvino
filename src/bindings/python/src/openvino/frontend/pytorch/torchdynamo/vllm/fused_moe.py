@@ -2,11 +2,9 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Replaces vLLM's opaque _C.cpu_fused_moe with standard aten ops that OV lowers to GatherMatmul.
+"""Replace vLLM's opaque _C.cpu_fused_moe with the tiled MoE block the CPU plugin lowers to GatherMatmul.
 
-The ops form the tiled MoE block (every expert on every token, then a routing-weighted sum) that the CPU plugin's
-ConvertTiledMoeBlockTo3GatherMatmuls matches. That pass turns it into three GatherMatmuls indexed by the [T, top_k]
-router ids, so each matmul sees T rows. If the block doesn't match, it runs as dense batched matmuls over all experts.
+If ConvertTiledMoeBlockTo3GatherMatmuls doesn't match, the block runs as dense batched matmuls over all experts.
 """
 
 # mypy: ignore-errors
@@ -29,7 +27,7 @@ _trace_cache = {}
 
 
 def clear_weight_caches():
-    """Drop the unpacked expert copies and halves: they are keyed by the packed address, which in-place reloads keep."""
+    """Drop the unpacked expert copies: their packed-address keys survive in-place reloads."""
     _unpacked_cache.clear()
     _half_cache.clear()
 
@@ -79,11 +77,9 @@ def split_gate_up(packed, isa):
 
 
 def moe_tiled(tokens, w1, w3, w2, topk_weights, topk_ids, act):
-    """Compute MoE experts as a tiled block; same math as vLLM's cpu_fused_moe (w1 = gate, w3 = up).
+    """Compute MoE experts as the tiled block ConvertTiledMoeBlockTo3GatherMatmuls matches (w1 = gate, w3 = up).
 
-    Shaped for ConvertTiledMoeBlockTo3GatherMatmuls: Tile -> Reshape -> gate/up MatMuls -> act * up -> down MatMul ->
-    Reshape, times ScatterElementsUpdate -> Transpose -> Reshape routing weights, ReduceSum over experts.
-    bmm and view on contiguous tensors keep -1 for the token dim in the trace (matmul and reshape would bake it in).
+    bmm and view keep -1 for the token dim in the trace, where matmul and reshape would bake it in.
     """
     import torch
     from torch.nn import functional
@@ -103,7 +99,7 @@ def moe_tiled(tokens, w1, w3, w2, topk_weights, topk_ids, act):
 
 
 def _constant(gm, node):
-    """The tensor behind a get_attr node, or None for anything else."""
+    """Return the tensor behind a get_attr node, or None."""
     if node.op != "get_attr":
         return None
     value = gm
@@ -118,7 +114,7 @@ def _fused_moe_op():
 
 
 def _trace_expert_graph(act, x_dtype, weights, w_dtype, top_ids_val):
-    """FX graph of moe_tiled for one layer signature, traced once and reused."""
+    """Return the FX graph of moe_tiled for one layer signature, traced once."""
     import torch
     from torch._guards import tracing
     from torch._subclasses.fake_tensor import FakeTensorMode

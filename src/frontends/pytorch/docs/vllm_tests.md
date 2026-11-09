@@ -32,15 +32,14 @@ OV_LAZY_KVCACHE=1 python -m pytest tests/vllm_tests -m precommit -v
 | File | Kind | Covers |
 |---|---|---|
 | `test_run.py` | End to end | OpenVINO backend output vs vLLM eager |
-| `test_dynamic_shapes.py` | End to end | Prompt-length changes across `generate()` calls on one model |
-| `test_advanced_features.py` | End to end | logprobs, continuous batching, grammar, beam search, speculative decoding, prefix caching, logits processors |
+| `test_advanced_features.py` | End to end | logprobs, prompt-length changes and continuous batching, grammar, beam search, speculative decoding, prefix caching, logits processors |
 | `test_tiny_models.py` | End to end | Tiny random-weight MoE and Gated DeltaNet models vs eager |
 | `test_reload_weights.py`, `test_lm_head_reload.py` | End to end | The OV model and lm_head pick up weights changed after load |
 | `test_attention_support.py` | Unit | Refusing attention features the PagedAttention rewrite can't express |
 | `test_pa_partitioning.py` | Unit | Attention calls always land in an OV partition; KV-sharing pairs stay together |
-| `test_pa_input_binding.py`, `test_fast_infer_*.py` | Unit | Side-channel and fast-infer input binding |
+| `test_pa_input_binding.py`, `test_fast_infer.py` | Unit | Side-channel and fast-infer input binding |
 | `test_fused_sampler.py` | Unit | The OV-fused sampler |
-| `test_omp_wait_policy.py`, `test_bench_run_args.py` | Unit | Worker OpenMP environment; benchmark script arguments |
+| `test_omp_wait_policy.py`, `test_bench_run.py` | Unit | Worker OpenMP environment; benchmark script arguments and timing |
 
 New tests that should run in CI need the `precommit` marker. Prefer unit tests on hand-built FX graphs or
 stand-in objects where no model is needed. For end-to-end checks against eager, tiny random models need the

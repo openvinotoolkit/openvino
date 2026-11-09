@@ -2,31 +2,9 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Smoke test: vLLM + OpenVINO backend vs vLLM eager.
+"""OV vs vLLM eager: byte-identical greedy output on TinyLlama, and the worker state the plugin sets.
 
-Greedy decode only (HuggingFace's `do_sample=False`; vLLM expresses it as
-`temperature=0`). No sampling code path is exercised: the eager and OV runs
-both go through `Sampler.greedy_sample`, which is a plain argmax over
-logits, so any output divergence is attributable to the model.forward
-implementation alone.
-
-Uses dtype=float32, not the project-wide bfloat16 default: at bf16, eager,
-Inductor, and the OV backend all disagree with each other from the very
-first generated token for this model/prompt (verified manually) -- a
-generic compiled-vs-eager bf16 rounding difference, not an OV bug (see
-"match" note in the vllm README). float32 is the only dtype where all three
-backends agree, so it's the only regime where byte-for-byte equality is a
-meaningful correctness signal here. Both paths share a process so the
-comparison is meaningful (same tokenizer state, same prompt encoding); the
-eager and OV `LLM` instances are never alive at the same time.
-
-The OV backend's precision preset (vllm/preset.py) only recognizes bf16/f16
-as "narrow" dtypes; any other model dtype, including float32, silently falls
-back to bf16 compute and KV-cache precision unless overridden. Without the
-OV_INFERENCE_PRECISION_HINT/OV_KV_CACHE_PRECISION env vars set below, this
-test would actually be comparing eager-f32 against OV-bf16 -- reintroducing
-the exact bf16 non-determinism (including thread-count sensitivity) it
-exists to avoid.
+float32 with the OV precision overrides: in bf16 eager, Inductor and OV disagree from the first token.
 """
 
 import pytest
@@ -35,20 +13,12 @@ from conftest import MODEL_ID, select_cpu_platform
 
 PROMPT = "The capital of France is "
 MAX_NEW_TOKENS = 32
-SKIP_WARMUP_TOKENS = 5
-# One 2048-token TinyLlama sequence needs ~88 MiB of f32 KV. A fixed pool also skips vLLM's
-# check that 92% of node memory is free, so the test fits machines down to 16 GB.
+# A fixed KV pool skips vLLM's 92%-free-memory check, so this fits 16 GB machines.
 KV_CACHE_BYTES = 512 << 20
 
 
 def _worker_kv_update_flags(worker):
-    """Read the KV-cache-update flags from inside the engine worker.
-
-    Shipped to the worker by `LLM.collective_rpc`: the model runner lives in
-    its own process, so the flags the plugin touches during load are not
-    visible from the test process. Returns `(stock class flag, sorted set of
-    the loaded model's per-layer flags)`.
-    """
+    """Run in the engine worker: (stock CPUAttentionBackend flag, sorted per-layer flags of the loaded model)."""
     from vllm.v1.attention.backends.cpu_attn import CPUAttentionBackend
     from vllm.v1.attention.backend import AttentionBackend
 
@@ -56,8 +26,7 @@ def _worker_kv_update_flags(worker):
     layer_flags = {
         m.attn_backend.forward_includes_kv_cache_update
         for m in model.modules()
-        # Not every layer holding `attn_backend` holds a backend class there;
-        # the encoder ones hold an AttentionBackendEnum.
+        # Encoder layers hold an AttentionBackendEnum, not a backend class.
         if (
             isinstance(getattr(m, "attn_backend", None), type)
             and issubclass(m.attn_backend, AttentionBackend)
@@ -67,41 +36,23 @@ def _worker_kv_update_flags(worker):
 
 
 def _worker_omp_wait_policy(worker):
-    """OMP_WAIT_POLICY as seen by the engine worker (see plugin._patch_omp_wait_policy)."""
+    """OMP_WAIT_POLICY as seen by the engine worker."""
     import os
 
     return os.environ.get("OMP_WAIT_POLICY")
 
 
-def _generate(llm, prompt, params):
-    out = llm.generate([{"prompt": prompt}], params)
-    return out[0].outputs[0]
-
-
-def _run(llm, prompt, max_new_tokens, skip_warmup_tokens):
+def _run(llm):
     from vllm import SamplingParams
 
-    # temperature=0 (do_sample=False) -> greedy argmax; no sampling code
-    # path is exercised.
-    warm_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.0, ignore_eos=True)
-    _generate(llm, prompt, warm_params)  # warmup: compiles the model
-
-    full_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.0, ignore_eos=True)
-    out = _generate(llm, prompt, full_params)
-    return out.text
+    params = SamplingParams(max_tokens=MAX_NEW_TOKENS, temperature=0.0, ignore_eos=True)
+    llm.generate([{"prompt": PROMPT}], params)  # compiles the model
+    return llm.generate([{"prompt": PROMPT}], params)[0].outputs[0].text
 
 
 @pytest.mark.precommit
 def test_openvino_matches_eager_greedy(monkeypatch):
-    """The OV backend and vLLM eager must produce byte-identical greedy output.
-
-    Builds its own float32 LLM instances (other tests build bfloat16 ones via
-    new_openvino_llm): see module docstring for why bf16 isn't a stable
-    regime for this equality check.
-    """
     select_cpu_platform()
-    # Force the OV backend to actually compute in f32; otherwise it silently
-    # falls back to bf16 despite dtype="float32" (see module docstring).
     monkeypatch.setenv("OV_INFERENCE_PRECISION_HINT", "f32")
     monkeypatch.setenv("OV_KV_CACHE_PRECISION", "f32")
     # The plugin only fills OMP_WAIT_POLICY in when it is unset.
@@ -117,7 +68,7 @@ def test_openvino_matches_eager_greedy(monkeypatch):
         kv_cache_memory_bytes=KV_CACHE_BYTES,
     )
     try:
-        eager_text = _run(eager_llm, PROMPT, MAX_NEW_TOKENS, SKIP_WARMUP_TOKENS)
+        eager_text = _run(eager_llm)
         eager_wait_policy = eager_llm.collective_rpc(_worker_omp_wait_policy)
     finally:
         del eager_llm
@@ -137,7 +88,7 @@ def test_openvino_matches_eager_greedy(monkeypatch):
         },
     )
     try:
-        ov_text = _run(ov_llm, PROMPT, MAX_NEW_TOKENS, SKIP_WARMUP_TOKENS)
+        ov_text = _run(ov_llm)
         kv_update_flags = ov_llm.collective_rpc(_worker_kv_update_flags)
         ov_wait_policy = ov_llm.collective_rpc(_worker_omp_wait_policy)
     finally:
@@ -146,13 +97,8 @@ def test_openvino_matches_eager_greedy(monkeypatch):
     assert eager_text == ov_text, (
         f"OV and eager outputs diverge:\n  eager:    {eager_text!r}\n  openvino: {ov_text!r}")
 
-    # The OV backend takes over the paged KV-cache write, which means telling
-    # vLLM that forward() already updates the cache. It must do that on its own
-    # attention layers only: flipping the flag on CPUAttentionBackend itself
-    # would silently disarm unified_kv_cache_update for every other model in
-    # that worker (a draft/eagle model loaded alongside, a second engine in an
-    # in-process executor), which is exactly the kind of mutated reference this
-    # test exists to rule out. See plugin._own_kv_cache_update.
+    # OV owns the KV-cache write on its own layers only; flipping the class flag would disarm the write for every
+    # other model in the worker (a draft model, a second in-process engine).
     stock_flag, layer_flags = kv_update_flags[0]
     assert stock_flag is False, (
         "OV load mutated CPUAttentionBackend.forward_includes_kv_cache_update "
@@ -160,7 +106,6 @@ def test_openvino_matches_eager_greedy(monkeypatch):
     assert layer_flags == [True], (
         f"OV model's attention layers did not take over the KV-cache write: {layer_flags}")
 
-    # OV workers must not let libgomp spin on the cores the CPU plugin's TBB
-    # workers are pinned to; eager/inductor workers keep the default spin.
+    # OV workers must not let libgomp spin on the cores TBB is pinned to.
     assert ov_wait_policy == ["PASSIVE"], f"OV worker OMP_WAIT_POLICY: {ov_wait_policy}"
     assert eager_wait_policy == [None], f"eager worker OMP_WAIT_POLICY: {eager_wait_policy}"
