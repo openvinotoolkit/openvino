@@ -213,6 +213,20 @@ TEST_F(TPDevicePropertiesTest, RejectsWeightsThatDoNotFitTheDevice) {
                     HasSubstr("The model does not fit even split over 2 devices: rank 0 needs at least"));
 }
 
+// Two quantization groups of the MLP leave a third rank nothing: an error, not an empty weight
+// handed to the device plugin.
+TEST_F(TPDevicePropertiesTest, RejectsASplitThatLeavesARankEmpty) {
+    if (const auto missing = missing_rank_devices(3); !missing.empty())
+        GTEST_SKIP() << "needs 3 rank devices, missing " << missing;
+    BlockConfig config;
+    config.group_size = 128;
+    config.intermediate = 256;
+    ov::Core core;
+    OV_EXPECT_THROW(core.compile_model(make_transformer_block(config), tp_device(3)),
+                    ov::Exception,
+                    HasSubstr("2 unit(s) for 3 ranks: a rank would get none"));
+}
+
 TEST_F(TPDevicePropertiesTest, RejectsADevicePluginWithoutCollectives) {
     ov::Core core;
     if (!ov::util::contains(core.get_available_devices(), "CPU"))

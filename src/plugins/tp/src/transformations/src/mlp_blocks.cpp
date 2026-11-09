@@ -34,8 +34,8 @@ std::shared_ptr<ov::Node> activation(const std::shared_ptr<ov::Node>& input) {
 }
 
 /// Annotates an MLP: `columns` produce the intermediate dimension, `down` consumes it.
-/// The split step is the coarsest any of the three weights needs (quantization groups,
-/// packed sub-byte elements), so all of them are cut at the same offsets.
+/// The split step is the coarsest any of the three weights needs (quantization groups),
+/// so all of them are cut at the same offsets.
 void annotate_mlp(const std::vector<std::shared_ptr<ov::Node>>& columns,
                   const std::shared_ptr<ov::Node>& down,
                   const TPAnalyzerConfig& config,

@@ -229,6 +229,87 @@ INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                              return "world" + std::to_string(info.param);
                          });
 
+// Packed 4-bit elements keep their values when a rank's range starts or ends inside a byte, along
+// the outer axis (rows of three) as well as the inner one.
+TEST(TPRankPassesNibbleTest, CutsPacked4BitElementsInsideAByte) {
+    for (const int64_t axis : {0, 1}) {
+        SCOPED_TRACE("axis " + std::to_string(axis));
+        const auto shape = axis == 0 ? ov::Shape{5, 3} : ov::Shape{3, 5};
+        std::vector<int> values(15);
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = static_cast<int>(i);
+        const auto constant = ov::op::v0::Constant::create(ov::element::u4, shape, values);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{constant}, ov::ParameterVector{});
+        const std::vector<Segment> segments{{5, 1}};
+        set_shard(constant, ShardAnnotation(ShardStrategy::COLUMN_PARALLEL, axis, segments, "test"));
+        for (size_t rank = 0; rank < 2; ++rank) {
+            const auto rank_model = model->clone();
+            TPWeightShardingPass(rank, 2).run_on_model(rank_model);
+            const auto sliced = ov::as_type_ptr<ov::op::v0::Constant>(rank_model->get_results()[0]->get_input_node_shared_ptr(0));
+            ASSERT_NE(sliced, nullptr);
+            const auto range = rank_ranges(segments, rank, 2).front();
+            std::vector<int> expected;
+            for (size_t i = 0; i < values.size(); ++i) {
+                const size_t index = axis == 0 ? i / shape[1] : i % shape[1];
+                if (index >= range.offset && index < range.offset + range.length)
+                    expected.push_back(values[i]);
+            }
+            EXPECT_EQ(sliced->cast_vector<int>(), expected) << "rank " << rank;
+        }
+    }
+}
+
+// Groups of 64: one per unit of two query heads, 7 in the MLP. The MLP's rows of 7 zero points, and
+// ranks that end after an odd number of groups on three and four ranks, cut the packed u4 zero
+// points inside a byte; every weight is still cut at compile time.
+TEST(TPRankPassesNibbleTest, CutsZeroPointsInsideAByteAtCompileTime) {
+    BlockConfig config;
+    config.group_size = 64;
+    for (const size_t world_size : {2u, 3u, 4u}) {
+        SCOPED_TRACE("world " + std::to_string(world_size));
+        auto analyzed = make_transformer_block(config);
+        const auto report = analyze(analyzed, world_size);
+        EXPECT_TRUE(report->runtime_slices.empty()) << report->runtime_slices.front();
+        for (size_t rank = 0; rank < world_size; ++rank)
+            EXPECT_EQ(count_ops_of_type(rank_model(analyzed, rank, world_size), slice), 0u) << "rank " << rank;
+    }
+}
+
+// Units of two query heads (64 features) and groups of 128: two ranks end on a group boundary, but
+// three (4, 2, 2 heads) and four (2 each) end at 192, inside a group of the O projection, which
+// only a runtime Slice can cut.
+TEST(TPRankPassesRuntimeSliceTest, SlicesOnlyTheOProjectionWhenARankEndsInsideAGroup) {
+    BlockConfig config;
+    config.group_size = 128;
+    config.intermediate = 512;
+    for (const size_t world_size : {2u, 3u, 4u}) {
+        SCOPED_TRACE("world " + std::to_string(world_size));
+        const size_t expected = world_size == 2 ? 0u : 1u;
+        auto analyzed = make_transformer_block(config);
+        const auto report = analyze(analyzed, world_size);
+        EXPECT_EQ(report->runtime_slices.size(), expected);
+        for (size_t rank = 0; rank < world_size; ++rank) {
+            const auto model = rank_model(analyzed, rank, world_size);
+            size_t sliced = 0;
+            for (const auto& op : model->get_ordered_ops()) {
+                if (!ov::is_type<ov::op::v8::Slice>(op))
+                    continue;
+                ++sliced;
+                const auto consumer = op->output(0).get_target_inputs().begin()->get_node();
+                ASSERT_TRUE(ov::is_type<ov::op::v0::MatMul>(consumer));
+                // The O projection takes the attention output, not the MLP's gated product.
+                EXPECT_FALSE(ov::is_type<ov::op::v1::Multiply>(consumer->get_input_node_ptr(0)));
+                const auto& in = consumer->get_input_partial_shape(0);
+                EXPECT_EQ(in[in.size() - 1].get_length(),
+                          static_cast<int64_t>(rank_length({{config.num_heads * config.head_dim, 2 * config.head_dim}},
+                                                           rank,
+                                                           world_size)));
+            }
+            EXPECT_EQ(sliced, expected) << "rank " << rank;
+        }
+    }
+}
+
 // Fewer KV heads than ranks: every rank keeps the one KV head its query heads use.
 struct FewKvHeads {
     size_t kv_heads;

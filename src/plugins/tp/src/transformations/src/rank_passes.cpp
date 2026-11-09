@@ -11,6 +11,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
@@ -23,8 +24,9 @@ namespace tp {
 
 namespace {
 
-/// The rank's ranges of `c` along `axis`, concatenated. One contiguous range is a view into the
-/// original buffer; anything else is copied.
+/// The rank's ranges of `c` along `axis`, concatenated. One contiguous byte-aligned range is a view
+/// into the original buffer; anything else is copied, 4-bit elements one by one where a range
+/// starts or ends inside a byte.
 std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::op::v0::Constant>& c,
                                                      int64_t axis,
                                                      const std::vector<Range>& ranges,
@@ -33,6 +35,8 @@ std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::o
     const auto et = c->get_element_type();
     OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int64_t>(shape.size()),
                     "[TP] '", c->get_friendly_name(), "': axis ", axis, " out of range for ", shape);
+    OPENVINO_ASSERT(et.bitwidth() >= 8 || ov::element::is_nibble_type(et),
+                    "[TP] '", c->get_friendly_name(), "': cannot cut elements of type ", et);
 
     size_t outer = 1;
     for (int64_t d = 0; d < axis; ++d)
@@ -42,6 +46,9 @@ std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::o
         inner *= shape[d];
 
     const size_t bitwidth = et.bitwidth();
+    auto byte_aligned = [&](size_t elems) {
+        return bitwidth >= 8 || elems % (8 / bitwidth) == 0;
+    };
     auto elems_to_bytes = [&](size_t elems) -> size_t {
         if (bitwidth >= 8)
             return elems * (bitwidth / 8);
@@ -59,12 +66,16 @@ std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::o
         out_shape[axis] += range.length;
     }
 
+    bool aligned = byte_aligned(shape[axis] * inner) && byte_aligned(out_shape[axis] * inner);
+    for (const auto& range : ranges)
+        aligned = aligned && byte_aligned(range.offset * inner) && byte_aligned(range.length * inner);
+
     std::shared_ptr<ov::op::v0::Constant> sliced;
-    const bool view = outer == 1 && ranges.size() == 1;
+    const bool view = outer == 1 && ranges.size() == 1 && aligned;
     if (view) {
         const auto* data = static_cast<const char*>(c->get_data_ptr()) + elems_to_bytes(ranges[0].offset * inner);
         sliced = std::make_shared<ov::op::v0::Constant>(et, out_shape, static_cast<const void*>(data), std::shared_ptr<void>(c));
-    } else {
+    } else if (aligned) {
         const size_t row_bytes = elems_to_bytes(shape[axis] * inner);
         const size_t out_row_bytes = elems_to_bytes(out_shape[axis] * inner);
         std::vector<uint8_t> buffer(outer * out_row_bytes);
@@ -77,6 +88,23 @@ std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::o
                             src + o * row_bytes + elems_to_bytes(range.offset * inner),
                             bytes);
                 written += bytes;
+            }
+        }
+        sliced = std::make_shared<ov::op::v0::Constant>(et, out_shape, buffer.data());
+        ++stats.copies;
+        stats.copied_bytes += buffer.size();
+    } else {
+        // Two elements per byte, the first in the low nibble.
+        std::vector<uint8_t> buffer((outer * out_shape[axis] * inner + 1) / 2);
+        const auto* src = static_cast<const uint8_t*>(c->get_data_ptr());
+        size_t dst = 0;
+        for (size_t o = 0; o < outer; ++o) {
+            for (const auto& range : ranges) {
+                const size_t first = (o * shape[axis] + range.offset) * inner;
+                for (size_t s = first; s < first + range.length * inner; ++s, ++dst) {
+                    const auto value = static_cast<uint8_t>((src[s / 2] >> (s % 2 * 4)) & 0xF);
+                    buffer[dst / 2] |= static_cast<uint8_t>(value << (dst % 2 * 4));
+                }
             }
         }
         sliced = std::make_shared<ov::op::v0::Constant>(et, out_shape, buffer.data());

@@ -146,6 +146,43 @@ TEST(TPAnalyzerTest, RejectsMoreRanksThanKvHeads) {
     EXPECT_THROW(analyze(model, config.num_kv_heads + 1), ov::Exception);
 }
 
+// Two quantization groups of the MLP cannot give three ranks one each.
+TEST(TPAnalyzerTest, RejectsMoreRanksThanQuantizationGroups) {
+    BlockConfig config;
+    config.group_size = 128;
+    config.intermediate = 256;
+    EXPECT_NO_THROW(analyze(make_transformer_block(config), 2));
+    OV_EXPECT_THROW(analyze(make_transformer_block(config), 3),
+                    ov::Exception,
+                    ::testing::HasSubstr("2 unit(s) for 3 ranks: a rank would get none. Use at most 2 devices"));
+}
+
+// Weights of whole bytes and 4-bit ones are split; other packings are rejected, naming the weight.
+TEST(TPAnalyzerTest, SplitsOnlyWeightsOfWholeBytesOrFourBits) {
+    auto with_weight_type = [](ov::element::Type type) {
+        auto model = make_transformer_block(BlockConfig{});
+        for (const auto& op : model->get_ordered_ops()) {
+            const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (constant && constant->get_element_type() == ov::element::u4 && constant->get_shape().size() == 3) {
+                const auto replacement = ov::op::v0::Constant::create(type, constant->get_shape(), {0});
+                replacement->set_friendly_name("packed_weight");
+                constant->output(0).replace(replacement->output(0));
+                break;
+            }
+        }
+        model->validate_nodes_and_infer_types();
+        return model;
+    };
+    for (const auto type : {ov::element::u8, ov::element::i8, ov::element::f16, ov::element::i4, ov::element::nf4})
+        EXPECT_NO_THROW(analyze(with_weight_type(type), 2)) << type;
+    for (const auto type : {ov::element::u1, ov::element::u2, ov::element::u3, ov::element::u6}) {
+        OV_EXPECT_THROW(analyze(with_weight_type(type), 2),
+                        ov::Exception,
+                        ::testing::HasSubstr("weight constant 'packed_weight' of element type " +
+                                             std::string(type.get_type_name())));
+    }
+}
+
 TEST(TPAnalyzerTest, SplitsTheVocabularyProjection) {
     auto model = make_block_with_lm_head(BlockConfig{}, 1024);
     const auto report = analyze(model, 4);

@@ -250,6 +250,28 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUnevenHeadSplit) {
     expect_close(reference, parallel);
 }
 
+// The packed u4 zero points are cut inside a byte on every world size (TPRankPassesNibbleTest).
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnZeroPointsCutInsideAByte) {
+    BlockConfig config;
+    config.group_size = 64;
+    auto model = make_transformer_block(config);
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
+// On three and four ranks a boundary of the O projection falls inside a quantization group, so its
+// weight is cut by a Slice at run time (TPRankPassesRuntimeSliceTest); two ranks cut it whole.
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAWeightSlicedAtRunTime) {
+    BlockConfig config;
+    config.group_size = 128;
+    config.intermediate = 512;
+    auto model = make_transformer_block(config);
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
 // Fewer KV heads than ranks: every rank keeps the one KV head and its share of the query heads,
 // and the KV-cache state read and written whole takes one copy of each head.
 BlockConfig one_kv_head() {

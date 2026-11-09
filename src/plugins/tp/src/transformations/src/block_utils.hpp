@@ -54,12 +54,12 @@ int64_t weight_dim(const std::shared_ptr<ov::Node>& matmul, int64_t axis);
 bool read_head_layout(const ov::Output<ov::Node>& projection, int64_t& heads, int64_t& head_dim);
 
 /// Coarsest step a split along `axis` of the decompression chain at `output` has to respect
-/// (quantization groups, packed sub-byte elements), or 0 when the chain cannot be cut at all.
+/// (quantization groups), or 0 when the chain cannot be cut at all.
 int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int64_t full_size);
 
 /// Annotates the constants of the chain feeding `input` for a split of its `axis` (`full_size`
 /// elements) into `segments`. When the chain cannot be cut at every rank's boundaries, annotates
-/// a runtime Slice of that input instead and returns false.
+/// a runtime Slice of that input instead and returns false. Throws on a weight of 1, 2, 3 or 6 bits.
 bool annotate_chain(ov::Input<ov::Node> input,
                     int64_t axis,
                     const std::vector<Segment>& segments,

@@ -209,7 +209,8 @@ void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
     if (!report.runtime_slices.empty()) {
         TP_WARN_ALWAYS << "[TP] Warning: " << report.runtime_slices.size()
                        << " weights cannot be cut at the rank boundaries at compile time and are sliced at run "
-                          "time, which dominates compile time; the first is '"
+                          "time, which keeps them decompressed on the device (more memory, slower prefill); the "
+                          "first is '"
                        << report.runtime_slices.front() << "'";
     }
     if (!report.unclaimed.empty()) {

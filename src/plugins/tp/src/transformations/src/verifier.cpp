@@ -300,6 +300,7 @@ public:
             *m_dump << "# <op> \"<name>\" <output shape>: <state> from <the node that created the state>\n";
         size_t replicated = 0;
         for (const auto& node : model.get_ordered_ops()) {
+            check_units(*node);
             m_states[node.get()] = outputs(*node);
             if (m_dump && !write(*node))
                 ++replicated;
@@ -349,6 +350,28 @@ private:
     }
 
     // ---- helpers ---------------------------------------------------------------------------------
+
+    /// Every split has to give every rank at least one unit: a rank with nothing would get empty
+    /// weights, which device plugins do not handle.
+    void check_units(const ov::Node& node) const {
+        const auto* shard = get_shard(node);
+        if (!shard)
+            return;
+        for (const auto& segment : shard->segments) {
+            const size_t units = segment.length / segment.unit;
+            const size_t shares = segment.count ? segment.count : m_world_size;
+            if (units >= shares)
+                continue;
+            std::ostringstream message;
+            message << "[TP] " << node_name(node) << " (" << shard->block << ") splits " << segment.length
+                    << " elements in units of " << segment.unit << " (whole heads or quantization groups), " << units
+                    << " unit(s) for " << m_world_size << " ranks: a rank would get none. Use at most "
+                    << units * (m_world_size / shares) << " devices for this model.";
+            if (m_dump)
+                *m_dump << "# Failed\n" << message.str() << "\n";
+            OPENVINO_THROW(message.str());
+        }
+    }
 
     Layout layout(const std::vector<Segment>& segments) const {
         Layout result;

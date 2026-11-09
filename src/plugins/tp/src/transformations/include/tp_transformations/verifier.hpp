@@ -18,6 +18,7 @@ namespace tp {
 /// value), or rank-dependent sizes (a shape vector from ShapeOf of a Split tensor or an annotated shape
 /// constant). Sources: annotated constants and ReadValues, everything else Replicated. Each op type
 /// has a rule; an op with a non-Replicated input and no rule, or a combination its rule rejects, fails.
+/// A split that leaves a rank without a single unit fails too.
 ///
 /// With `dump`, every node with a non-Replicated output or an annotation is written there with its states, in
 /// topological order, and a failure is written before it is thrown.

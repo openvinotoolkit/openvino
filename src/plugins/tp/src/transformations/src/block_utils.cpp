@@ -10,6 +10,7 @@
 #include <unordered_set>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
@@ -268,17 +269,6 @@ bool walk_chain(ov::Input<ov::Node> input,
         // Constants that do not carry the axis (a per-tensor scale) are left whole.
         if (axis < 0 || axis >= static_cast<int64_t>(shape.size()) || static_cast<int64_t>(shape[axis]) != full_size)
             return true;
-        const size_t bitwidth = constant->get_element_type().bitwidth();
-        if (bitwidth < 8) {
-            size_t inner = 1;
-            for (size_t d = static_cast<size_t>(axis) + 1; d < shape.size(); ++d)
-                inner *= shape[d];
-            const size_t per_byte = 8 / bitwidth;
-            for (const auto b : boundaries(segments, world_size)) {
-                if ((b * inner) % per_byte != 0)
-                    return false;
-            }
-        }
         if (annotate)
             set_shard(constant, ShardAnnotation(strategy, axis, segments, block));
         return true;
@@ -320,24 +310,39 @@ bool walk_chain(ov::Input<ov::Node> input,
     return false;
 }
 
+/// Fails on a weight of a packing TP cannot cut: anything below a byte but 4-bit elements.
+void check_weight_types(ov::Input<ov::Node> input) {
+    std::unordered_set<ov::Node*> visited;
+    ov::op::util::visit_path(
+        input.get_source_output().get_node(),
+        visited,
+        [&](ov::Node* node) {
+            const auto* constant = ov::as_type<ov::op::v0::Constant>(node);
+            if (!constant)
+                return;
+            const auto et = constant->get_element_type();
+            OPENVINO_ASSERT(et.bitwidth() >= 8 || ov::element::is_nibble_type(et),
+                            "[TP] '",
+                            input.get_node()->get_friendly_name(),
+                            "' has a weight constant '",
+                            constant->get_friendly_name(),
+                            "' of element type ",
+                            et,
+                            ": tensor parallelism splits weights of 8 bits and more, and 4-bit ones (u4, i4, nf4, "
+                            "f4e2m1), only");
+        },
+        [](ov::Node*) {
+            return false;
+        });
+}
+
 }  // namespace
 
 int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int64_t full_size) {
     const auto node = output.get_node_shared_ptr();
 
-    if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-        const auto& shape = constant->get_shape();
-        if (axis < 0 || axis >= static_cast<int64_t>(shape.size()) || static_cast<int64_t>(shape[axis]) != full_size)
-            return 1;
-        const size_t bitwidth = constant->get_element_type().bitwidth();
-        if (bitwidth >= 8)
-            return 1;
-        int64_t inner = 1;
-        for (size_t d = static_cast<size_t>(axis) + 1; d < shape.size(); ++d)
-            inner *= static_cast<int64_t>(shape[d]);
-        const auto per_byte = static_cast<int64_t>(8 / bitwidth);
-        return per_byte / std::gcd(per_byte, inner);
-    }
+    if (ov::is_type<ov::op::v0::Constant>(node))
+        return 1;
 
     if (ov::is_type<ov::op::v0::Convert>(node))
         return chain_granularity(node->input_value(0), axis, full_size);
@@ -368,6 +373,7 @@ bool annotate_chain(ov::Input<ov::Node> input,
                     ShardStrategy strategy,
                     size_t world_size,
                     const std::string& block) {
+    check_weight_types(input);
     if (walk_chain(input, axis, segments, strategy, world_size, block, false)) {
         walk_chain(input, axis, segments, strategy, world_size, block, true);
         return true;
