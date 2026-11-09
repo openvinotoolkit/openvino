@@ -2772,11 +2772,13 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 // GENERATE on the token-major K page of each kind (f16, i8 BY_TOKEN, i8 BY_CHANNEL, u4 BY_CHANNEL), wherever
-// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg on its opt-in lane (the SG8 reader, sdpa_ocl_hpg_decode.cl). Every subsequence is one new token, so GENERATE is the only stage
-// that reads the cache (kv_cache_update writes the new token token-major first). paged_attention_opt.cl reads a token-major
-// page too, so the test asks which kernel ran rather than relying on a refused op to fail. The cases cover M = 1 / 4 / 8 and a
-// leftover row, page and partition edges, several partitions, heads 64-512, k != v, a sliding window, a sink, a runtime
-// scale and dynamic padding; each also runs with a sharp softmax, under which a misread key is visible.
+// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg on its opt-in lane with TEST_USE_SDPA_OCL_DECODE=1 (the SG8 reader,
+// sdpa_ocl_hpg_decode.cl; without it xe_hpg runs GENERATE on the opt kernels and every case SKIPs). Every subsequence is
+// one new token, so GENERATE is the only stage that reads the cache (kv_cache_update writes the new token token-major
+// first). paged_attention_opt.cl reads a token-major page too, so the test asks which kernel ran rather than relying on a
+// refused op to fail. The cases cover M = 1 / 4 / 8 and a leftover row, page and partition edges, several partitions,
+// heads 64-512, k != v, a sliding window, a sink, a runtime scale and dynamic padding; each also runs with a sharp
+// softmax, under which a misread key is visible.
 class paged_attention_decode_tm_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_decode_tm_test, matches_reference) {

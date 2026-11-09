@@ -59,15 +59,22 @@ struct paged_attention : public primitive_base<paged_attention> {
     //                   per-channel pairs. Its V page has split nibbles and a trailing per-token comp array.
     // (The plugin's config turns a u8 cache into i8 and an i4 one into u4; 4-bit BY_TOKEN keys are rejected.)
 
-    // TEST_USE_SDPA_OCL_DECODE: unset or '1' => sdpa_ocl_decode may serve GENERATE.
+    // TEST_USE_SDPA_OCL_DECODE: unset => sdpa_ocl_decode may serve GENERATE on Xe2+; '1' => on xe_hpg's lane too (the SG8
+    // reader, sdpa_ocl_hpg_decode.cl); any other value => nowhere. Where it does not serve, GENERATE runs the opt kernels
+    // (pa_single_token / pa_gqa_single_token), which read the same token-major page. xe_hpg keeps them by default: on the
+    // A770 the SG8 reader took 2.0-7.0x their device time per call from 1K to 32K keys (real models, 2026-11-09).
     // Read once per process. The SDPA / PA gates all go through these switches. (TEST_USE_SDPA_OCL, which selected
     // sdpa_micro, was retired with it; OV_GPU_ENABLE_SDPA_MICRO=0 turns the DPAS kernel off.)
-    static bool sdpa_ocl_decode_enabled() {
-        static const bool enabled = []() {
+    enum class decode_switch { unset, on, off };
+    static decode_switch sdpa_ocl_decode_switch() {
+        static const decode_switch value = []() {
             const char* env = std::getenv("TEST_USE_SDPA_OCL_DECODE");
-            return env == nullptr || env[0] == '1';
+            if (env == nullptr) {
+                return decode_switch::unset;
+            }
+            return env[0] == '1' ? decode_switch::on : decode_switch::off;
         }();
-        return enabled;
+        return value;
     }
 
     // TEST_USE_SDPA_OCL_HPG: '1' => xe_hpg (DG2/Arc-A, ARL-H) may take the sdpa_ocl lane. Default OFF (xe_hpg runs the
@@ -108,16 +115,19 @@ struct paged_attention : public primitive_base<paged_attention> {
         return sdpa_ocl_selected(info, sdpa_ocl_hpg_enabled());
     }
 
-    // Whether sdpa_ocl_decode (the DPAS GENERATE reader) can serve this device: Xe2+ XMX (SG16 + 2D block IO), and xe_hpg
-    // with TEST_USE_SDPA_OCL_HPG=1 (the SG8 reader, sdpa_ocl_hpg_decode.cl). Mirrors the device/switch part of
-    // supported(), which calls this itself so the two cannot drift. No oneDNN guard: the decode kernel does not need
-    // oneDNN.
+    // Whether sdpa_ocl_decode (the DPAS GENERATE reader) serves this device: Xe2+ XMX (SG16 + 2D block IO) unless
+    // TEST_USE_SDPA_OCL_DECODE turns it off, and xe_hpg with TEST_USE_SDPA_OCL_HPG=1 only when TEST_USE_SDPA_OCL_DECODE=1
+    // asks for the SG8 reader (sdpa_ocl_hpg_decode.cl). Mirrors the device/switch part of supported(), which calls this
+    // itself so the two cannot drift. No oneDNN guard: the decode kernel does not need oneDNN.
     // The three-argument form is pure so a host test can walk the whole table; the one-argument form reads the process env.
-    static bool sdpa_ocl_decode_reader_available(const device_info& info, bool decode_enabled, bool hpg_opt_in) {
-        return decode_enabled && info.supports_immad && sdpa_ocl_arch_ok(info, hpg_opt_in);
+    static bool sdpa_ocl_decode_reader_available(const device_info& info, decode_switch decode, bool hpg_opt_in) {
+        if (decode == decode_switch::off || !sdpa_ocl_arch_ok(info, hpg_opt_in) || !info.supports_immad) {
+            return false;
+        }
+        return info.arch != gpu_arch::xe_hpg || decode == decode_switch::on;
     }
     static bool sdpa_ocl_decode_reader_available(const device_info& info) {
-        return sdpa_ocl_decode_reader_available(info, sdpa_ocl_decode_enabled(), sdpa_ocl_hpg_enabled());
+        return sdpa_ocl_decode_reader_available(info, sdpa_ocl_decode_switch(), sdpa_ocl_hpg_enabled());
     }
 
     paged_attention() : primitive_base("", {}) {}
