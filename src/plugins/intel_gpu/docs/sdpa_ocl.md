@@ -2701,6 +2701,35 @@ re-measures against the opt kernels.
   `IGC_EnableForceDebugSWSB=1`, with `IGC_VISAOptions=-DPASTokenReduction` and with a V lead of 2-5 or 8, and fail on
   IGC 2.38.5 as well. The same kernel logic passed them before the broadcast-batch selects changed the code layout. Open
   until a fix (a V lead, a vISA option for these kernels, or the hazard pinned down) passes them several times uncached.
+- Which cases the hazard hits depends on the driver (A770, 2026-11-08/09):
+  - Linux NEO 26.40 / IGC 2.42.6: the cause is IGC's default SWSB token allocator on DG2. The instruction stream is
+    identical and only the SWSB tokens differ; `IGC_VISAOptions=-globalTokenAllocation`, `-distPropTokenAllocation` or
+    `IGC_EnableForceDebugSWSB=1` give correct output.
+    - Besides the cases above, it corrupts the compressed (i8 / u4) PA MIXED of the PREFILL kernel in real models
+      (llama-3.1-8b u4 and i8 BY_TOKEN, gemma-2-9b i8 BY_CHANNEL): the output differs from run to run.
+    - There is no per-kernel fix: IGC applies the regkeys of `-igc_opts` process-wide, from the first build of the
+      process only. The only workaround on that driver is the process-wide environment variable
+      `IGC_VISAOptions=-globalTokenAllocation` (its speed is not measured). No code works around it.
+  - Windows 32.0.101.9175: Intercept Layer CaptureReplay packages of two calls replay bit-exact there and corrupt on the
+    Linux driver:
+    - a lead-3 PA PREFILL call (`prefill_h128/16`): 5 / 5 exact on Windows, 5 / 5 corrupt on Linux;
+    - a default-config compressed MIXED call (llama chunk of 256 new / 768 past tokens, 32 / 8 heads, head 128, i8
+      BY_TOKEN, fused-QKV dynamic paddings): 20 / 20 exact on Windows, 20 / 20 corrupt on Linux.
+
+    The head-128 `smoke_ScaledAttnDynamic4D_GPU` cases above pass in every run. Head 512 is not clean on this driver:
+    - On the xe_hpg lane, `smoke_ScaledAttnDynamic4D_GPU` f16 head 512 non-causal (8 heads, 7 / 1 / 10 queries,
+      batch 1 / 1 / 2) fails 5-8 of its 32 cases per run, 16 different cases in 5 runs. 16-64 values are garbage, mostly
+      in query row 8 of the second batch. The causal cases take the generic kernel and pass, as do the default lane
+      and the head-512 PA PREFILL and rows suites.
+    - The `SDPA_OCL_NEG_SG8=4` build fails 38-41 of its 63 head-512 cases per run (`prefill_heads/100` to `/152`,
+      `smoke_sdpa_hpg_rows/*head512*`), 44 different cases in 6 runs.
+    - The other heads (64, 96, 128 and 256) passed in every run: 4 runs of the unit suites, 3 of the `ScaledAttn`
+      func tests.
+
+    The Windows IGC does not read `IGC_*` environment variables (`IGC_ShaderDumpEnable=1` dumps nothing), so the SWSB
+    controls were not run there. That this is the same hazard is concluded from the symptom, not proven.
+  - Gate: the Windows driver. The fix (a V lead or a source change of the S*V loop) is open and has to land before the
+    xe_hpg lane becomes the default.
 - The generic SG8 kernel (heads the PA PREFILL kernel does not serve, alibi / a runtime scale, PA MIXED, plain SDPA with causality or at other heads) was 3.6-14x `sdpa_micro` per call in real models (A770, f16 KV,
   2026-10-30/31): PA PREFILL 6.5-14x at 1K tokens (1.2-2.1x at 32), PA MIXED after a long prompt 4.3-8.3x against
   `sdpa_micro__generate` (measured at head 128), plain SDPA 3.6-4.2x (phi-4-multimodal's vision encoder at head 72,
