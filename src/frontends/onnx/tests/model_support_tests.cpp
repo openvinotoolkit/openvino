@@ -33,6 +33,24 @@ TEST(ONNXModelValidator, configuration_field_before_graph_iterator) {
     EXPECT_TRUE(ov::frontend::onnx::is_valid_model(model));
 }
 
+TEST(ONNXModelValidator, repeated_configuration_fields_before_graph) {
+    // ir_version, two configuration entries (field 26), then graph.
+    const std::string serialized_model("\x08\x09\xd2\x01\x00\xd2\x01\x00\x3a\x00", 10);
+    std::istringstream common_model(serialized_model, std::ios::binary);
+    std::istringstream iterator_model(serialized_model, std::ios::binary);
+    EXPECT_TRUE(ov::frontend::onnx::common::is_valid_model(common_model));
+    EXPECT_TRUE(ov::frontend::onnx::is_valid_model(iterator_model));
+}
+
+TEST(ONNXModelValidator, repeated_configuration_fields_before_ir_version_and_graph) {
+    // Two configuration entries with 2-byte payloads, then ir_version and graph.
+    const std::string serialized_model("\xd2\x01\x02\x0a\x00\xd2\x01\x02\x0a\x00\x08\x09\x3a\x00", 14);
+    std::istringstream common_model(serialized_model, std::ios::binary);
+    std::istringstream iterator_model(serialized_model, std::ios::binary);
+    EXPECT_TRUE(ov::frontend::onnx::common::is_valid_model(common_model));
+    EXPECT_TRUE(ov::frontend::onnx::is_valid_model(iterator_model));
+}
+
 TEST(ONNXModelValidator, truncated_multibyte_tag) {
     std::istringstream common_model(std::string("\x08\x09\xd2", 3), std::ios::binary);
     std::istringstream iterator_model(std::string("\x08\x09\xd2", 3), std::ios::binary);

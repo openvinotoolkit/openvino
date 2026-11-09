@@ -144,7 +144,8 @@ bool is_valid_model(std::istream& model) {
         while (!model.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
             const auto field = ::onnx::decode_next_field(model);
 
-            if (onnx_fields_found.count(field.first) > 0) {
+            // ModelProto.configuration is a repeated field.
+            if (field.first != ::onnx::CONFIGURATION && onnx_fields_found.count(field.first) > 0) {
                 // if the same field is found twice, this is not a valid ONNX model
                 return false;
             } else {
