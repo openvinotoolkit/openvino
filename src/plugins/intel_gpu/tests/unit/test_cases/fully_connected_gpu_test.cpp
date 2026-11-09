@@ -7409,6 +7409,7 @@ size_t count_async_compilation_tasks(impl_types fc_impl_type) {
 }
 }  // namespace
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
 // The oneDNN FC has no shape-agnostic impl, so each new shape is compiled synchronously. An async compilation task for the same
 // shape would only duplicate that work and run create() concurrently on the same onednn attributes, which create() modifies.
 TEST(fully_connected_onednn_gpu, dynamic_compressed_no_async_compilation_without_shape_agnostic_impl) {
@@ -7416,6 +7417,7 @@ TEST(fully_connected_onednn_gpu, dynamic_compressed_no_async_compilation_without
         GTEST_SKIP();
     ASSERT_EQ(count_async_compilation_tasks(impl_types::onednn), size_t(0));
 }
+#endif
 
 // Async compilation is kept when a shape-agnostic impl serves the new shapes meanwhile.
 TEST(fully_connected_gpu, dynamic_compressed_async_compilation_with_shape_agnostic_impl) {
