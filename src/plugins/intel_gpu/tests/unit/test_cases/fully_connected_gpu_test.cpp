@@ -5480,6 +5480,37 @@ TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_3d_cached) {
     test_dynamic_shape_agnostic_onednn_fc(3, true);
 }
 
+// Without forcing, the shape-agnostic oneDNN impl must not be selected on Intel GPUs.
+TEST(fully_connected_onednn_gpu, dynamic_shape_agnostic_not_selected_on_intel) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().vendor_id != INTEL_VENDOR_ID)
+        GTEST_SKIP();
+
+    const int64_t ifm = 32, ofm = 16;
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx});
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(ofm * ifm, -1, 1));
+
+    topology topology(input_layout("input", layout{ov::PartialShape{ov::Dimension::dynamic(), ifm}, data_types::f16, format::bfyx}),
+                      data("weights", weights_mem),
+                      fully_connected("fc", input_info("input"), "weights", "", 2, 2));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->get_program()->get_compilation_context().cancel();
+
+    auto input_mem = engine.allocate_memory({ov::PartialShape{7, ifm}, data_types::f16, format::bfyx});
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(7 * ifm, -1, 1));
+    network->set_input_data("input", input_mem);
+    network->execute();
+
+    auto impl = network->get_primitive("fc")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_FALSE(impl->is_onednn() && impl->is_dynamic());
+}
+
 TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     tests::random_generator rg(GET_SUITE_NAME);
 
