@@ -1629,9 +1629,10 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                     if constexpr (std::is_same_v<T3, ov::float16>) {
                                         // Hardware rounding, not the out-of-line ov::float16 constructor (they differ
                                         // only for f16 subnormals, #38797). float16_t takes this file's usual guard,
-                                        // and memcpy stores its bits into ov::float16 without type punning.
+                                        // and memcpy stores its bits into ov::float16 without type punning (the
+                                        // void* cast keeps GCC's -Wclass-memaccess quiet).
                                         const auto qk_f16 = static_cast<float16_t>(qk[r]);
-                                        std::memcpy(dst, &qk_f16, sizeof(qk_f16));
+                                        std::memcpy(static_cast<void*>(dst), &qk_f16, sizeof(qk_f16));
                                         continue;
                                     }
 #    endif
