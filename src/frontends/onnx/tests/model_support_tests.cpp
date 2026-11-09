@@ -59,8 +59,8 @@ TEST(ONNXModelValidator, truncated_multibyte_tag) {
 }
 
 TEST(ONNXModelValidator, int64_scalar_varint) {
-    // model_version (field 5) is an int64 and may use a ten-byte varint.
-    const std::string serialized_model("\x08\x09\x28\x80\x80\x80\x80\x10\x12\x00", 10);
+    // model_version (field 5) = -1 is an int64 encoded as a ten-byte varint.
+    const std::string serialized_model("\x08\x09\x28\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01\x12\x00", 15);
     std::istringstream common_model(serialized_model, std::ios::binary);
     std::istringstream iterator_model(serialized_model, std::ios::binary);
     EXPECT_TRUE(ov::frontend::onnx::common::is_valid_model(common_model));
