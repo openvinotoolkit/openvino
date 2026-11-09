@@ -508,7 +508,8 @@ public:
                 }
             }
             const auto& shape = root->get_input_partial_shape(0);
-            if (gemm.get_node() == nullptr || routing.get_node() == nullptr || shape.rank() != 2) {
+            const auto* routing_node = routing.get_node();
+            if (gemm.get_node() == nullptr || routing_node == nullptr || shape.rank() != 2) {
                 return false;
             }
             const auto target = ov::util::get_constant_from_source(root->input_value(1));
@@ -535,8 +536,9 @@ public:
 
             const auto reduction_op = ov::as_type_ptr<ov::op::v1::ReduceSum>(reduce);
             const auto multiply_op = ov::as_type_ptr<ov::op::v1::Multiply>(multiply);
+            OPENVINO_ASSERT(reduction_op && multiply_op);
             const auto axes = ov::util::get_constant_from_source(reduction_op->input_value(1));
-            const auto routing_rank = routing.get_partial_shape().rank();
+            const auto routing_rank = routing_node->get_output_partial_shape(routing.get_index()).rank();
             if (reduction_op->get_keep_dims() || !axes ||
                 (axes->cast_vector<int64_t>() != std::vector<int64_t>{0} && axes->cast_vector<int64_t>() != std::vector<int64_t>{-3}) ||
                 multiply_op->get_autob().m_type != ov::op::AutoBroadcastType::NUMPY || routing_rank.is_dynamic() || routing_rank.get_length() > 3) {
@@ -735,7 +737,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
     // are automatically propagated by copy_runtime_info through all transformations.
     // This allows moe.cpp to find bin offsets even when WCA is lost.
-    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() < 100) {
+    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() <= 100) {
         // First stamp WCA on constants with mmap descriptors but no WCA yet
         for (const auto& op : func->get_ops()) {
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
