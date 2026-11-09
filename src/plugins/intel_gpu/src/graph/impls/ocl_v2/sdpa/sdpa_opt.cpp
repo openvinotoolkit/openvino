@@ -34,10 +34,12 @@ constexpr int64_t max_single_token_rows = 4;
 
 // Several query rows stay on the multi-token kernels where the single-token stages are not exact for them:
 // per-channel compressed KV needs the micro kernel, every key partition adds the sink to its softmax sum,
-// and the finalization stage merges at most get_max_partitions_num() partitions.
+// the finalization stage merges at most get_max_partitions_num() partitions, and the query's local memory is K wide
+// while its loads and the output reduction use the V width.
 bool single_token_supports_query_rows(const RuntimeParams& params) {
     return !SDPAOpt::has_per_channel_compressed_kv(params) && !params.typed_desc<scaled_dot_product_attention>()->has_sink_input &&
-           get_partitions_num(params, SDPAStage::SINGLE_TOKEN) <= get_max_partitions_num();
+           get_partitions_num(params, SDPAStage::SINGLE_TOKEN) <= get_max_partitions_num() &&
+           SDPABase::get_effective_v_head_size(params) <= SDPABase::get_effective_k_head_size(params);
 }
 
 bool use_multi_token_stage(const RuntimeParams& params) {
