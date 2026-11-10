@@ -149,8 +149,10 @@ private:
     bool is_cache_enabled() const;
 
     bool _reuse_kernels = false;
-    // True for the NVIDIA SYCL backend, whose kernels need the compatibility headers.
-    bool _use_nvidia_compat = false;
+    // True when building for the NVIDIA SYCL backend (the only runtime NVIDIA builds support): kernels are compiled by
+    // the NVIDIA OpenCL compiler and launched through CUDA, so they get the compatibility headers and their sub-group
+    // sizes rewritten, and none of the IGC-only build options.
+    bool _targets_nvidia = false;
 
 public:
     explicit kernels_cache(engine& engine,
