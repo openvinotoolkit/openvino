@@ -4,7 +4,14 @@
 
 #include "fc_horizontal_fusion.hpp"
 
+#include <atomic>
+#include <cstring>
+#include <mutex>
 #include <string_view>
+
+#ifdef __linux__
+#    include <sys/mman.h>
+#endif
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -21,9 +28,139 @@
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/memory.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
+
+namespace {
+
+// The axis-0 concatenation of constants, i.e. their bytes back to back. The GPU plugin uploads
+// each constant and then calls hint_evict() on its buffer, which here releases the pages, so the
+// fused weights do not stay on the host for the rest of the compilation. The pages are released
+// with madvise() so the address stays reserved and cannot be handed to another constant (the
+// plugin dedups uploads by data pointer).
+//
+// Every AlignedBuffer::get_ptr() calls hint_prefetch(), which here rebuilds the data from the
+// source constants, so reading the Constant after an evict is transparent. Unlike a buffer mapped
+// from a weights file, the evicted pages themselves read back as zeros, so a raw pointer taken
+// before hint_evict() must not be dereferenced after it. Only this buffer is ever evicted: the
+// source constants, which may be user memory, are only read.
+class ConcatConstantBuffer : public ov::AlignedBuffer {
+public:
+    ConcatConstantBuffer(std::vector<std::shared_ptr<ov::op::v0::Constant>> sources, size_t byte_size)
+        : m_sources(std::move(sources)) {
+        m_byte_size = byte_size;
+#ifdef __linux__
+        void* ptr = mmap(nullptr, m_byte_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        OPENVINO_ASSERT(ptr != MAP_FAILED, "Failed to map ", m_byte_size, " bytes");
+        m_aligned_buffer = static_cast<char*>(ptr);
+#else
+        m_aligned_buffer = static_cast<char*>(ov::util::aligned_alloc(m_byte_size, 64));
+        OPENVINO_ASSERT(m_aligned_buffer, "Failed to allocate ", m_byte_size, " bytes");
+#endif
+        fill();
+    }
+
+    ~ConcatConstantBuffer() override {
+#ifdef __linux__
+        munmap(m_aligned_buffer, m_byte_size);
+        m_aligned_buffer = nullptr;  // the base class frees nothing then
+#endif
+    }
+
+    // Extension::hint_evict() only forwards to buffers that have a descriptor. This one is not
+    // backed by a weights file, so it reports the invalid source id.
+    std::shared_ptr<ov::IBufferDescriptor> get_descriptor() const override {
+        static const auto descriptor = std::make_shared<NoSourceDescriptor>();
+        return descriptor;
+    }
+
+    using ov::AlignedBuffer::hint_evict;
+    void hint_evict() noexcept override {
+#ifdef __linux__
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_evicted.load()) {
+            madvise(m_aligned_buffer, m_byte_size, MADV_DONTNEED);
+            m_evicted = true;
+        }
+#endif
+    }
+
+    void hint_prefetch() const override {
+        if (m_evicted.load()) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            if (m_evicted.load()) {
+                const_cast<ConcatConstantBuffer*>(this)->fill();
+                m_evicted = false;
+            }
+        }
+    }
+
+    // Extension::hint_prefetch() (used by the compile-time prefetch scheduler) goes through the async
+    // variant. Refilling is a plain memcpy from the source constants, so do it synchronously.
+    using ov::AlignedBuffer::hint_prefetch_async;
+    ov::util::PrefetchToken hint_prefetch_async() const noexcept override {
+        try {
+            hint_prefetch();
+        } catch (...) {
+        }
+        return {};
+    }
+
+private:
+    struct NoSourceDescriptor : public ov::IBufferDescriptor {
+        size_t get_id() const override {
+            return 0;  // ov::wsh::invalid_source_id
+        }
+        size_t get_offset() const override {
+            return 0;
+        }
+        std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const override {
+            return nullptr;
+        }
+    };
+
+    void fill() {
+        size_t offset = 0;
+        for (const auto& source : m_sources) {
+            std::memcpy(m_aligned_buffer + offset, source->get_data_ptr(), source->get_byte_size());
+            offset += source->get_byte_size();
+        }
+    }
+
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> m_sources;
+    mutable std::mutex m_mutex;
+    mutable std::atomic<bool> m_evicted{false};
+};
+
+// Concatenates plain constants along axis 0 into an evictable buffer, or returns nullptr if
+// the inputs are not plain constants or a source does not end on a byte boundary.
+std::shared_ptr<ov::op::v0::Constant> concat_constants_axis0(const ov::OutputVector& outputs) {
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> sources;
+    ov::Shape shape = outputs.front().get_shape();
+    shape[0] = 0;
+    size_t byte_size = 0;
+    for (const auto& output : outputs) {
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        if (!constant || constant->get_byte_size() == 0 ||
+            (ov::shape_size(constant->get_shape()) * constant->get_element_type().bitwidth()) % 8 != 0) {
+            return nullptr;
+        }
+        shape[0] += constant->get_shape()[0];
+        byte_size += constant->get_byte_size();
+        sources.push_back(constant);
+    }
+    const auto element_type = outputs.front().get_element_type();
+    if (byte_size != ov::shape_size(shape) * element_type.bitwidth() / 8) {
+        return nullptr;
+    }
+    auto buffer = std::make_shared<ConcatConstantBuffer>(std::move(sources), byte_size);
+    return std::make_shared<ov::op::v0::Constant>(element_type, shape, buffer);
+}
+
+}  // namespace
 
 FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swiglu) {
     using namespace ov::pass::pattern;
@@ -188,8 +325,11 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                     }
                 }
             }
-            auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
-            auto folded = ov::util::get_constant_from_source(concat);
+            std::shared_ptr<ov::Node> folded = axis == 0 ? concat_constants_axis0(outputs) : nullptr;
+            if (!folded) {
+                auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
+                folded = ov::util::get_constant_from_source(concat);
+            }
             if (!folded) {
                 GPU_DEBUG_TRACE_DETAIL << "FullyConnectedHorizontalFusion: failed to constant-fold the concat of " << name_suffix << std::endl;
                 return nullptr;

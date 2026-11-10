@@ -8,7 +8,12 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 
+#include <algorithm>
 #include <string>
+#include <tuple>
+#ifdef __linux__
+#    include <sys/mman.h>
+#endif
 #include <memory>
 
 #include "openvino/core/model.hpp"
@@ -22,6 +27,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/pass/manager.hpp"
 
 #include <transformations/utils/utils.hpp>
@@ -697,4 +703,80 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_matching_i8_group32)
         results.push_back(std::make_shared<ov::op::v0::Result>(reshape));
     }
     model_ref = std::make_shared<ov::Model>(results, ov::ParameterVector{input});
+}
+
+// The fused weight is released after its upload (hint_evict). Reading the Constant afterwards
+// must give the original data back (AlignedBuffer::get_ptr() prefetches, which rebuilds it from the
+// source constants), and the source constants must only be read.
+TEST(FullyConnectedHorizontalFusionTest, fused_weight_restored_after_evict) {
+    auto model = make_i8_fc_model({{4, 8}, {2, 8}, {2, 8}});
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> sources;
+    std::vector<std::vector<int8_t>> source_values;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(op)) {
+            sources.push_back(ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1)));
+            source_values.push_back(sources.back()->get_vector<int8_t>());
+        }
+    }
+    ASSERT_EQ(sources.size(), 3u);
+
+    ov::pass::Manager manager;
+    manager.register_pass<FullyConnectedHorizontalFusion>();
+    manager.run_passes(model);
+
+    std::shared_ptr<ov::op::v0::Constant> fused;
+    size_t num_fc = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(op)) {
+            fused = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+            ++num_fc;
+        }
+    }
+    ASSERT_EQ(num_fc, 1u);
+    ASSERT_NE(fused, nullptr);
+    ASSERT_EQ(fused->get_shape(), (ov::Shape{8, 256}));
+
+    std::vector<int8_t> expected(8 * 256, 1);
+    std::fill(expected.begin() + 4 * 256, expected.begin() + 6 * 256, 2);
+    std::fill(expected.begin() + 6 * 256, expected.end(), 3);
+    ASSERT_EQ(fused->get_vector<int8_t>(), expected);
+
+#ifdef __linux__
+    // Residency is checked with mincore() on a pointer taken before the evict, because any access
+    // through the Constant would prefetch and refill the buffer.
+    auto* raw = const_cast<void*>(fused->get_data_ptr());
+    auto resident = [&] {
+        unsigned char vec = 0;
+        EXPECT_EQ(mincore(raw, fused->get_byte_size(), &vec), 0);
+        return (vec & 1) != 0;
+    };
+    ASSERT_TRUE(resident());
+#endif
+
+    ov::wsh::Extension::hint_evict(*fused);
+#ifdef __linux__
+    EXPECT_FALSE(resident()) << "the fused weight was not released";
+#endif
+    EXPECT_EQ(fused->get_vector<int8_t>(), expected);
+
+    // Same through the explicit prefetch hint.
+    ov::wsh::Extension::hint_evict(*fused);
+    auto token = ov::wsh::Extension::hint_prefetch(*fused);
+    if (token.valid()) {
+        token.wait();
+    }
+#ifdef __linux__
+    EXPECT_TRUE(resident());
+#endif
+    EXPECT_EQ(fused->get_vector<int8_t>(), expected);
+
+    // Evicting twice is harmless.
+    ov::wsh::Extension::hint_evict(*fused);
+    ov::wsh::Extension::hint_evict(*fused);
+    EXPECT_EQ(fused->get_vector<int8_t>(), expected);
+
+    // The source constants were only read.
+    for (size_t i = 0; i < sources.size(); ++i) {
+        EXPECT_EQ(sources[i]->get_vector<int8_t>(), source_values[i]);
+    }
 }
