@@ -18,7 +18,11 @@
 #include "fc_gguf_cm.hpp"
 
 #include <cstdlib>
+#include <iomanip>
+#include <limits>
+#include <locale>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -288,12 +292,18 @@ protected:
             if (fd.is_type<cldnn::activation>()) {
                 const auto act = fd.typed_desc<cldnn::activation>();
                 switch (act->activation_function) {
-                case cldnn::activation_func::swish:
-                    // swish(x) = x / (1 + exp(-x))
+                case cldnn::activation_func::swish: {
+                    // swish(x) = x / (1 + exp(-beta*x))
                     // CM has no expf(); use cm_exp(x*log2e) = e^x  (base-2 hardware
                     // exp, vector form -- cm_exp deduces width from its argument).
-                    op.apply_stmt = "V = V / (1.0f + cm_exp(-V * 1.4426950408889634f));";
+                    std::ostringstream beta;
+                    beta.imbue(std::locale::classic());
+                    beta << std::scientific << std::setprecision(std::numeric_limits<float>::max_digits10)
+                         << act->additional_params.a << 'f';
+                    op.apply_stmt = "V = V / (1.0f + cm_exp(-V * (" + beta.str() +
+                                    ") * 1.4426950408889634f));";
                     break;
+                }
                 case cldnn::activation_func::relu:
                     op.apply_stmt = "V = cm_max<float>(V, 0.0f);";
                     break;
