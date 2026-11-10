@@ -1,0 +1,61 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-10-18-43-07-000-42857529037",
+    "timestamp": "2026-11-10T18:43:07Z",
+    "run_id": "42857529037",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42857529037",
+    "workflow_name": "NPU Models Tests",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
+    "signature": "pyarrow requires numpy 2.0 or newer but older numpy installed causing importerror in datasets/pyarrow dependency chain|Dependencies",
+    "signature_hash": "90d42369fa7c1efb",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "NPU Models Tests / 3720",
+            "conclusion": "failure",
+            "symptom": "PyTorch Models Tests - NPU compile-only (group B) failed: pyarrow ImportError due to NumPy ABI mismatch"
+        },
+        {
+            "name": "NPU Models Tests / 6010",
+            "conclusion": "failure",
+            "symptom": "PyTorch Models Tests - NPU compile-only (group B) failed: pyarrow ImportError due to NumPy ABI mismatch"
+        },
+        {
+            "name": "NPU Models Tests / 5020",
+            "conclusion": "failure",
+            "symptom": "PyTorch Models Tests - NPU compile-only (group B) failed: pyarrow ImportError due to NumPy ABI mismatch"
+        },
+        {
+            "name": "NPU Models Tests / 4000",
+            "conclusion": "failure",
+            "symptom": "PyTorch Models Tests - NPU compile-only (group B) failed: pyarrow ImportError due to NumPy ABI mismatch"
+        },
+        {
+            "name": "NPU Models Tests / 5010",
+            "conclusion": "failure",
+            "symptom": "PyTorch Models Tests - NPU compile-only (group B) failed: pyarrow ImportError due to NumPy ABI mismatch"
+        },
+        {
+            "name": "ci/gha_overall_status_windows",
+            "conclusion": "failure",
+            "symptom": "Overall status check failed because upstream NPU Models Tests jobs failed"
+        }
+    ],
+    "key_errors": [
+        "FAILED install\\tests\\model_hub_tests\\pytorch\\test_hf_transformers.py::TestTransformersModel::test_convert_model_precommit[NPU-bert-base-uncased-bert] - multiprocessing.context.ProcessError:",
+        "File \"...\\datasets\\arrow_dataset.py\", line 60, in <module>\n    import pyarrow as pa\n  File \"...\\pyarrow\\__init__.py\", line 71, in <module>\n    from pyarrow.lib import (BuildInfo, CppBuildInfo, RuntimeInfo, set_timezone_db_path,\n  File \"pyarrow/lib.pyx\", line 42, in init pyarrow.lib\nImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4"
+    ],
+    "root_cause": "The Windows NPU Models Tests job installs a pyarrow wheel built against NumPy 2.x ABI while the environment's pinned NumPy remains 1.26.4, so importing `datasets` (which imports `pyarrow`) raises `ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4` inside the `bert-base-uncased` test's subprocess, which propagates as `multiprocessing.context.ProcessError`. This is unrelated to the PR under test, which only edits a benchmarks CSV file (docs/sphinx_setup/_static/benchmarks_files/llm_models_7-368H.csv); it is a pre-existing dependency pinning gap in the NPU Windows test environment (pyarrow and numpy requirements are not jointly constrained in the install/tests requirements files for this job).",
+    "reproduction_steps": "On a Windows runner with the OpenVINO install/tests wheels environment set up: `pip show pyarrow numpy` to confirm versions; `pip install numpy<2` followed by `python -c \"from datasets import Audio, load_dataset\"` reproduces the ImportError when pyarrow>=... requires NumPy>=2.0.",
+    "recommended_actions": [
+        "Pin pyarrow to a version compatible with NumPy 1.26.4 (or upgrade NumPy to >=2.0) in the requirements used for the Windows NPU Models Tests job (search install/tests requirements*.txt or model_hub_tests requirements for pyarrow/numpy pins).",
+        "Add a CI smoke check that imports `datasets`/`pyarrow` immediately after environment setup to fail fast with a clearer message before the full test suite runs.",
+        "Since this PR (#39512) only touches a benchmarks CSV and is unrelated to the failure, re-run the failed jobs once the environment pin is fixed, or merge once a maintainer confirms the failure is a known pre-existing issue unrelated to this change."
+    ],
+    "prevention_strategies": "Add an explicit, jointly-tested pin for numpy and pyarrow (and transitively `datasets`) in the Windows test requirements, and add a CI step that validates critical third-party import compatibility (numpy/pyarrow ABI) right after dependency installation, failing early with an actionable message instead of deep inside a per-test subprocess.",
+    "historical_context": "This exact pyarrow/NumPy ABI mismatch has recurred 7 times since 2026-11-05 across NPU Models Tests merge-queue runs (pattern 90d42369fa7c1efb), including twice before on this same PR #39512. The dependency pin has not yet been fixed upstream."
+}

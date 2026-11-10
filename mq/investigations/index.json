@@ -1,6 +1,6 @@
 {
     "schema_version": "1.0",
-    "total": 367,
+    "total": 368,
     "entries": [
         {
             "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3573,6 +3573,15 @@
             "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
             "category": "Dependencies",
             "signature_hash": "6cf9cf0d8f5c0a43",
+            "pr_number": "39512"
+        },
+        {
+            "investigation_id": "2026-11-10-18-43-07-000-42857529037",
+            "run_id": "42857529037",
+            "timestamp": "2026-11-10T18:43:07Z",
+            "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
+            "category": "Dependencies",
+            "signature_hash": "90d42369fa7c1efb",
             "pr_number": "39512"
         }
     ]

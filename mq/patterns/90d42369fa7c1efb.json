@@ -4,10 +4,11 @@
     "signature_hash": "90d42369fa7c1efb",
     "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
     "category": "Dependencies",
-    "count": 7,
+    "count": 8,
     "first_seen": "2026-11-05T01:47:23Z",
-    "last_seen": "2026-11-09T17:40:08Z",
+    "last_seen": "2026-11-10T18:43:07Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/42857529037",
         "https://github.com/openvinotoolkit/openvino/actions/runs/42647164508",
         "https://github.com/openvinotoolkit/openvino/actions/runs/42647164675",
         "https://github.com/openvinotoolkit/openvino/actions/runs/42251178938",
@@ -20,8 +21,7 @@
         "https://github.com/openvinotoolkit/openvino/pull/39512"
     ],
     "recent_timestamps": [
-        "2026-11-09T17:40:08Z",
-        "2026-11-09T17:09:09Z"
+        "2026-11-10T18:43:07Z"
     ],
     "rerun_search_string": null
 }
