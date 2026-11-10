@@ -11,6 +11,8 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/fully_connected.hpp>
+#include <intel_gpu/primitives/reshape.hpp>
+#include <intel_gpu/primitives/activation.hpp>
 
 #include <cstddef>
 
@@ -168,4 +170,45 @@ TEST(data_gpu, transfer_memory_padding_mismatch_forced) {
         exception_msg = e.what();
     }
     ASSERT_FALSE(exception_thrown) << "Padding fix failed! Exception: " << exception_msg;
+}
+
+TEST(data_gpu, transfer_memory_keeps_shape_infer_constant_lockable) {
+    auto& engine = get_test_engine();
+    if (!engine.keeps_constants_in_device_memory()) {
+        GTEST_SKIP() << "Constants are not kept in usm_device memory on this device";
+    }
+
+    // CreateConstantOp allocates constants in usm_device on such devices, including a Reshape pattern
+    // that shape inference reads on the host.
+    auto pattern_layout = layout{ov::PartialShape{2}, data_types::i64, format::bfyx};
+    auto pattern_mem = engine.allocate_memory(pattern_layout, allocation_type::usm_device, false);
+    std::vector<int64_t> pattern = {-1, 4};
+    pattern_mem->copy_from(get_test_stream(), pattern.data(), true);
+
+    auto in_layout = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", in_layout),
+                      data("pattern", pattern_mem),
+                      reshape("reshape", input_info("input"), input_info("pattern"), false, ov::PartialShape::dynamic(2)),
+                      activation("relu", input_info("reshape"), activation_func::relu));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    ASSERT_NE(network.get_primitive("pattern")->output_memory().get_allocation_type(), allocation_type::usm_device);
+
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape{2, 6}, data_types::f32, format::bfyx});
+    std::vector<float> input = {1.f, -2.f, 3.f, -4.f, 5.f, -6.f, 7.f, -8.f, 9.f, -10.f, 11.f, -12.f};
+    set_values(input_mem, input);
+    network.set_input_data("input", input_mem);
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.at("relu").get_memory();
+    ASSERT_EQ(output_mem->get_layout().get_shape(), (ov::Shape{3, 4}));
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+    for (size_t i = 0; i < input.size(); i++) {
+        ASSERT_EQ(std::max(input[i], 0.f), output_ptr[i]);
+    }
 }

@@ -733,10 +733,21 @@ void program::transfer_memory_to_device() {
         get_stream().finish();
     };
     for (const auto& node : processing_order) {
-        if (node->is_shape_infer_dep()) {
+        if (node->is_shape_infer_dep() || node->need_lockable_memory()) {
+            // CreateConstantOp allocates constants in usm_device when the engine keeps them there; the ones that
+            // are read on the host move back to lockable memory. Constants without users stay where they are.
+            if (node->is_type<data>() && !node->get_users().empty() && !node->as<data>().get_primitive()->skip_device_transfer()) {
+                auto& data_node = node->as<data>();
+                const auto& mem = data_node.get_attached_memory();
+                const auto& mem_layout = mem.get_layout();
+                if (mem.get_allocation_type() == allocation_type::usm_device && mem_layout.count() != 0) {
+                    const auto lockable_type = get_engine().get_lockable_preferred_memory_allocation_type(mem_layout.format.is_image_2d());
+                    allocate_and_transfer(data_node, mem_layout, mem, lockable_type);
+                }
+            }
             continue;
         }
-        if (node->is_type<data>() && !node->need_lockable_memory()) {
+        if (node->is_type<data>()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto prim = data_node.get_primitive();
@@ -751,11 +762,8 @@ void program::transfer_memory_to_device() {
                 continue;
 
             allocation_type target_alloc_type = alloc_type;
-            // usm_device memory does not provide performance benefits on the LNL platform
             if ((alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) &&
-                (get_engine().get_device_info().arch < gpu_arch::xe2 ||
-                  get_engine().get_device_info().dev_type != device_type::integrated_gpu)) {
-                // Convert to usm_device for performance optimization
+                get_engine().keeps_constants_in_device_memory()) {
                 target_alloc_type = allocation_type::usm_device;
             }
 

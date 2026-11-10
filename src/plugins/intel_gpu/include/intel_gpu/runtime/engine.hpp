@@ -117,6 +117,9 @@ public:
     /// Returns true if current engine supports zero copy via host buffer access
     bool can_use_host_usm_zero_copy() const;
 
+    /// Returns true if constants are kept in usm_device memory on this engine
+    bool keeps_constants_in_device_memory() const;
+
     /// Returns device structure which represents stores device capabilities
     const device_info& get_device_info() const;
 
