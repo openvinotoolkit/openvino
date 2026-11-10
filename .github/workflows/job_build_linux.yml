@@ -274,6 +274,27 @@ jobs:
         if: ${{ inputs.build-samples }}
         run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component samples_bin
 
+      # CMake skips the optional hello_remote_tensor sample with only a status message when the system Level Zero
+      # loader or the OpenCL headers are missing. Report why, so a missing binary is explained in this log.
+      - name: Check hello_remote_tensor sample
+        if: ${{ inputs.build-samples && inputs.build-variant == 'levelzero' }}
+        run: |
+          if [ -x "${INSTALL_DIR}/samples_bin/hello_remote_tensor" ]; then
+            echo "hello_remote_tensor was built and installed"
+            exit 0
+          fi
+          echo "::warning title=hello_remote_tensor::The sample was not built, the reason is in the log of this step"
+          echo "--- CMake message of the sample (configure is repeated only to print it) ---"
+          cmake -S ${OPENVINO_REPO} -B ${BUILD_DIR} 2>&1 | grep hello_remote_tensor || echo "CMake printed nothing about hello_remote_tensor"
+          echo "--- CMake cache ---"
+          grep -E "^(LEVEL_ZERO|OpenCL|OPENCL)[A-Za-z_]*:" ${BUILD_DIR}/CMakeCache.txt || true
+          echo "--- Level Zero and OpenCL packages ---"
+          dpkg -l | grep -E "libze|level-zero|opencl|ocl-icd" || true
+          echo "--- Level Zero and OpenCL files ---"
+          find /usr /opt \( -name 'libze_loader*' -o -name ze_api.h -o -name cl.h \) 2>/dev/null | head -n 20
+          echo "--- Installed samples ---"
+          ls -la ${INSTALL_DIR}/samples_bin
+
       # The GGUF per-architecture fixtures are GGUF headers emitted by llama.cpp's test-llama-archs.
       # They are generated here rather than committed, and land in the tests artifact so the test job
       # (which has neither a source checkout nor cmake) can consume them like any other test data.
