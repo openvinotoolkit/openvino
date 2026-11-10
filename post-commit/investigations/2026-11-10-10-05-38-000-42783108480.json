@@ -1,0 +1,37 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-10-10-05-38-000-42783108480",
+    "timestamp": "2026-11-10T10:05:38Z",
+    "run_id": "42783108480",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42783108480",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "7b77f009478103cb23b846a27de032b2184139ae",
+    "pr_number": "39668",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39668",
+    "author": "AndreyPavlenko",
+    "category": "Infrastructure",
+    "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+    "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+    "signature_hash": "514ffa2ab52ad344",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "GPU unit tests",
+            "conclusion": "failure",
+            "symptom": "'Extract OpenVINO packages' step failed: Expand-Archive could not overwrite tbb12.dll because PowerShell's Remove-Item raised UnauthorizedAccessException (file locked/permission denied)."
+        }
+    ],
+    "key_errors": [
+        "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force against an install directory that already contains tbb12.dll from a prior extraction/build step on the same Windows self-hosted runner. PowerShell's Expand-Archive -Force implementation removes pre-existing files before writing new ones; Remove-Item fails with UnauthorizedAccessException because tbb12.dll is still locked by another process (most likely a lingering antivirus scan, a stale process from a prior job on the same reused runner, or an open file handle left by the build step). This is a transient Windows self-hosted runner file-locking issue, not caused by the merged commit's change (an MLIR/MSVC compilation fix unrelated to packaging/extraction).",
+    "reproduction_steps": "N/A - requires the specific Windows self-hosted runner state (locked DLL handle) and is not reliably reproducible locally. To reproduce conditions: on a Windows runner, pre-populate the install directory with tbb12.dll from a build, open a handle to it (e.g., leave an .exe linked against it running), then run 'Expand-Archive -Force' against an archive containing the same file.",
+    "recommended_actions": [
+        "Add a retry-with-delay wrapper around the Expand-Archive/Remove-Item extraction step for Windows jobs to tolerate transient file locks.",
+        "Investigate whether Windows Defender real-time scanning or a lingering process from a prior job is holding a handle on tbb12.dll immediately after extraction; add a short sleep/explicit process cleanup before extraction.",
+        "Consider using 7zip or robocopy-based extraction instead of Expand-Archive -Force, which handles locked destination files more gracefully (skip-if-identical or retry logic).",
+        "This is now the 3rd recorded occurrence of this exact signature - escalate to the CI infrastructure team to investigate the Windows self-hosted runner pool for stale processes/AV locks rather than treating each occurrence as a one-off."
+    ],
+    "prevention_strategies": "Wrap Windows archive-extraction steps with a retry loop (e.g., 3 attempts with short backoff) when Remove-Item/Expand-Archive fails with UnauthorizedAccessException, since transient file locks on shared Windows runners are common. Ensure build/test steps release file handles on DLLs (e.g., tbb12.dll) before the packaging/extraction job starts, and periodically recycle Windows runner images to clear stale locked handles.",
+    "historical_context": "Identical signature (514ffa2ab52ad344) previously recorded on 2026-11-09T16:30:00Z (run 42626586527, commit 41aa722bf4d15ebcd2869da881b577335d7a1155) and 2026-11-10T09:02:45Z (run 42775441636, commit d52a7462e5267eecc7bb9d0329a518deaebe105f), both also 'GPU unit tests' jobs failing at the 'Extract OpenVINO packages' step with the same tbb12.dll UnauthorizedAccessException. This is now the 3rd observed occurrence within roughly 18 hours, strongly confirming a recurring Windows-runner infrastructure issue that warrants escalation rather than continued one-off triage."
+}

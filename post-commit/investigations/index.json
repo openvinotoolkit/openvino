@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 80,
+  "total": 81,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -817,6 +817,17 @@
       "category": "Infrastructure",
       "signature_hash": "514ffa2ab52ad344",
       "commit_sha": "d52a7462e5267eecc7bb9d0329a518deaebe105f"
+    },
+    {
+      "investigation_id": "2026-11-10-10-05-38-000-42783108480",
+      "run_id": "42783108480",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42783108480",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-11-10T10:05:38Z",
+      "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+      "category": "Infrastructure",
+      "signature_hash": "514ffa2ab52ad344",
+      "commit_sha": "7b77f009478103cb23b846a27de032b2184139ae"
     }
   ]
 }
