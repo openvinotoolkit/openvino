@@ -204,7 +204,8 @@ def main():
         set_github_output("skip_workflow", "True")
         sys.exit(0)
 
-    gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"))
+    # ghapi 2 returns coroutines from endpoint calls unless the client is synchronous.
+    gh_api = GhApi(owner=owner, repo=repository, token=os.getenv("GITHUB_TOKEN"), sync=True)
     pr = gh_api.pulls.get(args.pr) if args.pr else None
 
     with open(Path(args.components_config_schema), 'r') as schema_file:
