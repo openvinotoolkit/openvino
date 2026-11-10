@@ -794,6 +794,9 @@ public:
     void test_dynamic_multi_inference_different_shape_onednn(bool is_caching_test, data_types data_type) {
         auto& engine = get_test_engine();
 
+#ifndef ENABLE_ONEDNN_FOR_GPU
+        GTEST_SKIP() << "oneDNN support is disabled in this build";
+ #endif
         if (!engine.get_device_info().supports_immad)
             return;
 
