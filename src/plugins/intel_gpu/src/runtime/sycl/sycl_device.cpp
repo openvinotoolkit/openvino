@@ -370,7 +370,7 @@ memory_capabilities init_memory_caps(const ::sycl::device& device, const device_
 std::shared_ptr<ocl::ocl_device> find_matching_ocl_device(const device_info& info) {
     const auto& uuid = info.uuid.uuid;
     if (std::all_of(uuid.begin(), uuid.end(), [](uint8_t byte) { return byte == 0; })) {
-        GPU_DEBUG_LOG << "[GPU][NVIDIA] The SYCL device " << info.dev_name
+        GPU_DEBUG_LOG << "[GPU] The SYCL device " << info.dev_name
                       << " reports no UUID, so no OpenCL device can be matched to it" << std::endl;
         return nullptr;
     }
@@ -382,7 +382,7 @@ std::shared_ptr<ocl::ocl_device> find_matching_ocl_device(const device_info& inf
                 return ocl_dev;
         }
     } catch (const std::exception& e) {
-        GPU_DEBUG_LOG << "[GPU][NVIDIA] OpenCL device lookup failed: " << e.what() << std::endl;
+        GPU_DEBUG_LOG << "[GPU] OpenCL device lookup failed: " << e.what() << std::endl;
     }
     return nullptr;
 }
@@ -410,7 +410,7 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
             // anything larger when clBuildProgram builds the kernel.
             _info.max_local_mem_size = _ocl_device->get_info().max_local_mem_size;
         } else {
-            GPU_DEBUG_LOG << "[GPU][NVIDIA] No OpenCL device matches the SYCL device " << _info.dev_name
+            GPU_DEBUG_LOG << "[GPU] No OpenCL device matches the SYCL device " << _info.dev_name
                           << ", so OpenCL kernels cannot be built for it" << std::endl;
         }
     }
