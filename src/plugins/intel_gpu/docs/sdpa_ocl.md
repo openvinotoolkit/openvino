@@ -2092,6 +2092,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_CAUSAL_SKIP` | PREFILL causal tile skip ("Paged-attention PREFILL: short prompts", "Plain-SDPA causal tile skip"): `0`/`1` forces it off/on (default on for PA at `d_max` 128 / 256 / 512, for plain `is_causal` f16 `d_max` 128, and as the KQ branch alone for plain non-causal table-tile stages without a mask) |
 | `SDPA_OCL_MICRO_MATH` | `0` / `1` forces `sdpa_micro` rounding off / on for PA prefill (default on except the `d_max` 512 tile and on xe_hpg) |
 | `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
+| `SDPA_OCL_NEG_X5` | Plain SDPA per-channel compressed KV (Xe2+, "Per-channel compressed KV"): `1` / `2` read the K / V scale and zp of the neighbouring channel / column, `3` / `4` swap the K / V nibbles (4-bit only); each must fail `smoke_sdpa_gpu_compressed_kv_per_channel` and `smoke_sdpa_gpu_gqa_decomp` |
 | `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths (on xe_hpg only `_M` and `_SG_PER_WG` up to 8) |
 | `SDPA_OCL_DECODE_LOW_REG` | Decode low-register layout: `0`/`1` forces it off/on (bit-identical either way) |
 | `SDPA_OCL_DECODE_V_PAGE_1D`, `_K_LANE_TILES` | Decode per-lane pages: `0` restores the V byte gather and the head-dim split; K tiles per per-lane load, 1 / 2 / 4 dividing the tile count (bit-identical) |
