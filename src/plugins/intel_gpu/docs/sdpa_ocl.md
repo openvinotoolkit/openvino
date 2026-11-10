@@ -24,7 +24,7 @@ Whether the DPAS kernel serves plain SDPA and PA PREFILL/MIXED is decided per de
 `paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ and xe_hpg XMX (xe_hpg since 2026-11-09, below), the
 opt kernels on every other device (xe_hpc, non-XMX). `sdpa_micro`, the oneDNN-derived DPAS kernel
 that served the other XMX parts, was removed on 2026-11-02 together with `TEST_USE_SDPA_OCL`, which selected it; what
-that changed off Xe2 is listed in "Known issues". The `sdpa_ocl` lane needs XMX and a oneDNN build (the
+that changed off Xe2 is listed in "Change history". The `sdpa_ocl` lane needs XMX and a oneDNN build (the
 `ENABLE_ONEDNN_FOR_GPU` guards were kept, although the kernel no longer uses oneDNN), but not the oneDNN microkernel
 support (`cldnn::query_microkernels_supported()`); `OV_GPU_ENABLE_SDPA_MICRO=0` (the config's `enable_sdpa_micro`, a name
 from `sdpa_micro`) turns it off. Where `sdpa_ocl` refuses an op, the opt kernels run. The generator is created in every
@@ -1469,7 +1469,7 @@ and came back on 2026-11-06 together with BY_CHANNEL readers, when the page beca
 
 A K cache page is token-major, `[block_size, head_size]` like V, on every device, for every inference precision and every
 cache kind. The upstream d-major page (`[head_size, block_size]`) and every reader and writer of it were removed on
-2026-11-08 ("Token-major K pages only (2026-11-08)" in "Known issues"). `transformations_pipeline.cpp` gives the key cache
+2026-11-08 ("Token-major K pages only (2026-11-08)" in "Change history"). `transformations_pipeline.cpp` gives the key cache
 the dim order `{0, 1, 2, 3}`, as XAttention's; `graph/paged_attention.cpp` reads the (adjusted) block size at dim 2 and
 `ops/paged_attention.cpp` the head size at dim 3. No layout rule, shape detection, layout jit or layout switch is left, so a cache an
 application allocates itself must have the token-major shape: a d-major one fails the block-size check of
@@ -1500,7 +1500,7 @@ with PREFILL, and is never dispatched.
 
 Where `sdpa_ocl` serves MIXED, a small GQA MIXED step (at most 16 new tokens per subsequence) goes to the GQA fallback,
 `pa_small_q_opt.cl` or `sdpa_ocl`, chosen in `select_gqa_multi_tokens_kernel()` by cache kind, head size, new tokens and
-context ("Small GQA MIXED step on the token-major page (2026-11-08)" in "Known issues"). An op `sdpa_ocl` refuses keeps
+context ("Small GQA MIXED step on the token-major page (2026-11-08)" in "Change history"). An op `sdpa_ocl` refuses keeps
 upstream's choice: the fallback while new tokens^2 x context is at most 64K (`prefer_gqa_multi_tokens_fallback_kernel()`),
 `pa_small_q_opt.cl` above it.
 
@@ -2100,11 +2100,9 @@ All are read on the host when the kernel is compiled.
 The negative controls must fail the token-type suites when disabled; a pass means the suite does
 not observe the feature.
 
-## Known issues
+## Change history
 
-Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
-fix changes behaviour or lies outside them. Everything here comes from code reading unless a test
-result is quoted.
+What changed in these files, by date: the problem, the change, and the checks that were run.
 
 ### sdpa_micro removal (2026-11-02)
 
@@ -2627,6 +2625,12 @@ off its lane, xe_hpc), non-f16 inference, and the pages the rule turned down on 
 - Not checked: devices without XMX and xe_hpc (no such device on the test PC), Xe2 (the B70, owed), EAGLE3 / R-KV /
   `pa_small_q_opt.cl` with a non-f16 comp. The remote branch keeps the rule and the d-major page, so the two diverge
   until the same lands there.
+
+## Known issues
+
+Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
+fix changes behaviour or lies outside them. Everything here comes from code reading unless a test
+result is quoted.
 
 ### Correctness
 
