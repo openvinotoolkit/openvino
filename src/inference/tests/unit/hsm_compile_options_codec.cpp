@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <locale>
+#include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -23,17 +24,14 @@
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/hash_util.hpp"
 
 namespace ov::test {
 namespace hsm = ov::runtime::hsm;
 using namespace std::string_literals;
 namespace {
 
-using SectionDecodeFn = std::optional<ov::AnyMap> (*)(const hsm::Section&) noexcept;
-using EncodedBytes = decltype(hsm::encode_compile_options(std::declval<const ov::AnyMap&>()));
-
-static_assert(std::is_convertible_v<decltype(static_cast<SectionDecodeFn>(&hsm::decode_compile_options)),
-                                    hsm::SectionDecoder<ov::AnyMap>>,
+static_assert(std::is_convertible_v<decltype(&hsm::decode_compile_options), hsm::SectionDecoder<ov::AnyMap>>,
               "decode_compile_options(const Section&) must be usable as a SectionDecoder<ov::AnyMap>.");
 static_assert(std::is_base_of_v<hsm::ISectionEncoder, hsm::CompileOptionsEncoder>,
               "CompileOptionsEncoder must be an ISectionEncoder.");
@@ -48,28 +46,46 @@ static_assert(!std::is_constructible_v<hsm::CompileOptionsEncoder, const ov::Any
 static_assert(std::is_same_v<decltype(std::declval<hsm::IWriter&>().add_section(
                                  hsm::DeviceId{},
                                  hsm::compile_options_tag,
-                                 ov::util::MemoryView{std::declval<const EncodedBytes&>().data(),
-                                                      std::declval<const EncodedBytes&>().size()})),
-                             bool>,
-              "encode_compile_options() result must fit IWriter::add_section(MemoryView).");
-static_assert(std::is_same_v<decltype(std::declval<hsm::IWriter&>().add_section(
-                                 hsm::DeviceId{},
-                                 hsm::compile_options_tag,
                                  std::declval<std::shared_ptr<hsm::CompileOptionsEncoder>>())),
                              bool>,
               "CompileOptionsEncoder must fit the unsized IWriter::add_section(SectionEncoderPtr).");
 
 constexpr hsm::DeviceId fake_device_id = hsm::private_device_id_range_start + 42;
 
+// Separators, spelled out here on purpose - the codec's own constants are not visible to the tests.
+const std::string US{"\x1f"};
+const std::string GS{"\x1d"};
+const std::string RS{"\x1e"};
+const std::string FS{"\x1c"};
+
+// The digest rule from the format description, applied to everything up to and including FS.
+std::string digest_of(std::string_view bytes) {
+    uint64_t hash = 0;
+    for (const auto byte : bytes) {
+        hash = ov::util::u64_hash_combine(hash, static_cast<uint8_t>(byte));
+    }
+    return std::string{reinterpret_cast<const char*>(&hash), sizeof(hash)};
+}
+
+// @p body must end with FS.
+std::string with_digest(const std::string& body) {
+    return body + digest_of(body);
+}
+
 /// @p input is what the encoder gets; @p decoded what the decoder must return (if unset, same as @p input).
 struct ReferenceCase {
     std::string name;
     ov::AnyMap input;
     std::optional<ov::AnyMap> decoded;
-    std::string bytes;
+    std::string entries;  ///< Everything up to and including FS.
+    std::string digest;  ///< Little-endian, computed offline by an independent implementation of the rule.
 
     const ov::AnyMap& expected_decoded() const {
         return decoded ? *decoded : input;
+    }
+
+    std::string bytes() const {
+        return entries + digest;
     }
 };
 
@@ -77,36 +93,20 @@ void PrintTo(const ReferenceCase& reference, std::ostream* os) {
     *os << reference.name;
 }
 
-// Reference payloads are spelled out byte by byte (little-endian, like HSM) - never produced by the codec.
-const ReferenceCase empty_map_case{"empty_map", {}, std::nullopt, "\x00\x00\x00\x00"s};
+// Reference payloads are spelled out byte by byte - never produced by the codec.
+const ReferenceCase empty_map_case{"empty_map", {}, std::nullopt, FS, "\x6c\x57\xd4\xaa\xc2\x65\x0d\x33"s};
 
 const ReferenceCase single_string_case{"single_string",
                                        {{"k", "v"}},
                                        std::nullopt,
-                                       "\x01\x00\x00\x00"
-                                       "\x01\x00\x00\x00"
-                                       "k"
-                                       "\x00"
-                                       "\x01\x00\x00\x00"
-                                       "v"s};
+                                       "k" + US + "v" + US + FS,
+                                       "\x53\x96\x43\xf8\x6b\x0d\x60\xde"s};
 
-const ReferenceCase empty_string_case{"empty_string",
-                                      {{"E", ""}},
-                                      std::nullopt,
-                                      "\x01\x00\x00\x00"
-                                      "\x01\x00\x00\x00"
-                                      "E"
-                                      "\x00"
-                                      "\x00\x00\x00\x00"s};
-
-const ReferenceCase empty_any_case{"empty_any",
-                                   {{"U", ov::Any{}}},
-                                   std::nullopt,
-                                   "\x01\x00\x00\x00"
-                                   "\x01\x00\x00\x00"
-                                   "U"
-                                   "\x02"
-                                   "\x00\x00\x00\x00"s};
+const ReferenceCase empty_string_value_case{"empty_string_value",
+                                            {{"E", ""}},
+                                            std::nullopt,
+                                            "E" + US + US + FS,
+                                            "\xdb\x32\x5b\x70\xaa\x94\xdf\x52"s};
 
 const ReferenceCase typed_case{"typed",
                                {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
@@ -117,183 +117,74 @@ const ReferenceCase typed_case{"typed",
                                           {"PERFORMANCE_HINT", "THROUGHPUT"},
                                           {"PERFORMANCE_HINT_NUM_REQUESTS", "4"},
                                           {"PERF_COUNT", "YES"}},
-                               "\x04\x00\x00\x00"
-                               "\x18\x00\x00\x00"
-                               "INFERENCE_PRECISION_HINT"
-                               "\x00"
-                               "\x03\x00\x00\x00"
-                               "f16"
-                               "\x10\x00\x00\x00"
-                               "PERFORMANCE_HINT"
-                               "\x00"
-                               "\x0a\x00\x00\x00"
-                               "THROUGHPUT"
-                               "\x1d\x00\x00\x00"
-                               "PERFORMANCE_HINT_NUM_REQUESTS"
-                               "\x00"
-                               "\x01\x00\x00\x00"
-                               "4"
-                               "\x0a\x00\x00\x00"
-                               "PERF_COUNT"
-                               "\x00"
-                               "\x03\x00\x00\x00"
-                               "YES"s};
+                               "INFERENCE_PRECISION_HINT" + US + "f16" + US + "PERFORMANCE_HINT" + US + "THROUGHPUT" +
+                                   US + "PERFORMANCE_HINT_NUM_REQUESTS" + US + "4" + US + "PERF_COUNT" + US + "YES" +
+                                   US + FS,
+                               "\xf9\xf3\xe9\xc6\x9a\x73\x37\x68"s};
 
 const ReferenceCase special_chars_case{"special_chars",
                                        {{"a\nb=c", "{x:y,z}"}, {"\xC5\xBC", "\xE2\x9C\x93"}},
                                        std::nullopt,
-                                       "\x02\x00\x00\x00"
-                                       "\x05\x00\x00\x00"
-                                       "a\nb=c"
-                                       "\x00"
-                                       "\x07\x00\x00\x00"
-                                       "{x:y,z}"
-                                       "\x02\x00\x00\x00"
-                                       "\xC5\xBC"
-                                       "\x00"
-                                       "\x03\x00\x00\x00"
-                                       "\xE2\x9C\x93"s};
+                                       "a\nb=c" + US + "{x:y,z}" + US + "\xC5\xBC" + US + "\xE2\x9C\x93" + US + FS,
+                                       "\x89\xf1\x68\xef\xf4\x04\x2e\xc0"s};
 
 const ReferenceCase nested_empty_map_case{"nested_empty_map",
                                           {{"M", ov::AnyMap{}}},
                                           std::nullopt,
-                                          "\x01\x00\x00\x00"
-                                          "\x01\x00\x00\x00"
-                                          "M"
-                                          "\x01"
-                                          "\x04\x00\x00\x00"
-                                          "\x00\x00\x00\x00"s};
+                                          "M" + GS + GS + FS,
+                                          "\xd9\x26\x16\x10\x09\xa9\xe8\xec"s};
 
-const ReferenceCase nested_two_levels_case{"nested_two_levels",
-                                           {{"D", ov::AnyMap{{"C", ov::AnyMap{{"k", "v"}}}}}, {"T", "1"}},
-                                           std::nullopt,
-                                           "\x02\x00\x00\x00"
-                                           "\x01\x00\x00\x00"
-                                           "D"
-                                           "\x01"
-                                           "\x1d\x00\x00\x00"
-                                           "\x01\x00\x00\x00"
-                                           "\x01\x00\x00\x00"
-                                           "C"
-                                           "\x01"
-                                           "\x0f\x00\x00\x00"
-                                           "\x01\x00\x00\x00"
-                                           "\x01\x00\x00\x00"
-                                           "k"
-                                           "\x00"
-                                           "\x01\x00\x00\x00"
-                                           "v"
-                                           "\x01\x00\x00\x00"
-                                           "T"
-                                           "\x00"
-                                           "\x01\x00\x00\x00"
-                                           "1"s};
+const ReferenceCase nested_three_levels_case{
+    "nested_three_levels",
+    {{"A", ov::AnyMap{{"B", ov::AnyMap{{"C", ov::AnyMap{{"k", "v"}}}}}}}, {"T", "1"}},
+    std::nullopt,
+    "A" + GS + "B" + GS + "C" + GS + "k" + US + "v" + US + GS + GS + GS + "T" + US + "1" + US + FS,
+    "\xbb\xe9\xb1\x26\x54\x81\xb6\xe1"s};
 
 const ReferenceCase sorted_keys_case{"sorted_keys",
                                      {{"b", "2"}, {"a", "1"}},
                                      std::nullopt,
-                                     "\x02\x00\x00\x00"
-                                     "\x01\x00\x00\x00"
-                                     "a"
-                                     "\x00"
-                                     "\x01\x00\x00\x00"
-                                     "1"
-                                     "\x01\x00\x00\x00"
-                                     "b"
-                                     "\x00"
-                                     "\x01\x00\x00\x00"
-                                     "2"s};
+                                     "a" + US + "1" + US + "b" + US + "2" + US + FS,
+                                     "\x8b\x6b\x4e\x58\xa3\xd9\x55\xc9"s};
 
 const ReferenceCase numeric_case{
     "numeric",
     {{"D", 0.1}, {"F", 0.1f}, {"I", int64_t{-9000000000}}, {"N", uint32_t{1234}}},
     ov::AnyMap{{"D", "0.10000000000000001"}, {"F", "0.100000001"}, {"I", "-9000000000"}, {"N", "1234"}},
-    "\x04\x00\x00\x00"
-    "\x01\x00\x00\x00"
-    "D"
-    "\x00"
-    "\x13\x00\x00\x00"
-    "0.10000000000000001"
-    "\x01\x00\x00\x00"
-    "F"
-    "\x00"
-    "\x0b\x00\x00\x00"
-    "0.100000001"
-    "\x01\x00\x00\x00"
-    "I"
-    "\x00"
-    "\x0b\x00\x00\x00"
-    "-9000000000"
-    "\x01\x00\x00\x00"
-    "N"
-    "\x00"
-    "\x04\x00\x00\x00"
-    "1234"s};
+    "D" + US + "0.10000000000000001" + US + "F" + US + "0.100000001" + US + "I" + US + "-9000000000" + US + "N" + US +
+        "1234" + US + FS,
+    "\xf3\xf7\x10\xcb\x1e\xed\x4a\x85"s};
+
+// ov::device::properties holds exactly this type; it must come out as two nested levels.
+const ReferenceCase device_properties_case{
+    "device_properties_type",
+    {{"DEVICE_PROPERTIES",
+      std::map<std::string, ov::AnyMap>{{"CPU", {{"CACHE_DIR", "/tmp/c d"}}}, {"GPU", {{"PERF_COUNT", "YES"}}}}}},
+    ov::AnyMap{
+        {"DEVICE_PROPERTIES",
+         ov::AnyMap{{"CPU", ov::AnyMap{{"CACHE_DIR", "/tmp/c d"}}}, {"GPU", ov::AnyMap{{"PERF_COUNT", "YES"}}}}}},
+    "DEVICE_PROPERTIES" + GS + "CPU" + GS + "CACHE_DIR" + US + "/tmp/c d" + US + GS + "GPU" + GS + "PERF_COUNT" + US +
+        "YES" + US + GS + GS + FS,
+    "\xf8\x1b\x09\x8b\x67\xf8\xaf\x0c"s};
 
 std::vector<ReferenceCase> reference_cases() {
     return {empty_map_case,
             single_string_case,
-            empty_string_case,
-            empty_any_case,
+            empty_string_value_case,
             typed_case,
             special_chars_case,
             nested_empty_map_case,
-            nested_two_levels_case,
+            nested_three_levels_case,
             sorted_keys_case,
-            numeric_case};
+            numeric_case,
+            device_properties_case};
 }
-
-// Builders only for payloads too large to spell out; the reference payloads above stay literal.
-std::string u32(uint32_t value) {
-    return std::string{reinterpret_cast<const char*>(&value), sizeof(value)};
-}
-
-std::string entry(std::string_view key, uint8_t kind, std::string_view value) {
-    return u32(static_cast<uint32_t>(key.size())) + std::string{key} + static_cast<char>(kind) +
-           u32(static_cast<uint32_t>(value.size())) + std::string{value};
-}
-
-std::string map_of(uint32_t count, const std::string& entries = {}) {
-    return u32(count) + entries;
-}
-
-std::string nested_payload(size_t depth) {
-    auto bytes = map_of(0);
-    for (size_t level = 1; level < depth; ++level) {
-        bytes = map_of(1, entry("level", 1, bytes));
-    }
-    return bytes;
-}
-
-ov::AnyMap nested_options(size_t depth) {
-    ov::AnyMap options{{"leaf", "value"}};
-    for (size_t level = 1; level < depth; ++level) {
-        options = ov::AnyMap{{"level", options}};
-    }
-    return options;
-}
-
-const std::string at_value_limit(hsm::max_compile_option_value_size, 'x');
-const std::string over_value_limit(hsm::max_compile_option_value_size + 1, 'x');
 
 std::string to_string(ov::util::MemoryView bytes) {
     return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
 }
 
 std::string encode(const ov::AnyMap& options) {
-    const auto bytes = hsm::encode_compile_options(options);
-    return to_string({bytes.data(), bytes.size()});
-}
-
-ov::util::MemoryView view_of(std::string_view bytes) {
-    return {reinterpret_cast<const std::byte*>(bytes.data()), bytes.size()};
-}
-
-std::optional<ov::AnyMap> decode(std::string_view bytes) {
-    return hsm::decode_compile_options(view_of(bytes));
-}
-
-std::string encode_with_encoder(const ov::AnyMap& options) {
     const hsm::CompileOptionsEncoder encoder{options};
     std::string written;
     encoder.encode([&written](ov::util::MemoryView chunk) {
@@ -308,6 +199,16 @@ hsm::ManifestEntry make_entry(size_t size) {
     entry.tag = hsm::compile_options_tag;
     entry.size = size;
     return entry;
+}
+
+std::optional<ov::AnyMap> decode_buffer(std::string_view bytes) {
+    return hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), ov::util::as_memory_view(bytes)});
+}
+
+// The payload starts at a non-zero stream position, as it does inside a container.
+std::optional<ov::AnyMap> decode_stream(std::string_view bytes) {
+    std::stringstream stream{"prefix" + std::string{bytes}};
+    return hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), stream, 6});
 }
 
 // Any::operator== is false for two empty Anys, so compare structurally; decoded leaves must be strings.
@@ -325,11 +226,7 @@ hsm::ManifestEntry make_entry(size_t size) {
             return ::testing::AssertionFailure() << where << ": missing";
         }
         const auto& got = found->second;
-        if (value.empty()) {
-            if (!got.empty()) {
-                return ::testing::AssertionFailure() << where << ": expected an empty Any";
-            }
-        } else if (value.is<ov::AnyMap>()) {
+        if (value.is<ov::AnyMap>()) {
             if (!got.is<ov::AnyMap>()) {
                 return ::testing::AssertionFailure() << where << ": expected a nested map";
             }
@@ -345,6 +242,22 @@ hsm::ManifestEntry make_entry(size_t size) {
     return ::testing::AssertionSuccess();
 }
 
+// Decodes from a buffer-backed and from a stream-backed section.
+void expect_decoded(std::string_view bytes, const ov::AnyMap& expected) {
+    const auto from_buffer = decode_buffer(bytes);
+    ASSERT_TRUE(from_buffer);
+    EXPECT_TRUE(same_options(*from_buffer, expected));
+
+    const auto from_stream = decode_stream(bytes);
+    ASSERT_TRUE(from_stream);
+    EXPECT_TRUE(same_options(*from_stream, expected));
+}
+
+void expect_rejected(std::string_view bytes) {
+    EXPECT_FALSE(decode_buffer(bytes));
+    EXPECT_FALSE(decode_stream(bytes));
+}
+
 template <class Case>
 std::string case_name(const ::testing::TestParamInfo<Case>& info) {
     return info.param.name;
@@ -352,16 +265,41 @@ std::string case_name(const ::testing::TestParamInfo<Case>& info) {
 
 }  // namespace
 
+// --- Format: the reference digests follow the documented rule ---
+
+using HsmCompileOptionsFormatReferenceTest = ::testing::TestWithParam<ReferenceCase>;
+
+TEST_P(HsmCompileOptionsFormatReferenceTest, reference_digest_follows_the_documented_rule) {
+    const auto& entries = GetParam().entries;
+    const auto& digest = GetParam().digest;
+    EXPECT_EQ(digest_of(entries), digest);
+}
+
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
+                         HsmCompileOptionsFormatReferenceTest,
+                         ::testing::ValuesIn(reference_cases()),
+                         case_name<ReferenceCase>);
+
 // --- Encoding: options -> reference bytes ---
 
 using HsmCompileOptionsEncodeReferenceTest = ::testing::TestWithParam<ReferenceCase>;
 
-TEST_P(HsmCompileOptionsEncodeReferenceTest, encode_produces_reference_bytes) {
-    EXPECT_EQ(encode(GetParam().input), GetParam().bytes);
+TEST_P(HsmCompileOptionsEncodeReferenceTest, encoder_writes_reference_bytes_to_sink) {
+    EXPECT_EQ(encode(GetParam().input), GetParam().bytes());
 }
 
-TEST_P(HsmCompileOptionsEncodeReferenceTest, encoder_writes_reference_bytes_to_sink) {
-    EXPECT_EQ(encode_with_encoder(GetParam().input), GetParam().bytes);
+TEST_P(HsmCompileOptionsEncodeReferenceTest, encoding_twice_gives_identical_bytes) {
+    const hsm::CompileOptionsEncoder encoder{GetParam().input};
+    std::string first;
+    std::string second;
+    encoder.encode([&first](ov::util::MemoryView chunk) {
+        first += to_string(chunk);
+    });
+    encoder.encode([&second](ov::util::MemoryView chunk) {
+        second += to_string(chunk);
+    });
+
+    EXPECT_EQ(first, second);
 }
 
 INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
@@ -370,6 +308,8 @@ INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
                          case_name<ReferenceCase>);
 
 namespace {
+struct NoStringForm {};
+
 struct InvalidOptionsCase {
     std::string name;
     ov::AnyMap options;
@@ -380,29 +320,31 @@ void PrintTo(const InvalidOptionsCase& invalid, std::ostream* os) {
 }
 
 std::vector<InvalidOptionsCase> invalid_options_cases() {
-    ov::AnyMap oversized_payload;
-    for (size_t i = 0; i <= hsm::max_compile_options_size / at_value_limit.size(); ++i) {
-        oversized_payload.emplace("KEY_" + std::to_string(i), at_value_limit);
-    }
-    return {
+    std::vector<InvalidOptionsCase> cases{
         {"empty_key", {{"", "v"}}},
         {"empty_nested_key", {{"M", ov::AnyMap{{"", "v"}}}}},
-        {"oversized_key", {{over_value_limit, "v"}}},
-        {"oversized_value", {{"k", over_value_limit}}},
-        {"too_deep", nested_options(hsm::max_compile_options_depth + 1)},
-        {"oversized_payload", oversized_payload},
+        {"empty_key_in_device_properties", {{"M", std::map<std::string, ov::AnyMap>{{"", {{"k", "v"}}}}}}},
+        {"empty_any", {{"k", ov::Any{}}}},
+        {"empty_nested_any", {{"M", ov::AnyMap{{"k", ov::Any{}}}}}},
+        {"non_string_without_text", {{"k", NoStringForm{}}}},
+        {"empty_vector_without_text", {{"k", std::vector<int>{}}}},
     };
+    for (const char reserved : {'\0', '\x1f', '\x1d', '\x1e', '\x1c'}) {
+        const auto suffix = std::to_string(static_cast<int>(reserved));
+        const auto with_byte = "a"s + reserved + "b"s;
+        cases.push_back({"reserved_byte_in_key_" + suffix, {{with_byte, "v"}}});
+        cases.push_back({"reserved_byte_in_nested_key_" + suffix, {{"M", ov::AnyMap{{with_byte, "v"}}}}});
+        cases.push_back({"reserved_byte_in_string_value_" + suffix, {{"k", with_byte}}});
+        cases.push_back({"reserved_byte_in_printed_value_" + suffix, {{"k", std::vector<std::string>{with_byte}}}});
+    }
+    return cases;
 }
 }  // namespace
 
 using HsmCompileOptionsEncodeInvalidTest = ::testing::TestWithParam<InvalidOptionsCase>;
 
-TEST_P(HsmCompileOptionsEncodeInvalidTest, encode_throws) {
-    EXPECT_THROW(hsm::encode_compile_options(GetParam().options), ov::Exception);
-}
-
 TEST_P(HsmCompileOptionsEncodeInvalidTest, encoder_throws) {
-    EXPECT_THROW(encode_with_encoder(GetParam().options), ov::Exception);
+    EXPECT_THROW(encode(GetParam().options), ov::Exception);
 }
 
 INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
@@ -410,9 +352,17 @@ INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
                          ::testing::ValuesIn(invalid_options_cases()),
                          case_name<InvalidOptionsCase>);
 
-TEST(HsmCompileOptionsEncodeTest, limits_are_inclusive) {
-    EXPECT_NO_THROW(hsm::encode_compile_options({{at_value_limit, at_value_limit}}));
-    EXPECT_NO_THROW(hsm::encode_compile_options(nested_options(hsm::max_compile_options_depth)));
+TEST(HsmCompileOptionsEncodeTest, error_for_non_string_value_without_text_names_key_and_type) {
+    const ov::AnyMap options{{"THE_KEY", NoStringForm{}}};
+    std::string message;
+    try {
+        encode(options);
+    } catch (const ov::Exception& e) {
+        message = e.what();
+    }
+
+    EXPECT_NE(message.find("THE_KEY"), std::string::npos) << message;
+    EXPECT_NE(message.find("NoStringForm"), std::string::npos) << message;
 }
 
 TEST(HsmCompileOptionsEncodeTest, encoder_encodes_borrowed_map_only_in_encode) {
@@ -426,7 +376,7 @@ TEST(HsmCompileOptionsEncodeTest, encoder_encodes_borrowed_map_only_in_encode) {
     encoder.encode([&written](ov::util::MemoryView chunk) {
         written += to_string(chunk);
     });
-    EXPECT_EQ(written, single_string_case.bytes);
+    EXPECT_EQ(written, single_string_case.bytes());
 }
 
 namespace {
@@ -460,7 +410,7 @@ TEST(HsmCompileOptionsEncodeTest, numbers_do_not_depend_on_global_locale) {
     global_format << 1234.5;
     ASSERT_EQ(global_format.str(), "12_34/5");
 
-    EXPECT_EQ(encode(numeric_case.input), numeric_case.bytes);
+    EXPECT_EQ(encode(numeric_case.input), numeric_case.bytes());
 }
 
 // --- Decoding: reference bytes -> options ---
@@ -468,17 +418,14 @@ TEST(HsmCompileOptionsEncodeTest, numbers_do_not_depend_on_global_locale) {
 using HsmCompileOptionsDecodeReferenceTest = ::testing::TestWithParam<ReferenceCase>;
 
 TEST_P(HsmCompileOptionsDecodeReferenceTest, decode_produces_reference_options) {
-    const auto decoded = decode(GetParam().bytes);
-
-    ASSERT_TRUE(decoded);
-    EXPECT_TRUE(same_options(*decoded, GetParam().expected_decoded()));
+    expect_decoded(GetParam().bytes(), GetParam().expected_decoded());
 }
 
 TEST_P(HsmCompileOptionsDecodeReferenceTest, every_truncated_prefix_is_rejected) {
-    const std::string_view bytes = GetParam().bytes;
+    const auto bytes = GetParam().bytes();
 
     for (size_t size = 0; size < bytes.size(); ++size) {
-        EXPECT_FALSE(decode(bytes.substr(0, size))) << "prefix size: " << size;
+        EXPECT_FALSE(decode_buffer(std::string_view{bytes}.substr(0, size))) << "prefix size: " << size;
     }
 }
 
@@ -486,6 +433,53 @@ INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
                          HsmCompileOptionsDecodeReferenceTest,
                          ::testing::ValuesIn(reference_cases()),
                          case_name<ReferenceCase>);
+
+namespace {
+struct AcceptCase {
+    std::string name;
+    std::string body;  ///< Up to and including FS; the digest is added by the test.
+    ov::AnyMap expected;
+};
+
+void PrintTo(const AcceptCase& accept, std::ostream* os) {
+    *os << accept.name;
+}
+
+std::vector<AcceptCase> accept_cases() {
+    const std::string reserved_content("\0\x1f\x1d", 3);
+    return {
+        {"unsorted_keys", "b" + US + "2" + US + "a" + US + "1" + US + FS, {{"a", "1"}, {"b", "2"}}},
+        {"same_key_on_different_levels", "a" + GS + "a" + US + "1" + US + GS + FS, {{"a", ov::AnyMap{{"a", "1"}}}}},
+        {"empty_key_leaf_is_skipped", US + "x" + US + "k" + US + "v" + US + FS, {{"k", "v"}}},
+        {"several_empty_key_leaves_are_not_duplicates",
+         US + "x" + US + US + "y" + US + "k" + US + "v" + US + FS,
+         {{"k", "v"}}},
+        {"empty_key_leaf_in_nested_map",
+         "M" + GS + US + "x" + US + "k" + US + "v" + US + GS + FS,
+         {{"M", ov::AnyMap{{"k", "v"}}}}},
+        {"reserved_block_with_empty_content", "k" + RS + RS + FS, {}},
+        {"reserved_block_is_skipped",
+         "a" + US + "1" + US + "r" + RS + reserved_content + RS + "b" + US + "2" + US + FS,
+         {{"a", "1"}, {"b", "2"}}},
+        {"reserved_block_in_nested_map",
+         "M" + GS + "r" + RS + "zz" + RS + "k" + US + "v" + US + GS + FS,
+         {{"M", ov::AnyMap{{"k", "v"}}}}},
+        {"reserved_block_key_is_not_a_duplicate", "a" + US + "1" + US + "a" + RS + "zz" + RS + FS, {{"a", "1"}}},
+        {"reserved_block_with_empty_key", RS + "zz" + RS + "k" + US + "v" + US + FS, {{"k", "v"}}},
+    };
+}
+}  // namespace
+
+using HsmCompileOptionsDecodeAcceptTest = ::testing::TestWithParam<AcceptCase>;
+
+TEST_P(HsmCompileOptionsDecodeAcceptTest, decode_accepts) {
+    expect_decoded(with_digest(GetParam().body), GetParam().expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
+                         HsmCompileOptionsDecodeAcceptTest,
+                         ::testing::ValuesIn(accept_cases()),
+                         case_name<AcceptCase>);
 
 namespace {
 struct MalformedCase {
@@ -498,95 +492,45 @@ void PrintTo(const MalformedCase& malformed, std::ostream* os) {
 }
 
 std::vector<MalformedCase> malformed_cases() {
-    std::string oversized_entries;
-    uint32_t oversized_count = 0;
-    for (; oversized_entries.size() <= hsm::max_compile_options_size; ++oversized_count) {
-        oversized_entries += entry("KEY_" + std::to_string(oversized_count), 0, at_value_limit);
-    }
-    return {
-        {"trailing_byte", single_string_case.bytes + '\0'},
-        {"count_beyond_payload", "\xff\xff\xff\xff"s},
-        {"key_len_beyond_payload",
-         "\x01\x00\x00\x00"
-         "\x05\x00\x00\x00"
-         "k"s},
-        {"key_len_huge",
-         "\x01\x00\x00\x00"
-         "\xff\xff\xff\xff"
-         "k"s},
-        {"value_len_beyond_payload",
-         "\x01\x00\x00\x00"
-         "\x01\x00\x00\x00"
-         "k"
-         "\x00"
-         "\x05\x00\x00\x00"
-         "v"s},
-        {"value_len_huge",
-         "\x01\x00\x00\x00"
-         "\x01\x00\x00\x00"
-         "k"
-         "\x00"
-         "\xff\xff\xff\xff"
-         "v"s},
-        {"empty_key",
-         "\x01\x00\x00\x00"
-         "\x00\x00\x00\x00"
-         "\x00"
-         "\x01\x00\x00\x00"
-         "v"s},
-        {"duplicate_key",
-         "\x02\x00\x00\x00"
-         "\x01\x00\x00\x00"
-         "k"
-         "\x00"
-         "\x01\x00\x00\x00"
-         "1"
-         "\x01\x00\x00\x00"
-         "k"
-         "\x00"
-         "\x01\x00\x00\x00"
-         "2"s},
-        {"empty_kind_with_value",
-         "\x01\x00\x00\x00"
-         "\x01\x00\x00\x00"
-         "k"
-         "\x02"
-         "\x01\x00\x00\x00"
-         "x"s},
-        {"nested_map_longer_than_value_len",
-         "\x01\x00\x00\x00"
-         "\x01\x00\x00\x00"
-         "M"
-         "\x01"
-         "\x05\x00\x00\x00"
-         "\x00\x00\x00\x00"
-         "\x00"s},
-        {"nested_map_shorter_than_value_len",
-         "\x01\x00\x00\x00"
-         "\x01\x00\x00\x00"
-         "M"
-         "\x01"
-         "\x03\x00\x00\x00"
-         "\x00\x00\x00"s},
-        {"nested_map_count_beyond_value_len",
-         "\x01\x00\x00\x00"
-         "\x01\x00\x00\x00"
-         "M"
-         "\x01"
-         "\x04\x00\x00\x00"
-         "\x01\x00\x00\x00"s},
-        {"too_deep", nested_payload(hsm::max_compile_options_depth + 1)},
-        {"oversized_key", map_of(1, entry(over_value_limit, 0, "v"))},
-        {"oversized_value", map_of(1, entry("k", 0, over_value_limit))},
-        {"oversized_payload", map_of(oversized_count, oversized_entries)},
+    const auto empty_map_digest = digest_of(FS);
+    auto wrong_digest = with_digest(single_string_case.entries);
+    wrong_digest.back() ^= 1;
+
+    std::vector<MalformedCase> cases{
+        {"empty_section", ""},
+        {"no_fs_and_no_digest", "k" + US + "v" + US},
+        {"section_ends_in_key", "k"},
+        {"section_ends_in_value", "k" + US + "v"},
+        {"section_ends_in_reserved_block", "k" + RS + "zz"},
+        {"digest_mismatch", wrong_digest},
+        {"trailing_byte_after_digest", with_digest(single_string_case.entries) + '\0'},
+        {"gs_at_top_level", with_digest(GS + FS)},
+        {"gs_after_leaf_at_top_level", with_digest("k" + US + "v" + US + GS + FS)},
+        {"fs_in_nested_map", with_digest("M" + GS + "k" + US + "v" + US + FS)},
+        {"fs_in_key", with_digest("k" + FS)},
+        {"fs_in_value", with_digest("k" + US + "v" + FS)},
+        {"gs_in_value", with_digest("k" + US + "v" + GS + "v" + US + FS)},
+        {"rs_in_value", with_digest("k" + US + "v" + RS + "v" + US + FS)},
+        {"nul_in_key", with_digest("k"s + '\0' + US + "v" + US + FS)},
+        {"nul_in_value", with_digest("k" + US + "v"s + '\0' + US + FS)},
+        {"fs_in_reserved_block", with_digest("k" + RS + "zz" + FS)},
+        {"duplicate_leaf", with_digest("k" + US + "1" + US + "k" + US + "2" + US + FS)},
+        {"duplicate_nested_map", with_digest("M" + GS + GS + "M" + GS + GS + FS)},
+        {"leaf_then_map_with_same_key", with_digest("M" + US + "1" + US + "M" + GS + GS + FS)},
+        {"map_then_leaf_with_same_key", with_digest("M" + GS + GS + "M" + US + "1" + US + FS)},
+        {"duplicate_leaf_in_nested_map", with_digest("M" + GS + "k" + US + "1" + US + "k" + US + "2" + US + GS + FS)},
     };
+    for (size_t size = 1; size < empty_map_digest.size(); ++size) {
+        cases.push_back({"digest_cut_to_" + std::to_string(size) + "_bytes", FS + empty_map_digest.substr(0, size)});
+    }
+    return cases;
 }
 }  // namespace
 
 using HsmCompileOptionsDecodeMalformedTest = ::testing::TestWithParam<MalformedCase>;
 
 TEST_P(HsmCompileOptionsDecodeMalformedTest, decode_rejects) {
-    EXPECT_FALSE(decode(GetParam().bytes));
+    expect_rejected(GetParam().bytes);
 }
 
 INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
@@ -594,13 +538,8 @@ INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
                          ::testing::ValuesIn(malformed_cases()),
                          case_name<MalformedCase>);
 
-TEST(HsmCompileOptionsDecodeTest, limits_are_inclusive) {
-    EXPECT_TRUE(decode(map_of(1, entry(at_value_limit, 0, at_value_limit))));
-    EXPECT_TRUE(decode(nested_payload(hsm::max_compile_options_depth)));
-}
-
 TEST(HsmCompileOptionsDecodeTest, decoded_strings_convert_to_property_types) {
-    const auto decoded = decode(typed_case.bytes);
+    const auto decoded = decode_buffer(typed_case.bytes());
 
     ASSERT_TRUE(decoded);
     EXPECT_EQ(decoded->at(ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>(),
@@ -611,7 +550,7 @@ TEST(HsmCompileOptionsDecodeTest, decoded_strings_convert_to_property_types) {
 }
 
 TEST(HsmCompileOptionsDecodeTest, decoded_numbers_restore_exact_values) {
-    const auto decoded = decode(numeric_case.bytes);
+    const auto decoded = decode_buffer(numeric_case.bytes());
 
     ASSERT_TRUE(decoded);
     EXPECT_EQ(decoded->at("D").as<double>(), 0.1);
@@ -620,56 +559,47 @@ TEST(HsmCompileOptionsDecodeTest, decoded_numbers_restore_exact_values) {
     EXPECT_EQ(decoded->at("N").as<uint32_t>(), 1234u);
 }
 
-TEST(HsmCompileOptionsDecodeTest, unknown_kind_is_skipped) {
-    const auto decoded = decode("\x02\x00\x00\x00"
-                                "\x01\x00\x00\x00"
-                                "F"
-                                "\x7f"
-                                "\x03\x00\x00\x00"
-                                "abc"
-                                "\x01\x00\x00\x00"
-                                "k"
-                                "\x00"
-                                "\x01\x00\x00\x00"
-                                "v"s);
+TEST(HsmCompileOptionsDecodeTest, unreadable_section_is_rejected) {
+    const auto bytes = single_string_case.bytes();
+    std::stringstream stream{bytes.substr(0, bytes.size() - 1)};
 
-    ASSERT_TRUE(decoded);
-    EXPECT_TRUE(same_options(*decoded, single_string_case.input));
+    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), stream, 0}));
 }
 
-// --- Decoding from a Section ---
+// --- Decoding: sizes around the decoder's read chunk, no limits ---
 
-TEST(HsmCompileOptionsSectionTest, decodes_buffer_backed_section) {
-    const auto& reference = nested_two_levels_case;
-
-    const auto decoded =
-        hsm::decode_compile_options(hsm::Section{make_entry(reference.bytes.size()), view_of(reference.bytes)});
-
-    ASSERT_TRUE(decoded);
-    EXPECT_TRUE(same_options(*decoded, reference.expected_decoded()));
+TEST(HsmCompileOptionsDecodeTest, payload_ending_around_the_chunk_boundary_is_decoded) {
+    for (size_t length = 4070; length <= 4110; ++length) {
+        SCOPED_TRACE(length);
+        const std::string value(length, 'x');
+        expect_decoded(with_digest("k" + US + value + US + FS), {{"k", value}});
+    }
 }
 
-TEST(HsmCompileOptionsSectionTest, decodes_stream_backed_section) {
-    const auto& reference = nested_two_levels_case;
-    std::stringstream stream{"prefix" + reference.bytes};
+TEST(HsmCompileOptionsDecodeTest, key_and_value_larger_than_a_chunk_are_decoded) {
+    const std::string key(5000, 'k');
+    const std::string value(100000, 'v');
 
-    const auto decoded = hsm::decode_compile_options(hsm::Section{make_entry(reference.bytes.size()), stream, 6});
-
-    ASSERT_TRUE(decoded);
-    EXPECT_TRUE(same_options(*decoded, reference.expected_decoded()));
+    expect_decoded(with_digest(key + US + value + US + FS), {{key, value}});
 }
 
-TEST(HsmCompileOptionsSectionTest, oversized_section_is_rejected_before_read) {
-    std::stringstream stream{empty_map_case.bytes};
+TEST(HsmCompileOptionsDecodeTest, reserved_block_larger_than_a_chunk_is_skipped) {
+    const std::string content(10000, 'z');
 
-    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(hsm::max_compile_options_size + 1), stream, 0}));
+    expect_decoded(with_digest("r" + RS + content + RS + "k" + US + "v" + US + FS), {{"k", "v"}});
 }
 
-TEST(HsmCompileOptionsSectionTest, unreadable_section_is_rejected) {
-    const auto& reference = single_string_case;
-    std::stringstream stream{reference.bytes.substr(0, reference.bytes.size() - 1)};
+// --- Round trip of generated options ---
 
-    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(reference.bytes.size()), stream, 0}));
+TEST(HsmCompileOptionsRoundTripTest, deeply_nested_options_are_restored) {
+    // Far deeper than real options: exercises encoder recursion and the decoder's heap level stack.
+    constexpr size_t depth = 100;
+    ov::AnyMap options{{"level", "0"}};
+    for (size_t level = 1; level <= depth; ++level) {
+        options = ov::AnyMap{{"level", std::to_string(level)}, {"next", std::move(options)}};
+    }
+
+    expect_decoded(encode(options), options);
 }
 
 }  // namespace ov::test

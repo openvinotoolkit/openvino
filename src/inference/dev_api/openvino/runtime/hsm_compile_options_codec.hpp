@@ -6,21 +6,29 @@
  * @brief Plugin-agnostic codec for the #compile_options_tag section payload.
  * @file openvino/runtime/hsm_compile_options_codec.hpp
  *
- * The payload is one encoded `ov::AnyMap` (native byte order, like the rest of HSM):
+ * The payload is one encoded `ov::AnyMap`, written and parsed as a stream - no lengths, no size limits:
  * @verbatim
-   Map   := u32 count, Entry[count]
-   Entry := u32 key_len, key bytes, u8 kind, u32 value_len, value bytes
+   Payload  := Entry* FS digest
+   Entry    := Leaf | Map | Reserved
+   Leaf     := key US value US
+   Map      := key GS Entry* GS
+   Reserved := key RS content RS
    @endverbatim
- * Value kinds (#CompileOptionKind): a string (the value's `ov::Any` string form), a nested Map, or an empty
- * `ov::Any` (`value_len == 0`). A reader skips an entry of an unknown kind using `value_len`.
+ * - Separators: `US` = 0x1F, `GS` = 0x1D, `RS` = 0x1E, `FS` = 0x1C. `key` and `value` are byte strings
+ *   containing none of `NUL`, `US`, `GS`, `RS`, `FS`; `content` is any bytes except `RS` and `FS`.
+ * - A Leaf holds a string value, a Map a nested options map. Entries of one map are unique by key, whatever
+ *   their kind; they may come in any order.
+ * - An entry with an empty key is skipped by the decoder. A `GS` with no key bytes before it closes the current
+ *   map instead.
+ * - Reserved is for future extensions: the decoder skips it entirely, its key included; the encoder never writes it.
+ * - `digest` is 8 bytes in native byte order: `h = 0`, then `h = ov::util::u64_hash_combine(h, byte)` for every
+ *   payload byte before it, `FS` included. It detects accidental corruption only. The section size must be exactly
+ *   the position of `FS` + 1 + 8.
  */
 
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
 #include <optional>
-#include <vector>
 
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/common.hpp"
@@ -30,54 +38,31 @@
 namespace ov::runtime::hsm {
 inline namespace v1 {
 
-/// Maximum size of the whole #compile_options_tag payload, in bytes.
-inline constexpr size_t max_compile_options_size = 1024 * 1024;
-
-/// Maximum size of a single key and of a single string value, in bytes.
-inline constexpr size_t max_compile_option_value_size = 64 * 1024;
-
-/// Maximum number of nested map levels, the top-level map included.
-inline constexpr size_t max_compile_options_depth = 8;
-
-/// Wire value of an entry's `kind` field - never change or reuse a value once shipped.
-enum class CompileOptionKind : uint8_t {
-    string = 0,  //!< Value bytes are the option's `ov::Any` string form.
-    map = 1,     //!< Value bytes are a nested Map.
-    empty = 2,   //!< Empty `ov::Any`; `value_len` is always 0.
-};
-
 /**
- * @brief Encodes @p options into a #compile_options_tag payload.
- * @note A value holding an `ov::AnyMap` is encoded as a nested map; any other non-empty value as a string, written
- * in the classic "C" locale: `std::string` as is, `bool` as `YES`/`NO`, integers, and floating-point values with
- * `max_digits10` digits so they parse back unchanged. A value of any other type (e.g. an enum or
- * `ov::element::Type`) is written via `ov::Any::print()`; a type without a string form yields an empty string -
- * leave such values (callbacks, tensors, model pointers) out of @p options.
- * @note Pass the result to the #ov::util::MemoryView overload of #IWriter::add_section(), keeping it alive until
- * #IWriter::finalize().
- * @param options Options to encode.
- * @return Encoded payload.
- * @throw ov::Exception if a key is empty, a key or string value exceeds #max_compile_option_value_size,
- * maps nest deeper than #max_compile_options_depth, the payload exceeds #max_compile_options_size, or a
- * value's string conversion throws.
+ * @brief #ISectionEncoder for a #compile_options_tag section: borrows @p options and writes them straight to the
+ * sink, with no intermediate buffer - for the unsized #IWriter::add_section() overload.
+ * @note The borrowed map must outlive #IWriter::finalize().
+ * @note Value types:
+ * - `std::string` is written as is;
+ * - `ov::AnyMap` and `std::map<std::string, ov::AnyMap>` (e.g. `ov::device::properties`) become nested maps;
+ * - any other value is written as its `ov::Any::print()` text in the classic "C" locale, floating-point values
+ *   with `max_digits10` digits.
+ * Such a value must read back unchanged through `ov::util::Read` - callbacks, pointers and tensors can't be
+ * stored, leave them out of @p options.
+ * @note Every nested map is decoded as `ov::AnyMap` and every leaf as `std::string`, whatever type was encoded.
  */
-OPENVINO_RUNTIME_API std::vector<std::byte> encode_compile_options(const ov::AnyMap& options);
-
-/**
- * @brief Lazy #ISectionEncoder for a #compile_options_tag section: borrows @p options and encodes them only
- * in #encode(), via #encode_compile_options() - for the unsized #IWriter::add_section() overload.
- * @note The borrowed map must outlive #IWriter::finalize(); #encode() throws what #encode_compile_options() does.
- */
-class CompileOptionsEncoder final : public ISectionEncoder {
+class OPENVINO_RUNTIME_API CompileOptionsEncoder final : public ISectionEncoder {
 public:
     explicit CompileOptionsEncoder(const ov::AnyMap& options) noexcept : m_options{options} {}
     explicit CompileOptionsEncoder(ov::AnyMap&&) = delete;
     explicit CompileOptionsEncoder(const ov::AnyMap&&) = delete;
 
-    void encode(const SectionSink& sink) const override {
-        const auto bytes = encode_compile_options(m_options);
-        sink({bytes.data(), bytes.size()});
-    }
+    /**
+     * @throw ov::Exception if a key is empty, an `ov::Any` is empty, a key or value contains a reserved byte
+     * (`NUL`, `US`, `GS`, `RS`, `FS`), a non-string value has no text form, or its conversion throws. Part of the
+     * section may already be written to @p sink by then.
+     */
+    void encode(const SectionSink& sink) const override;
 
 private:
     const ov::AnyMap& m_options;
@@ -85,22 +70,9 @@ private:
 
 /**
  * @brief Decodes a #compile_options_tag payload.
- * @note Every count and length is checked against the bytes remaining and the `max_compiled_*` limits before
- * anything is allocated, so a corrupted or hostile payload cannot trigger a large allocation.
- * @param payload Encoded payload.
- * @return Decoded options, with string values as `std::string`; `std::nullopt` if the payload is empty, truncated,
- * has trailing bytes, an empty or duplicate key, exceeds a limit, or a nested map doesn't span exactly its
- * `value_len`.
- * @throw std::bad_alloc if memory runs out while building the result; malformed content never throws.
- */
-OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compile_options(ov::util::MemoryView payload);
-
-/**
- * @overload Same as #decode_compile_options(ov::util::MemoryView), for @p section backed by a buffer or a
- * stream; a section larger than #max_compile_options_size is rejected before it is read.
- * @note Use this overload as a #SectionDecoder - it never throws, per the #SectionDecoder convention.
  * @param section Section to decode; its tag must be #compile_options_tag.
- * @return As the #ov::util::MemoryView overload, or `std::nullopt` if the section can't be read.
+ * @return Decoded options; `std::nullopt` if the section is malformed, the hash does not match, or a key appears
+ * more than once within the same map level (as a leaf, a nested map, or both).
  */
 OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compile_options(const Section& section) noexcept;
 
