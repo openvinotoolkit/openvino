@@ -31,7 +31,8 @@ std::shared_ptr<ov::Model> create_interpolate(const ov::PartialShape& shape,
                                               const std::vector<int64_t>& axes,
                                               CoordinateTransformMode ctm,
                                               NearestMode nm,
-                                              ShapeCalcMode calc_mode) {
+                                              ShapeCalcMode calc_mode,
+                                              bool with_axes = true) {
     auto attrs = ov::op::v11::Interpolate::InterpolateAttrs{};
     attrs.mode = ov::op::v11::Interpolate::InterpolateMode::NEAREST;
     attrs.shape_calculation_mode = calc_mode;
@@ -41,14 +42,19 @@ std::shared_ptr<ov::Model> create_interpolate(const ov::PartialShape& shape,
     attrs.pads_end = {0, 0};
 
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
-    const auto axes_constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
     std::shared_ptr<ov::Node> scales_or_sizes;
     if (calc_mode == ShapeCalcMode::SCALES) {
         scales_or_sizes = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{scales.size()}, scales);
     } else {
         scales_or_sizes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{sizes.size()}, sizes);
     }
-    const auto interpolate = std::make_shared<ov::op::v11::Interpolate>(input, scales_or_sizes, axes_constant, attrs);
+    std::shared_ptr<ov::op::v11::Interpolate> interpolate;
+    if (with_axes) {
+        const auto axes_constant = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes);
+        interpolate = std::make_shared<ov::op::v11::Interpolate>(input, scales_or_sizes, axes_constant, attrs);
+    } else {
+        interpolate = std::make_shared<ov::op::v11::Interpolate>(input, scales_or_sizes, attrs);
+    }
     return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(interpolate)},
                                        ov::ParameterVector{input});
 }
@@ -110,6 +116,92 @@ TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_sizes) {
                                ShapeCalcMode::SIZES);
     model_ref = create_gather_ref(INPUT_2X2, {0, 0, 1, 1}, {0, 0, 1, 1});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_v4_sizes) {
+    auto attrs = ov::op::v4::Interpolate::InterpolateAttrs{};
+    attrs.mode = ov::op::v4::Interpolate::InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ov::op::v4::Interpolate::ShapeCalcMode::SIZES;
+    attrs.coordinate_transformation_mode = CoordinateTransformMode::ASYMMETRIC;
+    attrs.nearest_mode = NearestMode::FLOOR;
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, INPUT_2X2);
+    const auto sizes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {4, 4});
+    const auto scales = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {2.0f, 2.0f});
+    const auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, AXES_HW);
+    const auto interpolate = std::make_shared<ov::op::v4::Interpolate>(input, sizes, scales, axes, attrs);
+    model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(interpolate)},
+                                        ov::ParameterVector{input});
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+    model_ref = create_gather_ref(INPUT_2X2, {0, 0, 1, 1}, {0, 0, 1, 1});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_round_prefer_floor) {
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+    model = create_interpolate(INPUT_2X2,
+                               {2.0f, 2.0f},
+                               {},
+                               AXES_HW,
+                               CoordinateTransformMode::HALF_PIXEL,
+                               NearestMode::ROUND_PREFER_FLOOR,
+                               ShapeCalcMode::SCALES);
+    model_ref = create_gather_ref(INPUT_2X2, {0, 0, 1, 1}, {0, 0, 1, 1});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_align_corners) {
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+    model = create_interpolate(INPUT_2X2,
+                               {2.0f, 2.0f},
+                               {},
+                               AXES_HW,
+                               CoordinateTransformMode::ALIGN_CORNERS,
+                               NearestMode::FLOOR,
+                               ShapeCalcMode::SCALES);
+    model_ref = create_gather_ref(INPUT_2X2, {0, 0, 0, 1}, {0, 0, 0, 1});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_without_axes) {
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+    model = create_interpolate(INPUT_2X2,
+                               {1.0f, 1.0f, 2.0f, 2.0f},
+                               {},
+                               {},
+                               CoordinateTransformMode::ASYMMETRIC,
+                               NearestMode::FLOOR,
+                               ShapeCalcMode::SCALES,
+                               false);
+    model_ref = create_gather_ref(INPUT_2X2, {0, 0, 1, 1}, {0, 0, 1, 1});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_non_constant_scales_untouched) {
+    auto attrs = ov::op::v11::Interpolate::InterpolateAttrs{};
+    attrs.mode = ov::op::v11::Interpolate::InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, INPUT_2X2);
+    const auto scales = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2});
+    const auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, AXES_HW);
+    const auto interpolate = std::make_shared<ov::op::v11::Interpolate>(input, scales, axes, attrs);
+    model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(interpolate)},
+                                        ov::ParameterVector{input, scales});
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_padded_untouched) {
+    auto attrs = ov::op::v11::Interpolate::InterpolateAttrs{};
+    attrs.mode = ov::op::v11::Interpolate::InterpolateMode::NEAREST;
+    attrs.shape_calculation_mode = ShapeCalcMode::SCALES;
+    attrs.pads_begin = {1, 1};
+    attrs.pads_end = {1, 1};
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, INPUT_2X2);
+    const auto scales = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2}, {2.0f, 2.0f});
+    const auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, AXES_HW);
+    const auto interpolate = std::make_shared<ov::op::v11::Interpolate>(input, scales, axes, attrs);
+    model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(interpolate)},
+                                        ov::ParameterVector{input});
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
 }
 
 TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_linear_untouched) {

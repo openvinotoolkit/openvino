@@ -211,7 +211,6 @@ set(OP_CONVERSIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_grouped_matmul_to_matmul.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate11_downgrade.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nearest_interpolate_to_gather.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_maxpool_downgrade.hpp
@@ -220,6 +219,7 @@ set(OP_CONVERSIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_multiclass_nms_upgrade.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_mvn1_to_mvn6.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nearest_interpolate_to_gather.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_negative.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/op_conversions/convert_nms_rotated_to_nms_ie_internal.hpp
