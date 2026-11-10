@@ -246,13 +246,20 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
         // original. The raw attribute has to go - the NVIDIA compiler does not know it.
         return m[1].matched ? std::make_pair(m[1].str(), false) : std::make_pair(m[2].str(), true);
     };
-    std::string modified = rewrite(src, request_re, stated_size);
+    // A regex search and the comment scan in rewrite() cost a pass over the source each, and most kernels ask for no
+    // particular sub-group size: look for the keywords the patterns need before running them.
+    const auto contains = [&src](const char* keyword) { return src.find(keyword) != std::string::npos; };
+
+    std::string modified;
+    if (contains("REQD_SUB_GROUP_SIZE") || contains("intel_reqd_sub_group_size")) {
+        modified = rewrite(src, request_re, stated_size);
+    }
 
     // No stated sub-group size: fall back to the one the work-group size implies, if any. An explicit declaration
     // always wins - softmax_gpu_bf asks for 16 and launches a work-group of 4. The whole attribute is matched so the
     // redefinition lands ahead of it rather than between its parentheses; reqd_work_group_size is standard OpenCL,
     // so the attribute itself stays.
-    if (first_arg.empty()) {
+    if (first_arg.empty() && contains("reqd_work_group_size")) {
         static const std::regex wg_re(
             R"(__attribute__\s*\(\s*\(\s*reqd_work_group_size\s*\(([^()]*)\)\s*\)\s*\))");
         modified = rewrite(src, wg_re, [](const std::smatch& m) {
