@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-10-45-50-000-42789868134",
+  "timestamp": "2026-11-10T10:45:50Z",
+  "run_id": "42789868134",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42789868134",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39577",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39577",
+  "author": "sungeunk",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step failed: Remove-Item could not delete runtime/3rdparty/tbb/bin/tbb12.dll - Access to the path is denied (UnauthorizedAccessException)"
+    }
+  ],
+  "key_errors": [
+    "2026-11-10T10:06:28.2993164Z Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:",
+    "2026-11-10T10:06:28.2994257Z Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "2026-11-10T10:06:28.3000935Z + CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException",
+    "2026-11-10T10:06:28.3001714Z + FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "2026-11-10T10:06:28.3440245Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step re-extracts the OpenVINO package zip onto a self-hosted Windows runner workspace left over from a prior job. Expand-Archive -Force tries to overwrite/replace tbb12.dll inside runtime/3rdparty/tbb/bin, but the file is still memory-mapped/locked by a lingering process (commonly a previous test binary or antivirus scanner holding an open handle) on that persistent runner, so Remove-Item throws UnauthorizedAccessException and the step exits with code 1. This is a known recurring Windows self-hosted runner workspace-cleanliness issue (pattern 95bb23aa2ed8a84d), not caused by the PR's code changes.",
+  "reproduction_steps": "N/A - requires a stale/locked DLL handle on the specific self-hosted Windows GPU runner (ov-dmz-35); not reproducible from a clean checkout or in a fresh CI runner.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job; a clean runner slot typically resolves the lock.",
+    "Investigate why tbb12.dll remains locked after prior jobs on self-hosted Windows GPU runners (e.g., a GPU test process or OS handle not released before archive extraction) and add a workspace/process cleanup step before Expand-Archive.",
+    "Consider adding a retry-with-backoff wrapper around the Extract OpenVINO packages step for Windows self-hosted runners, or running extraction to a fresh directory instead of overwriting in place."
+  ],
+  "prevention_strategies": "Ensure self-hosted Windows GPU runners fully release file handles (terminate lingering test processes, flush antivirus scans) before starting a new job's package extraction; alternatively extract to a clean, uniquely-named directory per run instead of reusing/overwriting the previous job's install directory.",
+  "historical_context": "This exact signature (tbb12.dll Access to the path is denied during Extract OpenVINO packages) has recurred 5 times before this run between 2026-11-09T19:06:46Z and 2026-11-10T08:35:09Z, affecting PRs #39668, #39034, and #39444. It is tracked as an ongoing Infrastructure issue on Windows self-hosted GPU runners in pattern 95bb23aa2ed8a84d."
+}
