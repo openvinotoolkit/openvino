@@ -1303,37 +1303,47 @@ TEST_F(TransformationTestsF, SDPAToPA_Qwen3_5_PositionIDsReplacer) {
         auto zero = v0::Constant::create(element::i64, Shape{}, {0});
         auto hidden_shape = std::make_shared<v3::ShapeOf>(hidden_states);
         auto batch = std::make_shared<v8::Gather>(hidden_shape, zero, zero);
-        auto batch_vector = std::make_shared<v1::Reshape>(batch, v0::Constant::create(element::i64, Shape{1}, {1}), false);
-        auto target_shape = std::make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, Shape{1}, {3}),
-                                                        batch_vector, v0::Constant::create(element::i64, Shape{1}, {1})}, 0);
+        auto batch_vector =
+            std::make_shared<v1::Reshape>(batch, v0::Constant::create(element::i64, Shape{1}, {1}), false);
+        auto target_shape =
+            std::make_shared<v0::Concat>(OutputVector{v0::Constant::create(element::i64, Shape{1}, {3}),
+                                                      batch_vector,
+                                                      v0::Constant::create(element::i64, Shape{1}, {1})},
+                                         0);
         auto broadcast = std::make_shared<v3::Broadcast>(positions, target_shape, op::BroadcastType::BIDIRECTIONAL);
         auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i64, Shape{}, {2}));
         auto convert = std::make_shared<v0::Convert>(unsqueeze, element::f32);
         auto inv_freq = v0::Constant::create(element::f32, Shape{1, 1, 32, 1}, {1.f});
         auto matmul = std::make_shared<v0::MatMul>(inv_freq, convert);
-        auto transpose = std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
+        auto transpose =
+            std::make_shared<v1::Transpose>(matmul, v0::Constant::create(element::i64, Shape{4}, {0, 1, 3, 2}));
         return transpose;
     };
 
     {
         auto hidden_states = ov::test::utils::make_param(element::f32, PartialShape{DYN, 6144, 1}, "hidden_states");
         auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
-        auto unsq_position_ids = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto unsq_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
         auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
         auto init = v0::Constant::create(element::f32, Shape{1, 2, 0, 256}, {0.f});
-        auto variable = std::make_shared<op::util::Variable>(op::util::VariableInfo{PartialShape{DYN, 2, DYN, 256}, element::f32, "key_cache"});
+        auto variable = std::make_shared<op::util::Variable>(
+            op::util::VariableInfo{PartialShape{DYN, 2, DYN, 256}, element::f32, "key_cache"});
         auto cache = std::make_shared<v6::ReadValue>(init, variable);
         auto zero = v0::Constant::create(element::i64, Shape{}, {0});
         auto reordered_cache = std::make_shared<v8::Gather>(cache, beam_idx, zero);
         auto cache_shape = std::make_shared<v3::ShapeOf>(reordered_cache);
-        auto past_length = std::make_shared<v8::Gather>(cache_shape, v0::Constant::create(element::i64, Shape{}, {2}), zero);
+        auto past_length =
+            std::make_shared<v8::Gather>(cache_shape, v0::Constant::create(element::i64, Shape{}, {2}), zero);
         auto hidden_shape = std::make_shared<v3::ShapeOf>(hidden_states);
-        auto sequence_length_vector = std::make_shared<v8::Gather>(hidden_shape, v0::Constant::create(element::i64, Shape{1}, {2}), zero);
+        auto sequence_length_vector =
+            std::make_shared<v8::Gather>(hidden_shape, v0::Constant::create(element::i64, Shape{1}, {2}), zero);
         auto sequence_length = std::make_shared<v0::Squeeze>(sequence_length_vector, zero);
         auto end = std::make_shared<v1::Add>(sequence_length, past_length);
         auto step = v0::Constant::create(element::i64, Shape{}, {1});
         auto range = std::make_shared<v4::Range>(past_length, end, step, element::i64);
-        auto reshape = std::make_shared<v1::Reshape>(range, v0::Constant::create(element::i64, Shape{3}, {1, 1, -1}), false);
+        auto reshape =
+            std::make_shared<v1::Reshape>(range, v0::Constant::create(element::i64, Shape{3}, {1, 1, -1}), false);
         auto rope = make_rope(reshape, hidden_states);
 
         model = std::make_shared<Model>(OutputVector{rope}, ParameterVector{hidden_states, position_ids, beam_idx});
@@ -1344,8 +1354,10 @@ TEST_F(TransformationTestsF, SDPAToPA_Qwen3_5_PositionIDsReplacer) {
         auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{DYN}, "position_ids");
         // This test runs only the matcher. The full SDPAToPA pipeline removes the unused beam_idx input later.
         auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
-        auto unsq_position_ids = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
-        auto positions = std::make_shared<v0::Unsqueeze>(unsq_position_ids, v0::Constant::create(element::i32, Shape{}, {0}));
+        auto unsq_position_ids =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto positions =
+            std::make_shared<v0::Unsqueeze>(unsq_position_ids, v0::Constant::create(element::i32, Shape{}, {0}));
         auto rope = make_rope(positions, hidden_states);
 
         model_ref = std::make_shared<Model>(OutputVector{rope}, ParameterVector{hidden_states, position_ids, beam_idx});

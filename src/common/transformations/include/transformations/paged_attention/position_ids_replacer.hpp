@@ -190,6 +190,7 @@ public:
 };
 
 /**
+ * @ingroup ov_transformation_common_api
  * @brief Replace implicit text-only Qwen3.5 M-RoPE positions with explicit PagedAttention positions.
  *
  * The text-only export of Qwen3.5 generates positions from the past cache length and current sequence length.
