@@ -306,13 +306,11 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         // nvidia/compat_sg_overrides.cl binds to the parameterised helpers in the prelude.
         info.supports_intel_subgroups_short = true;
 
-        for (size_t simd : {static_cast<size_t>(8), static_cast<size_t>(16)}) {
-            if (std::find(info.supported_simd_sizes.begin(), info.supported_simd_sizes.end(), simd) ==
-                info.supported_simd_sizes.end()) {
-                info.supported_simd_sizes.push_back(simd);
-            }
-        }
-        std::sort(info.supported_simd_sizes.begin(), info.supported_simd_sizes.end());
+        // Add the emulated widths to what the hardware reports, keeping the list sorted and free of duplicates.
+        auto& simd_sizes = info.supported_simd_sizes;
+        simd_sizes.insert(simd_sizes.end(), {8, 16});
+        std::sort(simd_sizes.begin(), simd_sizes.end());
+        simd_sizes.erase(std::unique(simd_sizes.begin(), simd_sizes.end()), simd_sizes.end());
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
