@@ -934,6 +934,13 @@ void MapHolder::evict_chunk(HANDLE proc,
 }
 
 void MapHolder::hint_evict(size_t offset, size_t size) noexcept {
+    if (m_view_base && m_total_va_size == 0) {
+        // Legacy view cannot be unmapped in parts; VirtualUnlock on unlocked pages drops them from the working set.
+        if (const auto region = util::clamp_align_region(m_data, m_size, offset, size); region.m_length > 0) {
+            ::VirtualUnlock(reinterpret_cast<void*>(region.m_address), region.m_length);
+        }
+        return;
+    }
     const auto [range_begin, range_end] = compute_evict_range(offset, size);
     if (!range_begin)
         return;

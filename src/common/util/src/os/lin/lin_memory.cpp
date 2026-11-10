@@ -77,6 +77,8 @@ void vm_release(void* ptr, size_t size) noexcept {
     std::ignore = munmap(ptr, size);
 }
 
+void populate_hint(const void*, size_t) noexcept {}
+
 void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {
