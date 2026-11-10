@@ -61,10 +61,8 @@ public:
         int32_t batch_id;
         size_t hash_value;
         uint32_t kernels_counter;
+        // Headers first, then one entry per kernel: the last kernels_counter entries are the kernels.
         source_code source;
-        // Number of leading entries of `source` that are headers rather than kernels. With the NVIDIA compatibility
-        // headers in place (see get_program_source()) this counts them as well: prelude | batch headers | overrides.
-        size_t header_count;
         source_code micro_headers;
         std::string options;
         bool dump_custom_program;
@@ -82,7 +80,6 @@ public:
               hash_value(0),
               kernels_counter(0),
               source({}),
-              header_count(0),
               options(_options),
               dump_custom_program(false),
               has_microkernels(false),
@@ -106,7 +103,6 @@ public:
                         micro_headers.push_back(kv.second);
                     }
                 }
-                header_count = source.size();
             }
         }
     };

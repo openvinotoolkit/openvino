@@ -364,7 +364,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             auto process_batch_includes = [find_and_remove_includes](kernels_cache::batch_program& prog) {
                 std::list<std::string> sources_to_process(prog.source.begin(), prog.source.end());
-                const size_t kernel_entries = prog.source.size();
 
                 prog.source.clear();
                 std::list<std::string> all_headers;
@@ -392,10 +391,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 if (prog.language == kernel_language::CM) {
                     prog.source.insert(prog.source.begin(), "#include <cm/cm.h>\n#include <cm/cmtl.h>\n");
                 }
-
-                // Every kernel is processed before any header, and each processed entry is inserted at the front,
-                // so the headers end up ahead of all the kernels: everything the kernels did not contribute is a header.
-                prog.header_count = prog.source.size() - kernel_entries;
             };
 
             if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM)
@@ -406,11 +401,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // sub_group_block_read.cl and friends declare as functions, so they must come after those headers (see
             // nvidia/compat_sg_overrides.cl).
             if (_targets_nvidia) {
-                OPENVINO_ASSERT(b.header_count <= b.source.size(), "[GPU] Batch has ", b.header_count,
-                                " headers but only ", b.source.size(), " source entries");
-                b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(b.header_count), nvidia_sg_overrides);
+                OPENVINO_ASSERT(b.kernels_counter <= b.source.size(), "[GPU] Batch has ", b.kernels_counter,
+                                " kernels but only ", b.source.size(), " source entries");
+                b.source.insert(b.source.end() - static_cast<std::ptrdiff_t>(b.kernels_counter), nvidia_sg_overrides);
                 b.source.insert(b.source.begin(), nvidia_prelude.begin(), nvidia_prelude.end());
-                b.header_count += nvidia_prelude.size() + 1;
             }
 
             std::string full_code = options + " " + _device->get_info().driver_version;
@@ -498,12 +492,13 @@ std::string kernels_cache::get_combined_source(const batch_program& batch) const
     // regexes over every kernel, which is only worth paying when the batch actually gets compiled (or dumped); the
     // result follows from the kernel source alone, which the hash already covers.
     std::string combined_source;
-    OPENVINO_ASSERT(batch.header_count <= batch.source.size(), "[GPU] Batch has ", batch.header_count,
-                    " headers but only ", batch.source.size(), " source entries");
-    for (size_t i = 0; i < batch.header_count; ++i) {
+    OPENVINO_ASSERT(batch.kernels_counter <= batch.source.size(), "[GPU] Batch has ", batch.kernels_counter,
+                    " kernels but only ", batch.source.size(), " source entries");
+    const size_t first_kernel = batch.source.size() - batch.kernels_counter;
+    for (size_t i = 0; i < first_kernel; ++i) {
         combined_source += batch.source[i];
     }
-    for (size_t i = batch.header_count; i < batch.source.size(); ++i) {
+    for (size_t i = first_kernel; i < batch.source.size(); ++i) {
         combined_source += nvidia_replace_reqd_sub_group_size(batch.source[i]);
     }
     return combined_source;
