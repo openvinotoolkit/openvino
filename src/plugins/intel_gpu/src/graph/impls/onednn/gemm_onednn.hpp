@@ -57,6 +57,9 @@ struct GemmImplementationManager : public ImplementationManager {
         if (out_layout.data_padding)
             return false;
 
+        if (!is_supported_pad(in0_layout) || !is_supported_pad(in1_layout))
+            return false;
+
         if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64})) {
             return false;
         }

@@ -3553,6 +3553,36 @@ TEST_F(gemm_onednn, dynamic_padding_input_transpose) {
     this->test_dynamic_padding_transpose();
 }
 
+TEST_F(gemm_onednn, dynamic_lower_spatial_padding_uses_ocl) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    const ov::Shape input0_shape = {1, 1, 3, 4};
+    const ov::Shape input1_shape = {1, 1, 4, 3};
+    const padding input0_padding{{0, 0, 1, 0}, {0, 0, 0, 0}};
+
+    topology topology;
+    topology.add(input_layout("input0",
+                              layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx, input0_padding}),
+                 input_layout("input1", layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx}),
+                 gemm("gemm", {input_info("input0"), input_info("input1")}, data_types::f16));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    auto input0 = engine.allocate_memory(
+        layout{ov::PartialShape(input0_shape), data_types::f16, format::bfyx, input0_padding});
+    auto input1 = engine.allocate_memory(layout{ov::PartialShape(input1_shape), data_types::f16, format::bfyx});
+    network.set_input_data("input0", input0);
+    network.set_input_data("input1", input1);
+
+    auto impl = network.get_primitive("gemm")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_EQ(impl->m_manager->get_impl_type(), impl_types::ocl);
+}
+
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>
 class GemmBaseOneDNNTest : public ::GemmBaseTest<gemm_params, input0_type, input1_type, input2_type, output_type, accumulator_type> {
 public:
