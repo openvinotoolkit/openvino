@@ -1347,12 +1347,14 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     }
     // sdpa_ocl.cl includes sdpa_ocl_hpg_pa_prefill.cl in place of its kernel. Absent otherwise, so no other jit changes.
     // HPG_PA_V_LEAD: key blocks of V loaded ahead (6 measured best on DG2 with IGC 2.41 at head 128; at most the tile's
-    // key blocks, and 3 when each V row slice is 32 values, twice the registers; SDPA_OCL_HPG_PA_V_LEAD for A/B).
+    // key blocks, and 3 when each V row slice is 32 values, twice the registers; SDPA_OCL_HPG_PA_V_LEAD for A/B). Head 512
+    // takes 1: on the Windows driver 32.0.101.9175 the leads 2-6 and 8 failed head-512 cases of plain SDPA or PA PREFILL
+    // (the IGC codegen hazard of "xe_hpg follow-ups" in the docs; "Head-512 V lead on xe_hpg" in its Change history).
     // HPG_PA_KQ_UNROLL: unroll of the KQ depth loop, whole up to head 128 and 2 at 256, where IGC 2.41 would load K of
     // every depth tile ahead (SDPA_OCL_HPG_PA_KQ_UNROLL, 0 = whole).
     if (t.hpg_pa_prefill) {
         jit.make("HPG_PA_PREFILL", 1);
-        const int v_lead = std::min(t.sv_sg_tile_values == 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
+        const int v_lead = p.k_head_size == 512 ? 1 : std::min(t.sv_sg_tile_values == 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
         jit.make("HPG_PA_V_LEAD", env_int("SDPA_OCL_HPG_PA_V_LEAD", v_lead));
         if (const int kq = env_int("SDPA_OCL_HPG_PA_KQ_UNROLL", p.d_max > 128 ? 2 : 0); kq > 0)
             jit.make("HPG_PA_KQ_UNROLL", kq);

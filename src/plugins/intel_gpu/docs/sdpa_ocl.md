@@ -220,7 +220,7 @@ and sliding-window bounds, the `S_max_slm` / `S_sum_slm` exchange) and changes w
 | Tiling | 16 x 16 keys x queries, 4 x 2 subgroups (64 x 32) up to head 128, 8 x 2 / 16 x 2 at 256 / 512 | head 64: 32 x 16, 4 x 2 subgroups (128 x 32); head 72 (plain SDPA): 32 x 16, 5 x 2 (160 x 32); head 96: 32 x 16, 6 x 2 (192 x 32); head 128: 32 x 16, 8 x 2 (256 x 32); head 256: 16 x 16, 16 x 2 (256 x 32); head 512: 16 x 16, 32 x 1 (512 x 16); each S*V subgroup holds the 16 queries of its KQ subgroup and 16 value columns |
 | KQ | DPAS(K, Q): K repacked to the `int8` A operand | DPAS(Q, K): Q staged so that one `ulong4` SLM block read is the A operand, K read straight from the input as the B operand (one 32 B read per key row); the scores are transposed to lane = query through 64 dwords of SLM per subgroup |
 | S*V | DPAS(P, V), V gathered per value | DPAS(V, P): V rows read as dwords and interleaved per key pair, the output tile is lane = query |
-| V latency | loads in the S*V loop | the first `HPG_PA_V_LEAD` (6) key blocks of V are loaded before the wait of the P barrier and the loop keeps that lead: IGC 2.41 sinks loads that nothing pins toward their use, which left the V latency exposed |
+| V latency | loads in the S*V loop | the first `HPG_PA_V_LEAD` key blocks of V (6; 3 with 32 value columns per S*V subgroup; 1 at head 512, see "xe_hpg follow-ups") are loaded before the wait of the P barrier and the loop keeps that lead: IGC 2.41 sinks loads that nothing pins toward their use, which left the V latency exposed |
 | Mask | per element | skipped for a subgroup tile wholly below the diagonal and inside the window; with a window, causal and window are one unsigned compare (`0 <= query - key < window`): the two signed compares spilled 2.5 KB on IGC 2.41 |
 | Workgroup order | subsequence order | heaviest, lightest, second heaviest, ... query block by the keys it visits, causal and from its first query's window start (`pair_query_blocks`, `prepare_internal_buffers()`) |
 | Softmax rounding | the default rounding (`MICRO_MATH=0`, which gives `sdpa_micro`'s only with Xe2's table tiles) | the same |
@@ -329,9 +329,11 @@ there (`HPG_PA_KQ_UNROLL`). Head 512: 32 x 1 subgroups of 16 x 16 (512 x 16, 16 
 spill, 42 KB of SLM) took 537 us against 591-596 on gemma-4-e2b's global layers at 1K tokens (0.90-0.91x; 32 tokens
 0.94x) and 1,437-1,455 against 1,517-1,537 on flux.1-schnell's VAE (plain SDPA, one head; 0.94-0.96x); the generic
 kernel was 7.4x / 4.2x. 16 x 1 subgroups of 32 x 16 with 32 value columns spilled 6.1-6.6 KB (4.9 KB with a V lead of
-1) and were 2.2-2.5x. The 512 x 16 tiling sits near the IGC codegen hazard in "xe_hpg follow-ups" (Known issues): a V
-lead of 4 leaves one 8 x 8 accumulator tile as garbage now and then with a dynamically padded input, the default 6 passed
-the 84 head-512 cases in five uncached runs.
+1) and were 2.2-2.5x. The 512 x 16 tiling sits near the IGC codegen hazard in "xe_hpg follow-ups" (Known issues): on
+the Linux driver (IGC 2.41.5) a V lead of 4 left one 8 x 8 accumulator tile as garbage now and then with a dynamically
+padded input and lead 6 passed the 84 head-512 cases in five uncached runs; on the Windows driver 32.0.101.9175 every
+lead but 1 (of 1-6 and 8) failed head-512 cases, so head 512 takes a V lead of 1 since 2026-11-10, at no measurable cost
+("Head-512 V lead on xe_hpg" in the Change history).
 
 With a sink and token_type_ids (same method, 1K and 32 tokens): gpt-oss-20b (head 64, sink, a 128-key window in every
 other layer) took 450.4 us on its full layers and 238.5 on its window layers against `sdpa_micro`'s 453.4 / 266.4, and
@@ -2902,6 +2904,49 @@ The rank-3 move above was measured on the B70 only, so `sdpa_ocl_plain_3d_ok()` 
   crash in `infer()`) fail, identically with the 11-14 plugin, so not from this change; open, cause not found. Control: with the previous predicate (`arch == xe2` and a discrete GPU) `Plain3dOkTruthTable` fails on exactly the five
   rows where the two differ (xe2 integrated, xe3 and xe3p both device types) and the other four tests still pass.
 
+### Head-512 V lead on xe_hpg (2026-11-10)
+
+At head 512 the xe_hpg PA PREFILL kernel (PA PREFILL, its MIXED and plain SDPA) loads V one key block ahead
+(`HPG_PA_V_LEAD` 1 in `add_tiling_jit()`); the other heads keep 6, or 3 with 32 value columns per S*V subgroup. Only
+xe_hpg builds this kernel, so Xe2 is unchanged.
+
+- Why (A770, Windows driver 32.0.101.9175, uncached `NEO_CACHE_PERSISTENT=0`): with lead 6 the IGC codegen hazard of
+  "xe_hpg follow-ups" left 8 x 8 accumulator tiles as garbage (NaN, inf, values in the thousands) in most head-512 runs:
+  - plain SDPA through the public API (f16, `[-1, 8, -1, 512]`, numpy reference): 6-12 of 120 inferences per run with
+    7, 1 and 10 queries (batch 1, 1, 2), about half of 240 with 33, 512 and 600 queries added;
+  - `smoke_ScaledAttnDynamic4D_GPU` f16 head 512: 6-9 of its 64 cases per run; the PA head-512 unit set
+    (`prefill_heads/100` to `/152`, `sdpa_hpg_rows` head 512, `paged_attention_test.basic/114`): 0-1 of 64 per run;
+  - flux.1-schnell (llm_bench): a black image (the VAE's attention, one head of 512); gemma-4-e2b's text was the same
+    with leads 1 and 6.
+- Other leads (`SDPA_OCL_HPG_PA_V_LEAD`, which sets every head's lead; every failure listed is a head-512 case):
+  - 2: `prefill_heads/116` and `/143` (-inf / NaN) in every run;
+  - 3: 14-20 of 120 plain SDPA inferences per run, 6-8 of the 64 `ScaledAttn` cases;
+  - 4: 42-43 of the 64 unit cases in every run;
+  - 5: `prefill_heads/143` in one run of two;
+  - 8: one bad plain SDPA inference of 600;
+  - 16: plain SDPA clean in five runs, the unit set not run;
+  - 1: clean in every run below.
+- Checked with lead 1 (the change, no switch set):
+  - plain SDPA: 0 of 1,200 inferences (five runs of six shapes, 1 to 600 queries);
+  - the 64 `ScaledAttn` and the 64 unit head-512 cases, ten uncached runs each: no failure;
+  - the kit on both lanes against the last baselines: only head-512 cases change, all from FAIL to PASS (38 of the
+    `SDPA_OCL_NEG_SG8=4` build, `basic/114` in U1, 6 `ScaledAttn` cases); every other group is identical;
+  - flux.1-schnell's image is right by eye in four runs, 22.1 dB PSNR against the 2026.5 RC's (lead 6: 8.2 dB, black);
+    how far the opt lane's image is from the RC's was not measured.
+- Cost (llm_bench, cliloader device time per call, two interleaved rounds, lead 1 against lead 6 in the same build):
+  - gemma-4-e2b's head-512 layers, two programs (4 and 3 layers): 521.6-523.2 / 547.3-549.1 us at 1K tokens against
+    525.6-527.7 / 546.4-547.4; 274 tokens 122.2-124.1 / 155.6-160.4 against 117.7 / 155.6-162.1 (minimum 115.0 against
+    113.2-113.3 in the first);
+  - flux.1-schnell's VAE: 1,432-1,438 us against 1,461-1,464;
+  - first token, three rounds: gemma-4-e2b 182.9 ms against 184.4 at 1K tokens, 123.9 against 120.7 at 274 (rounds
+    120.3-125.1); flux.1-schnell's generation time 4.57 s against 4.56.
+- Against the 2026.5 RC (pip, `sdpa_micro`), same runs: gemma-4-e2b's head-512 layers 0.87-0.89x / 0.97-0.98x at 1K
+  tokens (588-599 / 560-565 us), 1.06-1.09x / 1.12-1.18x at 274; flux.1-schnell's VAE 0.85-0.86x (1,670-1,687 us); first
+  token 0.95x at 1K and 0.98x at 274; flux.1-schnell's generation time 0.94x. The build reads the `SDPA_OCL_*` switches
+  (`-DSDPA_OCL_NO_GETENV=OFF`); not repeated with the default ON build.
+- Not checked: why lead 1 is clean (an empirical result on this driver; the hazard is not pinned down), the Linux
+  driver with lead 1, Xe2 (the B70; the code path is xe_hpg-only).
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -3020,7 +3065,8 @@ re-measures against the opt kernels.
   - MIXED of 256-token chunks (a 4K prompt, `max_num_batched_tokens` 256): `sdpa_ocl_mixed` 1.26-1.40x
     `sdpa_micro__generate` per call (llama-3.1-8b 1142 against 904 us, qwen3-8b 1158 / 882, llama-3.2-1b 699 / 500),
     first token 1.09-1.16x.
-  - Image generation (flux.1-schnell, its 32-token prompt, plain SDPA): 0.94x.
+  - Image generation (flux.1-schnell, its 32-token prompt, plain SDPA): 0.94x. The VAE's head-512 SDPA made the image
+    black then (V lead 6); with the V lead of 1 of 2026-11-10 the image is right and the ratio the same (0.94x).
 
 - PA PREFILL prompts up to about 2K tokens are slower than `sdpa_micro` with the 256-key x 32-query tile: 65 and 128
   tokens about 1.2x, 384-768 tokens 1.03-1.16x with gaps between calls, 2048 tokens 1.03x. Two study kernels cover parts
@@ -3056,8 +3102,8 @@ re-measures against the opt kernels.
   instruction stream, other SWSB tokens) give correct output in every run, and IGC 2.38.5 compiles the lead-3 kernel
   correctly but not the `IGC_EnableBCR=1` one; IGC 2.41.5 is the driver's (26.35). A static scan of the listings found no
   missing SWSB wait under in-order DPAS completion, so the hazard is not pinned down. At head 512 (512 x 16) a V lead of 4
-  does it on IGC 2.41.5 (`prefill_heads/116`, 2-3 runs in 15), and IGC 2.38.5 does it with the default lead 6 (`/116` and
-  `/143` in every run); only the driver's IGC is a gate. The forced fallback build of `SDPA_OCL_NEG_SG8=4` (a compile-time
+  does it on IGC 2.41.5 (`prefill_heads/116`, 2-3 runs in 15), and IGC 2.38.5 does it with lead 6, the default until
+  2026-11-10 (`/116` and `/143` in every run; both on Linux); only the driver's IGC is a gate. The forced fallback build of `SDPA_OCL_NEG_SG8=4` (a compile-time
   variant the product never builds: `q_dword_ok` and `mask_dword_ok` are constants there, while the product kernel computes
   them per call) hits it on IGC 2.41.5 as
   well, so these are known failures of that control, not of the product kernel: `prefill_heads/116` and `/143` (head
@@ -3086,7 +3132,8 @@ re-measures against the opt kernels.
     - a default-config compressed MIXED call (llama chunk of 256 new / 768 past tokens, 32 / 8 heads, head 128, i8
       BY_TOKEN, fused-QKV dynamic paddings): 20 / 20 exact on Windows, 20 / 20 corrupt on Linux.
 
-    The head-128 `smoke_ScaledAttnDynamic4D_GPU` cases above pass in every run. Head 512 is not clean on this driver:
+    The head-128 `smoke_ScaledAttnDynamic4D_GPU` cases above pass in every run. Head 512 was not clean on this driver
+    with the V lead of 6 it took until 2026-11-10:
     - On the xe_hpg lane, `smoke_ScaledAttnDynamic4D_GPU` f16 head 512 non-causal (8 heads, 7 / 1 / 10 queries,
       batch 1 / 1 / 2) fails 5-8 of its 32 cases per run, 16 different cases in 5 runs. 16-64 values are garbage, mostly
       in query row 8 of the second batch. The causal cases take the generic kernel and pass, as do the default lane
@@ -3098,8 +3145,10 @@ re-measures against the opt kernels.
 
     The Windows IGC does not read `IGC_*` environment variables (`IGC_ShaderDumpEnable=1` dumps nothing), so the SWSB
     controls were not run there. That this is the same hazard is concluded from the symptom, not proven.
-  - Gate: the Windows driver. The fix (a V lead or a source change of the S*V loop) is open and has to land before the
-    xe_hpg lane becomes the default.
+  - Gate: the Windows driver. Head 512 takes a V lead of 1 since 2026-11-10, the only lead that passed every head-512
+    case there ("Head-512 V lead on xe_hpg" in the Change history). That is a measured workaround, not a fix: the hazard
+    is not pinned down, the other heads keep their lead, and the Linux driver was not rerun with lead 1. A change to the
+    S*V loop still has to pass the dynamic-padding cases several times uncached.
 - The generic SG8 kernel (heads the PA PREFILL kernel does not serve, alibi / a runtime scale, PA MIXED, plain SDPA with causality or at other heads) was 3.6-14x `sdpa_micro` per call in real models (A770, f16 KV,
   2026-10-30/31): PA PREFILL 6.5-14x at 1K tokens (1.2-2.1x at 32), PA MIXED after a long prompt 4.3-8.3x against
   `sdpa_micro__generate` (measured at head 128), plain SDPA 3.6-4.2x (phi-4-multimodal's vision encoder at head 72,
