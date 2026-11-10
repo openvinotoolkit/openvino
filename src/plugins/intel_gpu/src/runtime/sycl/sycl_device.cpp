@@ -217,6 +217,8 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
     info.supports_intel_subgroups = false; // no corresponding aspect in SYCL
     info.supports_intel_subgroups_short = false; // no corresponding aspect in SYCL
     info.supports_intel_subgroups_char = false; // no corresponding aspect in SYCL
+    info.supports_intel_subgroup_2d_block_io = false;
+    info.supports_intel_subgroup_matrix_multiply_accumulate = false;
     info.supports_intel_required_subgroup_size = true; // to use sub_group_sizes as SIMD sizes
 
     info.supports_imad = get_imad_support(device);

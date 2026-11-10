@@ -4,10 +4,8 @@
 // fc_gguf_shuffle_gen.hpp — Shared OCL shuffle GEMV kernel generators for
 // GGUF FC nodes.
 //
-// Included by both the OCL impl (fc_gguf_opt.cpp) and the CM impl
-// (fc_gguf_cm.cpp) so both share the same shuffle GEMV kernel classes without
-// code duplication.  These generators target the fc_gguf_q{4k,5k,6k}_sg.cl
-// and fc_gguf_q{4_0,4_1,8_0}_sg.cl OCL kernels that operate on the
+// These generators target the single fc_gguf_gemv_opt.cl source (one GG_FMT_*
+// section per format, selected by a jit define) whose kernels operate on the
 // SG-transposed plane-separated weight layout produced by
 // RepackGGUFWeightsShuffle.
 
@@ -61,13 +59,15 @@ inline int gguf_shuffle_choose_ksplit(size_t N, size_t K) {
 
 // =================================================================================================
 // Q4_K / Q5_K / Q6_K / Q4_0 / Q4_1 / Q8_0 weight-shuffle GEMV generator.
-// Targets fc_gguf_q{4k,5k,6k}_sg.cl and fc_gguf_q{4_0,4_1,8_0}_sg.cl.
+// Targets fc_gguf_gemv_opt.cl; the format section is selected by the GG_FMT_* define.
 // Reads the SG-transposed plane-separated weight with intel_sub_group_block_read.
 // Activation is f16 (INPUT0). Explicit-args; static K, N + output dtype baked in.
 // =================================================================================================
 class FCGGUFShuffleGenerator : public KernelGenerator {
 public:
-    explicit FCGGUFShuffleGenerator(const char* kernel_name) : KernelGenerator(kernel_name) {}
+    FCGGUFShuffleGenerator(const char* kernel_name, const char* format_define)
+        : KernelGenerator(kernel_name, "", "fc_gguf_gemv_opt"),
+          m_format_define(format_define) {}
 
 protected:
     [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
@@ -96,6 +96,7 @@ protected:
             make_jit_constant("SG_SIZE", GGUF_GEMV_SG_SIZE),
             make_jit_constant("OPG",     GGUF_GEMV_SG_SIZE),
             make_jit_constant("KSPLIT",  gguf_shuffle_choose_ksplit(N, K)),
+            make_jit_constant(m_format_define, 1),
         });
         if (params.has_fused_primitives()) {
             const auto& out_l = params.output_layouts[0];
@@ -120,26 +121,29 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
     }
+
+private:
+    std::string m_format_define;  // GG_FMT_* macro selecting the format section of fc_gguf_gemv_opt.cl
 };
 
 // Per-format subclasses — one per OCL kernel entry point.
 class FCGGUFQ4kSgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ4kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4k_sg") {}
+public: FCGGUFQ4kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4k_sg", "GG_FMT_Q4_K") {}
 };
 class FCGGUFQ5kSgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ5kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q5k_sg") {}
+public: FCGGUFQ5kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q5k_sg", "GG_FMT_Q5_K") {}
 };
 class FCGGUFQ6kSgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ6kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q6k_sg") {}
+public: FCGGUFQ6kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q6k_sg", "GG_FMT_Q6_K") {}
 };
 class FCGGUFQ40SgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ40SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_0_sg") {}
+public: FCGGUFQ40SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_0_sg", "GG_FMT_Q4_0") {}
 };
 class FCGGUFQ41SgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ41SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_1_sg") {}
+public: FCGGUFQ41SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_1_sg", "GG_FMT_Q4_1") {}
 };
 class FCGGUFQ80SgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ80SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q8_0_sg") {}
+public: FCGGUFQ80SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q8_0_sg", "GG_FMT_Q8_0") {}
 };
 
 }  // namespace ov::intel_gpu::ocl

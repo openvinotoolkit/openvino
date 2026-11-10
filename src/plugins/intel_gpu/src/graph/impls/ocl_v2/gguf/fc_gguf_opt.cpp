@@ -5,6 +5,9 @@
 #include "fc_gguf_opt.hpp"
 #include "fc_gguf_shuffle_gen.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <cstdint>
 #include <string>
 
 #include "../primitive_ocl_base.hpp"
@@ -13,8 +16,17 @@
 #include "../utils/kernel_generator.hpp"
 #include "fully_connected_inst.h"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/util/log.hpp"
+
+#ifdef ENABLE_CM_FOR_GPU
+#    include "../../cm/utils/kernels_db.hpp"  // cm::SourcesDB::get_kernel_template() for .cm files
+#endif
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #    include <map>
@@ -65,6 +77,14 @@ const char* gguf_type_jit_flag(element::Type_t t) {
         OPENVINO_THROW("[GPU] FCGGUFOpt: no kernel for GGUF element type ", element::Type(t).get_type_name());
     }
 }
+
+// Which kernel runs the prefill (M > threshold) of one FC node; decided once per node in the impl constructor.
+enum class PrefillKernel : uint8_t {
+    ocl = 0,     // OCL dpas GEMM (fc_gguf_gemm_opt.cl)
+    cm = 1,      // CM dpas GEMM (gemm_q*_full.cm), comparison aid only
+    onednn = 2,  // transcode + oneDNN matmul (fallback)
+    none = 3,    // GEMV only
+};
 
 // Flattened activation rows BM = product of all activation dims except the last (K).
 size_t derive_bm(const ov::Shape& shape_a) {
@@ -216,8 +236,7 @@ GgufTranscodeTarget transcode_target(element::Type_t t, size_t N) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // Q4_K / Q6_K "weight shuffle" path: when enabled, the weight was reordered once (compile_model) into
-// the SG-transposed plane-separated layout that the sub-group-block-read GEMV kernels (fc_gguf_q4k_sg.cl
-// / fc_gguf_q6k_sg.cl) and the shuffle-aware prefill transcode consume with fully coalesced weight
+// the SG-transposed plane-separated layout that the sub-group-block-read GEMV kernels (fc_gguf_gemv_opt.cl) and the shuffle-aware prefill transcode consume with fully coalesced weight
 // loads. Same total bytes, bit-exact. Default ON; set OV_GPU_GGUF_SHUFFLE=0 to disable. Must match the
 // RepackGGUFWeightsShuffle transform gate so the transform and the impl agree which nodes are shuffled.
 bool gguf_shuffle_enabled() {
@@ -669,6 +688,758 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
     }
 };
+
+// =================================================================================================
+// Prefill GEMM (OCL dpas kernels fc_gguf_gemm_opt.cl, or the CM kernels gemm_q*_full.cm for comparison).
+//
+// Both consume the SG-shuffled weight layout produced by RepackGGUFWeightsShuffle (the same buffer the
+// decode shuffle GEMV reads), keep fp32 accumulators and produce the fp16/fp32 output directly.
+// =================================================================================================
+constexpr int GGUF_CM_TOKENS_PER_TILE = 8;  // dpas RepeatCount (fixed by the ISA)
+
+// f32 -> f16 activation conversion pre-pass for the CM path (convert_act_f32_to_f16.cm). CONV_ACT_BLOCK
+// divides 256 (the K-tiling granularity), so M*K is always an exact multiple of it.
+constexpr int CONV_ACT_BLOCK = 64;  // elements converted per thread
+constexpr int CONV_ACT_LOCAL = 16;  // threads per work-group
+
+#ifdef ENABLE_CM_FOR_GPU
+struct CmGemmConfig {
+    int row_groups;    // N-dimension blocking (ROW_GROUPS)
+    int token_groups;  // token dimension register blocking (TOKEN_GROUPS)
+    int token_local;   // threads per work-group (TOKEN_LOCAL) — CORRECTNESS requirement
+    int row_blocks;    // ROW_BLOCKS (additional N-block split within the work-group)
+    int slm_jblk;      // sub-blocks published per COOP_SLM phase (or -1 = kernel default)
+    int pf_a;          // PF_A prefetch flag (or -1 = kernel default)
+    int a_outer;       // A_OUTER loop order flag
+};
+
+CmGemmConfig pick_cm_gemm_config(const RuntimeParams& params, size_t K) {
+    const auto arch = params.get_device_info().arch;
+    const bool is_xe3 = (arch >= gpu_arch::xe3);
+    (void)K;  // no PTL long-K promotion any more, see the comment below
+
+    if (is_xe3) {
+        // PTL (Arc B390 iGPU, Xe3): ADOPTED config from the standalone
+        // cm_gguf_gemm_kernel/ ab_lowbit_config.py PTL round-2 tuning.
+        // ROW_GROUPS=4/ROW_BLOCKS=1/TOKEN_LOCAL=16 measured 1.01-1.63x
+        // faster than this older RG=2/RB=2/TL=32 tile, across ALL SIX
+        // quants and every shape (K 1024..16384, token_len 64..8192,
+        // interleaved min-of-N -- see cm_kernel_dev.md repo memory / the
+        // "PTL round 2" notes). This branch had gone stale: it still
+        // shipped the PRE-round-2 tile, which is why re-measuring
+        // gemm_q41_full on the real PTL box (ab-style interleaved A/B)
+        // showed the old branch 1.07-1.43x SLOWER than the adopted one at
+        // K/N=4096/4096..12288/4096, token_len=1024 -- a config mismatch,
+        // NOT register spill (both variants build to <=121/128 registers,
+        // no spill, with or without post-ops; verified via
+        // -mCM_printregusage on the actual Arc B390).
+        // Do NOT re-add the old RG=2 tile's "K>=10240 -> TOKEN_GROUPS=4"
+        // long-K promotion on top of this: RG*TG would become 8 KB of
+        // accumulators and spill (measured 0.19-0.27x). RG=4 already wins
+        // at long K directly (1.54-1.63x at K=12288/16384).
+        return CmGemmConfig{/*row_groups=*/4,
+                            /*token_groups=*/2,
+                            /*token_local=*/16,
+                            /*row_blocks=*/1,
+                            /*slm_jblk=*/4,
+                            /*pf_a=*/1,
+                            /*a_outer=*/1};
+    }
+    // BMG (Arc B580, Xe2) — default, tuned for 160 XVE @ 2.9 GHz.
+    return CmGemmConfig{/*row_groups=*/2,
+                        /*token_groups=*/4,
+                        /*token_local=*/8,
+                        /*row_blocks=*/1,
+                        /*slm_jblk=*/-1,
+                        /*pf_a=*/-1,
+                        /*a_outer=*/1};
+}
+#endif
+
+// Format index shared by the OCL and CM GEMM stage tables; -1 = no GEMM kernel for this format.
+int gguf_gemm_fmt_index(element::Type_t t) {
+    switch (t) {
+    case element::Type_t::gguf_q4_0:
+        return 0;
+    case element::Type_t::gguf_q4_1:
+        return 1;
+    case element::Type_t::gguf_q4_k:
+        return 2;
+    case element::Type_t::gguf_q5_k:
+        return 3;
+    case element::Type_t::gguf_q6_k:
+        return 4;
+    case element::Type_t::gguf_q8_0:
+        return 5;
+    default:
+        return -1;
+    }
+}
+
+constexpr size_t GGUF_GEMM_FORMATS = 6;
+constexpr const char* kOclGemmKernels[GGUF_GEMM_FORMATS] =
+    {"fc_gguf_gemm_q4_0", "fc_gguf_gemm_q4_1", "fc_gguf_gemm_q4k", "fc_gguf_gemm_q5k", "fc_gguf_gemm_q6k", "fc_gguf_gemm_q8_0"};
+// Format-selection define of each entry in fc_gguf_gemm_opt.cl (same order as kOclGemmKernels).
+constexpr const char* kOclGemmFormatDefines[GGUF_GEMM_FORMATS] =
+    {"GG_FMT_Q4_0", "GG_FMT_Q4_1", "GG_FMT_Q4_K", "GG_FMT_Q5_K", "GG_FMT_Q6_K", "GG_FMT_Q8_0"};
+constexpr const char* kCmGemmKernels[GGUF_GEMM_FORMATS] =
+    {"gemm_q40_full", "gemm_q41_full", "gemm_q4k_full", "gemm_q5k_full", "gemm_q6k_full", "gemm_q80_full"};
+
+// OV_GPU_GGUF_PREFILL_GEMM=ocl|cm selects the PREFERRED prefill GEMM kernel type (default: ocl).
+PrefillKernel gguf_prefill_gemm_requested() {
+    const char* env = std::getenv("OV_GPU_GGUF_PREFILL_GEMM");
+    if (env == nullptr || *env == '\0') {
+        return PrefillKernel::ocl;
+    }
+    std::string v(env);
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (v == "ocl") {
+        return PrefillKernel::ocl;
+    }
+    if (v == "cm") {
+        return PrefillKernel::cm;
+    }
+    OPENVINO_WARN("[GPU] OV_GPU_GGUF_PREFILL_GEMM='", env, "' is not one of ocl|cm; using ocl.");
+    return PrefillKernel::ocl;
+}
+
+// OV_GPU_GGUF_PREFILL_GEMM_STRICT=1: no silent fallback for GEMM-family nodes (test / benchmark aid).
+bool gguf_prefill_gemm_strict() {
+    if (const char* env = std::getenv("OV_GPU_GGUF_PREFILL_GEMM_STRICT")) {
+        return std::atol(env) != 0;
+    }
+    return false;
+}
+
+// OCL GEMM tile configuration (fc_gguf_gemm_body.cl JIT constants).
+struct OclGemmConfig {
+    int row_groups;    // ROW_GROUPS: 16-column output groups per sub-group
+    int token_groups;  // TOKEN_GROUPS: 8-token DPAS tiles per sub-group
+    int token_local;   // TOKEN_LOCAL: sub-groups per work-group
+    int row_blocks;    // ROW_BLOCKS: N split inside the work-group
+    int slm_jblk;      // SLM_JBLK: 32-K sub-blocks published per SLM phase
+    bool large_grf;    // build with 256 GRF per thread
+    int n_band;        // GG_N_BAND: work-group band swizzle (0 = plain dispatch order)
+};
+
+OclGemmConfig pick_ocl_gemm_config(const RuntimeParams& params) {
+    if (params.get_device_info().arch >= gpu_arch::xe3) {
+        // PTL (Arc B390), 256 GRF: every sub-group owns 32 tokens x 64 outputs. The 4-bit formats decode cheaply
+        // enough to share each activation tile between two row blocks (256 tokens x 128 outputs per work-group);
+        // Q5_K / Q6_K / Q8_0 run best with 256 tokens x 64 outputs per work-group.
+        const auto& wl = params.input_layouts[1];
+        const size_t N = wl.get_shape()[0];
+        const size_t K = wl.get_shape()[1];
+        const auto wt_id = wl.data_type;
+        const bool four_bit = wt_id == data_types::gguf_q4_0 || wt_id == data_types::gguf_q4_1 || wt_id == data_types::gguf_q4_k;
+        OclGemmConfig cfg = four_bit && N % 128 == 0 ? OclGemmConfig{4, 4, 16, 2, 4, true, 0} : OclGemmConfig{4, 4, 8, 1, 4, true, 0};
+        // Once the weight matrix overflows the ~8-12 MB GPU L2 the per-token-block re-reads of the weights
+        // become the limit; walking the token blocks of a ~12 MB band of outputs first keeps the band cache
+        // resident. Beyond ~32 MB of weights the extra activation re-reads cost more than they save.
+        const element::Type wt(wt_id);
+        const size_t w_bytes = N * K / wt.block_elem_count() * wt.block_byte_size();
+        constexpr size_t band_bytes = size_t{12} << 20;
+        if (!four_bit && w_bytes > (size_t{16} << 20) && w_bytes <= (size_t{32} << 20)) {
+            const size_t ngroups = N / (GGUF_GEMV_SG_SIZE * static_cast<size_t>(cfg.row_groups * cfg.row_blocks));
+            cfg.n_band = static_cast<int>((ngroups * band_bytes + w_bytes - 1) / w_bytes);
+        }
+        return cfg;
+    }
+    // BMG (Xe2): same tile as the CM kernel; not tuned for the OCL kernel yet.
+    return OclGemmConfig{2, 4, 8, 1, 4, false, 0};
+}
+
+size_t gguf_ocl_gemm_align(const RuntimeParams& params) {
+    const OclGemmConfig cfg = pick_ocl_gemm_config(params);
+    return GGUF_GEMV_SG_SIZE * static_cast<size_t>(cfg.row_groups * cfg.row_blocks);
+}
+
+// =================================================================================================
+// OCL GEMM generator: one entry per GGUF format. All formats share fc_gguf_gemm_opt.cl (per-format tile codec,
+// selected by a GG_FMT_* define) and the pipeline template in fc_gguf_gemm_body.cl.
+// Args: [shape_info,] A, W, C, M, K, N [, fused inputs].
+// =================================================================================================
+class FCGGUFGemmGenerator : public KernelGenerator {
+public:
+    FCGGUFGemmGenerator(const char* kernel_name, const char* format_define)
+        : KernelGenerator(kernel_name, "", "fc_gguf_gemm_opt"),
+          m_format_define(format_define) {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = make_base_jit_constants(params);
+        jit.add(make_tensors_jit_constants(params));
+        const auto& in0 = params.input_layouts[0];
+        const auto& out0 = params.output_layouts[0];
+        jit.add(make_type_jit_constants("INPUT0", in0.data_type));
+        jit.add(make_type_jit_constants("OUTPUT", out0.data_type));
+
+        const OclGemmConfig cfg = pick_ocl_gemm_config(params);
+        jit.add({
+            make_jit_constant("ROW_GROUPS", cfg.row_groups),
+            make_jit_constant("TOKEN_GROUPS", cfg.token_groups),
+            make_jit_constant("TOKEN_LOCAL", cfg.token_local),
+            make_jit_constant("ROW_BLOCKS", cfg.row_blocks),
+            make_jit_constant("SLM_JBLK", cfg.slm_jblk),
+            make_jit_constant("PF_A", 1),
+            make_jit_constant("GG_N_BAND", cfg.n_band),
+            make_jit_constant("GG_A_F32", in0.data_type == data_types::f32 ? 1 : 0),
+            make_jit_constant("GG_OUT_F32", out0.data_type == data_types::f32 ? 1 : 0),
+            make_jit_constant(m_format_define, 1),
+        });
+        if (params.has_fused_primitives()) {
+            const std::vector<std::string> idx_order = out0.get_partial_shape().size() == 2
+                                                           ? std::vector<std::string>{"bm", "n", "0", "0"}
+                                                           : std::vector<std::string>{"out_b", "out_f", "n", "0"};
+            FusedOpsConfiguration conf = {"", idx_order, "dequantized", out0.data_type};
+            jit.add(make_fused_ops_jit_constants(params, {conf}));
+        }
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        if (params.is_dynamic()) {
+            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // M
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // N
+        add_fused_ops_arguments(args, params);
+        return args;
+    }
+
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        auto options = KernelGenerator::get_build_options(params);
+        if (pick_ocl_gemm_config(params).large_grf) {
+            options += " -cl-intel-256-GRF-per-thread";
+        }
+        return options;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+            const auto& in1 = params.get_input_layout(1);
+            const size_t N = in1.get_shape()[0];
+            const size_t K = in1.get_shape()[1];
+            const size_t M = derive_bm(params.get_input_layout(0).get_shape());
+            const OclGemmConfig cfg = pick_ocl_gemm_config(params);
+
+            const size_t tokens_per_thread = GGUF_CM_TOKENS_PER_TILE * static_cast<size_t>(cfg.token_groups);
+            const size_t token_slots = static_cast<size_t>(cfg.token_local) / static_cast<size_t>(cfg.row_blocks);
+            const size_t ntiles = (M + tokens_per_thread - 1) / tokens_per_thread;
+            const size_t ngroups = N / (GGUF_GEMV_SG_SIZE * static_cast<size_t>(cfg.row_groups) * static_cast<size_t>(cfg.row_blocks));
+            const size_t gsize_y = ((ntiles + token_slots - 1) / token_slots) * static_cast<size_t>(cfg.token_local);
+
+            // dim0 = sub-group lanes of every row-group block, dim1 = token tiles (TOKEN_LOCAL sub-groups per WG).
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {ngroups * GGUF_GEMV_SG_SIZE, gsize_y, 1};
+            wgs.local = {GGUF_GEMV_SG_SIZE, static_cast<size_t>(cfg.token_local), 1};
+
+            kd.params.scalars.clear();
+            auto push_u32 = [&](size_t v) {
+                scalar_desc sd{};
+                sd.t = scalar_desc::Types::UINT32;
+                sd.v.u32 = static_cast<uint32_t>(v);
+                kd.params.scalars.push_back(sd);
+            };
+            push_u32(M);
+            push_u32(K);
+            push_u32(N);
+        }};
+    }
+
+private:
+    std::string m_format_define;  // GG_FMT_* macro selecting the format section of fc_gguf_gemm_opt.cl
+};
+
+// -------------------------------------------------------------------------------------------------
+// Per-node prefill kernel selection. Every function returns an empty string when the kernel can be
+// used and a human readable blocker otherwise.
+// -------------------------------------------------------------------------------------------------
+std::string gguf_gemm_common_blocker(const RuntimeParams& params, bool shuffled_family, size_t align) {
+    if (!shuffled_family) {
+        return "weight is not a shuffled Q4_0/Q4_1/Q4_K/Q5_K/Q6_K/Q8_0 tensor (OV_GPU_GGUF_SHUFFLE=0, N%16 / K%256 misaligned, or no GEMM kernel for the format)";
+    }
+    const auto& dev = params.get_device_info();
+    if (!dev.supports_immad) {
+        return "device has no DPAS support (supports_immad=false)";
+    }
+    const auto& in0 = params.input_layouts[0];
+    const auto& out0 = params.output_layouts[0];
+    if (in0.data_type != data_types::f16 && in0.data_type != data_types::f32) {
+        return "activation is neither f16 nor f32";
+    }
+    if (out0.data_type != data_types::f16 && out0.data_type != data_types::f32) {
+        return "output is neither f16 nor f32";
+    }
+    const auto& wl = params.input_layouts[1];
+    const size_t N = wl.get_shape()[0];
+    if (N % align != 0) {
+        return "N=" + std::to_string(N) + " is not a multiple of the GEMM channel tile " + std::to_string(align);
+    }
+    return {};
+}
+
+std::string gguf_ocl_gemm_blocker(const RuntimeParams& params, bool shuffled_family) {
+    if (auto r = gguf_gemm_common_blocker(params, shuffled_family, gguf_ocl_gemm_align(params)); !r.empty()) {
+        return r;
+    }
+    const auto& dev = params.get_device_info();
+    if (dev.arch < gpu_arch::xe2) {
+        return "GPU architecture is older than Xe2";
+    }
+    if (!dev.supports_intel_subgroups_short || !dev.supports_intel_subgroups_char || !dev.supports_intel_subgroup_2d_block_io ||
+        !dev.supports_intel_subgroup_matrix_multiply_accumulate) {
+        return "device lacks cl_intel_subgroups_short / _char, cl_intel_subgroup_2d_block_io or cl_intel_subgroup_matrix_multiply_accumulate";
+    }
+    return {};
+}
+
+#ifdef ENABLE_CM_FOR_GPU
+// CM kernels only post-process relu / swish and binary sum / prod fused ops.
+std::string gguf_cm_fused_blocker(const RuntimeParams& params) {
+    if (!params.has_fused_primitives()) {
+        return {};
+    }
+    for (const auto& fd : params.fused_desc) {
+        if (fd.is_type<cldnn::reorder>()) {
+            continue;
+        }
+        if (fd.is_type<cldnn::activation>()) {
+            const auto act = fd.typed_desc<cldnn::activation>();
+            if (fd.has_outer_dep() ||
+                (act->activation_function != cldnn::activation_func::relu && act->activation_function != cldnn::activation_func::swish)) {
+                return "fused activation is not supported by the CM kernel";
+            }
+            continue;
+        }
+        if (fd.is_type<cldnn::eltwise>()) {
+            const auto elt = fd.typed_desc<cldnn::eltwise>();
+            if (!fd.has_outer_dep() || (elt->mode != cldnn::eltwise_mode::sum && elt->mode != cldnn::eltwise_mode::prod) || elt->input.size() != 2 ||
+                !elt->coefficients.empty() || !elt->stride.empty()) {
+                return "fused eltwise is not supported by the CM kernel";
+            }
+            const auto& operand = params.get_input_layout(fd.outer_dep_start_idx);
+            const auto& out = params.get_output_layout(0);
+            if (operand.format != format::bfyx || out.format != format::bfyx || operand.data_padding || out.data_padding ||
+                (operand.data_type != data_types::f16 && operand.data_type != data_types::f32)) {
+                return "fused eltwise operand layout is not supported by the CM kernel";
+            }
+            continue;
+        }
+        return "fused op type is not supported by the CM kernel";
+    }
+    return {};
+}
+#endif
+
+std::string gguf_cm_gemm_blocker([[maybe_unused]] const program_node& node, const RuntimeParams& params, bool shuffled_family) {
+#ifdef ENABLE_CM_FOR_GPU
+    const CmGemmConfig cm_cfg = pick_cm_gemm_config(params, params.input_layouts[1].get_shape()[1]);
+    const size_t cm_align = GGUF_GEMV_SG_SIZE * static_cast<size_t>(cm_cfg.row_groups) * static_cast<size_t>(cm_cfg.row_blocks);
+    if (auto r = gguf_gemm_common_blocker(params, shuffled_family, cm_align); !r.empty()) {
+        return r;
+    }
+    const auto& prog = node.get_program();
+    if (!prog.get_config().get_use_cm()) {
+        return "CM is disabled (set OV_GPU_USE_CM=ON / GPU_USE_CM)";
+    }
+    if (!cldnn::check_cm_jit_support(prog.get_engine(), prog.get_config())) {
+        return "the CM JIT is not usable with the installed driver";
+    }
+    return gguf_cm_fused_blocker(params);
+#else
+    (void)params;
+    (void)shuffled_family;
+    return "this build has no CM support";
+#endif
+}
+
+// Resolve the prefill kernel of one node. Candidate order: preferred GEMM type, the other GEMM type is only
+// tried when the preferred one is "cm" (the CM kernels are a comparison aid and are never picked
+// automatically), then transcode + oneDNN. With OV_GPU_GGUF_PREFILL_GEMM_STRICT=1, GEMM-family nodes whose
+// preferred kernel is unusable fail loudly instead of falling back.
+PrefillKernel gguf_select_prefill_kernel(const program_node& node, const RuntimeParams& params, bool shuffled_family, bool family, bool strict) {
+    const PrefillKernel preferred = gguf_prefill_gemm_requested();
+    const std::string node_name = params.desc ? params.desc->id : std::string("<unknown>");
+
+    const std::string ocl_block = gguf_ocl_gemm_blocker(params, shuffled_family);
+    const std::string cm_block = preferred == PrefillKernel::cm ? gguf_cm_gemm_blocker(node, params, shuffled_family) : std::string("not requested");
+
+    const std::string& preferred_block = preferred == PrefillKernel::cm ? cm_block : ocl_block;
+    if (preferred_block.empty()) {
+        return preferred;
+    }
+    const char* preferred_name = preferred == PrefillKernel::cm ? "cm" : "ocl";
+    if (family && strict) {
+        OPENVINO_THROW("[GPU] FCGGUFOpt: node '", node_name, "' cannot use the requested prefill GEMM kernel '", preferred_name, "': ", preferred_block);
+    }
+    if (preferred == PrefillKernel::cm && ocl_block.empty()) {
+        OPENVINO_WARN("[GPU] FCGGUFOpt: node '", node_name, "' cannot use prefill GEMM kernel 'cm' (", cm_block, "); using 'ocl'.");
+        return PrefillKernel::ocl;
+    }
+    if (family) {
+        OPENVINO_WARN("[GPU] FCGGUFOpt: node '", node_name, "' prefill falls back to transcode + oneDNN (", preferred_name, " GEMM: ", preferred_block, ").");
+    }
+    return PrefillKernel::onednn;
+}
+
+#ifdef ENABLE_CM_FOR_GPU
+// ==========================================================================
+// Shared CM kernel-data builder.
+//
+// The ocl::KernelGenerator base always builds an OCLC_V2 kernel_string loaded
+// from the OCL source DB.  CM kernels need language=CM and the CM SourcesDB;
+// every CM-native generator in this file (the big GEMM kernels and the small
+// f32->f16 activation-conversion kernel) shares that boilerplate here.
+// ==========================================================================
+class CmKernelGeneratorBase : public KernelGenerator {
+public:
+    explicit CmKernelGeneratorBase(const char* kernel_name) : KernelGenerator(kernel_name) {}
+
+protected:
+    // Override get_kernel_data to produce a CM (not OCLC_V2) kernel descriptor.
+    // The base ocl::KernelGenerator::get_kernel_data() always sets language=OCLC_V2
+    // and loads templates from the OCL source DB.  For CM kernels we must set
+    // language=CM and load from the CM SourcesDB so the kernel compiles correctly.
+    [[nodiscard]] KernelData get_kernel_data(const RuntimeParams& params) const override {
+        const auto jit = get_jit_constants(params);
+
+        KernelData kd;
+        kd.code = std::make_shared<KernelString>();
+        kd.code->language = KernelLanguage::CM;
+        kd.code->entry_point = get_entry_point(params);
+        kd.code->jit = "";
+        kd.code->undefs = "";
+        kd.code->options = get_build_options(params);
+        kd.code->batch_compilation = false;  // Each .cm file has its own #include<cm/cm.h>; do NOT batch
+        kd.code->has_microkernels = false;
+
+        // Prepend JIT #define macros, then the .cm kernel source, then #undef.
+        // Some jit constants are function-like macros (name contains a
+        // parameter list, e.g. "CM_APPLY_POST_OP_0(V, BASE, N)"); #undef only
+        // accepts the bare macro identifier, so strip everything from the
+        // first '(' onward for the #undef line.
+        std::string src;
+        for (const auto& c : jit) {
+            src += "#define " + c.name + " " + c.value + "\n";
+        }
+        src += std::string(ov::intel_gpu::cm::SourcesDB::get_kernel_template(get_kernel_name()));
+        for (const auto& c : jit) {
+            const auto paren = c.name.find('(');
+            src += "#undef " + c.name.substr(0, paren) + "\n";
+        }
+        kd.code->str = std::move(src);
+
+        kd.params.arguments = get_arguments_desc(params);
+        kd.params.layerID = params.desc->id;
+        kd.update_dispatch_data_func = get_dispatch_data_func();
+        kd.need_args_update = true;
+        kd.need_dispatch_data_update = true;
+
+        return kd;
+    }
+};
+
+// ==========================================================================
+// CM GEMM kernel generator base.
+//
+// One subclass per GGUF format so each gets its own kernel binary / cache slot.
+// The generator is shape-agnostic with respect to M (passed as scalar at run
+// time) and static for K / N (baked into scalars at dispatch time).
+//
+// Activation is always fp16 by the time this kernel runs: an fp32 activation
+// is first converted to a scratch fp16 buffer by convert_act_f32_to_f16.cm
+// (see FCGGUFCmImpl::execute_cm_gemm), so this kernel never needs a second
+// input ABI.
+// ==========================================================================
+class FCGGUFCmGemmGenerator : public CmKernelGeneratorBase {
+public:
+    explicit FCGGUFCmGemmGenerator(const char* kernel_name) : CmKernelGeneratorBase(kernel_name) {}
+
+protected:
+    // Build options: -cmc + architecture-specific tile macros.
+    // Do NOT call the ocl::KernelGenerator base class get_build_options() here;
+    // it returns OCL-specific flags that are incompatible with the CM compiler.
+    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
+        const auto& in1 = params.input_layouts[1];
+        const size_t K = in1.get_shape()[1];
+        const CmGemmConfig cfg = pick_cm_gemm_config(params, K);
+
+        std::string opts = " -cmc";
+        opts += " -DROW_GROUPS=" + std::to_string(cfg.row_groups);
+        opts += " -DTOKEN_GROUPS=" + std::to_string(cfg.token_groups);
+        opts += " -DTOKEN_LOCAL=" + std::to_string(cfg.token_local);
+        opts += " -DROW_BLOCKS=" + std::to_string(cfg.row_blocks);
+        opts += " -DA_OUTER=" + std::to_string(cfg.a_outer);
+        if (params.get_output_layout(0).data_type == data_types::f32)
+            opts += " -DCM_OUTPUT_F32=1";
+        if (cfg.slm_jblk >= 0)
+            opts += " -DSLM_JBLK=" + std::to_string(cfg.slm_jblk);
+        if (cfg.pf_a >= 0)
+            opts += " -DPF_A=" + std::to_string(cfg.pf_a);
+        return opts;
+    }
+
+    // The entry point MUST match the literal function name in the .cm source file.
+    // Unlike OCL kernels (which use a KERNEL_NAME macro), our CM GEMM kernels use
+    // fixed function names.  K and N are passed as runtime scalars, so the same
+    // binary serves all shapes — no per-shape suffix needed.
+    [[nodiscard]] std::string get_entry_point(const RuntimeParams&) const override {
+        return get_kernel_name();  // e.g. "gemm_q41_full" — matches void in the .cm file
+    }
+
+    // Generate CM-native post-ops JIT constants from params.fused_desc.
+    // We do NOT use the OCL FUSED_OPS / FUSED_OPS_RESULT system because OCL
+    // macros contain OCL-specific type conversions (convert_half, __global, etc.)
+    // that don't compile in CM.  Instead we emit:
+    //   CM_POST_OPS_NUM        — number of post-ops
+    //   CM_POST_OPS_DECLS      — extra kernel signature parameters (outer-dep inputs)
+    //   CM_APPLY_POST_OP_N(V, BASE, N) — function-like macro, VECTORIZED: it
+    //       mutates the WHOLE output vector `V` (width N, base output element
+    //       index BASE) in a couple of SIMD instructions.
+    //
+    // IMPORTANT: this must stay vectorized. An earlier version applied post-ops
+    // with a scalar per-lane statement (`v`/`out_idx`) wrapped in a
+    // `#pragma unroll for (int _j = 0; _j < N; _j++)` loop at the epilogue.
+    // Since the epilogue itself is already unrolled over
+    // TOKEN_GROUPS*TOKENS_PER_TILE (=32) token stores, that produced up to
+    // ~1024 unrolled scalar float ops PER THREAD, PLUS N scalar
+    // (non-coalesced) single-element loads of the fused eltwise operand
+    // instead of one contiguous vector load -- this caused a large measured
+    // performance regression (bloated code size / register pressure / scalar
+    // memory traffic), not classic dpas-loop register spill.
+    // Reorder fused ops are layout-only and intentionally skipped.
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        if (!params.has_fused_primitives())
+            return {};
+
+        // Collect actionable (non-reorder) fused ops and their apply statements.
+        struct PostOp {
+            std::string apply_stmt;  // CM code; references vector `V` (float, width N) and uint `BASE`
+            bool has_input;          // true if references cm_post_inN pointer
+            size_t input_idx;        // index of the outer-dep input pointer (0, 1, ...)
+        };
+        std::vector<PostOp> ops;
+        size_t n_inputs = 0;
+        // input_dtypes[input_idx] = actual runtime dtype of that outer-dep memory
+        // (fused eltwise operands are NOT always fp16 -- e.g. a residual Add
+        // feeding an fp32-output FC node has an fp32 outer dep).
+        std::vector<data_types> input_dtypes;
+
+        for (const auto& fd : params.fused_desc) {
+            if (fd.is_type<cldnn::reorder>())
+                continue;
+
+            PostOp op{};
+            op.has_input = fd.has_outer_dep();
+            op.input_idx = op.has_input ? n_inputs++ : 0;
+            if (op.has_input) {
+                input_dtypes.push_back(params.input_layouts[fd.outer_dep_start_idx].data_type);
+            }
+
+            if (fd.is_type<cldnn::activation>()) {
+                const auto act = fd.typed_desc<cldnn::activation>();
+                switch (act->activation_function) {
+                case cldnn::activation_func::swish:
+                    // swish(x) = x / (1 + exp(-x))
+                    // CM has no expf(); use cm_exp(x*log2e) = e^x  (base-2 hardware
+                    // exp, vector form -- cm_exp deduces width from its argument).
+                    op.apply_stmt = "V = V / (1.0f + cm_exp(-V * 1.4426950408889634f));";
+                    break;
+                case cldnn::activation_func::relu:
+                    op.apply_stmt = "V = cm_max<float>(V, 0.0f);";
+                    break;
+                case cldnn::activation_func::gelu:
+                case cldnn::activation_func::gelu_tanh:
+                    // gelu(x) ≈ x * 0.5 * (1 + tanh(sqrt(2/π) * (x + 0.044715*x³)))
+                    // tanh via cm_exp: tanh(a) = (e^2a - 1) / (e^2a + 1)
+                    op.apply_stmt = "{ vector<float, N> _ga = 0.7978845608028654f * "
+                                    "(V + 0.044715f * V * V * V); "
+                                    "vector<float, N> _ge2a = cm_exp(2.0f * _ga * 1.4426950408889634f); "
+                                    "V = V * 0.5f * (1.0f + (_ge2a - 1.0f) * cm_inv(_ge2a + 1.0f)); }";
+                    break;
+                default:
+                    op.apply_stmt = "";  // unknown activation — pass-through
+                    break;
+                }
+            } else if (fd.is_type<cldnn::eltwise>() && op.has_input) {
+                const auto elt = fd.typed_desc<cldnn::eltwise>();
+                const std::string ptr = "cm_post_in" + std::to_string(op.input_idx);
+                // Fused operand is contiguous (same layout/strides as `outputs`),
+                // so load it as ONE vector instead of N scalar element loads.
+                // The load's element type is baked in statically per the
+                // operand's known runtime dtype (see input_dtypes above).
+                const bool is_f32 =
+                    op.input_idx < input_dtypes.size() && input_dtypes[op.input_idx] == data_types::f32;
+                std::string load;
+                if (is_f32) {
+                    load = "vector<float, N> _pin = cm_ptr_load<float, N>((float*)" + ptr + ", (BASE) * 4u);";
+                } else {
+                    load = "vector<half, N> _pinh = cm_ptr_load<uint, N/2>((uint*)" + ptr +
+                           ", (BASE) * 2u).format<half>(); vector<float, N> _pin; _pin = _pinh;";
+                }
+                switch (elt->mode) {
+                case cldnn::eltwise_mode::sum:
+                    op.apply_stmt = "{ " + load + " V += _pin; }";
+                    break;
+                case cldnn::eltwise_mode::prod:
+                    op.apply_stmt = "{ " + load + " V *= _pin; }";
+                    break;
+                default:
+                    op.apply_stmt = "";  // unsupported mode — skip
+                    break;
+                }
+            }
+
+            if (!op.apply_stmt.empty())
+                ops.push_back(std::move(op));
+        }
+
+        if (ops.empty())
+            return {};
+
+        JitConstants jit;
+        jit.add(make_jit_constant("CM_POST_OPS_NUM", static_cast<int>(ops.size())));
+
+        for (size_t i = 0; i < ops.size(); i++) {
+            // Function-like macro: CM_APPLY_POST_OP_i(V, BASE, N) mutates the
+            // WHOLE vector V (width N, base output element index BASE).
+            jit.add(make_jit_constant("CM_APPLY_POST_OP_" + std::to_string(i) + "(V, BASE, N)",
+                                       std::string(ops[i].apply_stmt)));
+        }
+
+        // Build the kernel signature extension for outer-dep pointer arguments.
+        if (n_inputs > 0) {
+            std::string sig;
+            for (size_t i = 0; i < n_inputs; i++) {
+                // Declare each fused-op pointer with its actual runtime element
+                // type; assuming fp16 unconditionally silently misreads any
+                // fp32 fused operand (half the bytes, garbage values).
+                const char* elem_type = (input_dtypes[i] == data_types::f32) ? "float" : "half";
+                sig += ", ";
+                sig += elem_type;
+                sig += "* cm_post_in" + std::to_string(i) + " [[type(\"svmptr_t\")]]";  // SVM pointer for GPU USM
+            }
+            jit.add(make_jit_constant("CM_POST_OPS_DECLS", std::string(sig)));
+        }
+
+        return jit;
+    }
+
+    // Argument binding: INPUT(0)=activation, INPUT(1)=weight, OUTPUT(0)=output,
+    // SCALAR(0)=M(token_len), SCALAR(1)=K(input_len), SCALAR(2)=N(output_len),
+    // then INPUT_OF_FUSED_PRIMITIVE(j) for each non-reorder fused op with an outer dep.
+    //
+    // NOTE: INPUT_OF_FUSED_PRIMITIVE uses an index into the runtime's fused_op_inputs array,
+    // which is indexed 0..get_fused_mem_count()-1 (sequential, includes ALL fused outer deps).
+    // outer_dep_start_idx is the absolute index in the node's full dep list; we must subtract
+    // the fused_mem_offset (= min outer_dep_start_idx across all fused deps) to get the slot.
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, 0});   // activation
+        args.push_back({ArgumentDescriptor::Types::INPUT, 1});   // weight (shuffled)
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // fp16/fp32 output
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // token_len (M)
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // input_len (K)
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // output_len (N)
+
+        if (!params.has_fused_primitives())
+            return args;
+
+        // Compute fused_mem_offset = minimum outer_dep_start_idx across ALL fused ops with outer deps.
+        // This is the index where fused dep memories BEGIN in the node's full deps list.
+        int fused_mem_offset = -1;
+        for (const auto& fd : params.fused_desc) {
+            if (fd.outer_dep_start_idx >= 0) {
+                if (fused_mem_offset < 0 || fd.outer_dep_start_idx < fused_mem_offset)
+                    fused_mem_offset = fd.outer_dep_start_idx;
+            }
+        }
+        if (fused_mem_offset < 0)
+            return args;  // no outer deps at all
+
+        // Add outer-dep inputs for non-reorder fused ops.
+        // The slot index j = outer_dep_start_idx - fused_mem_offset gives the position in
+        // the runtime's fused_op_inputs[] array (which holds all outer dep memories in order).
+        for (const auto& fd : params.fused_desc) {
+            if (fd.is_type<cldnn::reorder>())
+                continue;  // layout-only, skip
+            if (fd.has_outer_dep()) {
+                const auto slot = static_cast<uint32_t>(fd.outer_dep_start_idx - fused_mem_offset);
+                args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, slot});
+            }
+        }
+        return args;
+    }
+
+    // Compute global/local work sizes and scalar values from runtime shapes.
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+            const auto& in0 = params.get_input_layout(0);
+            const auto& in1 = params.get_input_layout(1);
+            const size_t N = in1.get_shape()[0];
+            const size_t K = in1.get_shape()[1];
+            const size_t M = derive_bm(in0.get_shape());
+
+            const CmGemmConfig cfg = pick_cm_gemm_config(params, K);
+
+            const size_t tokens_per_thread = GGUF_CM_TOKENS_PER_TILE * static_cast<size_t>(cfg.token_groups);
+            const size_t token_slots = static_cast<size_t>(cfg.token_local) / static_cast<size_t>(cfg.row_blocks);
+            const size_t ntiles = (M + tokens_per_thread - 1) / tokens_per_thread;
+            // ngroups = N / (OPG * ROW_GROUPS * ROW_BLOCKS)
+            const size_t ngroups = N / (GGUF_GEMV_SG_SIZE * static_cast<size_t>(cfg.row_groups) * static_cast<size_t>(cfg.row_blocks));
+            const size_t gsize_y = ((ntiles + token_slots - 1) / token_slots) * static_cast<size_t>(cfg.token_local);
+
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {ngroups, gsize_y, 1};
+            wgs.local = {1, static_cast<size_t>(cfg.token_local), 1};
+
+            // Scalar values: M (uint32), K (uint32), N (uint32).
+            kd.params.scalars.clear();
+            auto push_u32 = [&](size_t v) {
+                scalar_desc sd{};
+                sd.t = scalar_desc::Types::UINT32;
+                sd.v.u32 = static_cast<uint32_t>(v);
+                kd.params.scalars.push_back(sd);
+            };
+            push_u32(M);
+            push_u32(K);
+            push_u32(N);
+        }};
+    }
+};
+
+// ==========================================================================
+// f32 -> f16 activation conversion kernel generator (convert_act_f32_to_f16.cm).
+//
+// Explicit-args only: dispatched via FCGGUFCmImpl::execute_stage_explicit(),
+// so get_arguments_desc()/get_dispatch_data_func() are left trivial (mirrors
+// the pattern used by FCGGUFShuffleGenerator in fc_gguf_shuffle_gen.hpp).
+// ==========================================================================
+class FCGGUFCmActConvertGenerator : public CmKernelGeneratorBase {
+public:
+    FCGGUFCmActConvertGenerator() : CmKernelGeneratorBase("convert_act_f32_to_f16") {}
+
+protected:
+    [[nodiscard]] std::string get_build_options(const RuntimeParams&) const override {
+        return " -cmc -DCONV_BLOCK=" + std::to_string(CONV_ACT_BLOCK) + " -DCONV_LOCAL=" + std::to_string(CONV_ACT_LOCAL);
+    }
+    [[nodiscard]] std::string get_entry_point(const RuntimeParams&) const override {
+        return get_kernel_name();
+    }
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
+    }
+};
+#endif  // ENABLE_CM_FOR_GPU
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 class FCGGUFOptImpl : public PrimitiveImplOCL {
@@ -692,7 +1463,35 @@ public:
     Stage::Ptr q4_0_sg_stage = make_stage<FCGGUFQ40SgGenerator>();
     Stage::Ptr q4_1_sg_stage = make_stage<FCGGUFQ41SgGenerator>();
     Stage::Ptr q8_0_sg_stage = make_stage<FCGGUFQ80SgGenerator>();
+    // Prefill GEMM stages, indexed by gguf_gemm_fmt_index(): OCL dpas GEMM (default) ...
+    std::array<Stage::Ptr, GGUF_GEMM_FORMATS> gemm_stages = {make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[0], kOclGemmFormatDefines[0]),
+                                                             make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[1], kOclGemmFormatDefines[1]),
+                                                             make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[2], kOclGemmFormatDefines[2]),
+                                                             make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[3], kOclGemmFormatDefines[3]),
+                                                             make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[4], kOclGemmFormatDefines[4]),
+                                                             make_stage<FCGGUFGemmGenerator>(kOclGemmKernels[5], kOclGemmFormatDefines[5])};
+#    ifdef ENABLE_CM_FOR_GPU
+    // ... and the CM kernels (OV_GPU_GGUF_PREFILL_GEMM=cm, comparison aid) plus their fp32->fp16 activation pre-pass.
+    std::array<Stage::Ptr, GGUF_GEMM_FORMATS> cm_gemm_stages = {make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[0]),
+                                                                make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[1]),
+                                                                make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[2]),
+                                                                make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[3]),
+                                                                make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[4]),
+                                                                make_stage<FCGGUFCmGemmGenerator>(kCmGemmKernels[5])};
+    Stage::Ptr cm_act_conv_stage = make_stage<FCGGUFCmActConvertGenerator>();
+    // fp16 copy of an fp32 activation for the CM GEMM (grow-only); bound as INPUT0 only while the CM GEMM runs.
+    cldnn::memory::ptr m_act_f16_scratch;
+    size_t m_act_f16_scratch_elems = 0;
+    bool m_cm_scratch_active = false;
+#    endif
 #endif
+
+    // Kernel used for prefill (M > threshold) on this node; chosen once in the constructor (see
+    // gguf_select_prefill_kernel) and serialized so a cached model behaves the same on load.
+    PrefillKernel m_prefill_kernel = PrefillKernel::onednn;
+    // OV_GPU_GGUF_PREFILL_GEMM_STRICT: GEMM-family nodes never silently leave their GEMM kernel.
+    bool m_gemm_strict = false;
+    bool m_gemm_family = false;
 
     // Activation rows above which the transcode + OneDNN WOQ GEMM path is used (SUMMARY §5,
     // M_MEM_BOUND_THRESHOLD). Overridable via OV_GPU_GGUF_PREFILL_THRESHOLD for tuning.
@@ -741,7 +1540,6 @@ public:
     FCGGUFOptImpl(const program_node& node, const RuntimeParams& params) : FCGGUFOptImpl() {
         add_stage(gguf_stage, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        add_stage(transcode_stage, params);
         const auto wet = params.input_layouts[1].data_type;
 
         // Weight-shuffle gate for Q4_K / Q5_K / Q6_K (native 256-elem block) and the small-block formats
@@ -779,8 +1577,29 @@ public:
             m_q8_0_shuffle = true;
             add_stage(q8_0_sg_stage, params);
         }
-        // DQ activation stage: always added when oneDNN is enabled; only executed during prefill.
-        add_stage(act_dq_stage, params);
+        // Pick the prefill kernel of this node and compile only its stages (the transcode / act-DQ kernels
+        // are only needed by the oneDNN fallback, the CM kernels only when OV_GPU_GGUF_PREFILL_GEMM=cm).
+        const int fmt_idx = gguf_gemm_fmt_index(wet);
+        m_gemm_family = fmt_idx >= 0;
+        m_gemm_strict = gguf_prefill_gemm_strict();
+        m_prefill_kernel = gguf_select_prefill_kernel(node, params, shuffle_applicable && m_gemm_family, m_gemm_family, m_gemm_strict);
+        switch (m_prefill_kernel) {
+        case PrefillKernel::ocl:
+            add_stage(gemm_stages[static_cast<size_t>(fmt_idx)], params);
+            break;
+        case PrefillKernel::cm:
+#    ifdef ENABLE_CM_FOR_GPU
+            add_stage(cm_gemm_stages[static_cast<size_t>(fmt_idx)], params);
+            add_stage(cm_act_conv_stage, params);
+#    endif
+            break;
+        case PrefillKernel::onednn:
+            add_stage(transcode_stage, params);
+            add_stage(act_dq_stage, params);
+            break;
+        case PrefillKernel::none:
+            break;
+        }
 #endif
     }
 
@@ -788,12 +1607,17 @@ public:
         PrimitiveImplOCL::save(ob);
         ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle
            << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16 << m_use_dq_act;
+        const auto prefill_kernel = static_cast<uint8_t>(m_prefill_kernel);
+        ob << prefill_kernel << m_gemm_strict << m_gemm_family;
     }
 
     void load(cldnn::BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle
            >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >> m_use_dq_act;
+        uint8_t prefill_kernel = 0;
+        ib >> prefill_kernel >> m_gemm_strict >> m_gemm_family;
+        m_prefill_kernel = static_cast<PrefillKernel>(prefill_kernel);
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
@@ -808,6 +1632,9 @@ public:
         c->m_q8_0_shuffle = m_q8_0_shuffle;
         c->m_prefill_f16 = m_prefill_f16;
         c->m_use_dq_act   = m_use_dq_act;
+        c->m_prefill_kernel = m_prefill_kernel;
+        c->m_gemm_strict = m_gemm_strict;
+        c->m_gemm_family = m_gemm_family;
         return copy;
     }
 
@@ -817,7 +1644,16 @@ public:
         cldnn::kernel_arguments_data data;
         const auto* fc_inst = dynamic_cast<const cldnn::fully_connected_inst*>(&instance);
 
+#if defined(ENABLE_ONEDNN_FOR_GPU) && defined(ENABLE_CM_FOR_GPU)
+        // CM GEMM reads an fp16 copy of an fp32 activation (see execute_cm_gemm); only while that stage runs.
+        if (m_cm_scratch_active && m_act_f16_scratch) {
+            data.inputs.push_back(m_act_f16_scratch);
+        } else {
+            data.inputs.push_back(instance.dep_memory_ptr(0));  // activation
+        }
+#else
         data.inputs.push_back(instance.dep_memory_ptr(0));  // activation
+#endif
         if (fc_inst) {
             data.inputs.push_back(fc_inst->weights_memory());
         } else {
@@ -885,9 +1721,28 @@ public:
                 }
             }
             if (M > decode_cutoff && binary_post_ops_match_output) {
-                // Prefill: Q4_K/Q6_K shuffle nodes run the shuffle-aware transcode -> f16 matmul; all
-                // other formats run the WOQ (i4/i8) transcode + oneDNN matmul.
-                return execute_transcode_plus_onednn_woq(events, instance, M);
+                // Prefill: the kernel was chosen per node in the constructor (OCL GEMM by default; CM GEMM
+                // for comparison; transcode + oneDNN as the fallback for nodes without a GEMM kernel).
+                const size_t fmt = static_cast<size_t>(std::max(0, gguf_gemm_fmt_index(static_cast<element::Type_t>(in1.data_type))));
+                switch (m_prefill_kernel) {
+                case PrefillKernel::ocl:
+                    return execute_ocl_gemm(events, instance, fmt);
+                case PrefillKernel::cm:
+#    ifdef ENABLE_CM_FOR_GPU
+                    return execute_cm_gemm(events, instance, M, fmt);
+#    else
+                    break;
+#    endif
+                case PrefillKernel::onednn:
+                    return execute_transcode_plus_onednn_woq(events, instance, M);
+                case PrefillKernel::none:
+                    break;
+                }
+            }
+            if (M > decode_cutoff && !binary_post_ops_match_output && m_gemm_strict && m_gemm_family) {
+                OPENVINO_THROW("[GPU] FCGGUFOpt: OV_GPU_GGUF_PREFILL_GEMM_STRICT is set but the fused eltwise operand of node '",
+                               params.desc->id,
+                               "' does not match the output layout, so the prefill GEMM cannot be used.");
             }
             // Decode: Q4_K/Q5_K/Q6_K and small-block Q4_0/Q4_1/Q8_0 shuffle nodes run the coalesced
             // sub-group-block-read GEMV.
@@ -917,7 +1772,8 @@ private:
                                     const std::vector<size_t>& global,
                                     const std::vector<size_t>& local,
                                     const std::vector<cldnn::memory::ptr>& fused_inputs = {},
-                                    bool needs_shape_info = false) const {
+                                    bool needs_shape_info = false,
+                                    const std::vector<scalar_desc>& scalars = {}) const {
         cldnn::stream& stream = instance.get_network().get_stream();
         cldnn::kernel_arguments_data args;
         cldnn::kernel_arguments_desc desc;
@@ -941,6 +1797,13 @@ private:
             desc.arguments.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, i});
             args.fused_op_inputs.push_back(fused_inputs[i]);
         }
+        if (!scalars.empty()) {
+            for (uint32_t i = 0; i < scalars.size(); i++) {
+                desc.arguments.push_back({ArgumentDescriptor::Types::SCALAR, i});
+            }
+            desc.scalars = scalars;
+            args.scalars = &desc.scalars;
+        }
         stream.set_arguments(*stage.kernel, desc, args);
         desc.workGroups.global = global;
         desc.workGroups.local = local;
@@ -961,6 +1824,83 @@ private:
         }
         return fused_inputs;
     }
+
+    // ---- Prefill GEMM (OCL): fc_gguf_gemm_opt.cl. Args come from get_arguments() + the stage descriptor. ----
+    cldnn::event::ptr execute_ocl_gemm(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t fmt) {
+        Stage& gemm = *gemm_stages[fmt];
+        // Dispatch (M tiles) and the activation / output buffers change from call to call.
+        gemm.kd.need_dispatch_data_update = true;
+        gemm.kd.need_args_update = true;
+        return execute_stage(events, instance, gemm);
+    }
+
+#    ifdef ENABLE_CM_FOR_GPU
+    // ---- Prefill GEMM (CM): gemm_q*_full.cm, kept for comparison (OV_GPU_GGUF_PREFILL_GEMM=cm). ----
+    cldnn::event::ptr execute_cm_gemm(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t M, size_t fmt) {
+        Stage& gemm = *cm_gemm_stages[fmt];
+        gemm.kd.need_dispatch_data_update = true;
+        gemm.kd.need_args_update = true;
+
+        const auto& params = *instance.get_impl_params();
+        if (params.get_input_layout(0).data_type != data_types::f32) {
+            return execute_stage(events, instance, gemm);
+        }
+
+        // fp32 activation: the CM GEMM only reads fp16, so convert into a scratch buffer first and let
+        // get_arguments() bind that buffer for the duration of the GEMM.
+        const size_t K = params.get_input_layout(1).get_shape()[1];
+        cldnn::event::ptr conv_ev = execute_act_f32_to_f16(events, instance, M * K);
+        struct ScratchGuard {
+            bool& flag;
+            explicit ScratchGuard(bool& f) : flag(f) {
+                flag = true;
+            }
+            ~ScratchGuard() {
+                flag = false;
+            }
+        } guard(m_cm_scratch_active);
+        return execute_stage({conv_ev}, instance, gemm);
+    }
+
+    // Grow-only (re)allocation of the fp16 activation scratch buffer.
+    void ensure_act_f16_scratch(cldnn::primitive_inst& instance, size_t total_elems) {
+        if (m_act_f16_scratch && m_act_f16_scratch_elems >= total_elems) {
+            return;
+        }
+        auto& engine = instance.get_network().get_engine();
+        auto& stream = instance.get_network().get_stream();
+        if (m_act_f16_scratch) {
+            // An in-flight GEMM from a previous call may still read the old buffer.
+            stream.finish();
+        }
+        const cldnn::layout scratch_layout(ov::Shape{total_elems}, data_types::f16, cldnn::format::bfyx);
+        m_act_f16_scratch = engine.allocate_memory(scratch_layout, engine.get_preferred_memory_allocation_type(), /*reset=*/false);
+        m_act_f16_scratch_elems = total_elems;
+    }
+
+    // fp32 -> fp16 activation conversion pre-pass (convert_act_f32_to_f16.cm).
+    cldnn::event::ptr execute_act_f32_to_f16(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance, size_t total_elems) {
+        ensure_act_f16_scratch(instance, total_elems);
+
+        const size_t threads = (total_elems + CONV_ACT_BLOCK - 1) / CONV_ACT_BLOCK;
+        const size_t global = ((threads + CONV_ACT_LOCAL - 1) / CONV_ACT_LOCAL) * CONV_ACT_LOCAL;
+
+        scalar_desc total_elems_scalar{};
+        total_elems_scalar.t = scalar_desc::Types::UINT32;
+        total_elems_scalar.v.u32 = static_cast<uint32_t>(total_elems);
+
+        return execute_stage(events,
+                             instance,
+                             *cm_act_conv_stage,
+                             /*inputs=*/{instance.dep_memory_ptr(0)},
+                             /*outputs=*/{m_act_f16_scratch},
+                             /*global=*/{global, 1, 1},
+                             /*local=*/{static_cast<size_t>(CONV_ACT_LOCAL), 1, 1},
+                             /*fused_inputs=*/{},
+                             /*needs_shape_info=*/false,
+                             /*scalars=*/{total_elems_scalar});
+    }
+#    endif
 
     // Cached direct dnnl::matmul WOQ primitive keyed by (gguf type, M, K, N). K/N are static per node
     // so in practice the cache holds one entry per distinct prefill M.

@@ -238,6 +238,9 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_intel_subgroups = true;
     info.supports_intel_subgroups_short = true;
     info.supports_intel_subgroups_char = true;
+    // Not queryable via ZE here; the GGUF OCL GEMM additionally requires supports_immad.
+    info.supports_intel_subgroup_2d_block_io = false;
+    info.supports_intel_subgroup_matrix_multiply_accumulate = false;
     info.supports_intel_required_subgroup_size = true;
     // queue families correspond to ZE cmd queue ordinal and index
     info.supports_queue_families = true;

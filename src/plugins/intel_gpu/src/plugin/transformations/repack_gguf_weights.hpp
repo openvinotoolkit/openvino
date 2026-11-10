@@ -10,8 +10,7 @@ namespace ov::intel_gpu {
 
 /// @brief Compile-time "weight shuffle" repack of Q4_K / Q5_K / Q6_K and small-block Q4_0 / Q4_1 /
 /// Q8_0 GGUF FullyConnected weights into the SG-transposed layout consumed by the sub-group-block-read
-/// GEMV kernels (fc_gguf_q4k_sg.cl / fc_gguf_q5k_sg.cl / fc_gguf_q6k_sg.cl / fc_gguf_q4_0_sg.cl /
-/// fc_gguf_q4_1_sg.cl / fc_gguf_q8_0_sg.cl) and the shuffle-aware prefill transcode (fc_gguf_transcode.cl).
+/// GEMV kernels (fc_gguf_gemv_opt.cl) and the shuffle-aware prefill transcode (fc_gguf_transcode.cl).
 /// Small-block formats (native 32-elem block) are grouped 8-to-a 256-elem super-block first.
 ///
 /// The repack is a two-step, value-preserving reorder of the weight Constant (no dequant):

@@ -257,6 +257,9 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     info.supports_intel_subgroups = extensions.find("cl_intel_subgroups ") != std::string::npos;
     info.supports_intel_subgroups_short = extensions.find("cl_intel_subgroups_short ") != std::string::npos;
     info.supports_intel_subgroups_char = extensions.find("cl_intel_subgroups_char ") != std::string::npos;
+    info.supports_intel_subgroup_2d_block_io = extensions.find("cl_intel_subgroup_2d_block_io ") != std::string::npos;
+    info.supports_intel_subgroup_matrix_multiply_accumulate =
+        extensions.find("cl_intel_subgroup_matrix_multiply_accumulate ") != std::string::npos;
     info.supports_intel_required_subgroup_size = extensions.find("cl_intel_required_subgroup_size ") != std::string::npos;
 
     info.supports_imad = get_imad_support(device);

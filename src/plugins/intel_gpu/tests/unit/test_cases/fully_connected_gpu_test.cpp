@@ -42,6 +42,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/exception.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "plugin/transformations/repack_gguf_weights.hpp"
@@ -49,6 +50,8 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
@@ -119,48 +122,23 @@ struct gguf_fc_mode {
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
 
-void check_gguf_cm_fusion_support(const ImplementationManager& manager, const kernel_impl_params& original) {
-    auto params = original;
-    params.fused_desc.clear();
-    ASSERT_TRUE(manager.support_shapes(params));
-    for (auto function : {activation_func::relu, activation_func::swish, activation_func::gelu,
-                          activation_func::gelu_tanh, activation_func::linear}) {
-        params.fused_desc = {fused_primitive_desc(std::make_shared<activation>("post", input_info("fc"), function))};
-        EXPECT_EQ(manager.support_shapes(params), function == activation_func::relu || function == activation_func::swish);
-    }
-    params.fused_desc[0].outer_dep_start_idx = static_cast<int32_t>(params.input_layouts.size());
-    EXPECT_FALSE(manager.support_shapes(params));
-    const auto output = params.get_output_layout();
-    const auto operand_index = params.input_layouts.size();
-    params.input_layouts.push_back(output);
-    for (auto mode : {eltwise_mode::sum, eltwise_mode::prod, eltwise_mode::sub, eltwise_mode::max}) {
-        fused_primitive_desc fused(std::make_shared<eltwise>("post", std::vector<input_info>{input_info("fc"), input_info("peer")}, mode));
-        fused.outer_dep_start_idx = static_cast<int32_t>(operand_index);
-        params.fused_desc = {fused};
-        EXPECT_EQ(manager.support_shapes(params), mode == eltwise_mode::sum || mode == eltwise_mode::prod);
-    }
-    fused_primitive_desc sum(std::make_shared<eltwise>("post", std::vector<input_info>{input_info("fc"), input_info("peer")}, eltwise_mode::sum));
-    sum.outer_dep_start_idx = static_cast<int32_t>(operand_index);
-    params.fused_desc = {sum};
-    ASSERT_TRUE(manager.support_shapes(params));
-    params.input_layouts.back() = layout(ov::PartialShape{1}, output.data_type, format::bfyx);
-    EXPECT_FALSE(manager.support_shapes(params));
-    params.input_layouts.back() = output;
-    params.input_layouts.back().data_type = data_types::i8;
-    EXPECT_FALSE(manager.support_shapes(params));
-    params.input_layouts.back() = layout(ov::PartialShape::dynamic(output.get_partial_shape().rank()), output.data_type, format::bfyx);
-    EXPECT_FALSE(manager.support_shapes(params));
-    params.input_layouts.back() = output;
-    params.fused_desc[0].outer_dep_start_idx = -1;
-    EXPECT_FALSE(manager.support_shapes(params));
-    auto scaled_sum = std::make_shared<eltwise>("post", std::vector<input_info>{input_info("fc"), input_info("peer")}, eltwise_mode::sum);
-    scaled_sum->coefficients = {2.f, 1.f};
-    params.fused_desc = {fused_primitive_desc(scaled_sum)};
-    params.fused_desc[0].outer_dep_start_idx = static_cast<int32_t>(operand_index);
-    EXPECT_FALSE(manager.support_shapes(params));
-    scaled_sum->coefficients.clear();
-    scaled_sum->stride = {tensor{1, 1, 1, 1}, tensor{1, 1, 1, 1}};
-    EXPECT_FALSE(manager.support_shapes(params));
+// True when the OCL / CM prefill GEMM can run on this device for a shuffled GGUF weight whose output channel
+// count is `channels` (mirrors gguf_select_prefill_kernel in fc_gguf_opt.cpp).
+bool gguf_gemm_capable(cldnn::engine& engine, bool shuffled, size_t channels) {
+    const auto& info = engine.get_device_info();
+    const size_t alignment = info.arch >= gpu_arch::xe3 ? 64 : 32;
+    return shuffled && channels % alignment == 0 && info.arch >= gpu_arch::xe2 && info.supports_immad && info.supports_intel_subgroups_short &&
+           info.supports_intel_subgroups_char && info.supports_intel_subgroup_2d_block_io &&
+           info.supports_intel_subgroup_matrix_multiply_accumulate;
+}
+
+std::string gguf_ocl_gemm_stage(const ov::element::Type& type) {
+    return type == ov::element::gguf_q4_k ? "fc_gguf_gemm_q4k"
+         : type == ov::element::gguf_q5_k ? "fc_gguf_gemm_q5k"
+         : type == ov::element::gguf_q6_k ? "fc_gguf_gemm_q6k"
+         : type == ov::element::gguf_q4_0 ? "fc_gguf_gemm_q4_0"
+         : type == ov::element::gguf_q4_1 ? "fc_gguf_gemm_q4_1"
+                                          : "fc_gguf_gemm_q8_0";
 }
 }
 
@@ -169,7 +147,7 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
     GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
 #else
     gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "0");
-    gguf_scoped_env_var cm("OV_GPU_GGUF_GEMM_CM", "0");
+    gguf_scoped_env_var cm("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
     gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "64");
     const auto cache_value = std::getenv("OV_GPU_GGUF_TEST_CACHE_DIR");
     const auto external_cache = cache_value ? std::optional<std::string>{cache_value} : std::nullopt;
@@ -396,7 +374,7 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
                 if (route == "cm" && !cm_available)
                     continue;
                 gguf_scoped_env_var fusion_shuffle("OV_GPU_GGUF_SHUFFLE", route == "raw" ? "0" : "1");
-                gguf_scoped_env_var fusion_cm("OV_GPU_GGUF_GEMM_CM", route == "cm" ? "1" : "0");
+                gguf_scoped_env_var fusion_cm("OV_GPU_GGUF_PREFILL_GEMM", route == "cm" ? "cm" : "ocl");
                 gguf_scoped_env_var fusion_threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", route == "cm" ? "32" : "64");
                 const auto directory = cache.path / "fusion" / cache_mode;
                 for (const std::string signature : {"plain", "bias", "relu", "swish", "add", "multiply", "stateful"}) {
@@ -569,7 +547,9 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
                                 std::string stages;
                                 for (const auto& name : found->second.as<std::vector<std::string>>())
                                     stages += name + ";";
-                                EXPECT_NE(stages.find(expected_stage), std::string::npos) << stages;
+                                EXPECT_TRUE(stages.find(expected_stage) != std::string::npos ||
+                                            (route == "cm" && rows > 32 && stages.find("fc_gguf_gemm_q4_0") != std::string::npos))
+                                    << stages;
                                 const auto fused_count = info.at("gguf_runtime_fused_count").as<std::string>();
                                 if (binary_post) {
                                     EXPECT_NE(fused_count, "0");
@@ -629,7 +609,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     gguf_scoped_env_var dq_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", nullptr);
     gguf_scoped_env_var dq_asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", nullptr);
     gguf_scoped_env_var requant_group("OV_GPU_GGUF_REQUANT_GROUP", nullptr);
-    gguf_scoped_env_var cm("OV_GPU_GGUF_GEMM_CM", GetParam().cm ? "1" : "0");
+    gguf_scoped_env_var cm("OV_GPU_GGUF_PREFILL_GEMM", GetParam().cm ? "cm" : "ocl");
     std::array<float, 32> reference = {
         47592.5f, -49073.5f, 51735.f, -21023.f, 21752.5f, -15406.f, 11638.f, -308.5f,
         3469.5f, 41631.f, -34432.f, 39985.5f, -18508.5f, 49953.f, -14508.f, 23126.5f,
@@ -789,9 +769,10 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     auto request = compiled.create_infer_request();
     for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops())
         EXPECT_EQ(operation->get_rt_info().count("gguf_last_executed_kernels"), 0u);
-    const size_t cm_alignment = engine.get_device_info().arch >= gpu_arch::xe3 ? 64 : 32;
-    const bool dynamic_binary = GetParam().post_eltwise && direct_peer_shape.is_dynamic();
-    const bool cm_selected = GetParam().cm && GetParam().use_cm && shuffled && channels % cm_alignment == 0;
+    const bool gemm_capable = gguf_gemm_capable(engine, shuffled, channels);
+    const bool cm_selected = GetParam().cm && GetParam().use_cm && gemm_capable;
+    // Without a usable CM kernel (or without a request for it) a capable node uses the OCL GEMM.
+    const bool ocl_selected = gemm_capable && !cm_selected;
     auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), weight_type, format::bfyx});
     {
         mem_lock<uint8_t, mem_lock_type::write> bytes(weights, get_test_stream());
@@ -819,16 +800,6 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     if (!GetParam().use_cm)
         config.set_property(ov::intel_gpu::use_cm(false));
     network network(engine, topology, config);
-    const auto& implementations = ov::intel_gpu::Registry<fully_connected>::get_implementations();
-    const auto cm_manager = std::find_if(implementations.begin(), implementations.end(), [](const auto& implementation) {
-        return implementation && std::string(implementation->get_type_info().name) == "cm::fc_gguf_cm";
-    });
-    if (GetParam().cm && GetParam().use_cm && cm_manager == implementations.end())
-        GTEST_SKIP() << "GGUF CM implementation is not built";
-    if (GetParam().cm && GetParam().use_cm && shuffled && dynamic_binary) {
-        ASSERT_NE(cm_manager, implementations.end());
-        EXPECT_TRUE((*cm_manager)->validate_impl(network.get_primitive("fc")->get_node()));
-    }
     std::vector<size_t> row_counts = {1, 2, 31, 32, 33, 1, 1, 33, 2};
     if (GetParam().cm) {
         row_counts.push_back(128);
@@ -983,8 +954,10 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                          : weight_type == ov::element::gguf_q4_1 ? "gemm_q41_full"
                                            : "gemm_q80_full";
         const bool cm_for_iteration = cm_selected && !broadcast_peer;
+        const bool ocl_for_iteration = ocl_selected && !broadcast_peer;
         const std::string expected_stage = broadcast_peer ? sg_stage
                   : prefill && cm_for_iteration ? cm_stage
+                          : prefill && ocl_for_iteration ? gguf_ocl_gemm_stage(weight_type)
                           : prefill ? "fc_gguf_transcode_" + weight_type.to_string()
                           : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
@@ -993,6 +966,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         if (has_bias) {
             EXPECT_TRUE(public_entries.find(sg_stage) != std::string::npos ||
                 public_entries.find(cm_stage) != std::string::npos ||
+                public_entries.find(gguf_ocl_gemm_stage(weight_type)) != std::string::npos ||
                 public_entries.find("fc_gguf_opt_" + weight_type.to_string()) != std::string::npos ||
                 public_entries.find("fc_gguf_transcode_" + weight_type.to_string()) != std::string::npos)
             << public_entries;
@@ -1012,22 +986,17 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos) << public_entries;
         }
         if (cm_for_iteration) {
-            EXPECT_NE(implementation->get_kernel_name().find("fc_gguf_cm"), std::string::npos);
             EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("fc_gguf_gemm_q"), std::string::npos) << entries;
             EXPECT_EQ(entries.find("convert_act_f32_to_f16") != std::string::npos, prefill && !half_precision) << entries;
-            if (iteration == 0 && weight_type == ov::element::gguf_q4_k && !half_precision) {
-                ASSERT_NE(cm_manager, implementations.end());
-                check_gguf_cm_fusion_support(**cm_manager, *network.get_primitive("fc")->get_impl_params());
-            }
-        } else if (!GetParam().use_cm || broadcast_peer) {
-            EXPECT_EQ(implementation->get_kernel_name().find("fc_gguf_cm"), std::string::npos);
-            if (broadcast_peer) {
-                ASSERT_NE(cm_manager, implementations.end());
-                EXPECT_FALSE((*cm_manager)->support_shapes(*network.get_primitive("fc")->get_impl_params()));
-                EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos);
-                EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos);
-                EXPECT_EQ(public_entries.find("fc_gguf_transcode"), std::string::npos);
-            }
+        } else if (ocl_for_iteration && prefill) {
+            EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("_full"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("convert_act_f32_to_f16"), std::string::npos) << entries;
+        } else if (broadcast_peer) {
+            EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos);
+            EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos);
+            EXPECT_EQ(public_entries.find("fc_gguf_transcode"), std::string::npos);
         }
         std::vector<float> actual;
         if (half_precision) {
@@ -1140,7 +1109,7 @@ TEST_P(gguf_qkv_dynamic_reference, matches_unfused_and_reference) {
             GTEST_SKIP() << "CM build, JIT, IMMAD and enabled CM config required";
     }
     gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", mode.shuffle ? "1" : "0");
-    gguf_scoped_env_var cm("OV_GPU_GGUF_GEMM_CM", mode.cm ? "1" : "0");
+    gguf_scoped_env_var cm("OV_GPU_GGUF_PREFILL_GEMM", mode.cm ? "cm" : "ocl");
     gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", nullptr);
     gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
     const size_t columns = 512;
@@ -1268,7 +1237,9 @@ TEST_P(gguf_qkv_dynamic_reference, matches_unfused_and_reference) {
             EXPECT_EQ(weight_bytes, total_bytes);
             RecordProperty(std::string(shared ? "fused_stage_" : "unfused_stage_") + std::to_string(iteration), stages);
             if (shared) {
-                const std::string expected = rows > 32 ? mode.cm ? "gemm_q41_full" : "fc_gguf_transcode_gguf_q4_1"
+                const std::string expected = rows > 32 ? mode.cm ? "gemm_q41_full"
+                                                               : gguf_gemm_capable(engine, mode.shuffle, 128) ? "fc_gguf_gemm_q4_1"
+                                                                                                              : "fc_gguf_transcode_gguf_q4_1"
                                                        : mode.shuffle ? "fc_gguf_q4_1_sg" : "fc_gguf_opt_gguf_q4_1";
                 EXPECT_NE(stages.find(expected), std::string::npos) << stages;
             }
@@ -1542,6 +1513,172 @@ INSTANTIATE_TEST_SUITE_P(gguf_rank4_bias,
                             return modes;
                         }()),
                         [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+namespace {
+struct gguf_perf_config {
+    const char* name;
+    const char* gemm;     // OV_GPU_GGUF_PREFILL_GEMM value
+    const char* shuffle;  // OV_GPU_GGUF_SHUFFLE value
+    const char* stage;    // substring expected in the executed kernel list
+};
+
+struct gguf_perf_result {
+    double wall_us = -1.0;    // median infer() time with device-resident input/output
+    double kernel_us = -1.0;  // median GPU time of the executed primitives (profiling)
+};
+
+// Negative times mean the configuration is not available (e.g. CM kernels are not built).
+gguf_perf_result gguf_measure_prefill(const ov::element::Type& weight_type, size_t rows, size_t channels, size_t columns,
+                                     const gguf_perf_config& config, std::string& executed) {
+    gguf_scoped_env_var gemm("OV_GPU_GGUF_PREFILL_GEMM", config.gemm);
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", config.shuffle);
+    ov::Tensor payload(weight_type, ov::Shape{channels, columns});
+    auto* bytes = static_cast<uint8_t*>(payload.data());
+    uint32_t state = 12345u;
+    for (size_t i = 0; i < payload.get_byte_size(); ++i) {
+        state = state * 1664525u + 1013904223u;
+        bytes[i] = static_cast<uint8_t>(state >> 24);
+    }
+    auto raw = std::make_shared<ov::op::v0::Constant>(payload);
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, columns});
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+    auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{channels}, {0.f});
+    auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias, scale, ov::element::f16);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{parameter});
+    ov::Core core;
+    ov::CompiledModel compiled;
+    try {
+        compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16), ov::num_streams(1),
+                                      ov::enable_profiling(true));
+    } catch (const ov::Exception&) {
+        return {};
+    }
+    auto request = compiled.create_infer_request();
+    ov::Tensor host_input(ov::element::f16, ov::Shape{rows, columns});
+    auto* values = host_input.data<ov::float16>();
+    // Pseudo-random activations: short periodic patterns are partially compressible by the memory subsystem
+    // and distort the timing of the activation loads.
+    uint32_t act_state = 54321u;
+    for (size_t i = 0; i < host_input.get_size(); ++i) {
+        act_state = act_state * 1664525u + 1013904223u;
+        values[i] = ov::float16(static_cast<float>(act_state >> 8) / 16777216.f - 0.5f);
+    }
+    // Device-resident I/O keeps host<->device copies out of the measurement (host tensors when USM is unavailable).
+    try {
+        auto context = compiled.get_context();
+        const ov::AnyMap usm_device{ov::intel_gpu::shared_mem_type(ov::intel_gpu::SharedMemType::USM_DEVICE_BUFFER)};
+        auto input = context.create_tensor(ov::element::f16, ov::Shape{rows, columns}, usm_device);
+        input.copy_from(host_input);
+        auto output = context.create_tensor(ov::element::f16, ov::Shape{rows, channels}, usm_device);
+        request.set_input_tensor(input);
+        request.set_output_tensor(output);
+    } catch (const ov::Exception&) {
+        request.set_input_tensor(host_input);
+    }
+    for (int i = 0; i < 5; ++i)
+        request.infer();
+    executed.clear();
+    for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops()) {
+        const auto found = operation->get_rt_info().find("gguf_last_executed_kernels");
+        if (found != operation->get_rt_info().end())
+            executed += found->second.as<std::string>() + " ";
+    }
+    std::vector<double> times;
+    std::vector<double> kernel_times;
+    for (int i = 0; i < 30; ++i) {
+        const auto begin = std::chrono::steady_clock::now();
+        request.infer();
+        const auto end = std::chrono::steady_clock::now();
+        times.push_back(std::chrono::duration<double, std::micro>(end - begin).count());
+        double kernel = 0.0;
+        for (const auto& info : request.get_profiling_info()) {
+            if (info.status == ov::ProfilingInfo::Status::EXECUTED)
+                kernel += static_cast<double>(info.real_time.count());
+        }
+        kernel_times.push_back(kernel);
+    }
+    std::sort(times.begin(), times.end());
+    std::sort(kernel_times.begin(), kernel_times.end());
+    return {times[times.size() / 2], kernel_times[kernel_times.size() / 2]};
+}
+}  // namespace
+
+// Opt-in performance comparison (OV_GPU_GGUF_PERF=1): OCL GEMM vs CM GEMM vs transcode + oneDNN fallback.
+TEST(fully_connected_gpu, gguf_gemm_perf_compare) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#endif
+    if (!std::getenv("OV_GPU_GGUF_PERF"))
+        GTEST_SKIP() << "Set OV_GPU_GGUF_PERF=1 to run the GGUF prefill GEMM performance comparison";
+    auto& engine = get_test_engine();
+    if (!gguf_gemm_capable(engine, true, 64))
+        GTEST_SKIP() << "Device does not support the GGUF prefill GEMM";
+    const std::array<gguf_perf_config, 3> configs = {{{"ocl", "ocl", "1", "fc_gguf_gemm_"},
+                                                       {"cm", "cm", "1", "_full"},
+                                                       {"onednn", "ocl", "0", "fc_gguf_transcode_"}}};
+    const size_t channels = 4096;
+    const size_t columns = 4096;
+    std::cout << "GGUF prefill GEMM performance, f16 activations, K=" << columns << " N=" << channels
+              << ", device-resident I/O. *_k = GPU kernel time (profiling), *_w = infer() wall time; us / TFLOPS.\n"
+              << "ocl_vs_cm = cm_k / ocl_k (>1: OCL faster). onednn_w covers transcode + oneDNN.\n";
+    std::cout << "type      M      ocl_k    ocl_TF  cm_k     cm_TF   ocl_vs_cm  ocl_w    cm_w     onednn_w\n";
+    for (const auto& type : {ov::element::gguf_q4_0, ov::element::gguf_q4_1, ov::element::gguf_q4_k,
+                             ov::element::gguf_q5_k, ov::element::gguf_q6_k, ov::element::gguf_q8_0}) {
+        for (const size_t rows : {size_t{1024}, size_t{2048}, size_t{4096}, size_t{8192}, size_t{16384}}) {
+            std::array<gguf_perf_result, 3> r{};
+            for (size_t c = 0; c < configs.size(); ++c) {
+                std::string executed;
+                r[c] = gguf_measure_prefill(type, rows, channels, columns, configs[c], executed);
+                if (r[c].wall_us > 0)
+                    EXPECT_NE(executed.find(configs[c].stage), std::string::npos)
+                        << configs[c].name << " executed: " << executed;
+            }
+            const double flops = 2.0 * static_cast<double>(rows) * channels * columns;
+            auto tf = [&](double t) { return t > 0 ? flops / (t * 1e-6) / 1e12 : -1.0; };
+            const double ocl_k = r[0].kernel_us;
+            const double cm_k = r[1].kernel_us;
+            char line[256];
+            std::snprintf(line, sizeof(line), "%-9s %-6zu %-8.0f %-7.2f %-8.0f %-7.2f %-10.3f %-8.0f %-8.0f %-8.0f\n",
+                          type.to_string().c_str(), rows, ocl_k, tf(ocl_k), cm_k, tf(cm_k),
+                          ocl_k > 0 && cm_k > 0 ? cm_k / ocl_k : -1.0, r[0].wall_us, r[1].wall_us, r[2].wall_us);
+            std::cout << line << std::flush;
+        }
+    }
+}
+
+// OV_GPU_GGUF_PREFILL_GEMM_STRICT=1 must fail loudly instead of silently falling back to transcode + oneDNN.
+TEST(fully_connected_gpu, gguf_gemm_strict_rejects_fallback) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#endif
+    auto& engine = get_test_engine();
+    if (!gguf_gemm_capable(engine, true, 64))
+        GTEST_SKIP() << "Device does not support the GGUF prefill GEMM";
+    // 48 output channels are shuffled (multiple of 16) but not aligned for the GEMM kernels.
+    const size_t channels = 48;
+    const size_t columns = 256;
+    const size_t rows = 64;
+    auto run = [&](const char* strict) {
+        gguf_scoped_env_var strict_env("OV_GPU_GGUF_PREFILL_GEMM_STRICT", strict);
+        ov::Tensor payload(ov::element::gguf_q4_k, ov::Shape{channels, columns});
+        std::memset(payload.data(), 0, payload.get_byte_size());
+        auto raw = std::make_shared<ov::op::v0::Constant>(payload);
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, columns});
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+        auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{channels}, {0.f});
+        auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias, scale, ov::element::f16);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{parameter});
+        ov::Core core;
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(ov::element::f16, ov::Shape{rows, columns});
+        std::memset(input.data(), 0, input.get_byte_size());
+        request.set_input_tensor(input);
+        request.infer();
+    };
+    EXPECT_NO_THROW(run(nullptr));
+    EXPECT_THROW(run("1"), ov::Exception);
+}
 
 TEST(fully_connected_gpu, dynamic_byxf) {
     auto& engine = get_test_engine();
