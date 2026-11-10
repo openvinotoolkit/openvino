@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,8 +201,8 @@ cuda_module::~cuda_module() {
     if (cu_module) {
         CUresult r;
         {
-            scoped_cuda_context guard(static_cast<CUcontext>(cu_context));
-            r = cuModuleUnload(static_cast<CUmodule>(cu_module));
+            scoped_cuda_context guard(cu_context);
+            r = cuModuleUnload(cu_module);
         }
         if (r != CUDA_SUCCESS) {
             GPU_DEBUG_LOG << "[GPU][NVIDIA] cuModuleUnload failed: " << cuda_error_string(r) << std::endl;
@@ -238,9 +238,9 @@ std::vector<uint8_t> sycl_ptx_kernel::get_binary() const {
 
 namespace {
 
-// Loads `ptx` as a module.  A non-zero `min_threads` tells the JIT the block size the kernels have to
-// launch with (CU_JIT_THREADS_PER_BLOCK), so that ptxas gives each work-item no more registers than
-// that many work-items can share.  `requested_by` names the kernel that asked for it in error messages.
+// Loads `ptx` as a module. A non-zero `min_threads` tells the JIT the block size the kernels launch with
+// (CU_JIT_THREADS_PER_BLOCK), so that ptxas keeps their registers within what that many work-items can share.
+// `requested_by` names the kernel that asked for the module in error messages.
 std::shared_ptr<cuda_module> load_cuda_module(const std::string& ptx,
                                               unsigned int min_threads,
                                               const std::string& requested_by) {
@@ -259,15 +259,14 @@ std::shared_ptr<cuda_module> load_cuda_module(const std::string& ptx,
                              requested_by + "'");
     }
     auto module = std::make_shared<cuda_module>();
-    module->cu_module = static_cast<void*>(mod);
+    module->cu_module = mod;
 
-    // The module belongs to the context current here (the SYCL device's, inside a host_task); it is unloaded from
-    // that context. A primary context is retained so it outlives the module even if the SYCL runtime lets go
-    // first: unloading from a released primary context fails with CUDA_ERROR_CONTEXT_IS_DESTROYED. Other
-    // contexts cannot be retained, so for them the module only switches to them for the unload.
+    // The module is unloaded from the context current here (the SYCL device's, inside a host_task). A primary
+    // context is retained so that it outlives the module even if the SYCL runtime releases it first; unloading from
+    // a released primary context fails with CUDA_ERROR_CONTEXT_IS_DESTROYED. Other contexts cannot be retained.
     CUcontext ctx = nullptr;
     if (cuCtxGetCurrent(&ctx) == CUDA_SUCCESS && ctx != nullptr) {
-        module->cu_context = static_cast<void*>(ctx);
+        module->cu_context = ctx;
         CUdevice dev = 0;
         CUcontext primary = nullptr;
         if (cuCtxGetDevice(&dev) == CUDA_SUCCESS && cuDevicePrimaryCtxRetain(&primary, dev) == CUDA_SUCCESS) {
@@ -285,7 +284,7 @@ std::shared_ptr<cuda_module> load_cuda_module(const std::string& ptx,
 std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_module>& module,
                                                  const std::string& kernel_name) {
     CUfunction func = nullptr;
-    CUresult r = cuModuleGetFunction(&func, static_cast<CUmodule>(module->cu_module), kernel_name.c_str());
+    CUresult r = cuModuleGetFunction(&func, module->cu_module, kernel_name.c_str());
     if (r != CUDA_SUCCESS)
         throw_cuda_error(r, "cuModuleGetFunction for '" + kernel_name + "'");
 
@@ -301,7 +300,7 @@ std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_modu
 
     auto function = std::make_shared<cuda_function>();
     function->module = module;
-    function->cu_function = static_cast<void*>(func);
+    function->cu_function = func;
     function->max_threads_per_block = max_threads;
     function->static_shared_bytes = static_shared_bytes;
     return function;
@@ -415,9 +414,8 @@ struct cuda_dispatch {
 cuda_dispatch choose_cuda_dispatch(const std::vector<size_t>& gws,
                                    const std::vector<size_t>& lws,
                                    const std::string& kernel_name) {
-    // Work-group size and count per NDRange dimension. They stay in size_t until they are checked against the CUDA
-    // limits: narrowing first would wrap an extent of 2^32 + 1 to 1 and run only part of the NDRange. A dimension
-    // without a local size runs one work-item per block.
+    // Work-group size and count per NDRange dimension, kept in size_t until they are checked against the CUDA limits
+    // so that an extent of 2^32 + 1 cannot wrap to 1. A dimension without a local size runs one work-item per block.
     size_t block_extent[3];
     size_t grid_extent[3];
     for (size_t d = 0; d < 3; ++d) {
@@ -538,10 +536,9 @@ kernel_params build_kernel_params(const std::vector<sycl_base_kernel::arg_t>& ar
     params.values.assign(args.size(), 0);
     params.pointers.resize(args.size());
 
-    // __local pointer arguments are .shared addresses (.param .u64 .ptr .shared in NVVM's PTX). The static
-    // .shared variables of the function - __local arrays declared in the kernel, the work-group collectives'
-    // buffer of compat_wg.cl - take the start of the .shared window and the dynamic shared memory follows them,
-    // so the arguments are placed from the end of the static ones, each at the alignment it needs.
+    // __local arguments are .shared addresses. The function's static .shared variables (its __local arrays, the
+    // collectives' buffer of compat_wg.cl) take the start of the window, so the arguments follow them, each at the
+    // alignment it needs.
     uint64_t smem_offset = static_cast<uint64_t>(function.static_shared_bytes);
 
     for (size_t i = 0; i < args.size(); ++i) {
@@ -608,8 +605,7 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh, const kernel_arguments_desc& 
         }
     }
 
-    // The task runs once the dependencies complete, possibly after the caller has released this
-    // kernel, so it holds the entry point state it needs rather than a pointer to the kernel.
+    // The task can run after the caller has released this kernel, so it holds the entry point state, not the kernel.
     cldnn::sycl::host_task(cgh, [accessors = std::move(accessors),
                                  buffers = std::move(buffers),
                                  args = std::move(args),
@@ -622,7 +618,7 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh, const kernel_arguments_desc& 
             return dispatch.to_string() + ", " + std::to_string(params.shared_mem_bytes) + " bytes of shared memory";
         };
 
-        CUresult res = cuLaunchKernel(static_cast<CUfunction>(function->cu_function),
+        CUresult res = cuLaunchKernel(function->cu_function,
                                       dispatch.grid[0], dispatch.grid[1], dispatch.grid[2],
                                       dispatch.block[0], dispatch.block[1], dispatch.block[2],
                                       params.shared_mem_bytes,

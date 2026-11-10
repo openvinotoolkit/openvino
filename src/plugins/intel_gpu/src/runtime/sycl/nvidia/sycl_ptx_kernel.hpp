@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,35 +17,39 @@
 #include <utility>
 #include <vector>
 
+// The CUDA driver handles are pointers to these structs (CUcontext, CUmodule, CUfunction); declaring them keeps
+// cuda.h out of this header.
+struct CUctx_st;
+struct CUmod_st;
+struct CUfunc_st;
+
 namespace cldnn {
 namespace sycl {
 
-// A CUmodule loaded from PTX, unloaded when the last reference goes.  That can be on any thread - an
-// application thread releasing the last kernel, with no context or another one current - so the module
-// remembers the context it was loaded into and unloads from it.  When that is the device's primary
-// context, the module also holds a reference to it, so the context outlives the module.
+// A CUmodule loaded from PTX. It is unloaded when the last reference goes, which can be on any thread, so it
+// remembers the context it was loaded into and unloads from that. A primary context is retained so that it outlives
+// the module.
 struct cuda_module {
-    void* cu_module{nullptr};   // CUmodule (typed as void* to avoid cuda.h in header)
-    void* cu_context{nullptr};  // CUcontext the module was loaded into
-    int primary_ctx_device{-1};  // CUdevice whose primary context the module retains, or -1
+    CUmod_st* cu_module{nullptr};
+    CUctx_st* cu_context{nullptr};  // the context the module was loaded into
+    int primary_ctx_device{-1};     // CUdevice whose primary context the module retains, or -1
 
-    ~cuda_module();  // defined in sycl_ptx_kernel.cpp to unload the CUmodule
+    ~cuda_module();
 };
 
-// A kernel function looked up in a module.  It holds the module, so the module stays loaded for as
-// long as a pending launch holds the function.
+// A kernel function looked up in a module. It holds the module, so the module stays loaded for as long as a pending
+// launch holds the function.
 struct cuda_function {
     std::shared_ptr<cuda_module> module;
-    void* cu_function{nullptr};    // CUfunction
-    int max_threads_per_block{0};  // CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK of cu_function
-    // CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES of cu_function: its static .shared variables, which sit at the start of the
-    // .shared window, ahead of the dynamic shared memory the __local arguments are placed in.
+    CUfunc_st* cu_function{nullptr};
+    int max_threads_per_block{0};  // CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK
+    // CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES: the static .shared variables, which sit ahead of the dynamic shared memory
+    // the __local arguments are placed in.
     int static_shared_bytes{0};
 };
 
-// The PTX of one compiled batch and the CUDA modules loaded from it, shared by every entry point of
-// the batch and by their clones.  Loading a module JIT-compiles the whole PTX, so each module is
-// loaded once for the batch rather than once for every kernel in it.
+// The PTX of one compiled batch and the CUDA modules loaded from it, shared by every entry point of the batch and by
+// their clones. Loading a module JIT-compiles the whole PTX, so it is done once per batch, not once per kernel.
 class ptx_program {
 public:
     // One module per launch layout (a block layout combined with a grid layout, see sycl_ptx_kernel.cpp): the
@@ -66,8 +70,8 @@ public:
     // 0, and the vector is empty for an entry point the PTX does not have.
     const std::vector<uint32_t>& local_param_alignments(const std::string& kernel_name) const;
 
-    // Module for the given launch layout, loaded on first use (inside host_task).  requested_by
-    // names the kernel that asked for it in error messages.
+    // Module for the given launch layout, loaded on first use (inside host_task). requested_by names the kernel that
+    // asked for it in error messages.
     std::shared_ptr<cuda_module> module(size_t layout_idx, const std::string& requested_by);
 
     // The same module compiled with CU_JIT_THREADS_PER_BLOCK = block_threads (inside host_task).
@@ -88,18 +92,14 @@ private:
     std::map<std::pair<size_t, unsigned int>, std::shared_ptr<cuda_module>> _capped_modules;
 };
 
-// One entry point of a ptx_program and the functions looked up for it.  A launch records a host_task
-// that runs after enqueue_kernel() has returned, by which time the caller may have released the
-// kernel, so the task holds this state by shared_ptr instead of pointing at the kernel.
+// One entry point of a ptx_program and the functions looked up for it. The host_task of a launch can run after the
+// caller has released the kernel, so the task holds this state rather than the kernel.
 struct ptx_kernel_state {
     ptx_kernel_state(std::shared_ptr<ptx_program> program, std::string kernel_name);
 
-    // Function to launch a block of `block_threads` work-items through the given launch layout (called
-    // inside host_task).  The JIT sizes a kernel's registers without knowing the work-group size,
-    // so a register-heavy kernel can come out unable to launch with a large block: at 133
-    // registers, 512 work-items need 68096 of the 65536 an A100 multiprocessor has.  When the
-    // block is larger than the plain module allows, the function is taken from a module compiled
-    // with CU_JIT_THREADS_PER_BLOCK, which keeps ptxas within the registers that block size leaves.
+    // Function to launch a block of `block_threads` work-items through the given launch layout (inside host_task).
+    // The JIT sizes registers without knowing the block size, so a register-heavy kernel may not launch with a large
+    // block; such a block gets the function from a module compiled with CU_JIT_THREADS_PER_BLOCK.
     std::shared_ptr<cuda_function> function_for_launch(size_t layout_idx, unsigned int block_threads);
 
     const std::shared_ptr<ptx_program> program;
