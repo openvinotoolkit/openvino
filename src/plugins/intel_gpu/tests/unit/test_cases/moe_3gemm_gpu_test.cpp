@@ -2114,3 +2114,71 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              Moe3GemmU3TestParams{4, 512, 512, 8, 2, 64, 32, false, false, true},
                              Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, true, false, true},
                              Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, true, true, true}));
+
+// The batched GEMV kernels walk K in chunks of min(group sizes, 128) and run N in blocks of N_BLOCK * SUBGROUP_NUM (32).
+// Per-channel quantization makes the group size equal to K, so an unaligned hidden_size or inter_size has no correct
+// kernel path and would also enqueue a non-uniform mlp_gate_up / mlp_down work-group. Such shapes must fail to compile.
+class moe_3gemm_unsupported_gemv_shape : public ::testing::TestWithParam<std::tuple<size_t, size_t>> {};
+
+TEST_P(moe_3gemm_unsupported_gemv_shape, per_channel_throws) {
+    const auto [hidden_size, inter_size] = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "No immad support";
+    }
+    const int64_t e = 4, h = static_cast<int64_t>(hidden_size), in = static_cast<int64_t>(inter_size), tokens = 4;
+    auto make_data = [&](data_types dt, ov::PartialShape shape) {
+        return engine.allocate_memory(layout{shape, dt, format::bfyx});
+    };
+
+    topology topology;
+    topology.add(input_layout("hidden_states", layout{ov::PartialShape{1, tokens, h}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("routing_weights", layout{ov::PartialShape{1, tokens, e}, data_types::f16, format::bfyx}));
+    topology.add(data("w0_weight", make_data(data_types::u8, {e, in, h, 1})));
+    topology.add(data("w0_scale", make_data(data_types::f16, {e, in, 1})));
+    topology.add(data("w0_zp", make_data(data_types::u8, {e, in, 1})));
+    topology.add(data("w1_weight", make_data(data_types::u8, {e, in, h, 1})));
+    topology.add(data("w1_scale", make_data(data_types::f16, {e, in, 1})));
+    topology.add(data("w1_zp", make_data(data_types::u8, {e, in, 1})));
+    topology.add(data("w2_weight", make_data(data_types::u8, {e, h, in, 1})));
+    topology.add(data("w2_scale", make_data(data_types::f16, {e, h, 1})));
+    topology.add(data("w2_zp", make_data(data_types::u8, {e, h, 1})));
+
+    MoERouterFused::Config router_config;
+    router_config.num_expert = e;
+    router_config.top_k = 2;
+    topology.add(moe_router_fused("router", {input_info("routing_weights")}, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
+    moe_config.hidden_size = hidden_size;
+    moe_config.inter_size = inter_size;
+    moe_config.num_expert = e;
+    moe_config.top_k = 2;
+    moe_config.group_size = std::numeric_limits<size_t>::max();  // per-channel
+    moe_config.out_type = data_types::f16;
+    moe_config.has_zp = true;
+    topology.add(moe_3gemm_fused_compressed("moe",
+                                            {input_info("hidden_states"),
+                                             input_info("router", 0),
+                                             input_info("router", 1),
+                                             input_info("w0_weight"),
+                                             input_info("w0_scale"),
+                                             input_info("w0_zp"),
+                                             input_info("w1_weight"),
+                                             input_info("w1_scale"),
+                                             input_info("w1_zp"),
+                                             input_info("w2_weight"),
+                                             input_info("w2_scale"),
+                                             input_info("w2_zp")},
+                                            moe_config));
+
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    OV_EXPECT_THROW(std::make_shared<network>(engine, topology, net_config), ov::Exception, ::testing::HasSubstr("MoE GEMV kernel"));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_3gemm_unsupported_gemv_shape,
+                         ::testing::Values(std::make_tuple(size_t{128}, size_t{1000}),   // mlp_gate_up N = inter_size
+                                           std::make_tuple(size_t{1000}, size_t{128}),   // mlp_down N = hidden_size
+                                           std::make_tuple(size_t{128}, size_t{1040})));  // inter_size % 128 != 0 but % 16 == 0
