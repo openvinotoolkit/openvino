@@ -829,8 +829,8 @@ KERNEL(fc_gguf_transcode)(
         const half4 mn4 = fmin(vmn.lo, vmn.hi);
         const half2 mx2 = fmax(mx4.lo, mx4.hi);
         const half2 mn2 = fmin(mn4.lo, mn4.hi);
-        const float vmax = (float)fmax(mx2.s0, mx2.s1);
-        const float vmin = (float)fmin(mn2.s0, mn2.s1);
+        const float vmax = fmax((float)fmax(mx2.s0, mx2.s1), 0.0f);
+        const float vmin = fmin((float)fmin(mn2.s0, mn2.s1), 0.0f);
 
         const float range     = vmax - vmin;
         const float scale     = (range > 0.0f) ? (range * (1.0f / (float)QMAX)) : 1.0f;

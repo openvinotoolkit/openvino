@@ -521,6 +521,77 @@ TEST_F(GGUFParser, ActivationDqPreservesFp32Input) {
 #endif
 }
 
+TEST_F(GGUFParser, AsymmetricWeightTranscodePreservesSingleSignGroups) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", "0");
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", "0");
+    GgufScopedEnvironment group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "0");
+    GgufScopedEnvironment asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", "0");
+    GgufScopedEnvironment requant_group("OV_GPU_GGUF_REQUANT_GROUP", "32");
+    constexpr size_t rows = 33;
+    constexpr size_t columns = 512;
+    constexpr size_t channels = 64;
+    const std::array<uint8_t, 6> codes{0x99, 0x77, 0xb9, 0x75, 0x88, 0xa7};
+    const std::array<float, 6> expected{0.5f, -0.5f, 1.f, -1.f, 0.f, 0.25f};
+    const ov::float16 scale(0.03125f);
+    std::vector<uint8_t> payload(channels * columns / 32 * 18);
+    for (size_t channel = 0; channel < channels; ++channel) {
+        for (size_t block = 0; block < columns / 32; ++block) {
+            auto* destination = payload.data() + (channel * columns / 32 + block) * 18;
+            std::memcpy(destination, &scale, sizeof(scale));
+            std::fill_n(destination + 2, 16, codes[channel % codes.size()]);
+        }
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", GGUF_TYPE_Q4_0, columns, channels, payload));
+    auto loaded = get_gguf_data(m_path, GGUFLoadOptions{false, false, false, false, true});
+    GraphEmitter emitter(std::get<1>(loaded), std::get<2>(loaded), "test");
+    emitter.add_input("activation", ov::element::f16, {1, 1, rows, columns});
+    emitter.add_weight("projection.weight");
+    emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
+    emitter.graph()->model_output_names = {"output"};
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+    FrontEnd frontend;
+    const auto model = frontend.convert(frontend.load(decoder));
+    for (const char* dq_value : {"0", "1"}) {
+        SCOPED_TRACE(dq_value);
+        GgufScopedEnvironment dq("OV_GPU_GGUF_PREFILL_DQ_ACT", dq_value);
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16),
+                                           ov::num_streams(1));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(ov::element::f16, {1, 1, rows, columns});
+        std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
+        request.set_input_tensor(input);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_TRUE(output.get_element_type() == ov::element::f16 ||
+                output.get_element_type() == ov::element::f32);
+        ASSERT_EQ(output.get_size(), rows * channels);
+        std::array<float, 6> max_errors{};
+        for (size_t index = 0; index < output.get_size(); ++index) {
+            const auto pattern = (index % channels) % codes.size();
+            const float actual = output.get_element_type() == ov::element::f32
+                         ? output.data<const float>()[index]
+                         : static_cast<float>(output.data<const ov::float16>()[index]);
+            ASSERT_TRUE(std::isfinite(actual)) << index;
+            max_errors[pattern] = std::max(max_errors[pattern], std::abs(actual - expected[pattern]));
+        }
+        for (size_t pattern = 0; pattern < codes.size(); ++pattern)
+            EXPECT_LE(max_errors[pattern], 0.001f) << "pattern=" << pattern;
+    }
+#endif
+}
+
 TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
 #ifndef GGUF_GPU_NATIVE_TESTS
     GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
