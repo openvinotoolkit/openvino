@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-19-25-24-000-42869238491",
+  "timestamp": "2026-11-10T19:25:24Z",
+  "run_id": "42869238491",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42869238491",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "b1c159de24d368b12f07e2ed39d3cef2c81beaa5",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "'Extract OpenVINO packages' step fails: Expand-Archive cannot overwrite tbb12.dll because the file is locked by another process."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ ... Remove-Item -LiteralPath $currentArchiveEntryFileInfo.Ful ...\n+ CategoryInfo : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs 'Expand-Archive ... -Force' to overwrite a previous install directory on a Windows self-hosted runner. Expand-Archive's -Force first tries to delete the existing tbb12.dll before re-extracting it, but the DLL is still held open/locked by another process on the runner (e.g. a lingering antivirus scan, a previous test process, or Windows Explorer/indexer holding a handle on the shared persistent runner workspace), causing an UnauthorizedAccessException and failing the whole step with exit code 1. This is a known recurring infrastructure flake on this runner pool/workflow (pattern seen 8 times in the last 1.5 days across multiple commits), not a code regression introduced by the triggering commit.",
+  "reproduction_steps": "N/A - requires the specific Windows self-hosted runner state (locked tbb12.dll handle); not reproducible from a clean local checkout. Can be approximated locally by holding tbb12.dll open (e.g. via a running process linked against it) and then running Expand-Archive -Force over the same path.",
+  "recommended_actions": [
+    "Have the runner infra/DevOps team investigate why tbb12.dll remains locked between jobs on these Windows runners (e.g. a leaked openvino process, antivirus real-time scanning, or an indexing service) and ensure the workspace is fully clean/unlocked before the extract step runs.",
+    "Add a retry-with-backoff wrapper around the Expand-Archive extraction step (or switch to a tool tolerant of in-use files, e.g. 7z with -aoa and file-lock retry) so transient lock contention does not fail the whole job.",
+    "Consider extracting to a fresh/unique directory per run instead of overwriting a shared persistent install directory, to avoid relying on a Force-delete of potentially-locked files.",
+    "Add an explicit 'stop any lingering openvino*.exe/gpu test process' cleanup step before the extraction step runs on these self-hosted Windows runners."
+  ],
+  "prevention_strategies": "Ensure Windows self-hosted runners fully terminate all child/test processes and release file handles at the end of each job (job cleanup/teardown step) before the next job's extraction step runs. Avoid in-place overwrite extraction of shared, persistent directories containing native DLLs; prefer clean/unique workspace directories per run or extraction tools with built-in retry on file-lock errors.",
+  "historical_context": "Identical failure signature recorded 8 times (including this run) between 2026-11-09T16:30:00Z and 2026-11-10T19:12:00Z across many different commits/PRs in the merge queue and on master, all on the Windows GPU unit tests job's 'Extract OpenVINO packages' step. See pattern record 514ffa2ab52ad344.json for the full recurrence history. No remediation has yet resolved the underlying runner-level file lock issue."
+}
