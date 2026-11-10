@@ -136,7 +136,9 @@ ze_context_handle_t get_level_zero_context(const ov::AnyMap& context_params) {
 }  // namespace
 
 /**
- * @brief Main with support Unicode paths, wide strings
+ * @brief Main with support Unicode paths, wide strings.
+ * Unicode paths work on non-Windows systems only: on Windows the samples' wstring2string() helper truncates wide
+ * characters, so paths must be ASCII.
  */
 int tmain(int argc, tchar* argv[]) {
     try {

@@ -76,7 +76,7 @@ For example:
 
    - The sample expects input with BGR channel order and the NCHW layout for
      the model input, as described in :doc:`Hello Classification <hello-classification>`.
-   - Paths may contain Unicode characters.
+   - Paths may contain Unicode characters on Linux. On Windows, use ASCII-only paths.
 
 The application logs model information and prints the top 10 classification
 results.
