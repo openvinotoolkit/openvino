@@ -1713,6 +1713,12 @@ public:
 
         // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+        const auto& config = params.get_program().get_config();
+        if (desc->is_key_by_channel && get_kv_compressed(params) && config.get_inference_precision() == ov::element::f32) {
+            // Micro-SDPA currently assumes fp16 scale/zp metadata (4 bytes). F32 BY_CHANNEL
+            // caches use 8 metadata bytes, so fall back to the precision-aware OCL kernel.
+            return false;
+        }
         return !data_type_traits::is_i4_u4(kv_cache_dt) || desc->is_key_by_channel;
     }
 

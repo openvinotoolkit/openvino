@@ -15,6 +15,7 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/softmax.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
+#include <intel_gpu/runtime/internal_properties.hpp>
 #include <openvino/core/except.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
 #include <openvino/reference/xattention.hpp>
@@ -35,9 +36,9 @@
 
 /*
  * PagedAttention inputs:
- * [0]: query, shape: [batch_size_in_tokens, num_heads * head_size], type: f16
- * [1]: key, shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
- * [2]: value, shape: [batch_size_in_tokens, num_kv_heads * head_size], type: f16
+ * [0]: query, shape: [batch_size_in_tokens, num_heads * head_size], type: inference precision
+ * [1]: key, shape: [batch_size_in_tokens, num_kv_heads * head_size], type: inference precision
+ * [2]: value, shape: [batch_size_in_tokens, num_kv_heads * head_size], type: inference precision
  * [3]: key_cache, shape: [num_blocks, num_kv_heads, head_size, block_size], type: f16 or i8
  * [4]: value_cache, shape: [num_blocks, num_kv_heads, block_size, head_size], type: f16 or i8
  * [5]: past_lens, shape: [batch_size_in_sequences], type: i32
@@ -90,6 +91,7 @@ struct PagedAttentionManager {
     bool kv_cache_compression;
     ov::internal::CacheQuantMode key_cache_quant_mode;
     ov::element::Type kv_cache_precision = ov::element::dynamic;
+    ov::element::Type inference_precision = ov::element::f16;
     bool has_score_aggregation;
     CacheRotationDescriptor rotation_config;
     std::vector<SubsequenceDescriptor> subsequence_descs;
@@ -153,7 +155,8 @@ struct PagedAttentionManager {
                           bool has_score_aggregation,
                           bool has_xattention,
                           CacheRotationDescriptor rotation_config,
-                          ov::element::Type kv_cache_precision = ov::element::dynamic)
+                          ov::element::Type kv_cache_precision = ov::element::dynamic,
+                          ov::element::Type inference_precision = ov::element::dynamic)
         : num_heads(num_heads),
           num_kv_heads(num_kv_heads),
           k_head_size(k_head_size),
@@ -163,6 +166,7 @@ struct PagedAttentionManager {
           kv_cache_compression(kv_cache_compression),
           key_cache_quant_mode(key_cache_quant_mode),
           kv_cache_precision(kv_cache_precision),
+          inference_precision(inference_precision == ov::element::dynamic ? ov::element::f16 : inference_precision),
           has_score_aggregation(has_score_aggregation),
           rotation_config(rotation_config),
           subsequence_descs(subsequence_descs),
@@ -253,9 +257,9 @@ struct PagedAttentionManager {
         if (kv_cache_compression) {
             if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 OPENVINO_ASSERT(block_size % kv_sub_block_size == 0);
-                adjusted_block_size += block_size / kv_sub_block_size * 4;
+                adjusted_block_size += block_size / kv_sub_block_size * get_scale_zp_bytes();
             } else {
-                adjusted_head_size += 4;
+                adjusted_head_size += get_scale_zp_bytes();
             }
         }
 
@@ -307,13 +311,11 @@ struct PagedAttentionManager {
                             set_values(test_stream, memory, qptr, head_size, data_off_i8);
 
                             const size_t scale_base_i8 = block_base_i8 + head_size * block_size;
-                            const size_t zp_base_i8 = scale_base_i8 + block_size * sizeof(ov::float16);
+                            const size_t comp_elem = inference_precision.size();
+                            const size_t zp_base_i8 = scale_base_i8 + block_size * comp_elem;
 
-                            const size_t scale_off_f16 = scale_base_i8 / 2 + token_idx;
-                            const size_t zp_off_f16 = zp_base_i8 / 2 + token_idx;
-
-                            set_values(test_stream, memory, &scale, 1, scale_off_f16);
-                            set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                            set_comp_value(memory, scale_base_i8 + token_idx * comp_elem, static_cast<float>(scale));
+                            set_comp_value(memory, zp_base_i8 + token_idx * comp_elem, static_cast<float>(zp));
                         } else {
                             // Compressed Key cache layout for BY_CHANNEL:
                             // shape: [num_blocks, num_kv_heads, adjusted_block_size, head_size], dt=i8.
@@ -327,9 +329,10 @@ struct PagedAttentionManager {
                                 block_stride_i8;
 
                             const int subblock_count = block_size / kv_sub_block_size;
+                            const size_t comp_elem = inference_precision.size();
                             const size_t scale_base_i8 = block_base_i8 + static_cast<size_t>(block_size) * static_cast<size_t>(head_size);
                             const size_t zp_base_i8 =
-                                scale_base_i8 + static_cast<size_t>(subblock_count) * static_cast<size_t>(head_size) * sizeof(ov::float16);
+                                scale_base_i8 + static_cast<size_t>(subblock_count) * static_cast<size_t>(head_size) * comp_elem;
 
                             for (int channel = 0; channel < head_size; channel++) {
                                 for (int sub_start = 0; sub_start < last_token_idx; sub_start += kv_sub_block_size) {
@@ -350,11 +353,10 @@ struct PagedAttentionManager {
                                     }
 
                                     const size_t sub_idx = static_cast<size_t>(sub_start / kv_sub_block_size);
-                                    const size_t scale_off_f16 = scale_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
-                                    const size_t zp_off_f16 = zp_base_i8 / 2 + sub_idx * static_cast<size_t>(head_size) + channel;
+                                    const size_t comp_idx = (sub_idx * static_cast<size_t>(head_size) + channel) * comp_elem;
 
-                                    set_values(test_stream, memory, &scale, 1, scale_off_f16);
-                                    set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                                    set_comp_value(memory, scale_base_i8 + comp_idx, static_cast<float>(scale));
+                                    set_comp_value(memory, zp_base_i8 + comp_idx, static_cast<float>(zp));
                                 }
                             }
                         }
@@ -369,17 +371,41 @@ struct PagedAttentionManager {
         return kv_cache_precision == ov::element::u4 || kv_cache_precision == ov::element::i4;
     }
 
+    // Scale + zero-point storage bytes per quantization group, matching the kernel which
+    // derives comp precision from the activation (inference) precision: 2 * sizeof(infer_precision).
+    int get_scale_zp_bytes() const {
+        return 2 * static_cast<int>(inference_precision.size());
+    }
+
+    // Write one scale/zp scalar at a byte offset, storing it in the inference precision.
+    void set_comp_value(const cldnn::memory::ptr& mem, size_t byte_offset, float value) {
+        if (inference_precision == ov::element::f32) {
+            set_values(test_stream, mem, &value, 1, byte_offset / sizeof(float));
+        } else {
+            ov::float16 f16_val = value;
+            set_values(test_stream, mem, &f16_val, 1, byte_offset / sizeof(ov::float16));
+        }
+    }
+
+    // Read one scale/zp scalar from a raw pointer, interpreting it in the inference precision.
+    float read_comp_value(const void* ptr) const {
+        if (inference_precision == ov::element::f32) {
+            return *reinterpret_cast<const float*>(ptr);
+        }
+        return static_cast<float>(*reinterpret_cast<const ov::float16*>(ptr));
+    }
+
     cldnn::memory::ptr get_key_cache_memory() {
         auto key_cache_dt = cldnn::data_types::f16;
         auto adjusted_head_size = k_head_size;
         auto adjusted_block_size = block_size;
         if (kv_cache_compression) {
             key_cache_dt = is_int4_kv_cache() ? cldnn::data_types::u8 : cldnn::data_types::i8;
-            const int scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
+            const int scale_zp_bytes = get_scale_zp_bytes();  // 2 comp scalars (scale + zp) in inference precision
             if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (is_int4_kv_cache()) {
                     // u4/i4 BY_CHANNEL: block_size dim is packed (2 u4 tokens per byte) + scale/zp.
-                    // Shape: [num_blocks, kv_heads, k_head_size, block_size/2 + 4]
+                    // Shape: [num_blocks, kv_heads, k_head_size, block_size/2 + scale_zp_bytes]
                     // head_size is NOT packed (outer dim), block_size IS packed (inner dim).
                     adjusted_head_size = k_head_size;                       // NOT packed
                     adjusted_block_size = block_size / 2 + scale_zp_bytes;  // packed + scale/zp
@@ -388,7 +414,7 @@ struct PagedAttentionManager {
                 }
             } else {
                 if (is_int4_kv_cache()) {
-                    // Scale/zp for BY_TOKEN: 2 fp16 values = 4 bytes appended to head_size dim.
+                    // Scale/zp for BY_TOKEN: 2 comp scalars appended to head_size dim.
                     adjusted_head_size = k_head_size / 2 + scale_zp_bytes;
                 } else {
                     adjusted_head_size += scale_zp_bytes;
@@ -456,12 +482,10 @@ struct PagedAttentionManager {
                                     }
                                     set_values(test_stream, memory, packed_data.data(), static_cast<size_t>(packed_block), row_offset);
 
-                                    // Write comp: 2 fp16 (inv_scale, zp) at row_offset + packed_block
-                                    const size_t comp_offset_fp16 = (row_offset + packed_block) / 2;
-                                    ov::float16 inv_scale_val = static_cast<float>(1.0f / scale);
-                                    ov::float16 fp16_zp = static_cast<float>(zp_val);
-                                    set_values(test_stream, memory, &inv_scale_val, 1, comp_offset_fp16 + 0);
-                                    set_values(test_stream, memory, &fp16_zp, 1, comp_offset_fp16 + 1);
+                                    // Write comp: 2 scalars (inv_scale, zp) at row_offset + packed_block
+                                    const size_t comp_byte_off = row_offset + packed_block;
+                                    set_comp_value(memory, comp_byte_off, 1.0f / scale);
+                                    set_comp_value(memory, comp_byte_off + inference_precision.size(), static_cast<float>(zp_val));
                                 }
                             }
                         } else {
@@ -478,9 +502,9 @@ struct PagedAttentionManager {
                                                                  head_idx * adjusted_head_size * adjusted_block_size;
                                     size_t output_offset = output_block_offset + k_head_size_idx * adjusted_block_size;
                                     set_values(test_stream, memory, quantized_data.data(), last_token_idx, output_offset);
-                                    size_t comp_offset = (output_offset + block_size) / 2;
-                                    set_values(test_stream, memory, &scale, 1, comp_offset);
-                                    set_values(test_stream, memory, &zp, 1, comp_offset + 1);
+                                    const size_t comp_byte_off = output_offset + block_size;
+                                    set_comp_value(memory, comp_byte_off, static_cast<float>(scale));
+                                    set_comp_value(memory, comp_byte_off + inference_precision.size(), static_cast<float>(zp));
                                 }
                             }
                         }
@@ -538,12 +562,11 @@ struct PagedAttentionManager {
                                             size_t offset = output_block_offset + static_cast<size_t>(y) * block_size + token_idx;
                                             set_values(test_stream, memory, &packed_byte, 1, offset);
                                         }
-                                        // Write inv_scale and zp as fp16 in the comp region
-                                        size_t comp_offset_fp16 = (output_block_offset + static_cast<size_t>(packed_head_size) * block_size) / 2;
-                                        ov::float16 fp16_inv_scale = static_cast<float>(1.0f / token_scale);
-                                        ov::float16 fp16_zp = static_cast<float>(token_zp);
-                                        set_values(test_stream, memory, &fp16_inv_scale, 1, comp_offset_fp16 + token_idx);
-                                        set_values(test_stream, memory, &fp16_zp, 1, comp_offset_fp16 + block_size + token_idx);
+                                        // Write inv_scale and zp in the comp region, in inference precision
+                                        const size_t comp_base = output_block_offset + static_cast<size_t>(packed_head_size) * block_size;
+                                        const size_t comp_elem = inference_precision.size();
+                                        set_comp_value(memory, comp_base + static_cast<size_t>(token_idx) * comp_elem, 1.0f / token_scale);
+                                        set_comp_value(memory, comp_base + static_cast<size_t>(block_size + token_idx) * comp_elem, static_cast<float>(token_zp));
                                     } else {
                                         auto [quantized_data, scale, zp] = quantize_data(data_ptr, k_head_size);
                                         for (int k_head_size_idx = 0; k_head_size_idx < k_head_size; k_head_size_idx++) {
@@ -553,9 +576,10 @@ struct PagedAttentionManager {
 
                                             set_values(test_stream, memory, quantized_data_ptr, 1, output_offset);
                                         }
-                                        size_t comp_offset = (output_block_offset + k_head_size * block_size) / 2;
-                                        set_values(test_stream, memory, &scale, 1, comp_offset + token_idx);
-                                        set_values(test_stream, memory, &zp, 1, comp_offset + block_size + token_idx);
+                                        const size_t comp_base = output_block_offset + static_cast<size_t>(k_head_size) * block_size;
+                                        const size_t comp_elem = inference_precision.size();
+                                        set_comp_value(memory, comp_base + static_cast<size_t>(token_idx) * comp_elem, static_cast<float>(scale));
+                                        set_comp_value(memory, comp_base + static_cast<size_t>(block_size + token_idx) * comp_elem, static_cast<float>(zp));
                                     }
                                 }
                             } else {
@@ -586,11 +610,11 @@ struct PagedAttentionManager {
         int scale_zp_bytes = 0;
         if (kv_cache_compression) {
             value_cache_dt = is_int4_kv_cache() ? cldnn::data_types::u8 : cldnn::data_types::i8;
-            scale_zp_bytes = 4;  // 2 fp16 values (scale + zp) = 4 bytes
+            scale_zp_bytes = get_scale_zp_bytes();  // 2 comp scalars (scale + zp) in inference precision
         }
 
         // For u4 (INT4), values are packed 2 per byte; the physical head size is halved.
-        // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 32 + 4 = 36.
+        // PACKED_ADJUSTED_V_HEAD_SIZE = v_head_size/2 + scales_zp_size = 32 + 4 = 36 (f16).
         const int adjusted_head_size = is_int4_kv_cache() ? (head_size / 2 + scale_zp_bytes) : (head_size + scale_zp_bytes);
 
         const auto num_blocks = block_indices.back() + 1;
@@ -646,8 +670,6 @@ struct PagedAttentionManager {
                                 diff += std::max(1.0f, min_range);
                             float scale_val = 15.0f / diff;
                             float zp_val = -min_val * scale_val;
-                            ov::float16 inv_scale_fp16 = ov::float16(1.0f / scale_val);
-                            ov::float16 zp_fp16 = ov::float16(zp_val);
 
                             const size_t block_stride = static_cast<size_t>(adjusted_head_size) * static_cast<size_t>(block_size);
                             const size_t block_base =
@@ -673,11 +695,10 @@ struct PagedAttentionManager {
                                 }
                             }
 
-                            // Write inline comp: scale (fp16) and zp (fp16) right after packed data
+                            // Write inline comp: scale and zp right after packed data, in inference precision
                             const size_t comp_byte_off = token_base + static_cast<size_t>(packed_head_size);
-                            const size_t comp_f16_off = comp_byte_off / 2;
-                            set_values(test_stream, memory, &inv_scale_fp16, 1, comp_f16_off);
-                            set_values(test_stream, memory, &zp_fp16, 1, comp_f16_off + 1);
+                            set_comp_value(memory, comp_byte_off, 1.0f / scale_val);
+                            set_comp_value(memory, comp_byte_off + inference_precision.size(), zp_val);
                         } else {
                             // Compressed Value cache layout:
                             // logical shape: [num_blocks, num_kv_heads, block_size, adjusted_head_size], dt=i8 (adjusted_head_size=head_size+4).
@@ -696,13 +717,11 @@ struct PagedAttentionManager {
                             set_values(test_stream, memory, qptr, head_size, data_off_i8);
 
                             const size_t scale_base_i8 = block_base_i8 + static_cast<size_t>(head_size) * static_cast<size_t>(block_size);
-                            const size_t zp_base_i8 = scale_base_i8 + static_cast<size_t>(block_size) * sizeof(ov::float16);
+                            const size_t comp_elem = inference_precision.size();
+                            const size_t zp_base_i8 = scale_base_i8 + static_cast<size_t>(block_size) * comp_elem;
 
-                            const size_t scale_off_f16 = (scale_base_i8 >> 1) + static_cast<size_t>(token_idx);
-                            const size_t zp_off_f16 = (zp_base_i8 >> 1) + static_cast<size_t>(token_idx);
-
-                            set_values(test_stream, memory, &scale, 1, scale_off_f16);
-                            set_values(test_stream, memory, &zp, 1, zp_off_f16);
+                            set_comp_value(memory, scale_base_i8 + static_cast<size_t>(token_idx) * comp_elem, static_cast<float>(scale));
+                            set_comp_value(memory, zp_base_i8 + static_cast<size_t>(token_idx) * comp_elem, static_cast<float>(zp));
                         }
                     }
                 }
@@ -873,7 +892,8 @@ private:
             total_tokens += subsequence_desc.num_tokens;
 
         auto query_shape = ov::PartialShape{total_tokens, num_heads * head_size};
-        auto query_layout = cldnn::layout{query_shape, cldnn::data_types::f16, cldnn::format::bfyx};
+        const bool use_f32 = inference_precision == ov::element::f32;
+        auto query_layout = cldnn::layout{query_shape, use_f32 ? cldnn::data_types::f32 : cldnn::data_types::f16, cldnn::format::bfyx};
         auto memory = test_engine.allocate_memory(query_layout);
 
         for (int subsequence_idx = 0; subsequence_idx < static_cast<int>(subsequence_descs.size()); subsequence_idx++) {
@@ -889,7 +909,15 @@ private:
                     size_t output_token_offset = subsequence_begins[subsequence_idx] + token_idx;
                     size_t output_offset = output_token_offset * num_heads * head_size + head_idx * head_size;
 
-                    set_values(test_stream, memory, data_ptr, head_size, output_offset);
+                    if (use_f32) {
+                        std::vector<float> values(head_size);
+                        std::transform(data_ptr, data_ptr + head_size, values.begin(), [](ov::float16 value) {
+                            return static_cast<float>(value);
+                        });
+                        set_values(test_stream, memory, values.data(), values.size(), output_offset);
+                    } else {
+                        set_values(test_stream, memory, data_ptr, head_size, output_offset);
+                    }
                 }
             }
         }
@@ -1565,12 +1593,12 @@ public:
         } else {
             if (pam.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                 if (pam.is_int4_kv_cache()) {
-                    // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size, block_size/2+4] u8
+                    // INT4 BY_CHANNEL: [num_blocks, kv_heads, k_head_size, block_size/2+scale_zp_bytes] u8
                     // block_size dim is packed: 2 u4 tokens per byte.
-                    // Comp at [d, packed_block..packed_block+3]: 2 fp16 = inv_scale, zp per head dim.
+                    // Comp follows the packed bytes and stores inv_scale and zp in inference precision.
                     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int packed_block = pam.block_size / 2;
-                    const int adj_block_size = packed_block + 4;  // block_size/2 + sizeof(fp16)*2
+                    const int adj_block_size = packed_block + pam.get_scale_zp_bytes();  // block_size/2 + scale/zp bytes
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                         const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1583,9 +1611,8 @@ public:
                             for (int d = 0; d < pam.k_head_size; d++) {
                                 // Read inv_scale and zp from comp region
                                 const size_t comp_byte_off = cache_base + static_cast<size_t>(d) * adj_block_size + packed_block;
-                                const ov::float16* comp = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_off]);
-                                float inv_scale = static_cast<float>(comp[0]);
-                                float zp_val = static_cast<float>(comp[1]);
+                                const float inv_scale = pam.read_comp_value(&cache_ptr[comp_byte_off]);
+                                const float zp_val = pam.read_comp_value(&cache_ptr[comp_byte_off + pam.inference_precision.size()]);
 
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                     const int token_idx = block_idx * pam.block_size + token_offset;
@@ -1601,10 +1628,10 @@ public:
                         }
                     }
                 } else {
-                    // I8/U8 BY_CHANNEL: [num_blocks, num_kv_heads, head_size, block_size+4]
+                    // I8/U8 BY_CHANNEL: [num_blocks, num_kv_heads, head_size, block_size+scale_zp_bytes]
                     // Each dimension quantized across all tokens in block
                     cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
-                    const int adj_block_size = pam.block_size + 4;
+                    const int adj_block_size = pam.block_size + pam.get_scale_zp_bytes();
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                         const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1617,8 +1644,8 @@ public:
                             for (int dim = 0; dim < pam.k_head_size; dim++) {
                                 // Read scale and zero-point for this dimension
                                 const size_t scale_offset = cache_base + static_cast<size_t>(dim) * adj_block_size + pam.block_size;
-                                ov::float16 scale = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset]);
-                                ov::float16 zp = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset + 2]);
+                                const float scale = pam.read_comp_value(&cache_ptr[scale_offset]);
+                                const float zp = pam.read_comp_value(&cache_ptr[scale_offset + pam.inference_precision.size()]);
 
                                 // Dequantize all tokens for this dimension
                                 for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
@@ -1628,7 +1655,7 @@ public:
                                         static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size + dim;
 
                                     int8_t quantized_value = cache_ptr[cache_offset];
-                                    float dequantized = (static_cast<float>(quantized_value) - static_cast<float>(zp)) * static_cast<float>(scale);
+                                    float dequantized = (static_cast<float>(quantized_value) - zp) * scale;
                                     key_data[output_offset] = ov::float16(dequantized);
                                 }
                             }
@@ -1638,16 +1665,16 @@ public:
             } else {
                 // BY_TOKEN
                 if (pam.is_int4_kv_cache()) {
-                    // INT4 BY_TOKEN: [num_blocks, kv_heads, k_head_size/2+8, block_size] u8
+                    // INT4 BY_TOKEN: [num_blocks, kv_heads, k_head_size/2+scale_zp_bytes, block_size] u8
                     // Packing (SUBGROUP_SIZE=16):
                     //   Y = pack_group*16 + sglid, where pack_group = d/(2*16), sglid = d%16
                     //   lower nibble = q(dim[pack_group*32 + sglid])
                     //   upper nibble = q(dim[pack_group*32 + sglid + 16])
-                    // Scale/ZP: fp16 in comp region at base + packed_head_size*block_size
+                    // Scale/ZP in inference precision in comp region at base + packed_head_size*block_size
                     //   inv_scale[t] at comp_ptr[t], zp[t] at comp_ptr[block_size + t]
                     cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                     const int packed_head_size = pam.k_head_size / 2;
-                    const int adj_head_size = packed_head_size + 8;
+                    const int adj_head_size = packed_head_size + pam.get_scale_zp_bytes();
                     constexpr int SG = 16;
 
                     for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
@@ -1659,13 +1686,12 @@ public:
                                                       static_cast<size_t>(head_idx) * adj_head_size * pam.block_size;
                             // Scale and ZP are in the comp region after the packed data
                             const size_t comp_byte_base = cache_base + static_cast<size_t>(packed_head_size) * pam.block_size;
-                            const auto* inv_scale_arr = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_base]);
-                            const auto* zp_arr = reinterpret_cast<const ov::float16*>(&cache_ptr[comp_byte_base + pam.block_size * 2]);
+                            const size_t comp_elem_size = pam.inference_precision.size();
 
                             for (int token_offset = 0; token_offset < tokens_in_block; token_offset++) {
                                 const int token_idx = block_idx * pam.block_size + token_offset;
-                                float inv_scale = static_cast<float>(inv_scale_arr[token_offset]);
-                                float zp_val = static_cast<float>(zp_arr[token_offset]);
+                                const float inv_scale = pam.read_comp_value(&cache_ptr[comp_byte_base + token_offset * comp_elem_size]);
+                                const float zp_val = pam.read_comp_value(&cache_ptr[comp_byte_base + (pam.block_size + token_offset) * comp_elem_size]);
                                 const size_t out_base =
                                     static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size;
 
@@ -1686,9 +1712,9 @@ public:
                     return key_data;
                 }
 
-                // BY_TOKEN: [num_blocks, num_kv_heads, head_size+4, block_size]
+                // BY_TOKEN: [num_blocks, num_kv_heads, head_size+scale_zp_bytes, block_size]
                 // Token-wise quantization with shared scale/zp per token
-                // Layout: data rows [0..head_size-1], scale at [head_size], zp at [head_size+2] (fp16)
+                // Layout: data rows [0..head_size-1], followed by scale and zero-point rows in inference precision.
                 cldnn::mem_lock<int8_t, cldnn::mem_lock_type::read> cache_ptr(key_cache_mem, test_stream);
                 for (int block_idx = 0; block_idx < num_blocks; block_idx++) {
                     const int physical_block = pam.block_indices[blocks_start + block_idx];
@@ -1698,16 +1724,17 @@ public:
                         const int token_idx = block_idx * pam.block_size + token_offset;
 
                         for (int head_idx = 0; head_idx < pam.num_kv_heads; head_idx++) {
-                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * (pam.k_head_size + 4) * pam.block_size +
-                                                      static_cast<size_t>(head_idx) * (pam.k_head_size + 4) * pam.block_size;
+                            const size_t adjusted_head_size = pam.k_head_size + pam.get_scale_zp_bytes();
+                            const size_t cache_base = static_cast<size_t>(physical_block) * pam.num_kv_heads * adjusted_head_size * pam.block_size +
+                                                      static_cast<size_t>(head_idx) * adjusted_head_size * pam.block_size;
 
                             // Read scale and zero-point for this token
-                            // Scale is at [head_size][token], ZP is at [head_size+2][token] (2 rows below)
-                            // token_offset * 2 because each half is 2 bytes (token 0 at offset 0-1, token 1 at offset 2-3, etc.)
-                            const size_t scale_offset = cache_base + static_cast<size_t>(pam.k_head_size) * pam.block_size + token_offset * 2;
-                            const size_t zp_offset = scale_offset + 2 * pam.block_size;  // ZP is 2 rows below scale
-                            ov::float16 scale = *reinterpret_cast<const ov::float16*>(&cache_ptr[scale_offset]);
-                            ov::float16 zp = *reinterpret_cast<const ov::float16*>(&cache_ptr[zp_offset]);
+                            // Scale is at [head_size][token], followed by a zero-point row of the same element width.
+                            const size_t comp_elem_size = pam.inference_precision.size();
+                            const size_t scale_offset = cache_base + static_cast<size_t>(pam.k_head_size) * pam.block_size + token_offset * comp_elem_size;
+                            const size_t zp_offset = scale_offset + comp_elem_size * pam.block_size;
+                            const float scale = pam.read_comp_value(&cache_ptr[scale_offset]);
+                            const float zp = pam.read_comp_value(&cache_ptr[zp_offset]);
 
                             const size_t output_base =
                                 static_cast<size_t>(head_idx) * total_tokens * pam.k_head_size + static_cast<size_t>(token_idx) * pam.k_head_size;
@@ -1717,7 +1744,7 @@ public:
                                 const size_t cache_offset = cache_base + static_cast<size_t>(dim) * pam.block_size + token_offset;
 
                                 int8_t quantized_value = cache_ptr[cache_offset];
-                                float dequantized = (static_cast<float>(quantized_value) - static_cast<float>(zp)) * static_cast<float>(scale);
+                                float dequantized = (static_cast<float>(quantized_value) - zp) * scale;
 
                                 key_data[output_base + dim] = ov::float16(dequantized);
                             }
@@ -1801,7 +1828,8 @@ public:
                     p.scores_mode == ScoresMode::SNAPKV,
                     p.has_xattention,
                     p.rotation_config,
-                    p.kv_cache_precision);
+                    p.kv_cache_precision,
+                    p.inference_precision);
 
         if (p.zero_key_data) {
             for (auto& sequence_key_data : pam->key_data) {
@@ -2184,6 +2212,12 @@ public:
         // FlashAttn v1 or v2?
         config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.force_flashattn_v2 ? true : !p.disable_flashattn_v2));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
+        if (p.inference_precision != ov::element::dynamic) {
+            config.set_property(ov::hint::inference_precision(p.inference_precision));
+        }
+        if (p.disable_sdpa_micro) {
+            config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+        }
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
         }
@@ -3008,6 +3042,13 @@ struct paged_attention_test_params {
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
+
+    // Inference precision hint applied to the network (ov::hint::inference_precision).
+    // dynamic keeps the plugin default (f16), preserving byte-identical existing tests.
+    ov::element::Type inference_precision = ov::element::dynamic;
+
+    // Force the OCL PagedAttention kernel for tests targeting its inference-precision metadata path.
+    bool disable_sdpa_micro = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
