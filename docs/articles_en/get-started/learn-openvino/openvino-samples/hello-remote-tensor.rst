@@ -20,10 +20,13 @@ context to its Level Zero context. Requirements:
   a hard requirement: without it the sample always fails, because the plugin
   has no Level Zero context to offer. The Level Zero runtime (``ZE`` or
   ``COMBINED``) falls back to a native Level Zero context on a driver without LEO.
-- Level Zero headers and OpenCL development files. CMake skips this sample if
-  either is missing. The Level Zero loader library is not linked; it is loaded
-  at runtime from the system, where the GPU driver installs it (on Ubuntu, the
-  ``libze1`` package).
+- Level Zero headers and loader library (``ze_loader``), and OpenCL development
+  files (headers and the ICD loader library), to build the sample. OpenCL is
+  used for a single call, ``clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)``.
+  CMake skips this sample with a status message if any of them is missing,
+  unless the sample was selected explicitly with ``BUILD_SAMPLE_NAME``, in which
+  case the configuration fails with an error. At run time, the Level Zero
+  loader is provided by the GPU driver (on Ubuntu, the ``libze1`` package).
 - A model with one input and one output, in any format supported by
   ``ov::Core::read_model``.
 - A directly selected GPU device, for example ``GPU`` or ``GPU.0``.

@@ -36,10 +36,10 @@ For more detailed information on how this sample works, check the dedicated [art
   Only in the edge case of the Level Zero plugin (`GPU_RT_TYPE=ZE` or `COMBINED`) running on
   a driver without LEO, the default context is already a Level Zero context
   (`ov::intel_gpu::ContextType::ZE`) and its handle is used directly.
-- OpenCL headers and the OpenCL ICD loader library.
-- Level Zero headers to build. The Level Zero loader library (`libze_loader.so.1` /
-  `ze_loader.dll`) is not linked; it is loaded at runtime from the system, where it is
-  installed together with the GPU driver (or the `libze1` package on Ubuntu).
+- OpenCL headers and the OpenCL ICD loader library to build the sample. They are used for a single
+  `clGetContextInfo` call (see above).
+- Level Zero headers and the Level Zero loader library (`ze_loader`) to build the sample, which links
+  the loader. At run time the loader is provided by the GPU driver (or the `libze1` package on Ubuntu).
 
 The following C++ API is used in the application:
 
@@ -66,10 +66,11 @@ The following C++ API is used in the application:
 
 Build the C++ samples using the usual OpenVINO sample build procedure. The target
 is `hello_remote_tensor`. For a standalone samples build, select it with
-`BUILD_SAMPLE_NAME=hello_remote_tensor`; CMake skips this target with a status
-message if Level Zero or OpenCL development files are unavailable. For nonstandard system
-installations, set `LEVEL_ZERO_INCLUDE_DIR` to the directory containing
-`level_zero/ze_api.h`.
+`BUILD_SAMPLE_NAME=hello_remote_tensor`. If Level Zero or OpenCL development files are
+unavailable, CMake skips this target with a status message, unless the sample was selected
+explicitly with `BUILD_SAMPLE_NAME`, in which case the configuration fails with an error.
+For nonstandard system installations, set `LEVEL_ZERO_INCLUDE_DIR` to the directory containing
+`level_zero/ze_api.h` and `LEVEL_ZERO_LOADER_LIBRARY` to the `ze_loader` library.
 
 After setting up the OpenVINO runtime environment, run:
 
@@ -84,8 +85,8 @@ top 10 classification results and returns a nonzero exit code on failure.
 
 ## What the sample demonstrates
 
-1. Initialize Level Zero with `zeInitDrivers` and create `ov::Core`.
-2. Obtain the plugin's default remote context and convert it to a Level Zero context. The
+1. Create `ov::Core` and obtain the plugin's default remote context.
+2. Initialize Level Zero with `zeInitDrivers` and convert the context to a Level Zero context. The
    default context is an `OCL` context whose `cl_context` is exposed under the
    `ov::intel_gpu::ocl_context` property; the sample converts it with the LEO query
    `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)`. In the edge case of a `ZE` context

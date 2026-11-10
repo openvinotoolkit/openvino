@@ -17,6 +17,7 @@
 #    define CL_TARGET_OPENCL_VERSION 300
 #endif
 #include <CL/cl.h>
+#include <level_zero/ze_api.h>
 
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
@@ -26,7 +27,6 @@
 #include "samples/classification_results.h"
 #include "samples/slog.hpp"
 #include "format_reader_ptr.h"
-#include "level_zero_api.hpp"
 // clang-format on
 
 #define ZE_CHECK(fn_call) check_ze_call((fn_call), #fn_call)
@@ -45,13 +45,13 @@ void initialize_level_zero() {
     desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
     desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_GPU;
     uint32_t driver_count = 0;
-    ZE_CHECK(ze::zeInitDrivers(&driver_count, nullptr, &desc));
+    ZE_CHECK(zeInitDrivers(&driver_count, nullptr, &desc));
     OPENVINO_ASSERT(driver_count > 0, "No Level Zero GPU driver found");
 }
 
 struct CommandListDeleter {
     void operator()(ze_command_list_handle_t command_list) const {
-        const auto result = ze::zeCommandListDestroy(command_list);
+        const auto result = zeCommandListDestroy(command_list);
         if (result != ZE_RESULT_SUCCESS) {
             std::cerr << "zeCommandListDestroy failed with Level Zero error " << result << std::endl;
         }
@@ -62,12 +62,12 @@ using CommandList = std::unique_ptr<std::remove_pointer_t<ze_command_list_handle
 
 CommandList create_command_list(ze_context_handle_t context, ze_device_handle_t device) {
     uint32_t count = 0;
-    ZE_CHECK(ze::zeDeviceGetCommandQueueGroupProperties(device, &count, nullptr));
+    ZE_CHECK(zeDeviceGetCommandQueueGroupProperties(device, &count, nullptr));
     std::vector<ze_command_queue_group_properties_t> groups(count);
     for (auto& group : groups) {
         group.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
     }
-    ZE_CHECK(ze::zeDeviceGetCommandQueueGroupProperties(device, &count, groups.data()));
+    ZE_CHECK(zeDeviceGetCommandQueueGroupProperties(device, &count, groups.data()));
 
     for (uint32_t ordinal = 0; ordinal < count; ++ordinal) {
         if (groups[ordinal].numQueues > 0 && (groups[ordinal].flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY)) {
@@ -76,7 +76,7 @@ CommandList create_command_list(ze_context_handle_t context, ze_device_handle_t 
             desc.ordinal = ordinal;
             desc.mode = ZE_COMMAND_QUEUE_MODE_SYNCHRONOUS;
             ze_command_list_handle_t handle = nullptr;
-            ZE_CHECK(ze::zeCommandListCreateImmediate(context, device, &desc, &handle));
+            ZE_CHECK(zeCommandListCreateImmediate(context, device, &desc, &handle));
             return CommandList(handle);
         }
     }
@@ -84,13 +84,16 @@ CommandList create_command_list(ze_context_handle_t context, ze_device_handle_t 
 }
 
 void copy_memory(ze_command_list_handle_t command_list, void* destination, const void* source, size_t bytes) {
-    ZE_CHECK(ze::zeCommandListAppendMemoryCopy(command_list, destination, source, bytes, nullptr, 0, nullptr));
+    ZE_CHECK(zeCommandListAppendMemoryCopy(command_list, destination, source, bytes, nullptr, 0, nullptr));
     // Wait explicitly so the data is complete before OpenVINO or the host uses it.
-    ZE_CHECK(ze::zeCommandListHostSynchronize(command_list, std::numeric_limits<uint64_t>::max()));
+    ZE_CHECK(zeCommandListHostSynchronize(command_list, std::numeric_limits<uint64_t>::max()));
 }
 
 void* get_usm_pointer(const ov::RemoteTensor& tensor) {
-    void* pointer = tensor.get_params().at(ov::intel_gpu::mem_handle.name()).as<void*>();
+    const auto params = tensor.get_params();
+    const auto it = params.find(ov::intel_gpu::mem_handle.name());
+    OPENVINO_ASSERT(it != params.end(), "The GPU plugin did not report the USM pointer of the remote tensor");
+    void* pointer = it->second.as<void*>();
     OPENVINO_ASSERT(pointer != nullptr, "The GPU plugin returned a null USM pointer");
     return pointer;
 }
@@ -99,9 +102,13 @@ void* get_usm_pointer(const ov::RemoteTensor& tensor) {
 constexpr cl_context_info cl_l0_context_handle = 0x42B0;
 
 ze_context_handle_t get_level_zero_context(const ov::AnyMap& context_params) {
-    const auto type = context_params.at(ov::intel_gpu::context_type.name()).as<ov::intel_gpu::ContextType>();
+    const auto type_it = context_params.find(ov::intel_gpu::context_type.name());
+    OPENVINO_ASSERT(type_it != context_params.end(), "The GPU plugin did not report the context type");
+    const auto type = type_it->second.as<ov::intel_gpu::ContextType>();
     // The current GPU API uses the OCL_CONTEXT key also for the native handle of a ZE context.
-    void* handle = context_params.at(ov::intel_gpu::ocl_context.name()).as<void*>();
+    const auto handle_it = context_params.find(ov::intel_gpu::ocl_context.name());
+    OPENVINO_ASSERT(handle_it != context_params.end(), "The GPU plugin did not report the context handle");
+    void* handle = handle_it->second.as<void*>();
     OPENVINO_ASSERT(handle != nullptr, "The GPU plugin returned a null context handle");
 
     if (type == ov::intel_gpu::ContextType::ZE) {
@@ -112,6 +119,7 @@ ze_context_handle_t get_level_zero_context(const ov::AnyMap& context_params) {
     // Without a dedicated Level Zero remote context in OpenVINO, the plugin's default context is an OpenCL
     // context. Level Zero - OpenCL interoperability (LEO) of the driver converts it to the underlying Level Zero
     // context. This is the only OpenCL call in the sample.
+    // The returned ze_context is borrowed from the OpenCL context: it must not outlive it or be destroyed.
     ze_context_handle_t ze_context = nullptr;
     const cl_int result = clGetContextInfo(static_cast<cl_context>(handle),
                                            cl_l0_context_handle,
@@ -151,17 +159,17 @@ int tmain(int argc, tchar* argv[]) {
         const std::string model_path = TSTRING2STRING(argv[1]);
         const std::string image_path = TSTRING2STRING(argv[2]);
         const std::string device_name = TSTRING2STRING(argv[3]);
-        OPENVINO_ASSERT(device_name == "GPU" || device_name.rfind("GPU.", 0) == 0,
-                        "Select a GPU device directly (e.g. GPU or GPU.0), not CPU, AUTO, MULTI or HETERO");
 
-        // -------- Step 1. Initialize Level Zero and OpenVINO Runtime Core --------
-        initialize_level_zero();
+        // -------- Step 1. Initialize OpenVINO Runtime Core and get the default context of the GPU plugin --------
+        // This is done before loading Level Zero, so a missing GPU plugin is reported by the usual OpenVINO
+        // exception instead of a Level Zero loader error.
         ov::Core core;
+        auto context = core.get_default_context(device_name);
 
-        // -------- Step 2. Get the Level Zero context of the GPU plugin --------
+        // -------- Step 2. Initialize Level Zero and get the Level Zero context of the GPU plugin --------
         // The default context is an OpenCL context converted through LEO; a ZE context is the edge case of the
         // Level Zero plugin on a driver without LEO.
-        auto context = core.get_default_context(device_name);
+        initialize_level_zero();
         const auto ze_context = get_level_zero_context(context.get_params());
 
         // -------- Step 3. Read a model --------
@@ -227,7 +235,7 @@ int tmain(int argc, tchar* argv[]) {
         ze_memory_allocation_properties_t allocation = {};
         allocation.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
         ze_device_handle_t ze_device = nullptr;
-        ZE_CHECK(ze::zeMemGetAllocProperties(ze_context, input_pointer, &allocation, &ze_device));
+        ZE_CHECK(zeMemGetAllocProperties(ze_context, input_pointer, &allocation, &ze_device));
         OPENVINO_ASSERT(allocation.type == ZE_MEMORY_TYPE_DEVICE && ze_device != nullptr,
                         "Expected a Level Zero device allocation");
 
