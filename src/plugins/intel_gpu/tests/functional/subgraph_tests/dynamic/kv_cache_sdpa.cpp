@@ -435,7 +435,7 @@ std::vector<Params> get_test_params() {
     // Compressed beam search (batch > 1 exercises indirect sdpa_opt path on IMMAD)
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::f16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
 
-    // BF16 mirrors of the f16 coverage above (exercises sdpa_micro.cl and sdpa_opt.cl for bf16).
+    // BF16 mirrors of the f16 coverage above (exercises sdpa_ocl.cl on its lane and sdpa_opt.cl for bf16).
     p.push_back({with_rearrange, !with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 1, 64, 64, 1, {0, 1, 2, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 1, 2, 3}});
     p.push_back({with_rearrange, with_mask, !with_scale, !causal, !compressed, 1, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
