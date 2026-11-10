@@ -256,32 +256,35 @@ describe("ov.InferRequest tests", () => {
     const core = new ov.Core();
     const compiled = core.compileModelSync(core.readModelSync(addModel.xml), "CPU");
     const inferQueue = new ov.AsyncInferQueue(compiled, 1);
-    const wrappers = [];
-    inferQueue.setCallback((err, request) => {
-      assert.ifError(err);
-      wrappers.push(request);
-    });
-    const input = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(1));
-    for (let i = 0; i < 2; i++) {
-      await inferQueue.startAsync({ data1: input, data2: input });
+    try {
+      const wrappers = [];
+      inferQueue.setCallback((err, request) => {
+        assert.ifError(err);
+        wrappers.push(request);
+      });
+      const input = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(1));
+      for (let i = 0; i < 2; i++) {
+        await inferQueue.startAsync({ data1: input, data2: input });
+      }
+      // Both callbacks got a separate JS object for the same native request.
+      assert.strictEqual(wrappers.length, 2);
+      assert.notStrictEqual(wrappers[0], wrappers[1]);
+
+      const values = Array.from({ length: 16 }, (_, i) => i);
+      const results = await Promise.all(
+        values.map((value) => {
+          const tensor = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(value));
+          return wrappers[value % 2].inferAsync([tensor, tensor]);
+        }),
+      );
+
+      assert.deepStrictEqual(
+        results.map((result) => Object.values(result)[0].data[0]),
+        values.map((value) => 2 * value),
+      );
+    } finally {
+      inferQueue.release();
     }
-    // Both callbacks got a separate JS object for the same native request.
-    assert.strictEqual(wrappers.length, 2);
-    assert.notStrictEqual(wrappers[0], wrappers[1]);
-
-    const values = Array.from({ length: 16 }, (_, i) => i);
-    const results = await Promise.all(
-      values.map((value) => {
-        const tensor = new ov.Tensor(ov.element.f32, [2, 1], new Float32Array(2).fill(value));
-        return wrappers[value % 2].inferAsync([tensor, tensor]);
-      }),
-    );
-    inferQueue.release();
-
-    assert.deepStrictEqual(
-      results.map((result) => Object.values(result)[0].data[0]),
-      values.map((value) => 2 * value),
-    );
   });
 
   describe("BigInt InferRequest support", () => {
