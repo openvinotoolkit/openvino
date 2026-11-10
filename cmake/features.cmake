@@ -252,7 +252,7 @@ else()
     set(ENABLE_OV_ZERO_LOADER OFF)
 endif()
 
-set(OV_ZE_INCLUDE_DIR "" CACHE PATH "Path to custom Level Zero headers. If not provided then defaults to submodule in thirdpaty/level_zero")
+set(OV_ZE_INCLUDE_DIR "" CACHE PATH "Include directory with custom Level Zero headers. If not provided then defaults to submodule in thirdparty/level_zero")
 
 #
 # Process featues
