@@ -19,7 +19,7 @@ namespace intel_npu {
  */
 class ELFMainScheduleSection final : public ISection {
 public:
-    ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
+    ELFMainScheduleSection(const std::shared_ptr<IGraph>& graph,
                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr);
 
     ELFMainScheduleSection(ov::Tensor&& main_schedule,
@@ -36,7 +36,7 @@ public:
     /**
      * @brief Stores the given graph. The previously stored graph or schedule (as tensor) will be discarded.
      */
-    void set_graph(const std::shared_ptr<Graph>& graph);
+    void set_graph(const std::shared_ptr<IGraph>& graph);
 
     void set_encryption_callback(const std::function<std::string(const std::string&)> encryption_callback);
 
@@ -52,7 +52,7 @@ private:
     /**
      * @brief Where the compiler schedule is found. Either the graph or the current class handles ownership.
      */
-    std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
+    std::variant<std::shared_ptr<IGraph>, ov::Tensor> m_graph_or_schedule;
     /**
      * @brief Used to encrypt the schedule before writing it if available.
      * @note Encryption will happen only if this attribute is not null.
@@ -103,7 +103,7 @@ private:
      */
     std::function<std::string(const std::string&)> m_encryption_callback;
 
-    std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
+    std::variant<std::shared_ptr<IGraph>, ov::Tensor> m_graph_or_schedule;
 
     Logger m_logger;
 };

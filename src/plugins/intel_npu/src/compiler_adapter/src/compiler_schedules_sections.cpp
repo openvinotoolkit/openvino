@@ -32,7 +32,7 @@ const ov::runtime::hsm::SectionAlignment PAGE_ALIGNED_BEGINNING{utils::STANDARD_
 namespace intel_npu {
 
 ELFMainScheduleSection::ELFMainScheduleSection(
-    const std::shared_ptr<Graph>& graph,
+    const std::shared_ptr<IGraph>& graph,
     const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE, PAGE_ALIGNED_BEGINNING),
       m_graph_or_schedule(graph),
@@ -59,7 +59,7 @@ std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility
 
 void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::write");
-    const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
+    const auto* graph = std::get_if<std::shared_ptr<IGraph>>(&m_graph_or_schedule);
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
 
     if (!m_encryption_callback) {
@@ -85,7 +85,7 @@ void ELFMainScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) c
     sink({reinterpret_cast<const std::byte*>(encrypted_payload.c_str()), encrypted_payload.size()});
 }
 
-void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
+void ELFMainScheduleSection::set_graph(const std::shared_ptr<IGraph>& graph) {
     OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
     OPENVINO_ASSERT(std::holds_alternative<ov::Tensor>(m_graph_or_schedule), INVALID_STATE_MESSAGE);
     m_graph_or_schedule = graph;
@@ -143,7 +143,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
 };
 
 std::optional<std::string> ELFMainScheduleSection::get_individual_compatibility_requirements() const {
-    const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
+    const auto* graph = std::get_if<std::shared_ptr<IGraph>>(&m_graph_or_schedule);
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
     std::optional<std::string_view> requirements = (*graph)->get_compatibility_descriptor();
     return requirements.has_value()
@@ -329,7 +329,7 @@ DynamicScheduleSection::DynamicScheduleSection(
     const std::shared_ptr<DynamicGraph>& graph,
     const std::function<std::string(const std::string&)>& encryption_callback)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE, PAGE_ALIGNED_BEGINNING),
-      m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callback),
+      m_impl(std::static_pointer_cast<IGraph>(graph), encryption_callback),
       m_logger("DynamicScheduleSection", Logger::global().level()) {}
 
 DynamicScheduleSection::DynamicScheduleSection(
@@ -353,7 +353,7 @@ void DynamicScheduleSection::encode(const ov::runtime::hsm::SectionSink& sink) c
 }
 
 void DynamicScheduleSection::set_graph(const std::shared_ptr<DynamicGraph>& graph) {
-    m_impl.set_graph(std::dynamic_pointer_cast<Graph>(graph));
+    m_impl.set_graph(std::static_pointer_cast<IGraph>(graph));
 }
 
 void DynamicScheduleSection::set_encryption_callback(
