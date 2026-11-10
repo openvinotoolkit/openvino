@@ -274,7 +274,7 @@ void expect_value_roundtrip(const Value& input, const std::optional<std::string>
         SCOPED_TRACE(source);
         ASSERT_TRUE(decoded);
         ASSERT_EQ(decoded->size(), 1);
-        const auto& leaf = decoded->at("k");
+        const ov::Any& leaf = decoded->at("k");
         ASSERT_TRUE(leaf.is<std::string>());
         if (expected_text) {
             EXPECT_EQ(leaf.as<std::string>(), *expected_text);
