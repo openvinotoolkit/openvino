@@ -199,7 +199,13 @@ html_css_files = [
 ]
 
 html_js_files = [
-    'https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js',
+    (
+        'https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js',
+        {
+            'integrity': 'sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2',
+            'crossorigin': 'anonymous',
+        },
+    ),
     'js/openvino_sphinx_theme.js',
     'js/splide.min.js',
     'js/sortable_tables.js',
@@ -212,6 +218,15 @@ html_js_files = [
     'js/custom.js',
     'js/modern.js',
 ]
+
+# 1. Define the exact version of MathJax you want to load to guarantee the hash stays valid
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"
+
+# 2. Add the SRI Integrity hash and the cross-origin parameter
+mathjax_options = {
+    'integrity': 'sha384-Wuix6BuhrWbjDBs24bXrjf4ZQ5aFeFWBuKkFekO2t8xFU0iNaLQfp2K6/1Nxveei',
+    'crossorigin': 'anonymous'
+}
 
 # monkeypatch sphinx api doc to prevent showing inheritance from object and enum.Enum
 add_line = ClassDocumenter.add_line
