@@ -72,6 +72,10 @@ void ITensor::copy_to(const std::shared_ptr<ov::ITensor>& dst) const {
         dst->set_shape(shape);
     }
 
+    if (get_size() == 0) {
+        return;
+    }
+
     if (auto remote_tensor_dst = std::dynamic_pointer_cast<ov::IRemoteTensor>(dst)) {
         remote_tensor_dst->copy_from(shared_from_this());
         return;
