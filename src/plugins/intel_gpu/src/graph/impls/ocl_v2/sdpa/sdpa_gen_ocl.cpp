@@ -1543,14 +1543,13 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
         jit.make("PLAIN_KV_U4", 1);
         if (qdt == ov::element::i4)
             jit.make("PLAIN_KV_U4_SIGNED", 1);
-        jit.make("USE_2D_BLOCK_IO_K_U4", block2d_env_int("SDPA_OCL_K_U4_2D", block2d_layout_ok(in.k, in.ldk) ? 1 : 0, allowed));
+        jit.make("USE_2D_BLOCK_IO_K_U4", (allowed && block2d_layout_ok(in.k, in.ldk)) ? 1 : 0);
         // The u4 V block read hands a subgroup a 32-column window and keeps no lane shuffle, so its value blocks must pair
         // into windows (sdpa_ocl_config.cl PLAIN_V_U4_PERMUTED); every tiling in choose_config() does.
         const auto& t = in.problem.tiling;
         const int value_blocks = t.sv_sg_tile_values / t.subgroup_size;
         const bool v_u4_window_split_ok = value_blocks % 2 == 0 || (value_blocks == 1 && t.sv_sg_per_wg_values % 2 == 0);
-        const int v_u4_2d = (block2d_layout_ok(in.v, in.ldv) && v_u4_window_split_ok) ? 1 : 0;
-        jit.make("USE_2D_BLOCK_IO_V_U4", v_u4_window_split_ok ? block2d_env_int("SDPA_OCL_V_U4_2D", v_u4_2d, allowed) : 0);
+        jit.make("USE_2D_BLOCK_IO_V_U4", (allowed && block2d_layout_ok(in.v, in.ldv) && v_u4_window_split_ok) ? 1 : 0);
     }
     int v_i8_2d = (config.is_kv_compressed && !kv_u4 && block2d_layout_ok(in.v, in.ldv)) ? 1 : 0;
     if (config.is_kv_compressed)
