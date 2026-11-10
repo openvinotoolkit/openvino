@@ -82,17 +82,69 @@ TEST(moe_expert_weight_provider, offload_bind_rejects_invalid_logical_sizes) {
     const layout backing_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
     auto backing_memory = engine.allocate_memory(backing_layout, true);
 
-    for (const size_t bytes_count : {0U, 2U, 10U}) {
-        SCOPED_TRACE(bytes_count);
-        OffloadExpertWeightProvider provider(/*capacity=*/2, config, {}, "/nonexistent");
-        const layout invalid_layout({1, 1, 1, static_cast<int64_t>(bytes_count)}, data_types::u8, format::bfyx);
-        ASSERT_EQ(invalid_layout.bytes_count(), bytes_count);
-        cldnn::moe_weights resident{};
-        resident.gate_w = engine.reinterpret_buffer(*backing_memory, invalid_layout);
+    for (const auto buffer : {&moe_weights::gate_w, &moe_weights::up_w, &moe_weights::down_w, &moe_weights::gate_s, &moe_weights::up_s, &moe_weights::down_s}) {
+        for (const size_t bytes_count : {0U, 1U, 2U, 10U}) {
+            SCOPED_TRACE(bytes_count);
+            OffloadExpertWeightProvider provider(/*capacity=*/2, config, {}, "/nonexistent");
+            const layout invalid_layout({1, 1, 1, static_cast<int64_t>(bytes_count)}, data_types::u8, format::bfyx);
+            ASSERT_EQ(invalid_layout.bytes_count(), bytes_count);
+            cldnn::moe_weights resident{};
+            resident.*buffer = engine.reinterpret_buffer(*backing_memory, invalid_layout);
 
-        EXPECT_THROW(provider.bind(resident), ov::AssertFailure);
-        EXPECT_FALSE(provider.is_bound());
-        EXPECT_FALSE(provider.cache().is_initialized());
+            EXPECT_THROW(provider.bind(resident), ov::AssertFailure);
+            EXPECT_FALSE(provider.is_bound());
+            EXPECT_FALSE(provider.cache().is_initialized());
+        }
+    }
+}
+
+TEST(moe_expert_weight_provider, offload_bind_accepts_absent_and_scalar_zero_points) {
+    auto& engine = get_test_engine();
+    const layout scalar_layout({1, 1, 1, 1}, data_types::u8, format::bfyx);
+    auto scalar_memory = engine.allocate_memory(scalar_layout, true);
+    for (const bool has_zp : {false, true}) {
+        SCOPED_TRACE(has_zp);
+        MOECompressed::Config config{};
+        config.num_expert = 4;
+        config.has_zp = has_zp;
+        OffloadExpertWeightProvider provider(/*capacity=*/2, config, {}, "/nonexistent");
+        const layout zp_layout({1, 1, 1, has_zp ? 1 : 0}, data_types::u8, format::bfyx);
+        auto zp_memory = engine.reinterpret_buffer(*scalar_memory, zp_layout);
+        cldnn::moe_weights resident{};
+        resident.gate_z = zp_memory;
+        resident.up_z = zp_memory;
+        resident.down_z = zp_memory;
+
+        EXPECT_NO_THROW(provider.bind(resident));
+        EXPECT_TRUE(provider.is_bound());
+        EXPECT_TRUE(provider.cache().is_initialized());
+    }
+}
+
+TEST(moe_expert_weight_provider, offload_bind_validates_per_expert_zero_points) {
+    auto& engine = get_test_engine();
+    MOECompressed::Config config{};
+    config.num_expert = 4;
+    config.has_zp = true;
+    const layout backing_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto backing_memory = engine.allocate_memory(backing_layout, true);
+    for (const auto zero_point : {&moe_weights::gate_z, &moe_weights::up_z, &moe_weights::down_z}) {
+        for (const size_t bytes_count : {0U, 2U, 10U, 64U, 32U}) {
+            SCOPED_TRACE(bytes_count);
+            OffloadExpertWeightProvider provider(/*capacity=*/2, config, {}, "/nonexistent");
+            const layout zp_layout({1, 1, 1, static_cast<int64_t>(bytes_count)}, data_types::u8, format::bfyx);
+            cldnn::moe_weights resident{};
+            resident.*zero_point = engine.reinterpret_buffer(*backing_memory, zp_layout);
+            if (bytes_count == 32) {
+                EXPECT_NO_THROW(provider.bind(resident));
+                EXPECT_TRUE(provider.is_bound());
+                EXPECT_TRUE(provider.cache().is_initialized());
+            } else {
+                EXPECT_THROW(provider.bind(resident), ov::AssertFailure);
+                EXPECT_FALSE(provider.is_bound());
+                EXPECT_FALSE(provider.cache().is_initialized());
+            }
+        }
     }
 }
 

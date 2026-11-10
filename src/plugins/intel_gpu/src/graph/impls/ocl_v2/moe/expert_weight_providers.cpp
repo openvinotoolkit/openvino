@@ -79,7 +79,12 @@ void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
                                                                                        {"gate_z", resident.gate_z},
                                                                                        {"up_z", resident.up_z},
                                                                                        {"down_z", resident.down_z}}};
-    for (const auto& [name, memory] : routed_buffers) {
+    for (size_t buffer_idx = 0; buffer_idx < routed_buffers.size(); ++buffer_idx) {
+        const auto& [name, memory] = routed_buffers[buffer_idx];
+        const bool is_zero_point = buffer_idx >= 6;
+        if (is_zero_point && (!_config.has_zp || (memory && memory->get_layout().count() == 1))) {
+            continue;
+        }
         validate_resident_buffer_capacity(memory, _capacity, static_cast<size_t>(_config.num_expert), name);
     }
 
