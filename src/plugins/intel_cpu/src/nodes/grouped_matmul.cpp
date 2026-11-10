@@ -4,7 +4,9 @@
 
 #include "grouped_matmul.hpp"
 
-#include <algorithm>
+#ifdef OPENVINO_ARCH_X86_64
+    #include <algorithm>
+#endif
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -14,14 +16,14 @@
 #include "common/blocked_desc_creator.h"
 #include "config.h"
 #include "cpu_types.h"
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include "cpu/x64/cpu_isa_traits.hpp"
-#endif
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "node.h"
 #include "node_config.h"
+#ifdef OPENVINO_ARCH_X86_64
+    #include "nodes/executors/dnnl/dnnl_inner_product_gemm.hpp"
+#endif
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/grouped_matmul_config.hpp"
@@ -98,7 +100,7 @@ bool GroupedMatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
     return true;
 }
 
-bool GroupedMatMul::isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
+bool GroupedMatMul::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
                                                    [[maybe_unused]] size_t IC,
                                                    [[maybe_unused]] size_t OC,
                                                    [[maybe_unused]] size_t G,
@@ -115,34 +117,7 @@ bool GroupedMatMul::isSupportedCompressedOperation(const std::shared_ptr<ov::Nod
             return false;
         }
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-            return false;
-        }
-
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-            config.inferencePrecision == ov::element::bf16) {
-            // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
-            // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
-            // used since fallback one doesn't support weights decompression feature.
-            constexpr size_t simdWidth = 16;
-            constexpr size_t vnniFactor = 2;
-            constexpr size_t maxSize = 512;
-            constexpr size_t amxRow = vnniFactor * simdWidth;
-
-            if ((IC <= amxRow && OC <= amxRow) || (IC <= maxSize && OC <= maxSize && IC % amxRow != 0)) {
-                return false;
-            }
-        }
-
-        if (IC % G != 0) {
-            return false;  // sanity check IC must be evenly divided by the group size
-        }
-
-        if (IC / G < 4) {
-            return false;  // minimal group size should be 4
-        }
-
-        if (OC == 1) {
+        if (!utils::is_supported_compressed_inner_product(IC, OC, G, config.inferencePrecision)) {
             return false;
         }
     } catch (...) {

@@ -173,5 +173,4 @@ TEST_F(TransformationTestsF, ConvertGMMToCompressedVetoedByPredicate) {
         });
 
     model = build();
-    model_ref = build();
 }

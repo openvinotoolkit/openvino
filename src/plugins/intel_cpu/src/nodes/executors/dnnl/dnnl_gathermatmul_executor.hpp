@@ -32,7 +32,7 @@ public:
 
 private:
     // The GEMM for an input of the given number of rows, from m_gemmKey through the runtime cache.
-    [[nodiscard]] dnnl_utils::InnerProductPtr createGemm(size_t rows) const;
+    [[nodiscard]] utils::InnerProductPtr createGemm(size_t rows) const;
 
     ExecutorContext::CPtr m_context;
 
@@ -40,10 +40,10 @@ private:
     MemoryPtr m_scalesMemory;
     MemoryPtr m_zpMemory;
 
-    dnnl_utils::InnerProductPtr m_gemvImpl;
+    utils::InnerProductPtr m_gemvImpl;
     // Key of the GEMMs run for M > 1 (experts with enough rows), each sized to the rows routed to its gather index
     // instead of the full input length. createGemm() sets the row count.
-    std::shared_ptr<const dnnl_utils::InnerProductKey> m_gemmKey;
+    std::shared_ptr<const utils::InnerProductKey> m_gemmKey;
 
     MemoryPtr m_tmpInpBuffer;
     MemoryDescPtr m_tmpInputDesc;

@@ -7,11 +7,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -33,39 +33,15 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
-using dnnl_utils::add_batch_dim;
-using dnnl_utils::InnerProduct;
-using dnnl_utils::InnerProductKey;
-using dnnl_utils::make_bias_md;
-using dnnl_utils::normalize_m;
+using utils::InnerProduct;
+using utils::InnerProductKey;
 
-bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
-#ifdef OPENVINO_ARCH_X86_64
-    // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
-    if ((config.descs.count(ARG_SRC) != 0U) && !config.descs.at(ARG_SRC)->empty()) {
-        const auto src_prc = config.descs.at(ARG_SRC)->getPrecision();
-        if (!any_of(src_prc, ov::element::f32, ov::element::bf16)) {
-            return false;
-        }
-    }
-    // For compressed (int) weights, require AVX2
-    if ((config.descs.count(ARG_WEI) != 0U) && !config.descs.at(ARG_WEI)->empty()) {
-        const auto wei_prc = config.descs.at(ARG_WEI)->getPrecision();
-        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3)) {
-            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-                return false;
-            }
-        }
-    }
-    return true;
-#else
-    return false;
-#endif
+bool GatherMatmulDnnlExecutor::supports(const GatherMatmulConfig& config) {
+    return utils::supports_inner_product(config.descs);
 }
 
 GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attrs,
@@ -87,33 +63,16 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
     const dnnl::memory::dim K = weiDims[weiDims.size() - 1];
 
     // Determine scale/zp shapes (per-group, removing the leading batch/gather dim)
-    VectorDims scale_shape{};
-    VectorDims zp_shape{};
-
     const auto& scalesMem = memory.at(ARG_SRC_3);
-    if (scalesMem && !scalesMem->getDesc().empty()) {
-        const auto& fullScalesShape = scalesMem->getShape().getStaticDims();
-        if (1 == fullScalesShape.size()) {
-            OPENVINO_ASSERT(fullScalesShape[0] == 1, "Expect broadcastable scales shape.");
-            scale_shape.push_back(fullScalesShape[0]);
-        } else {
-            scale_shape.assign(fullScalesShape.begin() + 1, fullScalesShape.end());
-        }
-    }
-
     const auto& zpMem = memory.at(ARG_SRC_4);
+    const VectorDims scale_shape = utils::per_group_shape(scalesMem);
+    const VectorDims zp_shape = utils::per_group_shape(zpMem);
+
     ov::element::Type zp_precision = ov::element::dynamic;
     bool zp_non_negative_i8 = false;
     if (zpMem && !zpMem->getDesc().empty()) {
         zp_precision = zpMem->getDesc().getPrecision();
         zp_non_negative_i8 = zp_precision == ov::element::i8 && utils::isNonNegativeI8(*zpMem);
-        const auto& fullZpShape = zpMem->getShape().getStaticDims();
-        if (1 == fullZpShape.size()) {
-            OPENVINO_ASSERT(fullZpShape[0] == 1, "Expect broadcastable zero points shape.");
-            zp_shape.push_back(fullZpShape[0]);
-        } else {
-            zp_shape.assign(fullZpShape.begin() + 1, fullZpShape.end());
-        }
     }
 
     dnnl::memory::desc src_md({1, K},
@@ -123,19 +82,19 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    const auto [src_dyn_quant_group_size, zp_dt] = dnnl_utils::dyn_quant_params(attrs.dynamicQuantizationGroupSize,
-                                                                                weights_precision,
-                                                                                src_precision,
-                                                                                zp_precision,
-                                                                                zp_non_negative_i8,
-                                                                                static_cast<size_t>(K),
-                                                                                scale_shape,
-                                                                                zp_shape);
+    const auto [src_dyn_quant_group_size, zp_dt] = utils::dyn_quant_params(attrs.dynamicQuantizationGroupSize,
+                                                                           weights_precision,
+                                                                           src_precision,
+                                                                           zp_precision,
+                                                                           zp_non_negative_i8,
+                                                                           static_cast<size_t>(K),
+                                                                           scale_shape,
+                                                                           zp_shape);
 
     const auto dst_dt = DnnlExtensionUtils::ElementTypeToDataType(memory.at(ARG_DST)->getDesc().getPrecision());
     InnerProductKey key{src_md,
                         weights_md,
-                        make_bias_md(N, memory.at(ARG_BIAS)),
+                        utils::make_bias_md(N, memory.at(ARG_BIAS)),
                         dst_dt,
                         scale_shape,
                         zp_shape,
@@ -158,7 +117,7 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
     auto gemvWeightsDesc =
         MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_weights_md()));
 
-    auto targetWeightsDesc = add_batch_dim(gemvWeightsDesc, weiDims[0]);
+    auto targetWeightsDesc = utils::add_batch_dim(gemvWeightsDesc, weiDims[0]);
     auto srcWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weightsMemory->getDescPtr());
 
     m_weightsMemory = utils::prepareWeightsMemory(srcWeightsDesc,
@@ -171,30 +130,11 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
                                                   threadPool);
 
     if (scalesMem && !scale_shape.empty()) {
-        auto expectedScaleMemDesc =
-            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_scale_md()));
-        const auto& scDims = scalesMem->getShape().getStaticDims();
-        expectedScaleMemDesc =
-            add_batch_dim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedScaleMemDesc), scDims[0]);
-        if (expectedScaleMemDesc->isCompatible(scalesMem->getDesc())) {
-            m_scalesMemory = std::const_pointer_cast<IMemory>(scalesMem);
-        } else {
-            m_scalesMemory = std::make_shared<Memory>(eng, expectedScaleMemDesc);
-            m_scalesMemory->load(*scalesMem, false, false);
-        }
+        m_scalesMemory = utils::prepare_decompression_memory(scalesMem, m_gemvImpl->get_scale_md(), eng);
     }
 
     if (zpMem && !zp_shape.empty()) {
-        auto expectedZpMemDesc =
-            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(m_gemvImpl->get_zp_md()));
-        const auto& zpDims = zpMem->getShape().getStaticDims();
-        expectedZpMemDesc = add_batch_dim(MemoryDescUtils::convertToBlockedMemoryDesc(expectedZpMemDesc), zpDims[0]);
-        if (expectedZpMemDesc->isCompatible(zpMem->getDesc())) {
-            m_zpMemory = std::const_pointer_cast<IMemory>(zpMem);
-        } else {
-            m_zpMemory = std::make_shared<Memory>(eng, expectedZpMemDesc);
-            m_zpMemory->load(*zpMem, false, false);
-        }
+        m_zpMemory = utils::prepare_decompression_memory(zpMem, m_gemvImpl->get_zp_md(), eng);
     }
 
     m_implType = m_gemvImpl->get_impl_type();
@@ -209,7 +149,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         m_implType = m_gemvImpl->get_impl_type();
         return true;
     }
-    const Dim M = normalize_m(srcShape[1]);
+    const Dim M = utils::normalize_m(srcShape[1]);
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     const auto srcPrc = srcMem->getDesc().getPrecision();
 
@@ -217,7 +157,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     const auto& dstShape = dstMem->getStaticDims();
 
     m_tmpInputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, srcShape[2]}));
-    m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(srcPrc, Shape({M, dstShape[2]}));
+    m_tmpOutputDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dstMem->getDesc().getPrecision(), Shape({M, dstShape[2]}));
 
     const size_t srcSize = rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
     const size_t totalSize = srcSize + m_tmpOutputDesc->getCurrentMemSize();
@@ -230,7 +170,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
     return true;
 }
 
-dnnl_utils::InnerProductPtr GatherMatmulDnnlExecutor::createGemm(size_t rows) const {
+utils::InnerProductPtr GatherMatmulDnnlExecutor::createGemm(size_t rows) const {
     OPENVINO_ASSERT(m_gemmKey, "GEMM key is not initialized");
     InnerProductKey key = *m_gemmKey;
     key.src_md = dnnl::memory::desc({static_cast<dnnl::memory::dim>(rows), key.src_md.get_dims()[1]},
@@ -238,7 +178,7 @@ dnnl_utils::InnerProductPtr GatherMatmulDnnlExecutor::createGemm(size_t rows) co
                                     dnnl::memory::format_tag::ab);
     const auto& eng = m_context->getEngine();
     const auto threadPool = m_context->getThreadPool();
-    dnnl_utils::InnerProductPtr gemm;
+    utils::InnerProductPtr gemm;
     std::tie(gemm, std::ignore) =
         m_context->getRuntimeCache()->getOrCreate(key, [&eng, &threadPool](const InnerProductKey& k) {
             return std::make_shared<InnerProduct>(eng, threadPool, k);
@@ -290,6 +230,8 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
         OPENVINO_ASSERT(m_tmpOutputDesc, "Temporary output memory desc is not created");
 
         const auto element_size = m_tmpInputDesc->getPrecision().size();
+        // The primitive output follows the ARG_DST precision, which may differ from the source (e.g. bf16 -> f32)
+        const auto dst_element_size = m_tmpOutputDesc->getPrecision().size();
         const auto K_size = m_tmpInputDesc->getShape().getStaticDims()[1];
         const auto M_size = m_tmpInputDesc->getShape().getStaticDims()[0];
         const auto N_size = dstMem->getStaticDims()[2];
@@ -305,7 +247,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
 
         // Gather indices with the same rounded row count share one GEMM within this call. The runtime cache
         // keeps the primitives across calls.
-        std::unordered_map<size_t, dnnl_utils::InnerProductPtr> gemmBySize;
+        std::unordered_map<size_t, utils::InnerProductPtr> gemmBySize;
         // On AMX a GEMM is cheap even for a few rows; elsewhere experts with fewer rows run per-row GEMV.
         const size_t min_rows_for_gemm = m_bf16AmxMode ? 1 : 4;
         for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
@@ -322,7 +264,6 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 for (size_t m = 0; m < num_valid_rows; ++m) {
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                     const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
-                    // printf("[CPU] GatherMatmulDnnlExecutor::execute exec\n");
                     m_gemvImpl->exec(src_offset(batch_index, row_id),
                                      dst_offset(batch_index, row_id),
                                      wei_offset(gather_axis_index),
@@ -335,7 +276,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
 
             // Size the GEMM to the rows routed to this gather index (rounded up by normalize_m), not to
             // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
-            const size_t gemm_rows = normalize_m(num_valid_rows);
+            const size_t gemm_rows = utils::normalize_m(num_valid_rows);
             auto& gemmImpl = gemmBySize[gemm_rows];
             if (!gemmImpl) {
                 gemmImpl = createGemm(gemm_rows);
@@ -359,7 +300,6 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             auto* bias = bias_offset(gather_axis_index);
             auto* scale = scale_offset(gather_axis_index);
             auto* zp = zp_offset(gather_axis_index);
-            // printf("[CPU] GatherMatmulDnnlExecutor::execute exec\n");
             gemmImpl->exec(src, dst, wei, bias, scale, zp);
 
             cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
@@ -367,7 +307,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                 const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
                 auto* dst_row = dst_offset(batch_index, row_id);
-                std::memcpy(dst_row, src_row, N_size * element_size);
+                std::memcpy(dst_row, src_row, N_size * dst_element_size);
             });
         }
     } else {

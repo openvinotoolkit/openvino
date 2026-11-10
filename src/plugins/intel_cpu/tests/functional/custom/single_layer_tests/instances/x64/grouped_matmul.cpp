@@ -10,6 +10,8 @@ using ov::test::utils::DecompressionType;
 using CPUTestUtils::CPUSpecificParams;
 using CPUTestUtils::CPUTestsBase;
 
+namespace {
+
 // The node runs a oneDNN inner_product per group, so the impl type is the one the inner_product
 // picks for the [M, K] x [N, K] shape of a single group.
 const std::vector<CPUSpecificParams>& filter_specific_params_brgemm() {
@@ -44,6 +46,8 @@ const std::vector<CPUSpecificParams>& filter_specific_params_bf16() {
         return specific_params;
     }
 }
+
+}  // namespace
 
 const ov::AnyMap bf16_config{{ov::hint::inference_precision.name(), ov::element::bf16}};
 
