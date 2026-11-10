@@ -17,6 +17,7 @@
 #include <memory>
 #include <atomic>
 #include <string>
+#include <utility>
 
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
@@ -129,14 +130,9 @@ private:
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const batch_program& batch, compiled_kernels& compiled_kernels);
 
-    // NVIDIA compatibility headers added to every batch built for the NVIDIA SYCL backend; get_program_source() shows
-    // where each part goes.
-    struct nvidia_compat_headers {
-        std::string prelude;
-        std::string sg_overrides;
-    };
-    // Returns the compatibility headers, the same for every batch.
-    nvidia_compat_headers get_nvidia_compat_headers() const;
+    // The NVIDIA compatibility headers added to every batch built for the NVIDIA SYCL backend, as {prelude headers in
+    // order, sub-group overrides}; get_program_source() shows where each goes. The same for every batch.
+    std::pair<std::vector<std::string>, std::string> get_nvidia_compat_headers() const;
 
     // The source handed to the kernel builder for `batch`: batch.source joined, with each kernel's sub-group size
     // re-expressed for the NVIDIA compatibility headers when they are in use. Dumps write this as well, so that they

@@ -331,7 +331,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         }
     }
 
-    const auto nvidia_compat = _targets_nvidia ? get_nvidia_compat_headers() : nvidia_compat_headers{};
+    const auto [nvidia_prelude, nvidia_sg_overrides] =
+        _targets_nvidia ? get_nvidia_compat_headers() : std::pair<std::vector<std::string>, std::string>{};
 
     // Compute hash value for each batch
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
@@ -407,9 +408,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             if (_targets_nvidia) {
                 OPENVINO_ASSERT(b.header_count <= b.source.size(), "[GPU] Batch has ", b.header_count,
                                 " headers but only ", b.source.size(), " source entries");
-                b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(b.header_count), nvidia_compat.sg_overrides);
-                b.source.insert(b.source.begin(), nvidia_compat.prelude);
-                b.header_count += 2;
+                b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(b.header_count), nvidia_sg_overrides);
+                b.source.insert(b.source.begin(), nvidia_prelude.begin(), nvidia_prelude.end());
+                b.header_count += nvidia_prelude.size() + 1;
             }
 
             std::string full_code = options + " " + _device->get_info().driver_version;
@@ -457,12 +458,10 @@ kernels_cache::kernels_cache(engine& engine,
     _targets_nvidia = engine.runtime_type() == runtime_types::sycl && _device->get_info().vendor_id == NVIDIA_VENDOR_ID;
 }
 
-kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() const {
-    nvidia_compat_headers result;
-
+std::pair<std::vector<std::string>, std::string> kernels_cache::get_nvidia_compat_headers() const {
     // A kernels_cache built without batch headers (a standalone probe kernel) gets no compatibility headers.
     if (batch_headers.empty()) {
-        return result;
+        return {};
     }
 
     // Every batch gets all five, so each one is required here.
@@ -482,13 +481,11 @@ kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() 
         "nvidia/compat_sg",      // sub-group emulation
         "nvidia/compat_wg",      // work-group collectives
     };
+    std::vector<std::string> prelude;
     for (const char* name : nvidia_prelude_names) {
-        result.prelude += get_header(name);
+        prelude.push_back(get_header(name));
     }
-
-    result.sg_overrides = get_header("nvidia/compat_sg_overrides");
-
-    return result;
+    return {std::move(prelude), get_header("nvidia/compat_sg_overrides")};
 }
 
 std::string kernels_cache::get_combined_source(const batch_program& batch) const {
