@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-14-24-09-000-42820480351",
+  "timestamp": "2026-11-10T14:24:09Z",
+  "run_id": "42820480351",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42820480351",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "dcfad494b918b6b11783ced393c1e685c7aea39f",
+  "pr_number": "39617",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39617",
+  "author": "asukhobo",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "'Extract OpenVINO packages' step failed: Expand-Archive could not overwrite tbb12.dll because PowerShell's Remove-Item raised UnauthorizedAccessException (file locked/permission denied)."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'GPU unit tests' job's 'Extract OpenVINO packages' step runs Expand-Archive -Force against an install directory on a Windows self-hosted runner that still has tbb12.dll locked from a prior process/step (likely AV scanning or a stale handle left over from a previous job on a reused runner). Expand-Archive's internal Remove-Item call then fails with UnauthorizedAccessException. The triggering commit (#39617, an NPU engineering-drop update unrelated to packaging/extraction) is not the cause; this is the 6th occurrence of the identical signature within roughly 23 hours, confirming an unresolved recurring Windows-runner infrastructure issue rather than a code regression.",
+  "reproduction_steps": "N/A - not reliably reproducible outside CI. Requires the specific Windows self-hosted runner state with a locked tbb12.dll handle (e.g. an AV scanner or a stale process from a previous job holding the file open) immediately before the Expand-Archive step runs.",
+  "recommended_actions": [
+    "Escalate the recurring tbb12.dll lock issue (6th occurrence in ~23 hours) to the CI infrastructure team to investigate stale processes/AV locks on the Windows self-hosted runner pool used for GPU unit tests.",
+    "Add a retry-with-delay wrapper around the Expand-Archive/Remove-Item extraction step for Windows jobs, or switch to a 7zip/robocopy-based extraction that tolerates locked destination files.",
+    "Ensure prior steps/processes that load tbb12.dll (e.g. a leftover test process) are fully terminated before the extraction step runs, and consider recycling the runner image between jobs."
+  ],
+  "prevention_strategies": "Wrap Windows archive-extraction steps with a retry loop when Remove-Item/Expand-Archive fails with UnauthorizedAccessException, and recycle Windows self-hosted runner images periodically to clear stale locked handles left by prior jobs/processes.",
+  "historical_context": "Signature 514ffa2ab52ad344 (tbb12.dll extraction lock) was previously recorded 5 times between 2026-11-09T16:30:00Z and 2026-11-10T13:33:59Z (runs 42626586527, 42775441636, 42783108480, 42807973464, 42814866016). This run is the 6th occurrence within roughly 23 hours, strongly confirming an unresolved, recurring Windows-runner infrastructure issue that has not yet been fixed despite repeated prior reports."
+}
