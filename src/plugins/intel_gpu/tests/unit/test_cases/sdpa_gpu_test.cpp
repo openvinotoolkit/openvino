@@ -2437,8 +2437,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     // that ran: a silent fallback to the opt kernels, which read one scale per token, would be wrong.
     const bool per_channel = granularity == kv_quant_granularity::per_channel;
     const bool per_channel_dpas =
-        per_channel && !is_bf16 && params.dt == data_types::f16 && engine.get_device_info().arch >= cldnn::gpu_arch::xe2 &&
-        cldnn::paged_attention::sdpa_ocl_selected(engine.get_device_info());
+        per_channel && !is_bf16 && params.dt == data_types::f16 && cldnn::paged_attention::sdpa_ocl_selected(engine.get_device_info()) &&
+        cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(engine.get_device_info());
 
     const int bit_width = params.bit_width;
     const bool asymmetric = params.asymmetric;

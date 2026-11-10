@@ -371,7 +371,8 @@ size_t SDPAOclDecodeGenerator::get_q_per_wg(const RuntimeParams& params) {
 // lives in paged_attention.hpp.
 bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     const auto& device_info = params.get_device_info();
-    // DPAS needs XMX; the 2D block reads (and the paths tuned around them) are Xe2+.
+    // The device / switch part (paged_attention.hpp): Xe2+ XMX unless TEST_USE_SDPA_OCL_DECODE turns it off, xe_hpg XMX
+    // with TEST_USE_SDPA_OCL_DECODE=1 (the SG8 reader).
     if (!paged_attention::sdpa_ocl_decode_reader_available(device_info)) {
         return false;
     }

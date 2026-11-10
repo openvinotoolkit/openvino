@@ -668,7 +668,7 @@ INSTANTIATE_TEST_SUITE_P(
 // k_head_size != v_head_size.
 //
 // The MIXED stage is the load-bearing case: the token-major BY_CHANNEL K page is read by sdpa_ocl, or by the MIXED
-// fallback (pa_multi_token in paged_attention_opt.cl) where choose_dpas_backend()'s k != v check
+// fallback (pa_multi_token in paged_attention_opt.cl) where choose_sdpa_ocl()'s k != v check
 // (SDPAOclGenerator::supports_head_sizes) refuses the pair. When that fallback read only another page layout than the
 // gate assumed, a rejected shape came back as NaN rather than as a slower result.
 //

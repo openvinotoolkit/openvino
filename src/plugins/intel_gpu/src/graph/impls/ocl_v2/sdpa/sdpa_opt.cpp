@@ -34,7 +34,7 @@ bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
 
 bool SDPAOpt::per_channel_kv_on_dpas_lane(const kernel_impl_params& params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    return dpas_lane_op_supported(params) && SDPAOclGenerator::supported(params);
+    return sdpa_ocl_serves_op(params, false);
 #else
     UNUSED(params);
     return false;
@@ -93,14 +93,14 @@ public:
     }
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-        // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ and xe_hpg XMX). Where it is refused, and on every other
-        // device, the opt kernels run.
+        // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ and xe_hpg XMX; the table in paged_attention.hpp). Where it
+        // is refused, and on every other device, the opt kernels run.
         const bool ocl_lane = cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info());
 #ifdef ENABLE_ONEDNN_FOR_GPU
         // Lazy, so only the branches below that need it evaluate the gate. sdpa_ocl reads a single-element runtime mask
         // too, and it needs no oneDNN microkernel support (the lane already means XMX).
         auto dpas_supported = [&]() {
-            return ocl_lane && dpas_sdpa_enabled(params) && SDPAOpt::dpas_sdpa_op_supported(params, true) && SDPAOclGenerator::supported(params);
+            return SDPAOpt::sdpa_ocl_serves_op(params, true);
         };
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";
@@ -152,9 +152,8 @@ public:
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
 #ifdef ENABLE_ONEDNN_FOR_GPU
-                const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
-                bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-                bool use_sdpa_ocl = dpas_supported() && !is_ARL_H && !is_indirect;
+                const bool use_sdpa_ocl =
+                    dpas_supported() && cldnn::paged_attention::sdpa_ocl_plain_single_token_ok(params.get_device_info()) && !is_indirect;
                 if (use_sdpa_ocl) {
                     add_stage(ocl_single_token, params);
                 }
@@ -284,11 +283,23 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
 #endif
 }
 
-bool SDPAOpt::dpas_lane_op_supported(const RuntimeParams& params) {
+bool SDPAOpt::dpas_lane_op_supported(const RuntimeParams& params, bool allow_scalar_mask) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    return dpas_sdpa_enabled(params) && cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && dpas_sdpa_op_supported(params, false);
+    return cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && dpas_sdpa_enabled(params) &&
+           dpas_sdpa_op_supported(params, allow_scalar_mask);
 #else
     UNUSED(params);
+    UNUSED(allow_scalar_mask);
+    return false;
+#endif
+}
+
+bool SDPAOpt::sdpa_ocl_serves_op(const RuntimeParams& params, bool allow_scalar_mask) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    return dpas_lane_op_supported(params, allow_scalar_mask) && SDPAOclGenerator::supported(params);
+#else
+    UNUSED(params);
+    UNUSED(allow_scalar_mask);
     return false;
 #endif
 }
@@ -341,8 +352,8 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
     // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
     const bool is_output_rank_4d = desc->output_transpose_order.size() == 4;
 
-    // Asymmetric compressed KV with a bf16 zero-point buffer must not use the oneDNN micro SDPA stage:
-    // It emits NaN output and oneDNN own tests haven't test this combination yet
+    // Asymmetric compressed KV with a bf16 zero-point buffer stays off the DPAS kernels: the removed oneDNN micro SDPA
+    // stage emitted NaN on it (oneDNN's own tests did not cover the combination).
     if (has_bf16_compressed_kv_zero_point(params)) {
         return false;
     }

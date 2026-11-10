@@ -38,11 +38,12 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t sdpa_opt_seq_len_partition_size;
 
     size_t paged_attention_snap_kv_tokens;
-    bool use_micro_sdpa = false;
+    // PREFILL / MIXED run sdpa_ocl (pa_sdpa_ocl / pa_sdpa_ocl_mixed).
+    bool use_sdpa_ocl = false;
     bool use_gqa_kernel = false;
     GQAMultiTokensKernel gqa_multi_tokens_kernel = GQAMultiTokensKernel::NONE;
     // GENERATE stage runs sdpa_ocl_decode instead of pa_single_token / pa_gqa_single_token. Kept
-    // separate from use_micro_sdpa on purpose: that flag also suppresses the exp_sums / max_logits /
+    // separate from use_sdpa_ocl on purpose: that flag also suppresses the exp_sums / max_logits /
     // tmp_out internal buffers (get_internal_buffer_descs), which sdpa_ocl_decode needs.
     bool use_ocl_decode = false;
     size_t query_block_size = 16;

@@ -16,8 +16,8 @@ The end-to-end performance investigation, including the B70 Xe2 gap closure and 
 
 | Primitive / stage | Generator | Kernel | Gate |
 |---|---|---|---|
-| SDPA prefill and single-token | `SDPAOclGenerator` | `sdpa_ocl.cl` | `sdpa_opt.cpp`: `SDPAOpt::dpas_sdpa_op_supported()` and `SDPAOclGenerator::supported()` |
-| PA PREFILL / MIXED | `SDPAOclGenerator(prefill)` | `sdpa_ocl.cl` | `paged_attention_opt.cpp`: `choose_dpas_backend()` at construction, `can_use_sdpa_ocl_for()` per dispatch |
+| SDPA prefill and single-token | `SDPAOclGenerator` | `sdpa_ocl.cl` | `sdpa_opt.cpp`: `SDPAOpt::sdpa_ocl_serves_op()` (`dpas_lane_op_supported()`: lane, knob, `dpas_sdpa_op_supported()`; then `SDPAOclGenerator::supported()`) |
+| PA PREFILL / MIXED | `SDPAOclGenerator(prefill)` | `sdpa_ocl.cl` | `paged_attention_opt.cpp`: `choose_sdpa_ocl()` at construction, `can_use_sdpa_ocl_for()` per dispatch |
 | PA GENERATE | `SDPAOclDecodeGenerator` | `sdpa_ocl_decode.cl` | `SDPAOclDecodeGenerator::supported()` |
 
 Whether the DPAS kernel serves plain SDPA and PA PREFILL/MIXED is decided per device,
@@ -30,7 +30,8 @@ support (`cldnn::query_microkernels_supported()`); `OV_GPU_ENABLE_SDPA_MICRO=0` 
 from `sdpa_micro`) turns it off. Where `sdpa_ocl` refuses an op, the opt kernels run. The generator is created in every
 impl's default constructor, the params constructor adds its stages, and every later decision reads `has_stage()`: a
 loaded or cloned impl is default-constructed and only gets `_order` (indices into `_stages`) back, so it must not
-re-derive the kernel from the device or the environment.
+re-derive the kernel from the device or the environment. Which kernel serves each stage on which device is one table,
+the comment above the lane predicates in `include/intel_gpu/primitives/paged_attention.hpp`.
 
 `TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so GENERATE falls back to the
 `paged_attention_opt` single-token kernels. The K page layout does not follow it: since 2026-11-06 those kernels read
@@ -2156,9 +2157,10 @@ here, so none of it was measured on them.
 - Builds without oneDNN still have no DPAS SDPA: the `ENABLE_ONEDNN_FOR_GPU` guards around `sdpa_ocl` stay, although
   nothing in it needs oneDNN now (only the include-order note in `sdpa_gen_ocl.hpp` mentions `micro_utils.hpp`).
 - `TT_BOUNDS_STAGE` in `paged_attention_opt.cl` is dead code, kept so the file stays upstream's.
-- Kept names: `enable_sdpa_micro` / `OV_GPU_ENABLE_SDPA_MICRO` (now the switch for `sdpa_ocl`), the runtime flag
-  `use_micro_sdpa` (means "the DPAS kernel serves this stage"; its gate `can_use_micro_sdpa_for()` became
-  `can_use_sdpa_ocl_for()` on 2026-11-02), and test suites named after `sdpa_micro` that now cover `sdpa_ocl`.
+- Kept names: `enable_sdpa_micro` / `OV_GPU_ENABLE_SDPA_MICRO` (now the switch for `sdpa_ocl`) and test suites named
+  after `sdpa_micro` that now cover `sdpa_ocl`. The runtime flag `use_micro_sdpa` became `use_sdpa_ocl`, and
+  `choose_dpas_backend()` / `DpasBackend` became the bool `choose_sdpa_ocl()` / `sdpa_ocl_staged()` (2026-11-10;
+  the gate `can_use_micro_sdpa_for()` had become `can_use_sdpa_ocl_for()` on 2026-11-02).
 
 ### GQA with a transposed V cache (2026-11-02)
 
