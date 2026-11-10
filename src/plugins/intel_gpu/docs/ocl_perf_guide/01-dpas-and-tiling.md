@@ -512,7 +512,7 @@ PA prefill head128 (`*paged*96`), B70, **computed exactly from the source formul
 
 ## 11. xe_hpg (DG2, SG8) rewrite details
 
-Current state: xe_hpg takes the sdpa_ocl lane only with `TEST_USE_SDPA_OCL_HPG=1`. `kHpgTiersReady = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8` (`sdpa_ocl_hpg.hpp:33`), and everything else is routed to micro
+State in 2026-10 (superseded: xe_hpg has taken the sdpa_ocl lane by default since 2026-11-09, PREFILL / MIXED / plain SDPA with GENERATE on the opt kernels; `TEST_USE_SDPA_OCL_HPG` and the tier mask were removed on 2026-11-10 and `sdpa_micro` on 2026-11-02; see `sdpa_ocl.md` "Where it runs"): xe_hpg took the sdpa_ocl lane only with `TEST_USE_SDPA_OCL_HPG=1`. `kHpgTiersReady = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8` (`sdpa_ocl_hpg.hpp:33`), and everything else is routed to micro
 (`sdpa_ocl_hpg.hpp`, `sdpa_ocl.md` "xe_hpg bring-up", recent commits `10e4f00b68`, `087d2bd171`, `b739dc5881`). **sdpa_ocl vs micro performance numbers on DG2 are not in this repository/PC** (the S6/S7 measurements are on the DG2 PC — unverified). What follows centres on the S0/S2 real-hardware results.
 
 ### 11.1 Hardware facts (S0/S2, MEASURED DG2 A770 IP12.55.8, driver 25.13.33276.16)

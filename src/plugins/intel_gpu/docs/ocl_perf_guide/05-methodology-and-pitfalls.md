@@ -165,7 +165,7 @@ The `NEG_*` groups are negative controls that **must FAIL** (`SDPA_OCL_BIDIR=0`,
 8. **golden-split test trick** (bidir token_type_ids, memory:sdpa-ocl-bidir-token-type-ids): without new golden data, use "a run that splits the query range in two is identical to a single run" as an equivalence oracle. The reference was also extended to be bidir-aware (`PagedAttentionReference`).
 9. **gtest tolerances are loose** -> the main evidence of equivalence is L1/L2/xab/pset. For gtests, diff the **set**, including skips.
 10. **Check whether the harness data hides errors** (5.6 #19-21): N(0,0.1) data makes softmax nearly uniform, so Q/K misreads are invisible and only V misreads are large. Use `logit_scale_gain` (scale x128)/`runtime_scale_multiplier`. The output buffer is not reset, so use a **NaN-poison fixture** (fill the output with NaN and rerun, which catches unwritten elements from index 0).
-11. **While the tier mask rejects, "PASS with HPG=1" is not sdpa_ocl evidence**: always judge by the `sdpa_ocl` line (>=1) in the dispatch census (`OV_VERBOSE=4`, `Enqueue stage`). Do not count a SKIP/opt fallback as an OCL success.
+11. **A PASS is not sdpa_ocl evidence** (an op `supported()` refuses runs on opt silently; during the port the tier mask did the same): always judge by the `sdpa_ocl` line (>=1) in the dispatch census (`OV_VERBOSE=4`, `Enqueue stage`). Do not count a SKIP/opt fallback as an OCL success.
 12. **Value/cost of independent review**: a read-only multi-perspective review (T7: 32 agents found the requantize bug, T8: 12 agents found the degenerate data, a second 3-lens review re-derived the arithmetic) is worth running **before** long builds/dumps. But dedupe first (5.1).
 
 ---
@@ -352,6 +352,8 @@ Format: number. Situation -> wrong hypothesis/mistake -> fact/cause -> rule.
 ## 5.7 xe_hpg (DG2/ARL-H) porting effort — S0-S9
 
 Detailed playbook: `.claude/skills/xe-hpg-porting/SKILL.md`. The original plan is in the memory notes `sdpa-ocl-xe-hpg-plan` (hub), `-facts`, `-s7-performance` (top-priority supplementary directive, approved 2026-10-02), `-briefs-s2-s9`, `-plan-full`; working copy `test/sdpa_ocl_xe_hpg/plan/`. Hardware: DG2 is a separate PC (raptorlake-02), B70 is the development PC (raptorlake-01).
+
+Outcome: xe_hpg has taken the sdpa_ocl lane by default since 2026-11-09 (PREFILL / MIXED / plain SDPA; GENERATE on the opt kernels), and the bring-up switches (`TEST_USE_SDPA_OCL_HPG`, the tier mask `HpgTier` / `SDPA_OCL_HPG_TIERS`) were removed on 2026-11-10; `sdpa_micro`, the micro lane and the `TEMP(S9)` routing went on 2026-11-02. The rest of 5.7 is the record of 2026-10; the current behaviour is in `sdpa_ocl.md` "Where it runs".
 
 ### 5.7.1 Stage table (as of 2026-10-06)
 

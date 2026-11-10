@@ -30,7 +30,7 @@ O=$repo/test/sdpa_ocl_xe_hpg/s7a/perf/opt
 ```bash
 CL=/home/shingyuk/work/opencl-intercept-layer/install/bin/cliloader
 source build/ov_install/setupvars.sh        # caution: setupvars wipes "$@", so save the arguments before source
-TEST_USE_SDPA_OCL_HPG=1 PA_PERF_DEVICE_MEM=1 PA_PERF_ITERS=10 \
+PA_PERF_DEVICE_MEM=1 PA_PERF_ITERS=10 \
   $CL -d -dv bin/intel64/Debug/ov_gpu_unit_tests --device_suffix=1 \
   --gtest_filter='perf_paged_attention_prefill/*'
 ```
@@ -38,7 +38,7 @@ TEST_USE_SDPA_OCL_HPG=1 PA_PERF_DEVICE_MEM=1 PA_PERF_ITERS=10 \
 - `-d` records device time, and `-dv` also GWS/LWS (dispatch geometry). Early on `-d -ko` was used; later everything was unified on `-d -dv`. Recording the geometry lets you check immediately "whether it actually launched with the intended tile/subgroup settings".
 - The min/avg/max in the output are over the calls within one process. Run different arms as **separate processes, in ABBA order** (environment variables are cached per process).
 - **On a dGPU the input memory location changes the result.** The unit-test engine allocates inputs with `allocate_memory(layout)`, which defaults to `usm_host` on a dGPU, and the kernel reads them over PCIe. In A770 PA prefill, usm_host came out at 151.8 ms and usm_device at about 110 ms. Use `PA_PERF_DEVICE_MEM=1` (the test helper copies Q/K/V/cache to usm_device) and discard usm_host results. In this mode the reference cannot lock the inputs, so it is for perf tests only.
-- Confirm which kernel was selected by its name: `sdpa_ocl_prefill_*`, `sdpa_micro__prefill_*`, `sdpa_opt_*`. If the tier gate rejects it, execution silently falls back to opt and the measurement is not an "OCL measurement". In the HPG experiments use `TEST_USE_SDPA_OCL_HPG=1`; the control is `TEST_USE_SDPA_OCL=0`.
+- Confirm which kernel was selected by its name: `sdpa_ocl_prefill_*`, `sdpa_opt_*` (`sdpa_micro__prefill_*` before 2026-11-02). If `supported()` refuses the op, execution silently falls back to opt and the measurement is not an "OCL measurement". The opt control is `OV_GPU_ENABLE_SDPA_MICRO=0` (`TEST_USE_SDPA_OCL_HPG` and `TEST_USE_SDPA_OCL`, used before, were removed).
 - The `-d -dv` output was obtained with the Debug host library. Device kernel time is JIT-compiled OpenCL and hardly depends on the host build type, but a Release re-check remains a separate item to verify.
 - **Read the real configuration back from `-dv`.** For `sdpa_ocl_decode` the line `SLM=... GWS[ 16 x A x P ] LWS[ 16 x SG x 1 ]` gives `SG_PER_WG` (LWS dim 1), the head groups (`A / SG`, from which M follows), and the partition count P (GWS dim 2); `SLM` cross-checks M. Aggregating per P bucket shows wave steps (e.g. 23.9 -> 35.4 us when 256 -> 272 workgroups). A knob can move a derived parameter (16 subgroups also raised M from 2 to 4), so do this for every arm before attributing.
 - **Which cache did the model use?** 4-bit-weight PagedAttention models get a u4 KV cache by default. `OV_KV_CACHE_PRECISION=i8` forces i8; confirm that it took effect from the changed hash suffix of `pa_kv_cache_update_ref__<hash>` / `sdpa_ocl_decode__<hash>`.
@@ -62,7 +62,7 @@ TEST_USE_SDPA_OCL_HPG=1 PA_PERF_DEVICE_MEM=1 PA_PERF_ITERS=10 \
 
 ```bash
 OV_GPU_DUMP_SOURCES_PATH=/abs/dir/ OV_GPU_MAX_KERNELS_PER_BATCH=1 \
-  TEST_USE_SDPA_OCL_HPG=1 PA_PERF_DEVICE_MEM=1 $BIN --device_suffix=1 --gtest_filter=...
+  PA_PERF_DEVICE_MEM=1 $BIN --device_suffix=1 --gtest_filter=...
 ```
 
 - The path must be an **absolute path + trailing slash**. With `MAX_KERNELS_PER_BATCH=1` each kernel gets its own `.cl`/binary, which makes comparison easy.
