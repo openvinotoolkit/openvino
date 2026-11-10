@@ -54,10 +54,15 @@ struct GemmImplementationManager : public ImplementationManager {
         if (gemm_prim->alpha != 1.0f || gemm_prim->beta != 0.0f)
             return false;
 
+        if (get_shape_type() == shape_types::dynamic_shape && !node.get_fused_primitives().empty())
+            return false;
+
         if (out_layout.data_padding)
             return false;
 
-        if (!is_supported_pad(in0_layout) || !is_supported_pad(in1_layout))
+        if (!is_supported_pad(in0_layout) || !is_supported_pad(in1_layout) ||
+            (get_shape_type() == shape_types::dynamic_shape &&
+             (in0_layout.data_padding || in1_layout.data_padding)))
             return false;
 
         if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64})) {

@@ -307,7 +307,14 @@ protected:
         }
 
         if (gemm_with_bias) {
-            const auto& bias_l = in_layouts[2];
+            auto bias_l = impl_params.get_input_layout(2);
+            const auto bias_shape_rank = bias_l.get_partial_shape().rank();
+            if (bias_shape_rank.is_static() && bias_shape_rank.get_length() < static_cast<int64_t>(rank)) {
+                auto bias_shape = bias_l.get_partial_shape();
+                bias_shape.insert(bias_shape.begin(), rank - bias_shape_rank.get_length(), 1);
+                bias_l.set_partial_shape(bias_shape);
+            }
+
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
             bias_dims = onednn::convert_layout(bias_l, bias_rank);
