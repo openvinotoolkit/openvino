@@ -123,7 +123,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
             std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
     }
 
-    if (!_blobSectionsRegistry.has_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) ||
+    if (!_blobSectionsRegistry.has_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) &&
         !_blobSectionsRegistry.has_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE)) {
         switch (graph->get_kind()) {
         case GraphKind::Weightless:
