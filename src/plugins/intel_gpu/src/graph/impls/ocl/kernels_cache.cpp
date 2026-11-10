@@ -422,10 +422,11 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // and friends declare as functions, so emitting them any earlier would macro-expand those names inside their
             // own declarations. See nvidia/compat_sg_overrides.cl.
             if (_use_nvidia_compat) {
-                const size_t header_count = std::min(b.header_count, b.source.size());
-                b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(header_count), nvidia_compat.sg_overrides);
+                OPENVINO_ASSERT(b.header_count <= b.source.size(), "[GPU] Batch has ", b.header_count,
+                                " headers but only ", b.source.size(), " source entries");
+                b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(b.header_count), nvidia_compat.sg_overrides);
                 b.source.insert(b.source.begin(), nvidia_compat.prelude);
-                b.header_count = header_count + 2;
+                b.header_count += 2;
             }
 
             std::string full_code = options + " " + _device->get_info().driver_version;
@@ -524,11 +525,12 @@ std::string kernels_cache::get_combined_source(const batch_program& batch) const
     // regexes over every kernel, which is only worth paying when the batch actually gets compiled (or dumped); the
     // result follows from the kernel source alone, which the hash already covers.
     std::string combined_source;
-    const size_t header_count = std::min(batch.header_count, batch.source.size());
-    for (size_t i = 0; i < header_count; ++i) {
+    OPENVINO_ASSERT(batch.header_count <= batch.source.size(), "[GPU] Batch has ", batch.header_count,
+                    " headers but only ", batch.source.size(), " source entries");
+    for (size_t i = 0; i < batch.header_count; ++i) {
         combined_source += batch.source[i];
     }
-    for (size_t i = header_count; i < batch.source.size(); ++i) {
+    for (size_t i = batch.header_count; i < batch.source.size(); ++i) {
         combined_source += nvidia_replace_reqd_sub_group_size(batch.source[i]);
     }
     return combined_source;
