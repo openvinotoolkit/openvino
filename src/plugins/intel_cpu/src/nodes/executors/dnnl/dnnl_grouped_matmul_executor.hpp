@@ -29,7 +29,7 @@ public:
     [[nodiscard]] impl_desc_type implType() const override;
 
 private:
-    using InnerProductPtr = dnnl_utils::InnerProductPtr;
+    using InnerProductPtr = utils::InnerProductPtr;
 
     // The inner_product for a group of `rows` rows, taken from the runtime cache and created on
     // first use. See the comment on the definition for why this happens during execute().
@@ -41,7 +41,7 @@ private:
     MemoryPtr m_scales_memory;
     MemoryPtr m_zp_memory;
 
-    dnnl_utils::InnerProductKey m_key_template;
+    utils::InnerProductKey m_key_template;
     dnnl::memory::data_type m_src_data_type = dnnl::memory::data_type::undef;
     dnnl::memory::dim m_K = 0;
 

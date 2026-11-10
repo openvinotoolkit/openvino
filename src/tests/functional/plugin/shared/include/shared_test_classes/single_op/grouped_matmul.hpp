@@ -39,6 +39,7 @@ protected:
     ov::element::Type act_type_;
     std::string model_name_;
     // ov op type name expected to appear in the executed network (via ProfilingInfo::node_type).
+    // Not a plugin specific primitive.
     // Empty = skip the check.
     std::string expected_primitive_;
 

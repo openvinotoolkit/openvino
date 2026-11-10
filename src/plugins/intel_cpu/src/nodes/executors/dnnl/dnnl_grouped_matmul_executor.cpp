@@ -12,13 +12,9 @@
 #include <tuple>
 #include <vector>
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#endif
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/executors/common/offset_helper.hpp"
@@ -30,70 +26,14 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
-using dnnl_utils::add_batch_dim;
-using dnnl_utils::InnerProduct;
-using dnnl_utils::InnerProductKey;
-using dnnl_utils::make_bias_md;
+using utils::InnerProduct;
+using utils::InnerProductKey;
 
-namespace {
-
-// Per-group scale / zero point shapes, with the leading group dimension stripped: oneDNN describes a
-// single group's weights, the group axis is walked by the executor itself.
-VectorDims per_group_shape(const MemoryPtr& mem) {
-    VectorDims shape{};
-    if (!mem || mem->getDesc().empty()) {
-        return shape;
-    }
-    const auto& full_shape = mem->getShape().getStaticDims();
-    if (full_shape.size() == 1LU) {
-        OPENVINO_ASSERT(full_shape[0] == 1, "Expect broadcastable per-group shape, got ", vec2str(full_shape));
-        shape.push_back(full_shape[0]);
-    } else {
-        shape.assign(full_shape.begin() + 1, full_shape.end());
-    }
-    return shape;
-}
-
-// A broadcast scalar ([1]) has no group dimension: expose it as [1, 1, ...] so it can be reordered into the
-// batched 3D layout expected by the primitive.
-MemoryPtr expand_scalar(const MemoryPtr& mem, size_t rank, const dnnl::engine& eng) {
-    if (mem->getShape().getRank() != 1LU) {
-        return mem;
-    }
-    auto desc = std::make_shared<CpuBlockedMemoryDesc>(mem->getDesc().getPrecision(), Shape(VectorDims(rank, 1LU)));
-    auto expanded = std::make_shared<Memory>(eng, desc);
-    std::memcpy(expanded->getData(), mem->getData(), mem->getSize());
-    return expanded;
-}
-
-}  // namespace
-
-bool GroupedMatMulDnnlExecutor::supports([[maybe_unused]] const GroupedMatMulConfig& config) {
-#ifdef OPENVINO_ARCH_X86_64
-    // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
-    if ((config.descs.count(ARG_SRC) != 0U) && !config.descs.at(ARG_SRC)->empty()) {
-        const auto src_prc = config.descs.at(ARG_SRC)->getPrecision();
-        if (!any_of(src_prc, ov::element::f32, ov::element::bf16)) {
-            return false;
-        }
-    }
-    // For compressed (int) weights, require AVX2
-    if ((config.descs.count(ARG_WEI) != 0U) && !config.descs.at(ARG_WEI)->empty()) {
-        const auto wei_prc = config.descs.at(ARG_WEI)->getPrecision();
-        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3)) {
-            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
-                return false;
-            }
-        }
-    }
-    return true;
-#else
-    return false;
-#endif
+bool GroupedMatMulDnnlExecutor::supports(const GroupedMatMulConfig& config) {
+    return utils::supports_inner_product(config.descs);
 }
 
 GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& attrs,
@@ -114,8 +54,8 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
 
     const auto& scales_mem = memory.at(ARG_SRC_3);
     const auto& zp_mem = memory.at(ARG_SRC_4);
-    const VectorDims scale_shape = per_group_shape(scales_mem);
-    const VectorDims zp_shape = scale_shape.empty() ? VectorDims{} : per_group_shape(zp_mem);
+    const VectorDims scale_shape = utils::per_group_shape(scales_mem);
+    const VectorDims zp_shape = scale_shape.empty() ? VectorDims{} : utils::per_group_shape(zp_mem);
 
     ov::element::Type zp_precision = ov::element::dynamic;
     bool zp_non_negative_i8 = false;
@@ -131,19 +71,19 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    const auto [src_dyn_quant_group_size, zp_dt] = dnnl_utils::dyn_quant_params(attrs.dynamic_quantization_group_size,
-                                                                                weights_precision,
-                                                                                src_precision,
-                                                                                zp_precision,
-                                                                                zp_non_negative_i8,
-                                                                                static_cast<size_t>(K),
-                                                                                scale_shape,
-                                                                                zp_shape,
-                                                                                true);
+    const auto [src_dyn_quant_group_size, zp_dt] = utils::dyn_quant_params(attrs.dynamic_quantization_group_size,
+                                                                           weights_precision,
+                                                                           src_precision,
+                                                                           zp_precision,
+                                                                           zp_non_negative_i8,
+                                                                           static_cast<size_t>(K),
+                                                                           scale_shape,
+                                                                           zp_shape,
+                                                                           true);
 
     InnerProductKey key{src_md,
                         weights_md,
-                        make_bias_md(N, memory.at(ARG_BIAS)),
+                        utils::make_bias_md(N, memory.at(ARG_BIAS)),
                         DnnlExtensionUtils::ElementTypeToDataType(dst_precision),
                         scale_shape,
                         zp_shape,
@@ -164,7 +104,7 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
     auto gemv_weights_desc =
         MemoryDescUtils::convertToBlockedMemoryDesc(DnnlExtensionUtils::makeDescriptor(ref_impl->get_weights_md()));
 
-    auto target_weights_desc = add_batch_dim(gemv_weights_desc, wei_dims[0]);
+    auto target_weights_desc = utils::add_batch_dim(gemv_weights_desc, wei_dims[0]);
     auto src_weights_desc = MemoryDescUtils::convertToDnnlMemoryDesc(weights_memory->getDescPtr());
 
     m_weights_memory = utils::prepareWeightsMemory(src_weights_desc,
@@ -177,33 +117,11 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
                                                    thread_pool);
 
     if (scales_mem && !scale_shape.empty()) {
-        auto expected_scale_mem_desc =
-            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(ref_impl->get_scale_md()));
-        const auto& sc_dims = scales_mem->getShape().getStaticDims();
-        expected_scale_mem_desc =
-            add_batch_dim(MemoryDescUtils::convertToBlockedMemoryDesc(expected_scale_mem_desc), sc_dims[0]);
-        const auto scales_src = expand_scalar(scales_mem, expected_scale_mem_desc->getShape().getRank(), eng);
-        if (expected_scale_mem_desc->isCompatible(scales_src->getDesc())) {
-            m_scales_memory = std::const_pointer_cast<IMemory>(scales_src);
-        } else {
-            m_scales_memory = std::make_shared<Memory>(eng, expected_scale_mem_desc);
-            m_scales_memory->load(*scales_src, false, false);
-        }
+        m_scales_memory = utils::prepare_decompression_memory(scales_mem, ref_impl->get_scale_md(), eng);
     }
 
     if (zp_mem && !zp_shape.empty()) {
-        auto expected_zp_mem_desc =
-            MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(ref_impl->get_zp_md()));
-        const auto& zp_dims = zp_mem->getShape().getStaticDims();
-        expected_zp_mem_desc =
-            add_batch_dim(MemoryDescUtils::convertToBlockedMemoryDesc(expected_zp_mem_desc), zp_dims[0]);
-        const auto zp_src = expand_scalar(zp_mem, expected_zp_mem_desc->getShape().getRank(), eng);
-        if (expected_zp_mem_desc->isCompatible(zp_src->getDesc())) {
-            m_zp_memory = std::const_pointer_cast<IMemory>(zp_src);
-        } else {
-            m_zp_memory = std::make_shared<Memory>(eng, expected_zp_mem_desc);
-            m_zp_memory->load(*zp_src, false, false);
-        }
+        m_zp_memory = utils::prepare_decompression_memory(zp_mem, ref_impl->get_zp_md(), eng);
     }
 
     // Only one value can be reported; the per-group primitives are all inner_product over the same
