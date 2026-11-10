@@ -160,6 +160,19 @@ std::string apply_launch_layout(const std::string& ptx, const launch_layout& lay
     return out;
 }
 
+// The text CUDA gives for an error code.
+const char* cuda_error_string(CUresult result) {
+    const char* text = nullptr;
+    cuGetErrorString(result, &text);
+    return text != nullptr ? text : "unknown error";
+}
+
+// Throws for a CUDA call that failed; `what` names the call and what it was for.
+[[noreturn]] void throw_cuda_error(CUresult result, const std::string& what) {
+    OPENVINO_THROW("[GPU][NVIDIA] ", what, " failed with CUDA error ", static_cast<int>(result), ": ",
+                   cuda_error_string(result));
+}
+
 // Makes `ctx` current on this thread for its lifetime and restores the thread's previous context afterwards.
 // Nothing is pushed when `ctx` is null or already current.
 class scoped_cuda_context {
@@ -192,9 +205,7 @@ cuda_module::~cuda_module() {
             r = cuModuleUnload(static_cast<CUmodule>(cu_module));
         }
         if (r != CUDA_SUCCESS) {
-            const char* err = nullptr;
-            cuGetErrorString(r, &err);
-            GPU_DEBUG_LOG << "[GPU][NVIDIA] cuModuleUnload failed: " << (err ? err : "unknown") << std::endl;
+            GPU_DEBUG_LOG << "[GPU][NVIDIA] cuModuleUnload failed: " << cuda_error_string(r) << std::endl;
         }
         cu_module = nullptr;
     }
@@ -243,11 +254,9 @@ std::shared_ptr<cuda_module> load_cuda_module(const std::string& ptx,
         load_res = cuModuleLoadDataEx(&mod, ptx.c_str(), 1, &option, &value);
     }
     if (load_res != CUDA_SUCCESS) {
-        const char* err_str = nullptr;
-        cuGetErrorString(load_res, &err_str);
-        OPENVINO_THROW("[GPU][NVIDIA] CUDA error ", static_cast<int>(load_res),
-                       min_threads == 0 ? " in cuModuleLoadData" : " in cuModuleLoadDataEx",
-                       " for kernel '", requested_by, "': ", err_str ? err_str : "unknown");
+        throw_cuda_error(load_res,
+                         std::string(min_threads == 0 ? "cuModuleLoadData" : "cuModuleLoadDataEx") + " for kernel '" +
+                             requested_by + "'");
     }
     auto module = std::make_shared<cuda_module>();
     module->cu_module = static_cast<void*>(mod);
@@ -277,30 +286,18 @@ std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_modu
                                                  const std::string& kernel_name) {
     CUfunction func = nullptr;
     CUresult r = cuModuleGetFunction(&func, static_cast<CUmodule>(module->cu_module), kernel_name.c_str());
-    if (r != CUDA_SUCCESS) {
-        const char* err = nullptr;
-        cuGetErrorString(r, &err);
-        OPENVINO_THROW("[GPU][NVIDIA] cuModuleGetFunction failed for '", kernel_name,
-                       "': ", err ? err : "unknown");
-    }
+    if (r != CUDA_SUCCESS)
+        throw_cuda_error(r, "cuModuleGetFunction for '" + kernel_name + "'");
 
     int max_threads = 0;
     r = cuFuncGetAttribute(&max_threads, CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK, func);
-    if (r != CUDA_SUCCESS) {
-        const char* err = nullptr;
-        cuGetErrorString(r, &err);
-        OPENVINO_THROW("[GPU][NVIDIA] cuFuncGetAttribute(MAX_THREADS_PER_BLOCK) failed for '", kernel_name,
-                       "': ", err ? err : "unknown");
-    }
+    if (r != CUDA_SUCCESS)
+        throw_cuda_error(r, "cuFuncGetAttribute(MAX_THREADS_PER_BLOCK) for '" + kernel_name + "'");
 
     int static_shared_bytes = 0;
     r = cuFuncGetAttribute(&static_shared_bytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, func);
-    if (r != CUDA_SUCCESS) {
-        const char* err = nullptr;
-        cuGetErrorString(r, &err);
-        OPENVINO_THROW("[GPU][NVIDIA] cuFuncGetAttribute(SHARED_SIZE_BYTES) failed for '", kernel_name,
-                       "': ", err ? err : "unknown");
-    }
+    if (r != CUDA_SUCCESS)
+        throw_cuda_error(r, "cuFuncGetAttribute(SHARED_SIZE_BYTES) for '" + kernel_name + "'");
 
     auto function = std::make_shared<cuda_function>();
     function->module = module;
@@ -395,12 +392,29 @@ std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t layo
     return capped;
 }
 
-void sycl_ptx_kernel::launch(::sycl::handler& cgh,
-                             const kernel_arguments_desc& args_desc) {
-    auto args = stored_args();
-    const auto& gws = args_desc.workGroups.global;
-    const auto& lws = args_desc.workGroups.local;
+namespace {
 
+// How a launch puts the NDRange on the CUDA axes: the launch layout and the block and grid extents it gives.
+struct cuda_dispatch {
+    launch_layout layout;
+    unsigned int block[3] = {1, 1, 1};
+    unsigned int grid[3] = {1, 1, 1};
+
+    unsigned int block_threads() const { return block[0] * block[1] * block[2]; }
+
+    // For error messages: a kernel is launched with many shapes, and a failure is only reproducible with the one
+    // that failed.
+    std::string to_string() const {
+        return "grid (" + std::to_string(grid[0]) + ", " + std::to_string(grid[1]) + ", " + std::to_string(grid[2]) +
+               "), block (" + std::to_string(block[0]) + ", " + std::to_string(block[1]) + ", " +
+               std::to_string(block[2]) + "), " + layout.name();
+    }
+};
+
+// Chooses how the NDRange of `gws` and `lws` runs on the CUDA axes. `kernel_name` names the kernel in errors.
+cuda_dispatch choose_cuda_dispatch(const std::vector<size_t>& gws,
+                                   const std::vector<size_t>& lws,
+                                   const std::string& kernel_name) {
     // Work-group size and count per NDRange dimension. They stay in size_t until they are checked against the CUDA
     // limits: narrowing first would wrap an extent of 2^32 + 1 to 1 and run only part of the NDRange. A dimension
     // without a local size runs one work-item per block.
@@ -420,13 +434,13 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
     //    linear local id stays the OpenCL one. With Y == 1 this is a plain exchange of the two axes.
     //  - Grid: a work-group count above 65535 along dimension 1 or 2 is moved to x. Work-groups are independent, so
     //    their order does not matter and any exchange will do.
-    launch_layout layout;
+    cuda_dispatch dispatch;
     if (block_extent[2] > CUDA_MAX_BLOCK_Z)
-        layout.block = block_extent[1] == 1 ? block_layout::exchanged : block_layout::folded;
+        dispatch.layout.block = block_extent[1] == 1 ? block_layout::exchanged : block_layout::folded;
     if (grid_extent[1] > CUDA_MAX_GRID_YZ)
-        layout.grid = grid_layout::swap_x_y;
+        dispatch.layout.grid = grid_layout::swap_x_y;
     else if (grid_extent[2] > CUDA_MAX_GRID_YZ)
-        layout.grid = grid_layout::swap_x_z;
+        dispatch.layout.grid = grid_layout::swap_x_z;
 
     // Within 1024 work-items, every block layout keeps each axis within its limit: dimension 0 stays on x, and a fold
     // puts Z <= 1024 on y and Y on z, where Y * Z <= 1024 and Z > 64 leave Y <= 15. The extents are checked one by
@@ -434,195 +448,197 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
     if (block_extent[0] > CUDA_MAX_BLOCK_THREADS || block_extent[1] > CUDA_MAX_BLOCK_THREADS ||
         block_extent[2] > CUDA_MAX_BLOCK_THREADS ||
         block_extent[0] * block_extent[1] * block_extent[2] > CUDA_MAX_BLOCK_THREADS) {
-        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _state->kernel_name, "' cannot be launched: its work-group (",
+        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", kernel_name, "' cannot be launched: its work-group (",
                        block_extent[0], ", ", block_extent[1], ", ", block_extent[2], ") has more than ",
                        CUDA_MAX_BLOCK_THREADS, " work-items, the most a CUDA block can hold");
     }
 
     size_t block_axes[3] = {block_extent[0], block_extent[1], block_extent[2]};
-    if (layout.block != block_layout::plain)
+    if (dispatch.layout.block != block_layout::plain)
         std::swap(block_axes[1], block_axes[2]);
     size_t grid_axes[3] = {grid_extent[0], grid_extent[1], grid_extent[2]};
-    if (layout.grid == grid_layout::swap_x_y)
+    if (dispatch.layout.grid == grid_layout::swap_x_y)
         std::swap(grid_axes[0], grid_axes[1]);
-    else if (layout.grid == grid_layout::swap_x_z)
+    else if (dispatch.layout.grid == grid_layout::swap_x_z)
         std::swap(grid_axes[0], grid_axes[2]);
 
     if (grid_axes[0] > CUDA_MAX_GRID_X || grid_axes[1] > CUDA_MAX_GRID_YZ || grid_axes[2] > CUDA_MAX_GRID_YZ) {
-        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _state->kernel_name, "' cannot be launched: its work-group count (",
+        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", kernel_name, "' cannot be launched: its work-group count (",
                        grid_extent[0], ", ", grid_extent[1], ", ", grid_extent[2], ") does not fit a CUDA grid, ",
                        "which takes more than ", CUDA_MAX_GRID_YZ, " work-groups along one dimension only, and at most ",
                        CUDA_MAX_GRID_X, " along that one");
     }
 
     // Every extent is within unsigned int here.
-    const unsigned int bx = static_cast<unsigned int>(block_axes[0]);
-    const unsigned int by = static_cast<unsigned int>(block_axes[1]);
-    const unsigned int bz = static_cast<unsigned int>(block_axes[2]);
-    const unsigned int gx = static_cast<unsigned int>(grid_axes[0]);
-    const unsigned int gy = static_cast<unsigned int>(grid_axes[1]);
-    const unsigned int gz = static_cast<unsigned int>(grid_axes[2]);
+    for (size_t axis = 0; axis < 3; ++axis) {
+        dispatch.block[axis] = static_cast<unsigned int>(block_axes[axis]);
+        dispatch.grid[axis] = static_cast<unsigned int>(grid_axes[axis]);
+    }
+    return dispatch;
+}
 
-    // Categorize args: gpu_buffer (need SYCL accessors) vs gpu_usm (direct pointer)
-    std::vector<size_t> buf_arg_indices;
-    std::vector<size_t> usm_arg_indices;
+using rw_accessor = ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read_write>;
+
+// Where the device address of a buffer argument comes from. A gpu_buffer is reached through an accessor of the
+// command group, whose address is only known inside the task; the address of a USM allocation is known when the
+// launch is recorded.
+struct buffer_arg {
+    static constexpr size_t no_accessor = static_cast<size_t>(-1);
+
+    size_t accessor = no_accessor;  // index of the gpu_buffer's accessor
+    size_t byte_offset = 0;         // of the argument within the gpu_buffer
+    CUdeviceptr usm_ptr = 0;        // address of a USM argument
+};
+
+// Size in bytes of a scalar argument.
+size_t scalar_size(scalar_desc::Types type) {
+    switch (type) {
+    case scalar_desc::Types::UINT8:
+    case scalar_desc::Types::INT8:
+        return 1;
+    case scalar_desc::Types::UINT16:
+    case scalar_desc::Types::INT16:
+        return 2;
+    case scalar_desc::Types::UINT32:
+    case scalar_desc::Types::INT32:
+    case scalar_desc::Types::FLOAT32:
+        return 4;
+    case scalar_desc::Types::UINT64:
+    case scalar_desc::Types::INT64:
+    case scalar_desc::Types::FLOAT64:
+        return 8;
+    }
+    OPENVINO_THROW("[GPU][NVIDIA] Unknown scalar argument type ", static_cast<int>(type));
+}
+
+// The parameters of one cuLaunchKernel call: one pointer per kernel parameter, each to an 8-byte slot that holds its
+// value (every OpenCL kernel argument value fits in one), and the dynamic shared memory the __local arguments take.
+// The pointers point into `values`, so the struct is moved but never copied.
+struct kernel_params {
+    std::vector<uint64_t> values;
+    std::vector<void*> pointers;
+    unsigned int shared_mem_bytes = 0;
+
+    kernel_params() = default;
+    kernel_params(const kernel_params&) = delete;
+    kernel_params& operator=(const kernel_params&) = delete;
+    kernel_params(kernel_params&&) = default;
+    kernel_params& operator=(kernel_params&&) = default;
+};
+
+// Builds the parameters of `function` for `args` (inside host_task, where the accessors' addresses are known).
+kernel_params build_kernel_params(const std::vector<sycl_base_kernel::arg_t>& args,
+                                  const std::vector<buffer_arg>& buffers,
+                                  const std::vector<rw_accessor>& accessors,
+                                  ::sycl::interop_handle& ih,
+                                  const cuda_function& function,
+                                  const std::vector<uint32_t>& local_alignments) {
+    using kind_t = sycl_base_kernel::arg_t::kind_t;
+    kernel_params params;
+    params.values.assign(args.size(), 0);
+    params.pointers.resize(args.size());
+
+    // __local pointer arguments are .shared addresses (.param .u64 .ptr .shared in NVVM's PTX). The static
+    // .shared variables of the function - __local arrays declared in the kernel, the work-group collectives'
+    // buffer of compat_wg.cl - take the start of the .shared window and the dynamic shared memory follows them,
+    // so the arguments are placed from the end of the static ones, each at the alignment it needs.
+    uint64_t smem_offset = static_cast<uint64_t>(function.static_shared_bytes);
+
     for (size_t i = 0; i < args.size(); ++i) {
-        if (args[i].kind == sycl_ptx_kernel::arg_t::kind_t::BUFFER && args[i].mem) {
-            if (dynamic_cast<const gpu_buffer*>(args[i].mem.get())) {
-                buf_arg_indices.push_back(i);
-            } else {
-                usm_arg_indices.push_back(i);
+        const auto& arg = args[i];
+        void* slot = &params.values[i];
+        params.pointers[i] = slot;
+        switch (arg.kind) {
+        case kind_t::BUFFER: {
+            const auto& buffer = buffers[i];
+            CUdeviceptr ptr = buffer.usm_ptr;
+            if (buffer.accessor != buffer_arg::no_accessor) {
+                const auto native = ih.get_native_mem<::sycl::backend::ext_oneapi_cuda>(accessors[buffer.accessor]);
+                ptr = reinterpret_cast<CUdeviceptr>(native) + buffer.byte_offset;
             }
+            std::memcpy(slot, &ptr, sizeof(ptr));
+            break;
+        }
+        case kind_t::SCALAR:
+            std::memcpy(slot, &arg.scalar.v, scalar_size(arg.scalar.t));
+            break;
+        case kind_t::LOCAL_MEM: {
+            // The parameter value is the argument's address in the .shared window, rounded up to the alignment the
+            // kernel was compiled to assume for it.
+            const uint64_t align = (i < local_alignments.size() && local_alignments[i] > 0)
+                                       ? local_alignments[i]
+                                       : ptx_program::default_local_alignment;
+            smem_offset = (smem_offset + align - 1) / align * align;
+            std::memcpy(slot, &smem_offset, sizeof(smem_offset));
+            smem_offset += static_cast<uint64_t>(arg.local_size);
+            break;
+        }
         }
     }
 
-    // Build gpu_buffer pointer list for accessor creation inside submit handler
-    std::vector<std::pair<const gpu_buffer*, size_t>> buf_ptrs;
-    for (auto idx : buf_arg_indices) {
-        auto* gb = dynamic_cast<const gpu_buffer*>(args[idx].mem.get());
-        buf_ptrs.emplace_back(gb, gb->get_byte_offset());
-    }
+    // The dynamic shared memory to request: everything past the static variables up to the end of the last
+    // __local argument, alignment padding included.
+    params.shared_mem_bytes =
+        static_cast<unsigned int>(smem_offset - static_cast<uint64_t>(function.static_shared_bytes));
+    return params;
+}
 
-    // Collect USM device pointers (no accessors needed)
-    std::vector<std::pair<size_t, void*>> usm_ptrs;
-    for (auto idx : usm_arg_indices) {
-        void* ptr = args[idx].mem->buffer_ptr();
-        usm_ptrs.emplace_back(idx, ptr);
-    }
+}  // anonymous namespace
 
-    struct buf_info_t {
-        ::sycl::accessor<std::byte, 1, ::sycl::access::mode::read_write> acc;
-        size_t byte_offset;
-    };
+void sycl_ptx_kernel::launch(::sycl::handler& cgh, const kernel_arguments_desc& args_desc) {
+    auto args = stored_args();
+    const cuda_dispatch dispatch =
+        choose_cuda_dispatch(args_desc.workGroups.global, args_desc.workGroups.local, _state->kernel_name);
 
-    // The owning stream has already wired the dependency events onto this
-    // command group (handler) and will submit it and create the resulting
-    // event.  Here we only record the backend-specific dispatch.
-    std::vector<buf_info_t> buf_infos;
-    buf_infos.reserve(buf_ptrs.size());
-    for (auto& [gb, off] : buf_ptrs) {
-        buf_infos.push_back({gb->create_rw_accessor(cgh), off});
+    // The owning stream has already wired the dependency events onto this command group (handler) and will submit it
+    // and create the resulting event. Here the buffer arguments get their accessors and the dispatch is recorded.
+    std::vector<rw_accessor> accessors;
+    std::vector<buffer_arg> buffers(args.size());
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (args[i].kind != arg_t::kind_t::BUFFER)
+            continue;
+        // As on the OpenCL backend, a memory argument the primitive does not provide is an error.
+        OPENVINO_ASSERT(args[i].mem, "[GPU][NVIDIA] Kernel '", _state->kernel_name, "' has no memory for argument ", i);
+        if (const auto* buffer = dynamic_cast<const gpu_buffer*>(args[i].mem.get())) {
+            buffers[i].accessor = accessors.size();
+            buffers[i].byte_offset = buffer->get_byte_offset();
+            accessors.push_back(buffer->create_rw_accessor(cgh));
+        } else {
+            buffers[i].usm_ptr = reinterpret_cast<CUdeviceptr>(args[i].mem->buffer_ptr());
+        }
     }
 
     // The task runs once the dependencies complete, possibly after the caller has released this
     // kernel, so it holds the entry point state it needs rather than a pointer to the kernel.
-    cldnn::sycl::host_task(cgh, [buf_infos = std::move(buf_infos),
+    cldnn::sycl::host_task(cgh, [accessors = std::move(accessors),
+                                 buffers = std::move(buffers),
                                  args = std::move(args),
-                                 buf_arg_indices,
-                                 usm_ptrs,
                                  state = _state,
-                                 layout,
-                                 gx, gy, gz, bx, by, bz](::sycl::interop_handle ih) {
-        const auto function = state->function_for_launch(layout.index(), bx * by * bz);
+                                 dispatch](::sycl::interop_handle ih) {
+        const auto function = state->function_for_launch(dispatch.layout.index(), dispatch.block_threads());
+        kernel_params params = build_kernel_params(args, buffers, accessors, ih, *function, state->local_alignments);
         auto cu_stream = ih.get_native_queue<::sycl::backend::ext_oneapi_cuda>();
-        auto cu_func = static_cast<CUfunction>(function->cu_function);
-
-        std::vector<std::vector<uint8_t>> param_storage;
-        std::vector<void*> params;
-
-        // __local pointer arguments are .shared addresses (.param .u64 .ptr .shared in NVVM's PTX). The static
-        // .shared variables of the function - __local arrays declared in the kernel, the work-group collectives'
-        // buffer of compat_wg.cl - take the start of the .shared window and the dynamic shared memory follows them,
-        // so the arguments are placed from the end of the static ones, each at the alignment it needs.
-        uint64_t smem_offset = static_cast<uint64_t>(function->static_shared_bytes);
-
-        for (size_t i = 0; i < args.size(); ++i) {
-            const auto& arg = args[i];
-            if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::BUFFER) {
-                auto buf_it = std::find(buf_arg_indices.begin(), buf_arg_indices.end(), i);
-                if (buf_it != buf_arg_indices.end() && arg.mem) {
-                    size_t local_idx = static_cast<size_t>(buf_it - buf_arg_indices.begin());
-                    const auto& bi = buf_infos[local_idx];
-                    auto raw_ptr = ih.get_native_mem<::sycl::backend::ext_oneapi_cuda>(bi.acc);
-                    CUdeviceptr cu_ptr =
-                        reinterpret_cast<CUdeviceptr>(raw_ptr) + bi.byte_offset;
-                    param_storage.emplace_back(sizeof(CUdeviceptr));
-                    std::memcpy(param_storage.back().data(), &cu_ptr, sizeof(CUdeviceptr));
-                    params.push_back(param_storage.back().data());
-                } else {
-                    auto usm_it = std::find_if(usm_ptrs.begin(), usm_ptrs.end(),
-                        [i](const std::pair<size_t, void*>& p) { return p.first == i; });
-                    if (usm_it != usm_ptrs.end()) {
-                        CUdeviceptr cu_ptr = reinterpret_cast<CUdeviceptr>(usm_it->second);
-                        param_storage.emplace_back(sizeof(CUdeviceptr));
-                        std::memcpy(param_storage.back().data(), &cu_ptr, sizeof(CUdeviceptr));
-                        params.push_back(param_storage.back().data());
-                    } else {
-                        CUdeviceptr cu_ptr = 0;
-                        param_storage.emplace_back(sizeof(CUdeviceptr));
-                        std::memcpy(param_storage.back().data(), &cu_ptr, sizeof(CUdeviceptr));
-                        params.push_back(param_storage.back().data());
-                    }
-                }
-            } else if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::SCALAR) {
-                size_t sz = 4;
-                switch (arg.scalar.t) {
-                    case scalar_desc::Types::UINT8:   sz = 1; break;
-                    case scalar_desc::Types::INT8:    sz = 1; break;
-                    case scalar_desc::Types::UINT16:  sz = 2; break;
-                    case scalar_desc::Types::INT16:   sz = 2; break;
-                    case scalar_desc::Types::UINT32:  sz = 4; break;
-                    case scalar_desc::Types::INT32:   sz = 4; break;
-                    case scalar_desc::Types::FLOAT32: sz = 4; break;
-                    case scalar_desc::Types::UINT64:  sz = 8; break;
-                    case scalar_desc::Types::INT64:   sz = 8; break;
-                    case scalar_desc::Types::FLOAT64: sz = 8; break;
-                }
-                param_storage.emplace_back(sz);
-                std::memcpy(param_storage.back().data(), &arg.scalar.v, sz);
-                params.push_back(param_storage.back().data());
-            } else if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::LOCAL_MEM) {
-                // The parameter value is the argument's address in the .shared window, rounded up to the
-                // alignment the kernel was compiled to assume for it.
-                const uint64_t align = (i < state->local_alignments.size() && state->local_alignments[i] > 0)
-                                           ? state->local_alignments[i]
-                                           : ptx_program::default_local_alignment;
-                smem_offset = (smem_offset + align - 1) / align * align;
-                param_storage.emplace_back(sizeof(uint64_t));
-                std::memcpy(param_storage.back().data(), &smem_offset, sizeof(uint64_t));
-                params.push_back(param_storage.back().data());
-                smem_offset += static_cast<uint64_t>(arg.local_size);
-            }
-        }
-
-        // The dynamic shared memory to request: everything past the static variables up to the end of the last
-        // __local argument, alignment padding included.
-        const unsigned int shared_mem =
-            static_cast<unsigned int>(smem_offset - static_cast<uint64_t>(function->static_shared_bytes));
-
-        // The launch shape, for error messages: a kernel is launched with many shapes, and a failure is only
-        // reproducible with the one that failed.
         const auto launch_shape = [&]() {
-            return "grid (" + std::to_string(gx) + ", " + std::to_string(gy) + ", " + std::to_string(gz) +
-                   "), block (" + std::to_string(bx) + ", " + std::to_string(by) + ", " + std::to_string(bz) +
-                   "), " + std::to_string(shared_mem) + " bytes of shared memory, " + layout.name();
+            return dispatch.to_string() + ", " + std::to_string(params.shared_mem_bytes) + " bytes of shared memory";
         };
 
-        CUresult res = cuLaunchKernel(cu_func,
-                                      gx, gy, gz,
-                                      bx, by, bz,
-                                      shared_mem,
+        CUresult res = cuLaunchKernel(static_cast<CUfunction>(function->cu_function),
+                                      dispatch.grid[0], dispatch.grid[1], dispatch.grid[2],
+                                      dispatch.block[0], dispatch.block[1], dispatch.block[2],
+                                      params.shared_mem_bytes,
                                       cu_stream,
-                                      params.empty() ? nullptr : params.data(),
+                                      params.pointers.empty() ? nullptr : params.pointers.data(),
                                       nullptr);
-        if (res != CUDA_SUCCESS) {
-            const char* err_str = nullptr;
-            cuGetErrorString(res, &err_str);
-            OPENVINO_THROW("[GPU][NVIDIA] cuLaunchKernel failed for '", state->kernel_name, "' with ",
-                           launch_shape(), ": ", err_str ? err_str : "unknown error");
-        }
+        if (res != CUDA_SUCCESS)
+            throw_cuda_error(res, "cuLaunchKernel for '" + state->kernel_name + "' with " + launch_shape());
 
 #ifndef SYCL_EXT_ONEAPI_ENQUEUE_NATIVE_COMMAND
         // An ordinary host_task's event completes when this callback returns, so without the native-command
         // extension the stream is synchronised to keep the event from completing while the kernel still accesses
         // its buffers. A native command's event covers the work it enqueues, so that path needs no wait.
-        CUresult sync_res = cuStreamSynchronize(cu_stream);
-        if (sync_res != CUDA_SUCCESS) {
-            const char* err_str = nullptr;
-            cuGetErrorString(sync_res, &err_str);
-            OPENVINO_THROW("[GPU][NVIDIA] cuStreamSynchronize failed for '", state->kernel_name, "' with ",
-                           launch_shape(), ": ", err_str ? err_str : "unknown error");
-        }
+        res = cuStreamSynchronize(cu_stream);
+        if (res != CUDA_SUCCESS)
+            throw_cuda_error(res, "cuStreamSynchronize for '" + state->kernel_name + "' with " + launch_shape());
 #endif
     });
 }
