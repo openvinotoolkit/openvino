@@ -446,7 +446,10 @@ Example:
     <skip_config>
         <message>Command list destroyed in an unnexpected way, according to Driver</message>
         <filters>
-            <filter>.*DontDestroyZeroCommand.*</filter>
+            <filter>.*ZeroGraphTest.DontDestroyZeroGraph.*</filter>
+            <filter>.*ZeroWrappersTests.DontDestroyZeroCommand.*</filter>
+            <filter>.*ZeroWrappersTests.DontDestroyZeroFence.*</filter>
+            <filter>.*ZeroWrappersTests.DontDestroyZeroEvent.*</filter>
         </filters>
     </skip_config>
 
