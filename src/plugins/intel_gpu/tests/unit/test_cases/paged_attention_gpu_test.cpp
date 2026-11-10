@@ -22,12 +22,10 @@ TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     auto p = GetParam();
     const auto backend = tests::expected_dpas_backend(tests::get_test_engine());
     if (backend == tests::dpas_backend::none)
-        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl): not on its lane, or OV_GPU_ENABLE_SDPA_MICRO=0";
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
-    if (!pa_dpas_kernel_enabled_by_config())
-        GTEST_SKIP() << "OV_GPU_ENABLE_SDPA_MICRO=0: no DPAS MIXED kernel to pin, the MIXED fallback runs";
 
     for (size_t sequence = 0; sequence < pam.subsequence_descs.size(); ++sequence) {
         std::fill(pam.query_data[sequence].begin(), pam.query_data[sequence].end(), ov::float16{8.0f});
@@ -254,8 +252,10 @@ TEST_P(paged_attention_runtime_scale_test, matches_reference) {
     });
     // Below Xe2 the opt multi-token kernel (pa_sdpa_opt) types a runtime scale as INPUT3_TYPE (sdpa_opt.cl SCALE_TYPE;
     // see "Known issues" in docs/sdpa_ocl.md). Real models give a constant scale. Whatever runs on Xe2+ reads it right.
-    // A pre-Xe2 device that takes the sdpa_ocl lane reads it right for PREFILL/MIXED only: GENERATE stays on pa_single_token.
-    if (!(info.arch >= cldnn::gpu_arch::xe2 || (!generate && cldnn::paged_attention::sdpa_ocl_selected(info))))
+    // A pre-Xe2 device that takes the sdpa_ocl lane reads it right for PREFILL/MIXED only (and only with enable_sdpa_micro
+    // on): GENERATE stays on pa_single_token.
+    const bool sdpa_ocl_multi_tokens = !generate && tests::expected_dpas_backend(tests::get_test_engine()) == tests::dpas_backend::ocl;
+    if (!(info.arch >= cldnn::gpu_arch::xe2 || sdpa_ocl_multi_tokens))
         GTEST_SKIP() << "a runtime scale is only read correctly by sdpa_ocl / sdpa_ocl_decode";
     execute(p, true);
 }
@@ -293,8 +293,8 @@ INSTANTIATE_TEST_SUITE_P(
 class paged_attention_feature_pad_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 namespace {
-// The suite only means something where sdpa_ocl serves PREFILL / MIXED; elsewhere the multi-token kernel is
-// pa_sdpa_opt, which has its own padding handling.
+// The suite only means something where sdpa_ocl serves PREFILL / MIXED (its lane, enable_sdpa_micro on); elsewhere the
+// multi-token kernel is pa_sdpa_opt, which has its own padding handling.
 bool sdpa_ocl_serves_prefill_mixed() {
     return tests::expected_dpas_backend(tests::get_test_engine()) == tests::dpas_backend::ocl;
 }
@@ -717,11 +717,9 @@ TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
     // Off the sdpa_ocl lane the k != v MIXED cases run pa_multi_token, so there is no sdpa_ocl kernel to assert on.
     auto p = GetParam();
     if (!sdpa_ocl_serves_prefill_mixed())
-        GTEST_SKIP() << "sdpa_ocl is not this device's DPAS kernel (not Xe2+ or xe_hpg XMX, or no oneDNN)";
+        GTEST_SKIP() << "sdpa_ocl does not serve PREFILL / MIXED (not Xe2+ or xe_hpg XMX, no oneDNN, or OV_GPU_ENABLE_SDPA_MICRO=0)";
 
     ASSERT_TRUE(this->pam.has_value());
-    if (!pa_dpas_kernel_enabled_by_config())
-        GTEST_SKIP() << "OV_GPU_ENABLE_SDPA_MICRO=0: sdpa_ocl is off, the MIXED fallback runs";
 
     auto result = run_gpu_inference(*this->pam, p);
     auto pa_inst = result.network->get_primitive("paged_attention");
@@ -1895,7 +1893,7 @@ TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
 
     auto result = run_gpu_inference(pam, p);
 
-    const bool sdpa_ocl_mixed = sdpa_ocl_serves_prefill_mixed() && pa_dpas_kernel_enabled_by_config();
+    const bool sdpa_ocl_mixed = sdpa_ocl_serves_prefill_mixed();
     const std::string expected_kernel = expected_gqa_multi_tokens_kernel(p, sdpa_ocl_mixed);
     if (expected_kernel.empty() && (std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_MAX") || std::getenv("OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL")))
         GTEST_SKIP() << "OV_GPU_PA_GQA_MULTI_TOKENS_MAX / _KERNEL turn the GQA multi-token path off";
