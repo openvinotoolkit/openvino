@@ -21,6 +21,45 @@ namespace nvidia {
 
 namespace {
 
+// The PTX that clBuildProgram on the NVIDIA OpenCL runtime produces is meant for that runtime; the patches below make
+// it loadable and launchable through the CUDA driver API (cuModuleLoadData / cuLaunchKernel) instead. They are applied
+// before the PTX is cached, so a cached binary needs none of them.
+
+// NVVM decorates __local pointer parameters as '.param .u64 .ptr .shared .align N', which cuModuleLoadData rejects with
+// CUDA_ERROR_INVALID_IMAGE. Turn the decoration into a comment, leaving a plain .u64 parameter. The comment keeps N -
+// the alignment the kernel assumes for that argument (16, or more for wide vector types) - in the PTX, cached binaries
+// included, so the launch can place the argument at an offset into shared memory that honours it (see ptx_program in
+// sycl_ptx_kernel.hpp).
+void patch_ptx_local(std::string& ptx) {
+    static const std::regex shared_param_re(
+        R"(\.param \.u64 \.ptr \.shared \.align (\d+))");
+    ptx = std::regex_replace(ptx, shared_param_re, ".param .u64 /* .ptr .shared .align $1 */");
+}
+
+// NVVM maps OpenCL work-item functions to %envreg special registers that the OpenCL runtime sets up before a launch.
+// cuLaunchKernel never sets them, so they hold garbage when the kernel is launched through CUDA. The encoding, as found
+// in NVVM-generated PTX:
+//     %envreg0-2  global_work_offset[0-2]  (the get_global_id offset addend)
+//     %envreg3-5  global_work_offset[0-2]  (the get_group_id offset addend)
+//     %envreg6-8  num_groups[0-2]          (get_global_size / get_num_groups)
+// The offsets are always 0 in OpenVINO and the group counts are what cuLaunchKernel puts in %nctaid.x/y/z, so
+// %envreg0-5 become 0 and %envreg6-8 become %nctaid.x/y/z.
+void patch_ptx_envreg(std::string& ptx) {
+    // One pass for all nine registers. (?!\d) keeps them whole: the prelude's %envreg27-31 are not touched.
+    static const std::regex envreg_re(R"(%envreg([0-8])(?!\d))");
+    static const char* const replacements[] = {"0", "0", "0", "0", "0", "0", "%nctaid.x", "%nctaid.y", "%nctaid.z"};
+    std::string out;
+    out.reserve(ptx.size());
+    auto last = ptx.cbegin();
+    for (std::sregex_iterator it(ptx.cbegin(), ptx.cend(), envreg_re), end; it != end; ++it) {
+        out.append(last, (*it)[0].first);
+        out += replacements[*(*it)[1].first - '0'];
+        last = (*it)[0].second;
+    }
+    out.append(last, ptx.cend());
+    ptx = std::move(out);
+}
+
 // Build sycl_ptx_kernel objects from a compiled PTX string, one per entry point. Every entry point of the PTX is a
 // kernel of the program: clBuildProgram on the NVIDIA OpenCL runtime emits exactly the program's kernels, whatever
 // their names (copy_with_offset included). The global work offset is not a separate entry point but read from
@@ -38,81 +77,9 @@ void create_ptx_kernels(std::string ptx, std::vector<kernel::ptr>& out) {
 
 }  // namespace
 
-// ---------------------------------------------------------------------------
-// PTX post-processing helpers
-// ---------------------------------------------------------------------------
-namespace {
-
-// Apply PTX text-level patches to fix incompatibilities between the NVIDIA OCL
-// compiler output and the CUDA driver API (cuModuleLoadData / cuLaunchKernel).
-//
-// (1) '.param .u64 .ptr .shared .align N' parameters
-//     The NVIDIA OCL compiler (NVVM) emits this decoration for __local pointer
-//     arguments.  cuModuleLoadData rejects modules that contain it with
-//     CUDA_ERROR_INVALID_IMAGE, so the decoration is turned into a comment and
-//     the parameter becomes a plain .u64.  The comment keeps N - the alignment
-//     the kernel assumes for that argument (16, or more for wide vector types) -
-//     in the PTX, cached binaries included, so the launch can place the argument
-//     at an offset into shared memory that honours it.
-//
-// (2) '%envreg[0-8]' special registers
-//     The NVIDIA OCL compiler (NVVM) maps OpenCL work-item functions to a set
-//     of '%envreg' special registers that the OpenCL runtime initialises before
-//     the kernel launch.  cuLaunchKernel never sets these registers, so they
-//     hold garbage when kernels are driven via the CUDA driver API.
-//
-//     NVVM encoding (confirmed by inspecting NVVM-generated PTX):
-//       %envreg0-2  global_work_offset[0-2]  (get_global_id offset addend)
-//       %envreg3-5  global_work_offset[0-2]  (get_group_id  offset addend)
-//       %envreg6    num_groups[0] == %nctaid.x  (get_global_size / get_num_groups)
-//       %envreg7    num_groups[1] == %nctaid.y
-//       %envreg8    num_groups[2] == %nctaid.z
-//
-//     Patches applied when launching via CUDA:
-//       %envreg[0-5] → 0         (global_work_offset is always 0 in OpenVINO)
-//       %envreg6     → %nctaid.x (grid X dimension set by cuLaunchKernel)
-//       %envreg7     → %nctaid.y
-//       %envreg8     → %nctaid.z
-// Turn '.ptr .shared .align N' into a comment - cuModuleLoadData rejects it (CUDA_ERROR_INVALID_IMAGE) - keeping
-// the alignment for the launch (see ptx_program in sycl_ptx_kernel.hpp). NVVM emits it for __local pointer parameters.
-static void patch_ptx_local(std::string& ptx) {
-    static const std::regex shared_param_re(
-        R"(\.param \.u64 \.ptr \.shared \.align (\d+))");
-    ptx = std::regex_replace(ptx, shared_param_re, ".param .u64 /* .ptr .shared .align $1 */");
-}
-
-// Replace '%envreg[0-5]' with 0 and '%envreg[6-8]' with the corresponding
-// %nctaid register.  NVVM emits these for get_global_id/get_global_size;
-// cuLaunchKernel never writes %envreg so they hold garbage without this patch.
-static void patch_ptx_envreg(std::string& ptx) {
-    // One pass for all nine registers. (?!\d) keeps them whole: the prelude's %envreg27-31 are not touched.
-    static const std::regex envreg_re(R"(%envreg([0-8])(?!\d))");
-    // global_work_offset registers (always 0 in OpenVINO), then the num_groups registers, which become the
-    // %nctaid.{x,y,z} registers that cuLaunchKernel populates from the grid dimensions.
-    static const char* const replacements[] = {"0", "0", "0", "0", "0", "0", "%nctaid.x", "%nctaid.y", "%nctaid.z"};
-    std::string out;
-    out.reserve(ptx.size());
-    auto last = ptx.cbegin();
-    for (std::sregex_iterator it(ptx.cbegin(), ptx.cend(), envreg_re), end; it != end; ++it) {
-        out.append(last, (*it)[0].first);
-        out += replacements[*(*it)[1].first - '0'];
-        last = (*it)[0].second;
-    }
-    out.append(last, ptx.cend());
-    ptx = std::move(out);
-}
-
-}  // namespace (patch_ptx)
-
-// ---------------------------------------------------------------------------
-// Constructor
-// ---------------------------------------------------------------------------
 sycl_kernel_builder::sycl_kernel_builder(const sycl_device& device)
     : _device(device) {}
 
-// ---------------------------------------------------------------------------
-// OCL builder lazy initialisation
-// ---------------------------------------------------------------------------
 void sycl_kernel_builder::init_ocl_builder() const {
     // The matching OpenCL device is looked up once per SYCL device (see sycl_device::get_ocl_device()).
     auto ocl_dev = _device.get_ocl_device();
@@ -121,9 +88,6 @@ void sycl_kernel_builder::init_ocl_builder() const {
     _ocl_builder = std::make_shared<::cldnn::ocl::ocl_kernel_builder>(*ocl_dev);
 }
 
-// ---------------------------------------------------------------------------
-// build_kernels
-// ---------------------------------------------------------------------------
 void sycl_kernel_builder::build_kernels(
         const void* src, size_t src_bytes, KernelFormat src_format,
         const std::string& options,
@@ -132,15 +96,14 @@ void sycl_kernel_builder::build_kernels(
         OPENVINO_THROW("[GPU][NVIDIA] sycl::nvidia::sycl_kernel_builder: empty kernel source");
 
     if (src_format == KernelFormat::NATIVE_BIN) {
+        // A cached binary is PTX this function has already patched.
         create_ptx_kernels(std::string(static_cast<const char*>(src), src_bytes), out);
         return;
     }
 
-    {
-        std::lock_guard lock(_mutex);
-        if (!_ocl_builder)
-            init_ocl_builder();
-    }
+    // Should the initialization throw (no matching OpenCL device), the next call tries again: call_once only records a
+    // call that returns.
+    std::call_once(_ocl_builder_once, [this]() { init_ocl_builder(); });
     std::vector<kernel::ptr> tmp;
     _ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
     OPENVINO_ASSERT(!tmp.empty(), "[GPU][NVIDIA] OCL builder returned no kernels");
