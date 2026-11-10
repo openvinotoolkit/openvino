@@ -58,7 +58,8 @@ public:
 private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     ov::SoPtr<ov::ICompiledModel> compile_variant(const std::map<std::size_t, ov::PartialShape>& shapes,
-                                                  const std::string& tag) const;
+                                                  const std::string& tag,
+                                                  bool drop_logits) const;
 
     std::shared_ptr<ov::Model> m_model;
     // Variants are compiled after compile_model() returns, when the user may have released the Core

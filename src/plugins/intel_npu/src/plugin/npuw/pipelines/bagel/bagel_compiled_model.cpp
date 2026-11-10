@@ -11,6 +11,14 @@
 #include "intel_npu/config/npuw.hpp"
 #include "npuw/llm_compiled_model_utils.hpp"
 #include "npuw/logging.hpp"
+#include "npuw/util.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace {
@@ -45,6 +53,63 @@ std::vector<std::size_t> parse_buckets(const std::string& csv, const char* optio
     return buckets;
 }
 
+// index_copy is exported as ScatterElementsUpdate(data, Broadcast(index[K], axes_mapping = {0}), updates, axis = 0):
+// a copy of whole rows, which ScatterUpdate does row-wise instead of element-wise. Returns the rewritten count
+std::size_t convert_index_copy_to_scatter_update(const std::shared_ptr<ov::Model>& model) {
+    std::size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto seu = ov::as_type_ptr<ov::op::v12::ScatterElementsUpdate>(node);
+        if (!seu || seu->get_reduction() != ov::op::v12::ScatterElementsUpdate::Reduction::NONE) {
+            continue;
+        }
+        const auto axis = ov::as_type_ptr<ov::op::v0::Constant>(seu->get_input_node_shared_ptr(3));
+        const auto bcast = ov::as_type_ptr<ov::op::v1::Broadcast>(seu->get_input_node_shared_ptr(1));
+        if (!axis || axis->cast_vector<int64_t>() != std::vector<int64_t>{0} || !bcast ||
+            bcast->get_broadcast_spec().m_type != ov::op::AutoBroadcastType::NONE) {
+            continue;
+        }
+        const auto axes = ov::as_type_ptr<ov::op::v0::Constant>(bcast->get_input_node_shared_ptr(2));
+        const auto index = bcast->input_value(0);
+        const auto& data_shape = seu->get_input_partial_shape(0);
+        if (!axes || axes->cast_vector<int64_t>() != std::vector<int64_t>{0} || index.get_partial_shape().rank() != 1 ||
+            data_shape.rank().is_dynamic() || data_shape.size() < 2) {
+            continue;
+        }
+
+        // Rows are flattened to 2D so every rank maps to the same [N, M] row scatter
+        std::vector<int64_t> row_shape{0};
+        std::vector<int64_t> full_shape{0};
+        int64_t row = 1;
+        for (std::size_t d = 1; d < data_shape.size(); ++d) {
+            if (data_shape[d].is_dynamic()) {
+                row = -1;
+                break;
+            }
+            row *= data_shape[d].get_length();
+            full_shape.push_back(data_shape[d].get_length());
+        }
+        if (row < 0) {
+            continue;
+        }
+        row_shape.push_back(row);
+        const auto flat = [&](const ov::Output<ov::Node>& value, const std::vector<int64_t>& shape) {
+            const auto target = ov::op::v0::Constant::create(ov::element::i64, {shape.size()}, shape);
+            return std::make_shared<ov::op::v1::Reshape>(value, target, true)->output(0);
+        };
+        const auto zero = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
+        const auto scatter = std::make_shared<ov::op::v3::ScatterUpdate>(flat(seu->input_value(0), row_shape),
+                                                                         index,
+                                                                         flat(seu->input_value(2), row_shape),
+                                                                         zero);
+        const auto result = flat(scatter, full_shape).get_node_shared_ptr();
+        result->set_friendly_name(seu->get_friendly_name());
+        ov::copy_runtime_info(seu, {scatter, result});
+        ov::replace_node(seu, result);
+        ++count;
+    }
+    return count;
+}
+
 std::size_t pick_bucket(const std::vector<std::size_t>& buckets, std::size_t n, const char* what) {
     const auto it = std::lower_bound(buckets.begin(), buckets.end(), n);
     OPENVINO_ASSERT(it != buckets.end(), "NPUW_BAGEL: ", what, " ", n, " exceeds the largest bucket ", buckets.back());
@@ -69,10 +134,26 @@ ov::npuw::BagelCompiledModel::BagelCompiledModel(const std::shared_ptr<ov::Model
     for (const auto& [key, value] : properties) {
         (is_bagel_key(key) ? bagel_props : m_inner_props).emplace(key, value);
     }
+    // Variants share one weights bank so the language-model weights are kept once; caller properties win
+    const ov::AnyMap defaults = m_mode == Mode::LANGUAGE_MODEL
+                                    ? ov::AnyMap{{"NPUW_DEVICES", "NPU"},
+                                                 {"NPUW_FOLD", "YES"},
+                                                 {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                                 {"NPUW_FUNCALL_ASYNC", "YES"},
+                                                 {"NPUW_DCOFF_TYPE", "f16"},
+                                                 {"NPUW_DCOFF_SCALE", "YES"},
+                                                 {"NPUW_WEIGHTS_BANK", ov::npuw::util::generate_random_string()}}
+                                    : ov::AnyMap{{"NPUW_ONLINE_PIPELINE", "NONE"}};
+    m_inner_props.insert(defaults.begin(), defaults.end());
     m_cfg.parseEnvVars();
     m_cfg.update(to_string_map(bagel_props));
     m_seq_buckets = parse_buckets(m_cfg.get<::intel_npu::NPUW_BAGEL_SEQ_BUCKETS>(), "NPUW_BAGEL_SEQ_BUCKETS");
     m_kv_buckets = parse_buckets(m_cfg.get<::intel_npu::NPUW_BAGEL_KV_BUCKETS>(), "NPUW_BAGEL_KV_BUCKETS");
+    if (m_mode == Mode::LANGUAGE_MODEL) {
+        m_model = m_model->clone();
+        LOG_INFO("BagelCompiledModel: converted " << convert_index_copy_to_scatter_update(m_model)
+                                                  << " index_copy ScatterElementsUpdate ops to ScatterUpdate");
+    }
 
     LOG_INFO("BagelCompiledModel: " << model->get_friendly_name() << " in "
                                     << (m_mode == Mode::LANGUAGE_MODEL ? "language-model" : "per-shape")
@@ -89,9 +170,19 @@ std::size_t ov::npuw::BagelCompiledModel::kv_bucket(std::size_t n) const {
 
 ov::SoPtr<ov::ICompiledModel> ov::npuw::BagelCompiledModel::compile_variant(
     const std::map<std::size_t, ov::PartialShape>& shapes,
-    const std::string& tag) const {
+    const std::string& tag,
+    bool drop_logits) const {
     auto model = m_model->clone();
     model->reshape(shapes);
+    if (drop_logits) {
+        const auto results = model->get_results();
+        const auto logits = std::find_if(results.begin(), results.end(), [](const auto& result) {
+            return result->input_value(0).get_names().count("logits") > 0;
+        });
+        if (logits != results.end()) {
+            model->remove_result(*logits);
+        }
+    }
     LOG_INFO("BagelCompiledModel: compiling " << m_model->get_friendly_name() << " variant " << tag);
     return ov::SoPtr<ov::ICompiledModel>(ov::npuw::ICompiledModel::create(model, get_plugin(), m_inner_props), nullptr);
 }
@@ -131,7 +222,8 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::BagelCompiledModel::lm_variant(const LMK
 
     std::stringstream tag;
     tag << "S=" << S << " n_gen=" << G << " P=" << P;
-    auto compiled = compile_variant(shapes, tag.str());
+    // Only decode-sized calls read logits; for longer sequences the LM head output costs gigabytes
+    auto compiled = compile_variant(shapes, tag.str(), key.seq > m_seq_buckets.front());
     m_lm_variants.emplace(key, compiled);
     return compiled;
 }
@@ -150,7 +242,7 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::BagelCompiledModel::shape_variant(const 
         shapes.emplace(i, ov::PartialShape(key[i]));
         tag << (i ? " " : "") << key[i];
     }
-    auto compiled = compile_variant(shapes, tag.str());
+    auto compiled = compile_variant(shapes, tag.str(), false);
     m_shape_variants.emplace(key, compiled);
     return compiled;
 }

@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -31,11 +32,12 @@ public:
     }
 
 private:
-    // Inner request of one static variant, with its ports in the order of the outer model ports
+    // Inner request of one static variant, with its ports in the order of the outer model ports;
+    // an output the variant does not compute (logits outside decode) is empty
     struct Variant {
         std::shared_ptr<ov::IAsyncInferRequest> request;
         std::vector<ov::Output<const ov::Node>> inputs;
-        std::vector<ov::Output<const ov::Node>> outputs;
+        std::vector<std::optional<ov::Output<const ov::Node>>> outputs;
     };
 
     // Real and padded sizes of the last language-model call, used to crop its outputs
