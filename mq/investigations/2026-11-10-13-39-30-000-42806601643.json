@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-13-39-30-000-42806601643",
+  "timestamp": "2026-11-10T13:39:30Z",
+  "run_id": "42806601643",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42806601643",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39617",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39617",
+  "author": "asukhobo",
+  "category": "Code Issue",
+  "title": "GGUF frontend test_parser.cpp fails to build under C++20 mode (char8_t/std::string mismatch in unicode path concatenation)",
+  "signature": "error c2676 binary operator std string does not define operator conversion acceptable predefined operator make_path no matching overloaded function found char8_t const object must be initialized|Code Issue",
+  "signature_hash": "60c87e1ef4d6a044",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build - OpenVINO step fails compiling src/frontends/gguf/tests/test_parser.cpp: C2676/C2672/C2737/C3536 around unicode_prefix"
+    }
+  ],
+  "key_errors": [
+    "FAILED: src/frontends/gguf/tests/CMakeFiles/ov_gguf_frontend_tests.dir/Release/test_parser.cpp.obj",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2676: binary '+': 'std::string' does not define this operator or a conversion to a type acceptable to the predefined operator",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2672: 'ov::util::make_path': no matching overloaded function found",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2737: 'unicode_prefix': const object must be initialized",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(733): error C3536: 'unicode_prefix': cannot be used before it is initialized",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "In src/frontends/gguf/tests/test_parser.cpp:731, `ov::util::make_path(m_base + u8\"_\u6a21\u578b_\u017c\u00f3\u0142\u0107\")` concatenates a std::string (m_base) with a u8-prefixed string literal. Under the C++20 standard mode enabled for this 'Build (C++20, non-blocking)' job (-DCMAKE_CXX_STANDARD=20), u8 literals are typed as `const char8_t[]` instead of `const char[]`, so `std::string::operator+` has no overload accepting a char8_t array and MSVC cannot find a viable `operator+` or a matching `ov::util::make_path` overload. The resulting compile error leaves `unicode_prefix` uninitialized, cascading into two more errors. This is a pre-existing source defect unrelated to this PR's actual change (src/plugins/intel_npu/cmake/download_compiler_libs.cmake); it only surfaces on the opt-in, non-blocking C++20 build variant.",
+  "reproduction_steps": "Configure and build OpenVINO locally with -DCMAKE_CXX_STANDARD=20 -DENABLE_OV_GGUF_FRONTEND=ON -DENABLE_TESTS=ON, then build the 'ov_gguf_frontend_tests' target (e.g. `cmake --build . --target ov_gguf_frontend_tests`) with a C++20-conformant compiler (MSVC 14.42+); the same C2676/C2672/C2737/C3536 errors reproduce at test_parser.cpp:731.",
+  "recommended_actions": [
+    "In src/frontends/gguf/tests/test_parser.cpp around line 731, avoid concatenating std::string with a u8 string literal directly: either drop the `u8` prefix (rely on UTF-8 source encoding so the literal stays `const char[]`), or explicitly convert, e.g. `m_base + std::string(reinterpret_cast<const char*>(u8\"_\u6a21\u578b_\u017c\u00f3\u0142\u0107\"))`, or build the path via `std::filesystem::path` concatenation (`/` or `+=` on a path object) instead of `std::string::operator+`.",
+    "Add a CI job or local build step that exercises the C++20 configuration (-DCMAKE_CXX_STANDARD=20) for GGUF frontend tests before merging unicode-literal changes, since this currently only breaks the non-blocking C++20 variant and has escaped several merges.",
+    "Audit other u8\"...\" literals in src/frontends/gguf/tests for the same char8_t/std::string incompatibility introduced by C++20."
+  ],
+  "prevention_strategies": "Treat the 'Build (C++20, non-blocking)' job's failures as a signal worth fixing promptly even though it is currently non-blocking, since this exact defect has now recurred 4 times over 5 days without a fix landing. Consider a lint rule or clang-tidy check flagging `u8\"...\"` literals combined with `std::string` arithmetic, and ensure new GGUF frontend tests are also compiled under C++20 locally before submission.",
+  "historical_context": "Signature 60c87e1ef4d6a044 has now recurred 4 times since 2026-11-05T10:50:38Z (previously seen in PRs #37406, #39524, #39270, most recently in run 42798063954 which shared the same head SHA ancestry); no fix has yet landed in src/frontends/gguf/tests/test_parser.cpp. This run (#42806601643) also hit the separate, already-tracked Infrastructure signature 95bb23aa2ed8a84d (tbb12.dll locked during 'Extract OpenVINO packages') on the GPU unit tests job, reported in investigation 2026-11-10-12-51-32-000-42806601643."
+}
