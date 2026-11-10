@@ -34,7 +34,7 @@ ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
     namespace v1 = ov::op::v1;
 
     // The split's axis is a Constant naming the last dimension of the split input.
-    const auto splits_last_axis = op::Predicate(
+    const auto splits_last_axis = ov::pass::pattern::op::Predicate(
         [](const Output<Node>& output) {
             const auto node = output.get_node();
             const auto axis = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
@@ -42,7 +42,7 @@ ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
                    is_last_axis(axis->cast_vector<int64_t>()[0], node->get_input_partial_shape(0).rank());
         },
         "splits_last_axis");
-    const auto concats_last_axis = op::Predicate(
+    const auto concats_last_axis = ov::pass::pattern::op::Predicate(
         [](const Output<Node>& output) {
             const auto concat = ov::as_type_ptr<v0::Concat>(output.get_node_shared_ptr());
             return concat && is_last_axis(concat->get_axis(), output.get_partial_shape().rank());
@@ -74,6 +74,10 @@ ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
+        const auto concat = pattern_map.at(concat_m).get_node_shared_ptr();
+        if (transformation_callback(concat)) {
+            return false;
+        }
         const auto& x = pattern_map.at(x_m);
         const auto& cos = pattern_map.at(cos_m);
         const auto& sin = pattern_map.at(sin_m);
@@ -104,7 +108,6 @@ ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         const NodeVector
             new_nodes{cos_full, sin_full, axis, lengths, split, minus_one, neg_x2, rotated, x_cos, rotated_sin, rope};
 
-        const auto concat = pattern_map.at(concat_m).get_node_shared_ptr();
         // Multi-output pattern nodes are read from the node map.
         const auto node_map = m.get_pattern_map();
         NodeVector replaced{node_map.count(split_m) ? node_map.at(split_m) : node_map.at(variadic_split_m)};
