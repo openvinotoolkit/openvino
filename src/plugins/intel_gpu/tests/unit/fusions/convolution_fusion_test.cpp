@@ -4594,4 +4594,62 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp16_onednn, ::testing::ValuesIn(
     convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
 }));
 
+// oneDNN keeps the 4D rank of a 1D grouped convolution in plain format, so binary post-ops must keep it too.
+class conv_fp32_1d_group_eltwise_onednn : public WeightsPrimitiveFusingTestOneDNN {
+public:
+    void execute_1d(convolution_test_params& p, bool is_dynamic) {
+        if (!engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        auto in_layout = get_input_layout(p);
+        if (is_dynamic)
+            in_layout.set_partial_shape({ ov::Dimension::dynamic(), p.in_shape[1], p.in_shape[2] });
+
+        create_topologies(
+            input_layout("input", in_layout),
+            data("weights", get_mem(get_weights_layout(p))),
+            data("scale_data", get_mem(get_output_layout(p))),
+            data("shift_data", get_mem(get_output_layout(p))),
+            convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, true),
+            eltwise("scale", { input_info("conv_prim"), input_info("scale_data") }, eltwise_mode::prod),
+            eltwise("shift", { input_info("scale"), input_info("shift_data") }, eltwise_mode::sum),
+            reorder("reorder_bfyx", input_info("shift"), p.default_format, data_types::f32)
+        );
+
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "", impl_types::onednn };
+        cfg_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+        cfg_not_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        network network_not_fused(engine, topology_non_fused, cfg_not_fused);
+        network network_fused(engine, topology_fused, cfg_fused);
+        auto input_prim = get_mem(get_input_layout(p));
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+        tolerance = default_tolerance(p.default_type);
+        compare(network_not_fused, network_fused, p);
+    }
+};
+
+TEST_P(conv_fp32_1d_group_eltwise_onednn, static_shape) {
+    auto p = GetParam();
+    execute_1d(p, false);
+}
+
+TEST_P(conv_fp32_1d_group_eltwise_onednn, dynamic_shape) {
+    auto p = GetParam();
+    execute_1d(p, true);
+}
+
+// in_shape; out_shape; weights_shape; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_CONV_FP32_1D_GROUP_1 { 1, 16, 16 }, { 1, 16, 16 }, { 16, 1, 1, 7 }, { 1 }, { 3 }, { 1 }, 16, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_CONV_FP32_1D_GROUP_2 { 1, 32, 16 }, { 1, 32, 16 }, { 32, 1, 1, 31 }, { 1 }, { 15 }, { 1 }, 32, data_types::f32, format::bfyx, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_1d_group_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1D_GROUP_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_1D_GROUP_2, 2, 2, 4 },
+}));
+
 #endif  // ENABLE_ONEDNN_FOR_GPU
