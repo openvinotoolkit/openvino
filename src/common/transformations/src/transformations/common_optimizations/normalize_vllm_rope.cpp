@@ -11,267 +11,124 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/split.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-namespace ov::pass {
+namespace {
 
-// Rewrites vLLM's split/multiply/add neox-style RoPE lowering into the
-// concat([-x2,x1])+cos/sin form RoPEFusionGPTNEOX expects. Assumes
-// ConvertSubtract (ov::pass::CommonOptimizations) has already run.
-NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
+bool is_last_axis(int64_t axis, const ov::Rank& rank) {
+    return rank.is_static() && (axis == -1 || axis == rank.get_length() - 1);
+}
+
+}  // namespace
+
+ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
     MATCHER_SCOPE(NormalizeVLLMRoPE);
-    using namespace pattern;
+    using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+    namespace v0 = ov::op::v0;
+    namespace v1 = ov::op::v1;
 
-    auto callback = [=](Matcher& m) -> bool {
-        auto concat_node = std::dynamic_pointer_cast<ov::op::v0::Concat>(m.get_match_root());
-        if (!concat_node)
+    // The split's axis is a Constant naming the last dimension of the split input.
+    const auto splits_last_axis = op::Predicate(
+        [](const Output<Node>& output) {
+            const auto node = output.get_node();
+            const auto axis = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
+            return axis && ov::shape_size(axis->get_shape()) == 1 &&
+                   is_last_axis(axis->cast_vector<int64_t>()[0], node->get_input_partial_shape(0).rank());
+        },
+        "splits_last_axis");
+    const auto concats_last_axis = op::Predicate(
+        [](const Output<Node>& output) {
+            const auto concat = ov::as_type_ptr<v0::Concat>(output.get_node_shared_ptr());
+            return concat && is_last_axis(concat->get_axis(), output.get_partial_shape().rank());
+        },
+        "concats_last_axis");
+    // Both halves, cos and sin end in the same static or symbolic width HALF.
+    const auto half_width = shape_matches("..., HALF");
+
+    auto x_m = any_input(has_static_rank());
+    auto split_m =
+        wrap_type_strict_index<v1::Split>({x_m, wrap_const()},
+                                          splits_last_axis && half_width && attrs_match({{"num_splits", 2}}));
+    auto variadic_split_m =
+        wrap_type_strict_index<v1::VariadicSplit>({x_m, wrap_const(), wrap_const()}, splits_last_axis && half_width);
+    auto x1_m = split_m->output(0) | variadic_split_m->output(0);
+    auto x2_m = split_m->output(1) | variadic_split_m->output(1);
+    auto cos_m = any_input(half_width);
+    auto sin_m = any_input(half_width);
+
+    // Concat(x1 * cos - x2 * sin, x2 * cos + x1 * sin), with the subtraction as Multiply(-1) + Add
+    auto x1_cos_m = wrap_type<v1::Multiply>({x1_m, cos_m});
+    auto x2_sin_m = wrap_type<v1::Multiply>({x2_m, sin_m});
+    auto neg_x2_sin_m = wrap_type<v1::Multiply>({x2_sin_m, -1.0f});
+    auto first_half_m = wrap_type<v1::Add>({x1_cos_m, neg_x2_sin_m});
+    auto x2_cos_m = wrap_type<v1::Multiply>({x2_m, cos_m});
+    auto x1_sin_m = wrap_type<v1::Multiply>({x1_m, sin_m});
+    auto second_half_m = wrap_type<v1::Add>({x2_cos_m, x1_sin_m});
+    auto concat_m = wrap_type<v0::Concat>({first_half_m, second_half_m}, concats_last_axis);
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto& x = pattern_map.at(x_m);
+        const auto& cos = pattern_map.at(cos_m);
+        const auto& sin = pattern_map.at(sin_m);
+        // The fused RoPE reads cos and sin as one table shape; the token dims are dynamic, so this can't be a symbol.
+        if (cos.get_partial_shape() != sin.get_partial_shape()) {
             return false;
-        if (concat_node->inputs().size() != 2)
-            return false;
-
-        // Concat inputs must be Add+Add: Add(x1*cos, (x2*sin)*-1) and Add(x2*cos, x1*sin).
-        auto sub_branch = std::dynamic_pointer_cast<ov::op::v1::Add>(concat_node->get_input_node_shared_ptr(0));
-        auto add_branch = std::dynamic_pointer_cast<ov::op::v1::Add>(concat_node->get_input_node_shared_ptr(1));
-        if (!sub_branch || !add_branch)
-            return false;
-
-        // Find the negated Multiply (has a Constant -1 operand) inside sub_branch.
-        auto is_neg_multiply = [](const std::shared_ptr<ov::Node>& n) -> std::shared_ptr<ov::op::v1::Multiply> {
-            auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(n);
-            if (!mul)
-                return nullptr;
-            for (size_t i = 0; i < 2; ++i) {
-                auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(mul->get_input_node_shared_ptr(i));
-                if (c) {
-                    auto vals = c->cast_vector<float>();
-                    if (!vals.empty() && vals[0] == -1.0f)
-                        return mul;
-                }
-            }
-            return nullptr;
-        };
-
-        auto sub_in0 = sub_branch->get_input_node_shared_ptr(0);
-        auto sub_in1 = sub_branch->get_input_node_shared_ptr(1);
-        auto neg0 = is_neg_multiply(sub_in0);
-        auto neg1 = is_neg_multiply(sub_in1);
-
-        std::shared_ptr<ov::op::v1::Multiply> mul_a, mul_b, mul_c, mul_d;
-        // mul_a = x1*cos (non-negated in sub_branch), mul_b = x2*sin (negated).
-        if (neg0 && !neg1) {
-            for (size_t i = 0; i < 2; ++i) {
-                auto inner = std::dynamic_pointer_cast<ov::op::v1::Multiply>(neg0->get_input_node_shared_ptr(i));
-                if (inner) {
-                    mul_b = inner;
-                    break;
-                }
-            }
-            mul_a = std::dynamic_pointer_cast<ov::op::v1::Multiply>(sub_in1);
-        } else if (neg1 && !neg0) {
-            for (size_t i = 0; i < 2; ++i) {
-                auto inner = std::dynamic_pointer_cast<ov::op::v1::Multiply>(neg1->get_input_node_shared_ptr(i));
-                if (inner) {
-                    mul_b = inner;
-                    break;
-                }
-            }
-            mul_a = std::dynamic_pointer_cast<ov::op::v1::Multiply>(sub_in0);
-        } else {
+        }
+        // The VariadicSplit lengths below need a static width.
+        const auto symbols = m.get_symbols();
+        const auto& half = symbols.at("HALF");
+        if (!half.is_integer()) {
             return false;
         }
 
-        mul_c = std::dynamic_pointer_cast<ov::op::v1::Multiply>(add_branch->get_input_node_shared_ptr(0));
-        mul_d = std::dynamic_pointer_cast<ov::op::v1::Multiply>(add_branch->get_input_node_shared_ptr(1));
-        if (!mul_a || !mul_b || !mul_c || !mul_d)
-            return false;
-
-        // Trace each multiply's inputs back through view ops to a Split
-        // output, returning it (index intact) and the other side (cos/sin).
-        auto is_any_split = [](const std::shared_ptr<ov::Node>& n) {
-            return std::dynamic_pointer_cast<ov::op::v1::Split>(n) != nullptr ||
-                   std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(n) != nullptr;
-        };
-        auto find_split_source = [&is_any_split](ov::Output<ov::Node> val) -> ov::Output<ov::Node> {
-            while (val.get_node()) {
-                auto node = val.get_node_shared_ptr();
-                if (is_any_split(node))
-                    return val;
-                if (std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(node) ||
-                    std::dynamic_pointer_cast<ov::op::v1::Reshape>(node) ||
-                    std::dynamic_pointer_cast<ov::op::v0::Squeeze>(node)) {
-                    if (node->get_input_size() > 0) {
-                        val = node->input_value(0);
-                        continue;
-                    }
-                }
-                break;
-            }
-            return ov::Output<ov::Node>();
-        };
-        auto classify = [&find_split_source](const std::shared_ptr<ov::op::v1::Multiply>& mul)
-            -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
-            auto in0 = mul->input_value(0);
-            auto in1 = mul->input_value(1);
-            auto s0 = find_split_source(in0);
-            if (s0.get_node())
-                return {s0, in1};
-            auto s1 = find_split_source(in1);
-            if (s1.get_node())
-                return {s1, in0};
-            return {ov::Output<ov::Node>(), ov::Output<ov::Node>()};
-        };
-
-        auto [a_split, a_other] = classify(mul_a);
-        auto [b_split, b_other] = classify(mul_b);
-        auto [c_split, c_other] = classify(mul_c);
-        auto [d_split, d_other] = classify(mul_d);
-        if (!a_split.get_node() || !b_split.get_node() || !c_split.get_node() || !d_split.get_node())
-            return false;
-
-        // All four multiplies must reference the same Split node.
-        auto split_node = a_split.get_node_shared_ptr();
-        if (b_split.get_node_shared_ptr() != split_node || c_split.get_node_shared_ptr() != split_node ||
-            d_split.get_node_shared_ptr() != split_node)
-            return false;
-
-        // Verify the split is 2-way and axis is the last dim.
-        auto split_v1 = std::dynamic_pointer_cast<ov::op::v1::Split>(split_node);
-        auto vsplit = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(split_node);
-        if (!split_v1 && !vsplit)
-            return false;
-        if (split_v1 && split_v1->get_num_splits() != 2)
-            return false;
-        if (vsplit && vsplit->get_output_size() != 2)
-            return false;
-
-        auto axis_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(split_node->get_input_node_shared_ptr(1));
-        if (!axis_const)
-            return false;
-        auto axis_vec = axis_const->cast_vector<int64_t>();
-        if (axis_vec.size() != 1)
-            return false;
-        auto rank = split_node->get_output_partial_shape(0).rank();
-        if (!rank.is_static())
-            return false;
-        auto r = rank.get_length();
-        int64_t axis = axis_vec[0];
-        if (axis < 0)
-            axis += r;
-        if (axis != r - 1)
-            return false;
-
-        // Verify (x1*cos, x2*sin, x2*cos, x1*sin) correspondence and shared cos/sin.
-        if (a_split.get_index() != 0 || b_split.get_index() != 1)
-            return false;
-        if (c_split.get_index() != 1 || d_split.get_index() != 0)
-            return false;
-        if (a_other != c_other || b_other != d_other)
-            return false;
-
-        auto cos_val = a_other;
-        auto sin_val = b_other;
-        auto x_val = split_node->input_value(0);
-
-        // If cos/sin are half-sized (match split output), build full-sized by
-        // concatenating with themselves along the last dim.
-        auto x_ps = x_val.get_partial_shape();
-        auto cos_ps = cos_val.get_partial_shape();
-        bool cos_needs_dup = false;
-        if (x_ps.rank().is_static() && cos_ps.rank().is_static() &&
-            x_ps.rank().get_length() == cos_ps.rank().get_length() && x_ps.rank().get_length() > 0) {
-            auto last = x_ps.rank().get_length() - 1;
-            if (x_ps[last].is_static() && cos_ps[last].is_static() &&
-                x_ps[last].get_length() != cos_ps[last].get_length()) {
-                if (x_ps[last].get_length() == 2 * cos_ps[last].get_length()) {
-                    cos_needs_dup = true;
-                } else {
-                    return false;
+        NodeVector new_nodes;
+        // vLLM shares cos and sin across layers: reuse the full-width table an earlier match built.
+        const auto full_width = [&new_nodes](const Output<Node>& table) -> Output<Node> {
+            for (const auto& target : table.get_target_inputs()) {
+                const auto concat = ov::as_type_ptr<v0::Concat>(target.get_node()->shared_from_this());
+                if (concat && concat->get_axis() == -1 && concat->input_values() == OutputVector{table, table}) {
+                    return concat->output(0);
                 }
             }
+            new_nodes.push_back(std::make_shared<v0::Concat>(OutputVector{table, table}, -1));
+            return new_nodes.back()->output(0);
+        };
+        const auto cos_full = full_width(cos);
+        const auto sin_full = full_width(sin);
+
+        const auto last_axis = static_cast<int64_t>(x.get_partial_shape().size()) - 1;
+        auto axis = v0::Constant::create(element::i64, Shape{}, {last_axis});
+        auto lengths = v0::Constant::create(element::i64, Shape{2}, {half.i(), half.i()});
+        auto split = std::make_shared<v1::VariadicSplit>(x, axis, lengths);
+        auto minus_one = v0::Constant::create(x.get_element_type(), Shape{}, {-1});
+        auto neg_x2 = std::make_shared<v1::Multiply>(split->output(1), minus_one);
+        auto rotated = std::make_shared<v0::Concat>(OutputVector{neg_x2, split->output(0)}, -1);
+        auto x_cos = std::make_shared<v1::Multiply>(x, cos_full);
+        auto rotated_sin = std::make_shared<v1::Multiply>(rotated, sin_full);
+        auto rope = std::make_shared<v1::Add>(x_cos, rotated_sin);
+        new_nodes.insert(new_nodes.end(), {axis, lengths, split, minus_one, neg_x2, rotated, x_cos, rotated_sin, rope});
+
+        const auto concat = pattern_map.at(concat_m).get_node_shared_ptr();
+        // Multi-output pattern nodes are read from the node map.
+        const auto node_map = m.get_pattern_map();
+        NodeVector replaced{node_map.count(split_m) ? node_map.at(split_m) : node_map.at(variadic_split_m)};
+        for (const auto& label : {x1_cos_m, x2_sin_m, neg_x2_sin_m, first_half_m, x2_cos_m, x1_sin_m, second_half_m}) {
+            replaced.push_back(pattern_map.at(label).get_node_shared_ptr());
         }
-
-        ov::Output<ov::Node> cos_full = cos_val;
-        ov::Output<ov::Node> sin_full = sin_val;
-        std::shared_ptr<ov::Node> cos_cat_node, sin_cat_node;
-        if (cos_needs_dup) {
-            // All layers share one cos/sin, and this pass matches per RoPE
-            // site, so reuse an existing duplication Concat instead of
-            // emitting one copy per site.
-            auto existing_dup = [](const ov::Output<ov::Node>& src) -> std::shared_ptr<ov::Node> {
-                for (const auto& target : src.get_target_inputs()) {
-                    auto cat = ov::as_type_ptr<ov::op::v0::Concat>(target.get_node()->shared_from_this());
-                    if (!cat || cat->get_input_size() != 2) {
-                        continue;
-                    }
-                    if (cat->input_value(0) != src || cat->input_value(1) != src) {
-                        continue;
-                    }
-                    const auto& src_ps = src.get_partial_shape();
-                    const auto& cat_ps = cat->get_output_partial_shape(0);
-                    if (!src_ps.rank().is_static() || !cat_ps.rank().is_static() || src_ps.rank() != cat_ps.rank()) {
-                        continue;
-                    }
-                    const auto last = src_ps.rank().get_length() - 1;
-                    if (src_ps[last].is_static() && cat_ps[last].is_static() &&
-                        cat_ps[last].get_length() == 2 * src_ps[last].get_length()) {
-                        return cat;
-                    }
-                }
-                return nullptr;
-            };
-            cos_cat_node = existing_dup(cos_val);
-            if (!cos_cat_node) {
-                cos_cat_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{cos_val, cos_val}, -1);
-            }
-            sin_cat_node = existing_dup(sin_val);
-            if (!sin_cat_node) {
-                sin_cat_node = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin_val, sin_val}, -1);
-            }
-            cos_full = cos_cat_node->output(0);
-            sin_full = sin_cat_node->output(0);
-        }
-
-        // Emit canonical form: split x into halves, negate second half, concat
-        // to form x_rot, then compute x*cos + x_rot*sin.
-        if (!x_ps.rank().is_static() || !x_ps[x_ps.rank().get_length() - 1].is_static())
-            return false;
-        int64_t half_ndims = x_ps[x_ps.rank().get_length() - 1].get_length() / 2;
-
-        auto axis_const_new =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(r - 1)});
-        auto split_lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {half_ndims, half_ndims});
-        auto new_vsplit = std::make_shared<ov::op::v1::VariadicSplit>(x_val, axis_const_new, split_lengths);
-
-        auto neg_one = ov::op::v0::Constant::create(x_val.get_element_type(), ov::Shape{}, {-1.0f});
-        auto x2_neg = std::make_shared<ov::op::v1::Multiply>(new_vsplit->output(1), neg_one);
-        auto x_rot =
-            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x2_neg->output(0), new_vsplit->output(0)}, -1);
-        auto x_cos = std::make_shared<ov::op::v1::Multiply>(x_val, cos_full);
-        auto xrot_sin = std::make_shared<ov::op::v1::Multiply>(x_rot->output(0), sin_full);
-        auto new_out = std::make_shared<ov::op::v1::Add>(x_cos->output(0), xrot_sin->output(0));
-
-        new_out->set_friendly_name(concat_node->get_friendly_name());
-        ov::copy_runtime_info({concat_node->get_input_node_shared_ptr(0),
-                               concat_node->get_input_node_shared_ptr(1),
-                               mul_a,
-                               mul_b,
-                               mul_c,
-                               mul_d,
-                               concat_node},
-                              {x2_neg, x_rot, x_cos, xrot_sin, new_out});
-        ov::replace_node(concat_node, new_out);
+        replaced.push_back(concat);
+        ov::copy_runtime_info(replaced, new_nodes);
+        rope->set_friendly_name(concat->get_friendly_name());
+        ov::replace_node(concat, rope);
         return true;
     };
 
-    auto concat_pattern = wrap_type<ov::op::v0::Concat>();
-    auto m = std::make_shared<Matcher>(concat_pattern, matcher_name);
-    this->register_matcher(m, callback);
+    auto m = std::make_shared<Matcher>(concat_m, matcher_name);
+    register_matcher(m, callback);
 }
-
-}  // namespace ov::pass
