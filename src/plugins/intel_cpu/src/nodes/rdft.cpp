@@ -552,7 +552,6 @@ void RDFTExecutor::fft(float* input,
     if (inputSize < signalSize || type == real_to_complex) {
         if (isInverse) {
             fftCopyInverseInputData(scratchSpace.data(), input, inputSize, signalSize, parallelize, cpuParallel);
-            inputSize = signalSize;
         } else if (type == real_to_complex) {
             fftCopyRealInputData(scratchSpace.data(), input, inputSize, parallelize, cpuParallel);
         }
