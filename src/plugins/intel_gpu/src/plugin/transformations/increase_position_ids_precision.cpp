@@ -44,13 +44,13 @@
 namespace ov::intel_gpu {
 
 IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
+    using namespace ov::pass;
     using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
 
     auto gemm_or_matmul = wrap_type<ov::intel_gpu::op::Gemm, ov::op::v0::MatMul>();
     auto transpose_m = wrap_type<ov::op::v1::Transpose>({gemm_or_matmul, any_input()});
     auto reshape_m = wrap_type<ov::op::v1::Reshape>({gemm_or_matmul, any_input()});
-    auto concat_input = std::make_shared<Or>(OutputVector{gemm_or_matmul, transpose_m, reshape_m});
+    auto concat_input = gemm_or_matmul | transpose_m | reshape_m;
     auto concat = wrap_type<ov::op::v0::Concat>({concat_input, concat_input});
     auto sin = wrap_type<ov::op::v0::Sin>({concat});
     auto cos = wrap_type<ov::op::v0::Cos>({concat});
@@ -79,20 +79,8 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
     auto cos_gather = wrap_type<ov::op::v8::Gather>({cos_slice, any_input(), any_input()});
     auto cos_unsqueeze2 = wrap_type<ov::op::v0::Unsqueeze>({cos_gather, wrap_type<ov::op::v0::Constant>()});
 
-    auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_reshape,
-                                                            sin_squeeze,
-                                                            sin_unsqueeze,
-                                                            sin_unsqueeze2,
-                                                            sin_multiply_reshape,
-                                                            sin_multiply_unsqueeze,
-                                                            sin});
-    auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_reshape,
-                                                            cos_squeeze,
-                                                            cos_unsqueeze,
-                                                            cos_unsqueeze2,
-                                                            cos_multiply_reshape,
-                                                            cos_multiply_unsqueeze,
-                                                            cos});
+    auto rope_sin_input = sin_reshape | sin_squeeze | sin_unsqueeze | sin_unsqueeze2 | sin_multiply_reshape | sin_multiply_unsqueeze | sin;
+    auto rope_cos_input = cos_reshape | cos_squeeze | cos_unsqueeze | cos_unsqueeze2 | cos_multiply_reshape | cos_multiply_unsqueeze | cos;
 
     auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
 
