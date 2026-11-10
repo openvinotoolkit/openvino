@@ -166,15 +166,20 @@ void CacheWarmup::run() {
                                     cache_location.string().c_str());
                 } else {
                     // The compiled model is dropped on purpose: Core writes the cache blob as a side effect.
-                    if (model) {
-                        core->compile_model(model, device.device_name, config);
-                    } else {
-                        core->compile_model(m_model_path, device.device_name, config);
+                    const auto compiled_model = model ? core->compile_model(model, device.device_name, config)
+                                                      : core->compile_model(m_model_path, device.device_name, config);
+                    const char* loaded_from_cache = "unknown";
+                    try {
+                        loaded_from_cache =
+                            compiled_model->get_property(ov::loaded_from_cache.name()).as<bool>() ? "yes" : "no";
+                    } catch (const ov::Exception&) {
                     }
-                    LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
+                    LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms, loaded from "
+                                 "cache: %s",
                                  device.device_name.c_str(),
                                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin)
-                                     .count());
+                                     .count(),
+                                 loaded_from_cache);
                 }
             }
         } catch (const std::exception& e) {

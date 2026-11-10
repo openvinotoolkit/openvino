@@ -751,12 +751,12 @@ std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std
     for (const auto& device : devices) {
         device_name_and_type.emplace_back(device.device_name, resolve_device_key(device.device_name).device_type);
     }
+    const auto query_start_time = std::chrono::steady_clock::now();
     const auto result = m_telemetry_client->utilizations(device_name_and_type);
+    LOG_DEBUG_TAG("[IPF] utilization query took %lf ms",
+                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - query_start_time).count());
     for (const auto& device : devices) {
-        const auto it = result.find(device.device_name);
-        if (it != result.end()) {
-            LOG_DEBUG_TAG("[IPF] Device %s utilization: %s", device.device_name.c_str(), std::to_string(it->second).c_str());
-        } else {
+        if (result.find(device.device_name) == result.end()) {
             LOG_DEBUG_TAG("[IPF] Device %s utilization query failed/unavailable", device.device_name.c_str());
         }
     }
@@ -984,16 +984,12 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                     if (utilization_it == device_utilizations.end()) {
                         LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list", device.device_name.c_str());
                     } else {
-                        LOG_DEBUG_TAG("Device: %s\tutilization: %s",
+                        is_excluded = utilization_it->second >= device_threshold.value();
+                        LOG_DEBUG_TAG("Device: %s utilization: %s, threshold: %s%s",
                                       device.device_name.c_str(),
-                                      std::to_string(utilization_it->second).c_str());
-                        if (utilization_it->second >= device_threshold.value()) {
-                            is_excluded = true;
-                            LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
-                                          device.device_name.c_str(),
-                                          std::to_string(utilization_it->second).c_str(),
-                                          std::to_string(device_threshold.value()).c_str());
-                        }
+                                      std::to_string(utilization_it->second).c_str(),
+                                      std::to_string(device_threshold.value()).c_str(),
+                                      is_excluded ? ", exceeded" : "");
                     }
                 }
                 if (!is_excluded) {
