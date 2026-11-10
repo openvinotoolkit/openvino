@@ -30,7 +30,9 @@ public:
 
 protected:
     void validate() override;
-    ov::Tensor generate_eltwise_input(const ov::element::Type& type, const ov::Shape& shape, const bool adopt_intervals = false);
+    virtual ov::Tensor generate_eltwise_input(const ov::element::Type& type,
+                                              const ov::Shape& shape,
+                                              const bool adopt_intervals = false);
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
     void SetUp() override;
 
