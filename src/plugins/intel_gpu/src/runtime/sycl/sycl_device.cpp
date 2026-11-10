@@ -287,23 +287,10 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
     } else if (info.vendor_id == NVIDIA_VENDOR_ID) {
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
 
-        // NVIDIA hardware only has 32-wide warps, so sub_group_sizes reports {32} and every kernel that needs a
-        // narrower sub-group is rejected by IsSIMDSizeSupported(). Sub-groups of 8 and 16 can be emulated on top of
-        // a warp by confining each shuffle to an aligned segment of it, which nvidia/compat_sg.cl does for every
-        // kernel built through the NVIDIA kernel builder.
-        //
-        // There is no cl_intel_subgroups here, but what the kernel selector asks this flag about is whether the
-        // built-ins the extension would supply are available, and with the emulation they are: the prelude provides
-        // the shuffles - the relative ones included, which the generic emulation path in sub_group_shuffle.cl leaves
-        // undefined and which get_supported_device_features_key() gates on this flag alone - along with the block
-        // reads/writes and the reductions.
+        // Warps are 32 wide, but nvidia/compat_sg.cl emulates sub-groups of 8 and 16 within a warp, along with the
+        // cl_intel_subgroups built-ins and their 16-bit variants. The kernel selector asks these flags whether the
+        // built-ins are available, not whether the extension is.
         info.supports_intel_subgroups = true;
-
-        // Same reasoning for the 16-bit family. The kernels that ask for it - the f16 paths of
-        // fully_connected_gpu_bs_f_bsv16_af8_vload, fully_connected_gpu_bs_f_bsv8_af8_vload and
-        // convolution_gpu_bfyx_gemm_like - reach the built-ins through the _sub_group_block_read_us* /
-        // _sub_group_block_write_us* spellings and the short/ushort/half shuffles, all of which
-        // nvidia/compat_sg_overrides.cl binds to the parameterised helpers in the prelude.
         info.supports_intel_subgroups_short = true;
 
         // Add the emulated widths to what the hardware reports, keeping the list sorted and free of duplicates.
@@ -361,12 +348,9 @@ memory_capabilities init_memory_caps(const ::sycl::device& device, const device_
 }
 
 #ifdef OV_GPU_VENDOR_NVIDIA
-// Finds the OpenCL device that is the same GPU as the SYCL device described by info: the same vendor and the same
-// UUID. Both device-info initializers leave the UUID all zero when the runtime does not report one, so an unknown
-// UUID matches nothing rather than whichever UUID-less device comes first - possibly another vendor's, whose compiler
-// would not produce PTX.
-// Returns nullptr when there is no match, e.g. when no OpenCL runtime is installed: that must not keep the SYCL device
-// from being created, and the kernel builder reports it once an OpenCL kernel is actually built.
+// Finds the OpenCL device that is the same GPU as the SYCL device: the same vendor and UUID. An unknown (all-zero)
+// UUID matches nothing. Returns nullptr when there is no match, which does not keep the SYCL device from being
+// created: the kernel builder reports it once an OpenCL kernel is built.
 std::shared_ptr<ocl::ocl_device> find_matching_ocl_device(const device_info& info) {
     const auto& uuid = info.uuid.uuid;
     if (std::all_of(uuid.begin(), uuid.end(), [](uint8_t byte) { return byte == 0; })) {
@@ -404,12 +388,9 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
     if (_info.vendor_id == NVIDIA_VENDOR_ID) {
         _ocl_device = find_matching_ocl_device(_info);
         if (_ocl_device) {
-            // Report the local memory the OpenCL kernels can use, as the NVIDIA OpenCL runtime that builds them
-            // does (48 KB). SYCL reports CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN instead (163 KB on
-            // A100), which only dynamic shared memory reaches, once a kernel raises its limit with
-            // CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES as SYCL does for local accessors. The kernels here size
-            // static __local arrays from this value, and CUDA caps static shared memory at 48 KB: ptxas rejects
-            // anything larger when clBuildProgram builds the kernel.
+            // Use the OpenCL runtime's local memory size (48 KB): kernels size static __local arrays from it, and
+            // CUDA caps static shared memory at 48 KB, whereas SYCL reports the opt-in limit for dynamic shared
+            // memory (163 KB on A100).
             _info.max_local_mem_size = _ocl_device->get_info().max_local_mem_size;
         }
     }
@@ -417,8 +398,7 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 }
 
 std::shared_ptr<ocl::ocl_device> sycl_device::get_ocl_device() const {
-    // Only NVIDIA builds include the OpenCL device and ever set _ocl_device, so elsewhere ocl_device is an
-    // incomplete type and the null pointer is returned as is.
+    // _ocl_device is only set in NVIDIA builds; elsewhere ocl_device is an incomplete type, so it is returned as is.
 #ifdef OV_GPU_VENDOR_NVIDIA
     if (_ocl_device) {
         std::call_once(_ocl_device_init, [this]() {
