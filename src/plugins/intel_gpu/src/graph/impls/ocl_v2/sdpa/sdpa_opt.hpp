@@ -33,16 +33,19 @@ struct SDPAOpt : public ImplementationManager {
     // DPAS lane of an XMX device (some checks read dims that are only static there). allow_scalar_mask enables a
     // single-element runtime attention mask, which only the sdpa_ocl kernel reads (it adds the one value to every logit).
     [[nodiscard]] static bool dpas_sdpa_op_supported(const kernel_impl_params& params, bool allow_scalar_mask);
-    // validate_impl()'s view of the DPAS kernel on the sdpa_ocl lane: the lane, enable_sdpa_micro on, and
-    // dpas_sdpa_op_supported() without a single-element mask. Not SDPAOclGenerator::supported(): see validate_impl().
-    [[nodiscard]] static bool dpas_lane_op_supported(const kernel_impl_params& params);
+    // The op is on the sdpa_ocl lane with the DPAS kernel usable: the lane (sdpa_ocl_selected()), enable_sdpa_micro on,
+    // and dpas_sdpa_op_supported(). Not SDPAOclGenerator::supported(): that is sdpa_ocl_serves_op(). validate_impl() asks
+    // this without a single-element mask (see there).
+    [[nodiscard]] static bool dpas_lane_op_supported(const kernel_impl_params& params, bool allow_scalar_mask = false);
+    // sdpa_ocl serves the op: dpas_lane_op_supported() and SDPAOclGenerator::supported(). The ctor stages sdpa_ocl on it
+    // (with a single-element mask allowed; a one-query op also needs sdpa_ocl_plain_single_token_ok()).
+    [[nodiscard]] static bool sdpa_ocl_serves_op(const kernel_impl_params& params, bool allow_scalar_mask);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
     // Per-channel compressed KV has one reader among these stages, sdpa_ocl, so it is admitted only where sdpa_ocl serves
-    // the op (the lane, enable_sdpa_micro on, dpas_sdpa_op_supported() and SDPAOclGenerator::supported()); SDPARef takes
-    // it everywhere else.
+    // the op (sdpa_ocl_serves_op() without a single-element mask); SDPARef takes it everywhere else.
     [[nodiscard]] static bool per_channel_kv_on_dpas_lane(const kernel_impl_params& params);
     // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout dpas_sdpa_op_supported() refuses
-    // (the oneDNN micro SDPA stage gave NaN on it), so it has to run on the regular sdpa_opt stages instead.
+    // (the removed oneDNN micro SDPA stage gave NaN on it), so it has to run on the regular sdpa_opt stages instead.
     [[nodiscard]] static bool has_bf16_compressed_kv_zero_point(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
