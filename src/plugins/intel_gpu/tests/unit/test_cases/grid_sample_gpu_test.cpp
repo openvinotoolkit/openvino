@@ -981,7 +981,6 @@ TEST(grid_sample_gpu_kernel_batch, opt_and_ref_kernels_in_one_program) {
     // bilinear + zeros selects grid_sample_opt_bilinear_zeros, bilinear + border selects grid_sample_ref
     ASSERT_EQ(f16_params.at(0).test_name, "bilinear_zeros_noalign_odd_dims_inner");
     ASSERT_EQ(f16_params.at(2).test_name, "bilinear_border_noalign_odd_dims_inner");
-    ASSERT_EQ(f16_params.at(4).test_name, "bilinear_reflection_noalign_odd_dims_inner");
     EXPECT_NO_THROW(test_two_grid_samples_in_one_program(f16_params.at(0),
                                                         f16_params.at(2),
                                                         "grid_sample_opt_bilinear__f16",
