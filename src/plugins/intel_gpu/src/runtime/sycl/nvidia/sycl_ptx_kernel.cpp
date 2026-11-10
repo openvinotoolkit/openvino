@@ -317,7 +317,8 @@ ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)) {
     static const std::regex entry_re(R"(\.entry\s+([\w.$]+)\s*\(([^)]*)\))");
     static const std::regex local_align_re(R"(/\*\s*\.ptr\s+\.shared\s+\.align\s+(\d+)\s*\*/)");
     for (std::sregex_iterator it(_ptx.begin(), _ptx.end(), entry_re), end; it != end; ++it) {
-        auto& alignments = _local_alignments[(*it)[1].str()];
+        _entry_points.push_back((*it)[1].str());
+        auto& alignments = _local_alignments[_entry_points.back()];
         const std::string params = (*it)[2].str();
         size_t start = 0;
         while (true) {
