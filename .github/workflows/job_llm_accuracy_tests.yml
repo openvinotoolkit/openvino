@@ -3,7 +3,7 @@ on:
   workflow_call:
     inputs:
       runner:
-        description: 'Runner on which to run the job. JSON string: either an array of labels (e.g. ''["aks-linux-4-cores-16gb"]'') or an object with group and labels (e.g. ''{"group": "Intel-GPU", "labels": ["self-hosted", "igpu", "Linux"]}'')'
+        description: 'Runner on which to run the job. JSON string: either an array of labels (e.g. ''["aks-linux-4-cores-16gb-st"]'') or an object with group and labels (e.g. ''{"group": "Intel-GPU", "labels": ["self-hosted", "igpu", "Linux"]}'')'
         type: string
         required: true
       image:
@@ -55,9 +55,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       INSTALL_DIR: ${{ github.workspace }}/install
       LLM_TEST_DIR: ${{ github.workspace }}/tests/llm
-      HF_HUB_CACHE: /mnt/caches/huggingface
-      HUGGINGFACE_HUB_CACHE: /mnt/caches/huggingface
-      HF_TOKEN_PATH: /secrets/huggingface/token-secondary
+      HF_TOKEN_PATH: /secrets/huggingface/token-tertiary
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       PIP_CERT: /etc/ssl/certs/ca-certificates.crt
       REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
@@ -93,6 +91,9 @@ jobs:
           self-hosted-runner: true
           use-pip-proxy: ${{ inputs.use-pip-proxy }}
 
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
+
       - name: Install OpenVINO Python wheels
         uses: ./.github/actions/install_ov_wheels
         with:
@@ -102,7 +103,7 @@ jobs:
       - name: Install LLM accuracy test requirements
         run: python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
 
-      - name: LLM accuracy ${{ inputs.device }} tests
+      - name: LLM accuracy ${{ inputs.device }} tests (HuggingFace model download)
         env:
           DEVICE: ${{ inputs.device }}
         run: |
