@@ -111,10 +111,8 @@ void run_test(const std::shared_ptr<ov::Model>& model,
 }  // namespace
 
 TEST(TransformationTests, DisableFP16CompForGaussianTopK_Positive) {
-    // Only the threshold computation is kept in FP32; the sparsified output is not.
+    // The squared deviation and the nodes computed from it are kept in FP32; the sparsified output is not.
     std::unordered_map<std::string, bool> expected_status = {
-        {name_mean, true},
-        {name_deviation, true},
         {name_squared_deviation, true},
         {name_variance, true},
         {name_std_dev, true},

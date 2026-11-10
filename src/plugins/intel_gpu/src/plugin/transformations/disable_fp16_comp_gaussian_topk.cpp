@@ -52,7 +52,8 @@ DisableFP16CompForGaussianTopK::DisableFP16CompForGaussianTopK() {
         if (!is_gaussian_topk)
             return false;
 
-        for (const auto& pattern : {mean, deviation, squared_deviation, variance, std_dev, scaled_std_dev, threshold})
+        // mean and deviation cannot overflow; ConvertPrecision propagates the fp32 mark up to them from the nodes below.
+        for (const auto& pattern : {squared_deviation, variance, std_dev, scaled_std_dev, threshold})
             ov::disable_conversion(pattern_map.at(pattern).get_node_shared_ptr(), element::f16);
         return false;
     };
