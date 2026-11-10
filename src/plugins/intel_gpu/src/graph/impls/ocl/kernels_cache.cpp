@@ -124,7 +124,6 @@ namespace {
 bool on_define_line(const std::string& src, size_t pos) {
     size_t line_start = src.rfind('\n', pos);
     line_start = (line_start == std::string::npos) ? 0 : line_start + 1;
-    // Look only between the start of the line and the occurrence, not on to the end of the source.
     return std::string_view(src).substr(line_start, pos - line_start).find("#define") != std::string_view::npos;
 }
 
@@ -167,18 +166,11 @@ std::string redefine_directive(const std::string& arg) {
     return "\n#undef _NV_SUB_GROUP_SIZE\n#define _NV_SUB_GROUP_SIZE (" + arg + ")\n";
 }
 
-// Sub-group size for a kernel that states none, derived from the (x, y, z) arguments of its reqd_work_group_size.
-//
-// Without a declaration the emulation would run the kernel at the 32 default. When the whole work-group fits in 8 or
-// 16 lanes that leaves an inconsistent sub-group: get_sub_group_size() reports the lanes that exist, while block
-// reads/writes stride and get_max_sub_group_size() report 32. Kernels written for such a work-group - the b8 family,
-// convolution_gpu_yxfb_yxio_b8 among them - count on the work-group being exactly one sub-group, which is what the
-// Intel compiler hands them in practice. Taking the work-group size as the sub-group size is the one consistent
-// choice, and it only changes what those strided accesses see: shuffles and reductions already stop at the lanes
-// that exist. Only the widths the emulation supports below a warp are mapped; anything else keeps 32.
-//
-// The arguments are usually jit constants whose value is not known here, so the choice is left to the preprocessor
-// as a constant expression. An empty result means the arguments were not recognised and nothing should change.
+// Sub-group size for a kernel that states none, from the (x, y, z) arguments of its reqd_work_group_size: a work-group
+// of exactly 8 or 16 work-items runs as one sub-group of that width, as the kernels written for it expect; anything
+// else keeps the default. Without this, block reads/writes would stride by the 32-lane default.
+// The arguments are usually jit constants, so the choice is left to the preprocessor as a constant expression. An
+// empty result means the arguments were not recognised.
 std::string sub_group_size_from_work_group_size(const std::string& args) {
     std::vector<std::string> dims;
     std::stringstream ss(args);
@@ -195,11 +187,9 @@ std::string sub_group_size_from_work_group_size(const std::string& args) {
 }  // namespace
 
 std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
-    // Kernels state their sub-group size either through common.cl's REQD_SUB_GROUP_SIZE(x) or, as a number of ocl_v2
-    // kernels do, by writing __attribute__((intel_reqd_sub_group_size(x))) directly. Neither survives on NVIDIA:
-    // cl_intel_required_subgroup_size is not advertised so the macro expands to nothing, and the raw attribute is
-    // unknown to the NVIDIA compiler. The emulation keys off _NV_SUB_GROUP_SIZE instead, which every sub-group helper
-    // in nvidia/compat_sg.cl reads at its call site.
+    // Kernels state their sub-group size through common.cl's REQD_SUB_GROUP_SIZE(x) or a raw
+    // __attribute__((intel_reqd_sub_group_size(x))). Neither takes effect on NVIDIA, so each is re-expressed as
+    // _NV_SUB_GROUP_SIZE, which the sub-group helpers in nvidia/compat_sg.cl read.
     // One pattern for both spellings, so the occurrences are visited in source order and the first request - the one
     // repeated at the top of the entry - is the first in the source whichever spelling states it. Group 1 is the raw
     // attribute's argument, group 2 the macro's.
@@ -255,10 +245,8 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
         modified = rewrite(src, request_re, stated_size);
     }
 
-    // No stated sub-group size: fall back to the one the work-group size implies, if any. An explicit declaration
-    // always wins - softmax_gpu_bf asks for 16 and launches a work-group of 4. The whole attribute is matched so the
-    // redefinition lands ahead of it rather than between its parentheses; reqd_work_group_size is standard OpenCL,
-    // so the attribute itself stays.
+    // No stated sub-group size: fall back to the one the work-group size implies, if any; an explicit declaration always
+    // wins. The whole attribute is matched so the redefinition lands ahead of it, and the attribute itself stays.
     if (first_arg.empty() && contains("reqd_work_group_size")) {
         static const std::regex wg_re(
             R"(__attribute__\s*\(\s*\(\s*reqd_work_group_size\s*\(([^()]*)\)\s*\)\s*\))");
@@ -343,7 +331,6 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         }
     }
 
-    // The NVIDIA compatibility headers are the same for every batch, so they are assembled once here rather than per batch.
     const auto nvidia_compat = _targets_nvidia ? get_nvidia_compat_headers() : nvidia_compat_headers{};
 
     // Compute hash value for each batch
@@ -413,14 +400,10 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             if (b.language == kernel_language::OCLC_V2 || b.language == kernel_language::CM)
                 process_batch_includes(b);
 
-            // For the NVIDIA SYCL backend, add the compatibility headers (fp16 support, math overloads,
-            // sub-group built-ins, work-group collectives, etc.) that the native NVIDIA OpenCL runtime lacks. They go
-            // into b.source like any other header, so the hash below covers them and the dumped program shows them.
-            // The program is laid out as
-            //     prelude | batch headers | sub-group overrides | kernels
-            // The overrides must sit between the headers and the kernels: they shadow names that sub_group_block_read.cl
-            // and friends declare as functions, so emitting them any earlier would macro-expand those names inside their
-            // own declarations. See nvidia/compat_sg_overrides.cl.
+            // Add the NVIDIA compatibility headers to b.source like any other header, so the hash below covers them, laid
+            // out as  prelude | batch headers | sub-group overrides | kernels. The overrides shadow names that
+            // sub_group_block_read.cl and friends declare as functions, so they must come after those headers (see
+            // nvidia/compat_sg_overrides.cl).
             if (_targets_nvidia) {
                 OPENVINO_ASSERT(b.header_count <= b.source.size(), "[GPU] Batch has ", b.header_count,
                                 " headers but only ", b.source.size(), " source entries");
@@ -471,18 +454,13 @@ kernels_cache::kernels_cache(engine& engine,
     , _config(config)
     , _prog_id(prog_id)
     , batch_headers(std::move(batch_headers)) {
-    // The NVIDIA SYCL backend always compiles with clBuildProgram on the NVIDIA OpenCL runtime and launches the PTX
-    // through CUDA, so it always needs the compatibility headers.
     _targets_nvidia = engine.runtime_type() == runtime_types::sycl && _device->get_info().vendor_id == NVIDIA_VENDOR_ID;
 }
 
 kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() const {
     nvidia_compat_headers result;
 
-    // A kernels_cache built without batch headers (e.g. for a standalone probe kernel) compiles its kernels
-    // without the compatibility headers. Otherwise the batch headers come from the primitive DB, which lacks them
-    // when it was generated without primitive_db_gen.py -nvidia, e.g. a stale codegen output in a build directory
-    // reconfigured for NVIDIA.
+    // A kernels_cache built without batch headers (a standalone probe kernel) gets no compatibility headers.
     if (batch_headers.empty()) {
         return result;
     }
@@ -498,8 +476,6 @@ kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() 
 
     // The NVIDIA compatibility prelude, split by feature. Emitted in this order: each header relies only
     // on the ones listed before it (see the "Depends on" notes at the top of each file).
-    // compat_wg is added to every batch, not only to those calling a work-group collective: ptxas allocates the
-    // shared buffer it declares only to the kernels that reference it, so the other kernels carry none of it.
     static const char* const nvidia_prelude_names[] = {
         "nvidia/compat_common",  // extension pragmas, feature macros, linear ids
         "nvidia/compat_half",    // half limits, math, conversions, reinterprets, relational

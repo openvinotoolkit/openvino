@@ -129,15 +129,13 @@ private:
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const batch_program& batch, compiled_kernels& compiled_kernels);
 
-    // NVIDIA compatibility headers added to every batch built for the NVIDIA SYCL backend, which compiles with
-    // clBuildProgram on the NVIDIA OpenCL runtime and launches the PTX through CUDA.
-    // The program is laid out as  prelude | batch headers | sg_overrides | kernels.
+    // NVIDIA compatibility headers added to every batch built for the NVIDIA SYCL backend; get_program_source() shows
+    // where each part goes.
     struct nvidia_compat_headers {
         std::string prelude;
         std::string sg_overrides;
     };
-    // Returns the compatibility headers, the same for every batch. get_program_source() puts them into the batch's
-    // source ahead of hashing, so the cache key covers exactly the headers that get compiled.
+    // Returns the compatibility headers, the same for every batch.
     nvidia_compat_headers get_nvidia_compat_headers() const;
 
     // The source handed to the kernel builder for `batch`: batch.source joined, with each kernel's sub-group size
