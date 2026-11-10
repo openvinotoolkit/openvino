@@ -381,6 +381,8 @@ std::shared_ptr<ocl::ocl_device> find_matching_ocl_device(const device_info& inf
             if (ocl_dev && ocl_dev->get_info().vendor_id == info.vendor_id && ocl_dev->get_info().uuid.uuid == uuid)
                 return ocl_dev;
         }
+        GPU_DEBUG_LOG << "[GPU] No OpenCL device matches the SYCL device " << info.dev_name
+                      << ", so OpenCL kernels cannot be built for it" << std::endl;
     } catch (const std::exception& e) {
         GPU_DEBUG_LOG << "[GPU] OpenCL device lookup failed: " << e.what() << std::endl;
     }
@@ -409,9 +411,6 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
             // static __local arrays from this value, and CUDA caps static shared memory at 48 KB: ptxas rejects
             // anything larger when clBuildProgram builds the kernel.
             _info.max_local_mem_size = _ocl_device->get_info().max_local_mem_size;
-        } else {
-            GPU_DEBUG_LOG << "[GPU] No OpenCL device matches the SYCL device " << _info.dev_name
-                          << ", so OpenCL kernels cannot be built for it" << std::endl;
         }
     }
 #endif
