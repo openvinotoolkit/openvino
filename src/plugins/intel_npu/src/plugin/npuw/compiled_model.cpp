@@ -291,6 +291,8 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         ov::npuw::patterns::opt::untangleConst(model);
     }
 
+    ov::npuw::patterns::opt::untangleWeightConverts(model);
+
     if (cfg_get<::intel_npu::NPUW_SLICE_OUT>(props)) {
         // Add Slice before last MatMul for the prefill model
         ov::pass::GraphRewrite rewr;
