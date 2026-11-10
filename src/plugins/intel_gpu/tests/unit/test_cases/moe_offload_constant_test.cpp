@@ -398,3 +398,19 @@ TEST(moe_offload_constant, partial_upload_only_for_routed_weights) {
         EXPECT_EQ(prepare_partial_upload(graph.constants[i], 50).enabled, is_routed_weight) << "MOECompressed input " << input_index;
     }
 }
+
+// NNCF int3 models share one scalar zero point among all the layers: only the routed weights are streamed,
+// so the resident scales and zero points may have any other consumer
+TEST(moe_offload_constant, zero_point_shared_with_other_layers_does_not_block_offload) {
+    auto graph = MoETestGraph::build(/*num_experts=*/8);
+    auto zp = std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{}, 4);
+    for (const size_t index : {5, 8, 11}) {
+        graph.moe_node->input(index).replace_source_output(zp);
+    }
+    auto other_layer = std::make_shared<ov::op::v0::Relu>(zp);
+
+    EXPECT_TRUE(is_moe_otd_eligible(graph.moe_node.get()));
+    EXPECT_EQ(get_moe_offload_slot_count(*graph.moe_node, 50), 4U);
+    EXPECT_TRUE(prepare_partial_upload(graph.constants[0], 50).enabled);
+    EXPECT_FALSE(is_moe_constant_offloadable(zp));
+}

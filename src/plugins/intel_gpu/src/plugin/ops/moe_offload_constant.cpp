@@ -79,6 +79,17 @@ MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant
     return MoEConstantRole::NotOffloadableMoE;
 }
 
+namespace {
+using moe_input_index = cldnn::moe_3gemm_fused_compressed::input_index;
+constexpr std::array<size_t, 3> routed_weight_inputs = {static_cast<size_t>(moe_input_index::weight_0),
+                                                        static_cast<size_t>(moe_input_index::weight_1),
+                                                        static_cast<size_t>(moe_input_index::weight_2)};
+
+bool is_routed_weight_input(size_t index) {
+    return std::find(routed_weight_inputs.begin(), routed_weight_inputs.end(), index) != routed_weight_inputs.end();
+}
+}  // namespace
+
 bool is_moe_otd_eligible(const ov::Node* node) {
     std::vector<const ov::Node*> pending{node};
     std::unordered_set<const ov::Node*> visited;
@@ -87,14 +98,17 @@ bool is_moe_otd_eligible(const ov::Node* node) {
         pending.pop_back();
         if (!visited.insert(current).second)
             continue;
-        if (!is_otd_capable_moe(current) || current->get_input_size() <= ROUTED_INPUT_END)
+        if (!is_otd_capable_moe(current) || current->get_input_size() <= routed_weight_inputs.back())
             return false;
-        for (size_t index = ROUTED_INPUT_START; index <= ROUTED_INPUT_END; ++index) {
+        // Only the routed weights are streamed: the scales and zero points stay resident whatever their form
+        for (const auto index : routed_weight_inputs) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(current->input_value(index).get_node_shared_ptr());
             if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert)
                 return false;
-            // Propagate resident fallback across MoEs sharing routed constants.
+            // Propagate resident fallback across MoEs sharing routed weights.
             for (const auto& consumer : constant->get_output_target_inputs(0)) {
+                if (!is_routed_weight_input(consumer.get_index()))
+                    return false;
                 pending.push_back(consumer.get_node());
             }
         }
@@ -107,7 +121,7 @@ bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op
         return false;
     const auto consumers = op->get_output_target_inputs(0);
     return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
-        return is_moe_otd_eligible(consumer.get_node());
+        return is_routed_weight_input(consumer.get_index()) && is_moe_otd_eligible(consumer.get_node());
     });
 }
 
@@ -116,15 +130,6 @@ bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
 }
 
 namespace {
-using moe_input_index = cldnn::moe_3gemm_fused_compressed::input_index;
-constexpr std::array<size_t, 3> routed_weight_inputs = {static_cast<size_t>(moe_input_index::weight_0),
-                                                        static_cast<size_t>(moe_input_index::weight_1),
-                                                        static_cast<size_t>(moe_input_index::weight_2)};
-
-bool is_routed_weight_input(size_t index) {
-    return std::find(routed_weight_inputs.begin(), routed_weight_inputs.end(), index) != routed_weight_inputs.end();
-}
-
 // Offloaded experts are streamed from the weights file as stored, so the graph must consume the file bytes unchanged:
 // a constant whose data was converted, transposed or otherwise recomputed by the transformations has no file descriptor
 bool is_weights_file_view(const ov::Output<ov::Node>& input, size_t num_expert) {
