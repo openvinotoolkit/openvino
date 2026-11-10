@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-16-36-52-277-42841245398",
+  "timestamp": "2026-11-10T16:36:52Z",
+  "run_id": "42841245398",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42841245398",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39653",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39653",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Expand-Archive cannot overwrite tbb12.dll - Access denied"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll: Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force over the previous install directory on a Windows self-hosted runner. tbb12.dll from the prior job/run is still memory-mapped or locked by another process (e.g. a lingering test process or antivirus scan) when the next job starts, so the archive module's attempt to overwrite/remove the existing DLL fails with UnauthorizedAccessException. This is the 9th recorded occurrence of the same signature since 2026-11-09, always on the same step across various self-hosted Windows GPU runners, consistent with a runner-level file-lock/cleanup race rather than a code defect in this PR.",
+  "reproduction_steps": "N/A - requires a Windows self-hosted runner where the install directory from a previous job run still has a locked tbb12.dll; cannot be reproduced in a clean environment. Can be approximated by: 1) load tbb12.dll into a running process; 2) attempt `Expand-Archive -Force` to overwrite the install directory containing that DLL.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job (transient lock typically clears) - requested automatically via remediate_transient_failure",
+    "Add a retry-with-backoff wrapper around the Expand-Archive/Remove-Item extraction step for Windows jobs to absorb transient file locks",
+    "Investigate whether a lingering process (test runner, antivirus, Windows Search indexer) from the prior job on these self-hosted runners is holding a handle to tbb12.dll after job completion, and add an explicit cleanup/handle-release step at job end",
+    "Consider isolating the install directory per-job (unique path) instead of reusing a shared extraction directory across jobs on the same runner"
+  ],
+  "prevention_strategies": "Add automated retry logic (3 attempts with short backoff) around the archive extraction step on Windows self-hosted runners. Ensure runner job cleanup steps explicitly close/release file handles (e.g., via Restart-Service or explicit process termination) before marking a job complete, so the next job's extraction does not race a still-held lock on shared binaries like tbb12.dll.",
+  "historical_context": "This exact signature has now occurred 9 times since 2026-11-09T19:06:46Z, with 5 occurrences in the last 12 hours (escalation threshold reached), affecting PRs #39617, #37406, #39577, #39668, #39034, #39444 and now #39653. A workflow-rerunner pattern proposal PR (#39664) was previously opened for this signature but was closed without merging, which counts as a permanent rejection; per protocol this run does not re-propose the same signature_hash for human review."
+}

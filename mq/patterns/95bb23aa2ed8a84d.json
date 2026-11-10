@@ -4,10 +4,11 @@
   "signature_hash": "95bb23aa2ed8a84d",
   "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
   "category": "Infrastructure",
-  "count": 8,
+  "count": 9,
   "first_seen": "2026-11-09T19:06:46Z",
-  "last_seen": "2026-11-10T12:51:32Z",
+  "last_seen": "2026-11-10T16:36:52Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42841245398",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42806601643",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42798063954",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42789868134",
@@ -18,6 +19,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/42662261631"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39653",
     "https://github.com/openvinotoolkit/openvino/pull/39617",
     "https://github.com/openvinotoolkit/openvino/pull/37406",
     "https://github.com/openvinotoolkit/openvino/pull/39577",
@@ -26,6 +28,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/39444"
   ],
   "recent_timestamps": [
+    "2026-11-10T16:36:52Z",
     "2026-11-10T12:51:32Z",
     "2026-11-10T11:45:13Z",
     "2026-11-10T10:45:50Z",
