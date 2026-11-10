@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
 #include "shared_test_classes/single_op/grouped_matmul.hpp"
 
 #include <algorithm>
@@ -164,12 +165,8 @@ std::string GroupedMatMulLayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void GroupedMatMulLayerTest::SetUp() {
-    const auto& [shape_params, elem_type, _targetDevice, expected_primitive] = GetParam();
-    shape_params_ = shape_params;
-    act_type_ = elem_type;
+    std::tie(shape_params_, act_type_, targetDevice, expected_primitive_) = GetParam();
     model_name_ = "GroupedMatMul";
-    expected_primitive_ = expected_primitive;
-    targetDevice = _targetDevice;
     GroupedMatMulTestBase::SetUp();
 }
 

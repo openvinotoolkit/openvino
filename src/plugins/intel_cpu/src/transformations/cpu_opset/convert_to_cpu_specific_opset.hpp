@@ -19,6 +19,7 @@
 #include "config.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gathermatmul.h"
+#include "nodes/grouped_matmul.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -36,13 +37,8 @@
 #include "transformations/op_conversions/convert_fc_to_compressed.hpp"
 #include "transformations/op_conversions/convert_fc_to_quantized_legacy.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
+#include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "transformations/op_conversions/convert_grouped_matmul_to_gather_matmul.hpp"
-
-// GroupedMatMul has an x64 only executor, so everything below is referenced from CPU_*_X64 blocks
-#if defined(OPENVINO_ARCH_X86_64)
-#    include "nodes/grouped_matmul.hpp"
-#    include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
-#endif
 
 namespace ov::intel_cpu {
 
@@ -52,9 +48,26 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
 
-    // x64 executes GroupedMatMul-17 natively. Fold the weights dequantization subgraph into
-    // GroupedMatMulCompressed first, so that the lowering below sees only the ops which the native
-    // node cannot handle.
+    // Convert public GroupedMatMul-17 into the internal GatherMatmul.
+    // Must run before ConvertGatherMatmulToGatherMatmulCompressed, so that a lowered op still gets
+    // its weights compressed (this is what the architectures without the native node rely on).
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertGroupedMatMulToGatherMatmul);
+    // Keep whatever the native GroupedMatMul node can execute out of the lowering. Neither
+    // v17::GroupedMatMul nor GroupedMatMulCompressed implement evaluate(), so anything the node
+    // rejects (e.g. non-constant weights on x64) is still lowered to GatherMatmul.
+    // GroupedMatMul::isSupportedOperation rejects everything on non-x64, so the other
+    // architectures lower every GroupedMatMul.
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            return ov::intel_cpu::node::GroupedMatMul::isSupportedOperation(node);
+        },
+        ov::pass::ConvertGroupedMatMulToGatherMatmul);
+
+    // Fold the weights dequantization subgraph of the natively supported GroupedMatMul into
+    // GroupedMatMulCompressed. The order relative to the lowering above doesn't matter on x64: the
+    // callback already keeps the native ops out of the lowering, and the ops it still lowers have
+    // non-constant weights, so they have nothing to compress.
     CPU_REGISTER_PASS_X64(manager,
                           ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed,
                           ov::intel_cpu::node::GroupedMatMul::getSupportedCompressedWeightsTypes(),
@@ -68,20 +81,6 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
                                                                                                         G,
                                                                                                         config);
                           });
-
-    // Convert whatever public GroupedMatMul-17 is left into the internal GatherMatmul. Runs after the
-    // GroupedMatMulCompressed folding above and before ConvertGatherMatmulToGatherMatmulCompressed
-    // below, so that a lowered op still gets its weights compressed.
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertGroupedMatMulToGatherMatmul);
-    // On x64 keep whatever the native GroupedMatMul node can execute. Neither v17::GroupedMatMul nor
-    // GroupedMatMulCompressed implement evaluate(), so anything the node rejects must still be
-    // lowered to GatherMatmul here.
-    CPU_SET_CALLBACK_X64(
-        manager,
-        [](const std::shared_ptr<const ov::Node>& node) -> bool {
-            return ov::intel_cpu::node::GroupedMatMul::isSupportedOperation(node);
-        },
-        ov::pass::ConvertGroupedMatMulToGatherMatmul);
 
     // TransformMoeBlockToGatherMatmuls
     CPU_REGISTER_PASS_X64(manager, ov::pass::ConvertTiledMoeBlockToGatherMatmuls);

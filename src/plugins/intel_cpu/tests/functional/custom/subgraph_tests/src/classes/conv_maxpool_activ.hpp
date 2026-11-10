@@ -19,7 +19,7 @@ public:
 
 protected:
     void SetUp() override;
-    bool primTypeCheck(std::string primType) const override;
+    bool primTypeCheck(const std::string& primType) const override;
 };
 
 }  // namespace test

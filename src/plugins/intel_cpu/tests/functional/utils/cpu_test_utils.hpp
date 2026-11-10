@@ -167,7 +167,7 @@ protected:
                                                   ov::ParameterVector& params,
                                                   const std::shared_ptr<ov::Node>& lastNode);
 
-    virtual bool primTypeCheck(std::string primType) const;
+    virtual bool primTypeCheck(const std::string& primType) const;
 
 protected:
     std::string getPrimitiveType() const;

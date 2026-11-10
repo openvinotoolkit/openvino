@@ -251,7 +251,7 @@ void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov:
     }
 }
 
-bool CPUTestsBase::primTypeCheck(std::string primType) const {
+bool CPUTestsBase::primTypeCheck(const std::string& primType) const {
 #ifndef NDEBUG
     std::cout << "selectedType: " << selectedType << ", primType: " << primType << std::endl;
 #endif
@@ -263,6 +263,7 @@ bool CPUTestsBase::primTypeCheck(std::string primType) const {
         return selectedType.find(CPUTestsBase::any_type) != std::string::npos ||
                std::regex_match(primType, std::regex(selectedType, std::regex::icase));
 }
+
 std::string CPUTestsBase::getTestCaseName(const CPUSpecificParams& params) {
     const auto& [inFmts, outFmts, priority, selectedType] = params;
     std::ostringstream result;

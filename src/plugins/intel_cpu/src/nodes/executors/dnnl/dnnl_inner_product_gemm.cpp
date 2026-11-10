@@ -4,6 +4,9 @@
 
 #include "dnnl_inner_product_gemm.hpp"
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+#endif
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
@@ -12,6 +15,7 @@
 #include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -27,6 +31,7 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_memory_desc.h"
+#include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -34,7 +39,7 @@
 #include "thread_pool_imp.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu::dnnl_utils {
+namespace ov::intel_cpu::utils {
 
 size_t InnerProductKey::hash() const {
     using namespace dnnl::impl;
@@ -201,13 +206,13 @@ dnnl::memory::desc make_bias_md(dnnl::memory::dim N, const MemoryPtr& bias_mem) 
                               dnnl::memory::format_tag::a);
 }
 
-DnnlMemoryDescPtr add_batch_dim(const BlockedMemoryDescPtr& desc, size_t batchDim) {
+DnnlMemoryDescPtr add_batch_dim(const BlockedMemoryDescPtr& desc, size_t batch_dim) {
     const auto& weights_dims = desc->getShape().getStaticDims();
     const auto& weights_block_dims = desc->getBlockDims();
     const auto& weights_order = desc->getOrder();
-    VectorDims new_dims = {batchDim};
+    VectorDims new_dims = {batch_dim};
     new_dims.insert(new_dims.end(), weights_dims.begin(), weights_dims.end());
-    VectorDims new_block_dims = {batchDim};
+    VectorDims new_block_dims = {batch_dim};
     new_block_dims.insert(new_block_dims.end(), weights_block_dims.begin(), weights_block_dims.end());
     VectorDims new_order(weights_order.size() + 1);
     new_order[0] = 0;
@@ -217,6 +222,108 @@ DnnlMemoryDescPtr add_batch_dim(const BlockedMemoryDescPtr& desc, size_t batchDi
     auto target_desc =
         std::make_shared<CpuBlockedMemoryDesc>(desc->getPrecision(), Shape(new_dims), new_block_dims, new_order);
     return MemoryDescUtils::convertToDnnlMemoryDesc(target_desc);
+}
+
+bool is_supported_compressed_inner_product([[maybe_unused]] size_t IC,
+                                           [[maybe_unused]] size_t OC,
+                                           [[maybe_unused]] size_t G,
+                                           [[maybe_unused]] const ov::element::Type& inference_precision) {
+#ifdef OPENVINO_ARCH_X86_64
+    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        return false;
+    }
+
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
+        inference_precision == ov::element::bf16) {
+        // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
+        // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
+        // used since fallback one doesn't support weights decompression feature.
+        constexpr size_t simd_width = 16;
+        constexpr size_t vnni_factor = 2;
+        constexpr size_t max_size = 512;
+        constexpr size_t amx_row = vnni_factor * simd_width;
+
+        if ((IC <= amx_row && OC <= amx_row) || (IC <= max_size && OC <= max_size && IC % amx_row != 0)) {
+            return false;
+        }
+    }
+
+    if (G == 0 || IC % G != 0) {
+        return false;  // sanity check IC must be evenly divided by the group size
+    }
+
+    if (IC / G < 4) {
+        return false;  // minimal group size should be 4
+    }
+
+    return OC != 1;
+#else
+    return false;
+#endif
+}
+
+bool supports_inner_product([[maybe_unused]] const MemoryDescArgs& descs) {
+#ifdef OPENVINO_ARCH_X86_64
+    // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
+    if ((descs.count(ARG_SRC) != 0U) && !descs.at(ARG_SRC)->empty()) {
+        const auto src_prc = descs.at(ARG_SRC)->getPrecision();
+        if (!any_of(src_prc, ov::element::f32, ov::element::bf16)) {
+            return false;
+        }
+    }
+    // For compressed (int) weights, require AVX2
+    if ((descs.count(ARG_WEI) != 0U) && !descs.at(ARG_WEI)->empty()) {
+        const auto wei_prc = descs.at(ARG_WEI)->getPrecision();
+        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3)) {
+            if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+                return false;
+            }
+        }
+    }
+    return true;
+#else
+    return false;
+#endif
+}
+
+VectorDims per_group_shape(const MemoryPtr& mem) {
+    VectorDims shape{};
+    if (!mem || mem->getDesc().empty()) {
+        return shape;
+    }
+    const auto& full_shape = mem->getShape().getStaticDims();
+    if (full_shape.size() == 1LU) {
+        OPENVINO_ASSERT(full_shape[0] == 1, "Expect broadcastable per-group shape, got ", vec2str(full_shape));
+        shape.push_back(full_shape[0]);
+    } else {
+        shape.assign(full_shape.begin() + 1, full_shape.end());
+    }
+    return shape;
+}
+
+MemoryPtr prepare_decompression_memory(const MemoryPtr& mem,
+                                       const dnnl::memory::desc& prim_md,
+                                       const dnnl::engine& eng) {
+    const auto group_count = mem->getShape().getStaticDims()[0];
+    auto expected_desc =
+        add_batch_dim(MemoryDescUtils::convertToBlockedMemoryDesc(
+                          MemoryDescUtils::convertToDnnlMemoryDesc(DnnlExtensionUtils::makeDescriptor(prim_md))),
+                      group_count);
+
+    MemoryPtr src = mem;
+    if (mem->getShape().getRank() == 1LU) {
+        auto desc = std::make_shared<CpuBlockedMemoryDesc>(mem->getDesc().getPrecision(),
+                                                           Shape(VectorDims(expected_desc->getShape().getRank(), 1LU)));
+        src = std::make_shared<Memory>(eng, desc);
+        std::memcpy(src->getData(), mem->getData(), mem->getSize());
+    }
+
+    if (expected_desc->isCompatible(src->getDesc())) {
+        return src;
+    }
+    auto result = std::make_shared<Memory>(eng, expected_desc);
+    result->load(*src, false, false);
+    return result;
 }
 
 std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_size,
@@ -266,4 +373,4 @@ std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_si
     return {static_cast<size_t>(dq_group_size), zp_dt};
 }
 
-}  // namespace ov::intel_cpu::dnnl_utils
+}  // namespace ov::intel_cpu::utils
