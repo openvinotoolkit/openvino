@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-19-12-00-000-42866126427",
+  "timestamp": "2026-11-10T19:12:00Z",
+  "run_id": "42866126427",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42866126427",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "3b0ee896233e8a108ecc43b59c854116e3f251c8",
+  "pr_number": null,
+  "pr_url": null,
+  "author": "riverlijunjie",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access to the path is denied"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ CategoryInfo          : PermissionDenied: (...tbb\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "Expand-Archive -Force on Windows tries to delete tbb12.dll before overwriting it, but the DLL is still locked/held open by another process (likely a lingering process from a prior step on the same self-hosted runner, e.g. antivirus scanning or a previous test run that did not release the handle), causing Remove-Item to throw UnauthorizedAccessException and the step to fail with exit code 1. This is a recurring, runner-state-dependent infrastructure issue, not caused by this commit's code changes (a GPU fusion-ops PR unrelated to packaging/CI scripts).",
+  "reproduction_steps": "N/A - requires a Windows self-hosted runner where a prior process still holds a handle on install/runtime/3rdparty/tbb/bin/tbb12.dll; cannot be reliably reproduced locally. To reproduce conditions: on Windows, open/lock install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll in another process, then run Expand-Archive -Force against an existing install directory containing that file.",
+  "recommended_actions": [
+    "Ensure prior steps/processes on the runner (e.g., previous test binaries, antivirus/indexing) fully release handles on install/ before the Extract OpenVINO packages step runs; add an explicit process cleanup or short retry/backoff before Expand-Archive.",
+    "Wrap the Expand-Archive call in a PowerShell retry loop (e.g., 3-5 attempts with delay) to tolerate transient file locks, as this signature has recurred 7 times in 24h.",
+    "Consider extracting to a fresh/clean directory instead of overwriting an existing install/ directory with -Force, avoiding the Remove-Item-on-locked-file path entirely.",
+    "Escalate to the runner pool maintainers: this is the 7th occurrence of the same locked-tbb12.dll failure in ~24 hours across unrelated commits, suggesting a systemic runner/antivirus issue rather than isolated flakiness."
+  ],
+  "prevention_strategies": "Add retry-with-backoff around Expand-Archive/Remove-Item on Windows runners, or extract into a clean target directory to avoid overwrite-triggered deletes of potentially-locked DLLs. Track repeated occurrences of this signature and proactively investigate runner health (antivirus, leftover processes) once the pattern count crosses a threshold (e.g., >5 in 24h).",
+  "historical_context": "This exact signature (514ffa2ab52ad344) has now been recorded 8 times since 2026-11-09T16:30:00Z, most recently at 2026-11-10T18:01:09Z, always on the 'GPU unit tests' job of Windows post-commit runs, across many unrelated commits - strongly indicating a systemic Windows runner infrastructure issue (locked tbb12.dll) rather than a one-off flake."
+}
