@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "transformations/op_conversions/convert_nearest_interpolate_to_gather.hpp"
 #include "xml_serializer.hpp"
 
 namespace {
@@ -321,6 +322,12 @@ protected:
         }
         if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
             manager.register_pass<ov::pass::EliminateIdentity>();
+        }
+        // 2026-11-11 — nearest upsampling with C >= 8 is mis-lowered by the compiler: the result is computed
+        // with linear interpolation whenever it requires a layout conversion (openvinotoolkit/openvino#39698).
+        // Replace it with the exact Gather decomposition until the compiler ships the fix.
+        if ((_compilerVersion.major < 8) || (_compilerVersion.major == 8 && _compilerVersion.minor < 5)) {
+            manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
         }
 
         manager.run_passes(model);
