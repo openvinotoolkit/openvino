@@ -31,6 +31,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <cmath>
@@ -860,11 +861,8 @@ INSTANTIATE_TEST_SUITE_P(V1_Symmetric_i4_GenGaussian,
 
 // ============================================================================
 // Test instantiation -- asymmetric i8 offset distributions for all versions.
-//
-// V1 coverage additionally exposes the known bug in zero-point computation:
-//   zp = 0 / scale  (always zero)
-// which causes clipping for shifted distributions (min/max away from zero).
-// This can fail until V1 formula is corrected to use -min/scale.
+// Shifted distributions (min/max away from zero) clip if the zero-point is computed
+// wrong. DynamicQuantizeV1AsymI8RangeTest below checks the V1 encoding exactly.
 // ============================================================================
 static std::vector<DQTestParams> make_asym_i8_offset_cases() {
     static constexpr std::array<DQMode, 3> versions = {DQMode::HandcraftedSymmetricI8,
@@ -887,5 +885,122 @@ INSTANTIATE_TEST_SUITE_P(Asymmetric_i8_OffsetCoverage,
                          DynamicQuantizeAccuracyTest,
                          ::testing::ValuesIn(make_asym_i8_offset_cases()),
                          get_test_case_name);
+
+// ============================================================================
+// V1 asymmetric i8 encoding contract (EISW-242001).
+//
+// The relative-L2 thresholds above tolerate an encoding that uses only half of the
+// signed codes, so this test checks the contract itself, per token:
+//   lo = min(x, 0), hi = max(x, 0)          -- the range always contains 0
+//   scale = (hi - lo) / 254                 -- the whole [-127, 127] grid
+//   zp    = round(-127 - lo / scale)        -- lo maps to -127, hi maps to 127
+//   x'    = (q - zp) * scale, |x' - x| <= scale / 2
+// Each row of the input is one token, a ramp over [first, last].
+// ============================================================================
+struct AsymI8Range {
+    float first;
+    float last;
+};
+
+class DynamicQuantizeV1AsymI8RangeTest : public ::testing::TestWithParam<AsymI8Range> {};
+
+TEST_P(DynamicQuantizeV1AsymI8RangeTest, UsesFullSignedRange) {
+    const auto range = GetParam();
+    constexpr size_t tokens = 4;
+    constexpr size_t head_dim = 256;
+    const Shape shape{1, 2, tokens, head_dim};
+    const size_t count = shape_size(shape);
+
+    DQTestParams p = make_uniform(DQMode::HandcraftedSymmetricI8, shape, range.first, range.last, 0);
+    p.quant_dt = element::i8;
+    p.is_symmetric = false;
+
+    std::vector<float> input(count);
+    for (size_t i = 0; i < count; ++i) {
+        const float t = static_cast<float>(i % head_dim) / static_cast<float>(head_dim - 1);
+        input[i] = to_fp16(range.first + (range.last - range.first) * t);
+    }
+
+    auto quant_model = build_quantize_model(shape, p);
+    auto dequant_model = build_dequantize_model(shape, p);
+
+    Tensor quant_input(element::f16, shape);
+    auto* dst = quant_input.data<ov::float16>();
+    for (size_t i = 0; i < count; ++i) {
+        dst[i] = ov::float16(input[i]);
+    }
+    TensorVector q_out;
+    for (const auto& res : quant_model->get_results()) {
+        q_out.emplace_back(res->get_output_element_type(0), res->get_output_shape(0));
+    }
+    ASSERT_TRUE(quant_model->evaluate(q_out, TensorVector{quant_input}));
+    ASSERT_EQ(q_out.size(), 3u);
+    ASSERT_EQ(q_out[0].get_element_type(), element::i8);
+    ASSERT_EQ(q_out[2].get_element_type(), element::i8);
+
+    TensorVector dq_out{Tensor(element::f16, shape)};
+    ASSERT_TRUE(dequant_model->evaluate(dq_out, q_out));
+
+    const auto* q = q_out[0].data<int8_t>();
+    const auto* scale = q_out[1].data<float>();
+    const auto* zp = q_out[2].data<int8_t>();
+    const auto* restored = dq_out[0].data<ov::float16>();
+
+    const float lo = std::min(range.first, 0.0f);
+    const float hi = std::max(range.last, 0.0f);
+    const float expected_scale = (hi - lo) / 254.0f;
+
+    for (size_t row = 0; row < count / head_dim; ++row) {
+        SCOPED_TRACE("token " + std::to_string(row));
+        ASSERT_TRUE(std::isfinite(scale[row]));
+        if (hi > lo) {
+            EXPECT_NEAR(scale[row], expected_scale, expected_scale * 1e-5f);
+        }
+        int q_min = 127, q_max = -127;
+        size_t worst = row * head_dim;
+        float worst_excess = -std::numeric_limits<float>::infinity();
+        for (size_t col = 0; col < head_dim; ++col) {
+            const size_t i = row * head_dim + col;
+            q_min = std::min<int>(q_min, q[i]);
+            q_max = std::max<int>(q_max, q[i]);
+            const float y = static_cast<float>(restored[i]);
+            ASSERT_TRUE(std::isfinite(y)) << "x=" << input[i];
+            // half a quantization step, plus fp16 rounding of the dequantized value
+            const float bound = 0.5f * expected_scale * 1.001f + std::abs(input[i]) / 1024.0f;
+            const float excess = std::abs(y - input[i]) - bound;
+            if (excess > worst_excess) {
+                worst_excess = excess;
+                worst = i;
+            }
+        }
+        EXPECT_LE(worst_excess, 0.0f) << "worst element x=" << input[worst]
+                                      << " restored=" << static_cast<float>(restored[worst]) << " q=" << int(q[worst])
+                                      << " zp=" << int(zp[row]) << " scale=" << scale[row] << " (expected "
+                                      << expected_scale << ")";
+        // lo and hi land on the ends of the grid; a one-sign token reaches only the end of its sign
+        if (hi > lo && range.last >= 0.0f) {
+            EXPECT_EQ(q_max, 127);
+        }
+        if (hi > lo && range.first <= 0.0f) {
+            EXPECT_EQ(q_min, -127);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(V1_Asymmetric_i8_Range,
+                         DynamicQuantizeV1AsymI8RangeTest,
+                         ::testing::Values(AsymI8Range{-1.0f, 1.0f},      // zero-centred
+                                           AsymI8Range{-2.0f, 0.5f},      // skewed negative
+                                           AsymI8Range{-0.25f, 3.0f},     // skewed positive
+                                           AsymI8Range{0.0f, 5.0f},       // non-negative
+                                           AsymI8Range{10.0f, 11.0f},     // narrow, far from 0
+                                           AsymI8Range{-11.0f, -10.0f},   // narrow, far from 0
+                                           AsymI8Range{-200.0f, 300.0f},  // beyond +-127
+                                           AsymI8Range{3.0f, 3.0f},       // constant
+                                           AsymI8Range{0.0f, 0.0f}),      // all zero
+                         [](const ::testing::TestParamInfo<AsymI8Range>& info) {
+                             return sanitize_gtest_name("From" + float_to_token(info.param.first) + "_To" +
+                                                        float_to_token(info.param.last));
+                         });
 
 }  // namespace

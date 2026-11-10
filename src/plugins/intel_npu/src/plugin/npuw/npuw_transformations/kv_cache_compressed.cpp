@@ -12,12 +12,14 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -265,7 +267,7 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3(bool v_tensors_tr
     register_matcher(std::make_shared<opp::Matcher>(dynamic_quantize, "DecomposeDynamicQuantize"), callback);
 }
 
-// ── V1: handcrafted symmetric-style, i8 [-127, 127] ──────────────────────────
+// ── V1: handcrafted, i8 [-127, 127] / i4 [-7, 7], symmetric or asymmetric ──────
 
 ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize(bool v_tensors_transposed) {
     auto dynamic_quantize = opp::wrap_type<ov::op::internal::DynamicQuantize>({opp::any_input()});
@@ -298,12 +300,13 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize(bool v_tensors_tran
         // dequantize k and v caches in different layouts
         const auto reduction_axis = get_kv_embedding_index(isKey(dq_ptr->get_friendly_name()), v_tensors_transposed);
 
-        //
-        auto cst_0 =
-            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f / quant_max});  // for scale normalization
-
         auto dq_input = dq_ptr->input_value(0);
         auto has_zp = dq_ptr->outputs().size() == 3;
+
+        // Asymmetric spans the whole [quant_min, quant_max] grid, symmetric uses [-quant_max, quant_max]
+        // around 0 and its scale only has to cover max(|x|).
+        const float quant_span = has_zp ? quant_max - quant_min : quant_max;
+        auto cst_0 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f / quant_span});
 
         auto set_friendly_name = [&dq_ptr](auto node, auto name) {
             node->set_friendly_name(dq_ptr->get_friendly_name() + "/" + name);
@@ -324,23 +327,24 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize(bool v_tensors_tran
 
         set_friendly_name(reduce_max, "ReduceMax");
 
-        // optional clamp
-        auto clamped_min = std::make_shared<ov::op::v0::Clamp>(reduce_min, quant_min, quant_max);
-        auto clamped_max = std::make_shared<ov::op::v0::Clamp>(reduce_max, quant_min, quant_max);
-
-        set_friendly_name(clamped_min, "clamp_min");
-        set_friendly_name(clamped_max, "clamp_max");
-
         // --- Compute range and scale ---
-        // Asymmetric: scale = (max - min) / quant_max, the zero-point shifts the range.
+        // Asymmetric: lo = min(x, 0), hi = max(x, 0), scale = (hi - lo) / (quant_max - quant_min) and
+        // zp = round(quant_min - lo / scale), so lo maps to quant_min and hi to quant_max (EISW-242001).
+        // The range has to contain 0: otherwise zp leaves the integer range for a token whose values are
+        // far from 0 relative to their spread, e.g. [10, 11] would need zp = -1270 and clips.
         // Symmetric: no zero-point, values map to [-quant_max, quant_max] around 0, so the scale has to
         // cover the largest magnitude: scale = max(|min|, |max|) / quant_max. With (max - min) a token
         // with values of one sign would clip, e.g. [1, 2] would dequantize to [1, 1].
-        // The symmetric scale uses the unclamped min / max: clamping the data statistics to the integer
-        // range would clip every value beyond +-quant_max (e.g. +-7 for i4).
-        std::shared_ptr<ov::Node> range;
+        // Neither uses min / max clamped to the integer range: that would clip every value beyond
+        // +-quant_max (e.g. +-7 for i4, +-127 for i8).
+        auto cst_zero = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
+        std::shared_ptr<ov::Node> range, range_lo;
         if (has_zp) {
-            range = std::make_shared<ov::op::v1::Subtract>(clamped_max, clamped_min);  // max - min
+            range_lo = std::make_shared<ov::op::v1::Minimum>(reduce_min, cst_zero);
+            auto range_hi = std::make_shared<ov::op::v1::Maximum>(reduce_max, cst_zero);
+            set_friendly_name(range_lo, "range_lo");
+            set_friendly_name(range_hi, "range_hi");
+            range = std::make_shared<ov::op::v1::Subtract>(range_hi, range_lo);  // hi - lo
             set_friendly_name(range, "subtract_range");
         } else {
             auto abs_min = std::make_shared<ov::op::v0::Abs>(reduce_min);
@@ -350,7 +354,15 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize(bool v_tensors_tran
             range = std::make_shared<ov::op::v1::Maximum>(abs_min, abs_max);  // max(|min|, |max|)
             set_friendly_name(range, "max_abs");
         }
-        auto scale = std::make_shared<ov::op::v1::Multiply>(range, cst_0);  // scale = range / quant_max
+        auto scale_raw = std::make_shared<ov::op::v1::Multiply>(range, cst_0);  // scale = range / quant_span
+        set_friendly_name(scale_raw, "scale_raw");
+
+        // An all-zero token has range 0: use scale 1 instead of dividing 0 by 0. Any scale restores it
+        // exactly, its codes are all equal to the zero-point.
+        auto cst_one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        auto zero_range = std::make_shared<ov::op::v1::Equal>(range, cst_zero);
+        set_friendly_name(zero_range, "zero_range");
+        auto scale = std::make_shared<ov::op::v1::Select>(zero_range, cst_one, scale_raw);
         set_friendly_name(scale, "scale");
 
         auto scale_converted = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f32);
@@ -359,13 +371,13 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize(bool v_tensors_tran
         std::shared_ptr<ov::Node> zp, zp_clamped;
         if (has_zp) {
             // --- Compute zero-point ---
-            // zp = round( (-min) / scale ),  then clamp to [quant_min, quant_max]
-            auto cst_neg_1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
-            auto neg_min = std::make_shared<ov::op::v1::Multiply>(clamped_min, cst_neg_1);  // negate min
-            set_friendly_name(neg_min, "Zp/NegMin");
+            // zp = round(quant_min - lo / scale), then clamp to [quant_min, quant_max]
+            auto lo_div_scale = std::make_shared<ov::op::v1::Divide>(range_lo, scale);  // lo / scale
+            set_friendly_name(lo_div_scale, "Zp/Divide");
 
-            auto zp_float = std::make_shared<ov::op::v1::Divide>(neg_min, scale);  // (-min) / scale
-            set_friendly_name(zp_float, "Zp/Divide");
+            auto cst_quant_min = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {quant_min});
+            auto zp_float = std::make_shared<ov::op::v1::Subtract>(cst_quant_min, lo_div_scale);
+            set_friendly_name(zp_float, "Zp/Subtract");
 
             auto zp_rounded = std::make_shared<ov::op::v5::Round>(zp_float, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
             set_friendly_name(zp_rounded, "Zp/Round");
