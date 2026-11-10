@@ -49,10 +49,9 @@ if(OV_GPU_RT STREQUAL "SYCL")
     list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
     set(SYCL_SOURCES ${LIBRARY_SOURCES_SYCL})
     if(GPU_VENDOR STREQUAL "NVIDIA")
-        # The NVIDIA kernel builder compiles OpenCL C with clBuildProgram on the NVIDIA OpenCL runtime,
-        # so the OCL runtime is built in as well. Its ocl/sycl_* sources need the SYCL compiler.
-        list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_OCL})
-        list(APPEND SYCL_SOURCES ${OCL_SYCL_SOURCES})
+        # The NVIDIA kernel builder compiles OpenCL C with clBuildProgram on the NVIDIA OpenCL runtime, so the OCL
+        # runtime is built in as well - all but its ocl/sycl_* engine and stream, which only the OCL runtime creates.
+        list(APPEND LIBRARY_SOURCES_ALL ${GPU_RUNTIME_OCL_SOURCES})
     endif()
 endif()
 
