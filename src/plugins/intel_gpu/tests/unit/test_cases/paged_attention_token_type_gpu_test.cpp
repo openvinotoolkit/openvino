@@ -780,7 +780,7 @@ TEST_P(paged_attention_token_type_perf_test, mixed_token_type_perf) {
     auto p = GetParam();
     const auto& device_info = tests::get_test_engine().get_device_info();
     if (!device_info.supports_immad || device_info.arch < cldnn::gpu_arch::xe_hpg)
-        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+        GTEST_SKIP() << "the DPAS SDPA kernel (sdpa_ocl) needs an XMX device";
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
 

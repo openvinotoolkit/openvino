@@ -1222,8 +1222,8 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
         << "sdpa_ocl was not selected; the multi-K-tile path was not exercised. Node description was:\n"
         << sdpa_info;
 
-    // No non-micro reference exists to compare against, and a prefetch cannot change results
-    // anyway; this is coverage. Verified: the pre-fix ordering also passes here.
+    // No reference is compared against, and a prefetch cannot change results anyway; this is coverage. Verified (with
+    // sdpa_micro): the pre-fix ordering also passes here.
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
     ASSERT_EQ(output_data.size(), ov::shape_size(q_shape));
     bool all_zero = true;
@@ -3588,7 +3588,6 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
     ASSERT_NE(sdpa_inst->get_impl(), nullptr);
     const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
     ASSERT_NE(entries.find(p.dynamic ? "sdpa_ocl" : "sdpa_ocl_prefill"), std::string::npos) << "dispatched: " << entries;
-    EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
 
     // CPU reference in double, default scale 1 / sqrt(head); the output is read at its physical place.
     cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(output, get_test_stream());
@@ -3900,12 +3899,13 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
               << " neg=" << (neg.empty() ? "none" : neg) << std::endl;
     ASSERT_GE(maxprob_mean, 0.5) << "the softmax is not sharp enough for this case to see a dequant error";
     // bf16 DPAS takes the dequantized K and V, and P, at 8 significant bits; at logit sigma ~5 the K rounding moves the
-    // softmax enough that sdpa_micro on DG2 measures max 0.106, mean 0.0074 against this reference. The weakest negative
-    // control still moves the output by > 1.
+    // softmax enough that the removed sdpa_micro measured max 0.106, mean 0.0074 on DG2 against this reference. The
+    // weakest negative control still moves the output by > 1.
     const double bf16_max = 0.15, bf16_mean = 0.012;
     if (neg.empty()) {
-        // The sdpa_opt single-token kernel (an unaligned head on the micro lane, e.g. head 72) dequantizes less precisely than
-        // sdpa_ocl / sdpa_micro (measured max 0.030, mean 0.007 on DG2), so only the ocl lane is held to the tight bound.
+        // The sdpa_opt single-token kernel (an unaligned head on the sdpa_ocl lane, e.g. head 72) dequantizes less precisely
+        // than sdpa_ocl / the removed sdpa_micro (measured max 0.030, mean 0.007 on DG2), so only the ocl lane is held to the
+        // tight bound.
         const bool tight = backend == tests::dpas_backend::ocl || entries.find("sdpa_opt") == std::string::npos;
         EXPECT_LE(max_abs_err, bf16 ? bf16_max : (tight ? 0.03 : 0.06));
         EXPECT_LE(mean_abs_err, bf16 ? bf16_mean : (tight ? 0.003 : 0.012));

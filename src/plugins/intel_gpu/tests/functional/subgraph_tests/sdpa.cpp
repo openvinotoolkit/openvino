@@ -38,7 +38,7 @@ enum class GQAMode {
     DirectBroadcast = 2,
 };
 
-// validate the batch axis padding for sdpa_micro kernel.
+// validate the batch axis padding of the DPAS SDPA kernel (sdpa_ocl on its lane; written for the removed sdpa_micro).
 class SDPA : virtual public ov::test::SubgraphBaseStaticTest,
              public testing::WithParamInterface<ov::element::Type> {
 protected:
@@ -189,7 +189,7 @@ TEST_F(SDPASplitHeadsPaddedView, smoke_Inference) {
 }
 
 // Validate that non-PA SDPA with f16 K/V inputs is not incorrectly blocked
-// from using micro kernel when KV_CACHE_PRECISION is globally set to u4.
+// from using the DPAS kernel (sdpa_ocl; sdpa_micro when this was written) when KV_CACHE_PRECISION is globally set to u4.
 // This simulates a Vision Encoder SDPA node running alongside a PA-based LLM
 // that uses INT4 KV cache. The global config should not affect the Vision Encoder path.
 class SDPAWithInt4KVCacheConfig : public SDPA {
