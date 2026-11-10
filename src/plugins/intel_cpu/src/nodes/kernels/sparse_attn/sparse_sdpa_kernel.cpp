@@ -14,7 +14,6 @@
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
-#include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
 #include "nodes/kernels/sparse_attn/sparse_attn_kernel.hpp"
 #include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"

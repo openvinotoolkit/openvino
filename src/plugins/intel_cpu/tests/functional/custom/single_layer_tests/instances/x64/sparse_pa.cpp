@@ -141,11 +141,10 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                                    /*selection=*/kRandom))};
 }
 
-// AMX QK^T path, bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 (smaller than the JIT kernel's 16-row
-// granularity, so adjacent blocks are merged) with pages that fit several merged blocks or only one unit. Head sizes 32
-// and 128 fit the kernel's six B tiles; 256 (the Qwen head size, 4 + 4 tiles) takes its K-chunk loop. v_head_size
-// differs from the key head size to catch any coupling of the two. A selection head per query head (no pack) keeps the
-// prefill on the per-head AMX path.
+// AMX brgemm path (see sparse_brgemm_kernel.hpp), bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 with pages
+// that fit several blocks or only one, so adjacent selected blocks of a page are attended as one run. Head sizes 32,
+// 128 and 256 (the Qwen head size). v_head_size differs from the key head size to catch any coupling of the two. A
+// selection head per query head (no pack) keeps the prefill on the per-head AMX path.
 std::vector<SparsePALayerTestParams> amx_cases() {
     const auto bf16 = ov::element::bf16;
     return {make_case(bf16,

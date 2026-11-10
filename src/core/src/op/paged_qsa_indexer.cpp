@@ -262,7 +262,6 @@ void PagedQSAIndexer::validate_and_infer_types() {
     const ov::PartialShape selected_block_count_ps{tokens,
                                                    ov::Dimension(static_cast<int64_t>(m_config.num_selection_heads))};
 
-    set_output_size(2);
     set_output_type(0, element::i32, selected_block_indices_ps);
     set_output_type(1, element::i32, selected_block_count_ps);
 }
