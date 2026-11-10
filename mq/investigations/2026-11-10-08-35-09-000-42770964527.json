@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-08-35-09-000-42770964527",
+  "timestamp": "2026-11-10T08:35:09Z",
+  "run_id": "42770964527",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42770964527",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39668",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39668",
+  "author": "AndreyPavlenko",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails with PowerShell Remove-Item access denied on tbb12.dll during Expand-Archive -Force overwrite"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive -Force, which tries to delete pre-existing files (tbb12.dll) in the install directory before re-extracting. The file is still locked by another process (likely a lingering handle from a previous OpenVINO test/build process or Windows Defender scan on this self-hosted Windows runner) or has residual restrictive ACLs from a prior job, so PowerShell's Remove-Item raises UnauthorizedAccessException and the step exits with code 1. This is a recurring, runner-state issue rather than a code defect: the same signature has now been observed 4 times (prior to this run) in the last ~24 hours, all on Windows self-hosted runners performing the same extraction step, unrelated to the specific PR content.",
+  "reproduction_steps": "N/A - requires the exact state of a Windows self-hosted runner (stale file lock/ACL on tbb12.dll in the shared install directory) that cannot be reliably reproduced locally. Can be approximated locally on Windows by holding tbb12.dll open (e.g., loading the DLL into a running process) and then invoking 'Expand-Archive -Force' against an archive containing the same file path.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job (or the whole run) - this is a transient runner-state issue and a clean runner slot/VM typically succeeds.",
+    "Have the runner cleanup/reset step forcibly terminate any lingering processes holding handles in the install directory before Expand-Archive runs (e.g., a pre-step using handle.exe/Get-Process to detect and kill lockers).",
+    "Consider extracting into a fresh unique directory per run instead of overwriting a shared install path with -Force, avoiding the delete-then-recreate race entirely.",
+    "If recurrence continues, flag the runner pool (aks-win based or dedicated GPU Windows runners) for host-level investigation (AV scanning, orphaned processes) by infra/CI maintainers."
+  ],
+  "prevention_strategies": "Avoid relying on Expand-Archive -Force against a long-lived shared install directory on Windows runners; prefer extracting to a clean temp directory and atomically swapping/moving it into place. Add a pre-extraction step that verifies no process holds a handle to files under the install directory (or simply deletes and recreates the directory outside of Expand-Archive's own overwrite logic, with retries/backoff for transient locks).",
+  "historical_context": "This is the 5th occurrence of this exact signature (95bb23aa2ed8a84d) recorded in the CI Doctor MQ database, with the first occurrence at 2026-11-09T19:06:46Z and 3 of the prior 4 occurrences falling within the last 12 hours - previously affecting PR #39034 and #39444, none of which were related in code content to this PR (#39668, GPU/MLIR MSVC compilation fix). This confirms the failure is infrastructure-related and not tied to specific PR changes."
+}
