@@ -51,7 +51,7 @@ class TestSoftmax(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
-    def test_softmax(self, dim, ie_device, precision, ir_version):
+    def test_softmax_no_dtype(self, dim, ie_device, precision, ir_version):
         self._test(*self.create_model(dim), ie_device, precision, ir_version)
 
     @pytest.mark.parametrize("dim", [-1, 3])

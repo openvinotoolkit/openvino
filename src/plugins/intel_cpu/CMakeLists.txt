@@ -155,75 +155,7 @@ if(ENABLE_KLEIDIAI_FOR_CPU)
     set(OV_CPU_WITH_KLEIDIAI ON)
 endif()
 
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
-                          ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
-
-if(NOT OV_CPU_WITH_ACL)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/acl/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/acl/*)
-endif()
-
-if(NOT X86_64)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/x64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
-endif()
-
-if(X86_64 OR AARCH64)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
-endif()
-
-if(NOT (AARCH64 OR ARM))
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
-endif()
-
-if(NOT AARCH64)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/subgraph.*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
-endif()
-
-if (NOT RISCV64)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/riscv64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*)
-endif()
-
-if (NOT ENABLE_MLAS_FOR_CPU)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/mlas/*)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/mlas/*)
-endif()
-
-if (NOT ENABLE_SNIPPETS_LIBXSMM_TPP)
-    list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/*)
-endif ()
-
-if(NOT ENABLE_CPU_DEBUG_CAPS)
-    list(APPEND EXCLUDE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_capabilities.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/memory_stats_dump.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/node_dumper.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/verbose.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_caps_config.cpp)
-endif()
-
-file(GLOB_RECURSE FILES_TO_REMOVE ${EXCLUDE_PATHS})
-list(REMOVE_ITEM SOURCES ${FILES_TO_REMOVE})
-list(REMOVE_ITEM HEADERS ${FILES_TO_REMOVE})
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
 
 # create plugin
 
@@ -231,7 +163,7 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "CPU"
               AS_EXTENSION
               VERSION_DEFINES_FOR src/plugin.cpp
-              SOURCES ${SOURCES} ${HEADERS}
+              SOURCES ${CPU_PLUGIN_SRCS}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
@@ -271,6 +203,8 @@ endif()
 if(RISCV64)
     # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
     target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
+    # Set `XBYAK_RISCV_VSETV_DEFAULT_OLD=0` to use the new vsetvli API without default arguments
+    target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_RISCV_VSETV_DEFAULT_OLD=0)
     target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
     target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
@@ -403,7 +337,7 @@ ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
 #
 
 if(BUILD_SHARED_LIBS)
-    add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
+    add_library(${TARGET_NAME}_obj OBJECT ${CPU_PLUGIN_SRCS})
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/third_party/xbyak)
 
@@ -441,6 +375,7 @@ if(BUILD_SHARED_LIBS)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:kleidiai,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
     if(RISCV64)
+        target_compile_definitions(${TARGET_NAME}_obj PRIVATE XBYAK_RISCV_VSETV_DEFAULT_OLD=0)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 

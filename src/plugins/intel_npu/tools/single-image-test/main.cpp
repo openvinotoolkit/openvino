@@ -18,6 +18,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -663,14 +665,14 @@ bool hasLoadableExt(const std::string& network_path) {
     });
 }
 
-std::string cleanName(std::string&& name) {
+std::string cleanName(std::string name) {
     std::replace_if(
             name.begin(), name.end(),
             [](unsigned char c) {
                 return !std::isalnum(c);
             },
             '_');
-    return std::move(name);
+    return name;
 }
 
 ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
@@ -1903,7 +1905,8 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
 // Direction of metric’s growth is lower-better. If the inputs are identical, the L2NORM is zero.
 //
 
-bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
+bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference, double threshold,
+                    const std::optional<std::pair<double, double>>& dequant) {
     if (output.get_size() != reference.get_size()) {
         std::cout << "Output and reference tensors have different sizes" << std::endl;
         return false;
@@ -1913,8 +1916,21 @@ bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference, double
     const ov::Tensor referenceFP32 = npu::utils::toFP32(reference);
 
     const auto size = outputFP32.get_size();
-    const auto* outputData = outputFP32.data<const float>();
     const auto* referenceData = referenceFP32.data<const float>();
+
+    // Optionally dequantize the inference output before comparing against the (untouched) reference:
+    // dequantized = (quantized - zero_point) * scale. The reference tensor is never modified.
+    std::vector<float> dequantizedOutput;
+    const float* outputData = outputFP32.data<const float>();
+    if (dequant.has_value()) {
+        const double scale = dequant->first;
+        const double zeroPoint = dequant->second;
+        dequantizedOutput.resize(size);
+        for (size_t i = 0; i < size; ++i) {
+            dequantizedOutput[i] = static_cast<float>((static_cast<double>(outputData[i]) - zeroPoint) * scale);
+        }
+        outputData = dequantizedOutput.data();
+    }
 
     double sumSquares = 0.0;
     for (size_t i = 0; i < size; ++i) {
@@ -1939,6 +1955,15 @@ bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const Lay
     // Parse per-layer thresholds
     auto thresholdMap = utils::parsePerLayerValues(FLAGS_l2norm_threshold, metric_defaults::l2norm_threshold);
 
+    // Parse optional per-layer dequantization scale/zero-point, used to convert quantized integer
+    // outputs to floating point before the L2Norm comparison. Dequantization is skipped entirely when
+    // --l2norm_dequant_scale is not set.
+    const bool dequantEnabled = !FLAGS_l2norm_dequant_scale.empty();
+    auto scaleMap = utils::parsePerLayerValues(FLAGS_l2norm_dequant_scale, 1.0);
+    auto zpMap = utils::parsePerLayerValues(FLAGS_l2norm_dequant_zp, metric_defaults::l2norm_dequant_zp);
+    const bool scaleIsGlobal = utils::isGlobalValue(scaleMap);
+    const bool zpIsGlobal = utils::isGlobalValue(zpMap);
+
     bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
@@ -1946,8 +1971,21 @@ bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const Lay
 
         double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
 
-        BlobTestMethod blobComparator = [layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
-            return computeL2Norm(outputTensor, referenceTensor, layerThreshold);
+        std::optional<std::pair<double, double>> dequant;
+        if (dequantEnabled) {
+            std::optional<double> scale =
+                    scaleIsGlobal ? std::optional<double>(utils::getValueForLayer(scaleMap, tensorName))
+                                  : utils::getExplicitValueForLayer(scaleMap, tensorName);
+            if (scale.has_value()) {
+                const double zeroPoint = zpIsGlobal ? utils::getValueForLayer(zpMap, tensorName)
+                                                     : utils::getExplicitValueForLayer(zpMap, tensorName)
+                                                               .value_or(metric_defaults::l2norm_dequant_zp);
+                dequant = std::make_pair(*scale, zeroPoint);
+            }
+        }
+
+        BlobTestMethod blobComparator = [layerThreshold, dequant](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+            return computeL2Norm(outputTensor, referenceTensor, layerThreshold, dequant);
         };
 
         if (!test_blobs_in_batch(tensorName,
@@ -2378,23 +2416,74 @@ bool testMeanIoU(const TensorMap& outputs, const TensorMap& references, const La
                                blobComparator);
 }
 
-static ov::Shape parseDataShape(const std::string& dataShapeStr) {
-    std::vector<uint64_t> dataShape;
-    std::stringstream ss(dataShapeStr);
+// Parses a comma separated list of non-negative dimensions, e.g. "1,3,224,224".
+static ov::Shape parseDimensions(const std::string& dimensionsStr) {
+    ov::Shape dataShape;
+    std::stringstream ss(dimensionsStr);
+    std::string dimStr;
 
-    char ch;  // To discard non-numeric characters
-    int64_t dim;
-    while (ss >> ch) {
-        if (std::isdigit(ch)) {
-            ss.putback(ch);
-            ss >> dim;
-            dataShape.push_back(dim);
+    while (std::getline(ss, dimStr, ',')) {
+        const bool isNumber = !dimStr.empty() && std::all_of(dimStr.begin(), dimStr.end(), [](unsigned char ch) {
+                                  return std::isdigit(ch) != 0;
+                              });
+        OPENVINO_ASSERT(isNumber, "Dimension \"", dimStr, "\" of the shape \"", dimensionsStr,
+                        "\" is not a non-negative integer");
+        try {
+            dataShape.push_back(std::stoull(dimStr));
+        } catch (const std::out_of_range&) {
+            OPENVINO_THROW("Dimension \"", dimStr, "\" of the shape \"", dimensionsStr, "\" is out of range");
         }
     }
-    return ov::Shape(dataShape);
+    OPENVINO_ASSERT(!dataShape.empty(), "Can't parse \"", dimensionsStr, "\" as a shape");
+    return dataShape;
 }
 
-std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+// Data shapes by tensor name, as returned by ov::Output::get_any_name().
+using DataShapes = std::map<std::string, ov::Shape>;
+
+// Parses --data_shape. Accepted formats:
+//  - "[1,3,224,224]" or "1,3,224,224": a single shape used for every input;
+//  - "input1[1,3,224,224],input2[1,4]": one shape per input.
+static DataShapes parseDataShapes(std::string dataShapeStr,
+                                  const std::vector<ov::Output<const ov::Node>>& inputsInfo) {
+    dataShapeStr.erase(std::remove_if(dataShapeStr.begin(), dataShapeStr.end(),
+                                      [](unsigned char ch) {
+                                          return std::isspace(ch) != 0;
+                                      }),
+                       dataShapeStr.end());
+
+    DataShapes dataShapes;
+    if (dataShapeStr.empty()) {
+        return dataShapes;
+    }
+
+    // The shared parser expects bracketed values, while --data_shape also accepts a bare "1,3,224,224".
+    const std::string bracketed =
+            dataShapeStr.find('[') == std::string::npos ? "[" + dataShapeStr + "]" : dataShapeStr;
+
+    std::map<std::string, std::vector<std::string>> shapesPerInput;
+    try {
+        shapesPerInput = parseInputParameters(bracketed, inputsInfo);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't parse --data_shape \"", dataShapeStr, "\": ", ex.what());
+    }
+
+    for (const auto& entry : shapesPerInput) {
+        OPENVINO_ASSERT(entry.second.size() == 1, "--data_shape contains more than one shape for input \"",
+                        entry.first, "\"");
+        dataShapes.emplace(entry.first, parseDimensions(entry.second.front()));
+    }
+    return dataShapes;
+}
+
+static ov::Shape getDataShape(const DataShapes& dataShapes, const ov::Output<const ov::Node>& inputInfo) {
+    const auto it = dataShapes.find(inputInfo.get_any_name());
+    OPENVINO_ASSERT(it != dataShapes.end(), "--data_shape has no shape for the dynamic input \"",
+                    inputInfo.get_any_name(), "\"");
+    return it->second;
+}
+
+std::string getRefBlobFilePath(const std::string& blobNamePrefix, const std::vector<std::string>& refFiles,
                                size_t numberOfTestCase, size_t outputInd) {
     std::string blobFileFullPath;
     if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
@@ -2408,7 +2497,7 @@ std::string getRefBlobFilePath(const std::string& netFileName, const std::vector
     } else {
         // Case 3: Reference directory provided only
         std::ostringstream ostr;
-        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        ostr << blobNamePrefix << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
         const auto blobFileName = ostr.str();
 
         std::filesystem::path fullPath = FLAGS_ref_dir;
@@ -2723,6 +2812,11 @@ static int runSingleImageTest() {
             netFileName = cleanName(FLAGS_network.substr(startPos, endPos - startPos));
         }
 
+        const std::string blobNamePrefix =
+                FLAGS_blob_name_prefix.empty() ? netFileName : cleanName(FLAGS_blob_name_prefix);
+
+        const DataShapes dataShapes = parseDataShapes(FLAGS_data_shape, compiledModel.inputs());
+
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
             const auto outputsInfo = compiledModel.outputs();
@@ -2744,7 +2838,9 @@ static int runSingleImageTest() {
             // Load the input data
             for (const auto& inputInfo : inputsInfo) {
                 const auto& shape = inputInfo.get_partial_shape();
-                const auto dataShape = shape.is_static() ? shape.get_shape() : parseDataShape(FLAGS_data_shape);
+                const auto dataShape = shape.is_static() ? shape.get_shape() : getDataShape(dataShapes, inputInfo);
+                OPENVINO_ASSERT(shape.compatible(ov::PartialShape(dataShape)), "Data shape ", dataShape,
+                                " of the input \"", inputInfo.get_any_name(), "\" is not compatible with ", shape);
                 const ov::element::Type& precision = inputInfo.get_element_type();
 
                 // Determine the input layout
@@ -2778,7 +2874,7 @@ static int runSingleImageTest() {
                                 : loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
                                             inputBinPrecisionForOneInfer[numberOfTestCase][inputInd]);
                 std::ostringstream ostr;
-                ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
+                ostr << blobNamePrefix << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
                 const auto blobFileName = ostr.str();
 
                 std::cout << "Dump input #" << inputInd << "_case_" << numberOfTestCase << " to " << blobFileName
@@ -2815,7 +2911,7 @@ static int runSingleImageTest() {
                     const ov::Shape& shape = tensor.get_shape();
 
                     std::string blobFileFullPath =
-                        getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
+                        getRefBlobFilePath(blobNamePrefix, refFiles, numberOfTestCase, outputInd);
 
                     std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
@@ -2836,7 +2932,7 @@ static int runSingleImageTest() {
                 for (const auto& out : compiledModel.outputs()) {
                     const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
-                    ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    ostr << blobNamePrefix << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to "
@@ -2970,7 +3066,7 @@ static int runSingleImageTest() {
                 for (const auto& out : compiledModel.outputs()) {
                     const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    ostr << blobNamePrefix << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;

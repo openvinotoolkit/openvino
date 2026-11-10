@@ -58,6 +58,10 @@ class FuncMemMgr {
     std::map<FO, std::vector<Assignment>> m_memory;  // Dynamic assignment table
     std::map<LinkFrom, TensorPtr> m_table;           // Static allocation/assignment table
 
+    // Global results are not pre-allocated - they will be set by the user via set_tensor()
+    // or allocated via get_tensor() before infer() on-demand.
+    std::set<LinkFrom> m_global_outputs;
+
 public:
     explicit FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
@@ -88,7 +92,7 @@ public:
     ov::SoPtr<ov::IAsyncInferRequest> get_pipeline_subrequest(size_t idx) const;
     void set_pipeline_subrequest(size_t idx, ov::SoPtr<ov::IAsyncInferRequest> request);
     bool is_subrequest_pipelined(size_t idx) const;
-    std::size_t history_size() const;
+    int64_t history_size() const;
     bool subgraph_needs_copy(std::size_t idx) const;
     bool attention_no_copy() const;
     const ov::SoPtr<ov::ICompiledModel>& compiled_submodel(size_t idx) const;

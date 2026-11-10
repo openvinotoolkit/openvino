@@ -169,11 +169,6 @@ tests:
     profiles: [cpu]
     args: "*smoke*"
 
-  - name: ov_tensorflow_common_tests
-    binary: ov_tensorflow_common_tests
-    mode: gtest_single
-    profiles: [cpu]
-
   - name: ov_tensorflow_frontend_tests
     binary: ov_tensorflow_frontend_tests
     mode: gtest_single

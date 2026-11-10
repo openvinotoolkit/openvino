@@ -60,6 +60,10 @@ F8_DTYPE_MAP = {
 
 
 def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
+    # Memory-free tracing placeholder: emit the original tensor and convert it to FP32 in the graph.
+    original = getattr(torch_t, "_openvino_orig_tensor", None)
+    if original is not None:
+        return ops.convert(torch_tensor_to_ov_const(original, shared_memory=shared_memory), OVType.f32)
     try:
         from torch._prims import FakeTensor
         if isinstance(torch_t, FakeTensor):
@@ -180,6 +184,29 @@ pt_to_ov_type_map = {
     "torch.quint8": OVType.u8,
     "torch.qint8": OVType.i8,
     "torch.qint32": OVType.i32,
+}
+
+# torch.dtype to the ScalarType index which TorchScript's ATen schemas take as an integer
+# input. This is the inverse of TORCH_TO_OV_TYPE in
+# src/frontends/pytorch/src/utils.cpp, which decodes the index back to an OpenVINO type;
+# keep the two in sync when PyTorch adds a dtype.
+pt_to_scalar_type_map = {
+    torch.uint8: 0,
+    torch.int8: 1,
+    torch.int16: 2,
+    torch.int32: 3,
+    torch.int64: 4,
+    torch.float16: 5,
+    torch.float32: 6,
+    torch.float64: 7,
+    torch.complex32: 8,
+    torch.complex64: 9,
+    torch.complex128: 10,
+    torch.bool: 11,
+    torch.qint8: 12,
+    torch.quint8: 13,
+    torch.qint32: 14,
+    torch.bfloat16: 15,
 }
 
 

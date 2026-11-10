@@ -4,8 +4,7 @@
 
 #include "openvino/frontend/concat_from_sequence.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 ConcatFromSequence::ConcatFromSequence(const Output<Node>& input_sequence, int64_t axis, bool new_axis)
     : FrameworkNode({input_sequence}, 1),
@@ -17,5 +16,4 @@ std::shared_ptr<Node> ConcatFromSequence::clone_with_new_inputs(const OutputVect
     return std::make_shared<ConcatFromSequence>(inputs[0], m_axis, m_new_axis);
 }
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

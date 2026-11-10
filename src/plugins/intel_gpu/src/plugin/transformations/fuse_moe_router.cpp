@@ -37,13 +37,12 @@ namespace ov::intel_gpu {
 using namespace ov::pass::pattern;
 using namespace ov::pass;
 
-FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
-    auto routing_matmul = wrap_type<ov::op::v0::MatMul>();
+FuseMoESoftmaxRouter::FuseMoESoftmaxRouter(const std::vector<ov::element::Type>& supported_activation_types) {
+    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(type_matches_any(supported_activation_types));
 
     auto softmax_m = wrap_type<ov::op::v8::Softmax>({routing_matmul}, consumers_count(1));
     auto topk_k_m = wrap_const();
-    auto topk_m = wrap_type<ov::op::v11::TopK>({softmax_m, topk_k_m});
-    topk_m->set_output_size(2);
+    auto topk_m = wrap_type_strict_index<ov::op::v11::TopK>({softmax_m, topk_k_m});
 
     auto reduce_m = wrap_type<ov::op::v1::ReduceSum>({topk_m->output(0), any_input()}, consumers_count(1));
     auto norm_m = wrap_type<ov::op::v1::Divide>({topk_m->output(0), reduce_m});
@@ -54,7 +53,7 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& topk_in_shape = pattern_map.at(softmax_m).get_partial_shape();
-        const auto& topk_out_shape = pattern_map.at(topk_m).get_partial_shape();
+        const auto& topk_out_shape = m.get_pattern_map().at(topk_m)->output(0).get_partial_shape();
         for (const auto& shape : {topk_in_shape, topk_out_shape}) {
             if (shape.rank().is_dynamic() || shape.size() == 0 || shape.rbegin()->is_dynamic()) {
                 return false;
@@ -90,15 +89,13 @@ FuseMoESoftmaxRouter::FuseMoESoftmaxRouter() {
     this->register_matcher(matcher, callback);
 }
 
-FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
-    auto routing_matmul = wrap_type<ov::op::v0::MatMul>();
+FuseMoESigmoidRouter::FuseMoESigmoidRouter(const std::vector<ov::element::Type>& supported_activation_types) {
+    auto routing_matmul = wrap_type<ov::op::v0::MatMul>(type_matches_any(supported_activation_types));
 
     auto sigmoid_m = wrap_type<ov::op::v0::Sigmoid>({routing_matmul});
     auto routing_bias_m = any_input();
     auto add_m = wrap_type<ov::op::v1::Add>({sigmoid_m, routing_bias_m}, consumers_count(1));
-    auto topk_k_m = wrap_const();
-    auto topk_m = wrap_type<ov::op::v11::TopK>({add_m, topk_k_m});
-    topk_m->set_output_size(2);
+    auto topk_m = wrap_type_strict_index<ov::op::v11::TopK>({add_m, wrap_const()});
 
     auto convert_topk_m = wrap_type<ov::op::v0::Convert>({topk_m->output(1)});
     auto indices_m = convert_topk_m | topk_m->output(1);
@@ -118,7 +115,7 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
         }
         const auto& pattern_map = m.get_pattern_value_map();
         const auto& topk_in_shape = pattern_map.at(add_m).get_partial_shape();
-        const auto& topk_out_shape = pattern_map.at(topk_m).get_partial_shape();
+        const auto& topk_out_shape = m.get_pattern_map().at(topk_m)->output(1).get_partial_shape();
         for (const auto& shape : {topk_in_shape, topk_out_shape}) {
             if (shape.rank().is_dynamic() || shape.size() == 0 || shape.rbegin()->is_dynamic()) {
                 return false;
@@ -145,9 +142,9 @@ FuseMoESigmoidRouter::FuseMoESigmoidRouter() {
     this->register_matcher(matcher, callback);
 }
 
-FuseMoERouter::FuseMoERouter() {
-    add_matcher<FuseMoESoftmaxRouter>();
-    add_matcher<FuseMoESigmoidRouter>();
+FuseMoERouter::FuseMoERouter(const std::vector<ov::element::Type>& supported_activation_types) {
+    add_matcher<FuseMoESoftmaxRouter>(supported_activation_types);
+    add_matcher<FuseMoESigmoidRouter>(supported_activation_types);
 }
 
 }  // namespace ov::intel_gpu

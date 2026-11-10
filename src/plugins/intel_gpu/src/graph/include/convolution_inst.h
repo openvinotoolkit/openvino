@@ -34,8 +34,9 @@ public:
 
     int32_t get_deform_conv_dep_offset() const {
         auto offset = deformable_mode ? 1 : 0;
-        if (get_primitive()->input.size() == 3)
+        if (get_primitive()->input.size() == 3) {
             offset++;
+        }
         return offset;
     }
 
@@ -62,22 +63,25 @@ public:
     }
 
     program_node& trans() const {
-        if (!deformable_mode)
+        if (!deformable_mode) {
             throw std::range_error("trans input exists only in deformable mode");
+        }
 
         return get_dependency(1);
     }
 
     program_node& mask() const {
-        if (!deformable_mode)
+        if (!deformable_mode) {
             throw std::range_error("Mask input exists only in deformable mode");
+        }
 
         return get_dependency(2);
     }
 
     bool bilinear_interpolation_pad() const {
-        if (!deformable_mode)
+        if (!deformable_mode) {
             throw std::range_error("bilinear_interpolation_pad exists only in deformable mode");
+        }
         return get_primitive()->bilinear_interpolation_pad;
     }
 
@@ -98,14 +102,18 @@ public:
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
-        if (bias_term())
+        if (bias_term()) {
             params->bias_layout = optional_layout(bias().get_output_layout());
-        if (weights_zero_points_term())
+        }
+        if (weights_zero_points_term()) {
             params->weights_zero_points_layout = optional_layout(weights_zero_points().get_output_layout());
-        if (activations_zero_points_term())
+        }
+        if (activations_zero_points_term()) {
             params->activations_zero_points_layout = optional_layout(activations_zero_points().get_output_layout());
-        if (compensation_term())
+        }
+        if (compensation_term()) {
             params->compensation_layout = optional_layout(compensation().get_output_layout());
+        }
         return params;
     }
 
@@ -129,8 +137,9 @@ public:
     static std::string to_string(convolution_node const& node);
 
     bool need_reset_input_memory(size_t idx = 0) const override {
-        if (idx != 0)
+        if (idx != 0) {
             return false;
+        }
 
         auto input_layout = _deps[0].first->_impl_params->get_output_layout(0);
         return static_cast<bool>(input_layout.data_padding);
@@ -165,8 +174,9 @@ public:
     }
 
     memory::ptr trans_memory() const {
-        if (_deform_conv_dep_offset == 0)
+        if (_deform_conv_dep_offset == 0) {
             throw std::range_error("trans input exists only in deformable mode");
+        }
         return dep_memory_ptr(1);
     }
 

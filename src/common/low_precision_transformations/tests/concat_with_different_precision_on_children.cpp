@@ -109,7 +109,6 @@ public:
         referenceFunction = ov::builder::subgraph::ConcatFunction::getReferenceWithDifferentPrecisionOnChildren(
             precision,
             inputShape,
-            testValues.multiChannels,
             testValues.axis,
             testValues.result.fakeQuantize1,
             testValues.result.fakeQuantize2,

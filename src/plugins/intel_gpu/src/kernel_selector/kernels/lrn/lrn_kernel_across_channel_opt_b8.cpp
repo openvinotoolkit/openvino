@@ -41,8 +41,9 @@ bool LRNKernelAcrossChannel_b8::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (!IsSIMDSizeSupported(p.engineInfo, 8))
+    if (!IsSIMDSizeSupported(p.engineInfo, 8)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const lrn_params& params = static_cast<const lrn_params&>(p);
     const auto& out = params.outputs[0];

@@ -244,8 +244,9 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 
         trip_count_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(0));
         // Update trip_count_id for cached constant primitive
-        if (trip_count_id != p.primitive_ids[trip_count_id])
+        if (trip_count_id != p.primitive_ids[trip_count_id]) {
             trip_count_id = p.primitive_ids[trip_count_id];
+        }
         first_execution_condition_id = layer_type_name_ID(loop_op->get_input_node_shared_ptr(1));
     }
 

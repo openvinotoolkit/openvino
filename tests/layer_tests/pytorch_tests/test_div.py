@@ -51,6 +51,56 @@ class TestDiv(PytorchLayerTest):
                    ie_device, precision, ir_version, use_convert_model=True)
 
 
+class TestDivTrunc(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.input_array, self.other_array)
+
+    def create_model(self):
+        class aten_div(torch.nn.Module):
+            def forward(self, input_tensor, other_tensor):
+                return torch.div(input_tensor, other_tensor, rounding_mode="trunc")
+
+        return aten_div(), "aten::div"
+
+    @pytest.mark.parametrize(("input_array", "other_array"), [
+        # quotients outside the i32 range, infinities and NaN
+        [np.array([1e10, -1e10, 3e9, np.inf, -np.inf, np.nan, -7.5, 0.5], dtype=np.float32),
+         np.array([3, 3, 1, 2, 2, 1, 2, -2], dtype=np.float32)],
+        [np.array([-7, 7, -9, 9, -1], dtype=np.int64),
+         np.array([2, -2, 4, 4, 3], dtype=np.int64)],
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_div_trunc(self, input_array, other_array, ie_device, precision, ir_version):
+        if precision == "FP16" and input_array.dtype == np.float32:
+            pytest.skip("Values exceed the f16 range")
+        self.input_array = input_array
+        self.other_array = other_array
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestDivTruncConstant(PytorchLayerTest):
+    def _prepare_input(self):
+        return (np.zeros(3, dtype=np.int64),)
+
+    def create_model(self):
+        class aten_div(torch.nn.Module):
+            def forward(self, x):
+                a = torch.tensor([-7, 7, -9])
+                b = torch.tensor([2, -2, 4])
+                return torch.div(a, b, rounding_mode="trunc") + x
+
+        return aten_div(), "aten::div"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_div_trunc_constant(self, ie_device, precision, ir_version):
+        # Constant folding follows the Divide spec, so the division must not use python division here
+        self._test(*self.create_model(), ie_device, precision, ir_version, freeze_model=False)
+
+
 class TestDivTypes(PytorchLayerTest):
 
     def _prepare_input(self):

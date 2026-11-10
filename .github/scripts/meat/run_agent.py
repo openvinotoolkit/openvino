@@ -20,7 +20,8 @@ Copilot CLI reference:
 """
 
 import os
-import subprocess
+# Runs the copilot CLI with fixed flags; prompt is a separate -p argument, not a shell command.
+import subprocess  # nosec B404
 import sys
 
 AGENTS = [

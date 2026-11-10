@@ -43,8 +43,9 @@ public:
 
 private:
     std::string get_iteration_prefix() {
-        if (m_iter < 0)
+        if (m_iter < 0) {
             return std::string("");
+        }
         return std::to_string(m_iter) + "_";
     }
 

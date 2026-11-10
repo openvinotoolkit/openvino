@@ -147,6 +147,25 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {ov::element::f32, {128.f}, {0.1f}}
         }
     },
+    // dynamic concatenation axis with f16 multiply constants
+    {
+        {{-1, -1, 128}, {-1, -1, 128}},
+        std::int64_t{1},
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        {
+            ov::element::f32,
+            {
+                {ov::element::f32, {}, DequantizationOperations::Multiply{128.f}.setConstantPrecision(ov::element::f16)},
+                {ov::element::f32, {}, DequantizationOperations::Multiply{128.f}.setConstantPrecision(ov::element::f16)}
+            }
+        },
+        {
+            ov::element::f32,
+            {{}, {}},
+            ov::element::f32,
+            {ov::element::f32, {}, DequantizationOperations::Multiply{128.f}.setConstantPrecision(ov::element::f16)}
+        }
+    },
     // dynamic concatenation axis, but the same per-tensor values
     {
         {{1, -1, 4, 4}, {1, -1, 4, 4}},

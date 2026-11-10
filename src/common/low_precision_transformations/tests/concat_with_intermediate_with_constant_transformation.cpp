@@ -50,7 +50,6 @@ public:
     ov::element::Type precisionBeforeOp;
     ov::element::Type precisionAfterOperation;
     ov::builder::subgraph::DequantizationOperations dequantizationOperations2;
-    ov::element::Type precisionAfterDequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ConcatTransformationResultValues& values) {
@@ -117,8 +116,7 @@ public:
             testValues.result.precisionBeforeOp,
             testValues.result.dequantizationOperations1,
             testValues.result.precisionAfterOperation,
-            testValues.result.dequantizationOperations2,
-            testValues.result.precisionAfterDequantization);
+            testValues.result.dequantizationOperations2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
@@ -170,8 +168,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ov::element::u8,
             ov::element::u8,
-            { ov::element::f32, {}, { 0.01f } },
-            ov::element::f32
+            { ov::element::f32, {}, { 0.01f } }
         }
     },
     // I8: concat
@@ -189,8 +186,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ov::element::i8,
             ov::element::i8,
-            { ov::element::f32, {}, { 0.01f } },
-            ov::element::f32
+            { ov::element::f32, {}, { 0.01f } }
         }
     },
     // U8: concat with subtract
@@ -208,8 +204,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ov::element::u8,
             ov::element::u8,
-            { ov::element::f32, {}, { 0.01f } },
-            ov::element::f32
+            { ov::element::f32, {}, { 0.01f } }
         }
     },
     // U8: not update precisions
@@ -227,8 +222,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ov::element::f32,
             ov::element::f32,
-            { {}, {}, { 0.01f } },
-            ov::element::f32
+            { {}, {}, { 0.01f } }
         }
     },
     // U8: concat multi channels
@@ -246,8 +240,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ov::element::u8,
             ov::element::u8,
-            { ov::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} },
-            ov::element::f32
+            { ov::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} }
         }
     },
     // I8: concat multi channels
@@ -265,8 +258,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ov::element::i8,
             ov::element::i8,
-            { ov::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} },
-            ov::element::f32
+            { ov::element::f32, {}, {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }} }
         }
     },
     // U8: concat multi channels with subtract
@@ -288,8 +280,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 ov::element::f32,
                 {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
                 {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
-            },
-            ov::element::f32
+            }
         }
     },
     // U8: concat multi channels, not update precisions
@@ -311,8 +302,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
                 {},
                 {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
                 {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
-            },
-            ov::element::f32
+            }
         }
     },
 };

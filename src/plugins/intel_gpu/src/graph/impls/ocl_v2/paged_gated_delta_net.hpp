@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "paged_gated_delta_net_inst.h"
+#include "paged_gated_delta_net_jit_utils.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
@@ -82,7 +83,17 @@ protected:
 
         const auto k_head_dims = q_shape[2].get_length();
         const auto v_head_dims = v_shape[2].get_length();
-        return (k_head_dims % 16) == 0 && (v_head_dims % 16) == 0;
+        if ((k_head_dims % 16) != 0 || (v_head_dims % 16) != 0) {
+            return false;
+        }
+
+        // The opt kernel puts the k axis (d-on-lanes) or the v axis
+        // (d_v-on-lanes) on the lanes, so the subgroup width has to divide
+        // k_head_dims and fit in v_head_dims. Shapes it cannot tile fall through
+        // to the ref path, which has no such requirement.
+        const auto& device_info = node.get_program().get_engine().get_device_info();
+        const auto subgroup_size = static_cast<int64_t>(paged_gated_delta_net_jit::get_subgroup_size(device_info.arch));
+        return (k_head_dims % subgroup_size) == 0 && v_head_dims >= subgroup_size;
     }
 };
 

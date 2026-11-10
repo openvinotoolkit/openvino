@@ -91,6 +91,7 @@ jobs:
 
   Cleanup_HF_Cache_Windows:
     name: Cleanup Windows HuggingFace cache
+    timeout-minutes: 540
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     runs-on: 'aks-win-4-cores-8gb-test'
     defaults:

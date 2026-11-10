@@ -10,34 +10,21 @@
 
 namespace ov::util {
 namespace {
-constexpr size_t split_unit_bit_size = 24;
-constexpr size_t split_unit_byte_size = split_unit_bit_size / 8;
-size_t get_split_bit_memory_size(const element::Type& type, const size_t elements_count) {
-    const size_t elements_per_storage_unit = split_unit_bit_size / type.bitwidth();
-    auto units_count = elements_count / elements_per_storage_unit;
-    units_count += static_cast<size_t>(units_count * elements_per_storage_unit != elements_count);
-    return units_count * split_unit_byte_size;
-}
-
-size_t get_split_elements_count(const element::Type& type, const size_t memory_size) {
-    const size_t elements_per_storage_unit = split_unit_bit_size / type.bitwidth();
-    const size_t storage_unit_count = memory_size / split_unit_byte_size;
-    size_t elements_count;
-    OPENVINO_ASSERT(!mul_overflow<size_t>(storage_unit_count, elements_per_storage_unit, elements_count));
-    return elements_count;
-}
-
-size_t get_bit_memory_size(const element::Type& type, const size_t shape_size) {
-    const auto elements_per_byte = 8 / type.bitwidth();
-    auto byte_size = shape_size / elements_per_byte;
-    byte_size += static_cast<size_t>((byte_size * elements_per_byte) != shape_size);
-    return byte_size;
+size_t get_bit_memory_size(const element::Type& type, const size_t elements_count) {
+    const auto bit_width = type.bitwidth();
+    // Any 8 elements occupy exactly bit_width bytes, so ceil(elements_count * bit_width / 8) is taken in two steps
+    const auto full_bytes = (elements_count / 8) * bit_width;
+    const auto tail_bytes = ((elements_count % 8) * bit_width + 7) / 8;
+    return full_bytes + tail_bytes;
 }
 
 size_t get_bit_elements_count(const element::Type& type, const size_t memory_size) {
-    const size_t elements_per_byte = 8 / type.bitwidth();
+    const auto bit_width = type.bitwidth();
+    // Any bit_width bytes hold exactly 8 elements, so memory_size * 8 / bit_width is taken in two steps
     size_t elements_count;
-    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size, elements_per_byte, elements_count));
+    const auto tail_elements = ((memory_size % bit_width) * 8) / bit_width;
+    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size / bit_width, 8, elements_count) &&
+                    !add_overflow<size_t>(elements_count, tail_elements, elements_count));
     return elements_count;
 }
 }  // namespace
@@ -45,8 +32,6 @@ size_t get_bit_elements_count(const element::Type& type, const size_t memory_siz
 size_t get_memory_size(const element::Type& type, const size_t n) {
     if (n == 0) {
         return n;
-    } else if (element::is_split_bit_type(type)) {
-        return get_split_bit_memory_size(type, n);
     } else if (element::is_bit_type(type) || element::is_nibble_type(type)) {
         return get_bit_memory_size(type, n);
     } else {
@@ -70,8 +55,6 @@ std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::
 size_t get_elements_capacity(const element::Type& type, const size_t memory_size) {
     if (type.bitwidth() == 0) {
         return 0;
-    } else if (element::is_split_bit_type(type)) {
-        return get_split_elements_count(type, memory_size);
     } else if (element::is_bit_type(type) || element::is_nibble_type(type)) {
         return get_bit_elements_count(type, memory_size);
     } else {

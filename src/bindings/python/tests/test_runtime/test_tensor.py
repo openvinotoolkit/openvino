@@ -7,6 +7,8 @@ import os
 import subprocess
 import sys
 
+import re
+
 import numpy as np
 
 import openvino as ov
@@ -250,7 +252,7 @@ def test_init_with_roi_tensor():
     ov_tensor1 = ov.Tensor(array)
     ov_tensor2 = ov.Tensor(ov_tensor1, [0, 0, 24, 24], [1, 3, 48, 48])
     assert list(ov_tensor2.shape) == [1, 3, 24, 24]
-    assert ov_tensor2.element_type == ov_tensor2.element_type
+    assert ov_tensor1.element_type == ov_tensor2.element_type
     assert np.shares_memory(ov_tensor1.data, ov_tensor2.data)
     assert np.array_equal(ov_tensor1.data[0:1, :, 24:, 24:], ov_tensor2.data)
 
@@ -422,15 +424,18 @@ def test_cannot_get_strides_for_packed_tensor(ov_type):
     [
         (ov.Type.u1),
         (ov.Type.u2),
+        (ov.Type.u3),
         (ov.Type.u4),
+        (ov.Type.u6),
         (ov.Type.i4),
     ],
 )
 def test_init_with_packed_buffer(dtype, ov_type):
     shape = [1, 3, 32, 32]
-    fit = np.dtype(dtype).itemsize * 8 / ov_type.bitwidth
-    assert np.prod(shape) % fit == 0
-    size = int(np.prod(shape) // fit)
+    byte_size = (np.prod(shape) * ov_type.bitwidth + 7) // 8
+    itemsize = np.dtype(dtype).itemsize
+    assert byte_size % itemsize == 0  # noqa: S001 - flake8-pep3101 known bug, misdetects modulo as string formatting
+    size = int(byte_size // itemsize)
     buffer = np.random.normal(size=size).astype(dtype)
     ov_tensor = ov.Tensor(buffer, shape, ov_type)
     assert ov_tensor.data.nbytes == ov_tensor.byte_size
@@ -462,6 +467,75 @@ def test_packing(shape, low, high, ov_type, dtype):
     packed_data = pack_data(data, ov_tensor.element_type)
     ov_tensor.data[:] = packed_data
     unpacked = unpack_data(ov_tensor.data, ov_tensor.element_type, ov_tensor.shape)
+    assert np.array_equal(unpacked, data)
+
+
+# ops.constant rejects these values for the integer types and nf4 (in_t_range);
+# f4e2m1 is checked as raw 4-bit codes
+@pytest.mark.parametrize(
+    ("ov_type", "values", "dtype"),
+    [
+        (ov.Type.u2, [4, 1], np.uint8),
+        (ov.Type.u3, [8, 1], np.uint8),
+        (ov.Type.u3, [1, 256], np.int64),
+        (ov.Type.u3, [1.0, 8.0], np.float32),
+        (ov.Type.u4, [16, 1], np.uint8),
+        (ov.Type.u4, [1, 16], np.uint8),
+        (ov.Type.u4, [[1, 2], [3, 16]], np.uint8),
+        (ov.Type.u4, [16.0, 1.0], np.float32),
+        (ov.Type.u4, [-1, 1], np.int8),
+        (ov.Type.u6, [64, 1], np.uint8),
+        (ov.Type.i4, [8, 1], np.int8),
+        (ov.Type.i4, [1, -9], np.int8),
+        (ov.Type.nf4, [16, 1], np.uint8),
+        (ov.Type.f4e2m1, [16, 1], np.uint8),
+        # A NaN must not hide an out-of-range value next to it
+        (ov.Type.u3, [np.nan, 8.0], np.float32),
+        (ov.Type.u6, [np.nan, 64.0], np.float32),
+    ],
+)
+def test_pack_data_rejects_values_out_of_range(ov_type, values, dtype):
+    low, high = (-8, 7) if ov_type == ov.Type.i4 else (0, (1 << ov_type.bitwidth) - 1)
+    with pytest.raises(RuntimeError, match=re.escape(f"out of the {ov_type.get_type_name()} range [{low}, {high}]")):
+        pack_data(np.array(values, dtype=dtype), ov_type)
+
+
+def test_pack_data_range_error_reports_summary_not_values():
+    # The error names dtype, shape, min and max instead of printing the whole array
+    data = np.zeros(100_000, dtype=np.uint8)
+    data[-1] = 16
+    with pytest.raises(RuntimeError) as e:
+        pack_data(data, ov.Type.u4)
+    message = str(e.value)
+    assert len(message) < 300
+    assert "uint8" in message
+    assert "(100000,)" in message
+    assert "min 0" in message
+    assert "max 16" in message
+
+
+def test_pack_data_range_error_ignores_nan_in_summary():
+    with pytest.raises(RuntimeError) as e:
+        pack_data(np.array([np.nan, 1.0, 64.0], dtype=np.float32), ov.Type.u6)
+    assert "min 1.0" in str(e.value)
+    assert "max 64.0" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    ("ov_type", "low", "high", "dtype"),
+    [
+        (ov.Type.u2, 0, 3, np.uint8),
+        (ov.Type.u3, 0, 7, np.uint8),
+        (ov.Type.u4, 0, 15, np.uint8),
+        (ov.Type.u6, 0, 63, np.uint8),
+        (ov.Type.i4, -8, 7, np.int8),
+        (ov.Type.nf4, 0, 15, np.uint8),
+        (ov.Type.f4e2m1, 0, 15, np.uint8),
+    ],
+)
+def test_pack_data_accepts_range_bounds(ov_type, low, high, dtype):
+    data = np.array([low, high, high, low, high], dtype=dtype)
+    unpacked = unpack_data(pack_data(data, ov_type), ov_type, data.shape)
     assert np.array_equal(unpacked, data)
 
 
@@ -681,20 +755,28 @@ def test_tensor_from_pillow(numpy_dtype, shape):
     assert tensor.data.shape == shape
 
 
+@pytest.mark.parametrize("pillow_available", [True, False])
+@pytest.mark.parametrize("value", [object(), np.float32(1.0), {"a": 1}])
+def test_tensor_from_unsupported_object(monkeypatch, pillow_available, value):
+    if not pillow_available:
+        # Simulate an environment without Pillow, which is not a runtime dependency
+        monkeypatch.setitem(sys.modules, "PIL", None)
+        monkeypatch.setitem(sys.modules, "PIL.Image", None)
+
+    with pytest.raises(TypeError, match="Input argument must be a PIL.Image.Image"):
+        ov.Tensor(value)
+
+
 def test_pack_unpack_u3_numerical():
     """Test u3 packing/unpacking with known numerical values."""
-    # 8 values packed into 3 bytes
+    # 8 values packed into 3 bytes, linear LSB-first bit-stream (value i at bits [3i, 3i+3))
     # Decimal values: [0, 1, 2, 3, 4, 5, 6, 7]
     # In binary: [000, 001, 010, 011, 100, 101, 110, 111]
     data = np.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=np.uint8)
 
     packed = pack_data(data, ov.Type.u3)
 
-    # Expected packing:
-    # Byte 0: bits[1:0] of values 0-3 = [00, 01, 10, 11] = 0x1B
-    # Byte 1: bits[1:0] of values 4-7 = [00, 01, 10, 11] = 0x1B
-    # Byte 2: bits[2] of all 8 values = [0,0,0,0,1,1,1,1] = 0x0F
-    expected = np.array([0x1B, 0x1B, 0x0F], dtype=np.uint8)
+    expected = np.array([0x88, 0xC6, 0xFA], dtype=np.uint8)
 
     assert len(packed) == 3
     assert np.array_equal(packed, expected), f"Expected {expected.tolist()}, got {packed.tolist()}"
@@ -721,17 +803,13 @@ def test_pack_unpack_u3_edge_cases():
 
 
 def test_pack_unpack_u6_numerical():
-    # 4 values packed into 3 bytes
+    # 4 values packed into 3 bytes, linear LSB-first bit-stream (value i at bits [6i, 6i+6))
     # Decimal values: [0, 15, 48, 63]
     # In binary: [000000, 001111, 110000, 111111]
     data = np.array([0, 15, 48, 63], dtype=np.uint8)
     packed = pack_data(data, ov.Type.u6)
 
-    # Expected packing:
-    # Byte 0: bits[3:0] of values 0-1 = [0000, 1111] = 0x0F
-    # Byte 1: bits[3:0] of values 2-3 = [0000, 1111] = 0x0F
-    # Byte 2: bits[5:4] of all 4 values = [00, 00, 11, 11] = 0x0F
-    expected = np.array([0x0F, 0x0F, 0x0F], dtype=np.uint8)
+    expected = np.array([0xC0, 0x03, 0xFF], dtype=np.uint8)
 
     assert len(packed) == 3
     assert np.array_equal(packed, expected), f"Expected {expected.tolist()}, got {packed.tolist()}"

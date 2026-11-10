@@ -10,14 +10,12 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_scale(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
@@ -28,6 +26,10 @@ OutputVector translate_scale(const NodeContext& context) {
 
     auto scale_node = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale});
     ov::Output<ov::Node> value = context.get_input(0);
+    const auto output_type = value.get_element_type();
+    if (output_type == ov::element::f16 || output_type == ov::element::bf16) {
+        value = std::make_shared<ov::op::v0::Convert>(value, ov::element::f32);
+    }
     bool updated_cache = false;
     if (context.get_op_case() == 1 && context.has_input("cache_rs_reset_idx") &&
         context.has_input("cache_rs_reset_len")) {
@@ -57,11 +59,11 @@ OutputVector translate_scale(const NodeContext& context) {
     } else {
         res = scaled.get_node_shared_ptr();
     }
+    if (res->get_output_element_type(0) != output_type) {
+        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
+    }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

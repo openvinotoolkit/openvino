@@ -18,7 +18,8 @@ import json
 import os
 import platform
 import shutil
-import subprocess
+# Local setup helper: subprocess.run on fixed installer/version-check argv from this script only.
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 from typing import Optional

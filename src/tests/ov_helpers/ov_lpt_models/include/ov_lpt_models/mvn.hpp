@@ -35,7 +35,6 @@ public:
         const bool& normalizeVariance,
         const ov::element::Type precisionBeforeDequantization,
         const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ov::element::Type precisionAfterOperation,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
         const int opset_version);
 };

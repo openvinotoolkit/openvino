@@ -26,6 +26,7 @@
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/grouped_matmul.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
 #include "dynamic_quantize_inst.h"
 #include "grouped_matmul_inst.h"
 #include "fully_connected_inst.h"
@@ -79,11 +80,11 @@ std::optional<std::chrono::microseconds> extract_start_time_from_intervals(
 
 namespace ov::intel_gpu {
 
-Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id, ov::internal::WeightSharingCtxPtr weight_sharing_ctx)
     : m_context(context)
     , m_config(config)
     , m_stream_id(stream_id) {
-    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config);
+    auto program_builder = std::make_shared<ProgramBuilder>(model, get_engine(), config, weight_sharing_ctx);
     m_config = program_builder->get_config();
 
     build(program_builder->get_compiled_program());
@@ -94,6 +95,7 @@ Graph::Graph(std::shared_ptr<ov::Model> model, const RemoteContextImpl::Ptr& con
     profilingIDs = program_builder->profiling_ids;
     perfMap = program_builder->perfMap;
     m_input_layouts = program_builder->get_input_layouts();
+    m_weight_sharing_source_buffers = program_builder->get_weight_sharing_source_buffers();
 }
 
 Graph::Graph(cldnn::BinaryInputBuffer &ib, const RemoteContextImpl::Ptr& context, const ExecutionConfig& config, uint16_t stream_id)
@@ -226,6 +228,24 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
 
+    std::vector<cldnn::tensor_conversion_key> conversion_keys;
+    for (const auto& variable : m_network->get_variables_info()) {
+        const auto& info = variable.second;
+        const bool special_kv_state = std::any_of(info.m_primitives.begin(), info.m_primitives.end(),
+            [](const cldnn::primitive* primitive) {
+                const auto* kv = dynamic_cast<const cldnn::kv_cache*>(primitive);
+                return kv != nullptr && (kv->compressed || kv->indirect);
+            });
+        if (special_kv_state)
+            continue;
+
+        const auto source_type = info.m_user_specified_type == ov::element::dynamic
+                                     ? info.m_layout.data_type
+                                     : static_cast<ov::element::Type_t>(info.m_user_specified_type);
+        conversion_keys.emplace_back(source_type, info.m_layout.data_type);
+    }
+    program->prepare_tensor_conversions(conversion_keys);
+
     std::string dry_run_path = GPU_DEBUG_VALUE_OR(m_config.get_dry_run_path(), "");
     std::string dump_graphs_path = GPU_DEBUG_VALUE_OR(m_config.get_dump_graphs_path(), "");
     GPU_DEBUG_IF(!dry_run_path.empty()) {
@@ -334,15 +354,17 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "space_to_depth", "SpaceToDepth" },
         };
 
-        if (type_n2l.find(cldnn_name) != type_n2l.end())
+        if (type_n2l.find(cldnn_name) != type_n2l.end()) {
             return type_n2l.at(cldnn_name);
+        }
 
         return cldnn_name;
     };
 
     auto concat_strings = [](std::vector<std::string> strs, char sep) -> std::string {
-        if (strs.empty())
+        if (strs.empty()) {
             return "";
+        }
 
         std::string res = strs[0];
         for (size_t i = 1; i < strs.size(); i++) {
@@ -354,8 +376,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
     auto remove_type_from_name = [](const std::string& name) -> std::string {
         auto it = std::find(name.begin(), name.end(), ':');
-        if (it == name.end() || (it + 1) == name.end())
+        if (it == name.end() || (it + 1) == name.end()) {
             return name;
+        }
 
         return std::string((it+1), name.end());
     };
@@ -381,8 +404,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
             });
 
             if (filter_const_primitives) {
-                if (dep_it == primitives_info.end())
+                if (dep_it == primitives_info.end()) {
                     continue;
+                }
                 if (dep_it->type_id == "data") {
                     continue;
                 }
@@ -426,8 +450,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                     auto usr_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                         return entry.original_id == usr_id;
                     });
-                    if (usr_it == primitives_info.end())
+                    if (usr_it == primitives_info.end()) {
                         continue;
+                    }
 
                     return_node->set_output_type(port, out_et, out_pshape);
                     port++;
@@ -437,8 +462,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
         auto layerName = remove_type_from_name(prim_info.original_id);
         return_node->set_friendly_name(layerName);
-        if (is_output)
+        if (is_output) {
             results.back()->set_friendly_name(layerName + "_result");
+        }
 
         std::map<std::string, std::string> info;
         info[ov::exec_model_info::OUTPUT_PRECISIONS] = ov::element::Type(prim_info.output_layout.data_type).get_type_name();
@@ -451,8 +477,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
         for (const auto& fused_id : prim_info.c_fused_ids) {
             for (auto& origin_id : find_origin_layers(fused_id)) {
-                if (std::find(originalNames.begin(), originalNames.end(), origin_id) == originalNames.end())
+                if (std::find(originalNames.begin(), originalNames.end(), origin_id) == originalNames.end()) {
                     originalNames.push_back(origin_id);
+                }
             }
         }
         info[ov::exec_model_info::ORIGINAL_NAMES] = concat_strings(originalNames, ',');
@@ -508,11 +535,13 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
         for (auto&& kvp : info) {
             return_node->get_rt_info()[kvp.first] = kvp.second;
-            if (is_output)
+            if (is_output) {
                 results.back()->get_rt_info()[kvp.first] = kvp.second;
+            }
         }
-        if (is_output)
+        if (is_output) {
             results.back()->get_rt_info()[ov::exec_model_info::LAYER_TYPE] = "Result";
+        }
 
         nodes.push_back(return_node);
         node2layer[prim_info.original_id] = return_node;
@@ -528,8 +557,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                     auto it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                         return entry.original_id == dep;
                     });
-                    if (it == primitives_info.end())
+                    if (it == primitives_info.end()) {
                         continue;
+                    }
 
                     auto& dep_users = it->c_users;
                     // Remove mutable data from users list
@@ -544,12 +574,14 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                         it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                             return entry.original_id == user;
                         });
-                        if (it == primitives_info.end())
+                        if (it == primitives_info.end()) {
                             continue;
+                        }
 
                         for (auto& d : it->c_dependencies) {
-                            if (d == pi.original_id)
+                            if (d == pi.original_id) {
                                 d = dep;
+                            }
                         }
                     }
                 }
@@ -637,8 +669,9 @@ void Graph::update_profiling_info() {
             } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                 pc.cpu_uSec += count;
 
-                if (pc.num == 0)
+                if (pc.num == 0) {
                     pc.isCPU = true;
+                }
             }
         }
     };
@@ -733,8 +766,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
     auto getFromProfiling = [&](std::string primId) -> bool {
         auto perfIter = perfMap.find(primId);
 
-        if (perfIter == perfMap.end())
+        if (perfIter == perfMap.end()) {
             return false;
+        }
 
         auto layerName = getClearName(perfIter->second.first);
 
@@ -747,8 +781,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
             start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
         }
 
-        if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
+        if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers) {
             return false;
+        }
 
         auto& extPerfEntry = result[layerName];
 
@@ -815,8 +850,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if ((!existInProfiling || (existInProfiling && perfIter->second.first.empty())) &&
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
-            if (!event)
+            if (!event) {
                 continue;
+            }
 
             cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 
@@ -844,8 +880,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
 
             for (auto& pi : primitivesInfo) {
                 if (pi.original_id == primId) {
-                    if (pi.type_id == "mutable_data")
+                    if (pi.type_id == "mutable_data") {
                         continue;
+                    }
 
                     auto& extPerfEntry = result[layerName];
 

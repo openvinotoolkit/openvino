@@ -113,8 +113,9 @@ KernelsPriority GemmKernelRef::GetKernelsPriority(const Params& /*params*/) cons
 }
 
 bool GemmKernelRef::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // int8 validation
     const auto& gmm_params = static_cast<const gemm_params&>(params);
@@ -126,8 +127,9 @@ bool GemmKernelRef::Validate(const Params& params) const {
     // require some additional checks.
     if ((input_type != Datatype::UINT8 && input_type != Datatype::INT8) &&
         (input2_type != Datatype::UINT8 && input2_type != Datatype::INT8) &&
-        (output_type != Datatype::UINT8 && output_type != Datatype::INT8))
+        (output_type != Datatype::UINT8 && output_type != Datatype::INT8)) {
         return true;
+    }
 
     bool is_quantization = (input_type == Datatype::INT8 || input_type == Datatype::UINT8) &&
         (input2_type == Datatype::INT8 || input2_type == Datatype::UINT8) &&
@@ -139,8 +141,9 @@ bool GemmKernelRef::Validate(const Params& params) const {
         !gmm_params.fused_ops.empty() &&
         (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
 
-    if (!is_quantization && !has_fused_op)
+    if (!is_quantization && !has_fused_op) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

@@ -24,18 +24,21 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         assert(node.is_type<lstm_seq>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
         const auto& lstm_seq_node = node.as<lstm_seq>();
         const auto& in_layout = lstm_seq_node.get_input_layout(0);
         const auto& out_layout = lstm_seq_node.get_output_layout(0);
 
         if (node.get_input_layout(0).format != cldnn::format::bfyx && node.get_input_layout(0).format != cldnn::format::fbyx
-            && node.get_input_layout(0).format != cldnn::format::ybfx)
+            && node.get_input_layout(0).format != cldnn::format::ybfx) {
             return false;
+        }
 
-        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout))
+        if (!is_supported_pad(in_layout) || !is_supported_pad(out_layout)) {
             return false;
+        }
 
         auto in0_dt = node.get_input_layout(0).data_type;
         auto in1_dt = node.get_input_layout(1).data_type;
@@ -59,8 +62,9 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         bool f32s8f32_case = everyone_is(data_types::i8, in0_dt, in3_dt, in4_dt) && one_of(out0_dt, {data_types::i8, data_types::f32}) &&
             everyone_is(data_types::f32, in1_dt, in5_dt, out1_dt);
 
-        if (!cell_state_check)
+        if (!cell_state_check) {
             return false;
+        }
         return f16_case || f32_case || u8u8u8_case || f32u8f32_case || s8s8s8_case || f32s8f32_case;
     }
 
@@ -71,14 +75,16 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
 
         size_t out_rank = node.get_output_layout().get_rank();
         for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
-            if (node.get_dependency(idx).is_constant())
+            if (node.get_dependency(idx).is_constant()) {
                 continue;
+            }
 
             auto target_format = format::get_default_format(out_rank);
-            if (idx == 0)
+            if (idx == 0) {
                 in_fmts[idx] = format::fbyx;
-            else
+            } else {
                 in_fmts[idx] = target_format;
+            }
         }
         out_fmts[0] = format::ybfx;
 

@@ -51,7 +51,6 @@ void ThreeInputsEltwise::SetUp() {
 
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

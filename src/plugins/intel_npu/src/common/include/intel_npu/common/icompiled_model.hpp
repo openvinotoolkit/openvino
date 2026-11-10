@@ -19,8 +19,6 @@ public:
 
     virtual const std::shared_ptr<IGraph>& get_graph() const = 0;
 
-    virtual const Config& get_config() const = 0;
-
 protected:
     std::shared_ptr<const ICompiledModel> shared_from_this() const {
         return std::dynamic_pointer_cast<const ICompiledModel>(ov::ICompiledModel::shared_from_this());

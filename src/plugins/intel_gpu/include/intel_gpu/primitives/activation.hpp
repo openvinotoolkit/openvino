@@ -57,7 +57,8 @@ enum class activation_func {
     gelu_tanh,                 // x⋅0.5⋅(1+tanh[sqrt(2/pi)*val(1 + 0.044715⋅val^2)])
     round_half_to_even,        // round halfs to the nearest even integer
     round_half_away_from_zero, // round the number so it's further away from zero
-    erfinv                     // inverse Gauss error function (erfinv)
+    erfinv,                    // inverse Gauss error function (erfinv)
+    swoosh                     // softplus(val - a) - 0.08 * val - b
 };
 
 /// @brief activation additional params
@@ -133,8 +134,9 @@ struct activation : public primitive_base<activation> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const activation>(rhs);
 
@@ -163,8 +165,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (additional_params_input.is_valid())
+        if (additional_params_input.is_valid()) {
             ret[idx++] = &additional_params_input;
+        }
 
         return ret;
     }

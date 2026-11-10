@@ -29,16 +29,11 @@ namespace intel_npu {
  * @brief [Only for NPU Plugin]
  * Type: string
  * Type of NPU compiler to be used for compilation of a network
- * @note Configuration API v 2.0
  */
 enum class CompilerType { PLUGIN, DRIVER, PREFER_PLUGIN };
 
 /**
  * @brief Prints a string representation of ov::intel_npu::CompilerType to a stream
- * @param out An output stream to send to
- * @param fmt A compiler type value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
  */
 inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
     switch (fmt) {
@@ -56,6 +51,24 @@ inline std::ostream& operator<<(std::ostream& out, const CompilerType& fmt) {
         break;
     }
     return out;
+}
+
+/**
+ * @brief Reads a string representation of ov::intel_npu::CompilerType from a stream
+ */
+inline std::istream& operator>>(std::istream& is, CompilerType& fmt) {
+    std::string str;
+    is >> str;
+    if (str == "PLUGIN") {
+        fmt = CompilerType::PLUGIN;
+    } else if (str == "DRIVER") {
+        fmt = CompilerType::DRIVER;
+    } else if (str == "PREFER_PLUGIN") {
+        fmt = CompilerType::PREFER_PLUGIN;
+    } else {
+        OPENVINO_THROW("Unsupported value for the compiler type: ", str);
+    }
+    return is;
 }
 
 /**

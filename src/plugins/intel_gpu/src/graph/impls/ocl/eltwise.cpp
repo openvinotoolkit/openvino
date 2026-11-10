@@ -51,17 +51,20 @@ public:
         }
 
         if (inputs_count == 1) {
-            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode});
+            params.operations.push_back(
+                {{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode, primitive->m_pythondiv});
         } else {
             params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
                                           kernel_selector::eltwise_params::InputType::Buffer(1)},
-                                         mode});
+                                         mode,
+                                         primitive->m_pythondiv});
         }
 
         for (uint32_t i = 2; i < static_cast<uint32_t>(inputs_count); i++) {
             params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(i - 2),
                                           kernel_selector::eltwise_params::InputType::Buffer(i)},
-                                         mode});
+                                         mode,
+                                         primitive->m_pythondiv});
         }
 
         params.coefficients = primitive->coefficients;
@@ -78,8 +81,9 @@ public:
                     std::vector<ov::Dimension::value_type> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
                     bool broadcast = false;
                     for (size_t d = 0; d < output_size.size(); d++) {
-                        if (output_size[d] != 1 && input_size[d] == 1)
+                        if (output_size[d] != 1 && input_size[d] == 1) {
                             broadcast = true;
+                        }
                     }
                     if (broadcast) {
                         params.broadcast = true;
@@ -106,8 +110,9 @@ public:
         if (!params.stride.empty()) {
             const auto& stride = params.stride[0];
             for (size_t i = 1; i < params.stride.size(); i++) {
-                if (stride.x != params.stride[i].x || stride.y != params.stride[i].y)
+                if (stride.x != params.stride[i].x || stride.y != params.stride[i].y) {
                     params.layoutBased = true;
+                }
             }
         } else if (params.inputs.size() > 1 && (!params.inputs[0].SameDimsSizes(params.inputs[1]))) {
             params.broadcast = true;
@@ -179,6 +184,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
     auto dyn_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::bfuwzyx,

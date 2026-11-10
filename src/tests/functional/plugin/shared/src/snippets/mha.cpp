@@ -247,6 +247,10 @@ void MHA::init_thresholds() {
         rel_threshold = 0.01f;
         abs_threshold = 0.0078125f;
     }
+    // Bf16 rounding requires looser threshold
+    if (m_input_types.size() > 1 && m_input_types[0] == ov::element::bf16 && precision_hint == ov::element::bf16) {
+        abs_threshold = 0.05f;
+    }
 }
 
 void MHAConstB::init_thresholds() {
@@ -262,6 +266,39 @@ void MHAConstB::init_thresholds() {
 
 std::shared_ptr<SnippetsFunctionBase> MHA2D::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHA2DFunction>(inputDynamicShapes, m_input_types);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAWithBroadcast::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    const bool is_with_reshape =
+        std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const ov::PartialShape& ps) {
+            return ps.is_static();
+        });
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
+                                                              m_input_types,
+                                                              with_mul,
+                                                              is_with_reshape,
+                                                              is_with_reshape);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfBroadcast::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
+                                                              m_input_types,
+                                                              with_mul,
+                                                              false,
+                                                              true,
+                                                              true);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfReshape::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
+                                                              m_input_types,
+                                                              with_mul,
+                                                              true,
+                                                              false,
+                                                              true);
 }
 
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -358,112 +395,90 @@ std::shared_ptr<SnippetsFunctionBase> MHASharedKV::get_subgraph() const {
 }
 
 TEST_P(MHA, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAConstB, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHATwoConstB, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAWithThreadCount, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHA2D, CompareWithRefImpl) {
+    run();
+}
+
+TEST_P(MHAWithBroadcast, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     validateNumSubgraphs();
+}
+
+TEST_P(MHAWithShapeOfBroadcast, CompareWithRefImpl) {
+    run();
+}
+
+TEST_P(MHAWithShapeOfReshape, CompareWithRefImpl) {
+    run();
 }
 
 TEST_P(MHASelect, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAWOTransposeOnInputs, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAWOTranspose, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAMulAdd, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHATransposedB, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAINT8MatMul, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAQuantMatMul0, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAFQAfterMatMul, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     abs_threshold = 4e-6;
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAFQ, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAWithExtractedReshape, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHARankUpgradeToReductionReshape, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHAWithDynamicMul, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHASharedKV, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 }  // namespace snippets

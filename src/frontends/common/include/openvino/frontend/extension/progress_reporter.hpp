@@ -7,8 +7,7 @@
 #include "openvino/core/extension.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 class FRONTEND_API ProgressReporterExtension : public ov::Extension {
 public:
     /// \brief A progress reporting callback signature. A FunctionObject that matches this signature should be passed
@@ -35,5 +34,4 @@ public:
 private:
     progress_notifier_callback m_callback;
 };
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

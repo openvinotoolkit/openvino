@@ -53,16 +53,19 @@ std::tuple<int, int> GetMaxBoxes(const matrix_nms_params& params) {
     const int boxes_num = static_cast<int>(params.inputs[0].Feature().v);
 
     int max_boxes_per_class{boxes_num};
-    if (params.nms_top_k >= 0)
+    if (params.nms_top_k >= 0) {
         max_boxes_per_class = std::min(max_boxes_per_class, params.nms_top_k);
+    }
 
     auto classes_num_adj = classes_num;
-    if (params.background_class >= 0 && params.background_class < classes_num)
+    if (params.background_class >= 0 && params.background_class < classes_num) {
         classes_num_adj = std::max(1, classes_num - 1);
+    }
 
     auto max_boxes_per_batch = max_boxes_per_class * classes_num_adj;
-    if (params.keep_top_k >= 0)
+    if (params.keep_top_k >= 0) {
         max_boxes_per_batch = std::min(max_boxes_per_batch, params.keep_top_k);
+    }
 
     return {max_boxes_per_class, max_boxes_per_batch};
 }

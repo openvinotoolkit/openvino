@@ -28,11 +28,6 @@ public:
         return impl_desc_type::gemm_acl;
     }
 
-protected:
-    std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                                                            const arm_compute::DataType& dataType,
-                                                            const arm_compute::DataLayout& dataLayout) override;
-
 private:
     arm_compute::GEMMInfo gemmInfo;
     arm_compute::WeightFormat expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;

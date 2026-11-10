@@ -13,9 +13,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
+include(sources.cmake)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${OV_AUTO_FUNC_TESTS_SRC}
         LINK_LIBRARIES
             openvino::runtime::dev
             gtest
@@ -25,6 +28,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${TEST_COMMON_INCLUDE_DIR}
         ADD_CLANG_FORMAT
+        CHECK_SOURCES_LISTED
         LABELS
             Multi
             Auto

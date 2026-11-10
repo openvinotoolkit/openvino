@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <filesystem>
+#include <vector>
 
 #ifdef OPENVINO_STATIC_LIBRARY
 
@@ -34,7 +35,9 @@ struct Value {
 #else
 
 struct Value {
-    std::filesystem::path m_plugin_path;
+    // One or more candidate libraries for the device. More than one marks a dispatch group
+    // (the shared-build analogue of multiple <location> entries in plugins.xml).
+    std::vector<std::filesystem::path> m_plugin_paths;
     std::map<std::string, std::string> m_default_config;
 };
 

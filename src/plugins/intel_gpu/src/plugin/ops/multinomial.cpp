@@ -78,15 +78,7 @@ static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     p.add_primitive(*op, slice_axis_prim);
 
     const cldnn::primitive_id slice {layer_type_name_ID(op) + "_slice"};
-    cldnn::slice slice_prim {
-        slice,
-        { cumsum,
-            slice_start,
-            slice_stop,
-            slice_step,
-            slice_axis
-        }
-    };
+    cldnn::slice slice_prim{slice, {cumsum, slice_start, slice_stop, slice_step, slice_axis}, 0, {-1}, {-1}, {last_axis}};
     p.add_primitive(*op, slice_prim);
 
     const cldnn::primitive_id cdf {layer_type_name_ID(op) + "_cdf"};
@@ -125,10 +117,11 @@ static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     OPENVINO_ASSERT(const_num_samples != nullptr, "[GPU] Unsupported num_samples node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::int64_t num_samples{};
-    if (const_num_samples->get_output_element_type(0) == ov::element::Type_t::i32)
+    if (const_num_samples->get_output_element_type(0) == ov::element::Type_t::i32) {
         num_samples = const_num_samples->cast_vector<std::int32_t>(1)[0];
-    else
+    } else {
         num_samples = const_num_samples->cast_vector<std::int64_t>(1)[0];
+    }
 
     cldnn::multinomial multinomial_prim {
         layer_type_name_ID(op),

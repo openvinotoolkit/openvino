@@ -52,7 +52,11 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_GQA_COMPILED_MODEL_INDICATOR 
 const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATOR =
     {char{0x46}, char{0x4c}, char{0x32}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.30";
+// BAT = 0x42,0x41,0x54 + CMO = 0x43,0x4d,0x4f
+const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICATOR =
+    {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
+
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.36";
 
 // Forward declaration
 namespace intel_npu {
@@ -124,6 +128,18 @@ public:
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
 using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
 using WeightsPtr = std::shared_ptr<Weights>;
+
+// Maps the weights a FileHandleProvider points at.
+//
+// The weights do not have to be a file of their own: they may be a region embedded in a larger
+// file, e.g. a runtime that keeps its weights pool inside the model file it already has open.
+// Such a provider seeks the handle it returns to the first byte of the pool, so the mapping runs
+// from that position to EOF and the pool start - not the file start - becomes the mapping base.
+// Weight offsets stored in the blob are relative to it either way. A handle at position 0 (the
+// usual case) maps the whole file, as before.
+//
+// Ownership of the handle follows the FileHandleProvider contract - it is consumed here.
+std::shared_ptr<ov::MappedMemory> mmap_weights(const ov::FileHandleProvider& handle_provider);
 
 struct CompiledContext {
     CompiledContext(bool _encrypted,
@@ -239,6 +255,16 @@ inline void write_any(std::ostream& stream, const ov::Any& var) {
 inline void read_any(std::istream& stream, ov::Any& var) {
     read(stream, var);
 }
+
+// Writes the common NPUW blob header: the NPUW serialization indicator, the
+// given model indicator, and the serializing OV + NPUW s11n versions.
+void write_header(std::ostream& stream, const IndicatorType& model_indicator);
+
+// Reads and validates a header written by write_header(). Throws if the
+// stream wasn't serialized via NPUW, if the model indicator doesn't match
+// `expected` (`what` names the expected producer in the error message), or
+// if the blob was serialized by a different OV / NPUW s11n version.
+void read_and_check_header(std::istream& stream, const IndicatorType& expected, const std::string& what);
 
 }  // namespace s11n
 

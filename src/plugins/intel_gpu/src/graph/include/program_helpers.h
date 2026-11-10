@@ -92,10 +92,11 @@ struct program_helpers {
     template <class T, class... RestOfT, class Func, class... RestOfFuncs>
     static decltype(static_cast<void>(std::declval<Func>()(std::declval<typed_program_node<T>&>())))
     do_for_types(program_node& node, Func const& func, RestOfFuncs const&... rest) {
-        if (node.type() == T::type_id())
+        if (node.type() == T::type_id()) {
             func(node.as<T>());
-        else
+        } else {
             do_for_types<RestOfT...>(node, rest...);
+        }
     }
 
     // helper functions for deconvolution optimizations
@@ -118,7 +119,7 @@ struct program_helpers {
     }
 };
 
-struct onednn_add_fusing_helpers {
+struct onednn_eltwise_fusing_helpers {
     enum class add_fusing_type {
         sum,
         binary_per_tensor,
@@ -126,15 +127,14 @@ struct onednn_add_fusing_helpers {
         not_supported,
     };
 
-    static bool is_full_tensor(const layout& layout);
-    static std::vector<fused_primitive_desc> get_fused_eltwise_primitives();
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
     static int32_t get_reused_eltwmem_idx(const program_node& node);
+    static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
 };
 
-using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
+using add_fusing_type = onednn_eltwise_fusing_helpers::add_fusing_type;
 
 static inline std::ostream& operator<< (std::ostream& os, add_fusing_type& t) {
     switch (t) {
@@ -169,8 +169,9 @@ struct pattern_match_optimization {
     }
     // Returns whether optimization invalidated the node and no futher optimizations should execute.
     bool match_and_optimize(program_node& node) {
-        if (!match(node))
+        if (!match(node)) {
             return false;
+        }
         return optimize(node);
     }
 
@@ -193,8 +194,9 @@ struct pattern_match_optimization_typed : pattern_match_optimization<pattern_mat
 
     // Returns whether optimization can be performed for specified node.
     bool match(program_node& node) {
-        if (!node.is_type<Prim>())
+        if (!node.is_type<Prim>()) {
             return false;
+        }
         return static_cast<Impl*>(this)->match(node.as<Prim>());
     }
     // Should be overloaded by implementation class to match specified primitive.
@@ -219,8 +221,9 @@ inline bool run_node_optimizations(program_node& /*node*/) {
 
 template <typename Opt, typename... Rest>
 bool run_node_optimizations(program_node& node, Opt&& opt, Rest&&... rest) {
-    if (opt.match_and_optimize(node))
+    if (opt.match_and_optimize(node)) {
         return true;
+    }
     return run_node_optimizations(node, std::forward<Rest>(rest)...);
 }
 

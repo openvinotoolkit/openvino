@@ -4,7 +4,7 @@
 import pytest
 import torch
 import numpy as np
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 class aten_vstack(torch.nn.Module):
     def forward(self, x):
@@ -29,7 +29,7 @@ class TestVstack(PytorchLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
-    @pytest.mark.parametrize("out", [False, skip_if_export(True)])
+    @pytest.mark.parametrize("out", [False, True])
     def test_vstack(self, out, ie_device, precision, ir_version):
         model = aten_vstack() if not out else aten_vstack_out()
         self._test(model, "aten::vstack", ie_device,

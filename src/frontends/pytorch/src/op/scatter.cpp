@@ -10,10 +10,7 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -94,6 +91,8 @@ OutputVector translate_scatter(const NodeContext& context) {
     if (input_num > 4 && !context.input_is_none(4) && context.get_input_type(4).is<type::Str>()) {
         auto reduce_mode = context.const_input<std::string>(4);
         reduction = get_reduction_mode(reduce_mode);
+    } else if (context.has_attribute("reduce")) {
+        reduction = get_reduction_mode(context.get_attribute<std::string>("reduce"));
     }
 
     auto src_input_dtype = prepare_source(context, src, index, input);
@@ -114,14 +113,14 @@ OutputVector translate_scatter_reduce(const NodeContext& context) {
     // Inplace schema
     // aten::scatter_reduce_.two(Tensor(a!) self, int dim, Tensor index, Tensor src, str reduce, *, bool
     // include_self=True) -> Tensor(a!)
-    num_inputs_check(context, 6, 7);
+    num_inputs_check(context, 5, 7);
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
     auto index = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::i32));
     auto src = context.get_input(3);
     auto reduce_mode = context.const_input<std::string>(4);
     auto reduction = get_reduction_mode(reduce_mode);
-    auto include_self = context.const_input<bool>(5);
+    auto include_self = get_const_input_or_attribute(context, 5, "include_self", true);
     auto src_input_dtype = prepare_source(context, src, index, input);
     auto scatter_result = context.mark_node(
         std::make_shared<v12::ScatterElementsUpdate>(input, index, src_input_dtype, dim, reduction, include_self));
@@ -148,7 +147,4 @@ OutputVector translate_scatter_add(const NodeContext& context) {
     return {scatter_result};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

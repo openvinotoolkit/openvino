@@ -144,11 +144,10 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
                                         init_state,
                                         pattern::any_input()};
 
-    auto loop_output0 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(0));
-    auto loop_output1 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(1));
+    auto loop = pattern::wrap_type_strict_index<ov::op::v5::Loop>(loop_inputs);
 
-    auto reshape_core_attn = pattern::wrap_type<v1::Reshape>({loop_output0, {-1}});
-    auto reshape_core_state = pattern::wrap_type<v1::Reshape>({loop_output1, {-1}});
+    auto reshape_core_attn = pattern::wrap_type<v1::Reshape>({loop->output(0), {-1}});
+    auto reshape_core_state = pattern::wrap_type<v1::Reshape>({loop->output(1), {-1}});
     auto concat_loop = pattern::wrap_type<v0::Concat>({reshape_core_attn, reshape_core_state}, {{"axis", 0}});
     auto out_numel = pattern::any_input(pattern::has_static_shape());
     auto slice_attn = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, out_numel, {1}, {0}});
@@ -158,10 +157,10 @@ ov::pass::RemoveConcatSliceAfterLoop::RemoveConcatSliceAfterLoop() {
     auto reshape_state =
         pattern::wrap_type<v1::Reshape>({slice_state, pattern::any_input()},
                                         pattern::shape_matches("[?, head_num, k_head_size, v_head_size]"));
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;
-        auto loop_node = pattern_map.at(loop_output0).get_node_shared_ptr();
+        auto loop_node = m.get_pattern_map().at(loop);
         if (pattern_map.count(reshape_attn)) {
             auto reshape_attn_out = pattern_map.at(reshape_attn);
             if (!ov::replace_output_update_name(pattern_map.at(reshape_attn), loop_node->output(0))) {
@@ -321,7 +320,7 @@ ov::pass::FuseL2NormIntoGDN::FuseL2NormIntoGDN() {
     auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>(
         {transpose_query, transpose_key, value, init_state, gate, beta});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
 
@@ -468,7 +467,7 @@ ov::Output<ov::Node> align_to_reference_shape(const ov::Output<ov::Node>& src, c
 ov::pass::FuseGroupedQueryIntoGDN::FuseGroupedQueryIntoGDN() {
     auto gdn = pattern::wrap_type<ov::op::internal::GatedDeltaNet>();
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto gdn_node = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(pattern_map.at(gdn).get_node_shared_ptr());
         if (!gdn_node) {

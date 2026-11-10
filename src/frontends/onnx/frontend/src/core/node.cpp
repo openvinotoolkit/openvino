@@ -16,9 +16,7 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 class Node::Impl {
 public:
     Impl() = delete;
@@ -155,7 +153,7 @@ std::size_t Node::Impl::get_outputs_size() const {
 
 bool Node::Impl::has_attribute(const std::string& name) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     return it != std::end(m_attributes);
 }
@@ -188,7 +186,7 @@ std::shared_ptr<ov::Model> Node::Impl::get_subgraph(const std::string name) cons
 template <typename T>
 T Node::Impl::get_attribute_value(const std::string& name, T default_value) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     if (it == std::end(m_attributes)) {
         return std::forward<T>(default_value);
@@ -211,7 +209,7 @@ template <>
 std::shared_ptr<ov::Model> Node::Impl::get_attribute_value(const std::string& name,
                                                            std::shared_ptr<ov::Model> default_value) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     if (it == std::end(m_attributes)) {
         return std::forward<std::shared_ptr<ov::Model>>(default_value);
@@ -1240,6 +1238,4 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

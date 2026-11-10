@@ -8,27 +8,29 @@
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_CLAMP: elementwise clamp to [min, max]. The decoder exposes the bounds as typed
 // float attributes ("clamp_min"/"clamp_max"), so the translator never reads ggml op_params.
 OutputVector translate_clamp(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 3);
+    if (context.get_input_size() == 3) {
+        auto bounded = std::make_shared<ov::op::v1::Maximum>(context.get_input(0), context.get_input(1));
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Minimum>(bounded, context.get_input(2))},
+                                          context.get_name());
+    }
+    FRONT_END_OP_CONVERSION_CHECK(context.get_input_size() == 1, "CLAMP requires both bounds");
 
     auto input = context.get_input(0);
     float min = context.get_attribute<float>("clamp_min");
     float max = context.get_attribute<float>("clamp_max");
 
     auto res = std::make_shared<ov::op::v0::Clamp>(input, min, max);
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

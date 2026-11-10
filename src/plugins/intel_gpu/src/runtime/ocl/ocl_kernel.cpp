@@ -24,8 +24,9 @@ std::vector<uint8_t> ocl_kernel::get_binary() const {
     }
 
     // Binary is not available for the device.
-    if (binary_size == 0)
+    if (binary_size == 0) {
         throw std::runtime_error("get_binary: Binary size is zero");
+    }
 
     // Get program binary.
     std::vector<uint8_t> binary(binary_size);

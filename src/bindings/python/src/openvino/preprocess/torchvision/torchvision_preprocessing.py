@@ -260,15 +260,16 @@ class _(TransformConverterBase):
         target_size = _setup_size(transform.size, "Incorrect size type for CenterCrop operation")
 
         if target_size[0] > source_size[0] or target_size[1] > source_size[1]:
-            ValueError(f"CenterCrop size={target_size} is greater than source_size={source_size}")
+            raise ValueError(f"CenterCrop size={target_size} is greater than source_size={source_size}")
 
+        # Same offsets as torchvision.transforms.functional.center_crop; the crop end is exclusive
         bottom_left = []
-        bottom_left.append(int((source_size[0] - target_size[0]) / 2))
-        bottom_left.append(int((source_size[1] - target_size[1]) / 2))
+        bottom_left.append(int(round((source_size[0] - target_size[0]) / 2.0)))
+        bottom_left.append(int(round((source_size[1] - target_size[1]) / 2.0)))
 
         top_right = []
-        top_right.append(min(bottom_left[0] + target_size[0], source_size[0] - 1))
-        top_right.append(min(bottom_left[1] + target_size[1], source_size[1] - 1))
+        top_right.append(bottom_left[0] + target_size[0])
+        top_right.append(bottom_left[1] + target_size[1])
 
         is_nchw = meta["layout"] == Layout("NCHW")
         if is_nchw:
@@ -311,12 +312,36 @@ class _(TransformConverterBase):
         ppp.input(input_idx).tensor().set_layout(Layout("NCHW"))
 
         input_shape = meta["input_shape"]
+        layout = meta["layout"]
 
-        input_shape[meta["layout"].get_index_by_name("H")] = -1
-        input_shape[meta["layout"].get_index_by_name("W")] = -1
+        input_shape[layout.get_index_by_name("H")] = -1
+        input_shape[layout.get_index_by_name("W")] = -1
 
         ppp.input(input_idx).tensor().set_shape(input_shape)
-        ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], target_h, target_w)
+
+        if transform.interpolation == InterpolationMode.NEAREST:
+            # Pillow (used by torchvision for PIL images) samples the source pixel at floor((x + 0.5) * scale),
+            # which corresponds to the `half_pixel` coordinate transformation with `round_prefer_ceil` rounding.
+            # ResizeAlgorithm.RESIZE_NEAREST rounds with `round_prefer_floor` and therefore selects a different
+            # source pixel whenever the mapped coordinate falls exactly halfway between two pixels.
+            axes = [layout.get_index_by_name("H"), layout.get_index_by_name("W")]
+
+            @custom_preprocess_function
+            def resize_nearest_pillow(output: Output) -> Callable:
+                return ops.interpolate(  # type: ignore
+                    output,
+                    np.array([target_h, target_w], dtype=np.int32),
+                    mode="nearest",
+                    shape_calculation_mode="sizes",
+                    coordinate_transformation_mode="half_pixel",
+                    nearest_mode="round_prefer_ceil",
+                    axes=np.array(axes, dtype=np.int32),
+                )
+
+            ppp.input(input_idx).preprocess().custom(resize_nearest_pillow)
+        else:
+            ppp.input(input_idx).preprocess().resize(resize_mode_map[transform.interpolation], target_h, target_w)
+
         meta["input_shape"] = input_shape
         meta["image_dimensions"] = (target_h, target_w)
 

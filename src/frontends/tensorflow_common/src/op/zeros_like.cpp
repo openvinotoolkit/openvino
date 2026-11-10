@@ -13,10 +13,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_zeros_like_op(const NodeContext& node) {
     default_op_checks(node, 1, {"ZerosLike", "ZEROS_LIKE"});
@@ -40,7 +37,4 @@ OutputVector translate_zeros_like_op(const NodeContext& node) {
     return {zeros_like};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

@@ -22,6 +22,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace opp = ov::pass::pattern;
@@ -134,7 +135,8 @@ public:
         auto sdpa = opp::wrap_type<ov::op::v13::ScaledDotProductAttention>(
             {opp::any_input(), k_reshape, v_reshape, opp::any_input(), opp::any_input()});
 
-        ov::matcher_pass_callback callback = [=, &node_pair, &new_params, &new_results](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &node_pair, &new_params, &new_results](
+                                                 ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto sdpa_node = pattern_to_output.at(sdpa).get_node_shared_ptr();
             auto k_add_node = pattern_to_output.at(k_add).get_node_shared_ptr();

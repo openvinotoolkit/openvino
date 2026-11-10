@@ -50,7 +50,7 @@ PruneParametersOrphanedSince::PruneParametersOrphanedSince(
 bool PruneParametersOrphanedSince::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const auto live_after = live_parameters(model);
     // remove_parameter() mutates the model's parameter list, so snapshot it before iterating.
-    const auto parameters = model->get_parameters();
+    const ov::ParameterVector parameters = model->get_parameters();
     bool changed = false;
     for (const auto& param : parameters) {
         if (m_live_before->count(param.get()) && !live_after.count(param.get())) {

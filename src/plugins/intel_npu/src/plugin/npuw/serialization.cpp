@@ -12,14 +12,28 @@
 #include "logging.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
+
+std::shared_ptr<ov::MappedMemory> ov::npuw::s11n::mmap_weights(const ov::FileHandleProvider& handle_provider) {
+    NPUW_ASSERT(handle_provider && "No weights handle provider to map the weights from!");
+    const ov::FileHandle handle = handle_provider();
+    // Where the provider left the handle is where the weights begin (see the declaration).
+    // Unknown position (a non-seekable handle) is the same as "from the start".
+    const auto region_offset = ov::util::get_file_position(handle).value_or(0u);
+    LOG_DEBUG("Mapping weights from the provided file handle at offset " << region_offset << " up to EOF.");
+    // auto_size: to EOF. The region is only an upper bound on the weights - individual weights are
+    // range-checked against it in Const::validate_weight_range().
+    return ov::load_mmap_object(handle, static_cast<std::size_t>(region_offset));
+}
 
 // NOTE: This constructor should only be used when exporting blobs.
 ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
@@ -81,12 +95,14 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
+    stream & var.original_query_length & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.global_mask_idx & var._data_left_aligned;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
-        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices;
+    stream & var.original_query_length & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices & var.global_mask_idx &
+        var._data_left_aligned;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
@@ -108,12 +124,18 @@ std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyrami
         NPUW_ASSERT(tag == 1u && "Unknown PyramidAttention serialization tag");
         auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionBlock>();
         serialize(stream, *obj);
+        // Rebuild the O(1) membership sets — not serialized directly, derived from the
+        // (serialized) ordered global block index vectors.
+        obj->_key_block_global_set = std::unordered_set<size_t>(obj->past_key_block_global_param_indices.begin(),
+                                                                obj->past_key_block_global_param_indices.end());
+        obj->_value_block_global_set = std::unordered_set<size_t>(obj->past_value_block_global_param_indices.begin(),
+                                                                  obj->past_value_block_global_param_indices.end());
         return obj;
     }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var) {
-    stream & var.params & var.mask_idx & var.query_size & var.context_length;
+    stream & var.params & var.mask_idx_local & var.compiled_query_size & var.context_length;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var) {
@@ -121,8 +143,8 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttenti
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var) {
-    stream & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
-        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
+    stream & var.mask_idx_local & var.compiled_query_size & var.context_length & var.param_port_map &
+        var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
@@ -132,8 +154,8 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
         info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._tile_input_indices.q &
         info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
-        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d & var._tile_size &
-        var._can_use_tensor_view;
+        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d &
+        var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
     if (stream.input()) {
         // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
         constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
@@ -411,5 +433,68 @@ void ov::npuw::orc::serialize_weightless(Stream& stream,
             serialize(stream, t);
             var.push_back(t);
         }
+    }
+}
+
+void ov::npuw::s11n::write_header(std::ostream& stream, const IndicatorType& model_indicator) {
+    write(stream, NPUW_SERIALIZATION_INDICATOR);
+    write(stream, model_indicator);
+    write(stream, OPENVINO_VERSION_MAJOR);
+    write(stream, OPENVINO_VERSION_MINOR);
+    write(stream, OPENVINO_VERSION_PATCH);
+    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+}
+
+void ov::npuw::s11n::read_and_check_header(std::istream& stream,
+                                           const IndicatorType& expected,
+                                           const std::string& what) {
+    IndicatorType serialization_indicator;
+    read(stream, serialization_indicator);
+    OPENVINO_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR, "This blob wasn't serialized via NPUW!");
+
+    IndicatorType model_indicator;
+    read(stream, model_indicator);
+    OPENVINO_ASSERT(model_indicator == expected, "This blob wasn't serialized via ", what, "!");
+
+    int vmajor = 0, vminor = 0, vpatch = 0;
+    std::string s11n_version;
+    read(stream, vmajor);
+    read(stream, vminor);
+    read(stream, vpatch);
+
+    // Generous cap so any past/future version string still reaches the mismatch report below.
+    constexpr std::size_t MAX_S11N_VERSION_SIZE = 64u;
+    auto stream_io = Stream::reader(stream);
+    std::size_t s11n_version_size = 0u;
+    stream_io & s11n_version_size;
+    OPENVINO_ASSERT(s11n_version_size <= MAX_S11N_VERSION_SIZE,
+                    "Corrupted NPUW blob: serialization version string is ",
+                    s11n_version_size,
+                    " bytes, the maximum is ",
+                    MAX_S11N_VERSION_SIZE);
+    s11n_version.resize(s11n_version_size);
+    if (s11n_version_size != 0u) {
+        stream_io.bytes(s11n_version.data(), s11n_version_size);
+    }
+
+    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+        OPENVINO_THROW("This blob was serialized with a different OV version!",
+                       "\nSerialized by OV ",
+                       vmajor,
+                       '.',
+                       vminor,
+                       '.',
+                       vpatch,
+                       "\nCurrent OV version ",
+                       OPENVINO_VERSION_MAJOR,
+                       '.',
+                       OPENVINO_VERSION_MINOR,
+                       '.',
+                       OPENVINO_VERSION_PATCH,
+                       "\nNPUW serialized by version ",
+                       s11n_version,
+                       "\nNPUW current serialization version ",
+                       NPUW_SERIALIZATION_VERSION);
     }
 }

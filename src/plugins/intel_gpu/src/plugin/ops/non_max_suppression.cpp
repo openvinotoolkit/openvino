@@ -53,8 +53,9 @@ static void apply_optional_inputs(const std::shared_ptr<ov::Node>& op, cldnn::no
 }
 
 static void add_nms_gather_if_needed(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const std::string& nms_name, size_t num_outputs) {
-    if (!op->get_output_partial_shape(0).is_dynamic())
+    if (!op->get_output_partial_shape(0).is_dynamic()) {
         return;
+    }
 
     auto gather_name = nms_name + "_NMSGather";
     std::vector<cldnn::input_info> gather_inputs = {

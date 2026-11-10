@@ -17,10 +17,7 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::frontend::tensorflow;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 ov::OutputVector translate_roll_op(const NodeContext& node) {
     default_op_checks(node, 3, {"Roll"}, true);
     auto input = node.get_input(0);
@@ -55,7 +52,4 @@ ov::OutputVector translate_roll_op(const NodeContext& node) {
 
     return {roll};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

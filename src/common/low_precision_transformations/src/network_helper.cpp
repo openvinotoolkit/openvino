@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <queue>
 #include <string>
 #include <unordered_set>
@@ -21,6 +22,7 @@
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 #include "low_precision/rt_info/quantization_alignment_attribute.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset3_decl.hpp"
 #include "openvino/opsets/opset6_decl.hpp"
@@ -1571,16 +1573,46 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> multiplyConstants, subtractConstants;
     if (is_type<ov::opset1::Concat>(operation)) {
         const auto concatNode = as_type_ptr<ov::opset1::Concat>(operation);
-        int64_t axis = -1;
-        if (concatNode->get_output_partial_shape(0).rank().is_static()) {
-            const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
-            axis = ov::util::normalize(concatNode->get_axis(), rank);
-        }
-        if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
-            multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
-        }
-        if (dequantization.subtract && dequantization.subtractConstant->get_shape().size() > 1 && dequantization.subtractConstant->get_shape()[axis] != 1) {
-            subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
+        const auto rank = concatNode->get_output_partial_shape(0).rank();
+        const auto isScalar = [](const std::shared_ptr<ov::opset1::Constant>& constant) {
+            return constant == nullptr || ov::shape_size(constant->get_shape()) == 1;
+        };
+        // Without a static rank the Concat axis can't be mapped onto a per-channel constant, so it is
+        // unknown whether the constant has to be split per input.
+        OPENVINO_ASSERT(rank.is_static() ||
+                            (isScalar(dequantization.multiplyConstant) && isScalar(dequantization.subtractConstant)),
+                        "Dequantization constants must be scalar to be moved before a dynamic-rank Concat ",
+                        concatNode->get_friendly_name());
+
+        if (rank.is_static()) {
+            const auto concatRank = static_cast<size_t>(rank.get_length());
+            const auto axis = static_cast<size_t>(ov::util::normalize(concatNode->get_axis(), rank.get_length()));
+            // The constant broadcasts against the Concat output aligned to the trailing dims: split it only
+            // if its dim aligned with the Concat axis isn't broadcast, after padding it to the Concat rank.
+            const auto splitIfNeeded = [&](const std::shared_ptr<ov::opset1::Constant>& constant) {
+                std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> splitConstants;
+                if (isScalar(constant)) {
+                    return splitConstants;
+                }
+                const auto& constantShape = constant->get_shape();
+                OPENVINO_ASSERT(constantShape.size() <= concatRank,
+                                "Dequantization constant rank exceeds the rank of Concat ",
+                                concatNode->get_friendly_name());
+                const size_t offset = concatRank - constantShape.size();
+                if (axis < offset || constantShape[axis - offset] == 1) {
+                    return splitConstants;
+                }
+                Shape paddedShape(offset, 1ul);
+                paddedShape.insert(paddedShape.end(), constantShape.begin(), constantShape.end());
+                const auto paddedConstant = std::make_shared<ov::opset1::Constant>(*constant, paddedShape);
+                return NetworkHelper::splitConstantsBeforeConcat(operation, {paddedConstant});
+            };
+            if (dequantization.multiply) {
+                multiplyConstants = splitIfNeeded(dequantization.multiplyConstant);
+            }
+            if (dequantization.subtract) {
+                subtractConstants = splitIfNeeded(dequantization.subtractConstant);
+            }
         }
     } else {
         multiplyConstants = {{ dequantization.multiplyConstant }};
@@ -1875,6 +1907,31 @@ bool NetworkHelper::checkConstantNotInf(const std::shared_ptr<Node> constant_nod
         return false;
     const auto values = constant->cast_vector<float>();
     return std::all_of(values.begin(), values.end(), [](const float x) { return !std::isinf(x); });
+}
+
+namespace {
+template <ov::element::Type_t precision>
+std::pair<double, double> makeIntegralPrecisionLimits() {
+    using FundamentalType = ov::fundamental_type_for<precision>;
+    return std::make_pair(static_cast<double>(std::numeric_limits<FundamentalType>::lowest()),
+                          static_cast<double>(std::numeric_limits<FundamentalType>::max()));
+}
+}  // namespace
+
+std::optional<std::pair<double, double>> NetworkHelper::getPrecisionLimits(const element::Type_t precision) {
+    static const std::map<ov::element::Type_t, std::pair<double, double>> limits{
+        // Sub-byte types use byte-sized storage types, so their narrower ranges are specified explicitly.
+        {ov::element::i4, {-8.0, 7.0}},
+        {ov::element::u4, {0.0, 15.0}},
+        {ov::element::i8, makeIntegralPrecisionLimits<ov::element::i8>()},
+        {ov::element::u8, makeIntegralPrecisionLimits<ov::element::u8>()},
+        {ov::element::i16, makeIntegralPrecisionLimits<ov::element::i16>()},
+        {ov::element::u16, makeIntegralPrecisionLimits<ov::element::u16>()},
+        {ov::element::i32, makeIntegralPrecisionLimits<ov::element::i32>()},
+        {ov::element::u32, makeIntegralPrecisionLimits<ov::element::u32>()}};
+
+    const auto it = limits.find(precision);
+    return it == limits.end() ? std::nullopt : std::optional<std::pair<double, double>>(it->second);
 }
 } // namespace low_precision
 } // namespace pass

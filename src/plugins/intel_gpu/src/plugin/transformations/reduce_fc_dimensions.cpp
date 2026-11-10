@@ -21,14 +21,14 @@ ReduceFCDimensions::ReduceFCDimensions() {
     auto no_bias_m = ov::pass::pattern::wrap_type<op::Placeholder>();
     auto fc_m = ov::pass::pattern::wrap_type<op::FullyConnected>({activations_m, weights_m, no_bias_m});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto activations = pattern_map.at(activations_m).get_node_shared_ptr();
         auto weights = pattern_map.at(weights_m).get_node_shared_ptr();
         auto no_bias = pattern_map.at(no_bias_m).get_node_shared_ptr();
         auto fc = pattern_map.at(fc_m).get_node_shared_ptr();
-       
+
         auto wei_pshape = weights->get_output_partial_shape(0);
         // Do not apply in case of dynamic weight shape
         if (wei_pshape.is_dynamic()) {

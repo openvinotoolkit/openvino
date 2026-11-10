@@ -7,13 +7,22 @@
 
 namespace kernel_selector {
 bool RMSKernelBase::Validate(const Params& p) const {
-    if (!KernelBaseOpenCL::Validate(p))
+    if (!KernelBaseOpenCL::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const rms_params& params = static_cast<const rms_params&>(p);
     auto supported_dyn_layouts = { DataLayout::bfyx, DataLayout::bfzyx };
-    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts)))
+    if (params.has_dynamic_tensors() && (!layout_is_one_of(params.inputs, supported_dyn_layouts) || !layout_is_one_of(params.outputs, supported_dyn_layouts))) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    const bool last_axis = axis == params.ov_input_rank - 1;
+    const bool feature_axis = axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5);
+    if (!last_axis && !feature_axis) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -44,6 +53,11 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
 }
 
 Tensor::DataChannelName RMSKernelBase::GetNormalizationAxis(const rms_params& params) {
+    const auto axis = params.axis < 0 ? params.axis + params.ov_input_rank : params.axis;
+    if (axis == 1 && (params.ov_input_rank == 4 || params.ov_input_rank == 5)) {
+        return Tensor::DataChannelName::FEATURE;
+    }
+
     switch (params.ov_input_rank) {
         case 1: return Tensor::DataChannelName::BATCH;
         case 2: return Tensor::DataChannelName::FEATURE;
@@ -96,8 +110,9 @@ void RMSKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
 KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::RMS);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const rms_params& orgParams = static_cast<const rms_params&>(params);
     auto dispatchData = SetDefault(orgParams);
@@ -112,6 +127,9 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
 
     auto& kernel = kd.kernels[0];
     auto inputs_count = orgParams.elementwise_affine ? 2 : 1;
+    const bool has_dynamic_quantize = std::any_of(orgParams.fused_ops.begin(), orgParams.fused_ops.end(), [](const fused_operation_desc& fused_op) {
+        return fused_op.GetType() == KernelType::DYNAMIC_QUANTIZE;
+    });
     FillCLKernelData(kernel,
                      dispatchData,
                      params.engineInfo,
@@ -123,7 +141,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
                      false,
                      inputs_count,
                      GetFusedPrimitiveInputsCount(params),
-                     1,
+                     has_dynamic_quantize ? 2 : 1,
                      orgParams.is_shape_agnostic);
 
     return {kd};

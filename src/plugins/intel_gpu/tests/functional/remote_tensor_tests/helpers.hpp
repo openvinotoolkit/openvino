@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -257,6 +258,71 @@ struct VADevice {
                                              &attrib,
                                              1);
         return status == VA_STATUS_SUCCESS ? surface : VA_INVALID_SURFACE;
+    }
+
+    bool fill_nv12_surface(VASurfaceID surface,
+                           size_t width,
+                           size_t height,
+                           uint8_t y_value,
+                           uint8_t u_value,
+                           uint8_t v_value) const {
+        if (vaSyncSurface(_display, surface) != VA_STATUS_SUCCESS)
+            return false;
+
+        VAImageFormat format{};
+        format.fourcc = VA_FOURCC_NV12;
+        format.byte_order = VA_LSB_FIRST;
+        format.bits_per_pixel = 12;
+
+        VAImage image{};
+        if (vaCreateImage(_display,
+                          &format,
+                          static_cast<int>(width),
+                          static_cast<int>(height),
+                          &image) != VA_STATUS_SUCCESS) {
+            return false;
+        }
+
+        void* data = nullptr;
+        if (vaMapBuffer(_display, image.buf, &data) != VA_STATUS_SUCCESS) {
+            vaDestroyImage(_display, image.image_id);
+            return false;
+        }
+
+        const bool valid_image = image.num_planes >= 2 && image.format.fourcc == VA_FOURCC_NV12;
+        if (valid_image) {
+            auto* base = static_cast<uint8_t*>(data);
+            for (size_t row = 0; row < height; ++row)
+                std::fill_n(base + image.offsets[0] + row * image.pitches[0], width, y_value);
+
+            for (size_t row = 0; row < height / 2; ++row) {
+                auto* uv_row = base + image.offsets[1] + row * image.pitches[1];
+                for (size_t column = 0; column < width; column += 2) {
+                    uv_row[column] = u_value;
+                    uv_row[column + 1] = v_value;
+                }
+            }
+        }
+
+        const auto unmap_status = vaUnmapBuffer(_display, image.buf);
+        auto put_status = VA_STATUS_ERROR_OPERATION_FAILED;
+        if (unmap_status == VA_STATUS_SUCCESS) {
+            put_status = vaPutImage(_display,
+                                    surface,
+                                    image.image_id,
+                                    0,
+                                    0,
+                                    static_cast<unsigned int>(width),
+                                    static_cast<unsigned int>(height),
+                                    0,
+                                    0,
+                                    static_cast<unsigned int>(width),
+                                    static_cast<unsigned int>(height));
+        }
+        const auto destroy_status = vaDestroyImage(_display, image.image_id);
+        const auto sync_status = vaSyncSurface(_display, surface);
+        return valid_image && unmap_status == VA_STATUS_SUCCESS && put_status == VA_STATUS_SUCCESS &&
+               destroy_status == VA_STATUS_SUCCESS && sync_status == VA_STATUS_SUCCESS;
     }
 
     // Releases the surface and invalidates the passed id

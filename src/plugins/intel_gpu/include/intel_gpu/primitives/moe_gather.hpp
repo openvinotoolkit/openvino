@@ -38,8 +38,9 @@ struct moe_gather : public primitive_base<moe_gather> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const moe_gather>(rhs);
         return num_experts_per_token == rhs_casted.num_experts_per_token && has_batch_dim == rhs_casted.has_batch_dim;

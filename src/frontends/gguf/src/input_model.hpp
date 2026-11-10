@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "builder/gguf_builder.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/frontend/input_model.hpp"
@@ -29,6 +30,9 @@ class GGUF_FRONTEND_API InputModel : public ov::frontend::InputModel {
 
 public:
     explicit InputModel(const std::shared_ptr<GgufDecoder>& gdecoder);
+    InputModel(GraphBuilder builder, std::vector<ov::Extension::Ptr> extensions)
+        : m_extensions(std::move(extensions)),
+          m_builder(std::move(builder)) {}
 
     // Model-scope topology (forwarded to the underlying decoder's model-scope accessors).
     const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const;
@@ -44,6 +48,9 @@ public:
 
 private:
     std::shared_ptr<GgufDecoder> m_decoder;
+    // Keep the builder library loaded until its factory has been destroyed.
+    std::vector<ov::Extension::Ptr> m_extensions;
+    GraphBuilder m_builder;
 };
 
 }  // namespace ov::frontend::gguf

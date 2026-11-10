@@ -17,11 +17,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 
 template <typename BinaryOp>
 ov::OutputVector qlinear_op(const ov::frontend::onnx::Node& node, BinaryOp binary_op) {
@@ -95,8 +91,4 @@ namespace {
 ONNX_OP("QLinearAdd", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_add, MICROSOFT_DOMAIN);
 }
 ONNX_OP("QLinearMul", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_mul, MICROSOFT_DOMAIN);
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

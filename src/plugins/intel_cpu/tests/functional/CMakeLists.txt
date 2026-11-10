@@ -45,69 +45,22 @@ set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_pl
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)
 set(LINK_LIBRARIES funcSharedTests cpuUtils openvino::snippets ov_snippets_models openvino::reference)
 
-if(ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND DEFINES TEST_MODELS="${TEST_MODEL_ZOO}")
-else()
-    set(EXCLUDED_SOURCE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/custom/extension ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/onnx)
-endif()
-
-if(NOT RISCV64)
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64
-         ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64)
-else()
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/riscv64/shl)
-endif()
-
-if(NOT (X86 OR X86_64))
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
-endif()
-
-if(NOT (ARM OR AARCH64))
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm
-         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/aarch64
-         ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
-else()
-    # temporary disable all custom tests for ARM
-    list(APPEND EXCLUDED_SOURCE_PATHS
-        ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests
-        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests)
-    # except ones which already enabled
-    file(GLOB_RECURSE TMP_LIST_OF_TEST_CLASSES          ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/classes/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_COMMON_TEST_INSTANCES ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/common/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_TEST_INSTANCES    ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/arm/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_ARM_SUBGRAPH_TESTS    ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/arm/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_COMMON_SUBGRAPH_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/common/*.cpp)
-    file(GLOB_RECURSE TMP_LIST_OF_SUBGRAPH_TEST_CLASSES ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/*.*)
-
-    list(APPEND TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS
-        ${TMP_LIST_OF_TEST_CLASSES} ${TMP_LIST_OF_COMMON_TEST_INSTANCES} ${TMP_LIST_OF_ARM_TEST_INSTANCES} ${TMP_LIST_OF_ARM_SUBGRAPH_TESTS} ${TMP_LIST_OF_COMMON_SUBGRAPH_TESTS} ${TMP_LIST_OF_SUBGRAPH_TEST_CLASSES})
-    set(TMP_EXPLICITLY_ENABLED_TESTS "${TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS}")
-endif()
-
-if(NOT X86_64)
-    list(APPEND EXCLUDED_SOURCE_PATHS
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/single_layer_tests/instances/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/x64
-         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/low_precision_transformations/x64)
-endif()
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES ${CPU_FUNC_TESTS_SRCS}
         INCLUDES ${INCLUDES}
-        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
         OBJECT_FILES ${TMP_EXPLICITLY_ENABLED_TESTS}
         DEFINES ${DEFINES}
         DEPENDENCIES ${DEPENDENCIES}
         LINK_LIBRARIES ${LINK_LIBRARIES}
         LABELS OV CPU
+        CHECK_SOURCES_LISTED
+        CHECK_SOURCES_EXCLUDE_FILES
+            ${CPU_FUNC_TESTS_CHECK_SOURCES_EXCLUDE_FILES}
+        CHECK_SOURCES_EXCLUDE_DIRECTORIES
+            ${CPU_FUNC_TESTS_CHECK_SOURCES_EXCLUDE_DIRECTORIES}
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})

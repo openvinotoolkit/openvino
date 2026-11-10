@@ -4,7 +4,10 @@
 
 #include "optimize_value_tensors.hpp"
 
+#include <algorithm>
 #include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
+#include <unordered_set>
+#include <vector>
 
 #include "../llm_compiled_model_utils.hpp"
 #include "../logging.hpp"
@@ -15,6 +18,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/validate.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -31,6 +35,44 @@ public:
     struct Context {
         using Ref = std::reference_wrapper<Context>;
         bool bTransposed = false;
+        std::unordered_set<const ov::op::v0::Parameter*> transposed_params;
+        ov::OutputVector changed_outputs;
+
+        void track(const ov::Output<ov::Node>& output) {
+            if (std::find(changed_outputs.begin(), changed_outputs.end(), output) == changed_outputs.end()) {
+                changed_outputs.push_back(output);
+            }
+        }
+
+        void restore_shape_of_consumers() const {
+            for (const auto& output : changed_outputs) {
+                const auto targets = output.get_target_inputs();
+                for (const auto& input : targets) {
+                    auto consumer = input.get_node()->shared_from_this();
+                    if (!ov::is_type<ov::op::v0::ShapeOf>(consumer) && !ov::is_type<ov::op::v3::ShapeOf>(consumer)) {
+                        continue;
+                    }
+                    const auto& rank = output.get_partial_shape().rank();
+                    OPENVINO_ASSERT(rank.is_static() && rank.get_length() >= 2,
+                                    "Cannot restore ShapeOf dimension order for a value tensor with dynamic rank");
+                    std::vector<int64_t> order(static_cast<size_t>(rank.get_length()));
+                    for (size_t i = 0; i < order.size(); ++i) {
+                        order[i] = static_cast<int64_t>(i);
+                    }
+                    std::swap(order[order.size() - 2], order[order.size() - 1]);
+                    auto order_constant =
+                        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{order.size()}, order);
+                    // Reorder only the shape vector, preserving runtime dimensions and all data edges.
+                    auto shape_of = consumer->clone_with_new_inputs({output});
+                    shape_of->set_friendly_name(consumer->get_friendly_name() + "/transposed_layout");
+                    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+                    auto restore_shape = std::make_shared<ov::op::v8::Gather>(shape_of, order_constant, axis);
+                    restore_shape->set_friendly_name(consumer->get_friendly_name());
+                    ov::copy_runtime_info(consumer, {shape_of, restore_shape});
+                    ov::replace_node(consumer, restore_shape);
+                }
+            }
+        }
     };
 
 protected:
@@ -45,18 +87,32 @@ protected:
         // across attention layers in Gemma4).  Guard the shared-state mutations so they
         // are applied exactly once; per-branch matmul transpose_b is always set.
         if (matched_concat->get_axis() != 3u) {
-            auto param_shape = matched_param->get_partial_shape();
-            NPUW_ASSERT(param_shape.size() == 4u);
-            // NB: Transpose Parameter that correspond to V-tensor it will
-            // speed-up its multiplication with attention scores
-            std::swap(param_shape[2], param_shape[3]);
-
-            matched_param->set_partial_shape(param_shape);
+            if (ctx.get().transposed_params.insert(matched_param.get()).second) {
+                auto param_shape = matched_param->get_partial_shape();
+                NPUW_ASSERT(param_shape.size() == 4u);
+                // NB: Transpose Parameter that correspond to V-tensor it will
+                // speed-up its multiplication with attention scores
+                std::swap(param_shape[2], param_shape[3]);
+                matched_param->set_partial_shape(param_shape);
+            }
 
             auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
             matched_transpose->set_argument(1, order_cst);
             matched_concat->set_axis(3u);
+            for (size_t i = 0; i < matched_concat->get_input_size(); ++i) {
+                const auto input = matched_concat->input_value(i);
+                if (input.get_node_shared_ptr() == matched_param) {
+                    ctx.get().track(matched_param->output(0));
+                } else if (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(input.get_node_shared_ptr())) {
+                    if (convert->input_value(0).get_node_shared_ptr() == matched_param) {
+                        ctx.get().track(matched_param->output(0));
+                        ctx.get().track(convert->output(0));
+                    }
+                }
+            }
+            ctx.get().track(matched_transpose->output(0));
         }
+        ctx.get().track(matched_concat->output(0));
         matched_matmul->set_transpose_b(true);
         ctx.get().bTransposed = true;
     }
@@ -72,6 +128,87 @@ protected:
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(node_matmul);
 
         transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
+    }
+};
+
+class TransposeDirectValueTensorsPrefill : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeDirectValueTensorsPrefill");
+    explicit TransposeDirectValueTensorsPrefill(TransposeValueTensors::Context::Ref ctx) {
+        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, transpose});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            const auto& node_to_output = m.get_pattern_value_map();
+            const auto matched_transpose =
+                ov::as_type_ptr<ov::op::v1::Transpose>(node_to_output.at(transpose).get_node_shared_ptr());
+            const auto matched_matmul =
+                ov::as_type_ptr<ov::op::v0::MatMul>(node_to_output.at(matmul).get_node_shared_ptr());
+
+            if (matched_transpose == nullptr || matched_matmul == nullptr) {
+                return false;
+            }
+
+            const auto shape = matched_transpose->get_output_partial_shape(0);
+            if (shape.rank().is_dynamic() || shape.rank().get_length() != 4) {
+                return false;
+            }
+
+            const auto order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+            matched_transpose->set_argument(1, order);
+            matched_matmul->set_transpose_b(true);
+            ctx.get().track(matched_transpose->output(0));
+            ctx.get().bTransposed = true;
+            LOG_DEBUG("vtensors transposed: Whisper cross-attention prefill pattern");
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeDirectValueTensorsPrefill"),
+                         std::move(callback));
+    }
+};
+
+class TransposeDirectValueTensorsGenerate : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::TransposeDirectValueTensorsGenerate");
+    explicit TransposeDirectValueTensorsGenerate(TransposeValueTensors::Context::Ref ctx) {
+        auto param = opp::wrap_type<ov::op::v0::Parameter>();
+        auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
+        auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, convert});
+
+        auto callback = [=](ov::pass::pattern::Matcher& m) {
+            const auto& node_to_output = m.get_pattern_value_map();
+            const auto matched_param =
+                ov::as_type_ptr<ov::op::v0::Parameter>(node_to_output.at(param).get_node_shared_ptr());
+            const auto matched_matmul =
+                ov::as_type_ptr<ov::op::v0::MatMul>(node_to_output.at(matmul).get_node_shared_ptr());
+
+            if (matched_param == nullptr || matched_matmul == nullptr) {
+                return false;
+            }
+
+            const auto shape = matched_param->get_partial_shape();
+            if (shape.rank().is_dynamic() || shape.rank().get_length() != 4) {
+                return false;
+            }
+
+            if (ctx.get().transposed_params.insert(matched_param.get()).second) {
+                auto transposed_shape = shape;
+                std::swap(transposed_shape[2], transposed_shape[3]);
+                matched_param->set_partial_shape(transposed_shape);
+                ctx.get().track(matched_param->output(0));
+            }
+            const auto matched_convert = node_to_output.find(convert);
+            if (matched_convert != node_to_output.end()) {
+                ctx.get().track(matched_convert->second);
+            }
+            matched_matmul->set_transpose_b(true);
+            ctx.get().bTransposed = true;
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(matmul, "TransposeDirectValueTensorsGenerate"),
+                         std::move(callback));
     }
 };
 
@@ -95,7 +232,7 @@ private:
             {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, concat});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
@@ -147,7 +284,7 @@ private:
             {softmax, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({maybe_slice, reshape});
 
-        auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_node_param = node_to_output.at(param).get_node_shared_ptr();
@@ -223,6 +360,9 @@ private:
             matched_reshape->input(1).replace_source_output(reshape_axes_node);
 
             transpose_matmul_b(ctx, matched_param, matched_concat, matched_transpose, matched_matmul);
+            ctx.get().track(matched_unsqueeze->output(0));
+            ctx.get().track(matched_broadcast->output(0));
+            ctx.get().track(matched_reshape->output(0));
             LOG_DEBUG("vtensors transposed: GQA pattern");
             return true;
         };
@@ -236,7 +376,7 @@ public:
     explicit ScaledDotProductAttentionDecomposition(bool use_high_precision_on_add) {
         auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
 
-        ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
             auto& pattern_to_output = m.get_pattern_value_map();
             auto node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(
                 pattern_to_output.at(pattern_node).get_node_shared_ptr());
@@ -370,8 +510,17 @@ bool ov::npuw::util::OptimizeValueTensors::run_on_model(const std::shared_ptr<ov
     TransposeValueTensors::Context ctx;
     rewr.add_matcher<TransposeValueTensors_MHA>(std::ref(ctx));
     rewr.add_matcher<TransposeValueTensors_GQA>(std::ref(ctx));
+    if (m_is_whisper) {
+        if (m_is_prefill) {
+            rewr.add_matcher<TransposeDirectValueTensorsPrefill>(std::ref(ctx));
+        } else {
+            rewr.add_matcher<TransposeDirectValueTensorsGenerate>(std::ref(ctx));
+        }
+    }
 
     rewr.run_on_model(model);
+
+    ctx.restore_shape_of_consumers();
 
     ov::pass::Validate().run_on_model(model);
 

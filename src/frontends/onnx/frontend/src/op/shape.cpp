@@ -13,10 +13,7 @@
 #include "openvino/op/slice.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 
 namespace opset_15 {
 
@@ -52,7 +49,4 @@ ov::OutputVector shape(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Shape", OPSET_RANGE(1, 14), ai_onnx::opset_1::shape);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

@@ -36,14 +36,21 @@
 #include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl.hpp>
+#endif
+
 namespace ov::intel_gpu {
 
 namespace {
 
+constexpr float optimum_intel_default_asf = 8.0f;
+
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
-    if (model.has_rt_info("runtime_options"))
+    if (model.has_rt_info("runtime_options")) {
         rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
+    }
 
     if (model.has_rt_info("__weights_path")) {
         rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
@@ -64,20 +71,24 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v15::SearchSorted>(op)||
         ov::is_type<ov::op::v15::STFT>(op) ||
         ov::is_type<ov::op::v16::ISTFT>(op) ||
-        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op))
+        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op)) {
         return true;
+    }
 
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
         return true;
+    }
 
     if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) || ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
-        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op))
+        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
         return true;
+    }
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
         const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
-        if (body_function->is_dynamic())
+        if (body_function->is_dynamic()) {
             return true;
+        }
     }
 
     if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
@@ -112,18 +123,21 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic())
+        if (op->get_output_partial_shape(i).is_dynamic()) {
             return true;
+        }
     }
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).size() > 6)
+        if (op->get_output_partial_shape(i).size() > 6) {
             return true;
+        }
     }
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
-        if (op->get_input_partial_shape(i).size() > 6)
+        if (op->get_input_partial_shape(i).size() > 6) {
             return true;
+        }
     }
 
     return false;
@@ -161,6 +175,19 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
     PluginConfig::finalize(ctx.get(), nullptr);
 }
 
+void ExecutionConfig::apply_weightless_options() {
+    const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties());
+    if (get_offload_ratio() > 0) {
+        OPENVINO_ASSERT(enable_weightless.value_or(true) &&
+                            (!is_set_by_user(ov::cache_mode) || get_cache_mode() != ov::CacheMode::OPTIMIZE_SPEED),
+                        "OFFLOAD_RATIO requires weightless cache. Do not set ENABLE_WEIGHTLESS=false or "
+                        "CACHE_MODE=OPTIMIZE_SPEED when using OFFLOAD_RATIO.");
+        set_property({ov::enable_weightless(true), ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)});
+    } else if (enable_weightless) {
+        set_property(ov::enable_weightless(*enable_weightless));
+    }
+}
+
 void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora) {
     const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
     OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::apply_rt_info");
@@ -169,7 +196,10 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
 
-    if (!is_llm || (has_lora && !info.supports_immad)) {
+    // WA: Optimum Intel writes the default ASF to every LLM IR, so only a non-default value is applied. Remove when old IRs are gone.
+    const auto asf_it = rt_info.find(ov::hint::activations_scale_factor.name());
+    const bool has_non_default_asf = asf_it != rt_info.end() && asf_it->second.as<float>() != optimum_intel_default_asf;
+    if (!is_llm || (has_lora && !info.supports_immad) || has_non_default_asf) {
         apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     }
 
@@ -178,10 +208,8 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.  OTD (MoE offload) also requires the .bin path.
-    if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
-        set_property({ov::enable_weightless(*enable_weightless)});
-    }
+    // using that mechanism. OTD (MoE offload) also requires the .bin path.
+    apply_weightless_options();
     if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
@@ -250,12 +278,14 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     // Trace MatMul weight input through the decompression subgraph
     // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
     auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
-        if (!ov::is_type<ov::op::v0::MatMul>(op))
+        if (!ov::is_type<ov::op::v0::MatMul>(op)) {
             return false;
+        }
         auto weight = op->get_input_node_shared_ptr(1);
         for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
-            if (ov::is_type<ov::op::v0::Constant>(weight))
+            if (ov::is_type<ov::op::v0::Constant>(weight)) {
                 break;
+            }
             weight = weight->get_input_node_shared_ptr(0);
         }
         if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
@@ -328,6 +358,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 }
 
 void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
+    apply_weightless_options();
+
     GPU_DEBUG_IF(get_help()) {
         print_help();
         exit(-1);
@@ -338,19 +370,26 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     if (!is_set_by_user(ov::internal::enable_lp_transformations)) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
+#ifdef ENABLE_ONEDNN_FOR_GPU
     if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
         m_use_onednn = true;
     }
-    if (get_use_onednn()) {
+    if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;
     }
+    if (m_use_onednn && dnnl::verbose_profiling_enabled()) {
+        // Auto-enable profiling when OneDNN verbose profiling is enabled.
+        m_enable_profiling = true;
+    }
+#endif
 
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {
-         if (info.supports_immad)
+         if (info.supports_immad) {
             m_dynamic_quantization_group_size = std::numeric_limits<uint64_t>::max();
-         else
+         } else {
             m_dynamic_quantization_group_size = 32;
+         }
     }
 
     if (!get_force_implementations().empty()) {
@@ -394,10 +433,11 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
                 m_inference_precision = ov::element::dynamic;
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
-                if (info.supports_fp16)
+                if (info.supports_fp16) {
                     m_inference_precision = ov::element::f16;
-                else
+                } else {
                     m_inference_precision = ov::element::f32;
+                }
             }
         }
     }

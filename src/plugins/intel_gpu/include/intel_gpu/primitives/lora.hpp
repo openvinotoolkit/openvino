@@ -37,8 +37,9 @@ struct lora : public primitive_base<lora> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const lora>(rhs);
         return transposed_states == rhs_casted.transposed_states;

@@ -8,10 +8,7 @@
 #include "openvino/op/less_eq.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
     const auto& input = node.get_ov_inputs();
@@ -33,7 +30,4 @@ ov::OutputVector less_or_equal(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("LessOrEqual", OPSET_SINCE(16), ai_onnx::opset_16::less_or_equal);
 }  // namespace opset_16
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

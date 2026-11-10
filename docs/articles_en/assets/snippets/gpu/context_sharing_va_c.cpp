@@ -3,6 +3,8 @@
 //
 
 #ifdef ENABLE_LIBVA
+#include <stdio.h>
+
 #include <openvino/c/openvino.h>
 #include <openvino/c/gpu/gpu_plugin_properties.h>
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
@@ -97,6 +99,11 @@ int main() {
     //     ...
     //wrap decoder output into RemoteBlobs and set it as inference input
 
+    // the C API reads every non-handle property value with va_arg(..., char*),
+    // so numeric values such as the VASurfaceID and the plane index must be decimal strings
+    char surface_id[21];
+    snprintf(surface_id, sizeof(surface_id), "%u", (unsigned int)va_surface);
+
     ov_tensor_t* remote_tensor_y = NULL;
     ov_tensor_t* remote_tensor_uv = NULL;
     ov_remote_context_create_tensor(shared_va_context,
@@ -107,9 +114,9 @@ int main() {
                                     ov_property_key_intel_gpu_shared_mem_type,
                                     "VA_SURFACE",
                                     ov_property_key_intel_gpu_dev_object_handle,
-                                    va_surface,
+                                    surface_id,
                                     ov_property_key_intel_gpu_va_plane,
-                                    0);
+                                    "0");
     ov_remote_context_create_tensor(shared_va_context,
                                     U8,
                                     shape_uv,
@@ -118,9 +125,9 @@ int main() {
                                     ov_property_key_intel_gpu_shared_mem_type,
                                     "VA_SURFACE",
                                     ov_property_key_intel_gpu_dev_object_handle,
-                                    va_surface,
+                                    surface_id,
                                     ov_property_key_intel_gpu_va_plane,
-                                    1);
+                                    "1");
 
     ov_compiled_model_create_infer_request(compiled_model, &infer_request);
     ov_infer_request_set_tensor(infer_request, input_name_0, remote_tensor_y);

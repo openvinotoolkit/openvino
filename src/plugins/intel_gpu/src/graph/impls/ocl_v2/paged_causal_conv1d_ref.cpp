@@ -4,12 +4,43 @@
 
 #include "paged_causal_conv1d_ref.hpp"
 
+#include <limits>
+
 #include "intel_gpu/primitives/paged_causal_conv1d.hpp"
 #include "primitive_ocl_base.hpp"
 #include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
+
+enum class ScalarArg : size_t {
+    sequence_count,
+    hidden_size,
+    input_token_stride,
+    input_hidden_stride,
+    state_block_stride,
+    state_hidden_stride,
+    state_kernel_stride,
+    weight_hidden_stride,
+    weight_kernel_stride,
+    bias_hidden_stride,
+    output_token_stride,
+    output_hidden_stride,
+    state_block_count,
+    input_offset,
+    state_offset,
+    weight_offset,
+    bias_offset,
+    subsequence_offset,
+    block_indices_offset,
+    block_begins_offset,
+    past_lens_offset,
+    cache_interval_offset,
+    output_offset,
+    count,
+};
+
+constexpr size_t scalar_arg_count = static_cast<size_t>(ScalarArg::count);
 
 class PagedCausalConv1DRefGenerator : public KernelGenerator {
 public:
@@ -21,11 +52,16 @@ protected:
 
         const auto& input_shape = params.get_input_layout(paged_causal_conv1d::INPUT_EMBEDS).get_partial_shape();
         const auto& state_shape = params.get_input_layout(paged_causal_conv1d::CONV_STATE_TABLE).get_partial_shape();
+        const auto& weight_shape = params.get_input_layout(paged_causal_conv1d::CONV_WEIGHT).get_partial_shape();
         const auto& bias_shape = params.get_input_layout(paged_causal_conv1d::CONV_BIAS).get_partial_shape();
         const bool has_bias = bias_shape.rank().is_static() && bias_shape.size() == 1 && bias_shape[0].is_static() && bias_shape[0].get_length() != 0;
 
+        auto desc = params.typed_desc<paged_causal_conv1d>();
+
         jit.make("HIDDEN_SIZE", static_cast<int>(input_shape[1].get_length()));
-        jit.make("KERNEL_SIZE", static_cast<int>(state_shape[2].get_length()));
+        jit.make("CAUSAL_WINDOW", static_cast<int>(state_shape[2].get_length()));
+        jit.make("NUM_TAPS", static_cast<int>(weight_shape[2].get_length()));
+        jit.make("DILATION", static_cast<int>(desc->dilation));
         jit.make("HAS_BIAS", has_bias ? 1 : 0);
 
         return jit;
@@ -40,8 +76,7 @@ protected:
 
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
-        constexpr size_t num_scalars = 13;  // Must match scalars count in get_dispatch_data_func
-        for (size_t i = 0; i < num_scalars; i++) {
+        for (size_t i = 0; i < scalar_arg_count; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, static_cast<uint32_t>(i)});
         }
 
@@ -111,6 +146,16 @@ protected:
                 output_hidden_stride,
                 static_cast<int32_t>(params.get_input_layout(paged_causal_conv1d::CONV_STATE_TABLE).get_partial_shape()[0].get_length()),
             };
+
+            auto append_offset = [&scalars](const cldnn::layout& layout) {
+                const auto offset = layout.get_linear_offset();
+                OPENVINO_ASSERT(offset <= static_cast<size_t>(std::numeric_limits<int32_t>::max()), "PagedCausalConv1D layout offset exceeds int32 range");
+                scalars.push_back(static_cast<int32_t>(offset));
+            };
+            for (const auto& input_layout : params.input_layouts)
+                append_offset(input_layout);
+            append_offset(out_layout);
+            OPENVINO_ASSERT(scalars.size() == scalar_arg_count, "PagedCausalConv1D scalar arguments do not match the kernel signature");
 
             for (auto v : scalars) {
                 scalar_desc desc;

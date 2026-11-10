@@ -19,12 +19,13 @@ using NDims = std::vector<kernel_selector::Tensor::Dim>;
 
 static size_t calc_read_offset(const reduce_params& params) {
     auto read_offset = 1;
-    if (BytesPerElement(params.inputs[0].GetDType()) == 4)
+    if (BytesPerElement(params.inputs[0].GetDType()) == 4) {
         read_offset = 4;
-    else if (BytesPerElement(params.inputs[0].GetDType()) == 2)
+    } else if (BytesPerElement(params.inputs[0].GetDType()) == 2) {
         read_offset = 8;
-    else if (BytesPerElement(params.inputs[0].GetDType()) == 1)
+    } else if (BytesPerElement(params.inputs[0].GetDType()) == 1) {
         read_offset = 16;
+    }
     return read_offset;
 }
 
@@ -81,8 +82,9 @@ static bool can_opt_reduce_xy(const reduce_params& params) {
 
 static bool reducing_unaligned_f_axis(const reduce_params& params) {
     if (count(params.reduceAxes.begin(), params.reduceAxes.end(), AXIS_F) > 0) {
-        if (params.inputs[0].Feature().v % 16 != 0)
+        if (params.inputs[0].Feature().v % 16 != 0) {
             return true;
+        }
     }
 
     return false;
@@ -185,6 +187,17 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
                                              IndexType::TENSOR_COORD,
                                              Tensor::DataChannelName::X};
 
+        // Used per x position for a partial last x block, where vector loads would read past the row.
+        FusedOpsConfiguration conf_x_tail = {"_X_TAIL",
+                                             {"b", "f", "y", "(x + i)"},
+                                             var_name + "[i]",
+                                             input_dt,
+                                             1,
+                                             LoadType::LT_ALIGNED_READ,
+                                             BoundaryCheck::DISABLED,
+                                             IndexType::TENSOR_COORD,
+                                             Tensor::DataChannelName::X};
+
         if (cant_handle_vec16) {
             FusedOpsConfiguration conf_vector_1 = {"_VECTOR_1",
                                                    idx_order,
@@ -210,7 +223,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
             jit.AddConstant(MakeJitConstant("FUSED_OPS_VECTOR", "{FUSED_OPS_VECTOR_1;final_result.lo=FUSED_OPS_RESULT_VECTOR_1;}"
                                                                 "{FUSED_OPS_VECTOR_2;final_result.hi=FUSED_OPS_RESULT_VECTOR_2;}"));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT_VECTOR", "final_result"));
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vector_1, conf_vector_2}));
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_x_tail, conf_vector_1, conf_vector_2}));
         } else {
             FusedOpsConfiguration conf_vector = {"_VECTOR",
                                                  idx_order,
@@ -222,7 +235,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
                                                  IndexType::TENSOR_COORD,
                                                  Tensor::DataChannelName::X};
 
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vector, conf_scalar}));
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vector, conf_scalar, conf_x_tail}));
         }
     }
 

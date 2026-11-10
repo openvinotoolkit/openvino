@@ -21,16 +21,18 @@ struct PoolingImplementationManager : public ImplementationManager {
         assert(node.is_type<pooling>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         const auto& in_layout = node.get_input_layout(0);
         const auto& out_layout = node.get_output_layout(0);
         auto in_dt = in_layout.data_type;
         auto out_dt = out_layout.data_type;
 
-        if (in_layout.data_padding || out_layout.data_padding)
+        if (in_layout.data_padding || out_layout.data_padding) {
             return false;
+        }
 
         static const std::vector<format::type> supported_formats = {
             format::any,
@@ -70,11 +72,13 @@ struct PoolingImplementationManager : public ImplementationManager {
         bool u8s8_case = one_of(in_dt, {ov::element::i8, ov::element::u8}) &&
                          one_of(out_dt, {ov::element::i8, ov::element::u8, ov::element::f32, ov::element::f16, ov::element::bf16});
 
-        if (!fp_case && !u8s8_case)
+        if (!fp_case && !u8s8_case) {
             return false;
+        }
 
-        if (!one_of(in_layout.format.value, supported_formats) || !one_of(out_layout.format.value, supported_formats))
+        if (!one_of(in_layout.format.value, supported_formats) || !one_of(out_layout.format.value, supported_formats)) {
             return false;
+        }
 
         return is_supported_post_ops(node);
     }

@@ -512,10 +512,12 @@ void DataTensor::SwapXY() {
     auto x = X();
     auto y = Y();
 
-    if (GetLayout() != DataLayout::bfyx)
+    if (GetLayout() != DataLayout::bfyx) {
         throw std::runtime_error("Unsupported - unsupported layout.");
-    if (x.pad.Total() != 0 || x.v != 1)
+    }
+    if (x.pad.Total() != 0 || x.v != 1) {
         throw std::runtime_error("Unsupported - unsupported shape.");
+    }
 
     // Swap XY axes.
     y.pitch = 1;
@@ -951,8 +953,9 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
         vec[Channelndex(l, WeightsChannelName::OFM)] /= g;
     }
 
-    if (should_split && !DoesGroupDimExist(l))
+    if (should_split && !DoesGroupDimExist(l)) {
         vec[Channelndex(l, WeightsChannelName::OFM)] /= g;
+    }
 
     return {vec, t, l};
 }
@@ -960,8 +963,9 @@ WeightsTensor WeightsTensor::TransformIgnorePadding(WeightsLayout l, WeightsType
 void WeightsTensor::SwapXY() {
     auto x = X();
 
-    if (x.pad.Total() != 0 || x.v != 1)
+    if (x.pad.Total() != 0 || x.v != 1) {
         throw std::runtime_error("Unsupported - unsupported weight shape.");
+    }
 
     std::vector<size_t> vec;
     for (auto& d : dims) {

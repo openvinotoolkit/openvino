@@ -2775,13 +2775,13 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
     // Grow the norm buffer if needed; preserve old content for L0 tokens so subsequent
     // decodes see the correct norms (this path grows in place, no beam reorder).
     auto grow_meta_data = [&](PlainTensor& meta_data) {
-        if (meta_data && meta_data.size(2) >= L0 + L1) {
+        if (meta_data && meta_data.size(0) == B && meta_data.size(1) == H && meta_data.size(2) >= L0 + L1) {
             return;
         }
         PlainTensor old = meta_data;
         meta_data = PlainTensor{};
         meta_data.resize<float>({B, H, L0 + L1, 1});
-        if (old && L0 > 0 && !is_reset) {
+        if (old && L0 > 0 && !is_reset && old.size(0) == B && old.size(1) == H) {
             for (size_t b = 0; b < B; ++b) {
                 for (size_t h = 0; h < H; ++h) {
                     std::memcpy(meta_data.ptr<float>(b, h, 0), old.ptr<float>(b, h, 0), sizeof(float) * L0);
@@ -2899,17 +2899,29 @@ void ScaledDotProductAttention::updatePastkv(const MemoryPtr& mem_cur_k, const M
         };
         internal_mem_k->redefineDesc(reset_desc(k_kvcache_precision, S_cache));
         internal_mem_v->redefineDesc(reset_desc(v_kvcache_precision, SV_cache));
-        if ((is_quantized_cache(k_kvcache_precision) || is_quantized_cache(v_kvcache_precision)) && !is_k_turboq &&
-            !is_v_turboq) {
-            auto& old_scale_zp_k = m_k_state->get_scale_zp();
-            auto& old_scale_zp_v = m_v_state->get_scale_zp();
-            // only dim0, dim1 need change
-            // LBHS
-            old_scale_zp_k.m_strides[0] = m_key_spec.by_channel ? H * B * S : H * B * S / m_key_spec.group_size * 2;
-            old_scale_zp_k.m_strides[1] = m_key_spec.by_channel ? H * S : H * S / m_key_spec.group_size * 2;
-            old_scale_zp_v.m_strides[0] =
-                m_value_spec.by_channel ? H * B * SV : H * B * SV / m_value_spec.group_size * 2;
-            old_scale_zp_v.m_strides[1] = m_value_spec.by_channel ? H * SV : H * SV / m_value_spec.group_size * 2;
+
+        const bool need_k_szp = is_quantized_cache(k_kvcache_precision) && !is_k_turboq;
+        const bool need_v_szp = is_quantized_cache(v_kvcache_precision) && !is_v_turboq;
+        if (need_k_szp || need_v_szp) {
+            auto reset_scale_zp =
+                [&](const ov::Extensions::Cpu::CacheSpec& quant_param, size_t hidden_states, size_t cache_max_size) {
+                    const size_t capacity_L = cache_max_size / (B * H * hidden_states);
+                    PlainTensor scale_zp;
+                    scale_zp.resize<float>(compute_scale_zp_shape(quant_param,
+                                                                  hidden_states,
+                                                                  B,
+                                                                  H,
+                                                                  std::max(capacity_L, (L0 + L1) * 2),
+                                                                  order,
+                                                                  real_order));
+                    return scale_zp;
+                };
+            if (need_k_szp) {
+                m_k_state->set_scale_zp(reset_scale_zp(m_key_spec, S, m_k_state->internal_state_max_size()));
+            }
+            if (need_v_szp) {
+                m_v_state->set_scale_zp(reset_scale_zp(m_value_spec, SV, m_v_state->internal_state_max_size()));
+            }
         }
     }
     if (need_redefine) {

@@ -48,8 +48,9 @@ public:
     lstm_weights_order offset_order() const { return get_typed_desc<gru_seq>()->offset_order; }
     float clip() const {
         float clip_val = get_typed_desc<gru_seq>()->clip;
-        if (clip_val < 0)
+        if (clip_val < 0) {
             throw std::range_error("Clip value < 0");
+        }
         return clip_val;
     }
     uint32_t direction() const { return get_typed_desc<gru_seq>()->direction == ov::op::RecurrentSequenceDirection::FORWARD ? 0 : 1; }

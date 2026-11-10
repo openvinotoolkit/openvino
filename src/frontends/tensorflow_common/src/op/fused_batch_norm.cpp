@@ -23,10 +23,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 namespace {
 void generate_axes_range_except_c(const Output<Node>& x_rank, bool is_nhwc, Output<Node>& axes_no_c) {
     auto const_one = make_shared<v0::Constant>(element::i32, Shape{}, 1);
@@ -289,7 +286,4 @@ NamedOutputVector translate_fused_batch_norm_op(const NodeContext& node) {
 
     return results;
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

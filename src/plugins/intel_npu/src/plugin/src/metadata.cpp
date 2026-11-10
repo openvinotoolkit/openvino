@@ -28,8 +28,6 @@ constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
 constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
     "The size of the compiler payload parsed from the blob is greater "
     "than the size of the blob. Compiler payload size: ";
-constexpr std::string_view MISSING_BLOB_MESSAGE = "No blob has been provided to NPU plugin's metadata reader.";
-constexpr std::string_view STREAM_BAD_STATUS_MESSAGE = "The stream is in bad status";
 
 template <typename T>
 void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
@@ -290,8 +288,8 @@ void Metadata<METADATA_VERSION_2_3>::read_unchecked(BlobSource& source) {
     source.read_into_buffer(&numberOfInputLayouts, sizeof(numberOfInputLayouts));
     source.read_into_buffer(&numberOfOutputLayouts, sizeof(numberOfOutputLayouts));
 
-    OPENVINO_ASSERT(numberOfInputLayouts + numberOfOutputLayouts <=
-                        (get_and_check_remaining_source_size(source) - FOOTER_SIZE) / SIZE_OF_LAYOUT_SIZE,
+    const size_t maxLayouts = (get_and_check_remaining_source_size(source) - FOOTER_SIZE) / SIZE_OF_LAYOUT_SIZE;
+    OPENVINO_ASSERT(numberOfInputLayouts <= maxLayouts && numberOfOutputLayouts <= maxLayouts - numberOfInputLayouts,
                     "The number of I/O layouts read from the blob is too great relative to the size of the blob");
 
     const auto readNLayouts = [&](const uint64_t numberOfLayouts, const char* loggerAddition) {
@@ -367,7 +365,7 @@ void Metadata<METADATA_VERSION_2_7>::read_unchecked(BlobSource& source) {
     uint8_t blobType;
     source.read_into_buffer(&blobType, sizeof(blobType));
     const auto type = static_cast<BlobType>(blobType);
-    OPENVINO_ASSERT(type == BlobType::ELF || type == BlobType::LLVM || type == BlobType::BYTECODE,
+    OPENVINO_ASSERT(type == BlobType::ELF || type == BlobType::BYTECODE,
                     "Invalid blob type in NPU blob metadata: ",
                     static_cast<uint32_t>(blobType));
     _blobType = type;

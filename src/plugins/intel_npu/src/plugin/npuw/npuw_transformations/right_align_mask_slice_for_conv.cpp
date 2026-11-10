@@ -28,10 +28,9 @@ public:
     // the Slice operation is inserted to extract the current tokens from that `attention_mask`
     // and pass to the Conv subgraph.
     // This is done to allow skipping processing of some tokens in the prefill stage.
-    // Slice is done from zero till the number of current tokens, assuming that in most cases
-    // tokens from the right are not the useful ones.
-    // However, in NPUW static-shape mode, we place useful current tokens exactly to the right end
-    // in the prefill stage.
+    // Slice is applied from the zero till the current length of the sequence.
+    // However, in NPUW static-shape mode, we place useful current tokens to the right end
+    // of `input_ids` after a fixed amount of padding tokens.
     // Therefore, Slice operation will extract the left part of mask, that in case of chunked
     // prefill will be padded either with zeroes (in the first iteration) or with ones
     // (in subsequent iterations) but for past tokens.

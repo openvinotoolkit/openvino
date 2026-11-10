@@ -6,9 +6,7 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 template <typename OVOpType = void>
 class OpExtension : public ConversionExtension {
@@ -67,6 +65,4 @@ public:
                                   attr_values_map)) {}
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

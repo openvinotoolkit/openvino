@@ -136,7 +136,7 @@ Cases for reading and updating blocks:
 * **2**: ``value`` - Tensor of type *T* and shape ``[batch_size_in_tokens, v_num_heads, value_head_dim]``.
   Value vectors for all tokens in the batch. **Required.**
 
-* **3**: ``recurrent_state_table`` - Tensor of type *T* and shape
+* **3**: ``recurrent_state_table`` - Tensor of type *T_cache* and shape
   ``[num_blocks, v_num_heads, value_head_dim, key_head_dim]``.
   Paged table of recurrent state snapshots. Each row is one block storing a complete state for
   all value heads at a cached token position. This tensor is updated in place during execution.
@@ -195,4 +195,8 @@ Cases for reading and updating blocks:
 **Types**
 
 * *T*: any floating-point type.
-* *T_IND*: ``int32`` or ``int64``.
+
+* *T_IND*: ``int32``.
+
+* *T_cache* - cache precision; may differ from *T*.
+  Allowed for ``recurrent_state_table`` (input 3): ``f16``, ``f32``, ``bf16``.

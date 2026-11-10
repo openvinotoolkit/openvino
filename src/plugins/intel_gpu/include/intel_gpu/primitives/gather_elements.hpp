@@ -51,8 +51,9 @@ struct gather_elements : public primitive_base<gather_elements> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const gather_elements>(rhs);
 

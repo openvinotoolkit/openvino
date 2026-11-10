@@ -11,9 +11,7 @@
 #include "openvino/util/file_util.hpp"
 #include "variables_index.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 std::filesystem::path get_variables_index_name(const std::filesystem::path& name);
 
@@ -131,8 +129,10 @@ private:
         // Update variables map using information by resolving AssignVariableOp graph nodes
         std::map<std::string, std::string> var_map;
         VariablesIndex::map_assignvariable(m_graph_def, var_map, m_hash_table_keys_map, m_hash_table_values_map);
-        for (auto var : var_map) {
-            m_variables_index->map_variable(var.first, var.second);
+        if (m_variables_index) {
+            for (auto var : var_map) {
+                m_variables_index->map_variable(var.first, var.second);
+            }
         }
 
         initialize_decoders_and_library();
@@ -141,6 +141,4 @@ private:
     }
 };  // GraphIteratorMeta
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

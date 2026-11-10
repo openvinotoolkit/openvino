@@ -111,7 +111,12 @@ void RegPrinter::print_vmm(jit_generator_t& h, const Xbyak_riscv::VReg& vmm, con
     utils::sub_sp(h, stack_bytes);
 
     h.uni_li(Xbyak_riscv::t0, vlen);
-    h.vsetvli(Xbyak_riscv::zero, Xbyak_riscv::t0, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
+    h.vsetvli(Xbyak_riscv::zero,
+              Xbyak_riscv::t0,
+              Xbyak_riscv::SEW::e8,
+              Xbyak_riscv::LMUL::m1,
+              Xbyak_riscv::VTA::tu,
+              Xbyak_riscv::VMA::mu);
     h.vse8_v(vmm, Xbyak_riscv::sp);
 
     h.uni_li(Xbyak_riscv::a0, name ? to_uintptr(name) : to_uintptr(nullptr));

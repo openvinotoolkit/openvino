@@ -39,14 +39,17 @@ void lora_inst::update_output_memory() {
         is_empty_lora &= _impl_params->get_input_layout(i).count() == 0;
     }
 
-    if (!is_empty_lora)
+    if (!is_empty_lora) {
        return;
+    }
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())) {
         return;
+    }
 
-    if (_node != nullptr)
+    if (_node != nullptr) {
         build_deps();
+    }
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

@@ -5,17 +5,24 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 
 #include <algorithm>
+#include <iterator>
+#include <limits>
 #include <memory>
+#include <optional>
+#include <set>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
@@ -25,7 +32,9 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using ov::pass::pattern::Matcher;
@@ -41,6 +50,164 @@ bool is_data_movement_operation(const std::shared_ptr<ov::Node>& node,
     return std::any_of(allowed_data_movement_ops.begin(), allowed_data_movement_ops.end(), [&](const auto& type) {
         return node->get_type_info().is_castable(type);
     });
+}
+
+std::optional<std::set<size_t>> get_normalized_axes(const std::shared_ptr<ov::Node>& operation, size_t rank) {
+    if (operation->get_input_size() < 2)
+        return std::nullopt;
+
+    const auto axes_const = ov::as_type_ptr<v0::Constant>(operation->get_input_node_shared_ptr(1));
+    if (!axes_const)
+        return std::nullopt;
+
+    auto axes = axes_const->cast_vector<int64_t>();
+    ov::util::try_normalize_axes(axes, ov::Rank(static_cast<int64_t>(rank)), *operation);
+    return std::set<size_t>(axes.begin(), axes.end());
+}
+
+std::optional<size_t> map_squeeze_axis(const std::shared_ptr<v0::Squeeze>& squeeze, size_t output_axis) {
+    const auto& input_shape = squeeze->get_input_partial_shape(0);
+    const auto& output_shape = squeeze->get_output_partial_shape(0);
+    if (input_shape.rank().is_dynamic() || output_shape.rank().is_dynamic())
+        return std::nullopt;
+
+    const size_t input_rank = input_shape.size();
+    const size_t output_rank = output_shape.size();
+    std::set<size_t> removed_axes;
+
+    if (squeeze->get_input_size() == 1) {
+        for (size_t axis = 0; axis < input_rank; ++axis) {
+            if (input_shape[axis].compatible(1))
+                removed_axes.insert(axis);
+        }
+    } else {
+        const auto normalized_axes = get_normalized_axes(squeeze, input_rank);
+        if (!normalized_axes.has_value())
+            return std::nullopt;
+
+        if (normalized_axes->empty()) {
+            for (size_t axis = 0; axis < input_rank; ++axis) {
+                if (input_shape[axis].compatible(1))
+                    removed_axes.insert(axis);
+            }
+        } else {
+            for (const auto axis : *normalized_axes) {
+                if (axis >= input_rank)
+                    return std::nullopt;
+                if (input_shape[axis].compatible(1))
+                    removed_axes.insert(axis);
+            }
+        }
+    }
+
+    if (output_axis >= output_rank || output_rank + removed_axes.size() != input_rank)
+        return std::nullopt;
+
+    size_t current_output_axis = 0;
+    for (size_t input_axis = 0; input_axis < input_rank; ++input_axis) {
+        if (removed_axes.count(input_axis) != 0)
+            continue;
+        if (current_output_axis == output_axis)
+            return input_axis;
+        ++current_output_axis;
+    }
+    return std::nullopt;
+}
+
+std::optional<size_t> map_unsqueeze_axis(const std::shared_ptr<v0::Unsqueeze>& unsqueeze, size_t output_axis) {
+    const auto& input_shape = unsqueeze->get_input_partial_shape(0);
+    const auto& output_shape = unsqueeze->get_output_partial_shape(0);
+    if (input_shape.rank().is_dynamic() || output_shape.rank().is_dynamic())
+        return std::nullopt;
+
+    const size_t input_rank = input_shape.size();
+    const size_t output_rank = output_shape.size();
+    if (unsqueeze->get_input_size() != 2 || output_rank <= input_rank)
+        return std::nullopt;
+
+    const size_t inserted_axes_count = output_rank - input_rank;
+    const auto axes_const = ov::as_type_ptr<v0::Constant>(unsqueeze->get_input_node_shared_ptr(1));
+    if (!axes_const || ov::shape_size(axes_const->get_shape()) != inserted_axes_count)
+        return std::nullopt;
+
+    const auto inserted_axes = get_normalized_axes(unsqueeze, output_rank);
+    if (!inserted_axes.has_value() || inserted_axes->size() != inserted_axes_count ||
+        inserted_axes->count(output_axis) != 0) {
+        return std::nullopt;
+    }
+
+    return output_axis -
+           static_cast<size_t>(std::distance(inserted_axes->begin(), inserted_axes->lower_bound(output_axis)));
+}
+
+std::optional<int64_t> trailing_stride(const ov::PartialShape& shape, size_t axis) {
+    int64_t stride = 1;
+    for (size_t i = axis + 1; i < shape.size(); ++i) {
+        if (shape[i].is_dynamic())
+            return std::nullopt;
+        const int64_t dim = shape[i].get_length();
+        if (dim != 0 && stride > std::numeric_limits<int64_t>::max() / dim)
+            return std::nullopt;
+        stride *= dim;
+    }
+    return stride;
+}
+
+bool trailing_shapes_match(const ov::PartialShape& input_shape,
+                           size_t input_axis,
+                           const ov::PartialShape& output_shape,
+                           size_t output_axis) {
+    // Products preserve valid split/merge reshapes. If either product is dynamic, require the
+    // non-unit tails to match one-to-one through static values or shared symbols.
+    const auto input_stride = trailing_stride(input_shape, input_axis);
+    const auto output_stride = trailing_stride(output_shape, output_axis);
+    if (input_stride.has_value() && output_stride.has_value())
+        return input_stride == output_stride;
+
+    size_t input_idx = input_axis + 1;
+    size_t output_idx = output_axis + 1;
+    while (true) {
+        while (input_idx < input_shape.size() && input_shape[input_idx].is_static() &&
+               input_shape[input_idx].get_length() == 1) {
+            ++input_idx;
+        }
+        while (output_idx < output_shape.size() && output_shape[output_idx].is_static() &&
+               output_shape[output_idx].get_length() == 1) {
+            ++output_idx;
+        }
+
+        if (input_idx == input_shape.size() || output_idx == output_shape.size())
+            return input_idx == input_shape.size() && output_idx == output_shape.size();
+        if (!ov::symbol::util::dims_are_equal(input_shape[input_idx], output_shape[output_idx]))
+            return false;
+
+        ++input_idx;
+        ++output_idx;
+    }
+}
+
+std::optional<size_t> map_reshape_axis(const ov::PartialShape& input_shape,
+                                       const ov::PartialShape& output_shape,
+                                       size_t output_axis,
+                                       size_t channel_size) {
+    std::optional<size_t> mapped_axis;
+    for (size_t input_axis = 0; input_axis < input_shape.size(); ++input_axis) {
+        if (!trailing_shapes_match(input_shape, input_axis, output_shape, output_axis))
+            continue;
+
+        const auto& input_dim = input_shape[input_axis];
+        if (input_dim.is_dynamic()) {
+            if (input_dim.compatible(channel_size))
+                return std::nullopt;
+            continue;
+        }
+        if (static_cast<size_t>(input_dim.get_length()) != channel_size)
+            continue;
+        if (mapped_axis.has_value())
+            return std::nullopt;
+        mapped_axis = input_axis;
+    }
+    return mapped_axis;
 }
 }  // namespace
 
@@ -176,8 +343,9 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
 
     auto eltw_data_flow_in = wrap_type<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(ov::pass::pattern::consumers_count(1));
     auto eltw_const_in = wrap_type<v0::Constant>(const_predicate);
-    auto eltwise_pattern =
-        wrap_type<op_util::BinaryElementwiseArithmetic>({eltw_data_flow_in, eltw_const_in}, eltw_predicate);
+    auto eltwise_pattern = wrap_type<op_util::BinaryElementwiseArithmetic>(
+        {eltw_data_flow_in, eltw_const_in},
+        eltw_predicate && ov::pass::pattern::attrs_match({{"auto_broadcast", "numpy"}}));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -202,16 +370,40 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
 
         auto parent = eltwise->get_input_node_shared_ptr(data_flow_idx);
         const auto& parent_in_pshape = parent->get_input_partial_shape(0);
-        auto parent_in_channel_dim =
-            parent_in_pshape.size() <= channel_idx ? ov::Dimension(1) : parent_in_pshape[channel_idx];
-        auto parent_out_channel_dim = parent->get_output_partial_shape(0)[channel_idx];
-        if (parent_in_channel_dim.is_dynamic() || parent_in_channel_dim != channel_val ||
-            parent_out_channel_dim.is_dynamic() || parent_out_channel_dim != channel_val)
+        const auto& parent_out_pshape = parent->get_output_partial_shape(0);
+        if (parent_in_pshape.rank().is_dynamic() || parent_out_pshape.rank().is_dynamic())
             return false;
 
-        auto new_shape = ov::Shape(parent->get_input_partial_shape(0).size(), 1);
+        const size_t in_rank = parent_in_pshape.size();
+        const size_t out_rank = parent_out_pshape.size();
+        const size_t const_rank = const_shape.size();
+        if (const_rank > out_rank)
+            return false;
 
-        new_shape[channel_idx] = const_shape[channel_idx];
+        // The constant is right-aligned against the data flow shape by NumPy broadcasting, so its
+        // non-unit axis sits at this position in the parent's output space.
+        const size_t output_channel_idx = out_rank - const_rank + channel_idx;
+        if (parent_out_pshape[output_channel_idx].is_dynamic() ||
+            static_cast<size_t>(parent_out_pshape[output_channel_idx].get_length()) != channel_val) {
+            return false;
+        }
+
+        std::optional<size_t> input_channel_idx;
+        if (const auto squeeze = ov::as_type_ptr<v0::Squeeze>(parent)) {
+            input_channel_idx = map_squeeze_axis(squeeze, output_channel_idx);
+        } else if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(parent)) {
+            input_channel_idx = map_unsqueeze_axis(unsqueeze, output_channel_idx);
+        } else {
+            input_channel_idx = map_reshape_axis(parent_in_pshape, parent_out_pshape, output_channel_idx, channel_val);
+        }
+        if (!input_channel_idx.has_value() || parent_in_pshape[*input_channel_idx].is_dynamic() ||
+            static_cast<size_t>(parent_in_pshape[*input_channel_idx].get_length()) != channel_val) {
+            return false;
+        }
+
+        auto new_shape = ov::Shape(in_rank, 1);
+
+        new_shape[*input_channel_idx] = channel_val;
         auto old_const = ov::as_type_ptr<v0::Constant>(eltwise->get_input_node_shared_ptr(const_idx));
         auto new_const = std::make_shared<v0::Constant>(*old_const, new_shape);
         ov::replace_node_update_name(old_const, new_const);
@@ -233,5 +425,75 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
     };
 
     auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMovFusableProducer(
+    std::vector<DiscreteTypeInfo> fusable_producer_types) {
+    MATCHER_SCOPE(MoveEltwiseUpThroughDataMovFusableProducer);
+
+    const auto fusable_op = std::make_shared<ov::pass::pattern::op::WrapType>(fusable_producer_types);
+    const auto fusable_producer = ov::pass::pattern::optional<v1::Add>({fusable_op, ov::pass::pattern::any_input()});
+
+    const auto rank_increase_by_one = [](const ov::Output<ov::Node>& output) {
+        const auto& in_rank = output.get_node()->get_input_partial_shape(0).rank();
+        const auto& out_rank = output.get_partial_shape().rank();
+        return in_rank.is_static() && out_rank.is_static() && out_rank.get_length() == in_rank.get_length() + 1;
+    };
+    const auto data_mov =
+        wrap_type<v1::Reshape, v0::Unsqueeze>({fusable_producer, ov::pass::pattern::any_input()},
+                                              rank_increase_by_one && ov::pass::pattern::consumers_count(1));
+
+    const auto other_input = ov::pass::pattern::any_input();
+    const auto eltwise_pattern =
+        wrap_type<op_util::BinaryElementwiseArithmetic>({data_mov, other_input}, ov::pass::pattern::has_static_rank());
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        const auto eltwise = m.get_match_root();
+        if (transformation_callback(eltwise))
+            return false;
+
+        const auto rn = pattern_map.at(data_mov).get_node_shared_ptr();
+        const auto other = pattern_map.at(other_input);
+
+        const auto& in_ps = rn->get_input_partial_shape(0);
+        const auto& out_ps = rn->get_output_partial_shape(0);
+        const auto axes = op_util::get_unsqueeze_axes(in_ps, out_ps);
+        if (axes.size() != 1)
+            return false;
+        const auto axis = axes.front();
+        // The data movement output has to be the producer's shape with a unit dimension inserted at `axis`
+        auto expected = in_ps;
+        expected.insert(expected.begin() + axis, ov::Dimension(1));
+        if (!expected.same_scheme(out_ps))
+            return false;
+        // Reshape keeps the element count, so it can't reinterpret a single dynamic dimension, but may reorder several
+        if (ov::is_type<v1::Reshape>(rn)) {
+            const auto is_dynamic = [](const ov::Dimension& dim) {
+                return dim.is_dynamic();
+            };
+            if (std::count_if(in_ps.begin(), in_ps.end(), is_dynamic) > 1)
+                return false;
+        }
+
+        // The other input has to have the same rank and a unit dimension at `axis` to be squeezed
+        const auto& other_ps = other.get_partial_shape();
+        if (other_ps.rank() != out_ps.rank() || other_ps[axis] != 1)
+            return false;
+
+        // Eltwise(Reshape(P, axis), other) => Unsqueeze(Eltwise(P, Squeeze(other, axis)), axis)
+        const auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        const auto squeezed = std::make_shared<v0::Squeeze>(other, axis_const);
+        const auto eltwise_low = eltwise->clone_with_new_inputs({rn->input_value(0), squeezed});
+        const auto unsqueezed =
+            std::make_shared<v0::Unsqueeze>(eltwise_low, v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis}));
+
+        ov::copy_runtime_info({eltwise, rn}, {squeezed, eltwise_low, unsqueezed});
+        return ov::replace_output_update_name(eltwise->output(0), unsqueezed->output(0));
+    };
+
+    const auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
     register_matcher(m, callback);
 }

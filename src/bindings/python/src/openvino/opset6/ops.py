@@ -10,6 +10,7 @@ from typing import Optional, Union
 from functools import partial, singledispatch
 
 from openvino import Node, Type, PartialShape, Output, Shape
+from openvino.exceptions import OVTypeError
 from openvino.op import assign, Constant, Parameter
 from openvino.op import read_value as _read_value
 from openvino.op.util import VariableInfo, Variable
@@ -127,7 +128,7 @@ def read_value(init_value: Union[Node, Output, int, float, np.ndarray],
 
     :param init_value:   Node producing a value to be returned instead of an unassigned variable.
     :param variable_id:  Id of a variable to be read.
-    :param variable_type:   Optional type to be set into Variable.
+    :param variable_type:   Optional type to be set into Variable, e.g. Type.f32, np.float32 or "f32".
     :param variable_shape:  Optional shape to be set into Variable.
     :param name:         Optional name for output node.
     :return: ReadValue node
@@ -136,7 +137,12 @@ def read_value(init_value: Union[Node, Output, int, float, np.ndarray],
     info.variable_id = variable_id
 
     if variable_type is not None:
-        if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
+        if isinstance(variable_type, str):
+            element_type = getattr(Type, variable_type, None)
+            if not isinstance(element_type, Type):
+                raise OVTypeError(f"Unidentified data type {variable_type}")
+            info.data_type = element_type
+        elif not isinstance(variable_type, Type):
             info.data_type = get_element_type(variable_type)
         else:
             info.data_type = variable_type
@@ -168,7 +174,7 @@ def read_value(  # noqa: F811
     """Return a node which produces the Assign operation.
 
     :param variable_id:  Id of a variable to be read.
-    :param variable_type:   Optional type to be set into Variable.
+    :param variable_type:   Optional type to be set into Variable, e.g. Type.f32, np.float32 or "f32".
     :param variable_shape:  Optional shape to be set into Variable.
     :param name:         Optional name for output node.
     :return: ReadValue node
@@ -177,7 +183,12 @@ def read_value(  # noqa: F811
     info.variable_id = variable_id
 
     if variable_type is not None:
-        if not isinstance(variable_type, Type) and not isinstance(variable_type, str):
+        if isinstance(variable_type, str):
+            element_type = getattr(Type, variable_type, None)
+            if not isinstance(element_type, Type):
+                raise OVTypeError(f"Unidentified data type {variable_type}")
+            info.data_type = element_type
+        elif not isinstance(variable_type, Type):
             info.data_type = get_element_type(variable_type)
         else:
             info.data_type = variable_type

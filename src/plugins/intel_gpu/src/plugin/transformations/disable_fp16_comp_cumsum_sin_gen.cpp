@@ -32,15 +32,17 @@ DisableFP16CompCumSumSinGen::DisableFP16CompCumSumSinGen() {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto sin_node = pattern_map.at(sin_m).get_node_shared_ptr();
-        if (transformation_callback(sin_node))
+        if (transformation_callback(sin_node)) {
             return false;
+        }
 
         auto cumsum_node = pattern_map.at(cumsum_m).get_node_shared_ptr();
 
         // Also tag the producer feeding CumSum's first input.
         auto cumsum_input = cumsum_node->input_value(0).get_node_shared_ptr();
-        if (cumsum_input)
+        if (cumsum_input) {
             ov::disable_conversion(cumsum_input, element::f16);
+        }
 
         for (const auto& key : {cumsum_m, mul1_m, transpose2_m, mul2_m, interpolate_m, transpose3_m, sin_m}) {
             ov::disable_conversion(pattern_map.at(key).get_node_shared_ptr(), element::f16);

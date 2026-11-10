@@ -27,8 +27,9 @@ ConvolutionKernel_bfyx_to_bfyx_f16::ConvolutionKernel_bfyx_to_bfyx_f16(std::stri
 ConvolutionKernel_bfyx_to_bfyx_f16::AutoTuneOption ConvolutionKernel_bfyx_to_bfyx_f16::GetAutoTuneOptions(
     const Params& /* arg*/,
     int autoTuneIndex) const {
-    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
+    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size())) {
         return autoTuneOptions[autoTuneIndex];
+    }
 
     return {8, EXE_MODE_AGE_BASED};
 }

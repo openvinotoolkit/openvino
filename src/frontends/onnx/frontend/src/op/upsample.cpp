@@ -8,10 +8,7 @@
 #include "openvino/op/interpolate.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 constexpr unsigned version_1{1};
 constexpr unsigned version_7{7};
@@ -112,7 +109,4 @@ ov::OutputVector upsample(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Upsample", OPSET_SINCE(9), ai_onnx::opset_9::upsample);
 }  // namespace opset_9
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

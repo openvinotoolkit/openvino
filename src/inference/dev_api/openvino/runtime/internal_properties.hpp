@@ -56,6 +56,24 @@ static constexpr Property<bool, PropertyMutability::RW> exclusive_async_requests
 static constexpr Property<std::string, PropertyMutability::WO> config_device_id{"CONFIG_DEVICE_ID"};
 
 /**
+ * @brief Renames a plugin's devices to the ids Core exposes for them, as {plugin id -> Core id}.
+ *
+ * Several libraries may be registered under one device name (a "dispatch group"), in which case
+ * Core owns the numbering: it merges what the candidates enumerate and assigns the ".N" ids users
+ * address. A candidate's own enumeration order may differ, so Core pushes this mapping to each
+ * group member before any other property, and the member must address those devices by the given
+ * ids from then on - including in the names it reports back (remote contexts, execution devices).
+ *
+ * The map covers every device the member enumerated, so its id set stays as dense as its own
+ * enumeration; it is not necessarily zero-based. Members must report support for this property in
+ * ov::internal::supported_properties - Core refuses to put a library that does not into a group.
+ * It is never set for a device name served by a single library, whose ids Core does not rename.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<std::map<std::string, std::string>, PropertyMutability::WO> device_id_map{
+    "DISPATCH_DEVICE_ID_MAP"};
+
+/**
  * @brief Limit \#threads that are used by IStreamsExecutor to execute `parallel_for` calls
  * @ingroup ov_dev_api_plugin_api
  */
@@ -99,6 +117,17 @@ static constexpr Property<bool, PropertyMutability::RW> enable_lp_transformation
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<uint32_t, PropertyMutability::RO> cache_header_alignment{"CACHE_HEADER_ALIGNMENT"};
+
+/**
+ * @brief Read-only property reporting whether a plugin's export_model() emits the HSM container format
+ * (see openvino/runtime/hsm_format.hpp) instead of the legacy format Core itself prepends
+ * ov::CompiledBlobHeader for. true = HSM, false/unreported = legacy - existing plugins need no change.
+ *
+ * @note Temporary, transition-only property: remove once all in-tree plugins emit HSM and Core drops
+ * the legacy ov::CompiledBlobHeader write/read path.
+ * @ingroup ov_dev_api_plugin_api
+ */
+static constexpr Property<bool, PropertyMutability::RO> emit_hsm_format{"EMIT_HSM_FORMAT"};
 
 /**
  * @brief Enum to define possible cache quant schema hints.

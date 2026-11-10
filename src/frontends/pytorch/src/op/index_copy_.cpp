@@ -18,10 +18,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_index_copy_(const NodeContext& context) {
     // aten::index_copy_(self, dim, index, tensor) → Tensor
@@ -46,7 +43,4 @@ OutputVector translate_index_copy_(const NodeContext& context) {
     return {result};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

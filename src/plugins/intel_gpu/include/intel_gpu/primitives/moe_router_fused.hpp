@@ -36,8 +36,9 @@ struct moe_router_fused : public primitive_base<moe_router_fused> {
     MoERouterFused::Config _config;
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const moe_router_fused>(rhs);
 

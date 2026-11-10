@@ -21,7 +21,7 @@
 
 namespace {
 void parse_pre_process(pugi::xml_node& root,
-                       std::shared_ptr<ov::util::WeightsProvider> weights_provider,
+                       const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
                        std::shared_ptr<ov::Model> model) {
     /* Preprocessing block can have two preprocessing types:
      *
@@ -123,6 +123,7 @@ void parse_pre_process(pugi::xml_node& root,
                 mean_scalar_values.insert({chanNo, ov::util::pugixml::get_float_attr(meanNode, "value")});
             }
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
+                OPENVINO_ASSERT(weights_provider, "Weights are required, but not provided");
                 auto const_size = ov::util::pugixml::get_uint64_attr(meanNode, "size");
                 auto const_offset = ov::util::pugixml::get_uint64_attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {
@@ -198,9 +199,7 @@ void parse_pre_process(pugi::xml_node& root,
 }
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace ir {
+namespace ov::frontend::ir {
 
 class InputModel::InputModelIRImpl {
     std::shared_ptr<ov::util::WeightsProvider> m_weights_provider;
@@ -278,6 +277,4 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     return model;
 }
 
-}  // namespace ir
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::ir

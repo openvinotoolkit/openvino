@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
+
 #include "single_op_tests/lstm_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/concat.hpp"
@@ -32,6 +34,13 @@ class LSTMSequenceGPUTest : public LSTMSequenceTest {
         }
      }
 };
+
+class LSTMSequenceNoClipGPUTest : public LSTMSequenceTest {};
+
+TEST_P(LSTMSequenceNoClipGPUTest, InferenceKeepsSequencePrimitive) {
+    run();
+    ov::test::CheckNumberOfNodesWithType(compiledModel, "LSTM_Seq", 1);
+}
 
 std::vector<ov::test::utils::SequenceTestsMode> mode{ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
                                                      ov::test::utils::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
@@ -145,6 +154,24 @@ INSTANTIATE_TEST_SUITE_P(LSTMSequenceCM, LSTMSequenceGPUTest,
                                 ::testing::ValuesIn(netPrecisions_cm),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         LSTMSequenceGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceNoClip, LSTMSequenceNoClipGPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(ov::test::utils::SequenceTestsMode::PURE_SEQ),
+                                ::testing::Values(2),
+                                ::testing::Values(10),
+                                ::testing::Values(1),
+                                ::testing::Values(10),
+                                ::testing::Values(std::vector<std::string>{"sigmoid", "tanh", "tanh"}),
+                                ::testing::Values(std::numeric_limits<float>::infinity(),
+                                                  -1.f,
+                                                  -std::numeric_limits<float>::infinity(),
+                                                  std::numeric_limits<float>::quiet_NaN()),
+                                ::testing::Values(ov::op::RecurrentSequenceDirection::FORWARD),
+                                ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                ::testing::Values(ov::element::f32),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        LSTMSequenceTest::getTestCaseName);
 
 class MultipleLSTMSequenceGPUTest : public LSTMSequenceTest {
 private:

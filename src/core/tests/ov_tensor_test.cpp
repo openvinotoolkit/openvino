@@ -4,9 +4,15 @@
 
 #include <gmock/gmock.h>
 
+#include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <future>
+#include <numeric>
+#include <utility>
+#include <vector>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -24,7 +30,7 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-
+#include "openvino/util/mmap_object.hpp"
 namespace ov::test {
 using OVTensorTest = ::testing::Test;
 using testing::_, testing::HasSubstr;
@@ -248,7 +254,7 @@ TEST_F(OVTensorTest, canCreateTensorU3UsingMockAllocator) {
 }
 
 TEST_F(OVTensorTest, canCreateTensorU6UsingMockAllocator) {
-    constexpr size_t exp_size = 6;
+    constexpr size_t exp_size = 5;
     ov::Shape shape = {1, 2, 3};
     OVMockAllocator allocator;
 
@@ -780,6 +786,27 @@ TEST_F(OVTensorTest, readRangeRoiBlobStringTensor) {
     }
 }
 
+using EmptyRoiParams = std::pair<ov::Coordinate, ov::Coordinate>;
+
+struct OVTensorTestCopyEmptyRoi : ::testing::TestWithParam<EmptyRoiParams> {};
+
+TEST_P(OVTensorTestCopyEmptyRoi, copy_to_and_from_dense) {
+    const auto& [begin, end] = GetParam();
+    ov::Tensor parent{ov::element::f32, {1, 4, 8, 16}};
+    ov::Tensor roi{parent, begin, end};
+    ov::Tensor dense{ov::element::f32, {1}};
+
+    OV_ASSERT_NO_THROW(roi.copy_to(dense));
+    EXPECT_EQ(dense.get_shape(), roi.get_shape());
+    OV_ASSERT_NO_THROW(dense.copy_to(roi));
+}
+
+INSTANTIATE_TEST_SUITE_P(copy_tests_empty_roi,
+                         OVTensorTestCopyEmptyRoi,
+                         ::testing::Values(EmptyRoiParams{{0, 0, 2, 0}, {1, 4, 2, 16}},   // 1x4x0x16
+                                           EmptyRoiParams{{0, 0, 2, 4}, {1, 4, 2, 8}},    // 1x4x0x4
+                                           EmptyRoiParams{{0, 0, 0, 4}, {1, 4, 8, 4}}));  // 1x4x8x0
+
 TEST_F(OVTensorTest, createTensorWithZeroDimsCheckStride) {
     ov::Shape shape = {0, 0, 0, 0};
     auto tensor = ov::Tensor(ov::element::f32, shape);
@@ -805,34 +832,34 @@ TEST_F(OVTensorTest, getByteSizeU2NotEvenDivByStorageUnit) {
     EXPECT_EQ(tensor.get_byte_size(), 5);
 }
 
-TEST_F(OVTensorTest, getByteSizeU3LessThanMinStorageUnit) {
+TEST_F(OVTensorTest, getByteSizeU3SmallShapeWithTailBits) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{3});
-    EXPECT_EQ(tensor.get_byte_size(), 3);
+    EXPECT_EQ(tensor.get_byte_size(), 2);
 }
 
-TEST_F(OVTensorTest, getByteSizeU3EvenDivByStorageUnit) {
+TEST_F(OVTensorTest, getByteSizeU3ShapeWithoutTailBits) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{16});
     EXPECT_EQ(tensor.get_byte_size(), 2 * 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU3NotEvenDivByStorageUnit) {
+TEST_F(OVTensorTest, getByteSizeU3LargeShapeWithTailBits) {
     const auto tensor = ov::Tensor(ov::element::u3, ov::Shape{17});
-    EXPECT_EQ(tensor.get_byte_size(), 3 + 2 * 3);
+    EXPECT_EQ(tensor.get_byte_size(), 7);
 }
 
-TEST_F(OVTensorTest, getByteSizeU6LessThanMinStorageUnit) {
+TEST_F(OVTensorTest, getByteSizeU6SmallShapeWithTailBits) {
     const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{3});
     EXPECT_EQ(tensor.get_byte_size(), 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU6EvenDivByStorageUnit) {
+TEST_F(OVTensorTest, getByteSizeU6ShapeWithoutTailBits) {
     const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{16});
     EXPECT_EQ(tensor.get_byte_size(), 4 * 3);
 }
 
-TEST_F(OVTensorTest, getByteSizeU6NotEvenDivByStorageUnit) {
+TEST_F(OVTensorTest, getByteSizeU6LargeShapeWithTailBits) {
     const auto tensor = ov::Tensor(ov::element::u6, ov::Shape{17});
-    EXPECT_EQ(tensor.get_byte_size(), 3 + 4 * 3);
+    EXPECT_EQ(tensor.get_byte_size(), 13);
 }
 
 TEST_F(OVTensorTest, checkIsContinuousTensorScalar) {
@@ -1341,6 +1368,145 @@ TEST_F(OVTensorTest, sourceIdAllocatedTensorHasNoSourceId) {
     // and therefore do not have a source_id
     ov::Tensor tensor{ov::element::f32, ov::Shape{2, 3}};
     EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
+}
+
+namespace {
+class MockMappedMemory final : public ov::MappedMemory {
+public:
+    explicit MockMappedMemory(size_t size) : m_data(size) {}
+
+    const std::byte* data() const noexcept override {
+        return m_data.data();
+    }
+    std::byte* data() noexcept override {
+        return m_data.data();
+    }
+    size_t size() const noexcept override {
+        return m_data.size();
+    }
+    std::optional<uint64_t> get_id() const noexcept override {
+        return 7u;
+    }
+
+    MOCK_METHOD(void, hint_evict, (size_t offset, size_t size), (noexcept, override));
+    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
+    MOCK_METHOD(ov::util::PrefetchToken, hint_prefetch_async, (size_t offset, size_t size), (noexcept, override));
+
+private:
+    std::vector<std::byte> m_data;
+};
+
+ov::Tensor make_buffer_tensor(const ov::element::Type& type,
+                              const ov::Shape& shape,
+                              std::shared_ptr<ov::util::IBuffer> buffer) {
+    const auto tensor_impl = ov::make_tensor(type, shape, std::move(buffer));
+    return ov::make_tensor(tensor_impl);
+}
+}  // namespace
+
+TEST_F(OVTensorTest, mappedMemoryPrefetchForwardsCompletionToken) {
+    const auto mapping = std::make_shared<MockMappedMemory>(64);
+    std::shared_ptr<ov::MappedMemory> memory = mapping;
+    std::shared_ptr<ov::util::IMemoryHints> hints = mapping;
+    std::promise<void> completion;
+    const auto expected = completion.get_future().share();
+
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, ov::auto_size)).Times(2).WillRepeatedly(testing::Return(expected));
+    const auto memory_token = memory->hint_prefetch();
+    const auto hints_token = hints->hint_prefetch();
+    ASSERT_TRUE(memory_token.valid());
+    ASSERT_TRUE(hints_token.valid());
+
+    EXPECT_EQ(memory_token.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    EXPECT_EQ(hints_token.wait_for(std::chrono::seconds(0)), std::future_status::timeout);
+    completion.set_value();
+    EXPECT_EQ(memory_token.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+    EXPECT_EQ(hints_token.wait_for(std::chrono::seconds(0)), std::future_status::ready);
+}
+
+TEST_F(OVTensorTest, bufferTensorViewsBufferAndTakesItsId) {
+    auto mapping = std::make_shared<MockMappedMemory>(64);
+    const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{64}, mapping);
+    EXPECT_EQ(tensor.data(), static_cast<const void*>(mapping->data()));
+    EXPECT_EQ(ov::get_tensor_source_id(tensor), std::optional<uint64_t>{7u});
+
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, ov::auto_size));
+    auto hints = ov::get_memory_hints(tensor);
+    EXPECT_EQ(hints.get(), static_cast<ov::util::IMemoryHints*>(mapping.get()));
+    hints->hint_prefetch();
+}
+
+TEST_F(OVTensorTest, bufferTensorCopyTo) {
+    auto mapping = std::make_shared<MockMappedMemory>(16);
+    std::iota(reinterpret_cast<uint8_t*>(mapping->data()), reinterpret_cast<uint8_t*>(mapping->data()) + 16, 0);
+    const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{4, 4}, mapping);
+
+    ov::Tensor dst{ov::element::u8, ov::Shape{4, 4}};
+    tensor.copy_to(dst);
+    EXPECT_EQ(std::memcmp(dst.data(), mapping->data(), 16), 0);
+
+    ov::Tensor roi_dst{ov::element::u8, ov::Shape{2, 2}};
+    ov::Tensor{tensor, {1, 1}, {3, 3}}.copy_to(roi_dst);
+    EXPECT_THAT(std::vector<uint8_t>(roi_dst.data<uint8_t>(), roi_dst.data<uint8_t>() + 4),
+                testing::ElementsAre(5, 6, 9, 10));
+}
+
+TEST_F(OVTensorTest, memoryHintsCoverTensorRangeOfMapping) {
+    auto mapping = std::make_shared<MockMappedMemory>(1024);
+    const auto tensor = make_buffer_tensor(ov::element::u8, ov::Shape{1000}, mapping);
+    const ov::Tensor roi{tensor, {100}, {300}};
+
+    EXPECT_CALL(*mapping, hint_prefetch_async(0, 1000));
+    EXPECT_CALL(*mapping, hint_evict(0, 1000));
+    EXPECT_CALL(*mapping, hint_prefetch_async(100, 200));
+    EXPECT_CALL(*mapping, hint_evict(100, 200));
+
+    auto hints = ov::get_memory_hints(tensor);
+    ASSERT_NE(hints, nullptr);
+    hints->hint_prefetch();
+    hints->hint_evict();
+
+    auto roi_hints = ov::get_memory_hints(ov::Tensor{roi, {0}, {200}});
+    ASSERT_NE(roi_hints, nullptr);
+    roi_hints->hint_prefetch();
+    roi_hints->hint_evict();
+}
+
+TEST_F(OVTensorTest, memoryHintsNotAvailableWithoutBufferOrForStridedRoi) {
+    float data[16] = {};
+    ov::Tensor tensor{ov::element::f32, ov::Shape{4, 4}, data};
+    EXPECT_EQ(ov::get_memory_hints(tensor), nullptr);
+
+    const auto mapped = make_buffer_tensor(ov::element::f32, ov::Shape{4, 4}, std::make_shared<MockMappedMemory>(64));
+    EXPECT_EQ(ov::get_memory_hints(ov::Tensor{mapped, {0, 1}, {4, 3}}), nullptr);
+}
+
+TEST_F(OVTensorTest, bufferTensorRejectsMissingOrTooSmallBuffer) {
+    EXPECT_THROW(ov::make_tensor(ov::element::u8, ov::Shape{1}, std::shared_ptr<ov::util::IBuffer>{}), ov::Exception);
+    EXPECT_THROW(ov::make_tensor(ov::element::u8, ov::Shape{65}, std::make_shared<MockMappedMemory>(64)),
+                 ov::Exception);
+}
+
+TEST_F(OVTensorTest, memoryHintsAvailableForMmapTensor) {
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_memory_hints_test.bin";
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    {
+        auto tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, true);
+        auto hints = ov::get_memory_hints(tensor);
+        ASSERT_NE(hints, nullptr);
+        hints->hint_evict();
+        hints->hint_prefetch();
+        EXPECT_EQ(tensor.data<const float>()[5], 6.f);
+        EXPECT_EQ(
+            ov::get_memory_hints(ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, false)),
+            nullptr);
+    }
+    std::filesystem::remove(tmp_path);
 }
 
 }  // namespace ov::test

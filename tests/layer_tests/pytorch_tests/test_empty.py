@@ -172,7 +172,7 @@ class TestNewEmpty(PytorchLayerTest):
                 # We don't want to compare values, just shape and type,
                 # so we call zeros_like on data. Multiplying by zero would
                 # produce sporadic errors if nan would be in empty.
-                return torch.zeros_like(empty)
+                return torch.zeros_like(empty), input_tensor
 
         class aten_empty_with_dtype(torch.nn.Module):
             def __init__(self, shape, dtype):
@@ -186,7 +186,7 @@ class TestNewEmpty(PytorchLayerTest):
                 # We don't want to compare values, just shape and type,
                 # so we call zeros_like on data. Multiplying by zero would
                 # produce sporadic errors if nan would be in empty.
-                return torch.zeros_like(empty)
+                return torch.zeros_like(empty), input_tensor
 
         model = aten_empty(shape)
 
@@ -200,6 +200,7 @@ class TestNewEmpty(PytorchLayerTest):
     @pytest.mark.parametrize("input_dtype", [np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_new_empty(self, shape, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)
@@ -208,6 +209,7 @@ class TestNewEmpty(PytorchLayerTest):
     @pytest.mark.parametrize("input_dtype", [bool, np.uint8, np.int8, np.int32, np.int64, np.float32, np.float64])
     @pytest.mark.parametrize("dtype", ["bool", "uint8", "int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
     def test_new_empty_with_dtype(self, shape, dtype, input_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(shape, dtype=dtype, used_dtype=True), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={'input_dtype': input_dtype}, use_convert_model=True)

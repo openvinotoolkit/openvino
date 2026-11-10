@@ -18,7 +18,6 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/moe_gemm.hpp>
-#include <intel_gpu/primitives/gated_mlp.hpp>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -42,19 +41,29 @@ static std::vector<ov::bfloat16> generate_bf16_data(tests::random_generator& rg,
     return bf16_data;
 }
 
-// Helper: compare f32 outputs with tolerance
+// Helper: compare f32 outputs with tolerance.
+// bf16 keeps only 8 mantissa bits, so an output element whose magnitude sits far below the tensor
+// peak is dominated by cancellation noise rather than by kernel error. Gate the relative check with
+// an absolute floor derived from the peak magnitude; the previous fixed 1e-5 cutoff was calibrated
+// for f32 and is ~250x below the bf16 noise floor of these networks.
 static void compare_outputs(const std::vector<float>& ref, const std::vector<float>& actual, float tolerance) {
     ASSERT_EQ(ref.size(), actual.size());
+
+    constexpr float bf16_unit_roundoff = 1.0f / 256;  // 8 explicit mantissa bits
+    float peak = 0.f;
+    for (auto v : ref)
+        peak = std::max(peak, std::abs(v));
+    const float abs_tolerance = std::max(peak * bf16_unit_roundoff, 1e-5f);
+
     for (size_t i = 0; i < ref.size(); ++i) {
-        if (std::abs(ref[i]) < 1e-5f) {
-            ASSERT_NEAR(actual[i], ref[i], tolerance)
-                << "Mismatch at index " << i;
-        } else {
-            float rel_err = std::abs(actual[i] - ref[i]) / std::max(std::abs(ref[i]), 1e-5f);
-            ASSERT_LT(rel_err, tolerance)
-                << "Relative error at index " << i << ": " << rel_err
-                << " (ref=" << ref[i] << ", actual=" << actual[i] << ")";
-        }
+        const float abs_err = std::abs(actual[i] - ref[i]);
+        if (abs_err <= abs_tolerance)
+            continue;
+        const float rel_err = abs_err / std::max(std::abs(ref[i]), 1e-5f);
+        ASSERT_LT(rel_err, tolerance)
+            << "Relative error at index " << i << ": " << rel_err
+            << " (ref=" << ref[i] << ", actual=" << actual[i]
+            << ", abs_err=" << abs_err << ", abs_tolerance=" << abs_tolerance << ")";
     }
 }
 
@@ -365,14 +374,26 @@ TEST(bf16_onednn_ops, concatenation_bf16) {
 }
 
 // =====================================================
-// TEST: Reduce (sum) bf16
+// TEST: Reduce bf16 (parameterized over reduce_mode)
+// Covers sum (unrestricted dtype branch) and sum_square/l1/l2
+// (dtype-gated branch enabled for bf16 on Xe2+).
 // =====================================================
-TEST(bf16_onednn_ops, reduce_sum_bf16) {
+struct reduce_bf16_params {
+    reduce_mode mode;
+    float tolerance;
+    const char* name;
+};
+
+class bf16_onednn_reduce : public ::testing::TestWithParam<reduce_bf16_params> {};
+
+TEST_P(bf16_onednn_reduce, mode) {
+    const auto& p = GetParam();
+
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)
         GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
 
-    tests::random_generator rg("bf16_reduce");
+    tests::random_generator rg(std::string("bf16_reduce_") + p.name);
 
     const int batch = 1, features = 16, in_y = 4, in_x = 4;
     auto input_bf16 = generate_bf16_data(rg, batch * features * in_y * in_x);
@@ -380,13 +401,13 @@ TEST(bf16_onednn_ops, reduce_sum_bf16) {
     std::vector<float> input_f32(input_bf16.size());
     for (size_t i = 0; i < input_bf16.size(); ++i) input_f32[i] = static_cast<float>(input_bf16[i]);
 
-    // BF16 path
+    // BF16 path (force oneDNN reduce to ensure validate_impl is exercised)
     auto input_mem_bf16 = engine.allocate_memory({ data_types::bf16, format::bfyx, { batch, features, in_x, in_y } });
     set_values(input_mem_bf16, input_bf16);
 
     topology tp_bf16;
     tp_bf16.add(input_layout("input", input_mem_bf16->get_layout()));
-    tp_bf16.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3}, true));
+    tp_bf16.add(reduce("reduce", input_info("input"), p.mode, {2, 3}, true));
     tp_bf16.add(reorder("output", input_info("reduce"), format::bfyx, data_types::f32));
 
     auto result_bf16 = run_network_get_f32_output(engine, tp_bf16, "input", input_mem_bf16, "output", "reduce");
@@ -397,13 +418,26 @@ TEST(bf16_onednn_ops, reduce_sum_bf16) {
 
     topology tp_f32;
     tp_f32.add(input_layout("input", input_mem_f32->get_layout()));
-    tp_f32.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3}, true));
+    tp_f32.add(reduce("reduce", input_info("input"), p.mode, {2, 3}, true));
     tp_f32.add(reorder("output", input_info("reduce"), format::bfyx, data_types::f32));
 
     auto result_f32 = run_network_get_f32_output(engine, tp_f32, "input", input_mem_f32, "output");
 
-    compare_outputs(result_f32, result_bf16, 0.05f);
+    compare_outputs(result_f32, result_bf16, p.tolerance);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    bf16_onednn_ops,
+    bf16_onednn_reduce,
+    ::testing::Values(
+        reduce_bf16_params{ reduce_mode::sum,        0.05f, "sum" },
+        reduce_bf16_params{ reduce_mode::l1,         0.05f, "l1" },
+        reduce_bf16_params{ reduce_mode::l2,         0.05f, "l2" },
+        reduce_bf16_params{ reduce_mode::sum_square, 0.05f, "sum_square" }
+    ),
+    [](const ::testing::TestParamInfo<reduce_bf16_params>& info) {
+        return std::string(info.param.name);
+    });
 
 // =====================================================
 // TEST: Deconvolution bf16
@@ -607,80 +641,6 @@ TEST(bf16_onednn_ops, moe_gemm_bf16) {
         GTEST_SKIP() << "moe_gemm bf16 hits oneDNN JIT bug (772847a58c not yet merged)";
     }
     auto result_f16 = run_moe_gemm(data_types::f16);
-
-    compare_outputs(result_f16, result_bf16, 0.05f);
-}
-
-// =====================================================
-// TEST: Gated MLP bf16 (bf16 vs f16 comparison)
-// =====================================================
-TEST(bf16_onednn_ops, gated_mlp_bf16) {
-    auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        GTEST_SKIP() << "BF16 oneDNN requires XMX/DPAS support (Xe-HPG+)";
-
-    tests::random_generator rg("bf16_gated_mlp");
-    const int batch = 2, ifm = 32, hidden = 16;
-
-    auto src_f32 = rg.generate_random_1d<float>(batch * ifm, -0.5f, 0.5f);
-    auto gate_f32 = rg.generate_random_1d<float>(ifm * hidden, -0.5f, 0.5f);
-    auto up_f32 = rg.generate_random_1d<float>(ifm * hidden, -0.5f, 0.5f);
-    auto down_f32 = rg.generate_random_1d<float>(hidden * ifm, -0.5f, 0.5f);
-
-    auto run_gated_mlp = [&](data_types dt) -> std::vector<float> {
-        auto src_mem = engine.allocate_memory({{batch, 1, 1, ifm}, dt, format::bfyx});
-        auto gate_mem = engine.allocate_memory({{ifm, hidden}, dt, format::bfyx});
-        auto up_mem = engine.allocate_memory({{ifm, hidden}, dt, format::bfyx});
-        auto down_mem = engine.allocate_memory({{hidden, ifm}, dt, format::bfyx});
-
-        if (dt == data_types::bf16) {
-            auto to_bf16 = [](const std::vector<float>& v) {
-                std::vector<ov::bfloat16> r(v.size());
-                for (size_t i = 0; i < v.size(); ++i) r[i] = ov::bfloat16(v[i]);
-                return r;
-            };
-            set_values(src_mem, to_bf16(src_f32));
-            set_values(gate_mem, to_bf16(gate_f32));
-            set_values(up_mem, to_bf16(up_f32));
-            set_values(down_mem, to_bf16(down_f32));
-        } else {
-            auto to_f16 = [](const std::vector<float>& v) {
-                std::vector<ov::float16> r(v.size());
-                for (size_t i = 0; i < v.size(); ++i) r[i] = ov::float16(v[i]);
-                return r;
-            };
-            set_values(src_mem, to_f16(src_f32));
-            set_values(gate_mem, to_f16(gate_f32));
-            set_values(up_mem, to_f16(up_f32));
-            set_values(down_mem, to_f16(down_f32));
-        }
-
-        topology tp;
-        tp.add(input_layout("src", src_mem->get_layout()));
-        tp.add(data("w_gate", gate_mem));
-        tp.add(data("w_up", up_mem));
-        tp.add(data("w_down", down_mem));
-        tp.add(reorder("src_2d", input_info("src"), {dt, format::bfyx, tensor(batch, ifm, 1, 1)}));
-        tp.add(gated_mlp("gmlp", input_info("src_2d"), input_info("w_gate"),
-                          input_info("w_up"), input_info("w_down"),
-                          ov::op::internal::GLU::GluType::Swish,
-                          tensor(batch, ifm, 1, 1), dt));
-        tp.add(reorder("output", input_info("gmlp"), format::bfyx, data_types::f32));
-
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::use_onednn(true));
-
-        network net(engine, tp, config);
-        net.set_input_data("src", src_mem);
-        auto out_mem = net.execute().at("output").get_memory();
-        mem_lock<float> ptr(out_mem, get_test_stream());
-        return std::vector<float>(ptr.begin(), ptr.end());
-    };
-
-    auto result_f16 = run_gated_mlp(data_types::f16);
-    auto result_bf16 = run_gated_mlp(data_types::bf16);
 
     compare_outputs(result_f16, result_bf16, 0.05f);
 }

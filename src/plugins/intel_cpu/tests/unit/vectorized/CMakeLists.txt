@@ -12,12 +12,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd5051)
 endif()
 
-if(NOT X86_64)
-    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
-      ${CMAKE_CURRENT_SOURCE_DIR}/paged_attn_cache_rotation.cpp)
+# only one of these files is ever built - the other is unsupported / redundant on this arch
+set(CPU_UNIT_TESTS_VECTORIZED_EXCLUDE_FILES)
+if(X86_64)
+    set(CPU_UNIT_TESTS_VECTORIZED_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/paged_attn_cache_rotation.cpp)
+    list(APPEND CPU_UNIT_TESTS_VECTORIZED_EXCLUDE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/stub.cpp)
 else()
-    list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
-      ${CMAKE_CURRENT_SOURCE_DIR}/stub.cpp)
+    set(CPU_UNIT_TESTS_VECTORIZED_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/stub.cpp)
+    list(APPEND CPU_UNIT_TESTS_VECTORIZED_EXCLUDE_FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/paged_attn_cache_rotation.cpp)
 endif()
 
 if (ENABLE_MLAS_FOR_CPU)
@@ -26,7 +29,7 @@ endif()
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES ${CPU_UNIT_TESTS_VECTORIZED_SRCS}
         INCLUDES
             PUBLIC
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src
@@ -34,8 +37,6 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
             PRIVATE
                 $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
-        EXCLUDED_SOURCE_PATHS
-            ${EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST}
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES
@@ -51,6 +52,9 @@ ov_add_test_target(
             ${MLAS_LIBRARY}
         LABELS
             OV UNIT CPU
+        CHECK_SOURCES_LISTED
+        CHECK_SOURCES_EXCLUDE_FILES
+            ${CPU_UNIT_TESTS_VECTORIZED_EXCLUDE_FILES}
 )
 
 

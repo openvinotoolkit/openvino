@@ -219,9 +219,21 @@ function(_remove_source_from_target TARGET SOURCE_FILE)
     get_target_property(ORIGINAL_SOURCES ${TARGET} SOURCES)
 
     ## To match by file name only. The path is any.
-    list(FILTER ORIGINAL_SOURCES EXCLUDE REGEX ".*${SOURCE_FILE}$")
+    set(FILTERED_SOURCES)
+    string(LENGTH "${SOURCE_FILE}" SUFFIX_LEN)
+    foreach(SRC IN LISTS ORIGINAL_SOURCES)
+        string(LENGTH "${SRC}" SRC_LEN)
+        math(EXPR START "${SRC_LEN} - ${SUFFIX_LEN}")
+        if(START GREATER_EQUAL 0)
+            string(SUBSTRING "${SRC}" ${START} -1 TAIL)
+            if(TAIL STREQUAL SOURCE_FILE)
+                continue()
+            endif()
+        endif()
+        list(APPEND FILTERED_SOURCES "${SRC}")
+    endforeach()
 
     set_target_properties(${TARGET}
             PROPERTIES
-            SOURCES "${ORIGINAL_SOURCES}")
+            SOURCES "${FILTERED_SOURCES}")
 endfunction()

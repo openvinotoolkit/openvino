@@ -3,14 +3,10 @@
 //
 
 #pragma once
-
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 // This transformation replaces the GPTQ pattern with a Constant node
 class GPTQDecompressionReplacer : public ov::pass::MatcherPass {
@@ -28,7 +24,4 @@ public:
     GPTQMultPatternReplacer();
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

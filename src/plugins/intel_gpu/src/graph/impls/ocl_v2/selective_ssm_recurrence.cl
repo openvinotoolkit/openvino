@@ -6,14 +6,14 @@
 // SSM_TOKEN_INDEX, and the state accessors. This file is included directly
 // inside the token loop to preserve the compiler-visible recurrence body.
 const size_t dt_idx = SSM_DT_INDEX(SSM_TOKEN_INDEX);
-const float dt_value = SSM_TO_FLOAT(dt[dt_idx]);
+const float dt_value = ssm_to_float(dt[dt_idx]);
 const float dA = exp(A_value * dt_value);
 float input_scales[SSM_MAX_HEAD_DIM_BLOCK];
 float partial[SSM_MAX_HEAD_DIM_BLOCK];
 
 for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
     const size_t p = p_base + (size_t)p_offset;
-    input_scales[p_offset] = SSM_TO_FLOAT(x[SSM_X_INDEX(SSM_TOKEN_INDEX, p)]) * dt_value;
+    input_scales[p_offset] = ssm_to_float(x[SSM_X_INDEX(SSM_TOKEN_INDEX, p)]) * dt_value;
     partial[p_offset] = 0.0f;
 }
 
@@ -23,8 +23,8 @@ for (SSM_STATE_ITERATION_TYPE step = 0; step < state_iterations; ++step) {
         break;
     const size_t b_idx = SSM_B_INDEX(SSM_TOKEN_INDEX, state_element);
     const size_t c_idx = SSM_C_INDEX(SSM_TOKEN_INDEX, state_element);
-    const float b_value = SSM_TO_FLOAT(B[b_idx]);
-    const float c_value = SSM_TO_FLOAT(C[c_idx]);
+    const float b_value = ssm_to_float(B[b_idx]);
+    const float c_value = ssm_to_float(C[c_idx]);
     for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
         const size_t recurrence_state_idx = SSM_STATE_INDEX(p_offset, state_element);
         const float new_state = fma(SSM_STATE_AT(recurrence_state_idx), dA, input_scales[p_offset] * b_value);

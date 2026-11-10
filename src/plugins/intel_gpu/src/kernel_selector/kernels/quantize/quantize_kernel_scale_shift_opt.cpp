@@ -71,7 +71,7 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
 JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& params, const CommonDispatchData& dispatchData) const {
     JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
-    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 ||
+    if (params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 || params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 ||
@@ -118,8 +118,9 @@ JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& pa
 
 bool QuantizeKernelScaleShift::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
-    if (params.inputs.size() != 9)
+    if (params.inputs.size() != 9) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

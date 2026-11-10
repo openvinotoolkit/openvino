@@ -56,7 +56,6 @@ public:
     ov::builder::subgraph::FakeQuantizeOnDataWithConstant fakeQuantize2;
     ov::builder::subgraph::DequantizationOperations::Convert convert2;
     ov::builder::subgraph::DequantizationOperations dequantization2;
-    ov::element::Type precisionAfterOperation;
     ov::builder::subgraph::DequantizationOperations dequantizationAfter;
 };
 
@@ -127,7 +126,6 @@ public:
                                                                         testValues.actual.convert2,
                                                                         testValues.actual.dequantization2,
                                                                         {},
-                                                                        ov::element::dynamic,
                                                                         {},
                                                                         testValues.axis,
                                                                         testValues.addNotPrecisionPreservedOperation);
@@ -187,7 +185,6 @@ public:
                                                            {ov::PrecisionPreservedAttribute(true),
                                                             ov::IntervalsAlignmentAttribute(interval, 256),
                                                             ov::QuantizationAlignmentAttribute(false)},
-                                                           testValues.result.precisionAfterOperation,
                                                            testValues.result.dequantizationAfter,
                                                            testValues.axis,
                                                            testValues.addNotPrecisionPreservedOperation);
@@ -264,7 +261,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ov::element::u8,
          {ov::element::f32, {}, {{10.f, 10.f, 10.f, 0.000392157f, 0.000392157f, 0.000392157f}}},
      },
      true},
@@ -287,7 +283,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
          {},
          {},
          {},
-         ov::element::f32,
      }},
     // left branch is not quantized
     {LayerTransformation::createParamsU8I8(),
@@ -308,7 +303,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ov::element::f32,
      }},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -336,7 +330,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ov::element::u8,
          {ov::element::f32, {}, {0.01f}},
      }},
     // U8: concat
@@ -371,7 +364,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -405,7 +397,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -439,7 +430,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -473,7 +463,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -505,7 +494,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {0.01f}}}},
     // U8: concat
     {LayerTransformation::createParamsU8I8(),
@@ -537,7 +525,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {0.01f}}}},
     // U8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
@@ -564,7 +551,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
     // U8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
@@ -596,7 +582,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
     // U8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
@@ -638,7 +623,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {{0.01f / 1.f, 0.01f / 2.f, 0.01f / 3.f, 0.005f / 1.f, 0.005f / 2.f, 0.005f / 3.f}}}},
      false,
      false},
@@ -672,7 +656,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::i8,
       {ov::element::f32, {}, {0.01f}}}},
     // mixed: U8 + I8: concat (check constant values here)
     {LayerTransformation::createParamsU8I8(),
@@ -699,7 +682,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, {0.01f}}}},
     // mixed: U8 + I8: concat multi channels
     {LayerTransformation::createParamsU8I8(),
@@ -726,7 +708,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{-1.28f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}}, {0.01f}}}},
     // mixed: I8 + U8: concat (check constant values here)
     {LayerTransformation::createParamsU8I8(),
@@ -739,7 +720,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
       {256ul, {}, {0.f}, {2.55f}, {85.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {85}, {0.015f}}},
      true},
     // real case from ctdet_coco_dlav0_384 model, coverage bad rounding
@@ -758,7 +738,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
       {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {128}, {0.0302619f}}},
      true},
     // U8: concat multi channels with subtract, negative axis
@@ -772,7 +751,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
       {256ul, {}, {1.275f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32,
        {{0.f, 0.f, 0.f, -255.f, -255.f, -255.f}},
        {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}}},
@@ -802,7 +780,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ov::element::u8,
          {ov::element::f32,
           {},
           {
@@ -861,7 +838,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {127}, {0.01f}}}},
     // U8: concat multi channels with subtract convert and subtract without convert
     {LayerTransformation::createParamsU8I8(),
@@ -905,7 +881,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {127}, {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}}}},
     // U8: concat with subtract convert on both branches
     {LayerTransformation::createParamsU8I8(),
@@ -939,7 +914,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32,
        {{128, 128, 128, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true, {}, {}},
        {0.01f}}}},
@@ -975,7 +949,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32,
        {{0, 0, 0, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true, {}, {}},
        {0.01f}}}},
@@ -1023,7 +996,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32,
        {{0.f, 0.f, 0.f, 128.f, 128.f, 128.f}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true},
        {{0.01f, 0.01f, 0.01f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}}}},
@@ -1073,7 +1045,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
        {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32,
        {{128, 128, 128, 127, 127, 127}, element::f32, {1, 6, 1, 1}, false, 1ul, ov::element::u8, true, {}, {}},
        {{0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f, 0.01f / 3.f, 0.01f / 2.f, 0.01f / 1.f}}}}},
@@ -1112,7 +1083,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ov::element::u8,
          {ov::element::f32,
           {{0.f, 0.f, 0.f, -255.f, -255.f, -255.f}},
           {{0.01f, 0.01f, 0.01f, 0.005f, 0.005f, 0.005f}}}},
@@ -1152,7 +1122,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
           {ov::IntervalsAlignmentAttribute(ov::IntervalsAlignmentSharedValue::Interval{0.f, 2.55f}, 256ul)}},
          {},
          {},
-         ov::element::u8,
          {ov::element::f32,
           {{-255.f, -255.f, -255.f, 0.f, 0.f, 0.f}},
           {{0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f}}}},
@@ -1169,7 +1138,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
          {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}},
          {},
          {},
-         ov::element::f32,
          {{element::f32}, {}, {0.01f}},
      }},
     // INT4+INT8 quantization levels, concat
@@ -1185,7 +1153,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {256ul, {}, {0.f}, {2.55f}, {0.f}, {2.55f}},
             {},
             {},
-            ov::element::f32,
             {},
         },
         true,
@@ -1202,7 +1169,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
       {256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ov::element::u8},
       {},
       {},
-      ov::element::u8,
       {ov::element::f32, {}, {{0.1f, 0.1f, 0.1f, 0.01f, 0.01f, 0.01f}}}},
      true,
      false}};

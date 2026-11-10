@@ -18,11 +18,6 @@ public:
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
 
-protected:
-    std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                                                            const arm_compute::DataType& dataType,
-                                                            const arm_compute::DataLayout& dataLayout) override;
-
 private:
     ConvAttrs convAttrs;
     arm_compute::PadStrideInfo padStrideInfo;

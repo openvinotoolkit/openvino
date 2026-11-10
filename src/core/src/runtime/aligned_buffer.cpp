@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "openvino/core/except.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace ov {
@@ -17,6 +18,7 @@ AlignedBuffer::AlignedBuffer() : m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(std::max<size_t>(1, byte_size)) {
     m_aligned_buffer = static_cast<char*>(util::aligned_alloc(m_byte_size, alignment));
+    OPENVINO_ASSERT(m_aligned_buffer, "Failed to allocate ", m_byte_size, " bytes (alignment: ", alignment, ")");
 }
 
 AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)
@@ -57,5 +59,19 @@ void AlignedBuffer::hint_prefetch() const {}
 
 void AlignedBuffer::invoke_hint_prefetch(const AlignedBuffer& buffer) {
     buffer.hint_prefetch();
+}
+
+util::PrefetchToken AlignedBuffer::hint_prefetch_async() const noexcept {
+    return {};
+}
+
+util::PrefetchToken AlignedBuffer::hint_prefetch_async(size_t, size_t) const noexcept {
+    return {};
+}
+
+util::PrefetchToken AlignedBuffer::invoke_hint_prefetch_async(const AlignedBuffer& buffer,
+                                                              size_t offset,
+                                                              size_t size) noexcept {
+    return buffer.hint_prefetch_async(offset, size);
 }
 }  // namespace ov

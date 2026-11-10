@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_cm_obj")
+set(TARGET_NAME "openvino_intel_gpu_cm_obj${OV_GPU_SUFFIX}")
 
 # Path which points to root directory where code generated elements are created
 # (specific to build configuration).
@@ -19,8 +19,9 @@ set(KERNEL_HEADERS "gpu_cm_kernel_headers.inc")
 set(CODEGEN_CACHE_SOURCES "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
                           "${CODEGEN_INCDIR}/${KERNEL_HEADERS}")
 
-file(GLOB_RECURSE KERNELS "${CMAKE_CURRENT_SOURCE_DIR}/*.cm")
-file(GLOB_RECURSE HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+include(${CMAKE_CURRENT_LIST_DIR}/sources.cmake)
+set(KERNELS ${GPU_CM_KERNEL_SOURCES})
+set(HEADERS ${GPU_CM_KERNEL_HEADERS})
 
 set_property(SOURCE ${CODEGEN_CACHE_SOURCES} PROPERTY GENERATED TRUE)
 
@@ -70,14 +71,13 @@ add_custom_command(OUTPUT "${CODEGEN_INCDIR}/${KERNEL_SOURCES}"
   COMMENT "Updating file if the file changed (${CODEGEN_INCDIR}/${KERNEL_SOURCES}) ..."
 )
 
-add_custom_target(run_cm_codegen ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
+add_custom_target(run_cm_codegen${OV_GPU_SUFFIX} ALL DEPENDS "${CODEGEN_INCDIR}/${KERNEL_SOURCES}")
 
 ov_gpu_add_backend_target(
     NAME ${TARGET_NAME}
     INCLUDES $<BUILD_INTERFACE:${CODEGEN_INCDIR}>
+    SOURCES ${GPU_CM_IMPL_SOURCES}
     BYPASS
-        ADDITIONAL_SOURCE_DIRS ${CODEGEN_INCDIR}
-        EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        DEPENDENCIES run_cm_codegen
+        DEPENDENCIES run_cm_codegen${OV_GPU_SUFFIX}
         ADD_CLANG_FORMAT
 )

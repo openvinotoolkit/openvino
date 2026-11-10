@@ -247,6 +247,10 @@ public:
 
     static bool checkConstantNotInf(const std::shared_ptr<Node> constant_node);
 
+    // Returns the inclusive [minimum, maximum] range for supported integral precisions.
+    // Returns std::nullopt when no range is defined for the given precision.
+    static std::optional<std::pair<double, double>> getPrecisionLimits(const element::Type_t precision);
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(
             const std::shared_ptr<ov::opset1::FakeQuantize>& fq,

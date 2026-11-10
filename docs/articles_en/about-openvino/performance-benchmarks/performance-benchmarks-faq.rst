@@ -51,22 +51,26 @@ Performance Information F.A.Q.
         - DeepSeek, HF
         - Auto regressive language
         - 128K
-      * - `Gemma-3-4B-it <https://huggingface.co/google/gemma-3-4b-it>`__
+      * - `Gemma-3n-e4b-it <https://huggingface.co/google/gemma-3n-E4B-it>`__
         - Hugginface
-        - Text-To-Text Decoder-only
+        - Multimodal, instruction tuned for low-resource use cases.
+        - 32K
+      * - `Gemma-4-e2b-it <https://huggingface.co/google/gemma-4-E2B-it>`__
+        - Hugginface
+        - Multimodal, instruction tuned for low-resource use cases.
         - 128K
+      * - `Gemma-4-26b-a4b <https://huggingface.co/google/gemma-4-26B-A4B-it>`__
+        - Hugginface
+        - Multimodal MoE, instruction tuned with fast response time.
+        - 256K
       * - `GPT-OSS-20B <https://huggingface.co/openai/gpt-oss-20b>`__
         - Hugginface
         - Reasoning, agentic and developer use cases.
         - 128K
-      * - `GPT-OSS-120B <https://huggingface.co/openai/gpt-oss-120b>`__
-        - Hugginface
-        - Reasoning, agentic and developer use cases.
+      * - `Kokoro-82m <https://huggingface.co/hexgrad/Kokoro-82M>`__
+        - Hexgrad
+        - Lightweight text-to-speech open-weight model. Multi-lingual, including accents.
         - 128K
-      * - `Llama-2-7b-chat <https://www.llama.com/>`__
-        - Meta AI
-        - Auto regressive language
-        - 4K
       * - `Llama-3.2-3B-Instruct <https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct>`__
         - Meta AI
         - Auto regressive language
@@ -83,30 +87,18 @@ Performance Information F.A.Q.
         - Hugginface
         - Auto regressive language
         - 4096
-      * - `Qwen-2.5-VL-7B-instruct <https://huggingface.co/Qwen/Qwen2.5-VL-7B-instruct>`__
+      * - `Qwen-3.5-9B <https://huggingface.co/Qwen/Qwen3.5-9B>`__
         - Huggingface
-        - Auto regressive language, Agentic
-        - 128K
-      * - `Qwen-3-8B <https://huggingface.co/Qwen/Qwen3-8B>`__
-        - Huggingface
-        - Auto regressive language
-        - 32K
+        - Multimodal, Gated Delta Networks, Sparse MoE
+        - 256K
       * - `Qwen-3.6-27B <https://huggingface.co/Qwen/Qwen3.6-27B>`__
         - Huggingface
         - Causal Language with Vision Encoder
         - 256K (up to 1M)
-      * - `Qwen-3-30B-A3B <https://huggingface.co/Qwen/Qwen3-30B-A3B>`__
-        - Huggingface
-        - Mix of Experts. Reasoning, agentic, multi-lingual
-        - 32K
       * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model
         - 77
-      * - `FLUX.1-schnell <https://huggingface.co/black-forest-labs/FLUX.1-schnell>`__
-        - Hugginface
-        - Latent Adversarial Diffusion Distillation Model
-        - 256
       * - `LTX-VIDEO <https://huggingface.co/Lightricks/LTX-Video>`__
         - Hugginface
         - DiT based video generation. Diffusion Transformer.
@@ -164,14 +156,6 @@ Performance Information F.A.Q.
    and a selection of Intel® CPU architectures, including AVX-2 with Intel®
    Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel®
    Xeon® 8270, refer to the :doc:`Model Accuracy for INT8 and FP32 Precision <model-accuracy-int8-fp32>`
-
-.. dropdown:: Where can I search for OpenVINO™ performance results based on HW-platforms?
-
-   The website format has changed in order to support more common
-   approach of searching for the performance results of a given neural
-   network model on different HW-platforms. As opposed to reviewing
-   performance of a given HW-platform when working with different neural
-   network models.
 
 .. dropdown:: How is Latency measured?
 

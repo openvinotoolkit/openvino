@@ -42,8 +42,9 @@ struct read_value : public primitive_base<read_value> {
     ov::element::Type user_specified_type;
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const read_value>(rhs);
 
@@ -56,8 +57,9 @@ struct read_value : public primitive_base<read_value> {
         ov::element::Type_t data_type = user_specified_type;
         ob << variable_id;
         ob << output_layouts.size();
-        for (const auto& layout : output_layouts)
+        for (const auto& layout : output_layouts) {
             ob << layout;
+        }
         ob << make_data(&data_type, sizeof(ov::element::Type_t));
     }
 

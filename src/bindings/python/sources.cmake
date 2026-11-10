@@ -21,6 +21,7 @@ set(OPENVINO_PYTHON_SOURCE_FILES
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/paddle/__init__.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/__init__.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/compressed_tensors.py
+    ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/decoder_base.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/fx_decoder.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/gptq.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/inlined_extension.py
@@ -34,7 +35,6 @@ set(OPENVINO_PYTHON_SOURCE_FILES
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/torchdynamo/compile.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/torchdynamo/decompositions.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/torchdynamo/execute.py
-    ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/torchdynamo/export_decompositions.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/torchdynamo/op_support.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/torchdynamo/partition.py
     ${CMAKE_CURRENT_LIST_DIR}/src/openvino/frontend/pytorch/ts_decoder.py

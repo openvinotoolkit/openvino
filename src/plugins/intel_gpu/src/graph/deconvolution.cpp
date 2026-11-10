@@ -113,8 +113,9 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         output_type = impl_param.get_output_element_type();
     }
 
-    if (input_layout.is_dynamic())
+    if (input_layout.is_dynamic()) {
         return {layout{ShapeType::dynamic(input_layout.get<ShapeType>().rank()), output_type, input_layout.format}};
+    }
 
     auto strides = desc->stride;
     auto dilations = desc->dilations;
@@ -247,8 +248,9 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 
 deconvolution_inst::typed_primitive_inst(network& network, deconvolution_node const& node)
     : parent(network, node) {
-    if (node.is_dynamic())
+    if (node.is_dynamic()) {
         return;
+    }
     auto stride = argument->stride;
     auto pad = argument->pad;
 

@@ -20,15 +20,17 @@ static inline kernel_selector::softmax_dim get_softmax_dim(int64_t axis, size_t 
         case 0: return kernel_selector::softmax_dim::BATCH;
         case 1: return kernel_selector::softmax_dim::FEATURE;
         case 2:
-            if (rank > 4)
+            if (rank > 4) {
                 return kernel_selector::softmax_dim::Z;
-            else
+            } else {
                 return kernel_selector::softmax_dim::Y;
+            }
         case 3:
-            if (rank > 4)
+            if (rank > 4) {
                 return kernel_selector::softmax_dim::Y;
-            else
+            } else {
                 return kernel_selector::softmax_dim::X;
+            }
         case 4: return kernel_selector::softmax_dim::X;
         default: OPENVINO_THROW("Invalid softmax axis ", axis);
     }

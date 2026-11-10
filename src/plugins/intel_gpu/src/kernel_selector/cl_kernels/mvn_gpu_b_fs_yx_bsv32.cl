@@ -90,7 +90,7 @@
 // ================================================================================================
 #if MVN_KERNEL_MEAN_1
 
-DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, GWS, ACCUMULATE_SUM)
+DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, GWS, ACCUMULATE_SUM_DECODED)
 
 #if SG_NUM != 1
 DECLARE_WG_PACKED_REDUCE_ADD(reduce_sum_across_sg, ACCUMULATOR_TYPE, FSV, SG_NUM, REDUCE_NO_POST_OP)
@@ -119,10 +119,10 @@ KERNEL(mvn_mean_1)(const __global INPUT0_TYPE* input,
     ACC_PACKED_TYPE partial_sum = FUNC_CALL(accumulate_sum_input)(input, data_sets_offset, get_global_id(0));
 
 #if SG_NUM != 1
-    __local int slm_acc[(SG_NUM - 1) * FSV];
-    int full_sum = FUNC_CALL(reduce_sum_across_sg)(partial_sum, slm_acc);
+    __local ACCUMULATOR_TYPE slm_acc[(SG_NUM - 1) * FSV];
+    ACCUMULATOR_TYPE full_sum = FUNC_CALL(reduce_sum_across_sg)(partial_sum, slm_acc);
 #else
-    int full_sum = FUNC_CALL(reduce_sum_inside_sg)(partial_sum);
+    ACCUMULATOR_TYPE full_sum = FUNC_CALL(reduce_sum_inside_sg)(partial_sum);
 #endif
 
     if (sgid == 0 && (sglid < FSV || SIMD == FSV)) {
@@ -174,7 +174,7 @@ KERNEL(mvn_mean_2)(const __global ACCUMULATOR_TYPE* intermidiate_sum,
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, GWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if SG_NUM != 1
@@ -296,7 +296,13 @@ KERNEL(mvn_final_bsv32)(
     uint output_offset = OUTPUT_GET_INDEX(b, f, y, x);
 
     INPUT_PACKED_TYPE in_pack = ((const __global INPUT_PACKED_TYPE*)(input + input_offset))[0];
-    ACT_PACKED_TYPE normalized_vec = fma((TO_ACT_PACKED_TYPE(in_pack) - TO_ACT_PACKED_TYPE(mean_vals)),
+    // Decode each stored input element to the compute type (identity for f32/f16/i8/u8,
+    // bf16 bit-pattern decode for bf16) and normalize in the activation type.
+    MEAN_PACKED_TYPE in_decoded;
+    unroll_for (uint fi = 0; fi < FSV; fi++) {
+        in_decoded[fi] = DECODE_INPUT0_COMPUTE_TYPE(in_pack[fi]);
+    }
+    ACT_PACKED_TYPE normalized_vec = fma((TO_ACT_PACKED_TYPE(in_decoded) - TO_ACT_PACKED_TYPE(mean_vals)),
                                             TO_ACT_PACKED_TYPE(inv_variance), (ACT_PACKED_TYPE)0);
     OUTPUT_PACKED_TYPE result_vec = OUTPUT_VAL_ZERO;
 
@@ -309,14 +315,13 @@ KERNEL(mvn_final_bsv32)(
         result_vec[fi] = TO_OUTPUT_TYPE(normalized);
 #   endif
     }
-
     vstore16(result_vec, 0, &output[output_offset]);
 }
 
 #elif MVN_KERNEL_MEAN_VAR_BSV32
 
 // Mean:
-DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM)
+DECLARE_PACKED_ACCUMULATE(accumulate_sum_input, ACCUMULATOR_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_DECODED)
 
 #define CALC_MEAN(sum) ((sum) / ITEMS_NUM)
 #if SG_NUM != 1
@@ -330,7 +335,7 @@ DECLARE_SG_PACKED_REDUCE_ADD(reduce_mean, MEAN_TYPE, FSV, CALC_MEAN)
 #define EXTRA_ARGS_IMPL         , mean
 #define EXTRA_ARGS_DECL         EXTRA_ARGS_DECL_IMPL
 #define EXTRA_ARGS              EXTRA_ARGS_IMPL
-#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, TO_MEAN_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
+#define ACCUMULATE_SUM_SQ_DEV(curr, next, idx, mean)   ACCUMULATE_SUM_SQ(curr, DECODE_INPUT0_COMPUTE_TYPE(next) - _sub_group_shuffle(mean, idx), idx)
 DECLARE_PACKED_ACCUMULATE_EARGS(accumulate_sum_sq_dev, MEAN_TYPE, INPUT0_TYPE, FSV, INPUT_SLICE_PITCH, ITEMS_NUM, LWS, ACCUMULATE_SUM_SQ_DEV, EXTRA_ARGS_DECL, EXTRA_ARGS)
 
 #if defined EPS_OUTSIDE_SQRT

@@ -25,10 +25,7 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 static bool is_static_one(const ov::Dimension& dim) {
     return dim.is_static() && dim.get_length() == 1;
@@ -86,9 +83,21 @@ OutputVector translate_soft_max(const NodeContext& context) {
     ov::Output<Node> res;
 
     // ggml SOFT_MAX reduces ne[0] == the OV last axis (rank-3 attention -> 2, rank-4 router -> 3);
-    // derive it from the rank instead of hardcoding 2. Reused by both Softmax paths below.
+    // derive it from the rank instead of hardcoding 2. The native builder may request another
+    // axis, e.g. the gpt-oss top-k gating weights [1,T,K,1] normalize over K. Reused by both
+    // Softmax paths below.
     const auto& in_ps = input0.get_partial_shape();
-    const int64_t softmax_axis = in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 2;
+    const bool has_softmax_axis = context.has_attribute("softmax_axis");
+    const int64_t softmax_axis = has_softmax_axis ? context.get_attribute<int64_t>("softmax_axis")
+                                                  : (in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 2);
+    if (has_softmax_axis && in_ps.rank().is_static()) {
+        const int64_t rank = in_ps.rank().get_length();
+        FRONT_END_OP_CONVERSION_CHECK(-rank <= softmax_axis && softmax_axis < rank,
+                                      "SOFT_MAX softmax_axis ",
+                                      softmax_axis,
+                                      " is out of range for input rank ",
+                                      rank);
+    }
 
     float scale = context.get_attribute<float>("scale", 1.0f);
     float max_bias = context.get_attribute<float>("max_bias", 0.0f);
@@ -99,18 +108,23 @@ OutputVector translate_soft_max(const NodeContext& context) {
     // Disambiguate a 2nd input: it is either the additive mask or (gpt-oss) the attention sinks.
     const bool second_input_is_sinks =
         context.get_input_size() == 2 &&
-        is_attention_sinks_input_shape(context.get_input_shape(1), context.get_output_shape());
+        is_attention_sinks_input_shape(context.get_input_shape(1), context.get_input_shape(0));
     const bool has_mask = context.get_input_size() > 1 && !second_input_is_sinks;
     const bool has_sinks = second_input_is_sinks || context.get_input_size() > 2;
     const int sinks_input_idx = second_input_is_sinks ? 1 : 2;
+    if (has_sinks && has_softmax_axis) {
+        const bool last_axis =
+            softmax_axis == -1 || (in_ps.rank().is_static() && softmax_axis == in_ps.rank().get_length() - 1);
+        FRONT_END_OP_CONVERSION_CHECK(last_axis, "SOFT_MAX with attention sinks supports only the last softmax_axis");
+    }
 
     if (!has_mask) {
         if (has_sinks) {
             res = apply_sinks(context, scaled_input, context.get_input(sinks_input_idx));
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
         res = std::make_shared<ov::op::v8::Softmax>(scaled_input, softmax_axis);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     ov::Output<ov::Node> mask_node_sliced;
@@ -124,7 +138,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
         mask_node_sliced = std::make_shared<ov::op::v8::Slice>(mask_node, zero, token_len, one, one);
     }
 
-    auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    auto output_type = input0.get_element_type();
     if (mask_node_sliced.get_element_type() != output_type) {
         mask_node_sliced = std::make_shared<ov::op::v0::Convert>(mask_node_sliced, output_type);
     }
@@ -161,15 +175,12 @@ OutputVector translate_soft_max(const NodeContext& context) {
 
     if (has_sinks) {
         res = apply_sinks(context, biased_input, context.get_input(sinks_input_idx));
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     res = std::make_shared<ov::op::v8::Softmax>(biased_input, softmax_axis);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

@@ -133,6 +133,7 @@ class TestScaledDotProductAttentionWithGroupQuery(PytorchLayerTest):
                                             (1, 1, 8, 1),
                                             (1, 1, 8, 16)])
     @pytest.mark.parametrize('dyn_shapes', (True, False))
+    @pytest.mark.precommit_torch_export
     def test_scaled_dot_product_atten_with_gqa(self, ie_device, precision, ir_version,
                                                mask, is_causal, mask_shape, dyn_shapes):
         dtype = np.float32

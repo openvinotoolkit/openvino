@@ -53,6 +53,30 @@ TEST(lru_cache, basic_data_type)
     }
 }
 
+TEST(lru_cache, erase)
+{
+    const size_t cap = 4;
+    LruCache<int, int> ca(cap);
+
+    for (int i = 1; i <= static_cast<int>(cap); i++) {
+        ca.add(i, i + 10);
+    }
+    ASSERT_EQ(ca.get_all_keys(), std::vector<int>({4, 3, 2, 1}));
+
+    ASSERT_FALSE(ca.erase(cap + 1));
+    ASSERT_EQ(ca.size(), cap);
+
+    ASSERT_TRUE(ca.erase(3));
+    ASSERT_FALSE(ca.has(3));
+    ASSERT_EQ(ca.size(), cap - 1);
+    ASSERT_EQ(ca.get_all_keys(), std::vector<int>({4, 2, 1}));
+
+    // Erasing an entry which has just been touched leaves the order of the remaining ones untouched
+    ca.get(1);
+    ASSERT_TRUE(ca.erase(1));
+    ASSERT_EQ(ca.get_all_keys(), std::vector<int>({4, 2}));
+}
+
 class lru_cache_test_data {
 public:
     lru_cache_test_data(int a, int b, int c) : x(a), y(b), z(c) {

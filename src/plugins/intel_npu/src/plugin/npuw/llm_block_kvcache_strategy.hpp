@@ -20,6 +20,7 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMContinuedPrefillTestAccess;
+struct LLMLongRopeModeTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -130,6 +131,11 @@ public:
                                     const PortsMap& new_in_ports) override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
 
+    void rerotate_longrope_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                const PortsMap& in_ports,
+                                uint32_t num_cached_tokens,
+                                bool to_long) override;
+
     // Continuous prefill. Blocks need no KV movement, so the plan validates that the
     // retained prefix is fully covered by allocated blocks and the apply truncates the
     // block pool to it, releasing all suffix bindings.
@@ -137,6 +143,7 @@ public:
 
 private:
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
 
     // -------------------------------------------------------------------------
     // Private helper structs (used only during initialize())
@@ -172,6 +179,12 @@ private:
     void update_generate_bindings(uint32_t old_num_tokens,
                                   uint32_t new_num_tokens,
                                   const std::shared_ptr<ov::IAsyncInferRequest>& kvcache_request);
+
+    // Re-issue the key tail copies of one generate variant. Unlike the numbered blocks,
+    // which the request reads straight out of the pool, the tail port holds a copy that
+    // an in-place rewrite of the pool would otherwise leave behind. A no-op for the
+    // prefill request, which never fills its tail.
+    void refresh_key_tail_bindings(const std::shared_ptr<ov::IAsyncInferRequest>& request);
 
     // -------------------------------------------------------------------------
     // Prefill path primitives

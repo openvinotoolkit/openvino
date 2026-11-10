@@ -3,8 +3,10 @@
 //
 
 #include "non_max_suppression_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 namespace {
@@ -22,10 +24,12 @@ static inline size_t GetOptimalLocalClassSize(std::vector<size_t> gws, const Eng
     const size_t globalClassNum = gws[1];
     const auto rest_lws = info.maxWorkGroupSize / splitNum;
     size_t lws_idx = 0;
-    while (rest_lws < optimal_values[lws_idx])
+    while (rest_lws < optimal_values[lws_idx]) {
         lws_idx++;
-    while (globalClassNum % optimal_values[lws_idx])
+    }
+    while (globalClassNum % optimal_values[lws_idx]) {
         lws_idx++;
+    }
 
     return optimal_values[lws_idx];
 }
@@ -59,8 +63,9 @@ Datatype NonMaxSuppressionKernelRef::GetAccumulatorType(const non_max_suppressio
     auto out_dt = params.outputs[0].GetDType();
 
     auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
-        if (candidate != Datatype::F32 && candidate != Datatype::F16)
+        if (candidate != Datatype::F32 && candidate != Datatype::F16) {
             return current;
+        }
 
         return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;
     };
@@ -123,8 +128,8 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
         throw std::invalid_argument("NMS input0 type should be one of F32 or F16.");
     }
 
-    jit.AddConstants({MakeJitConstant("SORT_RESULT_DESCENDING", params.sort_result_descending),
-                      MakeJitConstant("BOX_ENCODING", static_cast<int>(params.box_encoding))});
+    jit.AddConstants(
+        {MakeJitConstant("SORT_RESULT_DESCENDING", params.sort_result_descending), MakeJitConstant("BOX_ENCODING", static_cast<int>(params.box_encoding))});
 
     jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.outputs[0].Batch().v));
 
@@ -173,8 +178,9 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
     const non_max_suppression_params& params = static_cast<const non_max_suppression_params&>(p);
 
     for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -188,44 +194,48 @@ bool NonMaxSuppressionKernelRef::Validate(const Params& p) const {
  *  INTERNAL_BUFFER[2]: intermidiate_sorted_box_num
  *
  */
-void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_params& params,
-                                                    clKernelData& kernel, size_t idx) const {
+void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_params& params, clKernelData& kernel, size_t idx) const {
     switch (idx) {
     case 0:
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
-        if (params.score_threshold_type == base_params::ArgType::Input)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
+        if (params.score_threshold_type == base_params::ArgType::Input) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold()});
+        }
         break;
 
     case 1:
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
         break;
 
     case 2:
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 0 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
 
-        if (params.num_select_per_class_type == base_params::ArgType::Input)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass() });
-        if (params.iou_threshold_type == base_params::ArgType::Input)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexIouThreshold() });
-        if (params.score_threshold_type == base_params::ArgType::Input)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
-        if (params.soft_nms_sigma_type == base_params::ArgType::Input)
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSoftNmsSigma() });
+        if (params.num_select_per_class_type == base_params::ArgType::Input) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass()});
+        }
+        if (params.iou_threshold_type == base_params::ArgType::Input) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, params.GetIndexIouThreshold()});
+        }
+        if (params.score_threshold_type == base_params::ArgType::Input) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold()});
+        }
+        if (params.soft_nms_sigma_type == base_params::ArgType::Input) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, params.GetIndexSoftNmsSigma()});
+        }
         break;
 
     case 3:
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, 0 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
-        kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         for (size_t i = 1; i < params.outputs.size(); i++) {
-            kernel.params.arguments.push_back({ ArgumentDescriptor::Types::OUTPUT, static_cast<uint32_t>(i) });
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, static_cast<uint32_t>(i)});
         }
 
         break;
@@ -245,7 +255,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params) con
     const non_max_suppression_params& orgParams = static_cast<const non_max_suppression_params&>(params);
 
     // Assign internel buffer
-    constexpr size_t intermediate_bytes = 12;   // struct size of SortedBoxInfo/BoxInfo in non_max_suppression_gpu_ref.cl
+    constexpr size_t intermediate_bytes = 12;  // struct size of SortedBoxInfo/BoxInfo in non_max_suppression_gpu_ref.cl
     auto batch_num = orgParams.inputs[1].Batch().v;
     auto class_num = orgParams.inputs[1].Feature().v;
     auto boxes_num = orgParams.inputs[0].Feature().v;
@@ -269,16 +279,16 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params) con
             size_t num_bit_mask = CeilDiv(boxes_num, 8);
             size_t num_score_per_item = RoundUp(CeilDiv(boxes_num, params.engineInfo.maxWorkGroupSize), 8);
             size_t num_score_block = CeilDiv(boxes_num, num_score_per_item);
-            cldnn_jit.AddConstants({ MakeJitConstant("NUM_BIT_MASK", num_bit_mask)
-                                   , MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item)
-                                   , MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)});
+            cldnn_jit.AddConstants({MakeJitConstant("NUM_BIT_MASK", num_bit_mask),
+                                    MakeJitConstant("NUM_SCORE_PER_ITEM", num_score_per_item),
+                                    MakeJitConstant("NUM_SCORE_BLOCK", num_score_block)});
         } else if (i == 1) {
-            cldnn_jit.AddConstants({ MakeJitConstant("LOCAL_BATCH_NUM", dispatchData.lws[0])
-                                   , MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1])
-                                   , MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2])
-                                   , MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
+            cldnn_jit.AddConstants({MakeJitConstant("LOCAL_BATCH_NUM", dispatchData.lws[0]),
+                                    MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
+                                    MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
+                                    MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
         } else if (i == 2 && orgParams.reuse_internal_buffer) {
-            cldnn_jit.AddConstant({ MakeJitConstant("REUSE_INTERNAL_BUFFER", 1)});
+            cldnn_jit.AddConstant({MakeJitConstant("REUSE_INTERNAL_BUFFER", 1)});
         }
         cldnn_jit.AddConstant(MakeJitConstant("NMS_STAGE_" + std::to_string(i), "true"));
 
@@ -286,7 +296,7 @@ KernelsData NonMaxSuppressionKernelRef::GetKernelsData(const Params& params) con
         auto& kernel = kd.kernels[i];
         KernelBase::CheckDispatchData(kernelName, dispatchData, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
-        kernel.params.workGroups.local  = dispatchData.lws;
+        kernel.params.workGroups.local = dispatchData.lws;
         kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
         SetKernelArguments(orgParams, kernel, i);
     }

@@ -532,6 +532,20 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_axis_negativ
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_nncf_axis) {
+    OV_EXPECT_THROW(convert_model("dequantize_linear_21_nncf_axis.onnx"),
+                    ov::Exception,
+                    testing::HasSubstr("is incompatible with the declared axis"));
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_invalid_nonzero_axis) {
+    EXPECT_THROW(convert_model("dequantize_linear_21_invalid_nonzero_axis.onnx"), ov::Exception);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_opset21_invalid_non_inner_axis) {
+    EXPECT_THROW(convert_model("dequantize_linear_21_invalid_non_inner_axis.onnx"), ov::Exception);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_ignore_axis) {
     auto model = convert_model("dequantize_linear_scalar_ignore_axis.onnx");
 

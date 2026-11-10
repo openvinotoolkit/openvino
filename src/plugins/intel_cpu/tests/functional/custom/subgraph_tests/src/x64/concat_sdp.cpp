@@ -61,6 +61,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPTest,
                                             ::testing::Values<int64_t>(8, 2, 1)),
                          ConcatSDPTest::getTestCaseName);
 
+const std::vector<std::vector<InputShape>> resetStateInputShapes = {
+    // A: batch 1, 40 tokens -> B: batch 4, 15 + 9 tokens -> C: batch 2, 10 + 1 tokens
+    {
+        {{-1, 8, -1, 64},
+         {{1, 8, 40, 64},
+          {4, 8, 15, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64},
+          {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64}, {4, 8, 1, 64},
+          {2, 8, 10, 64}, {2, 8, 1, 64}}},
+        {{-1, 8, -1, 64},
+         {{1, 8, 0, 64},
+          {4, 8, 0, 64}, {4, 8, 15, 64}, {4, 8, 16, 64}, {4, 8, 17, 64}, {4, 8, 18, 64},
+          {4, 8, 19, 64}, {4, 8, 20, 64}, {4, 8, 21, 64}, {4, 8, 22, 64}, {4, 8, 23, 64},
+          {2, 8, 0, 64}, {2, 8, 10, 64}}},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConcatSDPResetStateTest_Codecs,
+                         ConcatSDPResetStateTest,
+                         ::testing::Combine(::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(resetStateInputShapes),
+                                            ::testing::ValuesIn(all_kv_cfgs()),
+                                            ::testing::Values(false),
+                                            ::testing::Values<int64_t>(8),
+                                            ::testing::Values<int64_t>(8)),
+                         ConcatSDPResetStateTest::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov

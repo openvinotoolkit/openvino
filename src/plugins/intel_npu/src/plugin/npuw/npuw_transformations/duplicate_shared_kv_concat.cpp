@@ -28,8 +28,8 @@ namespace pass {
 
 namespace {
 
-// Returns true when the parameter name is a past-KV param (contiguous or
-// block-split), using the canonical NPUW naming utilities.
+// Returns true when the parameter name is a past-KV param (contiguous, block-split,
+// or SWA-managed), using the canonical NPUW naming utilities.
 bool is_past_kv_param(const std::shared_ptr<ov::op::v0::Parameter>& param) {
     const auto& name = param->get_friendly_name();
     return ov::npuw::util::isPastKeyParam(name) || ov::npuw::util::isPastValueParam(name);

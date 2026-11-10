@@ -6,10 +6,7 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs linspace(const NodeContext& node) {
     auto start = node.get_input("Start");
     auto stop = node.get_input("Stop");
@@ -47,7 +44,4 @@ NamedOutputs linspace(const NodeContext& node) {
         return node.default_single_output_mapping({result}, {"Out"});
     }
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

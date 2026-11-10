@@ -10,10 +10,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace pass {
+namespace ov::frontend::tensorflow::pass {
 
 bool ConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
     // Note: need to perform this transformation only on the main ov::Model graph
@@ -36,7 +33,4 @@ bool ConstToResultRemover::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return true;
 }
 
-}  // namespace pass
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::pass
