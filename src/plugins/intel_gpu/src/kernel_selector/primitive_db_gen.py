@@ -26,8 +26,7 @@ class KernelLang(Enum):
         return (".cl", ".cpp")[self.value]
 class Kernels2CHeaders(object):
 
-    def __init__(self, kernels_folder, out_path, out_file_name_prim_db, out_file_name_batch_headers, kernel_lang,
-                 include_nvidia_headers=False):
+    def __init__(self, kernels_folder, out_path, out_file_name_prim_db, out_file_name_batch_headers, kernel_lang, include_nvidia_headers):
         self.kernels_folder = os.path.abspath(kernels_folder)
         self.out_path = os.path.abspath(out_path)
         self.out_file_name_prim_db = out_file_name_prim_db
@@ -308,8 +307,7 @@ def main():
         ap.error('-cm and -nvidia are mutually exclusive: the NVIDIA compatibility headers are OpenCL C only')
 
     kernel_lang = KernelLang.CM if args.cm else KernelLang.OCLC
-    converter = Kernels2CHeaders(args.kernels, args.out_path, args.out_file_name_prim_db, args.out_file_name_batch_headers, kernel_lang,
-                                 args.nvidia)
+    converter = Kernels2CHeaders(args.kernels, args.out_path, args.out_file_name_prim_db, args.out_file_name_batch_headers, kernel_lang, args.nvidia)
     converter.convert()
 
 if __name__ == '__main__':
