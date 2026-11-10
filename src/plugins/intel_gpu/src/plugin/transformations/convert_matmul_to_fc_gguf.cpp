@@ -51,10 +51,11 @@ ConvertMatMulToFullyConnectedGGUF::ConvertMatMulToFullyConnectedGGUF() {
 
     auto activations_m = any_input(rank_more_than(1));
     auto blocks_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u8) && rank_equals(2));
-    auto dequantize_m = wrap_type<GGUFDequantize>({blocks_m}, [](const ov::Output<ov::Node>& output) {
+    auto supported_format = [](const ov::Output<ov::Node>& output) {
         const auto dequantize = ov::as_type_ptr<GGUFDequantize>(output.get_node_shared_ptr());
-        return dequantize && output.get_target_inputs().size() == 1 && op::FullyConnectedGGUF::is_supported(dequantize->get_format());
-    });
+        return dequantize && op::FullyConnectedGGUF::is_supported(dequantize->get_format());
+    };
+    auto dequantize_m = wrap_type<GGUFDequantize>({blocks_m}, consumers_count(1) && supported_format);
     auto convert_m = optional<ov::op::v0::Convert>({dequantize_m}, consumers_count(1));
     auto matmul_m = wrap_type<ov::op::v0::MatMul>({activations_m, convert_m}, {{"transpose_a", false}, {"transpose_b", true}});
 
