@@ -157,7 +157,7 @@ function(ov_download_tbb)
                 ARCHIVE_MAC "oneapi-tbb-2021.13.4-mac-arm64-canary-4.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                SHA256 "351d62d5a9efcd46e7c9524b7184670c19537aefe8272cd1d62c1e98203bb3cc"
                 USE_NEW_LOCATION TRUE)
     elseif(RISCV64)
         RESOLVE_DEPENDENCY(TBB
