@@ -37,7 +37,8 @@ ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISe
     return ov::runtime::hsm::SectionTagReserved(tag, reserved_bytes);
 }
 
-std::optional<RuntimeRequirementsEvaluationResult> parse_and_evaluate_runtime_requirements(
+std::optional<std::pair<RuntimeRequirements, RuntimeRequirementsEvaluationResult>>
+parse_and_evaluate_runtime_requirements(
     ov::runtime::hsm::Reader& base_reader,
     const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& section_readers,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
@@ -68,7 +69,7 @@ std::optional<RuntimeRequirementsEvaluationResult> parse_and_evaluate_runtime_re
                     "The imported model is not compatible");
     logger.debug("Runtime requirements evaluation result: %s",
                  evaluation_result.final_result == ov::CompatibilityCheck::SUPPORTED ? "SUPPORTED" : "NOT_APPLICABLE");
-    return evaluation_result;
+    return std::make_pair(runtime_requirements, evaluation_result);
 }
 
 void parse_section(
@@ -118,7 +119,7 @@ namespace intel_npu::hsm {
 
 // TODO ITT traces
 
-BlobSectionsRegistry read_from(
+std::pair<BlobSectionsRegistry, std::optional<RuntimeRequirements>> read_from(
     ov::runtime::hsm::Reader& base_reader,
     const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>& section_readers,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
@@ -126,6 +127,7 @@ BlobSectionsRegistry read_from(
     const Logger logger("HSMReader", Logger::global().level());
     logger.debug("Parsing the HSM container");
 
+    std::optional<RuntimeRequirements> runtime_requirements;
     std::optional<RuntimeRequirementsEvaluationResult> runtime_requirements_evaluation_result;
     const size_t n_runtime_requirements =
         base_reader.count(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
@@ -133,11 +135,16 @@ BlobSectionsRegistry read_from(
     OPENVINO_ASSERT(n_runtime_requirements < 2, "Found more than one runtime requirements section");
 
     if (n_runtime_requirements) {
-        runtime_requirements_evaluation_result = parse_and_evaluate_runtime_requirements(base_reader,
-                                                                                         section_readers,
-                                                                                         type_evaluators,
-                                                                                         instance_evaluators,
-                                                                                         logger);
+        const auto result = parse_and_evaluate_runtime_requirements(base_reader,
+                                                                    section_readers,
+                                                                    type_evaluators,
+                                                                    instance_evaluators,
+                                                                    logger);
+
+        if (result.has_value()) {
+            runtime_requirements = result->first;
+            runtime_requirements_evaluation_result = result->second;
+        }
     } else {
         logger.warning(
             "The runtime requirements section was not found within the manifest. Proceeding without performing any "
@@ -256,7 +263,7 @@ BlobSectionsRegistry read_from(
         }
     }
 
-    return registry;
+    return std::make_pair(registry, runtime_requirements);
 }
 
 void write_to(std::ostream& stream, const BlobSectionsRegistry& blob_sections_registry) {

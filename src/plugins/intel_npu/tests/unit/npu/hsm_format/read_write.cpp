@@ -194,9 +194,11 @@ TEST_P(HSMReadWriteTest, OptionalSectionsIfMissingRuntimeRequirements) {
 
     ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
     BlobSectionsRegistry resulted_registry;
-    OV_ASSERT_NO_THROW(resulted_registry =
+    std::optional<RuntimeRequirements> runtime_requirements;
+    OV_ASSERT_NO_THROW(std::tie(resulted_registry, runtime_requirements) =
                            hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
     ASSERT_FALSE(resulted_registry.has_section_of_type(SectionTypeCode::BATCH_SIZE));
+    ASSERT_FALSE(runtime_requirements.has_value());
 }
 
 TEST_P(HSMReadWriteTest, OptionalSectionsIfIncompatibleRuntimeRequirements) {
@@ -214,9 +216,11 @@ TEST_P(HSMReadWriteTest, OptionalSectionsIfIncompatibleRuntimeRequirements) {
 
     ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
     BlobSectionsRegistry resulted_registry;
-    OV_ASSERT_NO_THROW(resulted_registry =
+    std::optional<RuntimeRequirements> runtime_requirements;
+    OV_ASSERT_NO_THROW(std::tie(resulted_registry, runtime_requirements) =
                            hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
     ASSERT_FALSE(resulted_registry.has_section_of_type(SectionTypeCode::BATCH_SIZE));
+    ASSERT_FALSE(runtime_requirements.has_value());
 }
 
 TEST_P(HSMReadWriteTest, SupportedRuntimeRequirementsButMissingReader) {
@@ -264,8 +268,10 @@ TEST_P(HSMReadWriteTest, RuntimeRequirementsNotPartOfRegistry) {
     hsm::write_to(stream, sections_registry);
 
     ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
-    BlobSectionsRegistry registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
+    const auto& [registry, runtime_requirements] =
+        hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
     ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS));
+    ASSERT_TRUE(runtime_requirements.has_value());
 }
 
 TEST_P(HSMReadWriteTest, UnsupportedSectionInstanceSkipped) {
@@ -281,8 +287,11 @@ TEST_P(HSMReadWriteTest, UnsupportedSectionInstanceSkipped) {
 
     ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
     BlobSectionsRegistry registry;
-    OV_ASSERT_NO_THROW(registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
+    std::optional<RuntimeRequirements> runtime_requirements;
+    OV_ASSERT_NO_THROW(std::tie(registry, runtime_requirements) =
+                           hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
     ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::IO_LAYOUTS));
+    ASSERT_TRUE(runtime_requirements.has_value());
 }
 
 TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
@@ -299,8 +308,11 @@ TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
 
     ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
     BlobSectionsRegistry registry;
-    OV_ASSERT_NO_THROW(registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
+    std::optional<RuntimeRequirements> runtime_requirements;
+    OV_ASSERT_NO_THROW(std::tie(registry, runtime_requirements) =
+                           hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
     ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::IO_LAYOUTS));
+    ASSERT_TRUE(runtime_requirements.has_value());
 }
 
 // TODO Test that checks a missing instance evaluator evaluates to supported and goes  through the right case branch
@@ -322,7 +334,8 @@ TEST_P(HSMReadWriteTest, MixedCases) {
     hsm::write_to(stream, sections_registry);
 
     ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
-    BlobSectionsRegistry registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
+    const auto& [registry, runtime_requirements] =
+        hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
     ASSERT_EQ(registry.count_sections_of_type(SectionTypeCode::IO_LAYOUTS), 2);
     ASSERT_EQ(registry.count_sections_of_type(SectionTypeCode::COMPILER_VERSION), 1);
     ASSERT_EQ(registry.count_sections_of_type(SectionTypeCode::BATCH_SIZE), 2);
@@ -355,6 +368,9 @@ TEST_P(HSMReadWriteTest, MixedCases) {
     ASSERT_TRUE(section);
     const auto casted_section_4 = std::dynamic_pointer_cast<MockSection>(section);
     ASSERT_TRUE(casted_section_4);
+
+    ASSERT_TRUE(runtime_requirements.has_value());
+    // TODO check values
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,

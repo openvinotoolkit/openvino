@@ -47,6 +47,10 @@ constexpr std::string_view GRAPH_CLASS_MISMATCH_MESSAGE = "The blob type doesn't
 
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
+constexpr size_t BRACKETS_SIZE = 2;
+constexpr char OPEN_BRACKET = '[';
+constexpr char CLOSE_BRACKET = ']';
+
 // TODO comment the design flaw
 std::optional<ov::runtime::hsm::Reader> open_hsm_reader(BlobSource& blob_source) {
     std::optional<ov::runtime::hsm::Reader> reader = std::nullopt;
@@ -466,9 +470,21 @@ public:
                                   const ov::SoPtr<IEngineBackend>& backend,
                                   const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                   const Config& config)
-        : IBlobFormatImporter(original_model, backend, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
-          m_blob_sections_registry(
-              hsm::read_from(base_reader, get_readers(), {}, create_instance_evaluators(option_helper))) {
+        : IBlobFormatImporter(original_model,
+                              backend,
+                              config,
+                              Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())) {
+        std::tie(m_blob_sections_registry, m_runtime_requirements) =
+            hsm::read_from(base_reader, get_readers(), {}, create_instance_evaluators(option_helper));
+
+        if (!m_runtime_requirements.has_value()) {
+            // This runtime requirements object contains more than the compiler requirements. But we need it only for
+            // extracting the compiler ones.
+            m_logger.warning(
+                "Missing compiler runtime requirements while importing the compiled model. No compiler runtime "
+                "requirements will be provided upon querying the compiled model property or exporting the model");
+        }
+
         verify_valid_sections();
     }
 
@@ -645,28 +661,31 @@ private:
     }
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
-        const auto runtime_requirements_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::RUNTIME_REQUIREMENTS));
-        if (runtime_requirements_section == nullptr) {
-            m_logger.warning("The runtime requirements section was not found. The imported compiled model will not "
-                             "have any compiler requirements attached to it.");
+        if (!m_runtime_requirements.has_value()) {
             return std::nullopt;
         }
 
         // Look for the runtime requirements of the ELF main/dynamic schedule. The checks performed previously
         // should already guarantee that only one instance of these section types exists
-        const RuntimeRequirements runtime_requirements = runtime_requirements_section->get_runtime_requirements();
-        const std::map<SectionID, std::string> sections_requirements = runtime_requirements.get_sections_requirements();
+        const std::map<SectionID, std::string> sections_requirements =
+            m_runtime_requirements->get_sections_requirements();
         const std::unordered_map<SectionID, SectionType> section_id_to_type_mapping =
-            runtime_requirements.get_section_id_to_type_mapping();
+            m_runtime_requirements->get_section_id_to_type_mapping();
 
         for (const auto& [section_id, section_requirements] : sections_requirements) {
             if (section_id_to_type_mapping.at(section_id) == SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE) ||
                 section_id_to_type_mapping.at(section_id) == SectionType(SectionTypeCode::DYNAMIC_SCHEDULE)) {
+                // Strip the "[]" if applicable
+                const size_t section_requirements_size = section_requirements.size();
+                if (section_requirements_size >= BRACKETS_SIZE && section_requirements.at(0) == OPEN_BRACKET &&
+                    section_requirements.at(section_requirements_size - 1) == CLOSE_BRACKET) {
+                    return section_requirements.substr(1, section_requirements_size - 2);
+                }
                 return section_requirements;
             }
         }
 
+        // TODO should throw here?
         return std::nullopt;
     }
 
@@ -680,6 +699,7 @@ private:
     }
 
     BlobSectionsRegistry m_blob_sections_registry;
+    std::optional<RuntimeRequirements> m_runtime_requirements;
 };
 
 }  // namespace
