@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "failed to download the model failed to send request error read econnreset|Network",
+  "signature_hash": "84f05233a122ae35",
+  "title": "OpenVINO JS API tests crash with unhandled ECONNRESET downloading test model",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-10T17:53:12Z",
+  "last_seen": "2026-11-10T17:53:12Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42854020018"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39143"
+  ],
+  "recent_timestamps": [
+    "2026-11-10T17:53:12Z"
+  ],
+  "rerun_search_string": "Failed to send request: Error: read ECONNRESET"
+}

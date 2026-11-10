@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 365,
+  "total": 366,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3554,6 +3554,17 @@
       "category": "Infrastructure",
       "signature_hash": "95bb23aa2ed8a84d",
       "pr_number": "39653"
+    },
+    {
+      "investigation_id": "2026-11-10-17-53-12-000-42854020018",
+      "run_id": "42854020018",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42854020018",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-10T17:53:12Z",
+      "title": "OpenVINO JS API tests crash with unhandled ECONNRESET downloading test model",
+      "category": "Network",
+      "signature_hash": "84f05233a122ae35",
+      "pr_number": "39143"
     }
   ]
 }

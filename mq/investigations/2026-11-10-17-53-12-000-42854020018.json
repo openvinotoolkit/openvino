@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-17-53-12-000-42854020018",
+  "timestamp": "2026-11-10T17:53:12Z",
+  "run_id": "42854020018",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42854020018",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39143",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39143",
+  "author": "michal-miotk",
+  "category": "Network",
+  "title": "OpenVINO JS API tests crash with unhandled ECONNRESET downloading test model",
+  "signature": "failed to download the model failed to send request error read econnreset|Network",
+  "signature_hash": "84f05233a122ae35",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "test_setup.js crashes with unhandled promise rejection while downloading v3-small_224_1.0_float.bin from storage.openvinotoolkit.org"
+    }
+  ],
+  "key_errors": [
+    "Failed to download the model: Failed to send request: Error: read ECONNRESET..",
+    "UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason \"Failed to send request: Error: read ECONNRESET.\".",
+    "code: 'ERR_UNHANDLED_REJECTION'"
+  ],
+  "root_cause": "src/bindings/js/node/tests/setup.js downloads test models over HTTP(S) before running the JS API unit tests. The download of v3-small_224_1.0_float.bin from storage.openvinotoolkit.org failed with a TCP connection reset (ECONNRESET), a transient network condition unrelated to the PR under test (which only touches src/plugins/intel_gpu/src/runtime/ze/ze_memory.cpp). The download promise rejection is not wrapped in a try/catch, so Node.js terminates the process with ERR_UNHANDLED_REJECTION instead of retrying or failing gracefully.",
+  "reproduction_steps": "Not reliably reproducible locally; it depends on a transient network reset while fetching https://storage.openvinotoolkit.org/.../v3-small_224_1.0_float.bin during `node ./tests/setup.js` in src/bindings/js/node. Can be approximated by injecting a network fault (e.g., iptables RST) while running `npm run test_setup` in that directory.",
+  "recommended_actions": [
+    "Re-run the failed merge-queue jobs; this failure is unrelated to the PR's actual GPU/ZE code change.",
+    "Harden src/bindings/js/node/tests/setup.js to retry model downloads a few times with backoff and to catch/reject cleanly instead of leaving an unhandled promise rejection.",
+    "Consider caching test models in CI (or using a mirror) to reduce dependence on storage.openvinotoolkit.org availability."
+  ],
+  "prevention_strategies": "Add retry-with-backoff and explicit .catch() handling around all test-model download promises in setup.js so transient network resets degrade into a clear, actionable test failure instead of an unhandled rejection that crashes the whole test run.",
+  "historical_context": "This is a new failure signature for this doctor (first occurrence of ECONNRESET during JS API model download). A related but distinct pattern (84f05233a122ae35's neighbor 197368415f8ae13d: 'request was timed out downloading test model from raw.githubusercontent.com', Network, count=4) shows OpenVINO JS API tests have repeatedly failed on flaky external model downloads from different hosts (raw.githubusercontent.com, 503 from the same host) — suggesting the JS API test setup's dependency on external, non-cached model hosts is a recurring source of merge-queue flakiness."
+}
