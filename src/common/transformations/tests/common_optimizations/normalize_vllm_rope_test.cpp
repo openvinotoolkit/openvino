@@ -15,6 +15,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "transformations/common_optimizations/shared_ops_optimization.hpp"
 
 using namespace ov;
 namespace v0 = ov::op::v0;
@@ -163,8 +164,8 @@ INSTANTIATE_TEST_SUITE_P(
         RoPEParams{"unsqueezed_halves", Shape{3, 4}, Shape{3, 5, 2}, Shape{3, 5, 2}, {}, -1, false, unsqueeze_axis1}),
     NormalizeVLLMRoPETest::getTestCaseName);
 
-// q and k share one cos/sin: the second site reuses the full-width tables the first one built.
-TEST_F(TransformationTestsF, NormalizeVLLMRoPESharesFullWidthTables) {
+// q and k on one cos/sin: each site is rewritten, with its own full-width tables.
+TEST_F(TransformationTestsF, NormalizeVLLMRoPETwoSitesSharingCosSin) {
     comparator.enable(FunctionsComparator::CONST_VALUES);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     const RoPEParams p{"shared", Shape{1, 4, 8}, Shape{1, 4, 4}, Shape{1, 4, 4}, {}};
@@ -175,6 +176,31 @@ TEST_F(TransformationTestsF, NormalizeVLLMRoPESharesFullWidthTables) {
         model = std::make_shared<Model>(OutputVector{q, k}, params);
     }
     manager.register_pass<ov::pass::NormalizeVLLMRoPE>();
+    {
+        ParameterVector params{param(p.x_shape), param(p.x_shape), param(p.cos_shape), param(p.sin_shape)};
+        OutputVector ropes;
+        for (const auto& x : {params[0], params[1]}) {
+            auto cos_full = std::make_shared<v0::Concat>(OutputVector{params[2], params[2]}, -1);
+            auto sin_full = std::make_shared<v0::Concat>(OutputVector{params[3], params[3]}, -1);
+            ropes.push_back(rotate_half_rope(x, cos_full, sin_full));
+        }
+        model_ref = std::make_shared<Model>(ropes, params);
+    }
+}
+
+// CommonOptimizations follows the pass with SharedOpOptimization, which merges the per-site tables back to one.
+TEST_F(TransformationTestsF, NormalizeVLLMRoPEWithSharedOpOptimizationSharesTables) {
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    const RoPEParams p{"shared", Shape{1, 4, 8}, Shape{1, 4, 4}, Shape{1, 4, 4}, {}};
+    {
+        ParameterVector params{param(p.x_shape), param(p.x_shape), param(p.cos_shape), param(p.sin_shape)};
+        auto q = vllm_rope(params[0], params[2], params[3], p, params);
+        auto k = vllm_rope(params[1], params[2], params[3], p, params);
+        model = std::make_shared<Model>(OutputVector{q, k}, params);
+    }
+    manager.register_pass<ov::pass::NormalizeVLLMRoPE>();
+    manager.register_pass<ov::pass::SharedOpOptimization>();
     {
         ParameterVector params{param(p.x_shape), param(p.x_shape), param(p.cos_shape), param(p.sin_shape)};
         auto cos_full = std::make_shared<v0::Concat>(OutputVector{params[2], params[2]}, -1);

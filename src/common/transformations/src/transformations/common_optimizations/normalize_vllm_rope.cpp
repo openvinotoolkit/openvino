@@ -88,20 +88,8 @@ ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
             return false;
         }
 
-        NodeVector new_nodes;
-        // vLLM shares cos and sin across layers: reuse the full-width table an earlier match built.
-        const auto full_width = [&new_nodes](const Output<Node>& table) -> Output<Node> {
-            for (const auto& target : table.get_target_inputs()) {
-                const auto concat = ov::as_type_ptr<v0::Concat>(target.get_node()->shared_from_this());
-                if (concat && concat->get_axis() == -1 && concat->input_values() == OutputVector{table, table}) {
-                    return concat->output(0);
-                }
-            }
-            new_nodes.push_back(std::make_shared<v0::Concat>(OutputVector{table, table}, -1));
-            return new_nodes.back()->output(0);
-        };
-        const auto cos_full = full_width(cos);
-        const auto sin_full = full_width(sin);
+        auto cos_full = std::make_shared<v0::Concat>(OutputVector{cos, cos}, -1);
+        auto sin_full = std::make_shared<v0::Concat>(OutputVector{sin, sin}, -1);
 
         const auto last_axis = static_cast<int64_t>(x.get_partial_shape().size()) - 1;
         auto axis = v0::Constant::create(element::i64, Shape{}, {last_axis});
@@ -113,7 +101,8 @@ ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         auto x_cos = std::make_shared<v1::Multiply>(x, cos_full);
         auto rotated_sin = std::make_shared<v1::Multiply>(rotated, sin_full);
         auto rope = std::make_shared<v1::Add>(x_cos, rotated_sin);
-        new_nodes.insert(new_nodes.end(), {axis, lengths, split, minus_one, neg_x2, rotated, x_cos, rotated_sin, rope});
+        const NodeVector
+            new_nodes{cos_full, sin_full, axis, lengths, split, minus_one, neg_x2, rotated, x_cos, rotated_sin, rope};
 
         const auto concat = pattern_map.at(concat_m).get_node_shared_ptr();
         // Multi-output pattern nodes are read from the node map.
