@@ -127,10 +127,8 @@ OutputVector translate_soft_max(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
-    ov::Output<ov::Node> mask_node_sliced;
-    if (context.has_input("KQ_mask_sliced")) {
-        mask_node_sliced = context.get_input("KQ_mask_sliced");
-    } else {
+    ov::Output<ov::Node> mask_node_sliced = get_sliced_kq_mask(context, 1);
+    if (!mask_node_sliced.get_node()) {
         auto mask_node = context.get_input(1);
         const auto rank = mask_node.get_partial_shape().rank();
         FRONT_END_OP_CONVERSION_CHECK(rank.is_static() && rank.get_length() >= 2,

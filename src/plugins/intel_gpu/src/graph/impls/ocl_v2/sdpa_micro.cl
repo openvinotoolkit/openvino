@@ -1404,11 +1404,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_load_full(&S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
 #endif
 
-        s_sum_tile_type S_max_tile_safe;
-        tile_copy(S_max_tile, S_max_tile_safe);
-#define finite_max(x) fmax((x), -FLT_MAX)
-        tile_elementwise_s(S_max_tile_safe, finite_max);
-        tile_vbroadcast_sub(&S_tile, S_max_tile_safe);
+        tile_vbroadcast_sub(&S_tile, S_max_tile);
 /* Scale + exponentiate */
 #ifdef LOG_2_E_MUL_SCALE
 #define scaled_exp(x) native_vexp2(x * scale)
@@ -1423,15 +1419,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         s_sum_tile_type S_max_tile1;
         tile_copy(S_max_tile, S_max_tile1);
         tile_load_full(&S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
-        tile_copy(S_max_tile, S_max_tile_safe);
-        tile_elementwise_s(S_max_tile_safe, finite_max);
 
-#define binary_exp_neg(x, y) native_vexp2(scale * ((x) - (y)))
-        tile_binary(S_max_tile1, S_max_tile_safe, binary_exp_neg);
+#define binary_exp_neg(x, y) native_vexp2(scale *((x) - (y)))
+        tile_binary(S_max_tile1, S_max_tile, binary_exp_neg);
         tile_vbroadcast_mul(&S_tile, S_max_tile1);
-#undef binary_exp_neg
 #endif
-#undef finite_max
 
         /* Accumulate sums. S tile is transposed for easy summation. */
         s_sum_tile_type S_sum_tile1;
@@ -1442,7 +1434,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             s_sum_tile_type sink_minus_max_exp;
             tile_fill(sink_minus_max_exp, convert_float(sink_val));
             #define binary_exp_neg(x, y) native_vexp2(((x) - (y)) * log2_e)
-            tile_binary(sink_minus_max_exp, S_max_tile_safe, binary_exp_neg);
+            tile_binary(sink_minus_max_exp, S_max_tile, binary_exp_neg);
             tile_binary(S_sum_tile1, sink_minus_max_exp, binary_add);
             #undef binary_exp_neg
         }
@@ -1486,12 +1478,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Rescale existing accumulator and sums to match new maxima */
         if (!first) {
 #ifdef LOG_2_E_MUL_SCALE
-#define binary_exp_sub(x, y) native_vexp2(scale * ((x) - (y)))
+#define binary_exp_sub(x, y) native_vexp2(scale *((x) - (y)))
 #else
 #define binary_exp_sub(x, y) native_vexp2(((x) - (y)) * log2_e)
 #endif
 #define binary_mul(x, y) ((x) * (y))
-            tile_binary(S_max_tile_old, S_max_tile_safe, binary_exp_sub);
+            tile_binary(S_max_tile_old, S_max_tile, binary_exp_sub);
             tile_binary(S_sum_tile, S_max_tile_old, binary_mul);
 
             /* Find the subset of sums that applies to the accumulation tile */
@@ -1806,14 +1798,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
     /* Rescale by 1 / (column sums) */
-#if FOLD_VAL_SCALES_INTO_OUTPUT && VAL_ZERO_POINTS == QUANTIZE_2D
-    a_scale_tile_type A_nonempty_tile;
-    tile_copy(A_scale_tile, A_nonempty_tile);
-    tile_elementwise_s(A_nonempty_tile, sign);
-#endif
-#define safe_recip(x) ((x) == 0.0f ? 0.0f : native_recip(x))
-    tile_elementwise_s(A_scale_tile, safe_recip);
-#undef safe_recip
+    tile_elementwise(A_scale_tile, native_vrecip);
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
 #if FOLD_VAL_SCALES_INTO_OUTPUT
@@ -1841,7 +1826,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #if VAL_ZERO_POINTS == QUANTIZE_2D
         tile_vbroadcast_sub(&A_tile, V_zp_tile);
-        tile_hbroadcast_mul(&A_tile, A_nonempty_tile);
 #endif
         tile_vbroadcast_mul(&A_tile, V_scale_tile);
     }

@@ -433,19 +433,26 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // the same convention the GPU plugin uses for non-IR models (see
     // Plugin::set_weightless_cache_attributes in intel_gpu/src/plugin/plugin.cpp).
     // Each constant must have a distinct bin_offset, otherwise GPU's weightless cache
-    // import will map multiple constants to the same data.
+    // import will map multiple constants to the same data. A decoder that provides a
+    // weights-file resolver supplies real offsets in its own weights file instead.
     //
     // Small constants (< 16 elements) are excluded since they may be introduced by
     // optimization patterns and the overhead is negligible.
+    const auto weights_file = gguf_model_decoder->get_weights_file_resolver();
     size_t offset = 0;
     for (auto& node : resulting_model->get_ordered_ops()) {
         if (auto cnst = ov::as_type_ptr<ov::op::v0::Constant>(node);
             cnst && cnst->get_element_type().size() > 0 &&
             cnst->get_byte_size() / cnst->get_element_type().size() >= 16) {
             auto& rt_info = cnst->get_rt_info();
-            if (rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()) == rt_info.end()) {
+            if (rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()) != rt_info.end()) {
+                continue;
+            }
+            const auto bin_offset =
+                weights_file ? weights_file(cnst->get_data_ptr(), cnst->get_byte_size()) : std::optional{offset++};
+            if (bin_offset) {
                 rt_info[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                    ov::WeightlessCacheAttribute(cnst->get_byte_size(), offset++, cnst->get_element_type());
+                    ov::WeightlessCacheAttribute(cnst->get_byte_size(), *bin_offset, cnst->get_element_type());
             }
         }
     }

@@ -24,7 +24,9 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -114,22 +116,25 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     const int64_t H_k = q_shape[2].get_length();
     const bool kda = (g_shape[3].get_length() == S_v);
 
-    // ggml reserves K * S_v * n_seqs state rows for K per-token snapshots (K = 1 + n_rs_seq, > 1 only
-    // for speculative-decode rollback), while both paths here pack exactly one S_v-row block. Reject
-    // K > 1 rather than let the snapshot views read the wrong block.
+    // ggml packs K state snapshots (K = 1 + n_rs_seq, > 1 only for speculative-decode rollback) after
+    // the attention rows; slot s holds the state after T - s tokens.
     const int64_t snapshot_slots = context.get_attribute<int64_t>("gdn_state_slots", 1);
-    FRONT_END_OP_CONVERSION_CHECK(snapshot_slots == 1,
-                                  "GATED_DELTA_NET supports a single recurrent-state snapshot, got K = ",
-                                  snapshot_slots);
+    FRONT_END_OP_CONVERSION_CHECK(snapshot_slots >= 1, "GATED_DELTA_NET expects K >= 1, got ", snapshot_slots);
 
     // Builder graphs take attention and the state as separate outputs, the state in the op's
     // [B, H_v, key_dim, value_dim] layout; ggml graphs pack both in ggml's state layout.
     const bool split_outputs = context.get_attribute<bool>("split_outputs", false);
+    const bool pad_mask = context.get_input_size() == 7 || context.has_input("chunk_valid_len");
+    FRONT_END_OP_CONVERSION_CHECK(snapshot_slots == 1 || (!split_outputs && !pad_mask),
+                                  "GATED_DELTA_NET snapshots do not support split outputs or pad masking");
 
     // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
     // against the ggml-CPU oracle for the scalar-gate case too.
     if (kda || context.get_attribute<bool>("force_ref", false)) {
         FRONT_END_OP_CONVERSION_CHECK(!split_outputs, "GATED_DELTA_NET split outputs require the fused path");
+        FRONT_END_OP_CONVERSION_CHECK(snapshot_slots == 1,
+                                      "GATED_DELTA_NET snapshots require the fused path, got K = ",
+                                      snapshot_slots);
         return translate_gated_delta_net_ref(context);
     }
 
@@ -176,7 +181,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
-    if (context.get_input_size() == 7 || context.has_input("chunk_valid_len")) {
+    if (pad_mask) {
         const auto& g_shape = g.get_partial_shape();
         FRONT_END_OP_CONVERSION_CHECK(
             g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
@@ -204,12 +209,41 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
 
     // Transpose state back to ggml's [B, H_v, value_dim, key_dim] and pack [attn | state] flat,
     // matching the reference path.
-    auto state_transposed = std::make_shared<ov::op::v1::Transpose>(state_4d, state_perm);
     auto flat_shape_1d = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-    auto attn = std::make_shared<ov::op::v1::Reshape>(attn_4d, flat_shape_1d, false);
-    auto new_state = std::make_shared<ov::op::v1::Reshape>(state_transposed, flat_shape_1d, false);
-    auto packed = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{attn, new_state}, 0);
-    // [1, 1, T*B + S_v*B, S_v*H_v] with the row axis dynamic via -1.
+    auto flat_state = [&](const ov::Output<ov::Node>& value) -> ov::Output<ov::Node> {
+        return std::make_shared<ov::op::v1::Reshape>(std::make_shared<ov::op::v1::Transpose>(value, state_perm),
+                                                     flat_shape_1d,
+                                                     false);
+    };
+    ov::OutputVector parts{std::make_shared<ov::op::v1::Reshape>(attn_4d, flat_shape_1d, false), flat_state(state_4d)};
+    if (snapshot_slots > 1) {
+        const auto scalar = [](int64_t value) {
+            return ov::op::v0::Constant::create(ov::element::i64, {}, {value});
+        };
+        const auto tokens =
+            std::make_shared<ov::op::v8::Gather>(std::make_shared<ov::op::v3::ShapeOf>(q), scalar(1), scalar(0));
+        for (int64_t slot = 1; slot < snapshot_slots; ++slot) {
+            // Slots past the token count are left unwritten by ggml and never read; clamp them to one token.
+            const auto end =
+                std::make_shared<ov::op::v1::Maximum>(std::make_shared<ov::op::v1::Subtract>(tokens, scalar(slot)),
+                                                      scalar(1));
+            // Gather rather than Slice keeps the GPU from aliasing the dynamic prefix.
+            const auto indices = std::make_shared<ov::op::v4::Range>(scalar(0), end, scalar(1), ov::element::i64);
+            const auto prefix = [&](const ov::Output<ov::Node>& value) -> ov::Output<ov::Node> {
+                return std::make_shared<ov::op::v8::Gather>(value, indices, scalar(1));
+            };
+            const auto snapshot = std::make_shared<ov::op::internal::GatedDeltaNet>(prefix(q),
+                                                                                    prefix(k),
+                                                                                    prefix(v),
+                                                                                    state,
+                                                                                    prefix(g),
+                                                                                    prefix(beta),
+                                                                                    false);
+            parts.push_back(flat_state(snapshot->output(1)));
+        }
+    }
+    auto packed = std::make_shared<ov::op::v0::Concat>(parts, 0);
+    // [1, 1, T*B + K*S_v*B, S_v*H_v] with the row axis dynamic via -1.
     auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 

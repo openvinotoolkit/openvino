@@ -19,6 +19,7 @@
 #include "openvino/op/exp.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -162,12 +163,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
     ov::Output<ov::Node> mask_sliced, res;
     if (has_mask) {
-        const bool is_swa = context.get_attribute<bool>("is_swa", false) ||
-                            context.get_input_names()[3].find("swa") != std::string::npos;
-        const std::string mask_name = is_swa ? "KQ_mask_swa_sliced" : "KQ_mask_sliced";
-        if (context.has_input(mask_name)) {
-            mask_sliced = context.get_input(mask_name);
-        } else {
+        mask_sliced = get_sliced_kq_mask(context, 3);
+        if (!mask_sliced.get_node()) {
             auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
             auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
             auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
@@ -214,6 +211,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(q_shape[head_axis].get_length() % k_shape[head_axis].get_length() == 0 &&
                                       k_shape[head_axis] == v_shape[head_axis],
                                   "FLASH_ATTN_EXT requires matching K/V heads dividing the query heads");
+    const auto unscaled_mask = mask_sliced;
     if (max_bias > 0.0f && has_mask) {
         // ALiBi: ggml scales the additive mask by a per-head slope (ggml_compute_forward_flash_attn_ext).
         if (mask_sliced.get_element_type() != ov::element::f32) {
@@ -283,6 +281,21 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     const bool manual_gqa = context.get_attribute<bool>("manual_gqa_attention", false) && gqa_factor > 1 &&
                             n_head_kv > 1 && shared_head_mask && kq_soft_cap == 0.0f && !has_sinks &&
                             k_shape[3] == q_shape[3] && v_shape[3] == q_shape[3];
+
+    // GPU fused SDPA works on key blocks: a block fully masked with -inf gives exp(-inf - -inf) = NaN. Clamp the mask
+    // to a large finite value and zero the fully masked rows explicitly.
+    ov::Output<ov::Node> fully_masked;
+    if (has_mask && (op_case != 100 || manual_gqa) && kq_soft_cap == 0.0f) {
+        const auto masked =
+            std::make_shared<ov::op::v10::IsInf>(unscaled_mask, ov::op::v10::IsInf::Attributes(true, false));
+        fully_masked =
+            std::make_shared<ov::op::v1::ReduceLogicalAnd>(masked,
+                                                           ov::op::v0::Constant::create(ov::element::i64, {1}, {3}),
+                                                           true);
+        mask_sliced = std::make_shared<ov::op::v1::Maximum>(
+            mask_sliced,
+            ov::op::v0::Constant::create(mask_sliced.get_element_type(), {}, {-30000.0f}));
+    }
 
     ov::Output<ov::Node> sdpa;
     if (manual_gqa) {
@@ -414,11 +427,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask_sliced, scale_node, sink_r, false);
     }
-    if (has_mask && (op_case != 100 || manual_gqa) && kq_soft_cap == 0.0f) {
-        const auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
-        const auto masked =
-            std::make_shared<ov::op::v10::IsInf>(mask_sliced, ov::op::v10::IsInf::Attributes(true, false));
-        const auto fully_masked = std::make_shared<ov::op::v1::ReduceLogicalAnd>(masked, axis, true);
+    if (fully_masked.get_node()) {
         sdpa = std::make_shared<ov::op::v1::Select>(fully_masked,
                                                     ov::op::v0::Constant::create(sdpa.get_element_type(), {}, {0.0f}),
                                                     sdpa);

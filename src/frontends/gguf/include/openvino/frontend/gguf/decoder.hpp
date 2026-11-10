@@ -197,6 +197,20 @@ public:
         return empty;
     }
 
+    /// \brief Maps Constant data to its byte offset in a caller-written weights file, or std::nullopt to keep the
+    /// Constant out of that file.
+    using WeightsFileResolver = std::function<std::optional<size_t>(const void* data, size_t byte_size)>;
+
+    /// \brief Weights-file layout for weightless caching.
+    ///
+    /// Conversion tags large Constants with a weightless-cache attribute. By default the attribute
+    /// offset is only a unique key. A caller that writes the weights file itself (for example, a
+    /// weightless NPU blob export) returns a resolver: each Constant is tagged with the offset it
+    /// returns, and Constants it rejects stay untagged so compiled blobs embed them.
+    virtual WeightsFileResolver get_weights_file_resolver() const {
+        return {};
+    }
+
     // RoPE configuration, exposed through get_attribute<RopeConfig>("rope_config"):
     //   - at model scope (via InputModel::get_rope_config), used by TranslateSession::preprocess
     //     to pre-build the shared rope sin/cos table (skipped when RopeConfig::n_dims == 0, i.e.

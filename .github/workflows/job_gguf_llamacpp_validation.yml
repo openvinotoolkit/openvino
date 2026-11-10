@@ -21,9 +21,9 @@ on:
 permissions: read-all
 
 env:
-  # preetha-intel/llama.cpp@ov-gguf-frontend, the head of ravi9/llama.cpp#342.
-  LLAMA_CPP_REPO: preetha-intel/llama.cpp
-  LLAMA_CPP_REF: 6abf2aed89807f4e9a8e54eb34b5a307343f898e
+  # mvafin/llama.cpp@ov-pr342-rebased, the head of ravi9/llama.cpp#399 (ravi9/llama.cpp#342 rebased).
+  LLAMA_CPP_REPO: mvafin/llama.cpp
+  LLAMA_CPP_REF: 8d31ecb7514dca6072b7fda2f4353c883174b0c6
   LLAMA_CPP_DIR: ${{ github.workspace }}/llama.cpp
   LLAMA_CPP_BUILD_DIR: ${{ github.workspace }}/llama.cpp/build
   LLAMA_MODEL_DIR: ${{ github.workspace }}/llama.cpp/build/gguf-test-models
@@ -134,7 +134,7 @@ jobs:
           run_backend_test SOFT_MAX \
             '^type=f32,ne=\[16,16,1,1\],mask=(0|1),sinks=0,m_prec=f(16|32),nr23=\[1,1\],scale=(0\.100000|1\.000000),max_bias=(0\.000000|8\.000000),inplace=0$'
           run_backend_test ROPE \
-            '^type=f32,ne_a=\[128,32,2,1\],n_dims=128,mode=(0|2),n_ctx=512,fs=1\.000000,ef=0\.000000,af=1\.000000,ff=0,v=0,inplace=0,n_offs=0$'
+            '^type=f32,ne_a=\[(128,32|64,8),2,1\],n_dims=(128|64),mode=(0|2),n_ctx=512,fs=1\.000000,ef=0\.000000,af=1\.000000,ff=0,v=0,inplace=0,n_offs=0(,.*)?$'
 
       - name: Generate deterministic llama.cpp models
         run: |

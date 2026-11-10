@@ -36,6 +36,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_ADD", op::translate_add},
         {"GGML_OP_ADD1", op::translate_1to1_match_2_inputs<v1::Add>},
         {"GGML_OP_ADD_ID", op::translate_add_id},
+        {"GGML_OP_ARANGE", op::translate_arange},
         {"GGML_OP_ARGSORT", op::translate_argsort},
         {"GGML_OP_CLAMP", op::translate_clamp},
         {"GGML_OP_CONCAT", op::translate_concat},

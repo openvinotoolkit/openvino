@@ -110,6 +110,17 @@ OutputVector translate_get_rows(const NodeContext& context) {
         return rename_outputs_with_suffix({convert_rows(col)}, context.get_name());
     }
 
+    // Rows gathered independently in every [ne3, ne2] batch: data [ne3, ne2, ne1, ne0], indices [1, ne3, ne2, k].
+    if (context.get_attribute<bool>("batched_rows", false)) {
+        auto batched =
+            std::make_shared<ov::op::v0::Squeeze>(indices, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
+        res = std::make_shared<ov::op::v8::Gather>(data,
+                                                   batched,
+                                                   ov::op::v0::Constant::create(ov::element::i64, {}, {2}),
+                                                   2);
+        return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
+    }
+
     if (op_case == 2) {
         // The input comes from a VIEW
         indices = process_view_input(context, 1);

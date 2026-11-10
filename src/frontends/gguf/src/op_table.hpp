@@ -90,6 +90,7 @@ GGUF_OP_CONVERTER(translate_cumsum);
 GGUF_OP_CONVERTER(translate_diag);
 GGUF_OP_CONVERTER(translate_tri);
 GGUF_OP_CONVERTER(translate_fill);
+GGUF_OP_CONVERTER(translate_arange);
 
 // Convolution-family / sequence ops.
 GGUF_OP_CONVERTER(translate_im2col);

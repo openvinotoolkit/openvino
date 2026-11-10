@@ -101,6 +101,10 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
 
 ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_index, int slice_len = 0);
 
+// The runtime-sized KQ mask for an input that is a mask parameter itself; masks derived from it, e.g. the
+// rows gemma-4's KV-shared layers gather, are not replaced. Returns an empty output when there is none.
+ov::Output<ov::Node> get_sliced_kq_mask(const NodeContext& context, size_t input_index);
+
 inline bool is_kvcache_4d_shape(const ov::PartialShape& shape) {
     return shape.rank() == 4 && shape[0] == 1 && shape[1].is_dynamic() && shape[2].is_static() && shape[3].is_static();
 }

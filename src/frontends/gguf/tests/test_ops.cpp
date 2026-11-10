@@ -1893,6 +1893,38 @@ TEST(GGUFOps, SoftMaxMaskAndSinks) {
     expect_near(out, expected, 1e-5f);
 }
 
+// Only the mask parameters are replaced by the runtime-sized mask; a mask derived from them, e.g. the rows
+// gemma-4's KV-shared layers gather, is used as is, and the sliding-window parameter maps to its own mask.
+TEST(GGUFOps, SoftMaxUsesSlicedMaskOnlyForMaskParameters) {
+    const std::vector<float> x{1, 2, 3};
+    const std::vector<float> full{-1e9f, 0, 0}, swa{0, -1e9f, 0}, rows{0, 0, -1e9f};
+    const auto run = [&](const std::string& mask_name) {
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_SOFT_MAX")
+                         .input("x", ov::element::f32, {1, 1, 1, 3})
+                         .input(mask_name, ov::element::f32, {1, 1, 1, 3})
+                         .extra_input("self_kq_mask", ov::element::f32, {1, 1, 1, 3})
+                         .extra_input("self_kq_mask_swa", ov::element::f32, {1, 1, 1, 3})
+                         .output("out", ov::element::f32, {1, 1, 1, 3})
+                         .attr<float>("scale", 1.0f)
+                         .attr<float>("max_bias", 0.0f)
+                         .build();
+        std::map<std::string, ov::Tensor> feeds{{"x", make_f32_tensor({1, 1, 1, 3}, x)}};
+        const std::map<std::string, std::vector<float>> masks{{"self_kq_mask", full},
+                                                              {"self_kq_mask_swa", swa},
+                                                              {"mask_rows", rows}};
+        for (const auto& param : model->get_parameters()) {
+            const auto& name = param->get_friendly_name();
+            if (masks.count(name))
+                feeds.emplace(name, make_f32_tensor({1, 1, 1, 3}, masks.at(name)));
+        }
+        return run_on_cpu(model, feeds);
+    };
+    const float e1 = std::exp(1.0f), e2 = std::exp(2.0f), e3 = std::exp(3.0f);
+    expect_near(run("mask_rows"), {e1 / (e1 + e2), e2 / (e1 + e2), 0.0f}, 1e-3f);
+    expect_near(run("self_kq_mask_swa"), {e1 / (e1 + e3), 0.0f, e3 / (e1 + e3)}, 1e-3f);
+}
+
 // RESHAPE op_case 3: flatten-for-SET_ROWS, [F, tok, 1, 1] -> [1, F*tok?, -1, 1] with the token
 // count landing on the dynamic axis (constant folds to the static output shape here). Verifies the
 // (previously stubbed) case emits a correct reshape rather than throwing.
@@ -2068,6 +2100,99 @@ TEST(GGUFOps, SetRowsDynamicCacheUsesWholeTokenRows) {
                            {"dst", make_f32_tensor({1, 2, 2, 2}, std::vector<float>(8, -1.0f))}});
     EXPECT_EQ(out.get_shape(), (ov::Shape{1, 2, 2, 2}));
     expect_near(out, {20, 21, 22, 23, 10, 11, 12, 13}, 0.0f);
+}
+
+// Convolution rollback snapshots: 3 new tokens with capacity 2 keep the last two windows of the
+// [history | tokens] input, newest in plane 0 at the slot and the older one a stride later.
+TEST(GGUFOps, SetRowsConvSnapshotWritesNewestWindowsFirst) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SET_ROWS")
+                     .attr("snapshot_window", int64_t{2})
+                     .attr("snapshot_capacity", int64_t{2})
+                     .attr("snapshot_stride", int64_t{2})
+                     .attr("feature_offset", int64_t{0})
+                     .input("conv", ov::element::f32, {1, 1, 2, -1})
+                     .input("order", ov::element::i32, {1, 1, 1, 1})
+                     .input("cache", ov::element::f32, {1, 1, 5, 4})
+                     .input("slot", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {1, 1, 5, 4})
+                     .build();
+    auto out = run_on_cpu(model,
+                          {{"conv", make_f32_tensor({1, 1, 2, 5}, {0, 1, 2, 3, 4, 10, 11, 12, 13, 14})},
+                           {"cache", make_f32_tensor({1, 1, 5, 4}, std::vector<float>(20, -1.0f))},
+                           {"slot", make_i64_tensor({1}, {1})}});
+    expect_near(out, {-1, -1, -1, -1, 3, 4, 13, 14, -1, -1, -1, -1, 2, 3, 12, 13, -1, -1, -1, -1}, 0.0f);
+}
+
+// A single new token per sequence writes one window into the middle of each sequence's cache row.
+TEST(GGUFOps, SetRowsConvSnapshotKeepsRestOfRow) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SET_ROWS")
+                     .attr("snapshot_window", int64_t{2})
+                     .attr("snapshot_capacity", int64_t{3})
+                     .attr("snapshot_stride", int64_t{2})
+                     .attr("feature_offset", int64_t{1})
+                     .input("conv", ov::element::f32, {1, 2, 1, 3})
+                     .input("order", ov::element::i32, {1, 1, 1, 2})
+                     .input("cache", ov::element::f32, {1, 1, 3, 4})
+                     .input("slot", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {1, 1, 3, 4})
+                     .build();
+    std::vector<float> cache(12);
+    std::iota(cache.begin(), cache.end(), 100.0f);
+    auto out = run_on_cpu(model,
+                          {{"conv", make_f32_tensor({1, 2, 1, 3}, {0, 1, 2, 10, 11, 12})},
+                           {"cache", make_f32_tensor({1, 1, 3, 4}, cache)},
+                           {"slot", make_i64_tensor({1}, {0})}});
+    expect_near(out, {100, 1, 2, 103, 104, 11, 12, 107, 108, 109, 110, 111}, 0.0f);
+}
+
+// SET_ROWS into a computed tensor writes rows independently in every batch.
+TEST(GGUFOps, SetRowsBatchedComputedTensor) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SET_ROWS")
+                     .attr("batched_rows", true)
+                     .input("data", ov::element::f32, {1, 2, 1, 2})
+                     .input("ind", ov::element::i64, {1, 1, 2, 1})
+                     .input("dst", ov::element::f32, {1, 2, 3, 2})
+                     .output("out", ov::element::f32, {1, 2, 3, 2})
+                     .build();
+    auto out = run_on_cpu(model,
+                          {{"data", make_f32_tensor({1, 2, 1, 2}, {10, 11, 20, 21})},
+                           {"ind", make_i64_tensor({1, 1, 2, 1}, {2, 0})},
+                           {"dst", make_f32_tensor({1, 2, 3, 2}, std::vector<float>(12, -1.0f))}});
+    expect_near(out, {-1, -1, -1, -1, 10, 11, 20, 21, -1, -1, -1, -1}, 0.0f);
+}
+
+// Batched 4D GET_ROWS gathers rows independently in every [ne3, ne2] batch.
+TEST(GGUFOps, GetRowsBatched4D) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GET_ROWS")
+                     .attr("batched_rows", true)
+                     .input("data", ov::element::f32, {2, 2, 3, 2})
+                     .input("ids", ov::element::i32, {1, 2, 2, 1})
+                     .output("out", ov::element::f32, {2, 2, 1, 2})
+                     .build();
+    std::vector<float> data(24);
+    std::iota(data.begin(), data.end(), 0.0f);
+    ov::Tensor ids(ov::element::i32, ov::Shape{1, 2, 2, 1});
+    const std::vector<int32_t> rows{2, 0, 1, 2};
+    std::copy(rows.begin(), rows.end(), ids.data<int32_t>());
+    auto out = run_on_cpu(model, {{"data", make_f32_tensor({2, 2, 3, 2}, data)}, {"ids", ids}});
+    EXPECT_EQ(out.get_shape(), (ov::Shape{2, 2, 1, 2}));
+    expect_near(out, {4, 5, 6, 7, 14, 15, 22, 23}, 0.0f);
+}
+
+TEST(GGUFOps, Arange) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_ARANGE")
+                     .attr("start", 1.0f)
+                     .attr("stop", 3.0f)
+                     .attr("step", 0.5f)
+                     .output("out", ov::element::f32, {1, 1, 1, 4})
+                     .build();
+    auto out = run_on_cpu(model, {});
+    expect_near(out, {1.0f, 1.5f, 2.0f, 2.5f}, 0.0f);
 }
 
 // Reference for the frontend's make_sin_cos on the NEOX (non-imrope) path: for a single position p,
@@ -2605,7 +2730,7 @@ TEST(GGUFOps, FlashAttnExtPreservesNegativeInfinityMask) {
                      .build();
     auto out = run_on_cpu(model,
                           {{"q", make_f32_tensor({1, 1, 1, 1}, {1})},
-                           {"k", make_f32_tensor({1, 1, 2, 1}, {0, 40000})},
+                           {"k", make_f32_tensor({1, 1, 2, 1}, {0, 20000})},
                            {"v", make_f32_tensor({1, 1, 2, 1}, {1, 100})},
                            {"mask", make_f32_tensor({1, 1, 1, 2}, {0, -std::numeric_limits<float>::infinity()})}});
     expect_near(out, {1.0f}, 1e-5f);
@@ -2973,24 +3098,91 @@ TEST(GGUFOps, GatedDeltaNetRefFallback) {
     EXPECT_TRUE(has_loop);
 }
 
-// K > 1 (multiple recurrent-state snapshot slots, speculative-decode rollback) reserves K state
-// blocks in the ggml output while both frontend paths pack one, so conversion must fail loudly
-// rather than emit a graph whose snapshot views read the wrong block.
-TEST(GGUFOps, GatedDeltaNetMultipleSnapshotSlotsRejected) {
+// K > 1 snapshots (speculative-decode rollback) require the fused path; the Loop path packs one state.
+TEST(GGUFOps, GatedDeltaNetSnapshotSlotsRejectedOnRefPath) {
     const int64_t B = 1, T = 2, H = 1, D = 2, K = 2;
     auto qkv_shp = ov::PartialShape{B, T, H, D};
-    auto gate_shp = ov::PartialShape{B, T, H, 1};
     auto builder = SingleOpBuilder()
                        .op("GGML_OP_GATED_DELTA_NET")
                        .attr<int64_t>("gdn_state_slots", K)
                        .input("q", ov::element::f32, qkv_shp)
                        .input("k", ov::element::f32, qkv_shp)
                        .input("v", ov::element::f32, qkv_shp)
-                       .input("g", ov::element::f32, gate_shp)
-                       .input("beta", ov::element::f32, gate_shp)
+                       .input("g", ov::element::f32, qkv_shp)
+                       .input("beta", ov::element::f32, {B, T, H, 1})
                        .input("state", ov::element::f32, {B, H, D, D})
                        .output("out", ov::element::f32, {1, 1, (T + K * D) * B, D * H});
     EXPECT_THROW(builder.build(), ov::Exception);
+}
+
+// With K snapshot slots, ggml packs the attention rows and then K states, slot s holding the state
+// after T - s tokens. Slots past T are left unwritten by ggml and are not checked.
+TEST(GGUFOps, GatedDeltaNetFusedSnapshotSlots) {
+    const int64_t B = 1, T = 2, H = 1, D = 2, K = 3;
+    auto qkv_shp = ov::PartialShape{B, T, H, D};
+    auto gate_shp = ov::PartialShape{B, T, H, 1};
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GATED_DELTA_NET")
+                     .attr<int64_t>("gdn_state_slots", K)
+                     .input("q", ov::element::f32, qkv_shp)
+                     .input("k", ov::element::f32, qkv_shp)
+                     .input("v", ov::element::f32, qkv_shp)
+                     .input("g", ov::element::f32, gate_shp)
+                     .input("beta", ov::element::f32, gate_shp)
+                     .input("state", ov::element::f32, {B, H, D, D})
+                     .output("out", ov::element::f32, {1, 1, (T + K * D) * B, D * H})
+                     .build();
+
+    std::vector<float> q{1, 0, 0, 1}, k{1, 0, 0, 1}, v{1, 2, 3, 4};
+    std::vector<float> g{-0.5f, 0.0f}, beta{0.5f, 1.0f};
+    std::vector<float> state0{0.1f, 0.2f, 0.3f, 0.4f};  // ggml [value_dim, key_dim]
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, q)},
+                           {"k", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, k)},
+                           {"v", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, v)},
+                           {"g", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, 1}, g)},
+                           {"beta", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, 1}, beta)},
+                           {"state", make_f32_tensor({(size_t)B, (size_t)H, (size_t)D, (size_t)D}, state0)}});
+    ASSERT_EQ(out.get_size(), static_cast<size_t>((T * D + K * D * D) * B * H));
+
+    const float scale = 1.0f / std::sqrt((float)D);
+    std::vector<std::vector<float>> st(D, std::vector<float>(D));  // st[d][dv]
+    for (int dv = 0; dv < D; ++dv)
+        for (int d = 0; d < D; ++d)
+            st[d][dv] = state0[dv * D + d];
+    std::vector<float> attn;
+    std::vector<std::vector<float>> states;  // ggml layout after each token
+    for (int t = 0; t < T; ++t) {
+        const float gexp = std::exp(g[t]);
+        for (int d = 0; d < D; ++d)
+            for (int dv = 0; dv < D; ++dv)
+                st[d][dv] *= gexp;
+        for (int dv = 0; dv < D; ++dv) {
+            float h_k = 0.0f;
+            for (int d = 0; d < D; ++d)
+                h_k += st[d][dv] * k[t * D + d];
+            const float upd = (v[t * D + dv] - h_k) * beta[t];
+            for (int d = 0; d < D; ++d)
+                st[d][dv] += k[t * D + d] * upd;
+        }
+        for (int dv = 0; dv < D; ++dv) {
+            float a = 0.0f;
+            for (int d = 0; d < D; ++d)
+                a += st[d][dv] * q[t * D + d] * scale;
+            attn.push_back(a);
+        }
+        std::vector<float> packed;
+        for (int dv = 0; dv < D; ++dv)
+            for (int d = 0; d < D; ++d)
+                packed.push_back(st[d][dv]);
+        states.push_back(packed);
+    }
+    std::vector<float> expected = attn;
+    for (int64_t slot = 0; slot < std::min(T, K); ++slot)
+        expected.insert(expected.end(), states[T - 1 - slot].begin(), states[T - 1 - slot].end());
+    const auto* actual = out.data<const float>();
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_NEAR(actual[i], expected[i], 1e-4f) << "at " << i;
 }
 
 // GatedDeltaNet, fused-op path. A scalar gate (gate last-dim 1 with head size Dv>1) selects the
@@ -6130,17 +6322,6 @@ TEST(GGUFOps, ConvDepthwiseAndTransposed) {
                            {{"w", make_f32_tensor({2, 1, 2, 2}, {1, 1, 1, 1, 1, 0, 0, 1})},
                             {"x", make_f32_tensor({1, 2, 2, 2}, {1, 2, 3, 4, 5, 6, 7, 8})}}),
                 {10, 13});
-    // 1D transposed conv, Cin = Cout = 1, K = 2, stride 2: each input sample emits the kernel scaled.
-    auto t1 = SingleOpBuilder()
-                  .op("GGML_OP_CONV_TRANSPOSE_1D")
-                  .input("w", ov::element::f32, {1, 1, 1, 2})
-                  .input("x", ov::element::f32, {1, 1, 1, 2})
-                  .output("out", ov::element::f32, {1, 1, 1, 4})
-                  .attr<std::vector<int64_t>>("conv_params", {2, 0, 1})
-                  .build();
-    expect_near(
-        run_on_cpu(t1, {{"w", make_f32_tensor({1, 1, 1, 2}, {1, 10})}, {"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}),
-        {1, 10, 2, 20});
     // 2D transposed conv, 1x1 kernel, stride 2: inputs land on the even grid, zeros elsewhere.
     auto t2 = SingleOpBuilder()
                   .op("GGML_OP_CONV_TRANSPOSE_2D")
@@ -6152,6 +6333,24 @@ TEST(GGUFOps, ConvDepthwiseAndTransposed) {
     expect_near(
         run_on_cpu(t2, {{"w", make_f32_tensor({1, 1, 1, 1}, {3})}, {"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}),
         {3, 0, 6});
+}
+
+TEST(GGUFOps, ConvTranspose1dEmitsScaledKernel) {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    GTEST_SKIP() << "ARM CPU 1D deconvolution reverses asymmetric kernels: openvinotoolkit/openvino#39689";
+#endif
+    // Cin = Cout = 1, K = 2, stride 2: each input sample emits the kernel scaled.
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CONV_TRANSPOSE_1D")
+                     .input("w", ov::element::f32, {1, 1, 1, 2})
+                     .input("x", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 1, 4})
+                     .attr<std::vector<int64_t>>("conv_params", {2, 0, 1})
+                     .build();
+    expect_near(
+        run_on_cpu(model,
+                   {{"w", make_f32_tensor({1, 1, 1, 2}, {1, 10})}, {"x", make_f32_tensor({1, 1, 1, 2}, {1, 2})}}),
+        {1, 10, 2, 20});
 }
 
 TEST(GGUFOps, Conv3dSumsTheKernelWindow) {

@@ -27,7 +27,6 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/reverse.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
@@ -313,12 +312,8 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
         std::vector<int32_t> transpose_order = {1, 0, 2, 3};
         auto transpose_const = ov::op::v0::Constant::create(ov::element::i32, {4}, transpose_order);
         auto weights_transposed = std::make_shared<ov::op::v1::Transpose>(weights_4d, transpose_const);
-        auto reverse_axes = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
-        auto weights_reversed =
-            std::make_shared<ov::op::v1::Reverse>(weights_transposed, reverse_axes, ov::op::v1::Reverse::Mode::INDEX);
         decomp_nodes.push_back(weights_4d.get_node_shared_ptr());
         decomp_nodes.push_back(weights_transposed);
-        decomp_nodes.push_back(weights_reversed);
 
         ov::Strides conv_strides = {1, 1};
         ov::CoordinateDiff conv_pads_begin = {0, 0};
@@ -326,7 +321,7 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
         ov::Strides conv_dilations = {dilation, 1};
 
         auto conv = std::make_shared<ov::op::v1::Convolution>(result,
-                                                              weights_reversed,
+                                                              weights_transposed,
                                                               conv_strides,
                                                               conv_pads_begin,
                                                               conv_pads_end,

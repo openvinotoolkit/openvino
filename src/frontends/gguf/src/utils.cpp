@@ -665,6 +665,14 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
     return std::make_pair(sin_theta, cos_theta);
 }
 
+ov::Output<ov::Node> get_sliced_kq_mask(const NodeContext& context, size_t input_index) {
+    const auto& name = context.get_input_names()[input_index];
+    const std::string sliced = name == "self_kq_mask_swa" ? "KQ_mask_swa_sliced"
+                               : name == "self_kq_mask"   ? "KQ_mask_sliced"
+                                                          : std::string();
+    return !sliced.empty() && context.has_input(sliced) ? context.get_input(sliced) : ov::Output<ov::Node>{};
+}
+
 ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_index, int slice_len) {
     // Only works for VIEW operations that slice at the lowest dimension
     // If the VIEW also reshape the result, `slice_len` should be provided
