@@ -182,6 +182,10 @@ class _(TransformConverterBase):
         torch_padding = transform.padding
         pad_mode = transform.padding_mode
 
+        # torchvision accepts a one-element sequence and treats it like an int
+        if not isinstance(torch_padding, int) and len(torch_padding) == 1:
+            torch_padding = torch_padding[0]
+
         if pad_mode == "constant":
             if isinstance(transform.fill, tuple):
                 raise ValueError("Different fill values for R, G, B channels are not supported.")
