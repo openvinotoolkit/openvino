@@ -273,7 +273,7 @@ std::string replace_blob_requirements(const std::string& blob, const std::string
     return result;
 }
 
-std::shared_ptr<ov::Model> make_rms_model() {
+[[maybe_unused]] std::shared_ptr<ov::Model> make_rms_model() {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 16, 128});
     auto power = std::make_shared<ov::op::v1::Power>(data, ov::op::v0::Constant::create(ov::element::f32, {}, {2.f}));
     auto mean = std::make_shared<ov::op::v1::ReduceMean>(power,

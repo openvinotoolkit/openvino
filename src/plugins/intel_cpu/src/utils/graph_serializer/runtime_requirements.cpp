@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -26,21 +27,21 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/version.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/util/ov_version.hpp"
-#include "snippets/op/brgemm.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "utils/precision_support.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "openvino/op/matmul.hpp"
 #    include "openvino/runtime/system_conf.hpp"
 #    include "ov_ops/fully_connected_compressed.hpp"
 #    include "ov_ops/gather_matmul_compressed.hpp"
 #    include "ov_ops/rms.hpp"
+#    include "snippets/op/brgemm.hpp"
 #    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
@@ -106,12 +107,10 @@ bool is_standard_opset(std::string_view opset) {
     if (opset.size() <= prefix.size() || opset.substr(0, prefix.size()) != prefix) {
         return false;
     }
-    for (const auto c : opset.substr(prefix.size())) {
-        if (c < '0' || c > '9') {
-            return false;
-        }
-    }
-    return true;
+    const auto digits = opset.substr(prefix.size());
+    return std::all_of(digits.begin(), digits.end(), [](char c) {
+        return c >= '0' && c <= '9';
+    });
 }
 
 std::string get_opset_name(const ov::Node& node) {
