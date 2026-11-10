@@ -31,10 +31,6 @@ const std::shared_ptr<OptionSupportCache>& CompilerOptionSupportHelper::getOptio
     return _optionSupportCache;
 }
 
-const std::shared_ptr<const CompilerAdapterFactory>& CompilerOptionSupportHelper::getAdapterFactory() const {
-    return _adapterFactory;
-}
-
 bool CompilerOptionSupportHelper::isOptionSupported(ov::intel_npu::CompilerType compilerType,
                                                     const std::string& optionName,
                                                     const std::optional<std::string>& optionValue) {

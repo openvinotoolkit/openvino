@@ -129,6 +129,7 @@ protected:
             options,
             backend,
             std::make_shared<CompilerOptionSupportHelper>(backend, adapterFactory),
+            adapterFactory,
             Logger::global());
     }
 
@@ -138,10 +139,6 @@ protected:
     std::unique_ptr<PluginPropertyManager> manager;
     ov::log::Level globalLogLevel = ov::log::Level::NO;
 };
-
-TEST_F(PluginPropertyManagerTests, ConstructionWithoutOptionSupportHelperThrows) {
-    EXPECT_THROW(PluginPropertyManager(options, noBackend, nullptr, Logger::global()), ov::Exception);
-}
 
 TEST_F(PluginPropertyManagerTests, SetPropertyRuntimeOptionIsReadBack) {
     EXPECT_FALSE(manager->getProperty(ov::enable_profiling.name()).as<bool>());

@@ -21,9 +21,10 @@
 
 namespace intel_npu {
 
-CompilerAdapterFactory::CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions)
-    : _vclFunctions(vclFunctions) {
-    OPENVINO_ASSERT(_vclFunctions != nullptr, "CompilerAdapterFactory requires a way to obtain the VCL entry points");
+CompilerAdapterFactory::CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctionsProvider)
+    : _vclFunctionsProvider(vclFunctionsProvider) {
+    OPENVINO_ASSERT(_vclFunctionsProvider != nullptr,
+                    "CompilerAdapterFactory requires a way to obtain the VCL entry points");
 }
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
@@ -46,7 +47,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
         std::shared_ptr<const VCLFunctionTable> functions;
         std::shared_ptr<IVCLCompiler> compiler;
         try {
-            functions = _vclFunctions();
+            functions = _vclFunctionsProvider();
             compiler = std::make_shared<VCLCompilerImpl>(
                 functions,
                 device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
@@ -138,7 +139,7 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         std::shared_ptr<const VCLFunctionTable> functions;
         std::shared_ptr<IVCLCompiler> pluginCompiler;
         try {
-            functions = _vclFunctions();
+            functions = _vclFunctionsProvider();
             pluginCompiler = std::make_shared<VCLCompilerImpl>(
                 functions,
                 device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,

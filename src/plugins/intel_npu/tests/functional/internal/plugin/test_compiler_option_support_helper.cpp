@@ -40,7 +40,8 @@ std::string startMarkerFor(ov::intel_npu::CompilerType compilerType) {
 
 size_t countOccurrences(const std::string& haystack, const std::string& needle) {
     size_t count = 0;
-    for (size_t pos = haystack.find(needle); pos != std::string::npos; pos = haystack.find(needle, pos + needle.size())) {
+    for (size_t pos = haystack.find(needle); pos != std::string::npos;
+         pos = haystack.find(needle, pos + needle.size())) {
         ++count;
     }
     return count;
@@ -349,7 +350,7 @@ protected:
 };
 
 TEST_F(CompilerOptionSupportHelperConcurrencyTests,
-      ConcurrentLookupsForDifferentKeysLoadOptionsOncePerKeyWithoutDeadlock) {
+       ConcurrentLookupsForDifferentKeysLoadOptionsOncePerKeyWithoutDeadlock) {
     constexpr int kThreadsPerType = 4;
     std::vector<std::thread> threads;
     std::vector<bool> results(kThreadsPerType * 2, false);

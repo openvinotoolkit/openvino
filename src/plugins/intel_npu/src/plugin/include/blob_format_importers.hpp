@@ -48,7 +48,7 @@ public:
      * @param network_name The resulted graph object will use this network name.
      * @param core The OV core. The weights separation feature may depend on this object to extract the original
      * weights.
-     * @param vclFunctions Supplies the VCL entry points. Called only to create the profiling decoder, and only
+     * @param vclFunctionsProvider Supplies the VCL entry points. Called only to create the profiling decoder, and only
      * when profiling is enabled.
      * @return A graph object. The type of graph depends on the content of the blob. E.g. a "weightless" graph will be
      * returned if the weights separation feature was detected.
@@ -56,7 +56,7 @@ public:
     std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
                                          const std::string_view network_name,
                                          const std::shared_ptr<ov::ICore>& core,
-                                         const VCLFunctionTableProvider& vclFunctions);
+                                         const VCLFunctionTableProvider& vclFunctionsProvider);
 
     /**
      * @brief Uses the metadata of the resulted graph object to build a minimalistic OV model.

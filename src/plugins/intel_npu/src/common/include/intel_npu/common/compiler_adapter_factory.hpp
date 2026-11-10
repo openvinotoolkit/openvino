@@ -39,10 +39,10 @@ public:
      * The factory calls the provider only to create a compiler-in-plugin, including the probe that resolves
      * PREFER_PLUGIN. Driver compilation never calls it.
      *
-     * @param vclFunctions Supplies the VCL entry points. Must not be empty.
+     * @param vclFunctionsProvider Supplies the VCL entry points. Must not be empty.
      * @throws ov::Exception if the provider is empty.
      */
-    explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions);
+    explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctionsProvider);
 
     CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
     CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
@@ -114,7 +114,7 @@ private:
     // sharing one instance sees the same outcome, and a factory for another provider probes on its own.
     mutable std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
 
-    VCLFunctionTableProvider _vclFunctions;
+    VCLFunctionTableProvider _vclFunctionsProvider;
 };
 
 }  // namespace intel_npu

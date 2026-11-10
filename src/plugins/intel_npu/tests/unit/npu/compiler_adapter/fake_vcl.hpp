@@ -19,12 +19,12 @@
 
 namespace fake_vcl {
 
-/// The options a default FakeVcl advertises as supported.
+// The options a default FakeVcl advertises as supported.
 inline constexpr const char* kOptionA = "OPT_A";
 inline constexpr const char* kOptionB = "OPT_B";
 inline constexpr const char* kOptionC = "OPT_C";
 
-/// Entry point names, as they appear in FakeVcl::calls and the failWith/callCount arguments.
+// Entry point names, as they appear in FakeVcl::calls and the failWith/callCount arguments.
 inline constexpr const char* kCompilerCreate = "vclCompilerCreate";
 inline constexpr const char* kGetCompilerSupportedOptions = "vclGetCompilerSupportedOptions";
 
@@ -78,7 +78,7 @@ public:
     std::shared_ptr<const intel_npu::VCLFunctionTable> functions() const {
         return _functions;
     }
-    /// A provider that always hands out the function table. Shares the table, so it stays valid after the fake.
+    // A provider that always hands out the function table. Shares the table, so it stays valid after the fake.
     intel_npu::VCLFunctionTableProvider provider() const {
         return [functions = _functions] {
             return functions;

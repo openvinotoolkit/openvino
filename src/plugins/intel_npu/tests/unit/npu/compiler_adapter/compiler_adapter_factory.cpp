@@ -60,8 +60,8 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeAfterPresentOutcomeDoesNotPr
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeWhenPluginCompilerCannotBeCreatedThrows) {
-    const auto expectProbeFailure = [](const VCLFunctionTableProvider& provider) {
-        const CompilerAdapterFactory factory(provider);
+    const auto expectProbeFailure = [](const VCLFunctionTableProvider& vclFunctionsProvider) {
+        const CompilerAdapterFactory factory(vclFunctionsProvider);
         OV_EXPECT_THROW_HAS_SUBSTRING(decide(factory), ov::Exception, kFailedProbeMessage);
     };
 

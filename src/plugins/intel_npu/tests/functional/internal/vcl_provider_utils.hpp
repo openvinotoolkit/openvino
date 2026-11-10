@@ -16,8 +16,8 @@
 
 namespace ov::test::npu::vcl_provider {
 
-/// A provider over the real VCL library. All callers in the test process share one loader, like a plugin that stays
-/// loaded.
+// A provider over the real VCL library. All callers in the test process share one loader, like a plugin that stays
+// loaded.
 inline ::intel_npu::VCLFunctionTableProvider processWide() {
     static const auto holder = std::make_shared<const ::intel_npu::VCLLoaderHolder>();
     return [] {
@@ -25,14 +25,14 @@ inline ::intel_npu::VCLFunctionTableProvider processWide() {
     };
 }
 
-/// A provider whose VCL library cannot be loaded.
+// A provider whose VCL library cannot be loaded.
 inline ::intel_npu::VCLFunctionTableProvider unavailable() {
     return []() -> std::shared_ptr<const ::intel_npu::VCLFunctionTable> {
         OPENVINO_THROW("Injected unavailable provider");
     };
 }
 
-/// A provider the code under test must never call. A call fails the test.
+// A provider the code under test must never call. A call fails the test.
 inline ::intel_npu::VCLFunctionTableProvider forbidden(std::string reason) {
     return [reason = std::move(reason)]() -> std::shared_ptr<const ::intel_npu::VCLFunctionTable> {
         ADD_FAILURE() << reason;
@@ -40,12 +40,12 @@ inline ::intel_npu::VCLFunctionTableProvider forbidden(std::string reason) {
     };
 }
 
-/// Wraps `provider`, counting every call in `calls`. `calls` must outlive the returned provider.
+// Wraps `vclFunctionsProvider`, counting every call in `calls`. `calls` must outlive the returned provider.
 inline ::intel_npu::VCLFunctionTableProvider counted(std::size_t& calls,
-                                                     ::intel_npu::VCLFunctionTableProvider provider) {
-    return [&calls, provider = std::move(provider)] {
+                                                     ::intel_npu::VCLFunctionTableProvider vclFunctionsProvider) {
+    return [&calls, vclFunctionsProvider = std::move(vclFunctionsProvider)] {
         calls++;
-        return provider();
+        return vclFunctionsProvider();
     };
 }
 

@@ -7,8 +7,6 @@
 #include <exception>
 #include <memory>
 #include <mutex>
-#include <optional>
-#include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/vcl/vcl_function_table_provider.hpp"
@@ -105,7 +103,7 @@ public:
 private:
     friend class VCLLoaderHolder;
 
-    explicit VCLLoader(const std::string& library_dir);
+    VCLLoader();
 
     VCLFunctionTable _functions;
     std::shared_ptr<void> lib;
@@ -130,11 +128,6 @@ public:
      */
     VCLLoaderHolder() = default;
 
-    /**
-     * @brief Loads from the given directory.
-     */
-    explicit VCLLoaderHolder(const std::string& library_dir);
-
     VCLLoaderHolder(const VCLLoaderHolder&) = delete;
     VCLLoaderHolder& operator=(const VCLLoaderHolder&) = delete;
 
@@ -147,7 +140,6 @@ public:
     std::shared_ptr<const VCLFunctionTable> functions() const;
 
 private:
-    std::optional<std::string> _library_dir;
     mutable std::mutex _mutex;
     // Loaded library, or the error of the load that failed. Both stay empty until the first call.
     mutable std::shared_ptr<const VCLLoader> _loader;

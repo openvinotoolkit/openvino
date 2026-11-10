@@ -164,6 +164,7 @@ public:
             options,
             backend,
             std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory),
+            adapterFactory,
             ::intel_npu::Logger::global());
     }
 
@@ -692,6 +693,7 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
         localOptions,
         backend,
         std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory),
+        adapterFactory,
         ::intel_npu::Logger::global());
 
     {

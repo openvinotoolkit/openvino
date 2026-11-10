@@ -14,7 +14,7 @@
 namespace intel_npu {
 
 std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStructs,
-                                                  const VCLFunctionTableProvider& vclFunctions,
+                                                  const VCLFunctionTableProvider& vclFunctionsProvider,
                                                   bool perfCountEnabled) const {
     OPENVINO_ASSERT(
         zeroInitStructs != nullptr,
@@ -22,10 +22,10 @@ std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInit
 
     std::shared_ptr<IProfilingDecoder> profilingDecoder;
     if (perfCountEnabled) {
-        OPENVINO_ASSERT(vclFunctions != nullptr,
+        OPENVINO_ASSERT(vclFunctionsProvider != nullptr,
                         "Profiling is enabled but no way to obtain the VCL entry points was given");
         try {
-            profilingDecoder = std::make_shared<VCLProfilingDecoder>(vclFunctions());
+            profilingDecoder = std::make_shared<VCLProfilingDecoder>(vclFunctionsProvider());
         } catch (const std::exception& ex) {
             Logger::global().warning("Failed to create the VCL profiling decoder for model import: %s", ex.what());
         }

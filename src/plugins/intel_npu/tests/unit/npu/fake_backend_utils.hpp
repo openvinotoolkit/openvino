@@ -29,7 +29,7 @@ public:
     static constexpr uint64_t kAllocMemSize = 4096;
     static constexpr uint8_t kUuidByte = 0x5A;
 
-    /// @param reportsMaxNumSlices When false, getMaxNumSlices() fails like on a device that cannot report it.
+    // @param reportsMaxNumSlices When false, getMaxNumSlices() fails like on a device that cannot report it.
     explicit FakeDevice(std::string name, bool reportsMaxNumSlices = true)
         : _name(std::move(name)),
           _reportsMaxNumSlices(reportsMaxNumSlices) {}
@@ -150,7 +150,7 @@ public:
         _updatedProperties = properties;
     }
 
-    /// What the last updateInfo() call received.
+    // What the last updateInfo() call received.
     const ov::AnyMap& updatedProperties() const {
         return _updatedProperties;
     }
