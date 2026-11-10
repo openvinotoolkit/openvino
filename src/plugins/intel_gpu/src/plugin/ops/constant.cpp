@@ -198,8 +198,15 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             // instead. Convert the data in that case, otherwise just copy it.
             const auto src_et = op->get_output_element_type(0);
             const auto dst_et = ov::element::Type(out_dtype);
-            if (src_et == dst_et && mem->get_allocation_type() == cldnn::allocation_type::usm_device) {
-                mem->copy_from(stream, data, 0, 0, bufSize, true);
+            if (mem->get_allocation_type() == cldnn::allocation_type::usm_device) {
+                // A lock of usm_device memory would copy it to the host first, so upload with one copy instead
+                if (src_et == dst_et) {
+                    mem->copy_from(stream, data, 0, 0, bufSize, true);
+                } else {
+                    std::vector<char> converted(bufSize);
+                    convert_and_copy(data, src_et, converted.data(), dst_et, upload_count, constLayout);
+                    mem->copy_from(stream, converted.data(), 0, 0, bufSize, true);
+                }
             } else {
                 cldnn::mem_lock<char> lock{mem, stream};
                 auto* buf = lock.data();
