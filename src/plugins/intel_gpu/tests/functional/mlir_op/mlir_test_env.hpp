@@ -25,13 +25,22 @@ struct MlirMatchAllEnv {
         // variable is not already set, and only then restore (unset) it later.
         if (std::getenv("OV_GPU_MLIR_PATTERNS") == nullptr) {
             m_owned = true;
+#ifdef _WIN32
+            _putenv_s("OV_GPU_MLIR_PATTERNS", "*");
+#else
             setenv("OV_GPU_MLIR_PATTERNS", "*", /*overwrite=*/1);
+#endif
         }
     }
 
     ~MlirMatchAllEnv() {
         if (m_owned) {
+#ifdef _WIN32
+            // An empty value removes the variable on Windows.
+            _putenv_s("OV_GPU_MLIR_PATTERNS", "");
+#else
             unsetenv("OV_GPU_MLIR_PATTERNS");
+#endif
         }
     }
 
