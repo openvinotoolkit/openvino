@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-13-33-59-251-42814866016",
+  "timestamp": "2026-11-10T13:33:59Z",
+  "run_id": "42814866016",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42814866016",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "cce2d1ddee640f81a5db0fe79f4b7b49d0750c9c",
+  "pr_number": "37406",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37406",
+  "author": "culhatsker",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "'Extract OpenVINO packages' step failed: Expand-Archive could not overwrite tbb12.dll because PowerShell's Remove-Item raised UnauthorizedAccessException (file locked/permission denied)."
+    },
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "OpenVINO Inference Functional Tests step failed: CachingTest.LoadMultiWithConfig_race/ByModelName_testCache gmock expectation unsatisfied (expected 7 import_model calls, got 6)."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check failed (exit 1) because both the GPU unit tests and C++ unit tests jobs failed."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1.",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\inference\\tests\\functional\\caching_test.cpp(2670): error: Actual function call count doesn't match EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _))...\n         Expected: to be called 7 times\n           Actual: called 6 times - unsatisfied and active\n[  FAILED  ] CachingTest/CachingTest.LoadMultiWithConfig_race/ByModelName_testCache, where GetParam() = ((4-byte object <02-00 00-00>, \"ByModelName\", false), \"testCache\") (2064 ms)"
+  ],
+  "root_cause": "Two independent, pre-existing CI infrastructure/test issues combined to fail this run; neither is caused by the triggering commit (#37406, a GPU plugin build-system fix for prepare_ze_headers unrelated to packaging or caching). (1) The 'GPU unit tests' job's 'Extract OpenVINO packages' step runs Expand-Archive -Force against an install directory still containing tbb12.dll from a prior step on the same Windows self-hosted runner; Expand-Archive's Remove-Item call fails with UnauthorizedAccessException because the DLL is still locked (likely AV scanning or a stale handle from a prior job on a reused runner). This is the 5th occurrence of this exact signature in the past ~22 hours. (2) The 'C++ unit tests' job's CachingTest.LoadMultiWithConfig_race test (src/inference/tests/functional/caching_test.cpp:2670) races multiple threads against a mocked import_model() call with an exact EXPECT_CALL count; under Windows scheduling variance the race loop terminates one call short (6 vs expected 7), a known timing-sensitive test design flaw. Both failures then cascade into the 'ci/gha_overall_status_windows' aggregate check failing.",
+  "reproduction_steps": "N/A for both failures - neither is reliably reproducible outside CI. (1) Requires the specific Windows self-hosted runner state with a locked tbb12.dll handle. (2) Requires building with -DENABLE_TESTS=ON and running `ov_inference_functional_tests --gtest_filter=CachingTest/CachingTest.LoadMultiWithConfig_race*` repeatedly on a loaded Windows machine; failure rate is low and timing-dependent.",
+  "recommended_actions": [
+    "Escalate the recurring tbb12.dll lock issue (5th occurrence in ~22 hours) to the CI infrastructure team to investigate stale processes/AV locks on the Windows self-hosted runner pool for GPU unit tests.",
+    "Add a retry-with-delay wrapper around the Expand-Archive/Remove-Item extraction step for Windows jobs, or switch to 7zip/robocopy-based extraction that tolerates locked destination files.",
+    "Relax the exact EXPECT_CALL(*mockPlugin, import_model(...)).Times(N) expectation in caching_test.cpp around line 2670 to a range-based expectation (e.g., AtLeast), or add a synchronization barrier after the racing threads join and before Mock::VerifyAndClearExpectations.",
+    "Consider quarantining CachingTest.LoadMultiWithConfig_race / LoadMulti_race as known-flaky on Windows pending the test design fix, given this is now the 2nd recorded occurrence."
+  ],
+  "prevention_strategies": "Wrap Windows archive-extraction steps with a retry loop when Remove-Item/Expand-Archive fails with UnauthorizedAccessException, and recycle Windows runner images periodically to clear stale locked handles. Separately, avoid asserting exact gmock call counts in deliberately-racy multi-threaded tests; prefer bounded ranges (AtLeast/Between) and explicit synchronization before verifying mock expectations.",
+  "historical_context": "The tbb12.dll extraction signature (514ffa2ab52ad344) was previously recorded on 2026-11-09T16:30:00Z, 2026-11-10T09:02:45Z, and 2026-11-10T10:05:38Z (runs 42626586527, 42775441636, 42783108480) - this is the 5th occurrence within roughly 22 hours, strongly confirming an unresolved recurring Windows-runner infrastructure issue. The CachingTest.LoadMultiWithConfig_race signature (9f9ea52f699d8da3) was first recorded on 2026-11-09T23:43:11Z (run 42699508369) with a 5-vs-6 call-count mismatch; this run reproduces the same race condition with a 6-vs-7 mismatch, confirming it as a recurring flaky test rather than a one-off."
+}

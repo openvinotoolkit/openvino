@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 83,
+  "total": 84,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -848,6 +848,15 @@
       "category": "Infrastructure",
       "signature_hash": "514ffa2ab52ad344",
       "commit_sha": "8292b34645ede89212af79f0e19d5aaaaa232ce4"
+    },
+    {
+      "investigation_id": "2026-11-10-13-33-59-251-42814866016",
+      "run_id": "42814866016",
+      "timestamp": "2026-11-10T13:33:59Z",
+      "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+      "category": "Infrastructure",
+      "signature_hash": "514ffa2ab52ad344",
+      "commit_sha": "cce2d1ddee640f81a5db0fe79f4b7b49d0750c9c"
     }
   ]
 }
