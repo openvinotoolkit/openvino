@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "intel_npu/common/blob_sections_registry.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/config/config.hpp"
 
@@ -30,8 +29,7 @@ public:
      */
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
                                             const Config& config,
-                                            const AdapterDescriptor& adapterDesc,
-                                            BlobSectionsRegistry& blobSectionsRegistry) const = 0;
+                                            const AdapterDescriptor& adapterDesc) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled.
@@ -50,8 +48,7 @@ public:
      * @return A "WeightlessGraph" type of object.*/
     virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
                                               const Config& config,
-                                              const AdapterDescriptor& adapterDesc,
-                                              BlobSectionsRegistry& blobSectionsRegistry) const = 0;
+                                              const AdapterDescriptor& adapterDesc) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
     virtual uint32_t get_version() const = 0;

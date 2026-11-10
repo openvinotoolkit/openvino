@@ -8,6 +8,7 @@
 #include <string>
 
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/blob_sections_registry.hpp"
 #include "intel_npu/common/blob_source.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"

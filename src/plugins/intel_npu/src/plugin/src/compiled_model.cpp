@@ -105,8 +105,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
 
+    // Register the compiler schedules and IO layouts sections if not already present
     if (!_blobSectionsRegistry.has_section_of_type(SectionTypeCode::IO_LAYOUTS)) {
-        // Registed the IO layouts section
         std::vector<ov::Layout> inputLayouts;
         std::vector<ov::Layout> outputLayouts;
 
@@ -121,6 +121,24 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 
         _blobSectionsRegistry.register_section(
             std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
+    }
+
+    if (!_blobSectionsRegistry.has_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) ||
+        !_blobSectionsRegistry.has_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE)) {
+        switch (graph->get_kind()) {
+        case GraphKind::Weightless:
+            _blobSectionsRegistry.register_section(
+                std::make_shared<ELFInitSchedulesSection>(std::dynamic_pointer_cast<WeightlessGraph>(graph)));
+        case GraphKind::Weightful:
+            _blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(graph));
+            break;
+        case GraphKind::Dynamic:
+            _blobSectionsRegistry.register_section(
+                std::make_shared<DynamicScheduleSection>(std::dynamic_pointer_cast<DynamicGraph>(graph)));
+            break;
+        default:
+            OPENVINO_THROW("Unknown GraphKind");
+        }
     }
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.

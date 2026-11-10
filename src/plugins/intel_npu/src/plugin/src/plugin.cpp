@@ -247,9 +247,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
     update_global_properties(properties);
 
-    // Created at this stage to allow functions to register blob sections on the fly
-    BlobSectionsRegistry blobSectionsRegistry;
-
     // Before going any further: if
     // ... 1 - NPUW mode is activated
     // ... 2 - this request is NOT coming from NPUW,
@@ -428,13 +425,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
                                 localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
-    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config, auto& blobSectionsRegistry) {
+    auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config, adapterDesc, blobSectionsRegistry);
+            return compiler->compile(modelToCompile, config, adapterDesc);
         }
 
         check_weightless_cache_attribute_occurrence(model);
-        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc, blobSectionsRegistry);
+        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc);
     };
 
     try {
@@ -474,7 +471,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             compilerConfig.update(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
 
-        graph = compileWithConfig(std::move(modelToCompile), compilerConfig, blobSectionsRegistry);
+        graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -482,6 +479,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
     }
 
+    BlobSectionsRegistry blobSectionsRegistry;
     std::optional<int64_t> batch = std::nullopt;
     if (originalBatch.has_value() && successfullyDebatched) {
         batch = originalBatch.value().is_static() ? originalBatch.value().get_length() : -1;
