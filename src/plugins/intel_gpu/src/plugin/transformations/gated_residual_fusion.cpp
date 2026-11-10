@@ -269,6 +269,7 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
             flipped[i] = src[i] ^ mask;
         }
         wt = bits == 4 ? ov::element::i4 : ov::element::i8;
+        // No weightless cache attribute: the flipped bytes differ from the ones in the weights file.
         weights_2d = std::make_shared<ov::op::v0::Constant>(wt, ov::Shape{N, K}, flipped.data());
     } else {
         weights_2d = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{N, K});
@@ -487,7 +488,11 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
         if (!get_i64_vector(reduce_node->input_value(1), reduce_axes) || reduce_axes.size() != 1) {
             return false;
         }
-        const auto reduce_input_rank = static_cast<int64_t>(reduce_node->input_value(0).get_partial_shape().size());
+        const auto& reduce_ps = reduce_node->input_value(0).get_partial_shape();
+        if (reduce_ps.rank().is_dynamic()) {
+            return false;
+        }
+        const auto reduce_input_rank = static_cast<int64_t>(reduce_ps.size());
         const int64_t branch_axis = reduce_axes[0] < 0 ? reduce_axes[0] + reduce_input_rank : reduce_axes[0];
         if (branch_axis != reduce_input_rank - 2) {
             return false;
@@ -601,7 +606,11 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             // the grouped norm is not what the fused kernel computes.
             auto mean_node = ov::as_type_ptr<ov::op::v1::ReduceMean>(pm.at(mean).get_node_shared_ptr());
             std::vector<int64_t> mean_axes;
-            const auto sq_rank = static_cast<int64_t>(pm.at(sq).get_partial_shape().size());
+            const auto& sq_ps = pm.at(sq).get_partial_shape();
+            if (sq_ps.rank().is_dynamic()) {
+                return false;
+            }
+            const auto sq_rank = static_cast<int64_t>(sq_ps.size());
             if (!mean_node || !mean_node->get_keep_dims() || !get_i64_vector(mean_node->input_value(1), mean_axes) || mean_axes.size() != 1 ||
                 (mean_axes[0] != -1 && mean_axes[0] != sq_rank - 1)) {
                 return false;
@@ -766,8 +775,8 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         // prove a broadcast, not that the sources are not themselves already split.
         const auto& y_src_ps = pm.at(y_src).get_partial_shape();
         const auto& gate_src_ps = pm.at(write_gate).get_partial_shape();
-        if (y_src_ps.rank().is_dynamic() || gate_src_ps.rank().is_dynamic() || y_src_ps[y_src_ps.size() - 1] != static_cast<int64_t>(D) ||
-            gate_src_ps[gate_src_ps.size() - 1] != static_cast<int64_t>(C)) {
+        if (y_src_ps.rank().is_dynamic() || gate_src_ps.rank().is_dynamic() || y_src_ps.size() < 1 || gate_src_ps.size() < 1 ||
+            y_src_ps[y_src_ps.size() - 1] != static_cast<int64_t>(D) || gate_src_ps[gate_src_ps.size() - 1] != static_cast<int64_t>(C)) {
             return false;
         }
 
@@ -793,6 +802,22 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         // See GatedResidualReadFusion: a residual without a static width is proven by Y and the gate here.
         const auto& residual_ps = residual_out.get_partial_shape();
         if (residual_ps.rank().is_dynamic() || !residual_ps[residual_ps.size() - 1].compatible(static_cast<int64_t>(C * D))) {
+            return false;
+        }
+
+        // The kernel walks the residual's rows, so Y and the gate must share its leading dimensions.
+        const auto shares_rows = [&residual_ps](const ov::PartialShape& ps) {
+            if (ps.size() != residual_ps.size()) {
+                return false;
+            }
+            for (size_t i = 0; i + 1 < ps.size(); ++i) {
+                if (!ps[i].compatible(residual_ps[i])) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (!shares_rows(y_src_ps) || !shares_rows(gate_src_ps)) {
             return false;
         }
 

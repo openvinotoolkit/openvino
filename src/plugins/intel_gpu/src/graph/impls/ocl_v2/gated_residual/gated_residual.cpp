@@ -1253,8 +1253,9 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         return false;
     }
 
+    // The kernels index dense rows from JIT constants, so padded layouts are not supported.
     const auto is_bfyx = [](const cldnn::layout& l, ov::element::Type type) {
-        return l.format == cldnn::format::bfyx && l.data_type == type;
+        return l.format == cldnn::format::bfyx && l.data_type == type && l.data_padding == cldnn::padding();
     };
     for (size_t i = 0; i < node.get_outputs_count(); i++) {
         if (!is_bfyx(node.get_output_layout(i), ov::element::f16)) {
