@@ -11,6 +11,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 #include <condition_variable>
 #include <filesystem>
 #include <fstream>
@@ -1201,6 +1202,11 @@ public:
         ON_CALL(*cpu_model, create_sync_infer_request()).WillByDefault([this, weak_model]() {
             auto request = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(weak_model.lock());
             m_cpu_worker_request = request;
+            if (m_cpu_profiling_info) {
+                ON_CALL(*request, get_profiling_info()).WillByDefault([this]() {
+                    return m_cpu_profiling_info();
+                });
+            }
             return request;
         });
         ON_CALL(*cpu_model, create_infer_request()).WillByDefault([weak_model]() {
@@ -1231,6 +1237,30 @@ public:
     bool m_write_cpu_cache_blob = true;
     std::weak_ptr<ov::MockICompiledModel> m_cpu_model;
     std::weak_ptr<ov::mock_auto_plugin::MockISyncInferRequest> m_cpu_worker_request;
+    std::function<std::vector<ov::ProfilingInfo>()> m_cpu_profiling_info;
+
+    // returns the request that ran on CPU, after CPU was released by a request that ran on GPU.0
+    std::shared_ptr<ov::IAsyncInferRequest> infer_then_release_cpu() {
+        const std::vector<ov::PropertyName> supported_properties = {ov::compilation_num_threads,
+                                                                    ov::enable_profiling};
+        ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
+            .WillByDefault(Return(ov::Any(supported_properties)));
+        config.insert(ov::enable_profiling(true));
+        config.insert(ov::intel_auto::compile_for_all(true));
+        expect_selected_devices({"GPU.0", "CPU", "GPU.0"});
+        std::shared_ptr<ov::ICompiledModel> compiled_model;
+        OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+        // the first request ran on CPU and is kept alive without running again
+        auto cpu_request = compiled_model->create_infer_request();
+        OV_ASSERT_NO_THROW(cpu_request->infer());
+        EXPECT_FALSE(m_cpu_model.expired());
+        // a second request switches to GPU.0, which releases CPU
+        auto gpu_request = compiled_model->create_infer_request();
+        OV_ASSERT_NO_THROW(gpu_request->infer());
+        EXPECT_TRUE(m_cpu_model.expired());
+        EXPECT_TRUE(m_cpu_worker_request.expired());
+        return cpu_request;
+    }
 };
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, inactive_device_is_compiled_again_when_selected_again) {
@@ -1269,24 +1299,64 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, cpu_cache_key_is_computed_once_acro
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_does_not_keep_the_inactive_device_alive) {
-    const std::vector<ov::PropertyName> supported_properties = {ov::compilation_num_threads, ov::enable_profiling};
-    ON_CALL(*core, get_property(_, StrEq(ov::supported_properties.name()), _))
-        .WillByDefault(Return(ov::Any(supported_properties)));
-    config.insert(ov::enable_profiling(true));
-    config.insert(ov::intel_auto::compile_for_all(true));
-    expect_selected_devices({"GPU.0", "CPU", "GPU.0"});
-    std::shared_ptr<ov::ICompiledModel> compiled_model;
-    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-    // the first request ran on CPU and is kept alive without running again
-    auto cpu_request = compiled_model->create_infer_request();
-    OV_ASSERT_NO_THROW(cpu_request->infer());
-    EXPECT_FALSE(m_cpu_model.expired());
-    // a second request switches to GPU.0, which releases CPU
-    auto gpu_request = compiled_model->create_infer_request();
-    OV_ASSERT_NO_THROW(gpu_request->infer());
-    EXPECT_TRUE(m_cpu_model.expired());
-    EXPECT_TRUE(m_cpu_worker_request.expired());
-    OV_ASSERT_NO_THROW(cpu_request->get_profiling_info());
+    m_cpu_profiling_info = [] {
+        ov::ProfilingInfo info;
+        info.status = ov::ProfilingInfo::Status::EXECUTED;
+        info.real_time = std::chrono::microseconds(7);
+        info.cpu_time = std::chrono::microseconds(5);
+        info.node_name = "cpu_node";
+        info.exec_type = "cpu_exec";
+        info.node_type = "cpu_type";
+        return std::vector<ov::ProfilingInfo>{info};
+    };
+    auto cpu_request = infer_then_release_cpu();
+    std::vector<ov::ProfilingInfo> profiling;
+    OV_ASSERT_NO_THROW(profiling = cpu_request->get_profiling_info());
+    ASSERT_EQ(profiling.size(), 1u);
+    EXPECT_EQ(profiling[0].status, ov::ProfilingInfo::Status::EXECUTED);
+    EXPECT_EQ(profiling[0].real_time, std::chrono::microseconds(7));
+    EXPECT_EQ(profiling[0].cpu_time, std::chrono::microseconds(5));
+    EXPECT_EQ(profiling[0].node_name, "cpu_node");
+    EXPECT_EQ(profiling[0].exec_type, "cpu_exec");
+    EXPECT_EQ(profiling[0].node_type, "cpu_type");
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_error_is_deferred_to_the_profiling_query) {
+    m_cpu_profiling_info = []() -> std::vector<ov::ProfilingInfo> {
+        OPENVINO_THROW("backend profiling failure");
+    };
+    // infer() succeeds even though the backend fails to build the profiling report
+    auto cpu_request = infer_then_release_cpu();
+    try {
+        cpu_request->get_profiling_info();
+        FAIL() << "the captured profiling error must be rethrown";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("backend profiling failure"), std::string::npos);
+    }
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, profiling_of_a_failed_inference_does_not_return_the_previous_one) {
+    m_cpu_profiling_info = [] {
+        ov::ProfilingInfo info;
+        info.node_name = "cpu_node";
+        return std::vector<ov::ProfilingInfo>{info};
+    };
+    auto request = infer_then_release_cpu();
+    EXPECT_EQ(request->get_profiling_info().size(), 1u);
+
+    // remote tensors of different devices make the request fail before it reaches any device
+    const auto input = request->get_inputs().at(0);
+    const auto output = request->get_outputs().at(0);
+    auto remote_input =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.0", input.get_element_type(), input.get_shape());
+    auto remote_output =
+        std::make_shared<DeviceTaggedRemoteTensor>("CPU", output.get_element_type(), output.get_shape());
+    OV_ASSERT_NO_THROW(request->set_tensor(input, ov::SoPtr<ov::ITensor>{remote_input, nullptr}));
+    OV_ASSERT_NO_THROW(request->set_tensor(output, ov::SoPtr<ov::ITensor>{remote_output, nullptr}));
+    OV_ASSERT_NO_THROW(request->start_async());
+    EXPECT_THROW(request->wait(), ov::Exception);
+
+    EXPECT_THROW(request->get_profiling_info(), ov::Exception);
 }
 
 TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_cache_is_kept) {

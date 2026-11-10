@@ -931,6 +931,9 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
     if (workers.size() != 1 || !idle_workers.try_pop(worker)) {
         return;
     }
+    // unmap first so a throwing teardown leaves the device to be rebuilt by generate_workers(); the model dies last
+    auto model_to_release = std::move(cached->second);
+    m_dynamic_compiled_models.erase(cached);
     // the requests go first, they keep the compiled model alive; their timings are kept for the final summary
     auto& released_times = m_released_infer_times[device_name];
     released_times.first.splice(released_times.first.end(), workers.front().m_start_times);
@@ -941,7 +944,6 @@ void AutoSchedule::release_inactive_device(const DeviceName& device_name) {
         tasks_it != m_infer_pipeline_tasks_device_specific.end()) {
         tasks_it->second = nullptr;
     }
-    m_dynamic_compiled_models.erase(cached);
     LOG_INFO_TAG("[dynamic] device:%s is inactive, its compiled model is released", device_name.c_str());
 }
 

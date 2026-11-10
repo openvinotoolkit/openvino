@@ -34,12 +34,16 @@ public:
     const SoAsyncInferRequest& get_shared_request();
     void set_scheduled_profiling_info(std::vector<ov::ProfilingInfo> info);
     void set_scheduled_profiling_error(std::exception_ptr error);
+    void set_scheduled_request(SoAsyncInferRequest request);
+    void reset_scheduled_profiling();
     // Auto-Device impl specific: sets the data (tensors from the device-less requests to the specific device request)
     void set_tensors_to_another_request(const SoAsyncInferRequest& req);
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
 private:
     SoAsyncInferRequest m_shared_request;
+    // non-dynamic modes only: the worker request is never released, so profiling is read lazily
+    SoAsyncInferRequest m_scheduled_request;
     // a snapshot, so that the backend request, and the compiled model behind it, is not kept alive
     std::optional<std::vector<ov::ProfilingInfo>> m_scheduled_profiling_info;
     std::exception_ptr m_scheduled_profiling_error;

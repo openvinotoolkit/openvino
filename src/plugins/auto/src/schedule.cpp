@@ -225,6 +225,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
             // if the request is coming with device-specific remote tensors make sure it is scheduled to the specific device only:
             Stage {
                 /*TaskExecutor*/ first_executor, /*task*/ [this, &infer_request]() {
+                    std::static_pointer_cast<InferRequest>(infer_request)->reset_scheduled_profiling();
                     // by default, no preferred device:
                     m_this_preferred_device_name = "";
                     auto compiled_model = m_context->m_compiled_model.lock();
@@ -313,6 +314,11 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     if (m_context->m_need_perf_counters) {
                         auto auto_request = std::dynamic_pointer_cast<InferRequest>
                             (infer_request);
+                        if (!m_context->m_dynamic_device_selection) {
+                            auto_request->set_scheduled_request((*worker_infer_request)->m_inferrequest);
+                            return;
+                        }
+                        // dynamic selection may release the device, so snapshot instead of pinning it
                         try {
                             auto_request->set_scheduled_profiling_info(
                                 (*worker_infer_request)->m_inferrequest->get_profiling_info());

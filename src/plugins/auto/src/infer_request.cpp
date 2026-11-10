@@ -82,6 +82,16 @@ void ov::auto_plugin::InferRequest::set_scheduled_profiling_info(std::vector<ov:
     m_scheduled_profiling_error = nullptr;
 }
 
+void ov::auto_plugin::InferRequest::set_scheduled_request(SoAsyncInferRequest request) {
+    m_scheduled_request = std::move(request);
+}
+
+void ov::auto_plugin::InferRequest::reset_scheduled_profiling() {
+    m_scheduled_request = {};
+    m_scheduled_profiling_info.reset();
+    m_scheduled_profiling_error = nullptr;
+}
+
 void ov::auto_plugin::InferRequest::set_scheduled_profiling_error(std::exception_ptr error) {
     m_scheduled_profiling_info.reset();
     m_scheduled_profiling_error = std::move(error);
@@ -130,6 +140,8 @@ std::vector<ov::ProfilingInfo> ov::auto_plugin::InferRequest::get_profiling_info
         std::rethrow_exception(m_scheduled_profiling_error);
     if (m_scheduled_profiling_info)
         return *m_scheduled_profiling_info;
+    if (m_scheduled_request)
+        return m_scheduled_request->get_profiling_info();
     OPENVINO_NOT_IMPLEMENTED;
 }
 
