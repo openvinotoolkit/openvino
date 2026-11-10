@@ -11,16 +11,30 @@ namespace ov {
 namespace pass {
 /**
  * @ingroup ov_transformation_common_api
- * @brief Converts nearest-neighbour Interpolate with static shapes into a sequence of Gather operations with
- *        constant indices.
+ * @brief Replaces nearest-neighbour Interpolate with a sequence of Gather operations using constant indices.
  *
- * @details Some backends lower nearest-neighbour interpolation incorrectly (or do not support it). The
- * nearest-neighbour mapping of static shapes depends only on the interpolation attributes, so it can be
- * expressed exactly with a Gather per resized axis, using indices precomputed at transformation time. This
- * pass is intended for such backends and is a no-op everywhere else.
+ * Some backends lower nearest-neighbour interpolation incorrectly, or do not support it. The nearest-neighbour
+ * mapping of a statically-shaped Interpolate depends only on its attributes and the input/output shapes, so it
+ * can be expressed exactly with one Gather per resized axis whose indices are computed at transformation time.
  *
- * Only upscaling axes (scale greater than 1) are rewritten; padded, dynamic, antialiased and downscaling
- * cases, as well as non-nearest interpolation modes, are left untouched.
+ * Before:                                     After:
+ *
+ *   Data                                        Data
+ *     |                                           |
+ *   [Interpolate]  mode = nearest               [Gather]  axis = 2 (height indices)
+ *     |            shape_calculation_mode      /        \
+ *   Result         = scales or sizes          |          |
+ *                                             [Gather]  axis = 3 (width indices)
+ *                                                |
+ *                                              Result
+ *
+ * The rewrite is applied only when all of the following hold:
+ *  - the op is Interpolate-4 or Interpolate-11 with mode = nearest, antialias = false and no padding;
+ *  - the input and output shapes are static, so the index mapping is known at transformation time;
+ *  - the scales/sizes input (and the axes input, when present) is constant-foldable;
+ *  - at least one interpolated axis is upscaling (scale greater than 1). Downscaling axes and linear/cubic
+ *    modes are left untouched: the decomposition is exact but only upscaling is affected by the reported
+ *    backend defect, so the pass stays out of the way elsewhere.
  */
 class TRANSFORMATIONS_API ConvertNearestInterpolateToGather : public MatcherPass {
 public:
