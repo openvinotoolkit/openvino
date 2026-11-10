@@ -164,7 +164,7 @@ PagedQSAIndexerFusion::PagedQSAIndexerFusion(paged_attention::PaParams& pa_param
 
         indexer->output(QSAIndexerOutputIdx::SELECTED_BLOCK_INDICES).replace(indices);
         indexer->output(QSAIndexerOutputIdx::SELECTED_BLOCK_COUNT).replace(count);
-        // The dense states pass through unchanged; their variables are removed by SDPAToPagedAttention.
+        // The dense states pass through unchanged; the caller must retire their variable sinks.
         const std::vector<std::pair<size_t, size_t>> states{
             {QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE, QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE},
             {QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K, QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K},

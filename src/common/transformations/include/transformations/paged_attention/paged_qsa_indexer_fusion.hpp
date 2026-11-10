@@ -27,11 +27,12 @@ namespace ov::pass {
  *
  * The selections of PagedQSAIndexer are token-major, so they are restored to the dense [B, S, L, ...] layout of
  * QSAIndexer for the existing consumers.
- * Run before PagedSparseAttentionFusion, which removes these layout adapters from sparse-attention inputs.
- * The paging inputs are shared with PagedAttention, block_indices included, and are added if missing. Each
- * converted indexer gets its own three caches, which share the main KV page table, so their page size is the
- * PagedAttention block size. The dense states must be read from variables, directly or through the beam Gather,
- * in the layout created by FuseQSAIndexer. Their variable ids are added to var_ids_to_remove.
+ * The paging inputs are shared with PagedAttention, block_indices included, and are added to pa_params if missing.
+ * The caller must add the new parameters from pa_params.items() to the model. Each converted indexer gets its own
+ * three caches, which share the main KV page table, so their page size is the PagedAttention block size.
+ * The dense states must be read from variables, directly or through the beam Gather, in the layout created by
+ * FuseQSAIndexer. Their variable ids are added to var_ids_to_remove; the caller must remove the associated
+ * Assign sinks.
  *
  * Query normalization/rotation flags are preserved, so plugin compilation can absorb query preprocessing later.
  * The query and raw keys must have static head counts and f32, f16 or bf16 data.

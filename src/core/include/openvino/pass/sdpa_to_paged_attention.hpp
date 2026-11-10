@@ -146,15 +146,12 @@ struct PaResults : public NamedNodeStore<ov::op::v0::Result, ov::ResultVector> {
 };
 }  // namespace paged_attention
 /**
- * @brief Replaces attention KV-cache processing with paged attention and fuses supported QSA indexers.
- * For SparseAttention models, the pass runs FuseQSAIndexer before the paged conversions, leaving query
- * preprocessing outside the indexer for plugin compilation. Nested passes use an independent PassConfig.
- * PagedQSAIndexerFusion converts its state, and PagedSparseAttentionFusion converts supported SparseAttention
- * consumers separately from the SDPA state-management pattern. The QSA indexer operations are graph-only
- * placeholders and do not have a device implementation.
+ * @brief The transformation replaces KV-cache processing part in LLMs by PagedAttention operation.
  * NOTE:
- * The transformation may throw when the model cannot be processed for paged attention, for example if neither SDPA
- * nor SparseAttention is present or a SparseAttention cannot be converted.
+ * The transformation may throw an exception when some configuration of the model failed:
+ * i.e. the SDPA node is absent in the model. This means the graph cannot be processed for the PA scenario,
+ * so the GenAI pipeline (the only pipeline the transformation is used in so far) will fallback to the SDPA
+ * implementaion and run inference using it.
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API SDPAToPagedAttention : public ModelPass {
