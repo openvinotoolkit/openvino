@@ -1870,6 +1870,10 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             if (q_param->_per_tensor_output_range && q_param->_out_lo < q_param->_out_hi) {
                 bool is_fc_or_gemm = this->is_type<gemm>() || this->is_type<fully_connected>();
                 bool keep_rank = !is_fc_or_gemm && keep_dst_rank();
+                // Cache import rebuilds the descriptor from this tag, so its rank must match the descriptor.
+                auto get_post_op_tag = [&](const layout& l) {
+                    return keep_rank ? onednn::convert_data_format(l.format) : onednn::get_default_data_format(l);
+                };
                 // 1. pre-scale & pre-shift
                 {
                     if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
@@ -1887,7 +1891,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul,
                                                        dep_idx - 1,
-                                                       onednn::get_default_data_format(in_scale),
+                                                       get_post_op_tag(in_scale),
                                                        false,
                                                        in_scale_desc.get_dims(),
                                                        in_scale_desc.get_data_type());
@@ -1905,7 +1909,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add,
                                                            dep_idx - 1,
-                                                           onednn::get_default_data_format(in_shift),
+                                                           get_post_op_tag(in_shift),
                                                            false,
                                                            in_shift_desc.get_dims(),
                                                            in_shift_desc.get_data_type());
@@ -1942,7 +1946,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_mul,
                                                            dep_idx - 1,
-                                                           onednn::get_default_data_format(out_scale),
+                                                           get_post_op_tag(out_scale),
                                                            false,
                                                            out_scale_desc.get_dims(),
                                                            out_scale_desc.get_data_type());
