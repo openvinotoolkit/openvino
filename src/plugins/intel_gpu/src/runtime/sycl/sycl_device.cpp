@@ -300,8 +300,8 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         info.supports_intel_subgroups = true;
 
         // Same reasoning for the 16-bit family. The kernels that ask for it - the f16 paths of
-        // fully_connected_gpu_bs_f_bsv16_af8_vload, fully_connected_gpu_bs_f_bsv8_af8 and
-        // convolution_gpu_bfyx_direct_10_12_16 - reach the built-ins through the _sub_group_block_read_us* /
+        // fully_connected_gpu_bs_f_bsv16_af8_vload, fully_connected_gpu_bs_f_bsv8_af8_vload and
+        // convolution_gpu_bfyx_gemm_like - reach the built-ins through the _sub_group_block_read_us* /
         // _sub_group_block_write_us* spellings and the short/ushort/half shuffles, all of which
         // nvidia/compat_sg_overrides.cl binds to the parameterised helpers in the prelude.
         info.supports_intel_subgroups_short = true;
