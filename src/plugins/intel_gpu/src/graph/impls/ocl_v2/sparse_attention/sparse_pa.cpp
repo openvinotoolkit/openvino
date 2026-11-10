@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <vector>
@@ -151,6 +152,14 @@ protected:
         auto jit = QsaGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<sparse_pa>();
         jit.make("QSA_KV_WRITE_KCHANNEL", 1);
+        // QSA_KCH_HEADROOM < 0 re-quantizes the whole group on every write.
+        float headroom = -1.0f;
+        if (const char* env = std::getenv("QSA_KCH_HEADROOM")) {
+            headroom = std::strtof(env, nullptr);
+        }
+        jit.make("QSA_K_INCREMENTAL", headroom >= 0.0f ? 1 : 0);
+        jit.make("QSA_K_HEADROOM", std::to_string(std::max(headroom, 0.0f)) + "f");
+        jit.make("QSA_K_ZERO_RANGE", std::getenv("QSA_KCH_ZERO_RANGE") ? 1 : 0);
         jit.make("QSA_KV_HEADS", desc->num_kv_heads);
         jit.make("QSA_K_HEAD_SIZE", desc->k_head_size);
         jit.make("QSA_PAGE_SIZE", page_size_of(params));
