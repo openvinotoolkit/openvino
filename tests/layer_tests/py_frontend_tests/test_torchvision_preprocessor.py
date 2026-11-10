@@ -216,6 +216,17 @@ def test_convertimagedtype():
                     ],
                 ),
         ),
+        # a one-element padding list is treated like an int
+        (
+                np.random.randint(255, size=(218, 220, 3), dtype=np.uint8),
+                transforms.Compose(
+                    [
+                        transforms.Pad([4]),
+                        transforms.CenterCrop((200, 210)),
+                        transforms.ToTensor(),
+                    ],
+                ),
+        ),
     ],
 )
 def test_pad(test_input, preprocess_pipeline):
