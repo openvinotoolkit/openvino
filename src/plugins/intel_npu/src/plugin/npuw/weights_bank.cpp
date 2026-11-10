@@ -9,6 +9,15 @@
 #include "serialization.hpp"
 #include "util.hpp"
 
+namespace {
+// Blobs written by older OpenVINO releases stored the NPU bank under "NPU",
+// but ov::execution_devices now reports "NPU.0". Normalize on read so each
+// physical device has exactly one key in m_device_banks.
+std::string canonical_bank_device(const std::string& device) {
+    return device == "NPU" ? std::string("NPU.0") : device;
+}
+}  // namespace
+
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
 
@@ -73,14 +82,10 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
 
     std::unique_lock guard(m_mutex);
 
-    auto device_bank = m_device_banks.find(device_for_alloc);
-    if (device_bank == m_device_banks.end() && device_for_alloc == "NPU.0") {
-        device_bank = m_device_banks.find("NPU");
-    }
-    NPUW_ASSERT(device_bank != m_device_banks.end() && "Device not found within list of devices from weights bank");
-    auto iter_device = device_bank->second.storage.find(uid);
+    auto& device_bank = m_device_banks.at(device_for_alloc);
+    auto iter_device = device_bank.storage.find(uid);
 
-    NPUW_ASSERT(iter_device != device_bank->second.storage.end() && iter_device->second.tensor &&
+    NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
                 "Tensor should be registered and allocated first!");
 
     return iter_device->second.tensor;
@@ -231,11 +236,17 @@ void Bank::serialize(ov::npuw::orc::Stream& stream) {
     LOG_INFO("DONE.");
 }
 
-void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device) {
+void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& stored_device) {
     // This method is supposed to be used only during deserialization
     std::unique_lock guard(m_mutex);
+    NPUW_ASSERT(uid >= 0 && "Malformed blob: negative weights bank uid");
 
+    const auto device = canonical_bank_device(stored_device);
     auto& device_bank = m_device_banks[device];
+    NPUW_ASSERT(device_bank.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
+
+    uid_count = std::max(uid_count, uid + 1);
+
     auto iter_device = device_bank.storage.find(uid);
 
     if (iter_device != device_bank.storage.end()) {

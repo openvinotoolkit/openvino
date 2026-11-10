@@ -37,6 +37,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "weights_bank.hpp"
 
 using ov::test::npuw::ModelBuilder;
@@ -105,6 +106,25 @@ void expect_serialize_throws(const Gather& hg,
     auto stream = Stream::writer(ss);
     writer.serialize(stream, {});
 }
+
+class MockRemoteContext : public ov::IRemoteContext {
+    std::string m_name;
+
+public:
+    MockRemoteContext(std::string name) : m_name(std::move(name)) {}
+    const std::string& get_device_name() const override {
+        return m_name;
+    }
+    MOCK_METHOD(ov::SoPtr<ov::ITensor>,
+                create_host_tensor,
+                (const ov::element::Type type, const ov::Shape& shape),
+                (override));
+    MOCK_METHOD(const ov::AnyMap&, get_property, (), (const, override));
+    MOCK_METHOD(ov::SoPtr<ov::IRemoteTensor>,
+                create_tensor,
+                (const ov::element::Type&, const ov::Shape&, const ov::AnyMap&),
+                (override));
+};
 
 class SerializationNullPlugin final : public ov::IPlugin {
 public:
@@ -1774,8 +1794,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
 TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
     using namespace ov::npuw::s11n;
 
-    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
-                                                       {0, 1, 127, 128, 254, 255}, 0);
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3}, {0, 1, 127, 128, 254, 255}, 0);
     auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
     ov::npuw::weights::LazyTensor res;
     const auto expected = var.eval();
@@ -1877,6 +1896,44 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
 
     expect_tensors_equal(var.get(uid0, "CPU"), res.get(uid0, "CPU"));
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
+}
+
+TEST(SerializationTest, OVTypes_WeightsBank_npu_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto first = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {1.0f, 2.0f}, 0);
+    auto second = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {3.0f, 4.0f}, first->get_byte_size());
+
+    auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    ON_CALL(*mock_core, get_default_context(testing::_)).WillByDefault([](const std::string& device) {
+        auto mock_remote_context = std::make_shared<testing::NiceMock<MockRemoteContext>>(device);
+        ON_CALL(*mock_remote_context, create_host_tensor(testing::_, testing::_))
+            .WillByDefault([](const ov::element::Type type, const ov::Shape& shape) {
+                return ov::make_tensor(type, shape);
+            });
+        return mock_remote_context;
+    });
+
+    ov::npuw::weights::Bank var_legacy(mock_core, "NPU", "test-bank");
+    const auto uid0 = var_legacy.registerLT(ov::npuw::weights::LazyTensor(first), "NPU");
+    const auto uid0_dup = var_legacy.registerLT(ov::npuw::weights::LazyTensor(first), "NPU");
+    const auto uid1 = var_legacy.registerLT(ov::npuw::weights::LazyTensor(second), "NPU");
+    EXPECT_EQ(uid0, uid0_dup);
+    EXPECT_NE(uid0, uid1);
+
+    var_legacy.evaluate_and_allocate();
+
+    ov::npuw::weights::Bank res(mock_core, "", "restored-bank");
+    std::stringstream ss;
+
+    write(ss, var_legacy);
+    read(ss, res);
+
+    expect_tensors_equal(var_legacy.get(uid0, "NPU"), res.get(uid0, "NPU.0"));
+    expect_tensors_equal(var_legacy.get(uid1, "NPU"), res.get(uid1, "NPU.0"));
+    const auto uid1_dup = res.registerLT(ov::npuw::weights::LazyTensor(second), "NPU.0");
+    res.evaluate_and_allocate();
+    expect_tensors_equal(var_legacy.get(uid1, "NPU.0"), res.get(uid1_dup, "NPU.0"));
 }
 
 TEST(SerializationTest, AllSentinelsPass) {
