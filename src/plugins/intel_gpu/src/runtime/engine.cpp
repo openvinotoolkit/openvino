@@ -109,6 +109,13 @@ bool engine::can_use_host_usm_zero_copy() const {
     return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
 }
 
+bool engine::keeps_constants_in_device_memory() const {
+    const auto& info = get_device_info();
+    // usm_device memory does not provide performance benefits on integrated Xe2+ platforms
+    return supports_allocation(cldnn::allocation_type::usm_device) && info.has_separate_cache &&
+           (info.arch < cldnn::gpu_arch::xe2 || info.dev_type != cldnn::device_type::integrated_gpu);
+}
+
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
     if (!use_unified_shared_memory() || is_image_layout) {
         return get_default_allocation_type();
@@ -117,7 +124,8 @@ allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_im
     /*
         We do not check device allocation here.
         Device allocation is reserved for buffers of hidden layers.
-        Const buffers are propagated to device if possible.
+        Const buffers are allocated in device memory directly when keeps_constants_in_device_memory() is true,
+        otherwise they are propagated to device if possible.
     */
 
     bool support_usm_host = supports_allocation(allocation_type::usm_host);
