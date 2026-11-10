@@ -416,19 +416,47 @@ struct cuda_dispatch {
     }
 };
 
+// Work-items per block an NDRange that states no local size gets: CUDA caps registers at 255 per work-item, so every
+// kernel can run 256 work-items to a block on a 64K-register SM, and the capped-module fallback is never needed.
+constexpr size_t default_block_threads = 256;
+
+// The block for an NDRange that states no local size, standing in for the choice the OpenCL runtime makes for a NULL
+// local_work_size. Each dimension, from 0 on, takes the largest size that divides its global size, within what is
+// left of default_block_threads (and CUDA's 64 for dimension 2). It has to divide: the grid has no partial blocks, so
+// any other size would run work-items past the global size, which the kernel cannot tell apart.
+void default_local_size(const size_t global[3], size_t local[3]) {
+    size_t budget = default_block_threads;
+    for (size_t d = 0; d < 3; ++d) {
+        const size_t cap = d == 2 ? std::min<size_t>(budget, CUDA_MAX_BLOCK_Z) : budget;
+        local[d] = 1;
+        for (size_t l = std::min(global[d], cap); l > 1; --l) {
+            if (global[d] % l == 0) {
+                local[d] = l;
+                break;
+            }
+        }
+        budget /= local[d];
+    }
+}
+
 // Chooses how the NDRange of `gws` and `lws` runs on the CUDA axes. `kernel_name` names the kernel in errors.
 cuda_dispatch choose_cuda_dispatch(const std::vector<size_t>& gws,
                                    const std::vector<size_t>& lws,
                                    const std::string& kernel_name) {
     // Work-group size and count per NDRange dimension, kept in size_t until they are checked against the CUDA limits
-    // so that an extent of 2^32 + 1 cannot wrap to 1. A dimension without a local size runs one work-item per block.
+    // so that an extent of 2^32 + 1 cannot wrap to 1. Without a local size the block is chosen here, as the OpenCL
+    // runtime would; a dimension the local size leaves out runs one work-item per block.
+    size_t global_extent[3];
     size_t block_extent[3];
     size_t grid_extent[3];
     for (size_t d = 0; d < 3; ++d) {
-        const size_t global = d < gws.size() ? gws[d] : 1;
-        const size_t local = (d < lws.size() && lws[d] > 0) ? lws[d] : 1;
-        block_extent[d] = local;
-        grid_extent[d] = global / local + (global % local != 0 ? 1 : 0);
+        global_extent[d] = d < gws.size() ? gws[d] : 1;
+        block_extent[d] = (d < lws.size() && lws[d] > 0) ? lws[d] : 1;
+    }
+    if (lws.empty())
+        default_local_size(global_extent, block_extent);
+    for (size_t d = 0; d < 3; ++d) {
+        grid_extent[d] = global_extent[d] / block_extent[d] + (global_extent[d] % block_extent[d] != 0 ? 1 : 0);
     }
 
     // CUDA caps the axes asymmetrically (block.z <= 64, grid.y and grid.z <= 65535), so the launch picks how the
