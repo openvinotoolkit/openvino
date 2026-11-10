@@ -31,8 +31,11 @@
 
 #ifdef __NV_CL_C_VERSION
 
-// Default emulated sub-group size; kernels_cache.cpp redefines it per source entry (see the file header).
-#define _NV_SUB_GROUP_SIZE 32u
+// Emulated sub-group size of a kernel that asks for none: a whole warp. kernels_cache.cpp restores it by this name
+// at the end of each source entry, so the value lives here only.
+#define _NV_DEFAULT_SUB_GROUP_SIZE 32u
+// Emulated sub-group size in effect; kernels_cache.cpp redefines it per source entry (see the file header).
+#define _NV_SUB_GROUP_SIZE _NV_DEFAULT_SUB_GROUP_SIZE
 
 // --------------------------------------------------------------------------------------------------------------------
 // Lane id
