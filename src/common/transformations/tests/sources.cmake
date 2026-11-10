@@ -107,7 +107,6 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_gated_delta_net_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_qsa_indexer_fusion_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_sparse_attention_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/paged_selective_ssm_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/preprocessing_fusion_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pull_through_reduce_test.cpp
