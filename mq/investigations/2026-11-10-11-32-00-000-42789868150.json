@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-11-32-00-000-42789868150",
+  "timestamp": "2026-11-10T11:32:00Z",
+  "run_id": "42789868150",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42789868150",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39577",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39577",
+  "author": "sungeunk",
+  "category": "External Service",
+  "title": "Debian Packages job fails - 404 Not Found fetching perl packages from Ubuntu archive mirror",
+  "signature": "failed to fetch package 404 not found from ubuntu archive mirror|External Service",
+  "signature_hash": "a1c52b5f4185576e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install step fails with 404 Not Found fetching perl-base/perl-modules/libperl/perl .deb files from azure.archive.ubuntu.com mirror"
+    }
+  ],
+  "key_errors": [
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/p/perl/perl-base_5.34.0-3ubuntu1.10_amd64.deb  404  Not Found [IP: 91.189.91.82 80]",
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/p/perl/perl-modules-5.34_5.34.0-3ubuntu1.10_all.deb  404  Not Found [IP: 91.189.91.82 80]",
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/p/perl/libperl5.34_5.34.0-3ubuntu1.10_amd64.deb  404  Not Found [IP: 91.189.91.82 80]",
+    "E: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/pool/main/p/perl/perl_5.34.0-3ubuntu1.10_amd64.deb  404  Not Found [IP: 91.189.91.82 80]",
+    "E: Unable to fetch some archives, maybe run apt-get update or try with --fix-missing?",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Debian Packages' job runs `apt-get install` inside a Docker container using an apt package index that was fetched earlier (via `apt-get update`), but by the time individual .deb files were downloaded, the azure.archive.ubuntu.com mirror had already rotated/pruned those exact perl package file versions, returning HTTP 404 for perl-base, perl-modules, libperl5.34 and perl. This is a transient mirror-synchronization inconsistency between the package index and the actual files served by the regional Ubuntu archive mirror, unrelated to the PR's GPU/MoE code changes (which only touch src/plugins/intel_gpu and are not exercised by this job at all).",
+  "reproduction_steps": "Not reliably reproducible locally since it depends on the live state of azure.archive.ubuntu.com at a given moment. To attempt reproduction: run the same Docker-based apt-get install step from the 'Debian Packages' job (see .github/workflows and referenced job_*.yml for the Debian Packages job) against an Ubuntu 22.04 (jammy) image shortly after an apt-get update, and check whether perl-base_5.34.0-3ubuntu1.10 or related packages 404 on the azure mirror.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job - mirror inconsistencies typically resolve once the mirror catches up or Azure Front Door routes to a consistent backend.",
+    "If this becomes frequent, consider pinning the Dockerfile's apt source to a single, more reliably synced mirror (e.g., the primary archive.ubuntu.com) instead of azure.archive.ubuntu.com for the affected packages.",
+    "Monitor for recurrence; 'Unable to fetch some archives' is already a monitored rerun-trigger string in .github/scripts/workflow_rerun/errors_to_look_for.json, so the automated rerunner should already retry this signature on subsequent occurrences."
+  ],
+  "prevention_strategies": "Keep relying on `apt-get update --fix-missing` retries or multi-mirror fallback (e.g., apt's mirror:// protocol) in the Dockerfile/CI script that builds the Debian Packages job image, so transient mirror desyncs between the package index and the backend file store do not fail the whole job on the first attempt.",
+  "historical_context": "Several prior merge-queue investigations recorded related but distinct azure.archive.ubuntu.com failures in the 'Debian Packages' job: connection timeouts/refused (patterns 7d2e2ff59d37c6b4, count 9; 7d52cc57d8ed2a36; a3d456bd40bd9f42; c8d00529252cfb02; e65acb49deb19d88; 98edf6d4fbc865bd), none of which match today's symptom. Today's failure is a 404 Not Found on specific package files (not a connectivity failure), so it is recorded as a new, distinct pattern (a1c52b5f4185576e)."
+}

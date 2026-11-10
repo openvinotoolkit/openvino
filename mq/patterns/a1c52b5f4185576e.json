@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "failed to fetch package 404 not found from ubuntu archive mirror|External Service",
+  "signature_hash": "a1c52b5f4185576e",
+  "title": "Debian Packages job fails - 404 Not Found fetching perl packages from Ubuntu archive mirror",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-11-10T11:32:00Z",
+  "last_seen": "2026-11-10T11:32:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42789868150"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39577"
+  ],
+  "recent_timestamps": [
+    "2026-11-10T11:32:00Z"
+  ],
+  "rerun_search_string": "Unable to fetch some archives"
+}
