@@ -90,21 +90,23 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
 
-    // Registed the IO layouts section
-    std::vector<ov::Layout> inputLayouts;
-    std::vector<ov::Layout> outputLayouts;
+    if (!_blobSectionsRegistry.has_section_of_type(SectionTypeCode::IO_LAYOUTS)) {
+        // Registed the IO layouts section
+        std::vector<ov::Layout> inputLayouts;
+        std::vector<ov::Layout> outputLayouts;
 
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        inputLayouts.push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        outputLayouts.push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
+        for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+            inputLayouts.push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
+        for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+            outputLayouts.push_back(
+                std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+        }
 
-    _blobSectionsRegistry.register_section(
-        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
+        _blobSectionsRegistry.register_section(
+            std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
+    }
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().

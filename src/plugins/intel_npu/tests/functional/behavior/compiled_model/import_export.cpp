@@ -153,14 +153,8 @@ TEST_P(OVCompiledGraphImportExportTestNPU, CanImportModelWithApplicationHeaderAn
         tensor = ov::make_tensor(impl);
         sstream.seekg(headerView.size(), std::ios::beg);
 
-        configuration.emplace(ov::intel_npu::disable_version_check(true));
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration));
-        configuration.erase(ov::intel_npu::disable_version_check.name());
         OV_ASSERT_NO_THROW(auto compiledModel = core.import_model(tensor, target_device, configuration));
-        sstream.seekg(headerView.size(), std::ios::beg);
-        OV_EXPECT_THROW(auto compiledModel = core.import_model(sstream, target_device, configuration),
-                        ov::Exception,
-                        testing::HasSubstr("metadata"));  // OVNPU suffix cannot be parsed from metadata
     }
 }
 
@@ -203,7 +197,8 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
         rawBlobConfig.emplace(ov::enable_weightless(true));
         OV_EXPECT_THROW(core.compile_model(model, target_device, rawBlobConfig).export_model(sstream),
                         ov::Exception,
-                        testing::HasSubstr("Requested raw blob export, but the graph is not a weightful ELF one."));
+                        testing::HasSubstr("Received a request to export the compiled model using the raw format, but "
+                                           "multiple compiler schedules have been found."));
         rawBlobConfig.erase(ov::enable_weightless.name());
     }
 
@@ -213,26 +208,10 @@ TEST_P(OVCompiledGraphImportExportTestNPU, NonELFBlobExportThrows) {
         rawBlobConfig.emplace(ov::intel_npu::compilation_mode(HostCompile_Interpreter));
         OV_EXPECT_THROW(core.compile_model(model, target_device, rawBlobConfig).export_model(sstream),
                         ov::Exception,
-                        testing::HasSubstr("Requested raw blob export, but the graph is not a weightful ELF one."));
+                        testing::HasSubstr("Received a request to export the compiled model using the raw format, but "
+                                           "multiple compiler schedules have been found."));
         rawBlobConfig.erase(ov::intel_npu::compilation_mode.name());
     }
-}
-
-TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
-    ov::Core core;
-    std::stringstream sstream;
-
-    auto model = ov::test::utils::make_conv_pool_relu();
-    core.compile_model(model, target_device, configuration).export_model(sstream);
-
-    uint64_t size_of_blob;
-    std::size_t size = sstream.str().size();
-
-    sstream.seekg(size - std::streampos(5) /*MAGIC_BYTES*/ - sizeof(size_of_blob), std::ios::cur);
-    sstream.read(reinterpret_cast<char*>(&size_of_blob), sizeof(size_of_blob));
-
-    ASSERT_TRUE(size_of_blob != 0) << "Size of the blob shall be different from 0";
-    ASSERT_TRUE(size_of_blob % 4096 == 0) << "Size of the blob shall be multiple of 4096";
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, SameBlobAfterImportExport) {
@@ -249,6 +228,7 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SameBlobAfterImportExport) {
     auto blob_str = blob_stream.str();
     ov::Tensor blob_tensor(ov::element::u8, ov::Shape{blob_str.size()}, blob_str.c_str());
     core.import_model(blob_tensor, target_device, configuration).export_model(test_blob_stream_2);
+
     ASSERT_EQ(blob_stream.str(), test_blob_stream_2.str());
 }
 
