@@ -5,26 +5,14 @@
 #pragma once
 
 #include <cstddef>
-#include <string>
 
 #include "openvino/op/op.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ov::op::internal {
 
-/// \brief Non-paged, stateful complete-block plan producer for Qwen Sparse Attention (QSA).
-///
-/// Fuses opset17 QSAPrepare and SparseAttentionIndexer. The state (`block_index_keys_cache`, and the
-/// raw keys and first-token RoPE row of the incomplete block) is passed as inputs and returned,
-/// updated, as outputs. `block_index_keys_cache` must already hold the complete blocks of the longest
-/// sequence after the call, so its shape is not changed. `key_length` is the number of valid tokens of
-/// each row after the call. RoPE is the rotate-half RoPE of the first `indexer_rotary_dim` channels with
-/// the per-token `rope_cos` / `rope_sin`.
-///
-/// The inputs, outputs and attributes match the GPU plugin QSAIndexer op. The raw keys are RMS-normalized
-/// with `epsilon` and `k_norm_weight`, and then rotated. The query gets the same steps when `query_norm` and
-/// `query_rope` are set (the GPU contract); otherwise `index_query` already holds the normalized or rotated
-/// query and `q_norm_weight` is unused. The query is normalized before it is rotated.
-class OPENVINO_API QSAIndexer : public ov::op::Op {
+/// Graph-only placeholder for the fused QSA indexer; it has no execution implementation.
+class TRANSFORMATIONS_API QSAIndexer : public ov::op::Op {
 public:
     OPENVINO_OP("QSAIndexer");
 
@@ -77,12 +65,6 @@ public:
     const Config& get_config() const {
         return m_config;
     }
-
-    /// @brief Attribute constraints that must hold before the op may be created.
-    static bool validate_config(const Config& config, std::string& reason);
-
-    /// `scale`, or its 1 / sqrt(indexer_head_dim) default when unset (0).
-    static float effective_scale(const Config& config);
 
 private:
     Config m_config{};

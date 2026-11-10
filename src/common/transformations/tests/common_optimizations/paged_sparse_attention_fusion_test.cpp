@@ -14,7 +14,6 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
@@ -23,6 +22,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/paged_qsa_indexer.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 

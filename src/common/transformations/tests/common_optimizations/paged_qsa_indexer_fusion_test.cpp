@@ -24,10 +24,8 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/op/power.hpp"
-#include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -46,12 +44,15 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "ov_ops/paged_qsa_indexer.hpp"
+#include "ov_ops/qsa_indexer.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/paged_attention/paged_sparse_attention_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -241,6 +242,88 @@ std::shared_ptr<Model> make_model(const GraphOptions& o, bool paged) {
         }
     }
     return std::make_shared<Model>(results, sinks, params);
+}
+
+class QSAIndexerPlaceholderTest : public testing::Test, public testing::WithParamInterface<bool> {};
+
+TEST_P(QSAIndexerPlaceholderTest, SelectionShapesAndCloneSupportFusion) {
+    const auto model = make_model(GraphOptions{false, false, true, false}, GetParam());
+    const auto parameters = model->get_parameters();
+    parameters.at(0)->set_partial_shape({2, 3, query_heads, head_size});
+    parameters.at(1)->set_partial_shape({2, 3, key_heads, head_size});
+    model->validate_nodes_and_infer_types();
+
+    std::shared_ptr<Node> indexer;
+    for (const auto& node : model->get_ops()) {
+        if (GetParam() ? ov::is_type<op_internal::PagedQSAIndexer>(node) : ov::is_type<op_internal::QSAIndexer>(node)) {
+            indexer = node;
+            break;
+        }
+    }
+    ASSERT_NE(indexer, nullptr);
+    const auto expected_indices =
+        GetParam() ? PartialShape{6, selection_heads, block_topk} : PartialShape{2, selection_heads, 3, block_topk};
+    const auto expected_count = GetParam() ? PartialShape{6, selection_heads} : PartialShape{2, selection_heads, 3};
+    EXPECT_EQ(indexer->get_output_partial_shape(0), expected_indices);
+    EXPECT_EQ(indexer->get_output_partial_shape(1), expected_count);
+    EXPECT_EQ(indexer->get_output_element_type(0), element::i32);
+    EXPECT_EQ(indexer->get_output_element_type(1), element::i32);
+
+    const auto clone = indexer->clone_with_new_inputs(indexer->input_values());
+    EXPECT_EQ(clone->get_type_info(), indexer->get_type_info());
+    EXPECT_EQ(clone->get_output_partial_shape(0), expected_indices);
+    EXPECT_EQ(clone->get_output_partial_shape(1), expected_count);
+    if (GetParam()) {
+        const auto paged_clone = ov::as_type_ptr<op_internal::PagedQSAIndexer>(clone);
+        ASSERT_NE(paged_clone, nullptr);
+        EXPECT_FALSE(paged_clone->get_config().query_norm);
+        EXPECT_FALSE(paged_clone->get_config().query_rope);
+    } else {
+        const auto dense_clone = ov::as_type_ptr<op_internal::QSAIndexer>(clone);
+        ASSERT_NE(dense_clone, nullptr);
+        EXPECT_FALSE(dense_clone->get_config().query_norm);
+        EXPECT_FALSE(dense_clone->get_config().query_rope);
+        for (const auto& [output, input] :
+             {std::pair{QSAIndexerOutputIdx::BLOCK_INDEX_KEYS_CACHE, QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE},
+              std::pair{QSAIndexerOutputIdx::PAST_INCOMPLETE_RAW_K, QSAIndexerInputIdx::PAST_INCOMPLETE_RAW_K},
+              std::pair{QSAIndexerOutputIdx::PAST_INCOMPLETE_ROPE, QSAIndexerInputIdx::PAST_INCOMPLETE_ROPE}}) {
+            EXPECT_EQ(clone->get_output_partial_shape(output), clone->get_input_partial_shape(input));
+            EXPECT_EQ(clone->get_output_element_type(output), clone->get_input_element_type(input));
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         QSAIndexerPlaceholderTest,
+                         testing::Values(false, true),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "Paged" : "Dense";
+                         });
+
+TEST(PagedQSAIndexerPlaceholderTest, MergesTokenDimensions) {
+    const auto model = make_model(GraphOptions{false, false, true, false}, true);
+    std::shared_ptr<op_internal::PagedQSAIndexer> indexer;
+    for (const auto& node : model->get_ops()) {
+        indexer = ov::as_type_ptr<op_internal::PagedQSAIndexer>(node);
+        if (indexer) {
+            break;
+        }
+    }
+    ASSERT_NE(indexer, nullptr);
+    auto inputs = indexer->input_values();
+    inputs[PagedQSAIndexerInputIdx::INDEX_QUERY] =
+        std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, query_heads * head_size});
+    inputs[PagedQSAIndexerInputIdx::RAW_INDEX_KEYS] =
+        std::make_shared<v0::Parameter>(element::f32, PartialShape{6, key_heads * head_size});
+    const auto merged = indexer->clone_with_new_inputs(inputs);
+    EXPECT_EQ(merged->get_output_partial_shape(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_INDICES),
+              (PartialShape{6, selection_heads, block_topk}));
+    EXPECT_EQ(merged->get_output_partial_shape(PagedQSAIndexerOutputIdx::SELECTED_BLOCK_COUNT),
+              (PartialShape{6, selection_heads}));
+
+    inputs[PagedQSAIndexerInputIdx::ROPE_COS] =
+        std::make_shared<v0::Parameter>(element::f32, PartialShape{5, rotary_dim});
+    EXPECT_THROW(indexer->clone_with_new_inputs(inputs), ov::NodeValidationFailure);
 }
 
 std::unordered_set<std::string> run_paged_qsa_indexer_fusion(const std::shared_ptr<Model>& model) {
@@ -477,8 +560,8 @@ std::shared_ptr<Model> make_query_model(const QueryOptions& o, bool fused) {
         if (o.non_unit_unused_weight && !(fused && o.absorb_norm)) {
             inputs[In::Q_NORM_WEIGHT] = v0::Constant::create(element::f32, Shape{head_size}, {0.5f});
         }
-        const auto unflatten = [paged](const Output<Node>& input) {
-            if constexpr (paged) {
+        const auto unflatten = [](const Output<Node>& input) {
+            if constexpr (std::is_same_v<Indexer, op_internal::PagedQSAIndexer>) {
                 return input.get_node_shared_ptr()->input_value(0);
             } else {
                 return input;
@@ -1054,6 +1137,58 @@ INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                              return info.param ? "DecomposedQuery" : "FusedQuery";
                          });
 
+class SDPAToPagedAttentionUnrelatedIndexerTest : public testing::Test, public testing::WithParamInterface<bool> {};
+
+TEST_P(SDPAToPagedAttentionUnrelatedIndexerTest, PreservesUnrelatedIndexer) {
+    const auto model = make_sparse_attention_model(false, element::i64, false, true);
+    std::shared_ptr<v17::SparseAttentionIndexer> indexer;
+    for (const auto& node : model->get_ops()) {
+        indexer = ov::as_type_ptr<v17::SparseAttentionIndexer>(node);
+        if (indexer) {
+            break;
+        }
+    }
+    ASSERT_NE(indexer, nullptr);
+    const auto prepare = ov::as_type_ptr<v17::QSAPrepare>(indexer->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(prepare, nullptr);
+
+    auto prepare_inputs = prepare->input_values();
+    for (const auto input_idx : {1, 6, 7}) {
+        const auto input = prepare_inputs[input_idx];
+        const auto param = std::make_shared<v0::Parameter>(input.get_element_type(), input.get_partial_shape());
+        model->add_parameters({param});
+        prepare_inputs[input_idx] = param;
+    }
+    auto indexer_inputs = indexer->input_values();
+    indexer_inputs[1] = prepare->clone_with_new_inputs(prepare_inputs)->output(0);
+    const auto unrelated_indexer = indexer->clone_with_new_inputs(indexer_inputs);
+    model->add_results({std::make_shared<v0::Result>(unrelated_indexer->output(0))});
+
+    if (!GetParam()) {
+        model->remove_result(model->get_results().front());
+        const auto sinks = model->get_sinks();
+        for (const auto& sink : sinks) {
+            const auto assign = ov::as_type_ptr<v6::Assign>(sink);
+            if (assign && assign->get_variable_id() != "sdpa_past_key" &&
+                assign->get_variable_id() != "sdpa_past_value") {
+                model->remove_sink(sink);
+            }
+        }
+    }
+
+    ASSERT_NO_THROW(pass::SDPAToPagedAttention().run_on_model(model));
+    EXPECT_EQ(count_ops(model, v17::SparseAttentionIndexer::get_type_info_static()), 1);
+    EXPECT_EQ(count_ops(model, op_internal::QSAIndexer::get_type_info_static()), 0);
+    EXPECT_EQ(count_ops(model, op_internal::PagedQSAIndexer::get_type_info_static()), GetParam() ? 1 : 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         SDPAToPagedAttentionUnrelatedIndexerTest,
+                         testing::Values(false, true),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "WithSparseAttention" : "SDPAOnly";
+                         });
+
 TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionKeepsCacheInputOrderWithSDPA) {
     const auto model = make_sparse_attention_model(true, element::i64, true, true);
     pass::Manager manager;
@@ -1088,27 +1223,20 @@ TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionKeepsCacheInputOrderWithSDPA) {
 struct DisabledFusion {
     DiscreteTypeInfo pass_type;
     DiscreteTypeInfo preserved_op_type;
-    bool prevents_conversion = false;
 };
 
 class SDPAToPagedAttentionDisabledFusionTest : public testing::Test,
                                                public testing::WithParamInterface<DisabledFusion> {};
 
-TEST_P(SDPAToPagedAttentionDisabledFusionTest, DoesNotBypassDisabledFusion) {
+TEST_P(SDPAToPagedAttentionDisabledFusionTest, SeparateQueryCompilationHonorsDisabledFusion) {
     const auto model = make_sparse_attention_model(true, element::i64, true);
     pass::Manager manager;
     manager.register_pass<pass::SDPAToPagedAttention>();
     manager.get_pass_config()->disable(GetParam().pass_type);
-    if (GetParam().prevents_conversion) {
-        EXPECT_THROW(manager.run_passes(model), ov::Exception);
-        EXPECT_EQ(count_ops(model, op_internal::PagedQSAIndexer::get_type_info_static()), 0);
-        EXPECT_EQ(count_ops(model, op_internal::PagedSparseAttention::get_type_info_static()), 0);
-    } else {
-        EXPECT_NO_THROW(manager.run_passes(model));
-        run_query_compilation_passes(model, manager.get_pass_config());
-        EXPECT_EQ(count_ops(model, op_internal::PagedQSAIndexer::get_type_info_static()), 1);
-        EXPECT_EQ(count_ops(model, op_internal::PagedSparseAttention::get_type_info_static()), 1);
-    }
+    ASSERT_NO_THROW(manager.run_passes(model));
+    run_query_compilation_passes(model, manager.get_pass_config());
+    EXPECT_EQ(count_ops(model, op_internal::PagedQSAIndexer::get_type_info_static()), 1);
+    EXPECT_EQ(count_ops(model, op_internal::PagedSparseAttention::get_type_info_static()), 1);
     EXPECT_EQ(count_ops(model, GetParam().preserved_op_type), 1);
 }
 
@@ -1124,18 +1252,53 @@ INSTANTIATE_TEST_SUITE_P(
                        op_internal::RoPE::get_type_info_static()},
         DisabledFusion{pass::FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>::get_type_info_static(),
                        op_internal::RMS::get_type_info_static()},
-        DisabledFusion{pass::FuseQSAIndexerQuery::get_type_info_static(), op_internal::RMS::get_type_info_static()},
-        DisabledFusion{pass::FuseQSAIndexer::get_type_info_static(),
-                       v17::SparseAttentionIndexer::get_type_info_static(),
-                       true},
-        DisabledFusion{pass::PagedQSAIndexerFusion::get_type_info_static(),
-                       op_internal::QSAIndexer::get_type_info_static(),
-                       true}),
+        DisabledFusion{pass::FuseQSAIndexerQuery::get_type_info_static(), op_internal::RMS::get_type_info_static()}),
     [](const testing::TestParamInfo<DisabledFusion>& info) {
         return std::string(info.param.pass_type.name);
     });
 
-TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionHonorsRMSCallback) {
+class SDPAToPagedAttentionIndependentConfigTest : public testing::Test,
+                                                  public testing::WithParamInterface<DiscreteTypeInfo> {};
+
+TEST_P(SDPAToPagedAttentionIndependentConfigTest, DoesNotInheritDisabledPass) {
+    const auto model = make_sparse_attention_model(true, element::i64, true);
+    pass::Manager manager;
+    manager.register_pass<pass::SDPAToPagedAttention>();
+    manager.get_pass_config()->disable(GetParam());
+
+    ASSERT_NO_THROW(manager.run_passes(model));
+    EXPECT_EQ(count_ops(model, op_internal::PagedQSAIndexer::get_type_info_static()), 1);
+    EXPECT_EQ(count_ops(model, op_internal::PagedSparseAttention::get_type_info_static()), 1);
+    EXPECT_EQ(count_ops(model, v17::SparseAttention::get_type_info_static()), 0);
+}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         SDPAToPagedAttentionIndependentConfigTest,
+                         testing::Values(pass::FuseQSAIndexer::get_type_info_static(),
+                                         pass::PagedQSAIndexerFusion::get_type_info_static(),
+                                         pass::PagedSparseAttentionFusion::get_type_info_static()),
+                         [](const testing::TestParamInfo<DiscreteTypeInfo>& info) {
+                             return std::string(info.param.name);
+                         });
+
+TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionDoesNotInheritCallback) {
+    const auto model = make_sparse_attention_model(true, element::i64, true);
+    pass::Manager manager;
+    manager.register_pass<pass::SDPAToPagedAttention>();
+    size_t callback_count = 0;
+    manager.get_pass_config()->set_callback<pass::PagedQSAIndexerFusion>([&](const std::shared_ptr<const Node>&) {
+        ++callback_count;
+        return true;
+    });
+
+    ASSERT_NO_THROW(manager.run_passes(model));
+    EXPECT_EQ(callback_count, 0);
+    EXPECT_EQ(count_ops(model, op_internal::PagedQSAIndexer::get_type_info_static()), 1);
+    EXPECT_EQ(count_ops(model, op_internal::PagedSparseAttention::get_type_info_static()), 1);
+    EXPECT_EQ(count_ops(model, v17::SparseAttention::get_type_info_static()), 0);
+}
+
+TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionLeavesRMSCallbackForQueryCompilation) {
     const auto model = make_sparse_attention_model(true, element::i64, true);
     pass::Manager manager;
     manager.register_pass<pass::SDPAToPagedAttention>();
@@ -1157,9 +1320,7 @@ TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionHonorsRMSCallback) {
 
 TEST(PagedQSAIndexerFusion, SDPAToPagedAttentionKeepsQueryWithoutRoPE) {
     const auto model = make_sparse_attention_model(false);
-    pass::Manager manager;
-    manager.register_pass<pass::SDPAToPagedAttention>();
-    EXPECT_NO_THROW(manager.run_passes(model));
+    EXPECT_NO_THROW(pass::SDPAToPagedAttention().run_on_model(model));
     EXPECT_EQ(count_ops(model, op_internal::PagedQSAIndexer::get_type_info_static()), 1);
     EXPECT_EQ(count_ops(model, op_internal::RMS::get_type_info_static()), 1);
     for (const auto& node : model->get_ops()) {
