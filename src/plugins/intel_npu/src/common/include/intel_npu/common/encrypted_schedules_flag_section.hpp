@@ -25,7 +25,6 @@ public:
 
     bool get_flag() const;
 
-    // TODO test
     void set_flag(const bool new_value);
 
     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;

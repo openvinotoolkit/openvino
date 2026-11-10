@@ -35,6 +35,13 @@ TEST_P(EncryptedSchedulesFlagSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_flag(), encrypted_flag);
 }
 
+TEST_P(EncryptedSchedulesFlagSectionTest, SetFlag) {
+    section->set_flag(true);
+    ASSERT_TRUE(section->get_flag());
+    section->set_flag(false);
+    ASSERT_FALSE(section->get_flag());
+}
+
 TEST_P(EncryptedSchedulesFlagSectionTest, CompatibilityReqsSubexpression) {
     const std::vector<std::shared_ptr<CREToken>> requirements =
         section->get_compatibility_requirements_subexpression({});

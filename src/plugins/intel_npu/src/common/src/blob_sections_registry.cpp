@@ -69,7 +69,7 @@ std::shared_ptr<ISection> BlobSectionsRegistry::retrieve_unique_section_of_type(
         return nullptr;
     }
     case 1: {
-        *m_types_to_sections.at(section_type).begin();
+        return *m_types_to_sections.at(section_type).begin();
     }
     default: {
         OPENVINO_THROW("Requested to retrieve a unique section of type ",

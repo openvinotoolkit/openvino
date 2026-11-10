@@ -34,6 +34,18 @@ TEST_F(BlobSectionsRegistryTest, EmptyRegistryGetters) {
     ASSERT_TRUE(registry.get_content_summary().empty());
 }
 
+TEST_F(BlobSectionsRegistryTest, RetrieveUniqueSectionOfType) {
+    BlobSectionsRegistry registry;
+    ASSERT_EQ(registry.retrieve_unique_section_of_type(SectionTypeCode::BATCH_SIZE), nullptr);
+
+    const auto section = std::make_shared<BatchSizeSection>(0);
+    registry.register_section(section);
+    ASSERT_EQ(registry.retrieve_unique_section_of_type(SectionTypeCode::BATCH_SIZE), section);
+
+    registry.register_section(std::make_shared<BatchSizeSection>(0));
+    OV_EXPECT_THROW(registry.retrieve_unique_section_of_type(SectionTypeCode::BATCH_SIZE), ov::Exception, _);
+}
+
 TEST_F(BlobSectionsRegistryTest, RegisterNullSection) {
     OV_EXPECT_THROW(BlobSectionsRegistry().register_section(nullptr), ov::Exception, _);
 }
@@ -124,7 +136,7 @@ TEST_F(BlobSectionsRegistryTest, NormalRegistryGetters) {
 
     ASSERT_EQ(registry.retrieve_section(3), nullptr);
 
-    auto retrieved_section = registry.retrieve_unique_section_of_type(SectionTypeCode::BATCH_SIZE);
+    auto retrieved_section = registry.retrieve_sections(SectionTypeCode::BATCH_SIZE).at(0);
     ASSERT_TRUE(retrieved_section == retrieved_section_1 || retrieved_section == retrieved_section_2);
     ASSERT_EQ(registry.retrieve_unique_section_of_type(SectionTypeCode::IO_LAYOUTS), nullptr);
 
