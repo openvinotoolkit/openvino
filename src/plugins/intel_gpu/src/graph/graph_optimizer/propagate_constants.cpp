@@ -17,7 +17,10 @@
 #    include "graph/impls/onednn/utils.hpp"
 #    include "reorder_inst.h"
 #endif  // ENABLE_ONEDNN_FOR_GPU
+#include <cstdlib>
+#include <functional>
 #include <list>
+#include <unordered_map>
 #include <memory>
 #include <queue>
 #include <unordered_set>
@@ -244,39 +247,145 @@ std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> propagate_constant
         return {};
     }
 
-    ExecutionConfig cf_config = config.clone();
-    cf_config.set_property(ov::intel_gpu::optimize_data(false));
-    cf_config.set_property(ov::intel_gpu::custom_outputs(const_outputs));
-    cf_config.finalize(engine);
-    auto prog = program::build_program(engine, nodes, cf_config, task_executor, true, onednn_impls);
-    network::ptr net = network::allocate_network(engine, prog, true, true);
-    std::map<primitive_id, cache_tuple> weightless_cache_map;
-    for (auto& cin : const_inputs) {
-        net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
+    // Constants are evaluated in chunks of independent constant subgraphs. Running them all in one
+    // network keeps every input (e.g. compressed weights) alive next to every output (e.g. their
+    // reordered copies), so the peak is about twice the weights. After each chunk, inputs whose
+    // only users are constants are released, as the program drops them afterwards anyway.
+    // OV_GPU_CONST_PROP_CHUNK_MB=0 restores the single network.
+    size_t chunk_bytes = size_t{512} << 20;
+    if (const char* env = std::getenv("OV_GPU_CONST_PROP_CHUNK_MB")) {
+        chunk_bytes = static_cast<size_t>(std::strtoull(env, nullptr, 10)) << 20;
+    }
 
-        auto users = cin->get_users();
-        if (users.size() == 1 && users.front()->is_type<reorder>()) {
-            auto rprim = users.front()->as<reorder>().get_primitive();
-            auto copy = std::shared_ptr<reorder>(new reorder(*rprim));
-            auto id = rprim->id;
-            auto cache_ptr = cin->as<data>().get_primitive()->cache_info;
-            auto layout_ptr = std::make_shared<layout>(cin->get_output_layout());
-            weightless_cache_map.emplace(id, std::make_tuple(cache_ptr, layout_ptr, copy));
+    // union-find over the constant subgraph
+    std::unordered_map<program_node*, program_node*> parent;
+    for (auto& n : nodes) {
+        parent[n.get()] = n.get();
+    }
+    std::function<program_node*(program_node*)> find = [&](program_node* n) {
+        while (parent[n] != n) {
+            parent[n] = parent[parent[n]];
+            n = parent[n];
+        }
+        return n;
+    };
+    for (auto& n : nodes) {
+        for (auto& dep : n->get_dependencies()) {
+            if (parent.count(dep.first)) {
+                parent[find(dep.first)] = find(n.get());
+            }
+        }
+    }
+    std::unordered_map<program_node*, size_t> comp_index;
+    std::vector<std::set<std::shared_ptr<program_node>>> comps;
+    std::vector<size_t> comp_bytes;
+    // order components like const_outputs, which follows the processing order
+    std::unordered_map<primitive_id, program_node*> by_id;
+    for (auto& n : nodes) {
+        by_id[n->id()] = n.get();
+    }
+    auto comp_of = [&](program_node* n) {
+        auto root = find(n);
+        auto it = comp_index.find(root);
+        if (it == comp_index.end()) {
+            it = comp_index.emplace(root, comps.size()).first;
+            comps.emplace_back();
+            comp_bytes.push_back(0);
+        }
+        return it->second;
+    };
+    for (auto& id : const_outputs) {
+        if (by_id.count(id)) {
+            comp_of(by_id[id]);
+        }
+    }
+    for (auto& n : nodes) {
+        auto c = comp_of(n.get());
+        comps[c].insert(n);
+        if (n->is_type<data>()) {
+            comp_bytes[c] += n->as<data>().get_attached_memory_ptr()->size();
         }
     }
 
-    net->execute({});
-    net->reset_execution(true);  // wait for computations to complete
-    auto outputs = net->get_outputs();
+    std::vector<std::vector<size_t>> chunks;
+    size_t acc = 0;
+    for (size_t c = 0; c < comps.size(); ++c) {
+        if (chunks.empty() || (chunk_bytes != 0 && acc >= chunk_bytes)) {
+            chunks.emplace_back();
+            acc = 0;
+        }
+        chunks.back().push_back(c);
+        acc += comp_bytes[c];
+    }
 
     std::list<std::tuple<primitive_id, memory::ptr, cache_tuple>> ret;
-    for (auto& out : outputs) {
-        cache_tuple cache_info{};
-        auto it = weightless_cache_map.find(out->id());
-        if (it != weightless_cache_map.end()) {
-            cache_info = it->second;
+    for (auto& chunk : chunks) {
+        std::set<std::shared_ptr<program_node>> chunk_nodes;
+        for (auto c : chunk) {
+            chunk_nodes.insert(comps[c].begin(), comps[c].end());
         }
-        ret.push_back({out->id(), out->output_memory_ptr(), cache_info});
+        std::unordered_set<primitive_id> chunk_ids;
+        for (auto& n : chunk_nodes) {
+            chunk_ids.insert(n->id());
+        }
+        std::vector<primitive_id> chunk_outputs;
+        for (auto& id : const_outputs) {
+            if (chunk_ids.count(id)) {
+                chunk_outputs.push_back(id);
+            }
+        }
+        if (chunk_outputs.empty()) {
+            continue;
+        }
+        std::vector<typed_program_node<data>*> chunk_inputs;
+        for (auto& cin : const_inputs) {
+            if (chunk_ids.count(cin->id())) {
+                chunk_inputs.push_back(cin);
+            }
+        }
+
+        ExecutionConfig cf_config = config.clone();
+        cf_config.set_property(ov::intel_gpu::optimize_data(false));
+        cf_config.set_property(ov::intel_gpu::custom_outputs(chunk_outputs));
+        cf_config.finalize(engine);
+        auto prog = program::build_program(engine, chunk_nodes, cf_config, task_executor, true, onednn_impls);
+        network::ptr net = network::allocate_network(engine, prog, true, true);
+        std::map<primitive_id, cache_tuple> weightless_cache_map;
+        for (auto& cin : chunk_inputs) {
+            net->set_input_data(cin->id(), cin->get_attached_memory_ptr());
+
+            auto users = cin->get_users();
+            if (users.size() == 1 && users.front()->is_type<reorder>()) {
+                auto rprim = users.front()->as<reorder>().get_primitive();
+                auto copy = std::shared_ptr<reorder>(new reorder(*rprim));
+                auto id = rprim->id;
+                auto cache_ptr = cin->as<data>().get_primitive()->cache_info;
+                auto layout_ptr = std::make_shared<layout>(cin->get_output_layout());
+                weightless_cache_map.emplace(id, std::make_tuple(cache_ptr, layout_ptr, copy));
+            }
+        }
+
+        net->execute({});
+        net->reset_execution(true);  // wait for computations to complete
+        for (auto& out : net->get_outputs()) {
+            cache_tuple cache_info{};
+            auto it = weightless_cache_map.find(out->id());
+            if (it != weightless_cache_map.end()) {
+                cache_info = it->second;
+            }
+            ret.push_back({out->id(), out->output_memory_ptr(), cache_info});
+        }
+        net.reset();
+
+        if (chunks.size() > 1) {
+            for (auto& cin : chunk_inputs) {
+                if (has_non_const_user(*cin) || cin->is_output()) {
+                    continue;
+                }
+                std::static_pointer_cast<data>(cin->desc)->mem.reset();
+                cin->release_attached_memory();
+            }
+        }
     }
 
     return ret;
