@@ -94,26 +94,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_2d, RDFTLayerTest,
                             ::testing::Values(ov::test::utils::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 
-const std::vector<std::vector<size_t>> shapes_inverse_short_signal_2d = {
+const std::vector<std::vector<size_t>> shapes_inverse_zero_padded_input_2d = {
     {4, 2, 2},
 };
 
-const std::vector<std::vector<int64_t>> axes_short_signal_2d = {
+const std::vector<std::vector<int64_t>> axes_zero_padded_input_2d = {
     {1},
 };
 
-const std::vector<std::vector<int64_t>> signal_sizes_short_signal_2d = {
+const std::vector<std::vector<int64_t>> signal_sizes_zero_padded_input_2d = {
     {4},
     {5},
     {6},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_short_signal_2d, RDFTLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_IRDFT_zero_padded_input_2d, RDFTLayerTest,
                          ::testing::Combine(
-                            ::testing::ValuesIn(shapes_inverse_short_signal_2d),
+                            ::testing::ValuesIn(shapes_inverse_zero_padded_input_2d),
                             ::testing::ValuesIn(model_types),
-                            ::testing::ValuesIn(axes_short_signal_2d),
-                            ::testing::ValuesIn(signal_sizes_short_signal_2d),
+                            ::testing::ValuesIn(axes_zero_padded_input_2d),
+                            ::testing::ValuesIn(signal_sizes_zero_padded_input_2d),
                             ::testing::Values(ov::test::utils::DFTOpType::INVERSE),
                             ::testing::Values(ov::test::utils::DEVICE_CPU)), RDFTLayerTest::getTestCaseName);
 

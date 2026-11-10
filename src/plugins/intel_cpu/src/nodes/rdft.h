@@ -44,6 +44,7 @@ public:
 protected:
     bool isInverse;
 
+private:
     virtual bool canUseFFT(size_t dim);
     virtual void dft(float* inputPtr,
                      const float* twiddlesPtr,
