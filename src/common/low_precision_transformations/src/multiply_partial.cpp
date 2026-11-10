@@ -144,8 +144,8 @@ bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
         auto newMultiplyValuesFullPath = fold<ov::opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         OutputVector inputs{ {}, {} };
         inputs[emptyPathIndex] = scalingMode ? newMultiplyValuesFullPath : dequantizationEmptyPath.data;
-        const ov::Output<ov::Node> input_for_fullPath = scalingMode ? dequantizationEmptyPath.data :
-                                                                      newMultiplyValuesFullPath->output(0);
+        const auto input_for_fullPath = scalingMode ? dequantizationEmptyPath.data :
+                                                      newMultiplyValuesFullPath->output(0);
 
         ov::Output<ov::Node> parent0 = dequantizationFullPath.subtract == nullptr ?
             (dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert) :
@@ -159,6 +159,7 @@ bool MultiplyPartialTransformation::transform(ov::pass::pattern::Matcher& m) {
                       std::vector<element::Type>{element::f32},
                       ov::op::TemporaryReplaceOutputType(parent0, element::f32).get(),
                       ov::op::TemporaryReplaceOutputType(input_for_fullPath, element::f32).get());
+        ov::copy_runtime_info(multiply, inputs[fullPathIndex].get_node_shared_ptr());
 
         newMultiply = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},

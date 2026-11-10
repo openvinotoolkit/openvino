@@ -1017,13 +1017,29 @@ enum class SplitKind { Split, VariadicSplit };
 
 using MultiplyPartialScalingModeParams = std::tuple<ov::element::Type, SplitKind>;
 
+std::string splitKindName(const SplitKind kind) {
+    switch (kind) {
+    case SplitKind::Split:
+        return "Split";
+    case SplitKind::VariadicSplit:
+        return "VariadicSplit";
+    default:
+        OPENVINO_THROW("Unexpected SplitKind: ", static_cast<int>(kind));
+    }
+}
+
 ov::OutputVector splitInTwo(const ov::Output<ov::Node>& data, const SplitKind kind) {
     const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
-    if (kind == SplitKind::VariadicSplit) {
+    switch (kind) {
+    case SplitKind::Split:
+        return std::make_shared<ov::op::v1::Split>(data, axis, 2)->outputs();
+    case SplitKind::VariadicSplit: {
         const auto lengths = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {3, 3});
         return std::make_shared<ov::op::v1::VariadicSplit>(data, axis, lengths)->outputs();
     }
-    return std::make_shared<ov::op::v1::Split>(data, axis, 2)->outputs();
+    default:
+        OPENVINO_THROW("Unexpected SplitKind: ", static_cast<int>(kind));
+    }
 }
 
 std::shared_ptr<ov::Model> getModel(const ov::element::Type precision, const SplitKind kind) {
@@ -1056,7 +1072,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MultiplyPartialScalingModeParams>& info) {
         const auto& [precision, kind] = info.param;
         std::ostringstream result;
-        result << precision << "_" << (kind == SplitKind::VariadicSplit ? "VariadicSplit" : "Split");
+        result << precision << "_" << splitKindName(kind);
         return result.str();
     }
 
@@ -1071,8 +1087,6 @@ protected:
             ov::pass::low_precision::LayerTransformation::Params(false, precision, {precision}, true, true);
         manager.register_pass<ov::pass::low_precision::MultiplyPartialTransformation>(params);
         comparator.enable(FunctionsComparator::CONST_VALUES);
-        // MultiplyPartialTransformation does not copy rt_info to the inner Multiply it creates
-        disable_rt_info_check();
     }
 };
 
