@@ -80,7 +80,7 @@ event::ptr input_layout_inst::set_data(memory::ptr mem, bool need_to_check_memor
     // A static oneDNN fused destination can still alias the input's build-time
     // placeholder. Refresh it after set_data binds the actual input allocation.
     if (!get_node().is_dynamic() && !_outputs.empty() && _outputs[0]) {
-        for (auto* user : get_node().get_users()) {
+        for (const auto* user : get_node().get_users()) {
             if (user->is_dynamic())
                 continue;
             auto reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*user);
