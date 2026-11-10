@@ -13,6 +13,7 @@
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
@@ -162,8 +163,10 @@ std::string params_name(const testing::TestParamInfo<MLPParams>& info) {
         return prc + "Separate";
     case GateUpType::COMBINED_GATE_UP:
         return prc + "CombinedGateUp";
-    default:
+    case GateUpType::COMBINED_UP_GATE:
         return prc + "CombinedUpGate";
+    default:
+        OPENVINO_THROW("Unknown GateUpType");
     }
 }
 
