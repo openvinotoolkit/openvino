@@ -155,7 +155,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     // Refresh shapes after the input_ids/position_ids changes above; per-pass validation is disabled below.
     model->validate_nodes_and_infer_types();
 
-    ov::pass::Manager manager(get_pass_config(), "SDPA to PA");
+    ov::pass::Manager manager("SDPA to PA");
     manager.set_per_pass_validation(false);
     manager.register_pass<EliminateDropBatch>();
     manager.register_pass<RoPEUnsqueezeAxisReplacer>();
@@ -165,8 +165,23 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
     // QSA selections are converted before their SparseAttention consumers; the sparse KV caches take layer indices
     // after the SDPA caches created by the state management pattern.
-    manager.register_pass<FuseQSAIndexer>();
     if (has_sparse_attention) {
+        manager.get_pass_config()->set_callback<FuseQSAIndexer, PagedQSAIndexerFusion>(
+            [](const std::shared_ptr<const ov::Node>& indexer) {
+                constexpr size_t indices_input = 3;
+                constexpr size_t count_input = 4;
+                for (const auto& target : indexer->output(0).get_target_inputs()) {
+                    const auto* attention = target.get_node();
+                    if (target.get_index() == indices_input && ov::is_type<ov::op::v17::SparseAttention>(attention)) {
+                        const auto count = attention->input_value(count_input);
+                        if (count.get_node() == indexer.get() && count.get_index() == 1) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            });
+        manager.register_pass<FuseQSAIndexer>();
         manager.register_pass<PagedQSAIndexerFusion>(m_params, var_ids_to_remove);
     }
     if (m_options.is_draft_model) {

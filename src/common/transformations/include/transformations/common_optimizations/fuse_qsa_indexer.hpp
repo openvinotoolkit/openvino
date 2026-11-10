@@ -22,6 +22,7 @@ namespace ov::pass {
  * @ingroup ov_transformation_common_api
  * @brief Fuses QSAPrepare and SparseAttentionIndexer into the stateful internal QSAIndexer op, leaving query-side
  * RMSNorm and RoPE outside the op (query_norm and query_rope disabled).
+ * QSAIndexer is a graph-only placeholder and has no execution implementation.
  *
  *        Query  RawKeys cos/sin ... KeyLength           Query
  *          │       │       │            │                 │
@@ -118,9 +119,10 @@ public:
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Absorbs canonical query RMS and RoPE into dense and paged QSA indexers during plugin compilation.
+ * @brief Absorbs canonical query RMS and RoPE into dense and paged QSA indexers.
  *
  * Register after the plugin's RMSFusion and RoPEFusion, before passes that combine or decompose RMS/RoPE.
+ * This pass is not registered in the device plugin pipelines.
  * Does not run those model-wide canonicalization passes itself. Runs the dense and paged FuseQSAIndexerQueryRoPE
  * over the whole model first and FuseQSAIndexerQueryNorm second, with the caller's PassConfig, since QSAIndexer
  * normalizes before it rotates. Specializations share PassConfig callbacks and disable settings.
