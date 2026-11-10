@@ -96,10 +96,41 @@ void GatedResidual::validate_and_infer_types() {
                                   ov::element::Type::merge(merged_et, merged_et, get_input_element_type(i)),
                                   "GatedResidual (WRITE) inputs must share the residual element type.");
         }
+        // Y [.., D] and the gate [.., C] carry one row per residual row: same rank and compatible leading dimensions.
+        const auto& y_ps = get_input_partial_shape(WriteInputIdx::SUBLAYER_Y);
+        const auto& gate_ps = get_input_partial_shape(WriteInputIdx::WRITE_GATE);
+        auto rank = residual_ps.rank();
+        NODE_VALIDATION_CHECK(
+            this,
+            ov::Rank::merge(rank, rank, y_ps.rank()) && ov::Rank::merge(rank, rank, gate_ps.rank()),
+            "GatedResidual (WRITE) residual, sub-layer output and write gate must have the same rank, got ",
+            residual_ps,
+            ", ",
+            y_ps,
+            " and ",
+            gate_ps);
         // R' has exactly the residual layout, its width is known even when the residual's is not.
-        auto output_ps = residual_ps;
-        if (output_ps.rank().is_static()) {
-            output_ps[output_ps.size() - 1] = static_cast<int64_t>(m_hc_count * m_hidden_size);
+        auto output_ps = residual_ps.rank().is_static() ? residual_ps : ov::PartialShape::dynamic(rank);
+        if (rank.is_static()) {
+            const auto last = static_cast<size_t>(rank.get_length()) - 1;
+            // An input of dynamic rank has no dimensions to merge (it was only checked against the other ranks above).
+            for (const auto* other : {&y_ps, &gate_ps}) {
+                if (other->rank().is_dynamic()) {
+                    continue;
+                }
+                for (size_t i = 0; i < last; ++i) {
+                    NODE_VALIDATION_CHECK(this,
+                                          ov::Dimension::merge(output_ps[i], output_ps[i], (*other)[i]),
+                                          "GatedResidual (WRITE) residual, sub-layer output and write gate must have "
+                                          "matching leading dimensions, got ",
+                                          residual_ps,
+                                          ", ",
+                                          y_ps,
+                                          " and ",
+                                          gate_ps);
+                }
+            }
+            output_ps[last] = static_cast<int64_t>(m_hc_count * m_hidden_size);
         }
         set_output_type(0, merged_et, output_ps);
         return;

@@ -480,8 +480,45 @@ TEST(type_prop, gated_residual_write_inputs_must_share_element_type) {
 }
 
 TEST(type_prop, gated_residual_write_dynamic_residual_width_is_inferred) {
+    // The residual's width is C*D, and its dynamic leading dimensions are taken from Y and the gate.
     const auto op = make_write(element::f32, PartialShape{-1, -1, -1}, Shape{2, 3, 4}, Shape{2, 3, 4}, 4, 4);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, -1, 16}));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 16}));
+}
+
+TEST(type_prop, gated_residual_write_leading_dims_are_merged) {
+    const auto op =
+        make_write(element::f32, PartialShape{-1, 3, 16}, PartialShape{2, -1, 4}, PartialShape{-1, -1, 4}, 4, 4);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 3, 16}));
+}
+
+TEST(type_prop, gated_residual_write_dynamic_rank_inputs_are_accepted) {
+    EXPECT_NO_THROW(std::ignore =
+                        make_write(element::f32, PartialShape::dynamic(), Shape{2, 3, 4}, Shape{2, 3, 4}, 4, 4));
+    EXPECT_NO_THROW(
+        std::ignore =
+            make_write(element::f32, Shape{2, 3, 16}, PartialShape::dynamic(), PartialShape::dynamic(), 4, 4));
+}
+
+TEST(type_prop, gated_residual_write_mismatched_leading_dims) {
+    // Y and the gate with fewer rows than the residual would be read out of bounds by the kernel.
+    OV_EXPECT_THROW(std::ignore = make_write(element::f32, Shape{2, 3, 16}, Shape{1, 1, 4}, Shape{1, 1, 4}, 4, 4),
+                    NodeValidationFailure,
+                    testing::HasSubstr("matching leading dimensions"));
+    OV_EXPECT_THROW(std::ignore = make_write(element::f32, Shape{6, 16}, Shape{6, 4}, Shape{1, 4}, 4, 4),
+                    NodeValidationFailure,
+                    testing::HasSubstr("matching leading dimensions"));
+    OV_EXPECT_THROW(std::ignore = make_write(element::f32, Shape{2, 3, 16}, Shape{2, 4, 4}, Shape{2, 3, 4}, 4, 4),
+                    NodeValidationFailure,
+                    testing::HasSubstr("matching leading dimensions"));
+}
+
+TEST(type_prop, gated_residual_write_mismatched_rank) {
+    OV_EXPECT_THROW(std::ignore = make_write(element::f32, Shape{2, 3, 16}, Shape{6, 4}, Shape{2, 3, 4}, 4, 4),
+                    NodeValidationFailure,
+                    testing::HasSubstr("must have the same rank"));
+    OV_EXPECT_THROW(std::ignore = make_write(element::f32, Shape{2, 3, 16}, Shape{2, 3, 4}, Shape{4}, 4, 4),
+                    NodeValidationFailure,
+                    testing::HasSubstr("must have the same rank"));
 }
 
 }  // namespace ov::test

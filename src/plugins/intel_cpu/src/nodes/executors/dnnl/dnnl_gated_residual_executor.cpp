@@ -374,8 +374,8 @@ bool GatedResidualDnnlExecutor::supports(const GatedResidualConfig& config) {
     }
     using dnnl::impl::cpu::x64::cpu_isa_t;
     using dnnl::impl::cpu::x64::mayiuse;
-    // READ/FINAL_MIX run the RMSNorm JIT kernel, which needs AVX2; WRITE has no RMSNorm.
-    if (config.attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && !mayiuse(cpu_isa_t::avx2)) {
+    // Every mode runs JIT kernels (RMSNorm / mix / write) that are instantiated for avx512_core and avx2 only.
+    if (!mayiuse(cpu_isa_t::avx2)) {
         return false;
     }
     // Uncompressed weights are fed to the GEMM at the port precision (no upconvert path), so a
@@ -442,6 +442,17 @@ void GatedResidualDnnlExecutor::execute(const MemoryArgs& memory) {
 
 bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
     if (m_mode == Mode::WRITE) {
+        // execute_write() indexes Y and the gate once per residual row, so they must have the same number of rows
+        // (the op validates this for static shapes; dynamic dimensions are only known here).
+        const auto rows = shape_size(memory.at(gatedResidualSrcArg(WriteInputIdx::RESIDUAL))->getStaticDims()) /
+                          (m_hc_count * m_hidden_size);
+        OPENVINO_ASSERT(
+            shape_size(memory.at(gatedResidualSrcArg(WriteInputIdx::SUBLAYER_Y))->getStaticDims()) ==
+                    rows * m_hidden_size &&
+                shape_size(memory.at(gatedResidualSrcArg(WriteInputIdx::WRITE_GATE))->getStaticDims()) ==
+                    rows * m_hc_count,
+            "GatedResidual (WRITE): sub-layer output and write gate must have the same leading dimensions as the "
+            "residual");
         if (!m_write_kernel) {
             // Depends only on (precision, D, ISA): shared by every WRITE layer through the runtime cache.
             const WriteKernelKey key{m_precision, m_hidden_size, ov::with_cpu_x86_avx512_core()};
@@ -453,8 +464,7 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
                             kernel::jit_gated_residual_write_compile_params jcp;
                             jcp.prc = k.precision;
                             jcp.data_size = k.data_size;
-                            // supports() does not gate WRITE on AVX2 (it has no RMSNorm), so fall back to
-                            // the narrowest ISA that always exists on x86-64 targets of this plugin.
+                            // supports() guarantees AVX2.
                             std::shared_ptr<kernel::JitKernelBase> kernel;
                             if (k.avx512) {
                                 kernel = std::make_shared<
