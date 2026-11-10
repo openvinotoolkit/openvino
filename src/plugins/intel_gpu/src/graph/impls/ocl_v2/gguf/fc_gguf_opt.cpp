@@ -3,7 +3,6 @@
 //
 
 #include "fc_gguf_opt.hpp"
-#include "fc_gguf_shuffle_gen.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -14,6 +13,7 @@
 #include "../utils/fused_ops_jitter.hpp"
 #include "../utils/jitter.hpp"
 #include "../utils/kernel_generator.hpp"
+#include "fc_gguf_shuffle_gen.hpp"
 #include "fully_connected_inst.h"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/activation.hpp"
@@ -204,12 +204,12 @@ GgufTranscodeTarget transcode_target(element::Type_t t, size_t N) {
     switch (t) {
     case element::Type_t::gguf_q4_0:
     case element::Type_t::gguf_q4_1:
-    case element::Type_t::gguf_q4_k:    // Q4_K also asymmetric u4, enabling jit:gemm:any W4A8
+    case element::Type_t::gguf_q4_k:  // Q4_K also asymmetric u4, enabling jit:gemm:any W4A8
     case element::Type_t::gguf_q3_k:
     case element::Type_t::gguf_iq3_xxs:
     case element::Type_t::gguf_iq3_s:
-        return {true,  15,  true};   // u4 asymmetric: [0..15] + u8 ZP
-    case element::Type_t::gguf_q5_k:    // Q5_K/Q6_K: s8 symmetric, jit:gemm:any s8×s8 W4A8
+        return {true, 15, true};      // u4 asymmetric: [0..15] + u8 ZP
+    case element::Type_t::gguf_q5_k:  // Q5_K/Q6_K: s8 symmetric, jit:gemm:any s8×s8 W4A8
     case element::Type_t::gguf_q6_k:
     case element::Type_t::gguf_iq2_xs:
     case element::Type_t::gguf_iq2_s:
@@ -219,8 +219,7 @@ GgufTranscodeTarget transcode_target(element::Type_t t, size_t N) {
         // change. Keep ordinary FCs on s8/no-ZP so oneDNN can select its regular s8 GEMM. The
         // vocabulary projection is the exception: preserve its asymmetric WOQ path because its
         // very wide output is the workload for which the u8+ZP layout was introduced.
-        return gguf_is_lm_head(N) ? GgufTranscodeTarget{false, 255, true}
-                                  : GgufTranscodeTarget{false, 127, false};
+        return gguf_is_lm_head(N) ? GgufTranscodeTarget{false, 255, true} : GgufTranscodeTarget{false, 127, false};
     default:
         OPENVINO_THROW("[GPU] FCGGUFOpt: no transcode target for ", element::Type(t).get_type_name());
     }
@@ -236,9 +235,9 @@ GgufTranscodeTarget transcode_target(element::Type_t t, size_t N) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // Q4_K / Q6_K "weight shuffle" path: when enabled, the weight was reordered once (compile_model) into
-// the SG-transposed plane-separated layout that the sub-group-block-read GEMV kernels (fc_gguf_gemv_opt.cl) and the shuffle-aware prefill transcode consume with fully coalesced weight
-// loads. Same total bytes, bit-exact. Default ON; set OV_GPU_GGUF_SHUFFLE=0 to disable. Must match the
-// RepackGGUFWeightsShuffle transform gate so the transform and the impl agree which nodes are shuffled.
+// the SG-transposed plane-separated layout that the sub-group-block-read GEMV kernels (fc_gguf_gemv_opt.cl) and the shuffle-aware prefill transcode consume
+// with fully coalesced weight loads. Same total bytes, bit-exact. Default ON; set OV_GPU_GGUF_SHUFFLE=0 to disable. Must match the RepackGGUFWeightsShuffle
+// transform gate so the transform and the impl agree which nodes are shuffled.
 bool gguf_shuffle_enabled() {
     if (const char* env = std::getenv("OV_GPU_GGUF_SHUFFLE")) {
         return std::atol(env) != 0;
@@ -310,8 +309,7 @@ bool gguf_prefill_dq_act_asymmetric() {
 }
 
 void validate_gguf_act_dq_config(size_t K, size_t group, bool asymmetric) {
-    OPENVINO_ASSERT(group >= 32 && group <= K && K % group == 0,
-                    "[GPU] GGUF activation DQ requires group size >= 32 dividing K.");
+    OPENVINO_ASSERT(group >= 32 && group <= K && K % group == 0, "[GPU] GGUF activation DQ requires group size >= 32 dividing K.");
     // Asymmetric activation DQ is now supported per-group (group=32/64/128) as well as
     // per-token (group=K): the fc_gguf_act_dq kernel emits one f16 scale + u8 ZP per
     // [token, group] and the matmul binds them as grouped DNNL_ARG_SRC scales/zero-points.
@@ -344,7 +342,8 @@ size_t gguf_act_dq_safe_group_size(size_t K, element::Type_t et, size_t N) {
         // Would trigger needsBGroupSums → auto-downgrade to per-token (group=K).
         GPU_DEBUG_LOG << "[FCGGUFOpt] act_dq group=" << group
                       << " + asymmetric weight would trigger oneDNN needsBGroupSums "
-                         "(ref_t fallback). Auto-downgrading to per-token (group=" << K << ").\n";
+                         "(ref_t fallback). Auto-downgrading to per-token (group="
+                      << K << ").\n";
         return K;
     }
     return group;
@@ -361,7 +360,7 @@ struct GgufFusedOp {
     bool is_binary;  // false: unary eltwise(activation); true: binary(eltwise)
     dnnl::algorithm alg;
     float alpha = 0.0f;
-    float beta  = 0.0f;
+    float beta = 0.0f;
     int ext_input_dep = -1;  // FC dependency index of the EXTERNAL binary src1 (or -1)
 };
 
@@ -435,12 +434,12 @@ uint64_t gguf_fused_signature(const std::vector<GgufFusedOp>& ops) {
 // single scratch per stream, grown to the largest FC seen, can therefore be reused across every GGUF FC
 // node instead of keeping one persistent transcoded copy per node.
 struct TranscodeScratch {
-    cldnn::memory::ptr weight;    // packed u4/u8 weight [N, K]         (asymmetric unsigned)
-    cldnn::memory::ptr scale;     // f16 per-group scale  [K/group, N]
-    cldnn::memory::ptr zp;        // u8  per-group zero-point [K/group, N]  (asymmetric, NEW)
-    cldnn::memory::ptr act_int8;  // INT8 quantised activation [M_max, K]  (grow-only)
-    cldnn::memory::ptr act_scale; // f16 per-token activation scale [M_max, 1]
-    cldnn::memory::ptr act_zp;    // u8 activation zero point [M_max, groups]
+    cldnn::memory::ptr weight;     // packed u4/u8 weight [N, K]         (asymmetric unsigned)
+    cldnn::memory::ptr scale;      // f16 per-group scale  [K/group, N]
+    cldnn::memory::ptr zp;         // u8  per-group zero-point [K/group, N]  (asymmetric, NEW)
+    cldnn::memory::ptr act_int8;   // INT8 quantised activation [M_max, K]  (grow-only)
+    cldnn::memory::ptr act_scale;  // f16 per-token activation scale [M_max, 1]
+    cldnn::memory::ptr act_zp;     // u8 activation zero point [M_max, groups]
 };
 
 struct TranscodeArena {
@@ -520,9 +519,8 @@ protected:
         // no unfused subgraph, output stays in the reusable memory pool).
         if (params.has_fused_primitives()) {
             const auto& out_l = params.output_layouts[0];
-            const std::vector<std::string> idx_order = out_l.get_partial_shape().size() == 2
-                ? std::vector<std::string>{"bm", "n", "0", "0"}
-                : std::vector<std::string>{"out_b", "out_f", "n", "0"};
+            const std::vector<std::string> idx_order =
+                out_l.get_partial_shape().size() == 2 ? std::vector<std::string>{"bm", "n", "0", "0"} : std::vector<std::string>{"out_b", "out_f", "n", "0"};
             FusedOpsConfiguration conf = {"", idx_order, "dequantized", out_l.data_type};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
         }
@@ -600,7 +598,7 @@ protected:
         // super-block, so the transcode work-item owns a 256-elem super-block (GGUF_BLOCK_ELEM=256,
         // GGUF_BLOCK_BYTES = 8 * native bytes). K-block formats keep their native 256-elem block.
         const bool small_shuffle = shuffled && gguf_is_small_shuffle_format(in1.data_type);
-        const int block_elem  = small_shuffle ? 256 : static_cast<int>(wt.block_elem_count());
+        const int block_elem = small_shuffle ? 256 : static_cast<int>(wt.block_elem_count());
         const int block_bytes = small_shuffle ? static_cast<int>(wt.block_byte_size() * 8) : static_cast<int>(wt.block_byte_size());
         // TRANSCODE_TO_F16 only when OV_GPU_GGUF_PREFILL_F16=1 (debug/comparison opt-in).
         // K-block shuffles no longer force f16: they produce u4 (Q4_K) or s8 (Q5_K/Q6_K) via requant.
@@ -615,7 +613,7 @@ protected:
             make_jit_constant("GGUF_BLOCK_BYTES", block_bytes),
             make_jit_constant("REQUANT_GROUP", requant_group),
             make_jit_constant("TRANSCODE_TO_I4", tgt.to_i4 ? 1 : 0),
-            make_jit_constant("QMAX", tgt.qmax),              // 15 (u4 asymmetric) or 127 (s8 symmetric)
+            make_jit_constant("QMAX", tgt.qmax),                                // 15 (u4 asymmetric) or 127 (s8 symmetric)
             make_jit_constant("TRANSCODE_ASYMMETRIC", tgt.asymmetric ? 1 : 0),  // 0 -> s8 symmetric path
             make_jit_constant("GGUF_SHUFFLE", shuffled ? 1 : 0),
             make_jit_constant("TRANSCODE_TO_F16", to_f16 ? 1 : 0),
@@ -658,8 +656,7 @@ protected:
         // Use the safe group size: downgraded to K when asymmetric weight would needsBGroupSums.
         const size_t group = gguf_act_dq_safe_group_size(K, et, N);
         // group size + sym/asym change the JIT body, so they must be part of the cache key.
-        return get_kernel_name() + "_K" + std::to_string(K) + "_G" + std::to_string(group) +
-               (gguf_prefill_dq_act_asymmetric() ? "_asym" : "_sym");
+        return get_kernel_name() + "_K" + std::to_string(K) + "_G" + std::to_string(group) + (gguf_prefill_dq_act_asymmetric() ? "_asym" : "_sym");
     }
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -671,7 +668,7 @@ protected:
         const size_t group = gguf_act_dq_safe_group_size(K, et, N);
         validate_gguf_act_dq_config(K, group, gguf_prefill_dq_act_asymmetric());
         jit.add({
-            make_jit_constant("K_SIZE",         static_cast<int>(K)),
+            make_jit_constant("K_SIZE", static_cast<int>(K)),
             make_jit_constant("ACT_DQ_WG_SIZE", GGUF_ACT_DQ_WG_SIZE),
             make_jit_constant("ACT_DQ_OUTPUT_VAL_MAX", 127.0f),
             make_jit_constant("ACT_DQ_MIN_VAL", 0.003f),
@@ -683,7 +680,9 @@ protected:
     }
 
     // Args are supplied explicitly by execute_transcode_plus_onednn_woq.
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override { return {}; }
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams&) const override {
+        return {};
+    }
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
     }
@@ -702,7 +701,7 @@ constexpr int GGUF_CM_TOKENS_PER_TILE = 8;  // dpas RepeatCount (fixed by the IS
 constexpr int CONV_ACT_BLOCK = 64;  // elements converted per thread
 constexpr int CONV_ACT_LOCAL = 16;  // threads per work-group
 
-#ifdef ENABLE_CM_FOR_GPU
+#    ifdef ENABLE_CM_FOR_GPU
 struct CmGemmConfig {
     int row_groups;    // N-dimension blocking (ROW_GROUPS)
     int token_groups;  // token dimension register blocking (TOKEN_GROUPS)
@@ -754,7 +753,7 @@ CmGemmConfig pick_cm_gemm_config(const RuntimeParams& params, size_t K) {
                         /*pf_a=*/-1,
                         /*a_outer=*/1};
 }
-#endif
+#    endif
 
 // Format index shared by the OCL and CM GEMM stage tables; -1 = no GEMM kernel for this format.
 int gguf_gemm_fmt_index(element::Type_t t) {
@@ -780,8 +779,7 @@ constexpr size_t GGUF_GEMM_FORMATS = 6;
 constexpr const char* kOclGemmKernels[GGUF_GEMM_FORMATS] =
     {"fc_gguf_gemm_q4_0", "fc_gguf_gemm_q4_1", "fc_gguf_gemm_q4k", "fc_gguf_gemm_q5k", "fc_gguf_gemm_q6k", "fc_gguf_gemm_q8_0"};
 // Format-selection define of each entry in fc_gguf_gemm_opt.cl (same order as kOclGemmKernels).
-constexpr const char* kOclGemmFormatDefines[GGUF_GEMM_FORMATS] =
-    {"GG_FMT_Q4_0", "GG_FMT_Q4_1", "GG_FMT_Q4_K", "GG_FMT_Q5_K", "GG_FMT_Q6_K", "GG_FMT_Q8_0"};
+constexpr const char* kOclGemmFormatDefines[GGUF_GEMM_FORMATS] = {"GG_FMT_Q4_0", "GG_FMT_Q4_1", "GG_FMT_Q4_K", "GG_FMT_Q5_K", "GG_FMT_Q6_K", "GG_FMT_Q8_0"};
 constexpr const char* kCmGemmKernels[GGUF_GEMM_FORMATS] =
     {"gemm_q40_full", "gemm_q41_full", "gemm_q4k_full", "gemm_q5k_full", "gemm_q6k_full", "gemm_q80_full"};
 
@@ -792,7 +790,9 @@ PrefillKernel gguf_prefill_gemm_requested() {
         return PrefillKernel::ocl;
     }
     std::string v(env);
-    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::transform(v.begin(), v.end(), v.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
     if (v == "ocl") {
         return PrefillKernel::ocl;
     }
@@ -888,9 +888,8 @@ protected:
             make_jit_constant(m_format_define, 1),
         });
         if (params.has_fused_primitives()) {
-            const std::vector<std::string> idx_order = out0.get_partial_shape().size() == 2
-                                                           ? std::vector<std::string>{"bm", "n", "0", "0"}
-                                                           : std::vector<std::string>{"out_b", "out_f", "n", "0"};
+            const std::vector<std::string> idx_order =
+                out0.get_partial_shape().size() == 2 ? std::vector<std::string>{"bm", "n", "0", "0"} : std::vector<std::string>{"out_b", "out_f", "n", "0"};
             FusedOpsConfiguration conf = {"", idx_order, "dequantized", out0.data_type};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
         }
@@ -962,7 +961,8 @@ private:
 // -------------------------------------------------------------------------------------------------
 std::string gguf_gemm_common_blocker(const RuntimeParams& params, bool shuffled_family, size_t align) {
     if (!shuffled_family) {
-        return "weight is not a shuffled Q4_0/Q4_1/Q4_K/Q5_K/Q6_K/Q8_0 tensor (OV_GPU_GGUF_SHUFFLE=0, N%16 / K%256 misaligned, or no GEMM kernel for the format)";
+        return "weight is not a shuffled Q4_0/Q4_1/Q4_K/Q5_K/Q6_K/Q8_0 tensor (OV_GPU_GGUF_SHUFFLE=0, N%16 / K%256 misaligned, or no GEMM kernel for the "
+               "format)";
     }
     const auto& dev = params.get_device_info();
     if (!dev.supports_immad) {
@@ -999,7 +999,7 @@ std::string gguf_ocl_gemm_blocker(const RuntimeParams& params, bool shuffled_fam
     return {};
 }
 
-#ifdef ENABLE_CM_FOR_GPU
+#    ifdef ENABLE_CM_FOR_GPU
 // CM kernels only post-process relu / swish and binary sum / prod fused ops.
 std::string gguf_cm_fused_blocker(const RuntimeParams& params) {
     if (!params.has_fused_primitives()) {
@@ -1011,8 +1011,7 @@ std::string gguf_cm_fused_blocker(const RuntimeParams& params) {
         }
         if (fd.is_type<cldnn::activation>()) {
             const auto act = fd.typed_desc<cldnn::activation>();
-            if (fd.has_outer_dep() ||
-                (act->activation_function != cldnn::activation_func::relu && act->activation_function != cldnn::activation_func::swish)) {
+            if (fd.has_outer_dep() || (act->activation_function != cldnn::activation_func::relu && act->activation_function != cldnn::activation_func::swish)) {
                 return "fused activation is not supported by the CM kernel";
             }
             continue;
@@ -1035,10 +1034,10 @@ std::string gguf_cm_fused_blocker(const RuntimeParams& params) {
     }
     return {};
 }
-#endif
+#    endif
 
 std::string gguf_cm_gemm_blocker([[maybe_unused]] const program_node& node, const RuntimeParams& params, bool shuffled_family) {
-#ifdef ENABLE_CM_FOR_GPU
+#    ifdef ENABLE_CM_FOR_GPU
     const CmGemmConfig cm_cfg = pick_cm_gemm_config(params, params.input_layouts[1].get_shape()[1]);
     const size_t cm_align = GGUF_GEMV_SG_SIZE * static_cast<size_t>(cm_cfg.row_groups) * static_cast<size_t>(cm_cfg.row_blocks);
     if (auto r = gguf_gemm_common_blocker(params, shuffled_family, cm_align); !r.empty()) {
@@ -1052,11 +1051,11 @@ std::string gguf_cm_gemm_blocker([[maybe_unused]] const program_node& node, cons
         return "the CM JIT is not usable with the installed driver";
     }
     return gguf_cm_fused_blocker(params);
-#else
+#    else
     (void)params;
     (void)shuffled_family;
     return "this build has no CM support";
-#endif
+#    endif
 }
 
 // Resolve the prefill kernel of one node. Candidate order: preferred GEMM type, the other GEMM type is only
@@ -1088,7 +1087,7 @@ PrefillKernel gguf_select_prefill_kernel(const program_node& node, const Runtime
     return PrefillKernel::onednn;
 }
 
-#ifdef ENABLE_CM_FOR_GPU
+#    ifdef ENABLE_CM_FOR_GPU
 // ==========================================================================
 // Shared CM kernel-data builder.
 //
@@ -1274,14 +1273,13 @@ protected:
                 // so load it as ONE vector instead of N scalar element loads.
                 // The load's element type is baked in statically per the
                 // operand's known runtime dtype (see input_dtypes above).
-                const bool is_f32 =
-                    op.input_idx < input_dtypes.size() && input_dtypes[op.input_idx] == data_types::f32;
+                const bool is_f32 = op.input_idx < input_dtypes.size() && input_dtypes[op.input_idx] == data_types::f32;
                 std::string load;
                 if (is_f32) {
                     load = "vector<float, N> _pin = cm_ptr_load<float, N>((float*)" + ptr + ", (BASE) * 4u);";
                 } else {
-                    load = "vector<half, N> _pinh = cm_ptr_load<uint, N/2>((uint*)" + ptr +
-                           ", (BASE) * 2u).format<half>(); vector<float, N> _pin; _pin = _pinh;";
+                    load =
+                        "vector<half, N> _pinh = cm_ptr_load<uint, N/2>((uint*)" + ptr + ", (BASE) * 2u).format<half>(); vector<float, N> _pin; _pin = _pinh;";
                 }
                 switch (elt->mode) {
                 case cldnn::eltwise_mode::sum:
@@ -1309,8 +1307,7 @@ protected:
         for (size_t i = 0; i < ops.size(); i++) {
             // Function-like macro: CM_APPLY_POST_OP_i(V, BASE, N) mutates the
             // WHOLE vector V (width N, base output element index BASE).
-            jit.add(make_jit_constant("CM_APPLY_POST_OP_" + std::to_string(i) + "(V, BASE, N)",
-                                       std::string(ops[i].apply_stmt)));
+            jit.add(make_jit_constant("CM_APPLY_POST_OP_" + std::to_string(i) + "(V, BASE, N)", std::string(ops[i].apply_stmt)));
         }
 
         // Build the kernel signature extension for outer-dep pointer arguments.
@@ -1439,8 +1436,8 @@ protected:
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
     }
 };
-#endif  // ENABLE_CM_FOR_GPU
-#endif  // ENABLE_ONEDNN_FOR_GPU
+#    endif  // ENABLE_CM_FOR_GPU
+#endif      // ENABLE_ONEDNN_FOR_GPU
 
 class FCGGUFOptImpl : public PrimitiveImplOCL {
 public:
@@ -1605,16 +1602,16 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const override {
         PrimitiveImplOCL::save(ob);
-        ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle
-           << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16 << m_use_dq_act;
+        ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16
+           << m_use_dq_act;
         const auto prefill_kernel = static_cast<uint8_t>(m_prefill_kernel);
         ob << prefill_kernel << m_gemm_strict << m_gemm_family;
     }
 
     void load(cldnn::BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
-        ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle
-           >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >> m_use_dq_act;
+        ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >>
+            m_use_dq_act;
         uint8_t prefill_kernel = 0;
         ib >> prefill_kernel >> m_gemm_strict >> m_gemm_family;
         m_prefill_kernel = static_cast<PrefillKernel>(prefill_kernel);
@@ -1631,7 +1628,7 @@ public:
         c->m_q4_1_shuffle = m_q4_1_shuffle;
         c->m_q8_0_shuffle = m_q8_0_shuffle;
         c->m_prefill_f16 = m_prefill_f16;
-        c->m_use_dq_act   = m_use_dq_act;
+        c->m_use_dq_act = m_use_dq_act;
         c->m_prefill_kernel = m_prefill_kernel;
         c->m_gemm_strict = m_gemm_strict;
         c->m_gemm_family = m_gemm_family;
@@ -1713,8 +1710,8 @@ public:
                     }
                     const auto& operand = params.get_input_layout(fused.outer_dep_start_idx);
                     const auto& output = params.get_output_layout(0);
-                    if (operand.is_dynamic() || operand.get_partial_shape() != output.get_partial_shape() ||
-                        operand.format != format::bfyx || operand.data_padding) {
+                    if (operand.is_dynamic() || operand.get_partial_shape() != output.get_partial_shape() || operand.format != format::bfyx ||
+                        operand.data_padding) {
                         binary_post_ops_match_output = false;
                         break;
                     }
@@ -1931,8 +1928,8 @@ private:
         int ag;    // activation DQ group size
         int aa;    // activation asymmetric
         bool operator==(const MmKey& o) const {
-            return et == o.et && m == o.m && k == o.k && n == o.n &&
-                   fused_sig == o.fused_sig && f16 == o.f16 && dq == o.dq && asym == o.asym && rg == o.rg && ag == o.ag && aa == o.aa;
+            return et == o.et && m == o.m && k == o.k && n == o.n && fused_sig == o.fused_sig && f16 == o.f16 && dq == o.dq && asym == o.asym && rg == o.rg &&
+                   ag == o.ag && aa == o.aa;
         }
     };
     struct MmKeyHash {
@@ -1967,8 +1964,17 @@ private:
                            int requant_group,
                            int act_group,
                            bool act_asym) {
-        MmKey key{static_cast<int>(et), M, K, N, gguf_fused_signature(fused_ops),
-                  use_f16 ? 1 : 0, use_dq_act ? 1 : 0, use_asym ? 1 : 0, requant_group, act_group, act_asym ? 1 : 0};
+        MmKey key{static_cast<int>(et),
+                  M,
+                  K,
+                  N,
+                  gguf_fused_signature(fused_ops),
+                  use_f16 ? 1 : 0,
+                  use_dq_act ? 1 : 0,
+                  use_asym ? 1 : 0,
+                  requant_group,
+                  act_group,
+                  act_asym ? 1 : 0};
         if (m_matmul_cache.has(key)) {
             return *m_matmul_cache.get(key);
         }
@@ -1991,18 +1997,16 @@ private:
             // - Asymmetric 4-bit (u4, Q4_K/Q4_0/Q4_1): jit:gemm:any s8×u4 with u8 ZP.
             // - Symmetric 8-bit (s8, Q5_K/Q6_K/IQ2/Q8_0 FC): jit:gemm:any s8×s8 (dy_quant_enabled).
             const auto tgt_l = transcode_target(et, static_cast<size_t>(N));
-            const auto w_dt = !use_asym        ? dnnl::memory::data_type::s8   // s8 symmetric
-                             : tgt_l.to_i4     ? dnnl::memory::data_type::u4   // u4 asymmetric 4-bit
-                             : dnnl::memory::data_type::u8;                    // u8 asymmetric 8-bit
-            k->src_md = dnnl::memory::desc({M, K}, act_asym ? dnnl::memory::data_type::u8 : dnnl::memory::data_type::s8,
-                                            dnnl::memory::format_tag::ab);
+            const auto w_dt = !use_asym     ? dnnl::memory::data_type::s8   // s8 symmetric
+                              : tgt_l.to_i4 ? dnnl::memory::data_type::u4   // u4 asymmetric 4-bit
+                                            : dnnl::memory::data_type::u8;  // u8 asymmetric 8-bit
+            k->src_md = dnnl::memory::desc({M, K}, act_asym ? dnnl::memory::data_type::u8 : dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab);
             k->wei_md = dnnl::memory::desc({K, N}, w_dt, dnnl::memory::format_tag::ba);
             // Weight scale: per-REQUANT_GROUP x per-N f16.
-            k->scale_md = dnnl::memory::desc({K / requant_group, N},
-                                             dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
+            k->scale_md = dnnl::memory::desc({K / requant_group, N}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
             const int act_groups = K / act_group;
             k->act_scale_md = dnnl::memory::desc({M, act_groups}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
-            attr.set_scales(DNNL_ARG_SRC,     grouped, dnnl::memory::dims{1, act_group},         dnnl::memory::data_type::f16);
+            attr.set_scales(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, act_group}, dnnl::memory::data_type::f16);
             if (act_asym) {
                 k->act_zp_md = dnnl::memory::desc({M, act_groups}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::ab);
                 attr.set_zero_points(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, act_group}, dnnl::memory::data_type::u8);
@@ -2014,8 +2018,7 @@ private:
             attr.set_scales(DNNL_ARG_WEIGHTS, grouped, dnnl::memory::dims{requant_group, 1}, dnnl::memory::data_type::f16);
             if (use_asym) {
                 // Asymmetric u4: per-group u8 zero-point (same grouping as scale).
-                k->zp_md = dnnl::memory::desc({K / requant_group, N},
-                                              dnnl::memory::data_type::u8, dnnl::memory::format_tag::ab);
+                k->zp_md = dnnl::memory::desc({K / requant_group, N}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::ab);
                 attr.set_zero_points(DNNL_ARG_WEIGHTS, grouped, dnnl::memory::dims{requant_group, 1}, dnnl::memory::data_type::u8);
             }
         } else {
@@ -2024,18 +2027,16 @@ private:
             // - Asymmetric 8-bit (u8, LM Head Q8_0): f16×u8 with weight scale + u8 ZP; f16 precision.
             // - Symmetric 8-bit (s8): f16×s8 with weight scale, no ZP.
             const auto tgt_l = transcode_target(et, static_cast<size_t>(N));
-            const auto w_dt = !use_asym        ? dnnl::memory::data_type::s8   // s8 symmetric
-                             : tgt_l.to_i4     ? dnnl::memory::data_type::u4   // u4 asymmetric 4-bit
-                             : dnnl::memory::data_type::u8;                    // u8 asymmetric 8-bit (LM Head)
+            const auto w_dt = !use_asym     ? dnnl::memory::data_type::s8   // s8 symmetric
+                              : tgt_l.to_i4 ? dnnl::memory::data_type::u4   // u4 asymmetric 4-bit
+                                            : dnnl::memory::data_type::u8;  // u8 asymmetric 8-bit (LM Head)
             k->src_md = dnnl::memory::desc({M, K}, src_dt, dnnl::memory::format_tag::ab);
             k->wei_md = dnnl::memory::desc({K, N}, w_dt, dnnl::memory::format_tag::ba);
-            k->scale_md = dnnl::memory::desc({K / requant_group, N},
-                                             dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
+            k->scale_md = dnnl::memory::desc({K / requant_group, N}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::ab);
             attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
             attr.set_scales(DNNL_ARG_WEIGHTS, grouped, dnnl::memory::dims{requant_group, 1}, dnnl::memory::data_type::f16);
             if (use_asym) {
-                k->zp_md = dnnl::memory::desc({K / requant_group, N},
-                                              dnnl::memory::data_type::u8, dnnl::memory::format_tag::ab);
+                k->zp_md = dnnl::memory::desc({K / requant_group, N}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::ab);
                 attr.set_zero_points(DNNL_ARG_WEIGHTS, grouped, dnnl::memory::dims{requant_group, 1}, dnnl::memory::data_type::u8);
             }
         }
@@ -2100,10 +2101,10 @@ private:
         const bool use_f16 = m_prefill_f16;
         // requant_group=128 when block_elem=256: matches NNCF group=128, 4x fewer scale/ZP ops in GEMM.
         const int requant_group = gguf_requant_group(block_elem);
-        const auto w_dt = use_f16 ? data_types::f16
-                         : !tgt.asymmetric ? data_types::i8   // s8 symmetric (Q5_K/Q6_K/Q8_0/IQ2*)
-                         : tgt.to_i4       ? data_types::u4   // u4 asymmetric 4-bit (Q4_K/Q4_0/Q4_1/...)
-                         : data_types::u8;                    // u8 asymmetric 8-bit (not used currently)
+        const auto w_dt = use_f16           ? data_types::f16
+                          : !tgt.asymmetric ? data_types::i8  // s8 symmetric (Q5_K/Q6_K/Q8_0/IQ2*)
+                          : tgt.to_i4       ? data_types::u4  // u4 asymmetric 4-bit (Q4_K/Q4_0/Q4_1/...)
+                                            : data_types::u8;       // u8 asymmetric 8-bit (not used currently)
         const size_t num_groups = static_cast<size_t>(K) / requant_group;
         const cldnn::layout w_layout(ov::Shape{static_cast<size_t>(N), static_cast<size_t>(K)}, w_dt, cldnn::format::bfyx);
         const cldnn::layout s_layout(ov::Shape{num_groups, static_cast<size_t>(N)}, data_types::f16, cldnn::format::bfyx);
@@ -2139,9 +2140,9 @@ private:
                 slot.zp = engine.allocate_memory(zp_layout, alloc_type, /*reset=*/false);
             }
             // View the (possibly larger) high-water buffers as this node's exact layout.
-            w_scratch  = engine.reinterpret_buffer(*slot.weight, w_layout);
-            s_scratch  = engine.reinterpret_buffer(*slot.scale,  s_layout);
-            zp_scratch = engine.reinterpret_buffer(*slot.zp,     zp_layout);
+            w_scratch = engine.reinterpret_buffer(*slot.weight, w_layout);
+            s_scratch = engine.reinterpret_buffer(*slot.scale, s_layout);
+            zp_scratch = engine.reinterpret_buffer(*slot.zp, zp_layout);
         }
 
         // The FC weight memory is the (possibly shuffled) weight the transform produced; the transcode
@@ -2194,28 +2195,30 @@ private:
         cldnn::memory::ptr act_zp_scratch;  // u8 activation zero point
         if (run_dq) {
             const cldnn::layout aq_layout(ov::Shape{static_cast<size_t>(M), static_cast<size_t>(K)},
-                                          act_asym ? data_types::u8 : data_types::i8, cldnn::format::bfyx);
-            const cldnn::layout as_layout(ov::Shape{static_cast<size_t>(M), act_groups},
-                                          data_types::f16, cldnn::format::bfyx);
-            const cldnn::layout az_layout(ov::Shape{static_cast<size_t>(M), act_groups},
-                                          data_types::u8, cldnn::format::bfyx);
+                                          act_asym ? data_types::u8 : data_types::i8,
+                                          cldnn::format::bfyx);
+            const cldnn::layout as_layout(ov::Shape{static_cast<size_t>(M), act_groups}, data_types::f16, cldnn::format::bfyx);
+            const cldnn::layout az_layout(ov::Shape{static_cast<size_t>(M), act_groups}, data_types::u8, cldnn::format::bfyx);
             const auto alloc_type = engine.get_preferred_memory_allocation_type();
             {
                 std::lock_guard<std::mutex> lk(m_transcode_arena->mtx);
                 auto& slot = m_transcode_arena->per_stream[&stream];
                 if (!slot.act_int8 || slot.act_int8->size() < aq_layout.bytes_count()) {
-                    if (slot.act_int8) stream.finish();
-                    slot.act_int8  = engine.allocate_memory(aq_layout, alloc_type, /*reset=*/false);
+                    if (slot.act_int8)
+                        stream.finish();
+                    slot.act_int8 = engine.allocate_memory(aq_layout, alloc_type, /*reset=*/false);
                 }
                 if (!slot.act_scale || slot.act_scale->size() < as_layout.bytes_count()) {
-                    if (slot.act_scale) stream.finish();
+                    if (slot.act_scale)
+                        stream.finish();
                     slot.act_scale = engine.allocate_memory(as_layout, alloc_type, /*reset=*/false);
                 }
                 if (act_asym && (!slot.act_zp || slot.act_zp->size() < az_layout.bytes_count())) {
-                    if (slot.act_zp) stream.finish();
+                    if (slot.act_zp)
+                        stream.finish();
                     slot.act_zp = engine.allocate_memory(az_layout, alloc_type, /*reset=*/false);
                 }
-                act_q_scratch = engine.reinterpret_buffer(*slot.act_int8,  aq_layout);
+                act_q_scratch = engine.reinterpret_buffer(*slot.act_int8, aq_layout);
                 act_s_scratch = engine.reinterpret_buffer(*slot.act_scale, as_layout);
                 if (act_asym)
                     act_zp_scratch = engine.reinterpret_buffer(*slot.act_zp, az_layout);
@@ -2227,15 +2230,28 @@ private:
             execute_stage({transcode_ev},
                           instance,
                           *act_dq_stage,
-                          /*inputs=*/ {instance.dep_memory_ptr(0)},
-                          /*outputs=*/ act_asym ? std::vector<cldnn::memory::ptr>{act_q_scratch, act_s_scratch, act_zp_scratch}
-                                                : std::vector<cldnn::memory::ptr>{act_q_scratch, act_s_scratch},
-                          /*global=*/ {dq_global_x * act_groups, static_cast<size_t>(M), 1},
-                          /*local=*/  {static_cast<size_t>(GGUF_ACT_DQ_WG_SIZE), 1, 1});
+                          /*inputs=*/{instance.dep_memory_ptr(0)},
+                          /*outputs=*/
+                          act_asym ? std::vector<cldnn::memory::ptr>{act_q_scratch, act_s_scratch, act_zp_scratch}
+                                   : std::vector<cldnn::memory::ptr>{act_q_scratch, act_s_scratch},
+                          /*global=*/{dq_global_x * act_groups, static_cast<size_t>(M), 1},
+                          /*local=*/{static_cast<size_t>(GGUF_ACT_DQ_WG_SIZE), 1, 1});
         }
 
-        auto& mm = get_matmul(et, static_cast<int>(M), K, N, src_dt, dst_dt, dnn_engine, fused_ops,
-                              use_f16, run_dq, tgt.asymmetric, requant_group, static_cast<int>(act_group), act_asym);
+        auto& mm = get_matmul(et,
+                              static_cast<int>(M),
+                              K,
+                              N,
+                              src_dt,
+                              dst_dt,
+                              dnn_engine,
+                              fused_ops,
+                              use_f16,
+                              run_dq,
+                              tgt.asymmetric,
+                              requant_group,
+                              static_cast<int>(act_group),
+                              act_asym);
 
         // Select the activation source: INT8 scratch (W4A8) or original FP16 buffer (WOQ/f16).
         auto src_mem_ptr = run_dq ? act_q_scratch : instance.dep_memory_ptr(0);
@@ -2250,16 +2266,16 @@ private:
         };
         if (run_dq) {
             // W4A8: bind activation scale + weight scale + optional weight ZP (asymmetric only).
-            args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0,       act_s_scratch->get_onednn_memory(mm.act_scale_md)});
+            args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC_0, act_s_scratch->get_onednn_memory(mm.act_scale_md)});
             if (act_asym)
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_zp_scratch->get_onednn_memory(mm.act_zp_md)});
-            args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS,     s_scratch->get_onednn_memory(mm.scale_md)});
+            args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, s_scratch->get_onednn_memory(mm.scale_md)});
             if (tgt.asymmetric) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_scratch->get_onednn_memory(mm.zp_md)});
             }
         } else if (!use_f16) {
             // WOQ f16-activation: bind weight scale + optional weight ZP (asymmetric only).
-            args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS,     s_scratch->get_onednn_memory(mm.scale_md)});
+            args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, s_scratch->get_onednn_memory(mm.scale_md)});
             if (tgt.asymmetric) {
                 args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_scratch->get_onednn_memory(mm.zp_md)});
             }
@@ -2318,12 +2334,12 @@ private:
         auto weight = fc_inst ? fc_inst->weights_memory() : instance.dep_memory_ptr(1);
         auto out = instance.output_memory_ptr(0);
 
-        Stage& sg_stage = m_q4k_shuffle   ? *q4k_sg_stage
-                        : m_q5k_shuffle   ? *q5k_sg_stage
-                        : m_q6k_shuffle   ? *q6k_sg_stage
-                        : m_q4_0_shuffle  ? *q4_0_sg_stage
-                        : m_q4_1_shuffle  ? *q4_1_sg_stage
-                                          : *q8_0_sg_stage;
+        Stage& sg_stage = m_q4k_shuffle    ? *q4k_sg_stage
+                          : m_q5k_shuffle  ? *q5k_sg_stage
+                          : m_q6k_shuffle  ? *q6k_sg_stage
+                          : m_q4_0_shuffle ? *q4_0_sg_stage
+                          : m_q4_1_shuffle ? *q4_1_sg_stage
+                                           : *q8_0_sg_stage;
         const bool needs_shape_info = is_dynamic();
         return execute_stage(events,
                              instance,
