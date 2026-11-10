@@ -210,7 +210,7 @@ void InferWithHostCompileTests::setInputInferAndCompare(const std::shared_ptr<ov
 
 bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, const std::string& expectedEntry) {
     const auto logs = logCapture.str();
-    if (logs.find("execute_vm_runtime_v2 - started") != std::string::npos) {
+    if (logs.find("execute_vm_runtime - started") != std::string::npos) {
         // VM runtime v2 manages command lists internally, so plugin-side legacy command list logs are not required
         return true;
     }
@@ -594,7 +594,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     };
     const auto countVMExecutions = [&countMarker](const std::string& log) {
         return countMarker(log, "Start to execute graph with runtime engine") +
-               countMarker(log, "execute_vm_runtime_v2 - started");
+               countMarker(log, "execute_vm_runtime - started");
     };
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 
@@ -618,8 +618,8 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
 
 // ── V2: NPU_SHARED_COMMON_QUEUE=YES and =NO baseline ─────────────────────────
 //
-// shared=YES → DynamicPipeline::DynamicPipeline() calls ensureV2(..., queue->handle(), ...)
-// shared=NO  → ensureV2(..., nullptr, ...)  (vm_runtime owns the internal queue)
+// shared=YES → DynamicPipeline::DynamicPipeline() calls ensure(..., queue->handle(), ...)
+// shared=NO  → ensure(..., nullptr, ...)  (vm_runtime owns the internal queue)
 // Verifies first-infer, reuse (same ptr), new-ptr, and shape-change for both modes.
 TEST_P(InferWithHostCompileTests, SharedCommonQueue_BasicInferAndReuse) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -931,7 +931,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_CombinedPriorityAndWorkload) {
 //     → command_queue_desc.key() != _command_queue->desc().key()   (changed)
 //     → [shared=YES] _command_queue = ZeroCmdQueuePool::getCommandQueue(new_desc)
 //     → update_runtime_config(prev_desc, curr_desc) → QUEUE_PRIORITY diff → pConfig
-//     → execute_vm_runtime_v2(..., pConfig) → npuVMRuntimeExecute2 with pConfig
+//     → execute_vm_runtime(..., pConfig) → npuVMRuntimeExecute2 with pConfig
 //
 // Transitions: LOW → HIGH → MEDIUM → LOW; also verifies a new InferRequest created
 // after set_property picks up the updated CommandQueueDesc.
@@ -1414,7 +1414,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSha
 //  - different shape
 // Validates output correctness for all cases (this test does not assert on specific log messages).
 // The test is skipped when the v2 code path is not active (i.e., when
-// "execute_vm_runtime_v2 - started" is absent from the first-inference logs).
+// "execute_vm_runtime - started" is absent from the first-inference logs).
 TEST_P(InferWithHostCompileTests, MemRefReuse_SamePtrSameShape) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {

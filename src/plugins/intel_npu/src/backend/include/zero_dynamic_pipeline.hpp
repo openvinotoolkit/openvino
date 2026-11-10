@@ -23,12 +23,12 @@ struct VMExecutionContext {
     VMExecutionContext& operator=(VMExecutionContext&&) = delete;
     ~VMExecutionContext();
 
-    npu_vm_runtime_execution_context_handle_t ensureV2(npu_vm_runtime_handle_t vmRuntime,
-                                                       ze_context_handle_t ctx,
-                                                       ze_device_handle_t device,
-                                                       ze_command_queue_handle_t commandQueue,
-                                                       ze_graph_dditable_ext_t* graphDdiTableExt,
-                                                       ze_command_queue_npu_dditable_ext_t* queueDdiTableExt);
+    npu_vm_runtime_execution_context_handle_t ensure(npu_vm_runtime_handle_t vmRuntime,
+                                                     ze_context_handle_t ctx,
+                                                     ze_device_handle_t device,
+                                                     ze_command_queue_handle_t commandQueue,
+                                                     ze_graph_dditable_ext_t* graphDdiTableExt,
+                                                     ze_command_queue_npu_dditable_ext_t* queueDdiTableExt);
     npu_vm_runtime_execution_context_handle_t handle() const {
         return _handle;
     }
@@ -145,10 +145,10 @@ public:
                                                  const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
 private:
-    void execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
-                               DynamicArguments& args,
-                               ze_command_queue_handle_t commandQueue,
-                               const npu_vm_runtime_config_desc_t* pConfig);
+    void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
+                            DynamicArguments& args,
+                            ze_command_queue_handle_t commandQueue,
+                            const npu_vm_runtime_config_desc_t* pConfig);
     const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& previousCommandQueueDesc,
                                                               const CommandQueueDesc& currentCommandQueueDesc);
 

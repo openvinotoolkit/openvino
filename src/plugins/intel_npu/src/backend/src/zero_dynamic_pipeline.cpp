@@ -50,8 +50,8 @@ struct MemRefTypeImpl {
         }
     }
 
-    bool UpdateMemRefHandleStatus(MemRefType& memref, bool useV2Api = false) {
-        // Update current MemRef handle to use latest metadata
+    bool UpdateMemRefHandleStatus(MemRefType& memref) {
+        // Update current MemRef handle to use latest metadata.
         bool newMemRefHandleCreated = false;
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
@@ -60,9 +60,9 @@ struct MemRefTypeImpl {
         // Determine the dirty flag based on whether a new MemRef handle was created or existing metadata was modified.
         const uint32_t dirtyFlag = newMemRefHandleCreated ? MemRefType::ALL_DIRTY : memref.getDirtyFlag();
         if (dirtyFlag != 0) {
-            // V2 runtime accepts nullptr for metadata fields that were not changed.
-            const auto sizes = useV2Api && !(dirtyFlag & MemRefType::SHAPE_DIRTY) ? nullptr : memref._sizes.data();
-            const auto strides = useV2Api && !(dirtyFlag & MemRefType::STRIDE_DIRTY) ? nullptr : memref._strides.data();
+            // The v2 runtime accepts nullptr for unchanged metadata entries.
+            const auto sizes = !(dirtyFlag & MemRefType::SHAPE_DIRTY) ? nullptr : memref._sizes.data();
+            const auto strides = !(dirtyFlag & MemRefType::STRIDE_DIRTY) ? nullptr : memref._strides.data();
             auto result = npuVMRuntimeSetMemRef(_memRef,
                                                 memref._basePtr,
                                                 memref._data,
@@ -102,7 +102,7 @@ VMExecutionContext::~VMExecutionContext() {
     }
 }
 
-npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(
+npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(
     npu_vm_runtime_handle_t vmRuntime,
     ze_context_handle_t ctx,
     ze_device_handle_t device,
@@ -167,12 +167,12 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("DynamicPipeline: using v2.0 VM runtime API");
     const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
     const auto commandQueueDesc = _graph->get_command_queue_desc();
-    _executionContext.ensureV2(vmRuntime,
-                               init_structs->getContext(),
-                               init_structs->getDevice(),
-                               commandQueueDesc.sharedCommonQueue() ? _command_queue->handle() : nullptr,
-                               _init_structs->getGraphDdiTable().getImpl(),
-                               _init_structs->getCommandQueueDdiTable().getImpl());
+    _executionContext.ensure(vmRuntime,
+                             init_structs->getContext(),
+                             init_structs->getDevice(),
+                             commandQueueDesc.sharedCommonQueue() ? _command_queue->handle() : nullptr,
+                             _init_structs->getGraphDdiTable().getImpl(),
+                             _init_structs->getCommandQueueDdiTable().getImpl());
     if (commandQueueDesc.sharedCommonQueue()) {
         _vm_referenced_command_queues.push_back(_command_queue);
     }
@@ -260,7 +260,7 @@ void DynamicPipeline::push() {
 
     // Keep the v2 execute parameters in DynamicArguments because HostSync uses
     // the same parameter structure after push() returns.
-    execute_vm_runtime_v2(vmRuntime, dynamicArguments, commandQueueHandle, runtimeConfig);
+    execute_vm_runtime(vmRuntime, dynamicArguments, commandQueueHandle, runtimeConfig);
     _runtime_config_command_queue_desc = commandQueueDesc;
     _runtime_config_command_queue_desc_valid = true;
 
@@ -287,11 +287,11 @@ const npu_vm_runtime_config_desc_t* DynamicPipeline::update_runtime_config(
     return _runtimeConfigChain.head();
 }
 
-void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
-                                            DynamicArguments& args,
-                                            ze_command_queue_handle_t commandQueue,
-                                            const npu_vm_runtime_config_desc_t* pConfig) {
-    _logger.debug("execute_vm_runtime_v2 - started");
+void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
+                                         DynamicArguments& args,
+                                         ze_command_queue_handle_t commandQueue,
+                                         const npu_vm_runtime_config_desc_t* pConfig) {
+    _logger.debug("execute_vm_runtime - started");
 
     // Keep these arrays in DynamicArguments: the v2 execute parameters are reused
     // by HostSync after this function returns, so their pInputs/pOutputs pointers
@@ -305,7 +305,7 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-            impl->UpdateMemRefHandleStatus(memref, true);
+            impl->UpdateMemRefHandleStatus(memref);
             targetHandles.push_back(impl->_memRef);
         }
     };
@@ -322,7 +322,7 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
     params.numOfOutputs = static_cast<uint32_t>(args._outputMemRefHandles.size());
     params.executionContext = _executionContext.handle();
 
-    _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
+    _logger.debug("execute_vm_runtime - calling npuVMRuntimeExecute2");
     const auto result = npuVMRuntimeExecute2(vmRuntime, &params);
     if (commandQueue != nullptr) {
         auto& queues = _vm_referenced_command_queues;
@@ -336,7 +336,7 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
                     "Failed to execute VM runtime engine (v2), error code: ",
                     result);
 
-    _logger.debug("execute_vm_runtime_v2 - completed");
+    _logger.debug("execute_vm_runtime - completed");
 }
 
 std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
@@ -393,7 +393,7 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
                 impl = std::make_shared<MemRefTypeImpl>();
                 memref._impl = impl;
             }
-            impl->UpdateMemRefHandleStatus(memref, true);
+            impl->UpdateMemRefHandleStatus(memref);
             destMemRefHandles.push_back(impl->_memRef);
         }
     };
