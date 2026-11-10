@@ -34,6 +34,8 @@ const auto ID_2_PTR = std::make_shared<SectionID>(2);
 const auto ID_3_PTR = std::make_shared<SectionID>(3);
 const auto ID_4_PTR = std::make_shared<SectionID>(4);
 
+const SectionType IO_LAYOUTS_TYPE(SectionTypeCode::IO_LAYOUTS);
+
 const auto NPU_DEVICE_ID = static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu);
 
 class IncompatibleRuntimeRequirementsWriter : public ov::runtime::hsm::ISectionEncoder {
@@ -271,7 +273,11 @@ TEST_P(HSMReadWriteTest, RuntimeRequirementsNotPartOfRegistry) {
     const auto& [registry, runtime_requirements] =
         hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
     ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS));
+
     ASSERT_TRUE(runtime_requirements.has_value());
+    ASSERT_TRUE(runtime_requirements->get_cre() == CRE({BATCH_SIZE_PTR}));
+    ASSERT_TRUE(runtime_requirements->get_sections_requirements().empty());
+    ASSERT_TRUE(runtime_requirements->get_section_id_to_type_mapping().empty());
 }
 
 TEST_P(HSMReadWriteTest, UnsupportedSectionInstanceSkipped) {
@@ -314,8 +320,6 @@ TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
     ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::IO_LAYOUTS));
     ASSERT_TRUE(runtime_requirements.has_value());
 }
-
-// TODO Test that checks a missing instance evaluator evaluates to supported and goes  through the right case branch
 
 TEST_P(HSMReadWriteTest, MixedCases) {
     sections_registry.register_section(
@@ -369,8 +373,26 @@ TEST_P(HSMReadWriteTest, MixedCases) {
     const auto casted_section_4 = std::dynamic_pointer_cast<MockSection>(section);
     ASSERT_TRUE(casted_section_4);
 
+    const CRE cre_reference({IO_LAYOUTS_PTR,
+                             ID_3_PTR,
+                             CRE::AND_PTR,
+                             IO_LAYOUTS_PTR,
+                             ID_4_PTR,
+                             CRE::OR_PTR,
+                             BATCH_SIZE_PTR,
+                             CRE::OR_PTR,
+                             COMPILER_VERSION_PTR,
+                             CRE::AND_PTR,
+                             CRE::OPEN_PTR,
+                             BATCH_SIZE_PTR,
+                             CRE::CLOSE_PTR});
+    const std::map<SectionID, std::string> sections_requirements_reference(
+        {{3, STRING_THAT_EVALUATES_TO_SUPPORTED.data()}, {4, STRING_THAT_EVALUATES_TO_UNKNOWN.data()}});
+    const std::unordered_map<SectionID, SectionType> id_to_type_reference{{3, IO_LAYOUTS_TYPE}, {4, IO_LAYOUTS_TYPE}};
     ASSERT_TRUE(runtime_requirements.has_value());
-    // TODO check values
+    ASSERT_TRUE(runtime_requirements->get_cre() == cre_reference);
+    ASSERT_TRUE(runtime_requirements->get_sections_requirements() == sections_requirements_reference);
+    ASSERT_TRUE(runtime_requirements->get_section_id_to_type_mapping() == id_to_type_reference);
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,

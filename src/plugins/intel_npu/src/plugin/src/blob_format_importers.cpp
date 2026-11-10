@@ -685,8 +685,7 @@ private:
             }
         }
 
-        // TODO should throw here?
-        return std::nullopt;
+        OPENVINO_THROW("No compiler main schedule found");
     }
 
     std::optional<BlobType> extract_blob_type() const override {
