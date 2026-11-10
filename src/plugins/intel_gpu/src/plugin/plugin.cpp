@@ -54,6 +54,13 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
+#if defined(_WIN32) && defined(OV_GPU_WITH_OCL_RT)
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#endif
+
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
@@ -230,6 +237,13 @@ std::mutex singleton_default_contexts_mutex;
 
 void Plugin::ensure_devices() const {
     std::call_once(m_devices_once, [this]() {
+#if defined(_WIN32) && defined(OV_GPU_WITH_OCL_RT)
+        // OpenCL.dll is delay-loaded: without this check a missing DLL raises SEH on the first OpenCL call.
+        if (!LoadLibraryA("OpenCL.dll")) {
+            GPU_DEBUG_INFO << "[GPU] OpenCL.dll not found" << std::endl;
+            return;
+        }
+#endif
         try {
             cldnn::device_query device_query;
             m_device_map = device_query.get_available_devices();

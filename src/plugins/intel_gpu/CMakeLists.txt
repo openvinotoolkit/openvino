@@ -239,6 +239,17 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     ov_set_threading_interface_for(${MODULE_NAME})
     ov_gpu_set_runtime_interface_for(${MODULE_NAME} RUNTIME ${RT_TYPE})
 
+    # Load the OpenCL loader on first use, so the plugin loads (and compiles offline) without it.
+    if(RT_TYPE STREQUAL "OCL")
+        if(WIN32)
+            target_link_options(${MODULE_NAME} PRIVATE "/DELAYLOAD:OpenCL.dll")
+            target_link_libraries(${MODULE_NAME} PRIVATE delayimp)
+        elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            target_sources(${MODULE_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/ocl_loader.cpp)
+            target_link_options(${MODULE_NAME} PRIVATE "LINKER:--as-needed")
+        endif()
+    endif()
+
     set_target_properties(${MODULE_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
     # Workaround to avoid warnings during LTO build
