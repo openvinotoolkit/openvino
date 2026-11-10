@@ -93,7 +93,7 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
     auto &conv3 = prog->get_node("conv3");
     auto &cldnn_post_ops = conv3.get_fused_primitives();
     ASSERT_EQ(cldnn_post_ops.size(), 1);
-    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(conv3, cldnn_post_ops[0]);
+    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(conv3, cldnn_post_ops[0]);
 
     // Check whether fusing_type is properly selected as sum for residual connection pattern
     ASSERT_EQ(fusing_type, add_fusing_type::sum);
@@ -137,7 +137,7 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_sum) {
     auto& fused = fc_node.get_fused_primitives();
     ASSERT_EQ(fused.size(), 1);
 
-    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
+    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
     ASSERT_EQ(fusing_type, add_fusing_type::sum);
 }
 
@@ -177,7 +177,7 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
     auto& fused = fc_node.get_fused_primitives();
     ASSERT_EQ(fused.size(), 1);
 
-    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
+    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
     ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
 }
 
@@ -215,7 +215,20 @@ static add_fusing_type residual_chain_fusing_type(cldnn::engine& engine, size_t 
     // conv1 feeds both conv2 and the fused eltwise, which is what puts get_add_fusing_type on the
     // is_direct_ancestor path rather than the single-user shortcut.
     EXPECT_EQ(prog->get_node("conv1").get_users().size(), 2u);
-    return onednn_add_fusing_helpers::get_add_fusing_type(last_node, cldnn_post_ops[0]);
+    return onednn_eltwise_fusing_helpers::get_add_fusing_type(last_node, cldnn_post_ops[0]);
+}
+
+// The degenerate end of the same construction. A chain of two puts conv1 one hop up, which makes
+// it conv2's own input, and is_direct_ancestor tests for equality before the first hop so it
+// answers yes here too. An in-place sum would then leave the convolution reading and writing one
+// buffer, so the addend has to arrive as a binary post-op instead.
+TEST(add_onednn_optimization_attributes, sum_post_op_refused_for_own_input) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn sum post-ops are only selected on a device with immad";
+
+    ASSERT_EQ(residual_chain_fusing_type(engine, 2), add_fusing_type::binary_per_tensor);
 }
 
 // An attention residual reaches six hops back -- projection, reshape, attention, reshape, QKV

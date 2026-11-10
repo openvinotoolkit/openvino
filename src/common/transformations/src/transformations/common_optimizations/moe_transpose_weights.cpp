@@ -25,6 +25,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
@@ -76,7 +77,7 @@ ov::pass::VectorizedMOE2GEMMTransposeWeights::VectorizedMOE2GEMMTransposeWeights
     auto reduce_sum = wrap_type<v1::ReduceSum>({mul3, any_input()}, {{"keep_dims", false}});
     auto moe_pattern = reduce_sum;
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         auto& pm = m.get_pattern_value_map();
         if (transformation_callback(m.get_match_root())) {
             return false;

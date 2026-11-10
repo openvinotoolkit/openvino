@@ -8,10 +8,12 @@
 #include <pybind11/stl/filesystem.h>
 
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 #include "Python.h"
@@ -20,6 +22,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -297,9 +300,52 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::frontend::type::PyScalar>());
     } else if (any.is<ov::Tensor>()) {
         return py::cast(any.as<ov::Tensor>());
+    } else if (any.is<void*>()) {
+        return py::int_(reinterpret_cast<uintptr_t>(any.as<void*>()));
     } else {
         PyErr_SetString(PyExc_TypeError, "Failed to convert parameter to Python representation!");
         return py::cast<py::object>((PyObject*)NULL);
+    }
+}
+
+template <typename T, ov::PropertyMutability mutability>
+static bool is_pointer(const ov::Property<T, mutability>& property, const std::string& name) {
+    return std::is_same_v<T, void*> && name == property.name();
+}
+
+// ov::intel_gpu::os_handle and ov::intel_gpu::dev_object_handle are void* only on Windows.
+static bool is_pointer_property(const std::string& name) {
+    return is_pointer(ov::intel_gpu::ocl_context, name) || is_pointer(ov::intel_gpu::ocl_queue, name) ||
+           is_pointer(ov::intel_gpu::va_device, name) || is_pointer(ov::intel_gpu::mem_handle, name) ||
+           is_pointer(ov::intel_gpu::cpu_va, name) || is_pointer(ov::intel_gpu::os_handle, name) ||
+           is_pointer(ov::intel_gpu::dev_object_handle, name);
+}
+
+static void* to_pointer(const std::string& name, py::object value) {
+    constexpr auto expected_types = " property should be an int address, ctypes.c_void_p or None";
+    if (py::isinstance<ov::Any>(value)) {
+        value = from_ov_any(value.cast<const ov::Any&>());
+        if (!value) {
+            PyErr_Clear();
+            OPENVINO_THROW("The value of ", name, expected_types);
+        }
+    }
+    if (py::isinstance(value, py::module_::import("ctypes").attr("c_void_p"))) {
+        value = value.attr("value");
+    }
+    if (value.is_none()) {
+        return nullptr;
+    }
+    OPENVINO_ASSERT(!py::isinstance<py::bool_>(value), "The value of ", name, expected_types);
+    const auto index = py::reinterpret_steal<py::object>(PyNumber_Index(value.ptr()));
+    if (!index) {
+        PyErr_Clear();
+        OPENVINO_THROW("The value of ", name, expected_types);
+    }
+    try {
+        return reinterpret_cast<void*>(index.cast<uintptr_t>());
+    } catch (const py::cast_error&) {
+        OPENVINO_THROW("The value of ", name, " property should be an int address in range [0, ", UINTPTR_MAX, "]");
     }
 }
 
@@ -370,6 +416,8 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
         } else if (property.first == ov::intel_auto::perf_curve_table.name() &&
                    py::isinstance<py::dict>(property.second)) {
             properties_to_cpp[property.first] = property.second.cast<ov::intel_auto::PerfCurveTable>();
+        } else if (is_pointer_property(property.first)) {
+            properties_to_cpp[property.first] = to_pointer(property.first, property.second);
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }

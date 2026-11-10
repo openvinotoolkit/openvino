@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <limits>
 #include <regex>
 
 #include "infer_request_utils.hpp"
@@ -63,6 +65,253 @@ void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITe
         const size_t dst_offset = i * OS_H;
         std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
     }
+}
+
+template <typename T>
+void fill_fully_masked(const ov::SoPtr<ov::ITensor>& tensor) {
+    // The lowest finite f16 value, to mitigate risk of having -inf for f16 and bf16 CPU sub-models,
+    // and then a fully masked padding row of -inf giving NaN in Softmax.
+    // Still masks fully for f32.
+    const auto value = static_cast<T>(std::numeric_limits<ov::float16>::lowest());
+    std::fill_n(tensor->data<T>(), tensor->get_size(), value);
+}
+
+void fill_additive_attention_mask(const ov::SoPtr<ov::ITensor>& tensor) {
+    switch (tensor->get_element_type()) {
+    case ov::element::f32:
+        fill_fully_masked<float>(tensor);
+        break;
+    case ov::element::f16:
+        fill_fully_masked<ov::float16>(tensor);
+        break;
+    case ov::element::bf16:
+        fill_fully_masked<ov::bfloat16>(tensor);
+        break;
+    default:
+        OPENVINO_THROW("Unsupported additive attention_mask element type: ", tensor->get_element_type());
+    }
+}
+
+void copy_additive_attention_block(const ov::SoPtr<ov::ITensor>& src,
+                                   const ov::SoPtr<ov::ITensor>& dst,
+                                   size_t src_q_offset,
+                                   size_t src_k_offset,
+                                   size_t dst_q_offset,
+                                   size_t dst_k_offset,
+                                   size_t rows,
+                                   size_t cols) {
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = dst->get_shape();
+    OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u,
+                    "Additive attention_mask tensors must be rank 4.");
+    OPENVINO_ASSERT(src_shape[0] == dst_shape[0],
+                    "Additive attention_mask batch dimension must match the destination: got ",
+                    src_shape[0],
+                    ", expected ",
+                    dst_shape[0],
+                    ".");
+    OPENVINO_ASSERT(src_shape[1] == dst_shape[1],
+                    "Additive attention_mask head dimension must match the destination: got ",
+                    src_shape[1],
+                    ", expected ",
+                    dst_shape[1],
+                    ".");
+
+    OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
+                    "Additive attention_mask element types must match the destination: got ",
+                    src->get_element_type(),
+                    ", expected ",
+                    dst->get_element_type(),
+                    ".");
+    OPENVINO_ASSERT(src_q_offset + rows <= src_shape[2] && src_k_offset + cols <= src_shape[3],
+                    "Additive attention_mask block of ",
+                    rows,
+                    " rows and ",
+                    cols,
+                    " columns at offset [",
+                    src_q_offset,
+                    ", ",
+                    src_k_offset,
+                    "] does not fit the source shape ",
+                    src_shape,
+                    ".");
+    OPENVINO_ASSERT(dst_q_offset + rows <= dst_shape[2] && dst_k_offset + cols <= dst_shape[3],
+                    "Additive attention_mask block of ",
+                    rows,
+                    " rows and ",
+                    cols,
+                    " columns at offset [",
+                    dst_q_offset,
+                    ", ",
+                    dst_k_offset,
+                    "] does not fit the destination shape ",
+                    dst_shape,
+                    ".");
+
+    const size_t elem_size = src->get_element_type().size();
+    const auto& src_strides = src->get_strides();
+    const auto& dst_strides = dst->get_strides();
+    // Ensure a block row is one contiguous run, so each row is a single memcpy
+    OPENVINO_ASSERT(src_strides[3] == elem_size && dst_strides[3] == elem_size,
+                    "Additive attention_mask rows must be contiguous.");
+
+    const size_t src_offset = src_q_offset * src_strides[2] + src_k_offset * elem_size;
+    const size_t dst_offset = dst_q_offset * dst_strides[2] + dst_k_offset * elem_size;
+    const auto* src_data = static_cast<const uint8_t*>(src->data()) + src_offset;
+    auto* dst_data = static_cast<uint8_t*>(dst->data()) + dst_offset;
+    for (size_t b = 0; b < src_shape[0]; ++b) {
+        for (size_t h = 0; h < src_shape[1]; ++h) {
+            const auto* src_block = src_data + b * src_strides[0] + h * src_strides[1];
+            auto* dst_block = dst_data + b * dst_strides[0] + h * dst_strides[1];
+            for (size_t r = 0; r < rows; ++r) {
+                std::memcpy(dst_block + r * dst_strides[2], src_block + r * src_strides[2], cols * elem_size);
+            }
+        }
+    }
+}
+
+void stage_additive_attention_mask_for_prefill(const ov::SoPtr<ov::ITensor>& src,
+                                               const ov::SoPtr<ov::ITensor>& dst,
+                                               size_t prompt_len) {
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = dst->get_shape();
+    OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u,
+                    "Additive attention_mask tensors must be rank 4.");
+    const size_t query_len = src_shape[2];
+    const size_t key_len = src_shape[3];
+    // Only a full [prompt, prompt] mask is staged. A broadcast or shifted mask would leave some of the
+    // prompt query rows fully masked.
+    OPENVINO_ASSERT(query_len == prompt_len && key_len == prompt_len,
+                    "Additive prefill attention_mask must cover exactly the prompt: expected Q=K=",
+                    prompt_len,
+                    ", got Q=",
+                    query_len,
+                    ", K=",
+                    key_len,
+                    ".");
+    OPENVINO_ASSERT(query_len <= dst_shape[2] && key_len <= dst_shape[3],
+                    "Additive prefill attention_mask shape ",
+                    src_shape,
+                    " does not fit static destination shape ",
+                    dst_shape,
+                    ".");
+
+    fill_additive_attention_mask(dst);
+    copy_additive_attention_block(src, dst, 0, 0, dst_shape[2] - query_len, dst_shape[3] - key_len, query_len, key_len);
+}
+
+// Stages the additive attention mask of shape [1, 1, current, past + current] into the generate request.
+void stage_additive_attention_mask_for_generate(const ov::SoPtr<ov::ITensor>& attention_mask,
+                                                const ov::SoPtr<ov::ITensor>& kv_attn_mask,
+                                                size_t past_len,
+                                                size_t input_tokens_len,
+                                                size_t max_generation_token_len) {
+    const auto& attention_mask_shape = attention_mask->get_shape();
+    const auto& kv_attn_mask_shape = kv_attn_mask->get_shape();
+    OPENVINO_ASSERT(attention_mask_shape.size() == 4u && kv_attn_mask_shape.size() == 4u,
+                    "Additive attention_mask tensors must be rank 4.");
+    OPENVINO_ASSERT(attention_mask_shape[2] == input_tokens_len,
+                    "Additive generate attention_mask query dimension must match input length. Got Q=",
+                    attention_mask_shape[2],
+                    ", input length=",
+                    input_tokens_len,
+                    ".");
+    // Past length comes from the tracked KV-cache; the caller mask has to be consistent with it.
+    OPENVINO_ASSERT(attention_mask_shape[3] == past_len + input_tokens_len,
+                    "Additive generate attention_mask key dimension must be the stored past plus the current "
+                    "tokens: expected ",
+                    past_len + input_tokens_len,
+                    ", got ",
+                    attention_mask_shape[3],
+                    ".");
+    OPENVINO_ASSERT(kv_attn_mask_shape[3] >= max_generation_token_len,
+                    "Generate attention mask is smaller than the configured generation window.");
+    const size_t dest_past_capacity = kv_attn_mask_shape[3] - max_generation_token_len;
+    OPENVINO_ASSERT(past_len <= dest_past_capacity,
+                    "Selected generate variant cannot hold the stored attention context: ",
+                    past_len,
+                    " past tokens exceed capacity ",
+                    dest_past_capacity,
+                    ".");
+
+    const size_t query_len = attention_mask_shape[2];
+    OPENVINO_ASSERT(query_len <= kv_attn_mask_shape[2] && past_len + query_len <= kv_attn_mask_shape[3],
+                    "Additive generate attention_mask shape ",
+                    attention_mask_shape,
+                    " does not fit static destination shape ",
+                    kv_attn_mask_shape,
+                    ".");
+
+    fill_additive_attention_mask(kv_attn_mask);
+    const size_t dest_query_offset = kv_attn_mask_shape[2] - query_len;
+    if (past_len > 0) {
+        copy_additive_attention_block(attention_mask, kv_attn_mask, 0, 0, dest_query_offset, 0, query_len, past_len);
+    }
+    copy_additive_attention_block(attention_mask,
+                                  kv_attn_mask,
+                                  0,
+                                  past_len,
+                                  dest_query_offset,
+                                  kv_attn_mask_shape[3] - query_len,
+                                  query_len,
+                                  query_len);
+}
+
+// Stages the binary (0/1, int64) attention mask of shape [1, >= past + current] into the generate request.
+// NB: Past length comes from the tracked KV-cache, not the caller mask size: the caller mask
+//     may be a static max-length buffer (e.g. WebNN) rather than past_len + input_tokens_len.
+void stage_binary_attention_mask_for_generate(const ov::SoPtr<ov::ITensor>& attention_mask,
+                                              const ov::SoPtr<ov::ITensor>& kv_attn_mask,
+                                              size_t past_len,
+                                              size_t input_tokens_len,
+                                              size_t max_generation_token_len) {
+    OPENVINO_ASSERT(kv_attn_mask->get_size() >= max_generation_token_len,
+                    "Generate attention mask is smaller than the configured generation window.");
+    const size_t dest_past_capacity = kv_attn_mask->get_size() - max_generation_token_len;
+    OPENVINO_ASSERT(past_len <= dest_past_capacity,
+                    "Selected generate variant cannot hold the stored attention context: ",
+                    past_len,
+                    " past tokens exceed capacity ",
+                    dest_past_capacity,
+                    ".");
+    OPENVINO_ASSERT(attention_mask->get_size() >= past_len,
+                    "Attention mask does not cover the stored past: expected at least ",
+                    past_len,
+                    " entries, got ",
+                    attention_mask->get_size(),
+                    ".");
+    const size_t used_mask_len = past_len + input_tokens_len;
+    if (attention_mask->get_size() > used_mask_len) {
+        // Static max-length caller mask (e.g. WebNN): layout is [past][current][padding],
+        // so the ignored tail must not carry any valid context.
+        const auto* mask_data = attention_mask->data<int64_t>();
+        const auto tail_begin = mask_data + used_mask_len;
+        const auto tail_end = mask_data + attention_mask->get_size();
+        const auto valid_it = std::find_if(tail_begin, tail_end, [](int64_t v) {
+            return v != 0;
+        });
+        OPENVINO_ASSERT(valid_it == tail_end,
+                        "Static attention mask has a valid entry at position ",
+                        static_cast<size_t>(valid_it - mask_data),
+                        " beyond the tracked context of ",
+                        used_mask_len,
+                        " tokens (",
+                        past_len,
+                        " past + ",
+                        input_tokens_len,
+                        " current); truncating it would drop context.");
+    }
+    std::copy_n(attention_mask->data<int64_t>(), past_len, kv_attn_mask->data<int64_t>());
+    // Clear stale entries left by a larger past (e.g. after speculative-decoding trim).
+    if (past_len < dest_past_capacity) {
+        std::fill_n(kv_attn_mask->data<int64_t>() + past_len, dest_past_capacity - past_len, 0);
+    }
+    if (input_tokens_len < max_generation_token_len) {
+        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - max_generation_token_len,
+                    max_generation_token_len - input_tokens_len,
+                    0);
+    }
+    std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 }
 
 void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
@@ -359,6 +608,16 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         }
     }
 
+    // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
+    //       Mamba inherently preserves information about the order of tokens.
+    if (m_prefill_in_ports.find(layer_names::position_ids) == m_prefill_in_ports.end()) {
+        m_position_ids_present = false;
+        for (const auto& variant : m_generate_variant_in_ports) {
+            OPENVINO_ASSERT(variant.second.find(layer_names::position_ids) == variant.second.end(),
+                            "Generate model variant unexpectedly has position_ids port while prefill hasn't!");
+        }
+    }
+
     init_past_name_lists();
 
     m_swa_cache = std::make_unique<SwaKVCacheHelper>(*this, m_npuw_llm_compiled_model->m_swa_window_size);
@@ -415,6 +674,19 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                                      m_lm_head_request->get_tensor(lm_head_embed_port));
         }
     }
+
+    if (compiled_model->m_use_chunk_prefill) {
+        m_prefill_other_outs_seqdims = compiled_model->m_prefill_other_outs_seqdims;
+        for (auto&& [out_port, out_dim] : m_prefill_other_outs_seqdims) {
+            const auto& chunked_shape = out_port.get_partial_shape();
+            auto full_max_len_shape = chunked_shape;
+            full_max_len_shape[out_dim] = m_npuw_llm_compiled_model->m_kvcache_desc.max_prompt_size;
+            m_prefill_other_outs_accum.emplace(
+                out_port,
+                ov::get_tensor_impl(ov::Tensor(out_port.get_element_type(), full_max_len_shape.get_shape())));
+        }
+    }
+
     // FIXME: E-177589
     // FIXME: "fixes"/workarounds caching import on CPU (also might be related to bf16 weights).
     // Unclear how it's related. Previously fill_tensor()
@@ -690,8 +962,16 @@ void ov::npuw::LLMInferRequest::zero_prefill_staging() {
         type_ids_port != m_prefill_in_ports.end()) {
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
     }
-    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
-    uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+    auto prefill_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+    if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
+        fill_additive_attention_mask(prefill_attention_mask);
+    } else {
+        uu::fill_tensor<int64_t>(prefill_attention_mask, 0);
+    }
+
+    if (m_position_ids_present) {
+        uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+    }
 
     // Gemma4: Clear per_layer_inputs if present
     if (auto per_layer_port = m_prefill_in_ports.find(layer_names::per_layer_inputs);
@@ -978,8 +1258,8 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
     }
     auto dirty_num = kvcache_desc.num_stored_tokens - position_id_u32;
     if (dirty_num > 0) {
-        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length"
-                                        << " to " << position_id_u32 << " length");
+        LOG_DEBUG("Trim kv cache from " << kvcache_desc.num_stored_tokens << " length" << " to " << position_id_u32
+                                        << " length");
     }
     kvcache_desc.num_stored_tokens -= dirty_num;
 }
@@ -997,6 +1277,58 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
         // After KV cache compression, past KV inputs may be i8 precision, and
         // fill_tensor<ov::float16> would fail with a type mismatch error.
         ov::npuw::util::fill_tensor_bytes(chunk_prefill_kvcache_in_tensor, 0u);
+    }
+}
+
+void LLMInferRequest::accumulate_other_chunked_outputs(uint32_t start_offset,
+                                                       uint32_t chunk_token_count,
+                                                       uint32_t processed_token_count,
+                                                       uint32_t max_seq_len) {
+    LOG_INFO("Accumulating other chunked outputs into full ones, chunk_token_count:"
+             << chunk_token_count << ", processed_token_count:" << processed_token_count
+             << ", max_seq_len:" << max_seq_len);
+    OPENVINO_ASSERT(
+        chunk_token_count + processed_token_count <= max_seq_len,
+        "Sanity check for input parameters: chunk_token_count + processed_token_count must be <= max_seq_len");
+
+    for (auto&& [port, dim] : m_prefill_other_outs_seqdims) {
+        LOG_BLOCK();
+        LOG_VERB("Processing chunked output tensor at index " << port << " with sequence dimension " << dim);
+        auto chunk_tensor = m_prefill_request->get_tensor(port);
+        const auto& chunk_shape = chunk_tensor->get_shape();
+
+        auto full_tensor = m_prefill_other_outs_accum[port];
+        const auto& full_shape = full_tensor->get_shape();
+        LOG_VERB("Its full counterpart has shape: " << full_shape);
+
+        OPENVINO_ASSERT(chunk_shape[dim] <= full_shape[dim],
+                        "Sequence length of chunk tensor must be <= sequence length of full tensor.");
+
+        // The chunk_tensor is right-aligned with padding on the left.
+        const uint32_t chunk_seq_len = static_cast<uint32_t>(chunk_shape[dim]);
+        const uint32_t chunk_start_offset = chunk_seq_len - chunk_token_count;
+        auto chunk_tensor_slice =
+            util::make_tensor_slice(chunk_tensor, static_cast<uint32_t>(dim), chunk_start_offset, chunk_seq_len);
+
+        // Accumulating the full tensor preserving the left padding.
+        // Starting with the offset that is the max_seq_len - real input_prompt_len,
+        // accumulation is performed from the left to right.
+        const uint32_t full_seq_len = static_cast<uint32_t>(full_shape[dim]);
+        OPENVINO_ASSERT(full_seq_len == max_seq_len,
+                        "Pre-allocated tensor size (" + std::to_string(full_seq_len) +
+                            ") must match max sequence length (" + std::to_string(max_seq_len) + ")");
+        const auto full_tensor_slice_begin = start_offset + processed_token_count;
+        const auto full_tensor_slice_end = full_tensor_slice_begin + chunk_token_count;
+        auto full_tensor_slice = util::make_tensor_slice(full_tensor,
+                                                         static_cast<uint32_t>(dim),
+                                                         full_tensor_slice_begin,
+                                                         full_tensor_slice_end);
+
+        chunk_tensor_slice->copy_to(full_tensor_slice._ptr);
+
+        LOG_VERB("Copied chunk [" << chunk_start_offset << ":" << chunk_seq_len << "] to position ["
+                                  << full_tensor_slice_begin << ":" << full_tensor_slice_end << "], "
+                                  << chunk_token_count << " tokens");
     }
 }
 
@@ -1030,7 +1362,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     }
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
-    auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+    ov::SoPtr<ov::ITensor> pos_ids_in_tensor;
+    if (m_position_ids_present) {
+        pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+    }
 
     const auto token_type_ids_it = m_prefill_in_ports.find(layer_names::token_type_ids);
     const bool has_token_type_ids = token_type_ids_it != m_prefill_in_ports.end();
@@ -1054,15 +1389,22 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         remaining_prompts = cache_context.remaining_prompts;
     }
 
-    if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.reset_chunked_prefill_state();
-    }
-
     // DeepStack rows are consumed in visual-token order across chunks; track how many have
     // already been scattered so each chunk continues where the previous one left off.
     size_t visual_tokens_scattered =
         has_deepstack ? count_visual_tokens_before(visual_pos_masks, kvcache_desc.num_stored_tokens) : 0u;
 
+    const uint32_t start_offset = kvcache_desc.max_prompt_size - static_cast<uint32_t>(remaining_prompts);
+    const uint32_t other_outs_accum_base = kvcache_desc.num_stored_tokens;
+    if (other_outs_accum_base == 0 && start_offset > 0) {
+        // Fresh prefill: zero the unwritten left-padding rows so stale data from a
+        // previous, longer prompt isn't exposed.
+        for (auto&& [port, dim] : m_prefill_other_outs_seqdims) {
+            auto pad_slice =
+                util::make_tensor_slice(m_prefill_other_outs_accum[port], static_cast<uint32_t>(dim), 0, start_offset);
+            util::fill_tensor_bytes(pad_slice, 0u);
+        }
+    }
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -1108,28 +1450,30 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                         reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
                             current_prefill_bytes);
 
-            // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D position_ids
-            // [3, BATCH, SEQ_LEN]
-            // Copy postion ids with considering the 3D position_ids
-            // The caller tensor is delta-relative during a continued prefill.
-            auto last_dim = position_ids->get_shape().size() - 1;
-            const uint32_t pos_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
-            auto actual_position_ids_slice =
-                ov::npuw::util::make_tensor_slice(position_ids,
-                                                  static_cast<uint32_t>(last_dim),
-                                                  pos_src_offset,
-                                                  pos_src_offset + static_cast<uint32_t>(current_prompts_len));
+            if (m_position_ids_present) {
+                // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D
+                // position_ids [3, BATCH, SEQ_LEN] Copy postion ids with considering the 3D position_ids The caller
+                // tensor is delta-relative during a continued prefill.
+                auto last_dim = position_ids->get_shape().size() - 1;
+                const uint32_t pos_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
+                auto actual_position_ids_slice =
+                    ov::npuw::util::make_tensor_slice(position_ids,
+                                                      static_cast<uint32_t>(last_dim),
+                                                      pos_src_offset,
+                                                      pos_src_offset + static_cast<uint32_t>(current_prompts_len));
 
-            auto pos_ids_slice =
-                ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
-                                                  static_cast<uint32_t>(last_dim),
-                                                  static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
-                                                  static_cast<uint32_t>(chunk_prompt_len));
+                auto pos_ids_slice =
+                    ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
+                                                      static_cast<uint32_t>(last_dim),
+                                                      static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
+                                                      static_cast<uint32_t>(chunk_prompt_len));
 
-            // Copy with proper stride handling
-            NPUW_ASSERT(pos_ids_slice._ptr &&
-                        "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
-            actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
+                // Copy with proper stride handling
+                NPUW_ASSERT(
+                    pos_ids_slice._ptr &&
+                    "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
+                actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
+            }
 
             // DeepStack (Qwen3-VL): scatter only the visual tokens that fall into the current
             // chunk. The chunk's visual_pos_masks slice gives their chunk-local positions, and
@@ -1204,13 +1548,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         });
 
         m_llm_profile["1/prefill:3c.post_chunk"].record([&]() {
-            // Accumulate Eagle3 last_hidden_state from this chunk
-            if (m_eagle3_ext.is_eagle3_model()) {
-                m_eagle3_ext.accumulate_chunk_last_hidden_state(m_prefill_request,
-                                                                m_prefill_out_ports,
-                                                                static_cast<uint32_t>(current_prompts_len),
-                                                                static_cast<uint32_t>(input_prompt_len));
-            }
+            accumulate_other_chunked_outputs(start_offset,
+                                             static_cast<uint32_t>(current_prompts_len),
+                                             kvcache_desc.num_stored_tokens - other_outs_accum_base,
+                                             static_cast<uint32_t>(kvcache_desc.max_prompt_size));
 
             if (enable_prefix_caching) {
                 prefix_caching_helper->store_computed_blocks(current_prompts_len,
@@ -1272,10 +1613,16 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
                         input_ids->get_byte_size());
 
         auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
-        std::copy_n(
-            attention_mask->data<int64_t>(),
-            attention_mask->get_size(),
-            padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() - attention_mask->get_size());
+        if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
+            stage_additive_attention_mask_for_prefill(attention_mask,
+                                                      padded_attention_mask,
+                                                      input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
+        } else {
+            std::copy_n(attention_mask->data<int64_t>(),
+                        attention_mask->get_size(),
+                        padded_attention_mask->data<int64_t>() + padded_attention_mask->get_size() -
+                            attention_mask->get_size());
+        }
 
         if (token_type_ids) {
             auto padded_token_type_ids =
@@ -1285,8 +1632,10 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
             util::copy_to_right(token_type_ids, padded_token_type_ids);
         }
 
-        auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
-        ov::npuw::util::pad_position_ids(padded_position_ids, position_ids);
+        if (m_position_ids_present) {
+            auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+            ov::npuw::util::pad_position_ids(padded_position_ids, position_ids);
+        }
 
         if (const auto deepstack_it = m_prefill_in_ports.find(layer_names::deepstack_visual_embeds);
             deepstack_it != m_prefill_in_ports.end()) {
@@ -1420,10 +1769,16 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
         }
 
-        // Update last_hidden_state only for non-chunked prefill
-        // For chunked prefill, accumulate_chunk_last_hidden_state() already set the tensor
-        if (m_eagle3_ext.is_eagle3_model() && !use_chunk_prefill) {
-            m_eagle3_ext.update_last_hidden_state(m_prefill_request, m_prefill_out_ports);
+        for (auto&& [name, port] : m_prefill_out_ports) {
+            if (name == layer_names::logits) {
+                continue;
+            }
+            if (!m_prefill_other_outs_accum.empty() &&
+                m_prefill_other_outs_accum.find(port) != m_prefill_other_outs_accum.end()) {
+                m_other_outputs[name] = m_prefill_other_outs_accum[port];
+            } else {
+                m_other_outputs[name] = m_prefill_request->get_tensor(port);
+            }
         }
     });
 
@@ -1567,10 +1922,18 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             LOG_DEBUG("Prepare inputs.");
             namespace uu = ov::npuw::util;
             uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
-            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)),
-                                     0);
-            uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
-                                     0);
+            auto generate_attention_mask =
+                m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
+            if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
+                fill_additive_attention_mask(generate_attention_mask);
+            } else {
+                uu::fill_tensor<int64_t>(generate_attention_mask, 0);
+            }
+            if (m_position_ids_present) {
+                uu::fill_tensor<int64_t>(
+                    m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
+                    0);
+            }
 
             m_generate_initialized = true;
         }
@@ -1607,19 +1970,24 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         //       kv layers) and the set of "1" units of number of previously calculated
         //       tokens on the left (for past kv layers).
         auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
-        std::copy_n(attention_mask->data<int64_t>(),
-                    attention_mask->get_size() - input_tokens_len,
-                    kv_attn_mask->data<int64_t>());
-        if (input_tokens_len < kvcache_desc.max_generation_token_len) {
-            std::fill_n(
-                kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
-                kvcache_desc.max_generation_token_len - input_tokens_len,
-                0);
+        if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
+            stage_additive_attention_mask_for_generate(attention_mask,
+                                                       kv_attn_mask,
+                                                       kvcache_desc.num_stored_tokens,
+                                                       input_tokens_len,
+                                                       kvcache_desc.max_generation_token_len);
+        } else {
+            stage_binary_attention_mask_for_generate(attention_mask,
+                                                     kv_attn_mask,
+                                                     kvcache_desc.num_stored_tokens,
+                                                     input_tokens_len,
+                                                     kvcache_desc.max_generation_token_len);
         }
-        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
-        auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
-        ov::npuw::util::pad_position_ids(kv_pos_ids, position_ids);
+        if (m_position_ids_present) {
+            auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
+            ov::npuw::util::pad_position_ids(kv_pos_ids, position_ids);
+        }
 
         if (m_eagle3_ext.is_eagle3_model()) {
             m_eagle3_ext.prepare_inputs(m_kvcache_request, m_kvcache_in_ports);
@@ -1675,8 +2043,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
     }
 
-    if (m_eagle3_ext.is_eagle3_model()) {
-        m_eagle3_ext.update_last_hidden_state(m_kvcache_request, m_kvcache_out_ports);
+    for (auto&& [name, port] : m_kvcache_out_ports) {
+        if (name == layer_names::logits) {
+            continue;
+        }
+        m_other_outputs[name] = m_kvcache_request->get_tensor(port);
     }
 
     LOG_DEBUG("Done");
@@ -1741,7 +2112,13 @@ void ov::npuw::LLMInferRequest::infer() {
     // NB: For VLM, the "inputs_embeds" contains float values (embeddings)
     OPENVINO_ASSERT(ov::element::f32 == input_ids->get_element_type() ||
                     ov::element::i64 == input_ids->get_element_type());
-    OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
+    if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
+        OPENVINO_ASSERT(attention_mask->get_element_type().is_real(),
+                        "4D additive attention_mask must use a floating-point element type.");
+        OPENVINO_ASSERT(attention_mask->get_shape().size() == 4u, "4D additive attention_mask must be rank 4.");
+    } else {
+        OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
+    }
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
     // Eagle3: Store Eagle3 specific inputs with pre-validation
@@ -1862,15 +2239,14 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
             OPENVINO_THROW("Logits tensor is not available. Please run inference first.");
         }
         return m_logits;
-    }
-
-    if (m_eagle3_ext.is_eagle3_model()) {
-        if (port_names.count(Eagle3LayerNames::last_hidden_state) > 0) {
-            auto last_hidden_state = m_eagle3_ext.get_last_hidden_state();
-            if (!last_hidden_state) {
-                OPENVINO_THROW("Last hidden state tensor is not available. Please run inference first.");
+    } else {
+        for (auto&& [name, tensor] : m_other_outputs) {
+            if (port_names.count(name) > 0) {
+                if (!tensor) {
+                    OPENVINO_THROW("Output tensor \"", name, "\" is not available. Please run inference first.");
+                }
+                return tensor;
             }
-            return last_hidden_state;
         }
     }
 

@@ -48,6 +48,22 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     return device_ptr == host_ptr;
 }
 
+bool is_contiguous_or_remote(const std::shared_ptr<ov::ITensor>& tensor) {
+    return tensor->is_continuous() || std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor) != nullptr;
+}
+
+std::shared_ptr<ov::ITensor> ensure_contiguous(const std::shared_ptr<ov::ITensor>& tensor) {
+    // remote tensors do not need repacking. RemoteTensorImpl always has default strides for its shape,
+    // and remote ROI tensors are copied via RemoteTensorImpl::copy_to with proper strides
+    if (is_contiguous_or_remote(tensor)) {
+        return tensor;
+    }
+
+    auto packed = ov::make_tensor(tensor->get_element_type(), tensor->get_shape());
+    tensor->copy_to(packed);
+    return packed;
+}
+
 bool byte_ranges_overlap(const void* lhs_ptr, size_t lhs_size, const void* rhs_ptr, size_t rhs_size) {
     if (lhs_ptr == nullptr || rhs_ptr == nullptr || lhs_size == 0 || rhs_size == 0)
         return false;
@@ -401,7 +417,13 @@ void SyncInferRequest::enqueue() {
                 auto inputs = m_user_inputs.read();
                 user_tensor = inputs->at(port_idx);
             }
-            auto events = prepare_input(internal_name, port_idx, port, user_tensor);
+            // ensure user tensor is contiguous
+            const auto contiguous_tensor = ensure_contiguous(user_tensor.ptr);
+            const bool is_repacked = contiguous_tensor != user_tensor.ptr;
+            if (is_repacked) {
+                user_tensor = {contiguous_tensor, TensorOwner::PLUGIN};
+            }
+            auto events = prepare_input(internal_name, port_idx, port, user_tensor, is_repacked);
             std::move(events.begin(), events.end(), std::back_inserter(dependencies));
         }
 
@@ -977,7 +999,10 @@ void SyncInferRequest::allocate_states() {
         } else if (indirect_kv_cache) {
             m_variables.emplace(vi.first, std::make_shared<VariableStateIndirectKVCache>(vi.second, m_context, m_shape_predictor, beam_axis, concat_axis));
         } else {
-            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second, m_context, m_shape_predictor));
+            m_variables.emplace(vi.first, std::make_shared<VariableState>(vi.second,
+                                                                          m_context,
+                                                                          m_shape_predictor,
+                                                                          network->get_program()->get_tensor_conversion()));
         }
     }
 }
@@ -1034,8 +1059,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_batched_input(size_t in
 std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string& internal_name,
                                                                size_t input_idx,
                                                                const ov::Output<const ov::Node>& port,
-                                                               const TensorWrapper& user_tensor_wrapper) {
+                                                               const TensorWrapper& user_tensor_wrapper,
+                                                               bool is_temporary_repacked_input) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, openvino::itt::handle("SyncInferRequest::prepare_input: " + internal_name));
+    OPENVINO_ASSERT(is_contiguous_or_remote(user_tensor_wrapper.ptr),
+                    "[GPU] Non-contiguous host input tensor must be repacked before prepare_input: ",
+                    internal_name);
+
     auto pshape = port.get_partial_shape();
     auto is_dynamic = pshape.is_dynamic();
     auto user_tensor = user_tensor_wrapper.ptr;
@@ -1174,7 +1204,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
                 // The current input_layout (wait_for_events) does not provide proper synchronization for subsequent CPU implementations
                 // For IOQ, it creates an already set user event, leading to accessing memory that hasn't completed copying
                 // For OOOQ, it enqueues a barrier that is ignored by the memory_lock functions, also causing access to not ready memory
-                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem);
+                // temporary repacked input from enqueue() is freed afterwards, so the upload needs to finish first
+                ret_event = memory->copy_from(stream, src_ptr, need_lockable_mem || is_temporary_repacked_input);
             }
         } else if (is_generic_remote) {
             user_tensor->copy_to(device_tensor);

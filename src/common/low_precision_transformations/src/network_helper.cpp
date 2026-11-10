@@ -1573,16 +1573,46 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
     std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> multiplyConstants, subtractConstants;
     if (is_type<ov::opset1::Concat>(operation)) {
         const auto concatNode = as_type_ptr<ov::opset1::Concat>(operation);
-        int64_t axis = -1;
-        if (concatNode->get_output_partial_shape(0).rank().is_static()) {
-            const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
-            axis = ov::util::normalize(concatNode->get_axis(), rank);
-        }
-        if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
-            multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
-        }
-        if (dequantization.subtract && dequantization.subtractConstant->get_shape().size() > 1 && dequantization.subtractConstant->get_shape()[axis] != 1) {
-            subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
+        const auto rank = concatNode->get_output_partial_shape(0).rank();
+        const auto isScalar = [](const std::shared_ptr<ov::opset1::Constant>& constant) {
+            return constant == nullptr || ov::shape_size(constant->get_shape()) == 1;
+        };
+        // Without a static rank the Concat axis can't be mapped onto a per-channel constant, so it is
+        // unknown whether the constant has to be split per input.
+        OPENVINO_ASSERT(rank.is_static() ||
+                            (isScalar(dequantization.multiplyConstant) && isScalar(dequantization.subtractConstant)),
+                        "Dequantization constants must be scalar to be moved before a dynamic-rank Concat ",
+                        concatNode->get_friendly_name());
+
+        if (rank.is_static()) {
+            const auto concatRank = static_cast<size_t>(rank.get_length());
+            const auto axis = static_cast<size_t>(ov::util::normalize(concatNode->get_axis(), rank.get_length()));
+            // The constant broadcasts against the Concat output aligned to the trailing dims: split it only
+            // if its dim aligned with the Concat axis isn't broadcast, after padding it to the Concat rank.
+            const auto splitIfNeeded = [&](const std::shared_ptr<ov::opset1::Constant>& constant) {
+                std::vector<std::vector<std::shared_ptr<ov::opset1::Constant>>> splitConstants;
+                if (isScalar(constant)) {
+                    return splitConstants;
+                }
+                const auto& constantShape = constant->get_shape();
+                OPENVINO_ASSERT(constantShape.size() <= concatRank,
+                                "Dequantization constant rank exceeds the rank of Concat ",
+                                concatNode->get_friendly_name());
+                const size_t offset = concatRank - constantShape.size();
+                if (axis < offset || constantShape[axis - offset] == 1) {
+                    return splitConstants;
+                }
+                Shape paddedShape(offset, 1ul);
+                paddedShape.insert(paddedShape.end(), constantShape.begin(), constantShape.end());
+                const auto paddedConstant = std::make_shared<ov::opset1::Constant>(*constant, paddedShape);
+                return NetworkHelper::splitConstantsBeforeConcat(operation, {paddedConstant});
+            };
+            if (dequantization.multiply) {
+                multiplyConstants = splitIfNeeded(dequantization.multiplyConstant);
+            }
+            if (dequantization.subtract) {
+                subtractConstants = splitIfNeeded(dequantization.subtractConstant);
+            }
         }
     } else {
         multiplyConstants = {{ dequantization.multiplyConstant }};

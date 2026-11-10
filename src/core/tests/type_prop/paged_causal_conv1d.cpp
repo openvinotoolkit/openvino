@@ -259,8 +259,8 @@ TEST_F(TypePropPagedCausalConv1DTest, kernel_size_mismatch) {
                                                        processed_tokens,
                                                        cache_interval}),
                     NodeValidationFailure,
-                    testing::HasSubstr("kernel_size dimensions of conv_state_table and conv_weight inputs must be "
-                                       "compatible"));
+                    testing::HasSubstr("causal-window dimension of conv_state_table must be compatible with "
+                                       "(kernel_taps-1)*dilation+1"));
 }
 
 TEST_F(TypePropPagedCausalConv1DTest, wrong_input_count) {
@@ -564,5 +564,110 @@ TEST_F(TypePropPagedCausalConv1DTest, cache_interval_size_mismatch) {
                                                        cache_interval}),
                     NodeValidationFailure,
                     testing::HasSubstr("size of cache_interval must be batch_size_in_sequences"));
+}
+
+TEST_F(TypePropPagedCausalConv1DTest, default_dilation_via_nine_arg_ctor_is_one) {
+    const auto input_embeds = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
+    const auto conv_state_table = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 256, 4});
+    const auto conv_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{256, 256, 4});
+    const auto conv_bias = std::make_shared<op::v0::Parameter>(element::f32, Shape{256});
+    const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{5});
+    const auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+
+    const auto op = make_op(OutputVector{input_embeds,
+                                         conv_state_table,
+                                         conv_weight,
+                                         conv_bias,
+                                         subsequence_begins,
+                                         la_block_indices,
+                                         la_block_indices_begins,
+                                         processed_tokens,
+                                         cache_interval});
+
+    EXPECT_EQ(op->get_dilation(), 1u);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{10, 256}));
+}
+
+TEST_F(TypePropPagedCausalConv1DTest, explicit_dilation_via_ten_arg_ctor) {
+    const auto input_embeds = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
+    // causal window = (num_taps-1)*dilation+1 = (4-1)*3+1 = 10
+    const auto conv_state_table = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 256, 10});
+    const auto conv_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{256, 256, 4});
+    const auto conv_bias = std::make_shared<op::v0::Parameter>(element::f32, Shape{256});
+    const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{5});
+    const auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+
+    const auto op = std::make_shared<op::internal::PagedCausalConv1D>(input_embeds,
+                                                                      conv_state_table,
+                                                                      conv_weight,
+                                                                      conv_bias,
+                                                                      subsequence_begins,
+                                                                      la_block_indices,
+                                                                      la_block_indices_begins,
+                                                                      processed_tokens,
+                                                                      cache_interval,
+                                                                      /*dilation=*/3);
+
+    EXPECT_EQ(op->get_dilation(), 3u);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{10, 256}));
+}
+
+TEST_F(TypePropPagedCausalConv1DTest, dilated_window_mismatch) {
+    const auto input_embeds = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
+    // Wrong: with num_taps=4 and dilation=3, window should be 10, not 4.
+    const auto conv_state_table = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 256, 4});
+    const auto conv_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{256, 256, 4});
+    const auto conv_bias = std::make_shared<op::v0::Parameter>(element::f32, Shape{256});
+    const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{5});
+    const auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::PagedCausalConv1D>(input_embeds,
+                                                                                    conv_state_table,
+                                                                                    conv_weight,
+                                                                                    conv_bias,
+                                                                                    subsequence_begins,
+                                                                                    la_block_indices,
+                                                                                    la_block_indices_begins,
+                                                                                    processed_tokens,
+                                                                                    cache_interval,
+                                                                                    /*dilation=*/3),
+                    NodeValidationFailure,
+                    testing::HasSubstr("causal-window dimension of conv_state_table must be compatible with "
+                                       "(kernel_taps-1)*dilation+1"));
+}
+
+TEST_F(TypePropPagedCausalConv1DTest, invalid_dilation_zero) {
+    const auto input_embeds = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
+    const auto conv_state_table = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 256, 4});
+    const auto conv_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{256, 256, 4});
+    const auto conv_bias = std::make_shared<op::v0::Parameter>(element::f32, Shape{256});
+    const auto subsequence_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto la_block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{5});
+    const auto la_block_indices_begins = std::make_shared<op::v0::Parameter>(element::i32, Shape{3});
+    const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+    const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, Shape{2});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::PagedCausalConv1D>(input_embeds,
+                                                                                    conv_state_table,
+                                                                                    conv_weight,
+                                                                                    conv_bias,
+                                                                                    subsequence_begins,
+                                                                                    la_block_indices,
+                                                                                    la_block_indices_begins,
+                                                                                    processed_tokens,
+                                                                                    cache_interval,
+                                                                                    /*dilation=*/0),
+                    NodeValidationFailure,
+                    testing::HasSubstr("m_dilation >= 1"));
 }
 }  // namespace ov::test

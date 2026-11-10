@@ -17,6 +17,7 @@
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
 #include <vector>
 
 #include "cpu/primitive_attr_postops.hpp"
@@ -30,7 +31,10 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/reference/divide.hpp"
 #include "openvino/reference/erfinv.hpp"
+#include "openvino/reference/floor_mod.hpp"
+#include "openvino/reference/mod.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -45,6 +49,7 @@ size_t EltwiseRefKey::hash() const {
         seed = hash_combine(seed, eltwiseData.alpha);
         seed = hash_combine(seed, eltwiseData.beta);
         seed = hash_combine(seed, eltwiseData.gamma);
+        seed = hash_combine(seed, eltwiseData.pythondiv);
         return seed;
     };
     std::for_each(eltwise_data.begin(), eltwise_data.end(), [&](const EltwiseData& item) {
@@ -77,6 +82,32 @@ bool EltwiseRefKey::operator==(const EltwiseRefKey& rhs) const {
 }
 
 static EltwiseExecutorPtr createRefExecutorByPrecision(const EltwiseRefKey& key) {
+    if (key.eltwise_data.front().algo == Algorithm::EltwiseDivide) {
+        if (key.outPrc.is_integral_number() && (key.eltwise_data.size() != 1 || key.inpDims.size() != 2)) {
+            OPENVINO_THROW("Integer Divide reference executor does not support fused operations");
+        }
+        switch (key.outPrc) {
+        case ov::element::i8:
+            return std::make_shared<EltwiseRefExecutor<int8_t>>(key);
+        case ov::element::u8:
+            return std::make_shared<EltwiseRefExecutor<uint8_t>>(key);
+        case ov::element::i16:
+            return std::make_shared<EltwiseRefExecutor<int16_t>>(key);
+        case ov::element::u16:
+            return std::make_shared<EltwiseRefExecutor<uint16_t>>(key);
+        case ov::element::i32:
+            return std::make_shared<EltwiseRefExecutor<int32_t>>(key);
+        case ov::element::u32:
+            return std::make_shared<EltwiseRefExecutor<uint32_t>>(key);
+        case ov::element::i64:
+            return std::make_shared<EltwiseRefExecutor<int64_t>>(key);
+        case ov::element::u64:
+            return std::make_shared<EltwiseRefExecutor<uint64_t>>(key);
+        default:
+            break;
+        }
+    }
+
     switch (key.outPrc) {
     case ov::element::i8:
         return std::make_shared<BitwiseRefExecutor<int8_t>>(key);
@@ -235,6 +266,36 @@ template <typename T, typename Enable>
 void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
                                          const VectorDims& dims_out,
                                          const CpuParallelPtr& cpu_parallel) {
+    if constexpr (std::is_integral_v<T>) {
+        if (this->m_opData.algo != Algorithm::EltwiseDivide || this->m_inputNum != 2) {
+            OPENVINO_THROW("Integer Eltwise reference executor only supports unfused Divide");
+        }
+
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0;
+            size_t end = 0;
+            splitter(this->m_fullWorkAmount, nthr, ithr, start, end);
+
+            std::vector<size_t> counters(dims_out.size(), 0);
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                std::vector<T> src_f(this->m_inputNum);
+                T* dst_ptr_f = nullptr;
+                this->init_ptr(args_ptrs, dims_out, counters, iwork, src_f, dst_ptr_f);
+                *dst_ptr_f = this->m_opData.pythondiv ? ov::reference::func::try_python_div(src_f[0], src_f[1])
+                                                      : ov::reference::func::try_div(src_f[0], src_f[1]);
+            }
+        });
+    } else {
+        execFloatingPoint(args_ptrs, dims_out, cpu_parallel);
+    }
+}
+
+template <typename T, typename Enable>
+template <typename U>
+void EltwiseRefExecutor<T, Enable>::execFloatingPoint(const jit_eltwise_call_args_ptrs& args_ptrs,
+                                                      const VectorDims& dims_out,
+                                                      const CpuParallelPtr& cpu_parallel) {
+    static_assert(!std::is_integral_v<U>);
     // Handle special cases first
     if (this->m_opData.algo == Algorithm::EltwiseLog) {
         const T* src_ptr_f = reinterpret_cast<const T*>(args_ptrs.src_ptr[0]);
@@ -317,7 +378,12 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = src_f[0] * src_f[1];
                 break;
             case Algorithm::EltwiseDivide:
-                *dst_ptr_f = src_f[0] / src_f[1];
+                if constexpr (std::is_integral_v<T>) {
+                    *dst_ptr_f = this->m_opData.pythondiv ? ov::reference::func::try_python_div(src_f[0], src_f[1])
+                                                          : ov::reference::func::try_div(src_f[0], src_f[1]);
+                } else {
+                    *dst_ptr_f = src_f[0] / src_f[1];
+                }
                 break;
             case Algorithm::EltwiseCeiling:
                 *dst_ptr_f = ceilf(src_f[0]);
@@ -329,10 +395,18 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = -src_f[0];
                 break;
             case Algorithm::EltwiseFloorMod:
-                *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1];
+                if constexpr (std::is_integral_v<T>) {
+                    *dst_ptr_f = ov::reference::func::floor_mod(src_f[0], src_f[1]);
+                } else {
+                    *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1];
+                }
                 break;
             case Algorithm::EltwiseMod:
-                *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1];
+                if constexpr (std::is_integral_v<T>) {
+                    *dst_ptr_f = ov::reference::func::mod(src_f[0], src_f[1]);
+                } else {
+                    *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1];
+                }
                 break;
             case Algorithm::EltwiseMaximum:
                 *dst_ptr_f = std::max(src_f[0], src_f[1]);
@@ -494,6 +568,14 @@ template class EltwiseRefBaseExecutor<int32_t>;
 
 template class EltwiseRefExecutor<float>;
 template class EltwiseRefExecutor<dnnl::impl::float16_t>;
+template class EltwiseRefExecutor<int8_t>;
+template class EltwiseRefExecutor<uint8_t>;
+template class EltwiseRefExecutor<int16_t>;
+template class EltwiseRefExecutor<uint16_t>;
+template class EltwiseRefExecutor<int32_t>;
+template class EltwiseRefExecutor<uint32_t>;
+template class EltwiseRefExecutor<int64_t>;
+template class EltwiseRefExecutor<uint64_t>;
 
 template class BitwiseRefExecutor<int8_t>;
 template class BitwiseRefExecutor<uint8_t>;

@@ -11,6 +11,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/visibility.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/util/file_util.hpp"
@@ -508,7 +509,12 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported_By_Path) {
 
 TEST(FrontEndManagerTest, testFindPluginsDoesNotCrashOnUnicodeFilename) {
     const auto fe_dir = ov::test::utils::to_fs_path(ov::test::utils::getExecutableDirectory());
-    auto unicode_file = fe_dir / std::filesystem::u8path("\xE8\xBF\x99\xE6\x98\xAF_");
+    auto unicode_file = fe_dir /
+#ifdef OPENVINO_CPP_VER_AT_LEAST_20
+                        std::filesystem::path(reinterpret_cast<const char8_t*>("\xE8\xBF\x99\xE6\x98\xAF_"));
+#else
+                        std::filesystem::u8path("\xE8\xBF\x99\xE6\x98\xAF_");
+#endif
     unicode_file += ov::test::utils::generateTestFilePrefix();
     { std::ofstream{unicode_file}; }
 

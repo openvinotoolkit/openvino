@@ -22,7 +22,6 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/util/math_util.hpp"
 #include "utils/general_utils.h"
-#include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node::kernel {
 namespace {
@@ -94,6 +93,9 @@ void selective_ssm_typed(const DataT* A,
     const auto head_state_stride = checked_size_product({shape.head_dim, shape.state_size}, "recurrent state head");
     const auto scratch_stride = checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
     const auto p_block_count = ov::util::ceil_div(shape.head_dim, scratch_head_dim);
+    if (p_block_count == 0) {
+        return;
+    }
 
     cpu_parallel
         ->parallel_for3d(shape.batch_size, shape.num_heads, p_block_count, [&](size_t batch, size_t head, size_t pb) {
@@ -149,22 +151,25 @@ void selective_ssm_typed(const DataT* A,
         });
 }
 
-struct PagedMetadata {
-    ov::intel_cpu::PlainTensor subsequence_begins;
-    ov::intel_cpu::PlainTensor block_indices;
-    ov::intel_cpu::PlainTensor block_indices_begins;
-    ov::intel_cpu::PlainTensor num_processed_tokens;
-    ov::intel_cpu::PlainTensor cache_interval;
+// Metadata buffers are borrowed for the duration of the synchronous kernel call.
+struct IndexTensorView {
+    const void* data;
+    size_t count;
+    ov::element::Type precision;
 };
 
-int64_t index_at(const ov::intel_cpu::PlainTensor& tensor, size_t index) {
-    return tensor.get_precision() == ov::element::i64 ? tensor.ptr<int64_t>()[index] : tensor.ptr<int32_t>()[index];
-}
+struct PagedMetadata {
+    IndexTensorView subsequence_begins;
+    IndexTensorView block_indices;
+    IndexTensorView block_indices_begins;
+    IndexTensorView num_processed_tokens;
+    IndexTensorView cache_interval;
+};
 
-ov::intel_cpu::PlainTensor make_index_tensor(const void* data, size_t count, const ov::element::Type& index_precision) {
-    ov::intel_cpu::PlainTensor tensor;
-    tensor.resize({count}, index_precision.size(), index_precision, const_cast<void*>(data));
-    return tensor;
+int64_t index_at(const IndexTensorView& tensor, size_t index) {
+    OPENVINO_ASSERT(index < tensor.count, "PagedSelectiveSSM metadata index is out of range.");
+    return tensor.precision == ov::element::i64 ? static_cast<const int64_t*>(tensor.data)[index]
+                                                : static_cast<const int32_t*>(tensor.data)[index];
 }
 
 PagedMetadata make_paged_metadata(const void* subsequence_begins,
@@ -179,11 +184,11 @@ PagedMetadata make_paged_metadata(const void* subsequence_begins,
                     index_precision,
                     ".");
     const auto sequence_offsets_count = checked_size_sum({shape.sequence_count, size_t{1}}, "metadata offsets");
-    return {make_index_tensor(subsequence_begins, sequence_offsets_count, index_precision),
-            make_index_tensor(block_indices, shape.logical_block_count, index_precision),
-            make_index_tensor(block_indices_begins, sequence_offsets_count, index_precision),
-            make_index_tensor(num_processed_tokens, shape.sequence_count, index_precision),
-            make_index_tensor(cache_interval, shape.sequence_count, index_precision)};
+    return {{subsequence_begins, sequence_offsets_count, index_precision},
+            {block_indices, shape.logical_block_count, index_precision},
+            {block_indices_begins, sequence_offsets_count, index_precision},
+            {num_processed_tokens, shape.sequence_count, index_precision},
+            {cache_interval, shape.sequence_count, index_precision}};
 }
 
 size_t checked_index(int64_t value, size_t limit, const char* name, size_t position) {
@@ -374,6 +379,9 @@ void paged_selective_ssm_typed(const DataT* A,
     const auto head_stride = checked_size_product({shape.head_dim, shape.state_size}, "state head");
     const auto scratch_stride = checked_size_product({scratch_head_dim, shape.state_size}, "state scratch");
     const auto p_block_count = ov::util::ceil_div(shape.head_dim, scratch_head_dim);
+    if (p_block_count == 0) {
+        return;
+    }
 
     cpu_parallel->parallel_for3d(
         shape.sequence_count,
