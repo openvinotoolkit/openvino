@@ -12,6 +12,7 @@
 
 #include <regex>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace cldnn {
@@ -20,28 +21,18 @@ namespace nvidia {
 
 namespace {
 
-// Every entry point of the PTX is a kernel of the program: clBuildProgram on the NVIDIA OpenCL runtime emits exactly
-// the program's kernels, whatever their names (copy_with_offset included). The global work offset is not a separate
-// entry point but read from %envreg0-5, which patch_ptx_envreg() replaces with 0. Cached binaries are this same PTX,
-// so the same holds when they are loaded.
-std::vector<std::string> extract_ptx_entry_points(const std::string& ptx) {
-    static const std::regex entry_pattern(R"((?:\.visible\s+)?\.entry\s+([\w.$]+)\s*\()");
-    std::vector<std::string> names;
-    for (std::sregex_iterator it(ptx.begin(), ptx.end(), entry_pattern), end; it != end; ++it) {
-        names.push_back((*it)[1].str());
-    }
-    return names;
-}
-
-// Build sycl_ptx_kernel objects from a compiled PTX string, one per entry point. They share one ptx_program, so
-// the PTX is kept and JIT-compiled into a module once for the whole batch.
-void create_ptx_kernels(const std::string& ptx, std::vector<kernel::ptr>& out) {
-    const auto entry_points = extract_ptx_entry_points(ptx);
-    if (entry_points.empty())
+// Build sycl_ptx_kernel objects from a compiled PTX string, one per entry point. Every entry point of the PTX is a
+// kernel of the program: clBuildProgram on the NVIDIA OpenCL runtime emits exactly the program's kernels, whatever
+// their names (copy_with_offset included). The global work offset is not a separate entry point but read from
+// %envreg0-5, which patch_ptx_envreg() replaces with 0. Cached binaries are this same PTX, so the same holds when they
+// are loaded. The kernels share one ptx_program, so the PTX is parsed once and JIT-compiled into a module once for the
+// whole batch.
+void create_ptx_kernels(std::string ptx, std::vector<kernel::ptr>& out) {
+    const auto program = std::make_shared<ptx_program>(std::move(ptx));
+    if (program->entry_points().empty())
         OPENVINO_THROW("[GPU][NVIDIA] No entry points found in PTX");
 
-    const auto program = std::make_shared<ptx_program>(ptx);
-    for (const auto& ep : entry_points)
+    for (const auto& ep : program->entry_points())
         out.push_back(std::make_shared<sycl_ptx_kernel>(program, ep, ep));
 }
 
@@ -154,7 +145,7 @@ void sycl_kernel_builder::build_kernels(
     std::string ptx_str(binary.begin(), binary.end());
     patch_ptx_envreg(ptx_str);
     patch_ptx_local(ptx_str);
-    create_ptx_kernels(ptx_str, out);
+    create_ptx_kernels(std::move(ptx_str), out);
 }
 
 }  // namespace nvidia

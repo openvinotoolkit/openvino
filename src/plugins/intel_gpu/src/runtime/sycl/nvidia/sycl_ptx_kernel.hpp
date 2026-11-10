@@ -67,6 +67,9 @@ public:
 
     const std::string& source() const { return _ptx; }
 
+    // The entry points of the PTX, in the order they appear: every kernel of the program.
+    const std::vector<std::string>& entry_points() const { return _entry_points; }
+
     // Alignment, by parameter index, that each __local pointer parameter of entry point `kernel_name` needs: the
     // N of the '.align N' NVVM declares, which patch_ptx_local keeps as a comment. Entries for other parameters are
     // 0, and the vector is empty for an entry point the PTX does not have.
@@ -83,7 +86,8 @@ public:
 
 private:
     const std::string _ptx;
-    // local_param_alignments of every entry point, read from the PTX once.
+    // The entry points and the local_param_alignments of each, read from the PTX once.
+    std::vector<std::string> _entry_points;
     std::map<std::string, std::vector<uint32_t>> _local_alignments;
 
     std::array<std::once_flag, layout_count> _module_once;
