@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 81,
+  "total": 82,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -828,6 +828,15 @@
       "category": "Infrastructure",
       "signature_hash": "514ffa2ab52ad344",
       "commit_sha": "7b77f009478103cb23b846a27de032b2184139ae"
+    },
+    {
+      "investigation_id": "2026-11-10-11-31-30-760-42786614370",
+      "run_id": "42786614370",
+      "timestamp": "2026-11-10T11:31:30Z",
+      "title": "LLM accuracy iGPU tests fail downloading TinyLlama-1.1B-Chat from HuggingFace Hub (429 rate limit)",
+      "category": "External Service",
+      "signature_hash": "4dd69b5f0be10a15",
+      "commit_sha": "0f8c17cb5ddc50d2a35c1263b90b5ab0499de0d8"
     }
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server.\" }|Infrastructure",
+  "signature_hash": "1895ff4b7cdd520f",
+  "title": "Non-blocking C++20 build fails CMake compiler check when sccache Azure blob cache returns InvalidUri",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-10T11:31:30Z",
+  "last_seen": "2026-11-10T11:31:30Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42786614370"
+  ],
+  "affected_commits": [
+    "0f8c17cb5ddc50d2a35c1263b90b5ab0499de0d8"
+  ],
+  "recent_timestamps": [
+    "2026-11-10T11:31:30Z"
+  ]
+}

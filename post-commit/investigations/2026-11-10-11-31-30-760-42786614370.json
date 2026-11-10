@@ -1,0 +1,48 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-10-11-31-30-760-42786614370",
+    "timestamp": "2026-11-10T11:31:30Z",
+    "run_id": "42786614370",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42786614370",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "commit_sha": "0f8c17cb5ddc50d2a35c1263b90b5ab0499de0d8",
+    "pr_number": null,
+    "pr_url": null,
+    "author": "mryzhov",
+    "category": "External Service",
+    "title": "LLM accuracy iGPU tests fail downloading TinyLlama-1.1B-Chat from HuggingFace Hub (429 rate limit)",
+    "signature": "huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your api rate limit|External Service",
+    "signature_hash": "4dd69b5f0be10a15",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+            "conclusion": "failure",
+            "symptom": "test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] and ...-INT4-GPU both failed with httpx.HTTPStatusError / huggingface_hub.errors.HfHubHTTPError 429 Too Many Requests while listing the model tree on huggingface.co; the Qwen2-0.5B-Instruct INT8/INT4 cases in the same run passed."
+        },
+        {
+            "name": "Build (C++20, non-blocking) / Build",
+            "conclusion": "failure",
+            "symptom": "CMake configure failed because sccache's Azure blob cache backend returned an AzblobError InvalidUri on the .sccache_check probe, breaking the compiler ABI TryCompile check; this job is explicitly marked non-blocking so it does not gate overall workflow status."
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_24",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check failed (exit 1) because the LLM accuracy iGPU tests job failed."
+        }
+    ],
+    "key_errors": [
+        "tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] FAILED [ 25%]\ntests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT4-GPU] FAILED [ 50%]\nhttpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://huggingface.co/api/models/TinyLlama/TinyLlama-1.1B-Chat-v1.0/tree/...?recursive=true&expand=false'\nFAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] - huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests: you have reached your 'api' rate limit.\nWe had to rate limit you, you hit the quota of 3000 api requests per 5 minutes period. Upgrade to higher plan to get higher limits (current: team).",
+        "sccache /usr/bin/cc -o CMakeFiles/cmTC_c2ceb.dir/testCCompiler.c.o -c .../testCCompiler.c\nFAILED: [code=2] CMakeFiles/cmTC_c2ceb.dir/testCCompiler.c.o\nsccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server.\" }\nCMake Error: The C compiler \"/usr/bin/cc\" is not able to compile a simple test program."
+    ],
+    "root_cause": "The overall workflow failure is caused by the 'LLM accuracy iGPU tests' job hitting HuggingFace Hub's API rate limit (429 Too Many Requests, quota of 3000 api requests / 5 minutes) while resolving the TinyLlama/TinyLlama-1.1B-Chat-v1.0 model tree; this is an external-service throttling event, not a code regression (the Qwen2-0.5B-Instruct cases in the same matrix passed, and TinyLlama ran fine later in the same 5-minute window in prior runs). Separately and independently, the non-blocking C++20 build job failed its CMake compiler ABI check because sccache's Azure Blob Storage cache backend rejected the `.sccache_check` probe request with an InvalidUri error, a recurring transient outage in the shared sccache Azure cache service that this job is explicitly configured not to gate on.",
+    "reproduction_steps": "N/A - both failures are transient external-service outages (HuggingFace Hub API rate limiting and sccache's Azure Blob cache backend) not reproducible deterministically outside CI. To reproduce the HF rate limit locally, issue >3000 huggingface.co /api/models/* requests within a rolling 5-minute window using the same HF token used by this CI account.",
+    "recommended_actions": [
+        "No code changes needed; rerun/retry the LLM accuracy iGPU tests job once the HuggingFace Hub per-token rate-limit window resets (requests reset every 5 minutes).",
+        "Consider caching or pre-resolving HF model file trees (e.g., via huggingface_hub offline/local cache or a mirrored model store) for TinyLlama-1.1B-Chat-v1.0 to avoid repeated `tree` API calls across concurrent CI jobs sharing the same HF token/quota.",
+        "Add automatic retry-with-backoff around huggingface_hub API calls in tests/llm/accuracy_conformance.py (or the shared test fixture) to transparently recover from 429s using the `Retry-After` header already present in the response.",
+        "Track the sccache Azure Blob cache InvalidUri outage with the storage/cache-ops team (recurring signature, see historical context); no action required for this specific non-blocking build job."
+    ],
+    "prevention_strategies": "Introduce a shared/rate-limit-aware HuggingFace Hub client wrapper (token bucket or exponential backoff honoring `Retry-After`) for all CI jobs that call the HF Hub API, and consider provisioning a dedicated higher-quota HF token or enterprise plan for CI to reduce the chance of hitting the 3000 req/5min ceiling during concurrent test matrix runs.",
+        "historical_context": "The HuggingFace Hub 429 signature (hash 4dd69b5f0be10a15) was first observed 2026-10-12 on run 38260834403 affecting Qwen2-0.5B-Instruct downloads on dGPU tests; this run is the second occurrence and the first to affect TinyLlama-1.1B-Chat-v1.0 on iGPU tests, confirming it is a recurring external-service throttling pattern rather than a one-off. The sccache AzblobError InvalidUri signature was previously seen on 2026-11-06 (run 42166627607) in the same non-blocking C++20 build job, also co-occurring with an unrelated failure in that run (artifact FinalizeArtifact ECONNREFUSED) -- a similar prior Infrastructure sccache signature (hash c09f0ea325633f94, 'Timed out waiting for server startup') was also recorded on 2026-10-01, indicating sccache's Azure-backed cache service experiences periodic but distinct transient failure modes."
+}
