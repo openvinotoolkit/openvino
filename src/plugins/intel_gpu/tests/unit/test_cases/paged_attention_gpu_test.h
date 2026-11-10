@@ -29,16 +29,6 @@
 #include "random_generator.hpp"
 #include "test_utils.h"
 
-// Whether the config turns the DPAS PREFILL/MIXED kernel (sdpa_ocl) on, as PagedAttentionOptImpl::choose_sdpa_ocl() reads
-// it (OV_GPU_ENABLE_SDPA_MICRO=0 turns it off; finalized as the program finalizes its config). A token-major K page no longer
-// implies sdpa_ocl serves MIXED: the layout does not follow this, and paged_attention_opt.cl reads the page where it is off.
-inline bool pa_dpas_kernel_enabled_by_config() {
-    auto& engine = tests::get_test_engine();
-    auto config = tests::get_test_default_config(engine);
-    config.finalize(engine);
-    return config.get_enable_sdpa_micro();
-}
-
 // Enable detailed xattention debugging (dumps, extra comparison info)
 // Default: OFF (0). Set to 1 for investigation.
 #ifndef XATTENTION_DEBUG_VERBOSE
