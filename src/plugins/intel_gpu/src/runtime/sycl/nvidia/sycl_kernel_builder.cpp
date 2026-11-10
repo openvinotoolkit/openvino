@@ -85,17 +85,21 @@ static void patch_ptx_local(std::string& ptx) {
 // %nctaid register.  NVVM emits these for get_global_id/get_global_size;
 // cuLaunchKernel never writes %envreg so they hold garbage without this patch.
 static void patch_ptx_envreg(std::string& ptx) {
-    // global_work_offset registers (always 0 in OpenVINO)
-    static const std::regex envreg_offset_re(R"(%envreg[0-5](?!\d))");
-    ptx = std::regex_replace(ptx, envreg_offset_re, "0");
-    // num_groups registers: replace with the %nctaid.{x,y,z} registers that
-    // cuLaunchKernel correctly populates from the grid dimensions.
-    static const std::regex envreg6_re(R"(%envreg6(?!\d))");
-    static const std::regex envreg7_re(R"(%envreg7(?!\d))");
-    static const std::regex envreg8_re(R"(%envreg8(?!\d))");
-    ptx = std::regex_replace(ptx, envreg6_re, "%nctaid.x");
-    ptx = std::regex_replace(ptx, envreg7_re, "%nctaid.y");
-    ptx = std::regex_replace(ptx, envreg8_re, "%nctaid.z");
+    // One pass for all nine registers. (?!\d) keeps them whole: the prelude's %envreg27-31 are not touched.
+    static const std::regex envreg_re(R"(%envreg([0-8])(?!\d))");
+    // global_work_offset registers (always 0 in OpenVINO), then the num_groups registers, which become the
+    // %nctaid.{x,y,z} registers that cuLaunchKernel populates from the grid dimensions.
+    static const char* const replacements[] = {"0", "0", "0", "0", "0", "0", "%nctaid.x", "%nctaid.y", "%nctaid.z"};
+    std::string out;
+    out.reserve(ptx.size());
+    auto last = ptx.cbegin();
+    for (std::sregex_iterator it(ptx.cbegin(), ptx.cend(), envreg_re), end; it != end; ++it) {
+        out.append(last, (*it)[0].first);
+        out += replacements[*(*it)[1].first - '0'];
+        last = (*it)[0].second;
+    }
+    out.append(last, ptx.cend());
+    ptx = std::move(out);
 }
 
 }  // namespace (patch_ptx)
