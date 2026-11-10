@@ -665,23 +665,32 @@ TEST_F(OVTensorTest, copyStridedRoiTensorWithExpandedRank) {
     ov::Tensor owner{ov::element::i32, {2, 3, 4}};
     ov::Tensor roi{owner, {0, 1, 1}, {2, 3, 3}};  // not continuous along the two inner dimensions
     ov::Tensor src{ov::element::i32, {1, 2, 2, 2}};
-    std::iota(src.data<int32_t>(), src.data<int32_t>() + 8, 100);
 
     src.copy_to(roi);
 
     ASSERT_EQ(roi.get_strides().size(), roi.get_shape().size());
+    const auto* expected = src.data<int32_t>();
     const auto* result = owner.data<int32_t>();
     std::vector<int32_t> roi_area;
     for (const size_t idx : {5, 6, 9, 10, 17, 18, 21, 22}) {
         roi_area.push_back(result[idx]);
     }
-    ASSERT_EQ(roi_area, std::vector<int32_t>({100, 101, 102, 103, 104, 105, 106, 107}));
+    ASSERT_EQ(roi_area, std::vector<int32_t>(expected, expected + 8));
 
     // The expanded ROI must also read back correctly as a copy source.
     ov::Tensor dst{ov::element::i32, {1, 2, 2, 2}};
     roi.copy_to(dst);
-    const auto* copied = dst.data<int32_t>();
-    ASSERT_EQ(std::vector<int32_t>(copied, copied + 8), std::vector<int32_t>({100, 101, 102, 103, 104, 105, 106, 107}));
+    ASSERT_EQ(std::memcmp(dst.data(), src.data(), src.get_byte_size()), 0);
+}
+
+TEST_F(OVTensorTest, expandRankOnScalarRoiTensor) {
+    ov::Tensor owner{ov::element::i32, ov::Shape{}};
+    ov::Tensor roi{owner, {}, {}};
+
+    roi.set_shape({1, 1});
+
+    ASSERT_EQ(roi.get_shape(), ov::Shape({1, 1}));
+    ASSERT_EQ(roi.get_strides(), ov::Strides({4, 4}));
 }
 
 TEST_F(OVTensorTest, setSmallerShapeOnRoiTensor) {

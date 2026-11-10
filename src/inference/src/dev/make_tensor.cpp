@@ -42,14 +42,18 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
     return roi_shape;
 }
 
-// Extends strides to the rank of shape, which adds leading dimensions to the strides' shape.
-Strides extend_strides(const Strides& strides, const Shape& shape) {
-    const auto added_dims = shape.size() - strides.size();
+// Extends strides to the rank of shape (which must be greater), which adds leading dimensions to the strides' shape.
+// Strides of a scalar are empty, so then the innermost added dimension is set to the element size.
+Strides extend_strides(const Strides& strides, const Shape& shape, const size_t element_size) {
+    auto dim = shape.size() - strides.size();
     Strides extended;
     extended.reserve(shape.size());
-    extended.resize(added_dims);
+    extended.resize(dim);
     extended.insert(extended.end(), strides.begin(), strides.end());
-    for (auto dim = added_dims; dim-- > 0;) {
+    if (strides.empty()) {
+        extended[--dim] = element_size;
+    }
+    while (dim-- > 0) {
         extended[dim] = shape[dim + 1] * extended[dim + 1];
     }
     return extended;
@@ -539,7 +543,7 @@ private:
     void update_strides() {
         const auto& owner_strides = m_owner->get_strides();
         if (m_shape.size() > owner_strides.size()) {
-            m_strides = extend_strides(owner_strides, m_shape);
+            m_strides = extend_strides(owner_strides, m_shape, m_owner->get_element_type().size());
         } else {
             m_strides.clear();
         }
