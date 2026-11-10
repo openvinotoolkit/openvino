@@ -85,7 +85,7 @@ struct ReferenceCase {
     ov::AnyMap input;
     std::optional<ov::AnyMap> decoded;
     std::string entries;  ///< Everything up to and including FS.
-    std::string digest;  ///< Little-endian, computed offline by an independent implementation of the rule.
+    std::string digest;   ///< Little-endian, computed offline by an independent implementation of the rule.
 
     const ov::AnyMap& expected_decoded() const {
         return decoded ? *decoded : input;
