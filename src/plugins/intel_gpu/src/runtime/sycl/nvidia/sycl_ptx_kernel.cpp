@@ -172,7 +172,7 @@ const char* cuda_error_string(CUresult result) {
 
 // Throws for a CUDA call that failed; `what` names the call and what it was for.
 [[noreturn]] void throw_cuda_error(CUresult result, const std::string& what) {
-    OPENVINO_THROW("[GPU][NVIDIA] ", what, " failed with CUDA error ", static_cast<int>(result), ": ",
+    OPENVINO_THROW("[GPU] ", what, " failed with CUDA error ", static_cast<int>(result), ": ",
                    cuda_error_string(result));
 }
 
@@ -208,7 +208,7 @@ cuda_module::~cuda_module() {
             r = cuModuleUnload(cu_module);
         }
         if (r != CUDA_SUCCESS) {
-            GPU_DEBUG_LOG << "[GPU][NVIDIA] cuModuleUnload failed: " << cuda_error_string(r) << std::endl;
+            GPU_DEBUG_LOG << "[GPU] cuModuleUnload failed: " << cuda_error_string(r) << std::endl;
         }
         cu_module = nullptr;
     }
@@ -343,7 +343,7 @@ const std::vector<uint32_t>& ptx_program::local_param_alignments(const std::stri
 
 std::shared_ptr<cuda_module> ptx_program::module(size_t layout_idx, const std::string& requested_by) {
     OPENVINO_ASSERT(layout_idx < layout_count,
-                    "[GPU][NVIDIA] Invalid work-group layout index ", layout_idx, " for kernel '", requested_by, "'");
+                    "[GPU] Invalid work-group layout index ", layout_idx, " for kernel '", requested_by, "'");
     std::call_once(_module_once[layout_idx], [&]() {
         _modules[layout_idx] =
             load_cuda_module(apply_launch_layout(_ptx, launch_layout::from_index(layout_idx)), 0, requested_by);
@@ -371,7 +371,7 @@ ptx_kernel_state::ptx_kernel_state(std::shared_ptr<ptx_program> program, std::st
 
 std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t layout_idx, unsigned int block_threads) {
     OPENVINO_ASSERT(layout_idx < ptx_program::layout_count,
-                    "[GPU][NVIDIA] Invalid work-group layout index ", layout_idx, " for kernel '", kernel_name, "'");
+                    "[GPU] Invalid work-group layout index ", layout_idx, " for kernel '", kernel_name, "'");
     std::call_once(_function_once[layout_idx], [&]() {
         _functions[layout_idx] = get_cuda_function(program->module(layout_idx, kernel_name), kernel_name);
     });
@@ -387,7 +387,7 @@ std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t layo
     }
 
     if (block_threads > static_cast<unsigned int>(capped->max_threads_per_block)) {
-        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", kernel_name, "' cannot be launched with ", block_threads,
+        OPENVINO_THROW("[GPU] Kernel '", kernel_name, "' cannot be launched with ", block_threads,
                        " work-items per work-group: the CUDA function allows at most ",
                        plain->max_threads_per_block, ", and ", capped->max_threads_per_block,
                        " when compiled for that block size");
@@ -480,7 +480,7 @@ cuda_dispatch choose_cuda_dispatch(const std::vector<size_t>& gws,
     if (block_extent[0] > CUDA_MAX_BLOCK_THREADS || block_extent[1] > CUDA_MAX_BLOCK_THREADS ||
         block_extent[2] > CUDA_MAX_BLOCK_THREADS ||
         block_extent[0] * block_extent[1] * block_extent[2] > CUDA_MAX_BLOCK_THREADS) {
-        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", kernel_name, "' cannot be launched: its work-group (",
+        OPENVINO_THROW("[GPU] Kernel '", kernel_name, "' cannot be launched: its work-group (",
                        block_extent[0], ", ", block_extent[1], ", ", block_extent[2], ") has more than ",
                        CUDA_MAX_BLOCK_THREADS, " work-items, the most a CUDA block can hold");
     }
@@ -495,7 +495,7 @@ cuda_dispatch choose_cuda_dispatch(const std::vector<size_t>& gws,
         std::swap(grid_axes[0], grid_axes[2]);
 
     if (grid_axes[0] > CUDA_MAX_GRID_X || grid_axes[1] > CUDA_MAX_GRID_YZ || grid_axes[2] > CUDA_MAX_GRID_YZ) {
-        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", kernel_name, "' cannot be launched: its work-group count (",
+        OPENVINO_THROW("[GPU] Kernel '", kernel_name, "' cannot be launched: its work-group count (",
                        grid_extent[0], ", ", grid_extent[1], ", ", grid_extent[2], ") does not fit a CUDA grid, ",
                        "which takes more than ", CUDA_MAX_GRID_YZ, " work-groups along one dimension only, and at most ",
                        CUDA_MAX_GRID_X, " along that one");
@@ -540,7 +540,7 @@ size_t scalar_size(scalar_desc::Types type) {
     case scalar_desc::Types::FLOAT64:
         return 8;
     }
-    OPENVINO_THROW("[GPU][NVIDIA] Unknown scalar argument type ", static_cast<int>(type));
+    OPENVINO_THROW("[GPU] Unknown scalar argument type ", static_cast<int>(type));
 }
 
 // The parameters of one cuLaunchKernel call: one pointer per kernel parameter, each to an 8-byte slot that holds its
@@ -629,7 +629,7 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh, const kernel_arguments_desc& 
         if (args[i].kind != arg_t::kind_t::BUFFER)
             continue;
         // As on the OpenCL backend, a memory argument the primitive does not provide is an error.
-        OPENVINO_ASSERT(args[i].mem, "[GPU][NVIDIA] Kernel '", _state->kernel_name, "' has no memory for argument ", i);
+        OPENVINO_ASSERT(args[i].mem, "[GPU] Kernel '", _state->kernel_name, "' has no memory for argument ", i);
         if (const auto* buffer = dynamic_cast<const gpu_buffer*>(args[i].mem.get())) {
             buffers[i].accessor = accessors.size();
             buffers[i].byte_offset = buffer->get_byte_offset();

@@ -69,7 +69,7 @@ void patch_ptx_envreg(std::string& ptx) {
 void create_ptx_kernels(std::string ptx, std::vector<kernel::ptr>& out) {
     const auto program = std::make_shared<ptx_program>(std::move(ptx));
     if (program->entry_points().empty())
-        OPENVINO_THROW("[GPU][NVIDIA] No entry points found in PTX");
+        OPENVINO_THROW("[GPU] No entry points found in PTX");
 
     for (const auto& ep : program->entry_points())
         out.push_back(std::make_shared<sycl_ptx_kernel>(program, ep, ep));
@@ -84,7 +84,7 @@ void sycl_kernel_builder::init_ocl_builder() const {
     // The matching OpenCL device is looked up once per SYCL device (see sycl_device::get_ocl_device()).
     auto ocl_dev = _device.get_ocl_device();
     OPENVINO_ASSERT(ocl_dev != nullptr,
-        "[GPU][NVIDIA] Could not find a matching OCL device for the NVIDIA SYCL device");
+        "[GPU] Could not find a matching OCL device for the NVIDIA SYCL device");
     _ocl_builder = std::make_shared<::cldnn::ocl::ocl_kernel_builder>(*ocl_dev);
 }
 
@@ -93,7 +93,7 @@ void sycl_kernel_builder::build_kernels(
         const std::string& options,
         std::vector<kernel::ptr>& out) const {
     if (!src || src_bytes == 0)
-        OPENVINO_THROW("[GPU][NVIDIA] sycl::nvidia::sycl_kernel_builder: empty kernel source");
+        OPENVINO_THROW("[GPU] sycl::nvidia::sycl_kernel_builder: empty kernel source");
 
     if (src_format == KernelFormat::NATIVE_BIN) {
         // A cached binary is PTX this function has already patched.
@@ -106,7 +106,7 @@ void sycl_kernel_builder::build_kernels(
     std::call_once(_ocl_builder_once, [this]() { init_ocl_builder(); });
     std::vector<kernel::ptr> tmp;
     _ocl_builder->build_kernels(src, src_bytes, src_format, options, tmp);
-    OPENVINO_ASSERT(!tmp.empty(), "[GPU][NVIDIA] OCL builder returned no kernels");
+    OPENVINO_ASSERT(!tmp.empty(), "[GPU] OCL builder returned no kernels");
     // NVIDIA OCL runtime returns PTX as the device binary
     const auto binary = tmp[0]->get_binary();
     std::string ptx_str(binary.begin(), binary.end());
