@@ -67,6 +67,10 @@ constexpr const char* V_HEAD_SIZE = "v_head_size";
 // See new_plan.md Phase 5: read by the GPU plugin's CreatePagedAttentionExtensionOp alongside the
 // optional 29th `chunk_base_ptrs` input.
 constexpr const char* BLOCKS_PER_CHUNK = "blocks_per_chunk";
+// Set (as bool) when key_cache/value_cache carry per-chunk i64 pointer tables instead of a 29th input.
+constexpr const char* KV_CACHE_CHUNK_TABLES = "kv_cache_chunk_tables";
+// Set (as bool) on the key_cache.N / value_cache.N Parameters themselves; read by the GPU infer request.
+constexpr const char* KV_CACHE_CHUNK_TABLE_PORT = "kv_cache_chunk_table";
 using namespace ov::pass;
 using ov::OutputVector;
 
@@ -887,7 +891,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         // See new_plan.md Phase 5: unlike every other optional feature above, this is emitted as a
         // variable input count (28 or 29) rather than an always-present empty-tensor placeholder, to
         // minimize the blast radius on the op's other, already-numerous consumers.
-        if (options.allow_chunked_kv_cache) {
+        if (options.allow_chunked_kv_cache && !options.kv_cache_chunk_tables) {
             auto chunk_base_ptrs_name = "chunk_base_ptrs." + std::to_string(m_layer_index);
             auto chunk_base_ptrs = pa_params.add(chunk_base_ptrs_name, element::i64, PartialShape{-1});
             // This tensor holds raw USM device pointers, not indices/lengths like the other i64/i32
@@ -905,6 +909,16 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
         if (options.allow_chunked_kv_cache) {
             paged_attention->get_rt_info()[BLOCKS_PER_CHUNK] = static_cast<int64_t>(options.kv_cache_blocks_per_chunk);
+            if (options.kv_cache_chunk_tables) {
+                paged_attention->get_rt_info()[KV_CACHE_CHUNK_TABLES] = true;
+                // Runtime-side flag for the cache inputs themselves: they keep their declared cache type/shape but are
+                // bound with an i64 pointer table, so plugins must not validate tensors against the declared port.
+                // Plugins rebuild compiled-model ports from fresh Parameters and only carry output-tensor rt_info over.
+                k_parameter->output(0).get_rt_info()[KV_CACHE_CHUNK_TABLE_PORT] = true;
+                v_parameter->output(0).get_rt_info()[KV_CACHE_CHUNK_TABLE_PORT] = true;
+                k_parameter->get_rt_info()[KV_CACHE_CHUNK_TABLE_PORT] = true;
+                v_parameter->get_rt_info()[KV_CACHE_CHUNK_TABLE_PORT] = true;
+            }
         }
         paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
         paged_attention->get_rt_info()[V_HEAD_SIZE] = v_head_size;

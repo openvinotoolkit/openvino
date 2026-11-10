@@ -34,6 +34,10 @@ struct Options {
     // addressing. `kv_cache_blocks_per_chunk` is only meaningful when this is true.
     bool allow_chunked_kv_cache = false;
     size_t kv_cache_blocks_per_chunk = 512;
+    // Only meaningful together with `allow_chunked_kv_cache`. Instead of a 29th `chunk_base_ptrs.N` input, the
+    // existing `key_cache.N`/`value_cache.N` inputs carry the chunk storage at runtime: an i64 tensor holding one
+    // device pointer per chunk. The PagedAttentionExtension node gets a `kv_cache_chunk_tables` rt_info marker.
+    bool kv_cache_chunk_tables = false;
 };
 
 template <typename NodeT, typename VectorT>
@@ -172,7 +176,8 @@ public:
                                   bool allow_qq_bias = false,
                                   bool is_draft_model = false,
                                   bool allow_chunked_kv_cache = false,
-                                  size_t kv_cache_blocks_per_chunk = 512);
+                                  size_t kv_cache_blocks_per_chunk = 512,
+                                  bool kv_cache_chunk_tables = false);
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:

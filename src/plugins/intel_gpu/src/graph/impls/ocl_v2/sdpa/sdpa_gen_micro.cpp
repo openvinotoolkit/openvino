@@ -274,6 +274,16 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
     return get_value_cache_id(*desc);
 }
 
+// Element type of the K/V matrices the micro-kernel reads: the paged cache (mixed stage) or the new tokens (prefill).
+// In chunk-table mode the cache inputs hold i64 pointer tables, so their layout type is not the element type.
+inline ov::element::Type_t micro_kv_data_type(const kernel_impl_params& params, bool is_key, bool from_cache) {
+    if (from_cache && params.typed_desc<paged_attention>()->has_chunk_tables) {
+        return get_chunk_table_cache_type(params);
+    }
+    const size_t input_idx = from_cache ? (is_key ? 3 : 4) : (is_key ? 1 : 2);
+    return params.input_layouts[input_idx].data_type;
+}
+
 inline bool micro_is_v_transposed(const kernel_impl_params& params) {
     if (params.is_type<paged_attention>())
         return false;
@@ -1297,8 +1307,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const auto& device_info = params.get_device_info();
 
     const auto& Q = params.input_layouts[0];
-    const auto& K = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
-    const auto& V = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
+    const bool kv_from_cache = config.is_paged_attention && !m_is_prefill;
+    const auto k_dt = micro_kv_data_type(params, true, kv_from_cache);
+    const auto v_dt = micro_kv_data_type(params, false, kv_from_cache);
     const auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
 
@@ -1311,8 +1322,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
     auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
-    auto ldk = k_head_size * ov::element::Type(K.data_type).size();
-    auto ldv = v_head_size * ov::element::Type(V.data_type).size();
+    auto ldk = k_head_size * ov::element::Type(k_dt).size();
+    auto ldv = v_head_size * ov::element::Type(v_dt).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
     jit.make("D_MAX", d_max);
@@ -1339,6 +1350,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
         const auto desc = params.typed_desc<paged_attention>();
+        jit.make("HAS_CHUNK_TABLES", desc->has_chunk_tables ? 1 : 0);
         if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
             // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
@@ -1371,8 +1383,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("HEADS_NUM", m_is_gqa_single_token ? config.kv_heads_num : config.heads_num);
 
     jit.make("QRY_DATA_T", to_ocl_type(Q.data_type));
-    jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
-    jit.make("VAL_DATA_T", to_ocl_type(V.data_type));
+    jit.make("KEY_DATA_T", to_ocl_type(k_dt));
+    jit.make("VAL_DATA_T", to_ocl_type(v_dt));
 
     auto elems_per_byte = [](ov::element::Type dt) {
         switch (dt) {
@@ -1448,7 +1460,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         }
     }
 
-    if (config.is_paged_attention && data_type_traits::is_i8_u8(K.data_type)) {
+    if (config.is_paged_attention && data_type_traits::is_i8_u8(k_dt)) {
         auto pa_desc = params.typed_desc<paged_attention>();
         jit.make("IS_KV_COMPRESSED_PA", true);
 
@@ -1490,8 +1502,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const bool is_byte_packed_int4 = !config.is_paged_attention && data_type_traits::is_i4_u4(compressed_dt);
     if (is_byte_packed_int4)
         jit.make("IS_INT4_KV_CACHE", 1);
-    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(K.data_type) : ov::element::Type(compressed_dt)));
-    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(V.data_type) : ov::element::Type(compressed_dt)));
+    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(k_dt) : ov::element::Type(compressed_dt)));
+    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(v_dt) : ov::element::Type(compressed_dt)));
 
     int tile_k = gemm_kq.getSetting("wg_tile_m");
     int tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1527,7 +1539,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         //     jit.make("BLOCK_A", 1);
         jit.make("REMAINDER_Q", !q_full);
     } else if (device_info.arch >= gpu_arch::xe_hpc) {
-        auto vbytes = n_values.get_length() * ov::element::Type(V.data_type).size();
+        auto vbytes = n_values.get_length() * ov::element::Type(v_dt).size();
         const auto sg_tile_m = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m"));
         const auto sg_size = get_subgroup_size(device_info.arch);
         // tile_ops.cl defines DEF_BLOCK2D_LOAD_STORE for half up to vl=16 (BR=32, BC=8).
@@ -1825,8 +1837,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     bool is_paged_attention = params.is_type<cldnn::paged_attention>();
 
     const auto& Q = params.input_layouts[0];
-    const auto& K = (is_paged_attention && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
-    const auto& V = (is_paged_attention && !is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
+    const auto k_dt = micro_kv_data_type(params, true, is_paged_attention && !is_prefill);
+    const auto v_dt = micro_kv_data_type(params, false, is_paged_attention && !is_prefill);
     const auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
     const auto& device_info = params.get_device_info();
@@ -1854,7 +1866,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     bool is_integrated = device_info.dev_type == device_type::integrated_gpu;
 
     bool is_quantized =
-        (K.data_type == ov::element::u8 || K.data_type == ov::element::i8) || (V.data_type == ov::element::u8 || V.data_type == ov::element::i8);
+        (k_dt == ov::element::u8 || k_dt == ov::element::i8) || (v_dt == ov::element::u8 || v_dt == ov::element::i8);
     int32_t nkeys_v = static_cast<int32_t>(n_keys.is_dynamic() ? 0 : n_keys.get_length());
 
     GPU_DEBUG_TRACE_DETAIL << "k_head_size = " << k_head_size << ", nkeys_v = " << nkeys_v << "\n";
@@ -1925,7 +1937,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     /* Set up GEMMProblem structure for first GEMM: K^T * Q */
     micro::GEMMProblem problem;
-    problem.Ta_ext = convert_type(K.data_type);
+    problem.Ta_ext = convert_type(k_dt);
     problem.Tb_ext = convert_type(Q.data_type);
 
     // INT4 cache is byte-backed, so use its logical precision rather than the physical layout type.
@@ -2112,7 +2124,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     /* Update for second GEMM: V*S */
     auto problem_vs = problem;
-    problem_vs.Ta_ext = convert_type(V.data_type);
+    problem_vs.Ta_ext = convert_type(v_dt);
     if (is_int4_kv_cache && (!is_paged_attention || !is_prefill)) {
         problem_vs.Ta_ext = convert_type(kv_cache_precision);
     }

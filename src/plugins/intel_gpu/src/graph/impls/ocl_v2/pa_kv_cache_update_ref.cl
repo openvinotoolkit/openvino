@@ -341,6 +341,34 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
 }
 #endif  // IS_KEY_BY_CHANNEL
 
+#define IS_CHUNKED_KV (HAS_CHUNK_BASE_PTRS || HAS_CHUNK_TABLES)
+
+#if HAS_CHUNK_TABLES
+    // key_cache_data/value_cache_data arguments hold a chunk table (see kv_chunk_table.hpp); the layout dtype is
+    // i64, so the element type comes from KV_CACHE_TYPE.
+    #define PA_KEY_CACHE_TYPE KV_CACHE_TYPE
+    #define PA_VALUE_CACHE_TYPE KV_CACHE_TYPE
+
+    // Table words: [0] granule_shift | num_chunks << 8 | generation << 32, [1] num_granules, then num_chunks chunk base
+    // pointers, then a u32 directory of (chunk_id << 20 | granule_in_chunk) per granule.
+    inline ulong FUNC(pa_resolve_chunk_block)(const __global ulong* table, uint gbid, uint* local_block) {
+        const ulong header = table[0];
+        const uint granule_shift = (uint)(header & 0xFFu);
+        const uint num_chunks = (uint)((header >> 8) & 0xFFFFFFu);
+        const __global uint* directory = (const __global uint*)(table + 2 + num_chunks);
+        const uint entry = directory[gbid >> granule_shift];
+        *local_block = ((entry & 0xFFFFFu) << granule_shift) | (gbid & ((1u << granule_shift) - 1u));
+        return table[2 + (entry >> 20)];
+    }
+#else
+    #define PA_KEY_CACHE_TYPE OUTPUT_TYPE
+    #define PA_VALUE_CACHE_TYPE OUTPUT1_TYPE
+    #if HAS_CHUNK_BASE_PTRS
+        #define PA_KEY_CHUNK_PTR(chunk_id) ((__global OUTPUT_TYPE*)(chunk_base_ptrs[(chunk_id)]))
+        #define PA_VALUE_CHUNK_PTR(chunk_id) ((__global OUTPUT1_TYPE*)(chunk_base_ptrs[num_chunks + (chunk_id)]))
+    #endif
+#endif
+
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, SUBGROUP_SIZE)))
 KERNEL(pa_kv_cache_update)(
@@ -351,8 +379,13 @@ KERNEL(pa_kv_cache_update)(
     __global const INPUT3_TYPE* block_indices,
     __global const INPUT4_TYPE* block_indices_begins,
     __global const INPUT5_TYPE* subsequence_begins,
+#if HAS_CHUNK_TABLES
+    __global const ulong* key_cache_data,
+    __global const ulong* value_cache_data,
+#else
     __global OUTPUT_TYPE* key_cache_data,
     __global OUTPUT1_TYPE* value_cache_data,
+#endif
 #if HAS_CHUNK_BASE_PTRS
     // See new_plan.md Phase 5: `num_chunks` key chunk device pointers followed by `num_chunks` value chunk
     // device pointers, one ulong (raw USM pointer) each. num_chunks itself is a runtime scalar (not a jit
@@ -366,14 +399,14 @@ KERNEL(pa_kv_cache_update)(
     const int is_prefill_stage
 ) {
     // See new_plan.md Phase 5: chunked KV cache is only wired for the uncompressed cache path so far.
-#if HAS_CHUNK_BASE_PTRS && IS_KV_COMPRESSED
-#error "Chunked KV cache (HAS_CHUNK_BASE_PTRS) is not yet supported together with a compressed/quantized cache"
+#if IS_CHUNKED_KV && IS_KV_COMPRESSED
+#error "Chunked KV cache is not yet supported together with a compressed/quantized cache"
 #endif
 
     // ACTIVE_KEY_CACHE/ACTIVE_VALUE_CACHE resolve to the legacy single contiguous buffers when chunking is
     // disabled, or to a per-write chunk-resolved pointer (declared locally, see below) when enabled. Only
     // used by the uncompressed write sites below (guarded by !IS_KV_COMPRESSED).
-#if HAS_CHUNK_BASE_PTRS
+#if IS_CHUNKED_KV
     #define ACTIVE_KEY_CACHE key_cache_chunk
     #define ACTIVE_VALUE_CACHE value_cache_chunk
 #else
@@ -414,13 +447,23 @@ KERNEL(pa_kv_cache_update)(
         const uint seq_block_idx = block_indices_begins[seq_idx] + past_seq_len / PAGED_ATTENTION_BLOCK_SIZE;
         const uint block_idx = block_indices[seq_block_idx];
 
-#if HAS_CHUNK_BASE_PTRS
+#if HAS_CHUNK_TABLES
+        // The chunk pointers are biased by the block offset in 64-bit so large chunks cannot overflow 32-bit math.
+        uint table_local_block;
+        const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(key_cache_data, block_idx, &table_local_block);
+        __global PA_KEY_CACHE_TYPE* key_cache_chunk =
+            (__global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+        const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(value_cache_data, block_idx, &table_local_block);
+        __global PA_VALUE_CACHE_TYPE* value_cache_chunk =
+            (__global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+        const uint local_block_idx = 0;
+#elif IS_CHUNKED_KV
         // See new_plan.md Phase 5: resolve the physical block id to a (chunk, local block) pair and
         // dereference the corresponding chunk's device pointer instead of indexing a single flat buffer.
         const uint chunk_id = block_idx / BLOCKS_PER_CHUNK;
         const uint local_block_idx = block_idx % BLOCKS_PER_CHUNK;
-        __global OUTPUT_TYPE* key_cache_chunk = (__global OUTPUT_TYPE*)(chunk_base_ptrs[chunk_id]);
-        __global OUTPUT1_TYPE* value_cache_chunk = (__global OUTPUT1_TYPE*)(chunk_base_ptrs[num_chunks + chunk_id]);
+        __global PA_KEY_CACHE_TYPE* key_cache_chunk = PA_KEY_CHUNK_PTR(chunk_id);
+        __global PA_VALUE_CACHE_TYPE* value_cache_chunk = PA_VALUE_CHUNK_PTR(chunk_id);
 #else
         const uint local_block_idx = block_idx;
 #endif
@@ -562,13 +605,22 @@ KERNEL(pa_kv_cache_update)(
         const uint block_offset = block_indices_begins[subsequence_idx] + current_block_idx;
         const uint physical_block_id = block_indices[block_offset];
 
-#if HAS_CHUNK_BASE_PTRS
+#if HAS_CHUNK_TABLES
+        uint table_local_block;
+        const ulong key_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(key_cache_data, physical_block_id, &table_local_block);
+        __global PA_KEY_CACHE_TYPE* key_cache_chunk =
+            (__global PA_KEY_CACHE_TYPE*)key_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+        const ulong value_chunk_base = FUNC_CALL(pa_resolve_chunk_block)(value_cache_data, physical_block_id, &table_local_block);
+        __global PA_VALUE_CACHE_TYPE* value_cache_chunk =
+            (__global PA_VALUE_CACHE_TYPE*)value_chunk_base + (ulong)table_local_block * (KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE);
+        const uint local_block_idx = 0;
+#elif IS_CHUNKED_KV
         // See new_plan.md Phase 5: resolve the physical block id to a (chunk, local block) pair and
         // dereference the corresponding chunk's device pointer instead of indexing a single flat buffer.
         const uint chunk_id = physical_block_id / BLOCKS_PER_CHUNK;
         const uint local_block_idx = physical_block_id % BLOCKS_PER_CHUNK;
-        __global OUTPUT_TYPE* key_cache_chunk = (__global OUTPUT_TYPE*)(chunk_base_ptrs[chunk_id]);
-        __global OUTPUT1_TYPE* value_cache_chunk = (__global OUTPUT1_TYPE*)(chunk_base_ptrs[num_chunks + chunk_id]);
+        __global PA_KEY_CACHE_TYPE* key_cache_chunk = PA_KEY_CHUNK_PTR(chunk_id);
+        __global PA_VALUE_CACHE_TYPE* value_cache_chunk = PA_VALUE_CHUNK_PTR(chunk_id);
 #else
         const uint local_block_idx = physical_block_id;
 #endif

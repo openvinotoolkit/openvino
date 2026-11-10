@@ -83,6 +83,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         seed = hash_combine(seed, has_qq_bias);
         seed = hash_combine(seed, write_kv_cache);
         seed = hash_combine(seed, has_chunk_base_ptrs);
+        seed = hash_combine(seed, has_chunk_tables);
         seed = hash_combine(seed, blocks_per_chunk);
         if (scale_val.has_value()) {
             seed = hash_combine(seed, scale_val.value());
@@ -114,6 +115,7 @@ struct paged_attention : public primitive_base<paged_attention> {
                has_qq_bias == rhs_casted.has_qq_bias &&
                write_kv_cache == rhs_casted.write_kv_cache &&
                has_chunk_base_ptrs == rhs_casted.has_chunk_base_ptrs &&
+               has_chunk_tables == rhs_casted.has_chunk_tables &&
                blocks_per_chunk == rhs_casted.blocks_per_chunk &&
                scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
                is_key_by_channel == rhs_casted.is_key_by_channel;
@@ -136,6 +138,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_qq_bias;
         ob << write_kv_cache;
         ob << has_chunk_base_ptrs;
+        ob << has_chunk_tables;
         ob << blocks_per_chunk;
 
         if (scale_val.has_value()) {
@@ -164,6 +167,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_qq_bias;
         ib >> write_kv_cache;
         ib >> has_chunk_base_ptrs;
+        ib >> has_chunk_tables;
         ib >> blocks_per_chunk;
 
         bool has_scale;
@@ -197,7 +201,13 @@ struct paged_attention : public primitive_base<paged_attention> {
     // See new_plan.md Phase 5: whether CHUNK_BASE_PTRS is present (key_cache/value_cache addressed as
     // multiple independent chunks) rather than a single legacy contiguous allocation.
     bool has_chunk_base_ptrs = false;
-    // Fixed number of blocks per chunk (uniform across chunks); only meaningful when has_chunk_base_ptrs
+    // Alternative chunked mode: the KEY_CACHE/VALUE_CACHE inputs themselves hold i64 tables of per-chunk
+    // device pointers (one table each), so no 29th input is needed. Mutually exclusive with has_chunk_base_ptrs.
+    bool has_chunk_tables = false;
+    bool is_chunked() const {
+        return has_chunk_base_ptrs || has_chunk_tables;
+    }
+    // Fixed number of blocks per chunk (uniform across chunks); only meaningful when is_chunked()
     // is true. block_id resolves to (block_id / blocks_per_chunk, block_id % blocks_per_chunk). The
     // current chunk COUNT is deliberately NOT stored here (or anywhere compile-time): chunk_base_ptrs
     // grows across inference steps as new chunks are allocated, so kernels read it at dispatch time from
