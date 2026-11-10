@@ -1,0 +1,33 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-10-18-10-00-753-42857529315",
+    "timestamp": "2026-11-10T18:10:00Z",
+    "run_id": "42857529315",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42857529315",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
+    "signature": "typeerror genai_gen_text got an unexpected keyword argument context|Dependencies",
+    "signature_hash": "6cf9cf0d8f5c0a43",
+    "confidence": "High",
+    "failed_jobs": [
+        {"name": "LLM accuracy CPU tests / LLM accuracy CPU tests", "conclusion": "failure", "symptom": "All 4 CPU accuracy_conformance test cases fail identically with TypeError: genai_gen_text() got an unexpected keyword argument 'context'"},
+        {"name": "LLM accuracy iGPU tests / LLM accuracy GPU tests", "conclusion": "failure", "symptom": "All 4 GPU accuracy_conformance test cases fail identically with TypeError: genai_gen_text() got an unexpected keyword argument 'context'"}
+    ],
+    "key_errors": [
+        "tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-CPU] FAILED [ 25%]",
+        "File \"/__w/openvino/openvino/tests/llm/accuracy_conformance.py\", line 250, in test_accuracy_conformance\n    _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())\n  File \"/venv/lib/python3.12/site-packages/whowhatbench/text_evaluator.py\", line 145, in score\n    predictions = self._generate_data(\n  File \"/venv/lib/python3.12/site-packages/whowhatbench/text_evaluator.py\", line 236, in _generate_data\n    output = gen_answer_fn(\nTypeError: genai_gen_text() got an unexpected keyword argument 'context'"
+    ],
+    "root_cause": "tests/llm/requirements.txt installs whowhatbench directly from the openvino.genai master branch with no version pin. An upstream change to whowhatbench's text_evaluator.py now invokes the generation callback (genai_gen_text) with an additional 'context' keyword argument that the repo's current genai_gen_text implementation does not accept, breaking every accuracy_conformance test on both CPU and GPU. This is unrelated to PR #39512, which only edits a benchmarks CSV file (docs/sphinx_setup/_static/benchmarks_files/llm_models_7-368H.csv); the same signature has now recurred 4 times since 2026-11-05, each time on an unrelated PR, confirming a persistent unpinned-dependency drift rather than a transient or PR-caused issue.",
+    "reproduction_steps": "Install tests/llm/requirements.txt (pulls whowhatbench from openvino.genai@master) against the current genai_gen_text generation-function implementation, then run: python3 -m pytest tests/llm/accuracy_conformance.py -k CPU --tb native. The TypeError reproduces immediately on the first test case.",
+    "recommended_actions": [
+        "Pin tests/llm/requirements.txt's whowhatbench dependency to a known-good commit/tag of openvino.genai instead of tracking master, or update genai_gen_text() to accept the new 'context' keyword argument used by whowhatbench.text_evaluator._generate_data.",
+        "Add a compatibility shim (**kwargs or an explicit context=None parameter) to genai_gen_text() in tests/llm so new optional arguments introduced by whowhatbench do not break the test suite.",
+        "Coordinate with openvino.genai / whowhatbench maintainers to confirm the intended signature change and align both repos before merging, then remove the unpinned master dependency."
+    ],
+    "prevention_strategies": "Avoid unpinned 'git+https://...@master' test dependencies developed in lockstep with code under test; pin to a tag/commit and bump deliberately via CI, or add a contract test that fails fast with a clear message when the upstream function signature changes.",
+    "historical_context": "This exact signature has now been seen 4 times (first seen 2026-11-05T06:17:40Z, most recent prior occurrence 2026-11-09T16:59:01Z on run 42647164506), always on unrelated PRs, confirming the break stems from an upstream whowhatbench update rather than any merge-queue PR content."
+}
