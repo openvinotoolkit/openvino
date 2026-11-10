@@ -38,6 +38,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
@@ -79,6 +80,16 @@ static NodeConfig make_plain_config(const std::shared_ptr<ov::Node>& op) {
 static void redefineToMemories(const std::vector<MemoryPtr>& to_mems, const MemoryDescPtr& new_desc) {
     // TODO : check the entire dstMemPtrs usage considering the proper memory sharing
     for (const auto& to_mem : to_mems) {
+        const auto& old_desc = to_mem->getDesc();
+        if (old_desc.isDefined() && new_desc->isDefined() && old_desc.isCompatible(*new_desc)) {
+            // Preserve the handle cached by consumers and re-acquire memory after
+            // release_memory(). DnnlMemoryBlock::resize() refreshes the existing
+            // handle if the buffer changes.
+            if (old_desc.getPrecision() != ov::element::string) {
+                to_mem->getMemoryBlock()->resize(to_mem->getSize());
+            }
+            continue;
+        }
         to_mem->redefineDesc(new_desc);
     }
 }

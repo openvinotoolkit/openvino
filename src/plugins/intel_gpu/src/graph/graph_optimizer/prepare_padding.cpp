@@ -24,19 +24,24 @@ void prepare_padding::run(program& p) {
 
         auto& weight_node = node->get_dependency(1);
         if (weight_node.is_constant()) {
-            const size_t alignment = 2;
             auto weight_layout = weight_node.get_output_layout(false);
             const auto const_shape = weight_layout.get_partial_shape().to_shape();
             OPENVINO_ASSERT(!const_shape.empty(), "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
             auto inner_most_idx = node->as<fully_connected>().get_primitive()->weights_rank - 1;
+            bool is_k_odd = const_shape[inner_most_idx] % 2 != 0;
+            const bool is_onednn_int4 = node->get_preferred_impl_type() == impl_types::onednn &&
+                                        weight_node.is_type<data>() &&
+                                        (weight_layout.data_type == cldnn::data_types::u4 ||
+                                         weight_layout.data_type == cldnn::data_types::i4);
 
-            if (const_shape[inner_most_idx] % alignment != 0) {
-                std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
-                new_paddings[inner_most_idx] = 1;
+            if (is_onednn_int4) {
+                // Align odd packed int4 weight rows to 4 bytes for oneDNN FC performance.
+                const size_t weight_alignment = 8;
+                const auto weight_padding = (weight_alignment - const_shape[inner_most_idx] % weight_alignment) % weight_alignment;
+                if (is_k_odd) {
+                    std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
+                    new_paddings[inner_most_idx] = static_cast<ov::Dimension::value_type>(weight_padding);
 
-                if (node->get_preferred_impl_type() == impl_types::onednn && weight_node.is_type<data>() &&
-                    (weight_node.get_output_layout(false).data_type == cldnn::data_types::u4 ||
-                     weight_node.get_output_layout(false).data_type == cldnn::data_types::i4)) {
                     auto weight_in_layout = weight_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
@@ -45,7 +50,49 @@ void prepare_padding::run(program& p) {
                     auto& new_reorder_node = p.get_or_create(new_reorder);
                     p.add_intermediate(new_reorder_node, *node, weight_node, new_reorder_node.get_dependencies().empty());
                     new_reorder_node.recalc_output_layouts(false);
-                } else if (node->get_preferred_impl_type() == impl_types::ocl &&
+
+                    // Align activation rows to 4 bytes alongside the int4 weights.
+                    // This will cause some amount of runtime performance overhead.
+                    // However, this is necessary to avoid ref kernel selection, and to take advantage of block loading instruction of xe2+ architecture.
+                    // In the future, we may back-propagate padding information to the producer so that it generates padded result directly.
+                    const auto input_layout = node->get_input_layout(0);
+                    const auto input_shape = input_layout.get_partial_shape();
+                    const auto input_element_size = data_type_traits::size_of(input_layout.data_type);
+                    bool activation_aligned = input_element_size % 4 == 0;
+                    if (!activation_aligned && input_shape.size() == 2) {  // Limited to 2d activation only, because it is the only validated path.
+                        const auto input_feature_idx = input_shape.size() - 1;
+                        if (input_shape[input_feature_idx].is_static()) {
+                            const auto input_alignment = 4 / input_element_size;
+                            const auto row_size = input_shape[input_feature_idx].get_length() +
+                                                  input_layout.data_padding._lower_size[input_feature_idx] +
+                                                  input_layout.data_padding._upper_size[input_feature_idx];
+                            const auto input_padding = (input_alignment - row_size % input_alignment) % input_alignment;
+                            activation_aligned = input_padding == 0;
+                            if (!activation_aligned) {
+                                auto input0_new_layout = input_layout;
+                                std::vector<ov::Dimension::value_type> input_paddings(input_shape.size(), 0);
+                                input_paddings[input_feature_idx] = input_layout.data_padding._upper_size[input_feature_idx] + input_padding;
+                                input0_new_layout.data_padding = padding::max(input0_new_layout.data_padding, padding({0}, input_paddings));
+                                auto new_input_reorder = std::make_shared<reorder>("padding_reorder_for_" + node->get_dependency(0).id(),
+                                                                                   input_info(node->get_dependency(0).id()),
+                                                                                   input0_new_layout);
+                                auto& new_input_reorder_node = p.get_or_create(new_input_reorder);
+                                p.add_intermediate(new_input_reorder_node, *node, node->get_dependency(0), new_input_reorder_node.get_dependencies().empty());
+                                new_input_reorder_node.recalc_output_layouts(false);
+                                activation_aligned = true;
+                            }
+                        }
+                    }
+                    if (!activation_aligned) {
+                        GPU_DEBUG_INFO << "[WARNING] " << node->id() << ": INT4 weights were padded, but activation padding was not added. Input layout: "
+                                       << input_layout.to_short_string() << std::endl;
+                    }
+                }
+            } else if (is_k_odd) {
+                std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
+                new_paddings[inner_most_idx] = 1;
+
+                if (node->get_preferred_impl_type() == impl_types::ocl &&
                            p.get_config().get_force_implementations().find(node->id()) == p.get_config().get_force_implementations().end() &&
                            node->get_input_layout(0).data_type == cldnn::data_types::f16 && node->get_input_layout(0).format == cldnn::format::bfyx &&
                            node->get_input_layout(0).get_partial_shape()[1].is_static() &&  // feature dim of input should be static

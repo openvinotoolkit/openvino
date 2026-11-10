@@ -143,6 +143,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/kv_cache_compressed.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
@@ -161,6 +163,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/rewrite_gqa_attention_mask.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/rewrite_gqa_attention_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.cpp

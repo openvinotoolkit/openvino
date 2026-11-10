@@ -47,7 +47,7 @@ using ov::op::internal::GroupQueryAttention;
 
 // Graph-level tests for GroupQueryAttentionDecomposition: the internal op is replaced by a
 // ScaledDotProductAttention-based decomposition, and each feature emits its expected structure
-// (sliding-window cache -> ScatterUpdate; smooth_softmax / head_sink -> SDPA sink input). Numerical
+// (non-empty sliding-window cache -> ScatterUpdate; smooth_softmax / head_sink -> SDPA sink input). Numerical
 // parity against ONNX Runtime is covered by the end-to-end tests in onnx_import_com_microsoft.
 namespace {
 
@@ -103,7 +103,7 @@ struct GqaParams {
         local_window_size = w;
         sliding_window_cache = true;
         past_len = capacity;
-        expects_scatter_update = true;
+        expects_scatter_update = !capacity.is_static() || capacity.get_length() > 0;
         return *this;
     }
     GqaParams& sink_smooth() {
@@ -138,7 +138,7 @@ struct GqaParams {
     GqaParams& shape(const Dimension& seq, const Dimension& past) {
         seq_len = seq;
         past_len = past;
-        expects_scatter_update = past.is_static();
+        expects_scatter_update = past.is_static() && past.get_length() > 0;
         return *this;
     }
 };
@@ -248,9 +248,19 @@ class GroupQueryAttentionDecompositionTest : public testing::TestWithParam<GqaPa
 TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
     const auto& p = GetParam();
     auto model = make_gqa_model(p);
+    const auto present_key_shape_before = model->get_output_partial_shape(1);
+    const auto present_value_shape_before = model->get_output_partial_shape(2);
     pass::Manager manager;
     manager.register_pass<pass::GroupQueryAttentionDecomposition>();
     manager.run_passes(model);
+
+    if (p.name == "empty_past_windowed_cache") {
+        const auto expected_shape = PartialShape{1, KV_NUM_HEADS, 1, HEAD_SIZE};
+        EXPECT_EQ(present_key_shape_before, expected_shape);
+        EXPECT_EQ(present_value_shape_before, expected_shape);
+        EXPECT_EQ(model->get_output_partial_shape(1), present_key_shape_before);
+        EXPECT_EQ(model->get_output_partial_shape(2), present_value_shape_before);
+    }
 
     // The internal op is always replaced by exactly one ScaledDotProductAttention.
     EXPECT_EQ(count_ops_of_type<GroupQueryAttention>(model), 0u);
@@ -263,8 +273,8 @@ TEST_P(GroupQueryAttentionDecompositionTest, decomposes_to_sdpa) {
         }
     }
 
-    // The windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate along the
-    // sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
+    // The non-empty windowed rolling / static-cache paths assemble the present buffer with a ScatterUpdate
+    // along the sequence axis (2); other cache paths do not. (Partial rotary also emits an unrelated ScatterUpdate to
     // re-attach pass-through channels along the last (channel) axis - filter cache writes by scatter axis.)
     bool has_cache_scatter_update = false;
     for (const auto& op : model->get_ordered_ops()) {
@@ -288,6 +298,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"partial_rotary"}.rotary(/*interleaved*/ false, HEAD_SIZE / 2),
                                          GqaParams{"partial_rotary_interleaved"}.rotary(/*interleaved*/ true,
                                                                                         HEAD_SIZE / 2),
+                                         GqaParams{"empty_past"}.shape(1, 0),
                                          GqaParams{"static_past_scatter"}.shape(1, 8),
                                          GqaParams{"static_past_scatter_bias"}.shape(1, 8).bias(5),
                                          GqaParams{"sliding_window"}.window(2),
@@ -299,6 +310,7 @@ INSTANTIATE_TEST_SUITE_P(GroupQueryAttentionDecomposition,
                                          GqaParams{"i4_per_tensor"}.quant(4, element::u8),
                                          GqaParams{"f8e4m3_per_tensor"}.quant(8, element::f8e4m3),
                                          GqaParams{"windowed_cache"}.windowed_roll(3, 4),
+                                         GqaParams{"empty_past_windowed_cache"}.windowed_roll(3, 0),
                                          GqaParams{"bidirectional"}.bidirectional()),
                          [](const testing::TestParamInfo<GqaParams>& i) {
                              return i.param.name;
@@ -535,6 +547,73 @@ TEST(GroupQueryAttentionValues, shared_kv_attends_to_past_and_returns_it_as_pres
     }
     // RoPE is applied to Q only: the (empty) key parameter has no consumers.
     EXPECT_TRUE(params[1]->output(0).get_target_inputs().empty());
+}
+
+TEST(GroupQueryAttentionValues, absent_past_returns_current_kv_as_present) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto empty_past = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto gqa = std::make_shared<GroupQueryAttention>(
+        OutputVector{query, key, value, empty_past, empty_past, seqlens_k, total_length},
+        4,
+        2,
+        0.0f,
+        false,
+        false);
+    auto model = std::make_shared<Model>(gqa->outputs(), ParameterVector{query, key, value, seqlens_k, total_length});
+    decompose(model);
+
+    ASSERT_NE(find_sdpa(model), nullptr);
+    EXPECT_EQ(model->get_results()[1]->get_input_node_shared_ptr(0), key);
+    EXPECT_EQ(model->get_results()[2]->get_input_node_shared_ptr(0), value);
+}
+
+TEST(GroupQueryAttentionValues, absent_quantized_past_returns_quantized_current_kv) {
+    const auto query = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 4, 3, 8});
+    const auto key = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto value = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 2, 3, 8});
+    const auto empty_past = op::v0::Constant::create(element::i8, Shape{1, 2, 0, 8}, {});
+    const auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto total_length = std::make_shared<op::v0::Parameter>(element::i32, Shape{1});
+    const auto absent = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    const auto k_scale = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto v_scale = std::make_shared<op::v0::Parameter>(element::f32, Shape{});
+    const auto per_tensor = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+    const auto gqa = std::make_shared<GroupQueryAttention>(OutputVector{query,
+                                                                        key,
+                                                                        value,
+                                                                        empty_past,
+                                                                        empty_past,
+                                                                        seqlens_k,
+                                                                        total_length,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        k_scale,
+                                                                        v_scale},
+                                                           4,
+                                                           2,
+                                                           0.0f,
+                                                           false,
+                                                           false,
+                                                           8,
+                                                           per_tensor,
+                                                           per_tensor);
+    auto model = std::make_shared<Model>(gqa->outputs(),
+                                         ParameterVector{query, key, value, seqlens_k, total_length, k_scale, v_scale});
+    decompose(model);
+
+    for (size_t port : {1, 2}) {
+        const auto present = model->get_results()[port]->get_input_node_shared_ptr(0);
+        EXPECT_TRUE(is_type<op::v0::Convert>(present)) << "present must be the quantized current K/V";
+        EXPECT_EQ(present->get_output_element_type(0), element::i8);
+        EXPECT_EQ(present->get_output_partial_shape(0), (PartialShape{1, 2, 3, 8}));
+    }
 }
 
 TEST(GroupQueryAttentionValues, softcap_grouped_query_does_not_replicate_kv) {
