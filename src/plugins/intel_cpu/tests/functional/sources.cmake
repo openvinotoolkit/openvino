@@ -282,7 +282,6 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/comparison.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution.cpp
@@ -745,7 +744,6 @@ set(TMP_LIST_OF_ARM_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/convert_reduce_multi_axis.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/deconv_multiple_output_edges.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/eltwise_chain.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/eltwise_i32_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/fc_fq.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/fuse_eltwise_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/gathermatmul.cpp

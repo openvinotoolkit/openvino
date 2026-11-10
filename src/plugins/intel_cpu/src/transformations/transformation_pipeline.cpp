@@ -70,7 +70,9 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/softmax.hpp"
+#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "openvino/op/softmax.hpp"
+#endif
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"

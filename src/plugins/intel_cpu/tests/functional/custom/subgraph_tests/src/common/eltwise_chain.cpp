@@ -30,7 +30,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain,
                                             ::testing::ValuesIn(eltwiseOps()),
                                             ::testing::Values(PostNode::EMPTY),
                                             ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(std::nullopt)),
                          EltwiseChainTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(
@@ -42,7 +43,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(eltwiseOpsConvert()),
                        ::testing::Values(PostNode::EMPTY),
                        ::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU),
+                       ::testing::Values(std::nullopt)),
     EltwiseChainTest::getTestCaseName);
 
 std::vector<std::vector<ov::Shape>> inputShapesFQ = {
@@ -74,7 +76,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithFQ,
                                             ::testing::ValuesIn(eltwiseOps()),
                                             ::testing::Values(PostNode::QUANTIZE),
                                             ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(std::nullopt)),
                          EltwiseChainTest::getTestCaseName);
 
 // =============================================== dynamic ==============================================
@@ -333,7 +336,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChain_dyn,
                                             ::testing::ValuesIn(eltwiseOps()),
                                             ::testing::Values(PostNode::EMPTY),
                                             ::testing::Values(ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(std::nullopt)),
                          EltwiseChainTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithSoftSign_dyn,
@@ -344,7 +348,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_EltwiseChainWithSoftSign_dyn,
                                             ::testing::ValuesIn(eltwiseOps()),
                                             ::testing::Values(PostNode::SOFTSIGN),
                                             ::testing::Values(ov::element::f32),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(std::nullopt)),
                          EltwiseChainTest::getTestCaseName);
 
 }  // namespace
