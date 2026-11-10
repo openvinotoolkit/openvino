@@ -1734,7 +1734,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
     auto keep_dst_rank = [&]() {
         if (is_type<convolution>()) {
             // convolution_onednn promotes grouped weights of a 1D convolution to a 5D grouped format.
-            bool grouped_weights = cldnn::format::is_grouped(get_input_layout(1).format) || as<convolution>().get_primitive()->grouped_weights_shape;
+            bool grouped_weights = cldnn::format::is_grouped(get_input_layout(1).format) || this->as<convolution>().get_primitive()->grouped_weights_shape;
             return onednn::conv_keeps_rank(get_input_layout(0), get_output_layout(), grouped_weights);
         }
         if (is_type<deconvolution>()) {
