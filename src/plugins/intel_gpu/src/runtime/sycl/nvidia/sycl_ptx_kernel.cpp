@@ -26,7 +26,8 @@ namespace sycl {
 
 namespace {
 
-// CUDA launch limits.
+// CUDA launch limits. They are the same for every compute capability (CUDA Programming Guide, "Technical
+// Specifications per Compute Capability"), so they are not queried from the device.
 constexpr unsigned int CUDA_MAX_BLOCK_Z = 64;
 constexpr unsigned int CUDA_MAX_BLOCK_THREADS = 1024;
 constexpr unsigned int CUDA_MAX_GRID_X = 2147483647u;
