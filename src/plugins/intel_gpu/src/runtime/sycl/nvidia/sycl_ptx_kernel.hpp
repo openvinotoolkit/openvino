@@ -141,9 +141,6 @@ public:
     void launch(::sycl::handler& cgh,
                 const kernel_arguments_desc& args_desc) override;
 
-    const std::string& get_ptx_source() const { return _state->program->source(); }
-    const std::string& get_kernel_name() const { return _state->kernel_name; }
-
 private:
     std::shared_ptr<ptx_kernel_state> _state;
     std::string _kernel_id;
