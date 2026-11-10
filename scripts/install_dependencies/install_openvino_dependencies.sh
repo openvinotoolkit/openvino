@@ -124,9 +124,10 @@ if [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu24.04" ] ||
 
     if [ "$os" == "ubuntu22.04" ] ; then
         pkgs_python+=(libpython3.10)
-        # Ubuntu 22.04's default python3 is 3.10; python3.11 is available in the jammy-updates
-        # (universe) pocket, so pull it in too to satisfy OpenVINO's >= 3.11 requirement
-        pkgs_python+=(python3.11 python3.11-venv)
+        # Ubuntu 22.04's default python3 is 3.10; python3.11 (and its matching libpython3.11) is
+        # available in the jammy-updates (universe) pocket, so pull it in too to satisfy
+        # OpenVINO's >= 3.11 requirement
+        pkgs_python+=(python3.11 python3.11-venv libpython3.11)
     elif [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
         # Debian 12 / Raspbian 12 ship Python 3.11 by default (no libpython3.10 package exists)
         pkgs_python+=(libpython3.11)
