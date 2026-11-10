@@ -280,6 +280,26 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnNonELFCompiledModel
     }
 }
 
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnPluginBatchedCompiledModelThrows) {
+    ov::Core core;
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2, 2, 2});
+    input->set_layout("N...");
+    auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(input, constant);
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+
+    auto config = configuration;
+    config.emplace(ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN));
+
+    auto compiledModel = core.compile_model(model, target_device, config);
+    OV_EXPECT_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(true)}),
+                    ov::Exception,
+                    testing::HasSubstr("holds batch information that requires metadata to be exported"));
+    ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+}
+
 TEST_P(OVCompiledGraphImportExportTestNPU, CheckSizeOfExportedModelIfMultipleOfPageSize) {
     ov::Core core;
     std::stringstream sstream;
