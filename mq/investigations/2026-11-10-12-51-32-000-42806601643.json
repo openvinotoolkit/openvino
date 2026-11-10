@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-12-51-32-000-42806601643",
+  "timestamp": "2026-11-10T12:51:32Z",
+  "run_id": "42806601643",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42806601643",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39617",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39617",
+  "author": "asukhobo",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access to the path is denied"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll: Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.",
+    "+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "Expand-Archive -Force attempts to overwrite the previously extracted openvino_package.zip on the Windows self-hosted runner's workspace, but tbb12.dll from the prior extraction is still memory-mapped/locked by a lingering process (e.g. an antivirus scan or a not-yet-terminated test/runner process from a previous job on the same machine), so Remove-Item fails with UnauthorizedAccessException before the new archive can be written. This is a recurring Windows self-hosted runner hygiene issue, not a code defect in the PR (whose only change is an NPU-specific cmake download script unrelated to this job).",
+  "reproduction_steps": "N/A - requires the exact Windows self-hosted runner state (file lock on tbb12.dll from a prior job). Not reproducible from a clean local environment.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job (transient runner-state issue); it typically succeeds on retry once the lock is released.",
+    "Investigate why tbb12.dll remains locked after the previous job on this runner finishes (e.g. check for dangling test processes, antivirus real-time scanning, or an open handle from the test executable) and ensure full process cleanup/workspace reset between jobs.",
+    "Consider adding a short retry/wait loop around Expand-Archive or explicit process cleanup step before 'Extract OpenVINO packages' on Windows self-hosted runners."
+  ],
+  "prevention_strategies": "Add automatic retry with backoff for extraction steps on Windows self-hosted runners, and/or a pre-step that forcibly terminates lingering processes holding handles under the install directory before Expand-Archive runs. Track runner health so recurring lock issues can be flagged for runner-pool maintenance.",
+  "historical_context": "This exact signature (95bb23aa2ed8a84d) has now recurred 8 times since 2026-11-09T19:06:46Z, most recently 4 times within the last 12 hours, across unrelated PRs (#37406, #39577, #39668, #39034, #39444, #39617). A rerun-pattern PR (#39664) proposing the search string 'RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand' for the automated workflow rerunner is already open and pending maintainer review."
+}
