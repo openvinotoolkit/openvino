@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-18-01-09-894-42855007382",
+  "timestamp": "2026-11-10T18:01:09Z",
+  "run_id": "42855007382",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42855007382",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "ccb7ccc4022f5c555df04ea2c0372c461037bebc",
+  "pr_number": "39653",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39653",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item denied access to runtime\\3rdparty\\tbb\\bin\\tbb12.dll while Expand-Archive -Force tries to overwrite it."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive with -Force against a Windows self-hosted runner's install directory that still has openvino_package.zip's extracted files from a prior build on disk, including runtime\\3rdparty\\tbb\\bin\\tbb12.dll. PowerShell's Expand-Archive -Force tries to delete the existing tbb12.dll before re-extracting it, but the DLL is still memory-mapped/locked by a lingering process (commonly leftover from a previous test run or an antivirus/indexer holding a file handle) on this persistent Windows runner, so Remove-Item raises UnauthorizedAccessException and the step exits with code 1. This is a recurring Windows self-hosted runner hygiene issue, unrelated to the PR #39653 code change (GGUF/GPU graph transformation), which only touched C++ transformation logic and does not affect packaging or Windows runner state.",
+  "reproduction_steps": "N/A - requires the specific Windows self-hosted runner state (a locked tbb12.dll from a prior job) and cannot be reliably reproduced locally. To reproduce conceptually: on a Windows machine, start a process that holds a handle open on runtime\\3rdparty\\tbb\\bin\\tbb12.dll under an existing extracted openvino install directory, then run Expand-Archive -Force to re-extract the same archive over it.",
+  "recommended_actions": [
+    "Clean the install directory (Remove-Item -Recurse -Force $INSTALL_DIR) before Expand-Archive instead of relying on -Force overwrite semantics, so stale locked files do not block re-extraction.",
+    "Add a retry-with-backoff wrapper around the Expand-Archive step for Windows jobs to tolerate transient file locks from antivirus/indexing or lingering child processes.",
+    "Ensure prior job steps (e.g., GPU unit test executables) fully terminate and release handles on DLLs under the install directory before the workspace is reused, e.g., by adding an explicit process-cleanup step at job end.",
+    "Investigate whether the self-hosted Windows GPU runner pool needs periodic workspace resets to avoid accumulating locked artifacts across runs."
+  ],
+  "prevention_strategies": "Avoid in-place -Force overwrites of extracted OpenVINO packages on persistent self-hosted Windows runners; prefer deleting the destination directory first or extracting to a fresh directory per run. Add a step that verifies no owning process still holds handles to DLLs under the install directory (e.g., via Handle.exe or Get-Process) before extraction, and add automatic retry for Remove-Item/Expand-Archive failures caused by transient locks.",
+  "historical_context": "This exact signature has recurred 6 times since 2026-11-09 across multiple Windows runs (e.g., runs 42626586527, 42775441636, 42783108480, 42807973464, 42814866016, 42820480351), always on the 'Extract OpenVINO packages' step of a GPU-related job, always citing tbb12.dll or another runtime DLL locked during Expand-Archive -Force. No fix has been applied yet; this remains an open, unresolved Windows self-hosted runner infrastructure issue."
+}
