@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-11-05-08-042-42789867873",
+  "timestamp": "2026-11-10T11:05:08Z",
+  "run_id": "42789867873",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42789867873",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39577",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39577",
+  "author": "sungeunk",
+  "category": "Code Issue",
+  "title": "PyTorch Layer Tests fail - builtin cannot be used as a value in reflection_pad TorchScript",
+  "signature": "builtin cannot be used as a value|Code Issue",
+  "signature_hash": "98cbf832e7e217cf",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Pytorch Layer Tests / PyTorch Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_reflection_pad.py::TestReflectionPad::test_reflection_pad fails to script via TorchScript"
+    }
+  ],
+  "key_errors": [
+    "FAILED ../../../home/runner/_work/openvino/openvino/install/tests/layer_tests/pytorch_tests/test_reflection_pad.py::TestReflectionPad::test_reflection_pad[ ie_device:CPU - precision:FP32 - pad:(3, 1, 5, 2) - n:2 ] - RuntimeError: Retrying hit TorchScript method redefinition and can mask the original failure. First error: Couldn't get TorchScript module by scripting.",
+    "builtin cannot be used as a value: File \"test_reflection_pad.py\", line 26, def forward_2d(self, x): return torch.ops.aten.reflection_pad2d(x, self.pad)",
+    "Last error: Couldn't get TorchScript module by scripting. Exception: Can't redefine method: forward on class: __torch__.test_reflection_pad.___torch_mangle_6685.aten_reflection_pad"
+  ],
+  "root_cause": "The pytorch_tests/test_reflection_pad.py test calls torch.ops.aten.reflection_pad2d directly inside a forward method intended to be TorchScript-scripted. TorchScript treats torch.ops.aten.* overload dispatch as a builtin that cannot be referenced as a first-class value, so scripting fails deterministically; the subsequent retry-with-tracing path then hits a 'method redefinition' error because the module was already partially compiled. This is a pre-existing defect in the PyTorch layer test harness/test file, unrelated to the PR under test (#39577, GPU MoE token-axis fix only touches src/plugins/intel_gpu). The same signature was first observed on 2026-09-01 in PR #37790 (a dependabot bump) and recurs here, confirming it is a long-standing, PR-independent test issue rather than a regression introduced by this change.",
+  "reproduction_steps": "cd install/tests/layer_tests && python -m pytest pytorch_tests/test_reflection_pad.py::TestReflectionPad::test_reflection_pad -k 'pad:(3, 1, 5, 2) and n:2' --ie_device=CPU --precision=FP32",
+  "recommended_actions": [
+    "Fix src/bindings/python layer test file test_reflection_pad.py (around line 26): avoid calling torch.ops.aten.reflection_pad2d directly inside a method intended for TorchScript scripting; either wrap it so scripting is skipped for this case or always force the tracing path by providing a valid example_input",
+    "Mark the failing test_reflection_pad[pad:(3, 1, 5, 2) - n:2] parametrization as xfail/skip until the scripting path is fixed, to stop blocking unrelated merge-queue runs",
+    "Confirm whether a recent PyTorch version bump changed TorchScript's handling of torch.ops.aten.* builtins (same signature recurred ~2 months after the first occurrence, so check CI history around PyTorch upgrades)"
+  ],
+  "prevention_strategies": "When writing PyTorch layer tests that rely on TorchScript scripting, avoid referencing torch.ops.aten.* overloads as callables inside scripted forward methods; prefer tracing with an explicit example_input, or guard scripting attempts with a documented skip/xfail so a known-incompatible test does not fail every merge-queue run regardless of the PR's actual changes.",
+  "historical_context": "Identical signature (98cbf832e7e217cf) first recorded 2026-09-01 on PR #37790 (dependabot bump, run 33502706581) with the same root cause (torch.ops.aten.reflection_pad2d not scriptable). This is the 2nd occurrence; the underlying test defect was never fixed between then and now."
+}
