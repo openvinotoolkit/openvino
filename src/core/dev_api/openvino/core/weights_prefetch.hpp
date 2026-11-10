@@ -12,6 +12,7 @@
 
 #include "openvino/core/core_visibility.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace ov::util {
@@ -87,5 +88,43 @@ private:
     size_t m_next;             // Index of the next constant to prefetch.
     size_t m_in_flight;        // Number of constants currently prefetched and not released.
     size_t m_in_flight_bytes;  // Bytes of the m_in_flight constants.
+};
+
+/**
+ * @brief Prefetches a tensor read front to back in a window ahead of the reader and evicts what was read.
+ *
+ * Hints take effect only for tensors having memory hints, see ov::get_memory_hints(). Not thread safe.
+ */
+class OPENVINO_API SequentialPrefetchScheduler {
+public:
+    /**
+     * @param tensor 1D u8 tensor being read.
+     * @param window Number of bytes kept prefetched ahead of the read position.
+     * @param step Granularity of the hints; small hints are ignored by the file mappings.
+     *
+     * Default window and step showed the best import time and peak RSS in manual testing.
+     */
+    explicit SequentialPrefetchScheduler(const ov::Tensor& tensor,
+                                         size_t window = 32 * one_mib,
+                                         size_t step = 8 * one_mib);
+
+    /** @brief Reports that [begin, end) is read next and the bytes before @p begin are consumed. */
+    void advance(size_t begin, size_t end) noexcept;
+
+    /** @brief Stops evicting, for when the read memory stays referenced (e.g. zero-copy import). */
+    void keep_read_data() noexcept {
+        m_evict = false;
+    }
+
+private:
+    std::shared_ptr<IMemoryHints> chunk_hints(size_t begin, size_t end) const noexcept;
+
+    const ov::Tensor m_tensor;  // Tensor being read.
+    size_t m_size;              // Tensor size in bytes.
+    size_t m_window;            // Bytes to prefetch ahead of the read position.
+    size_t m_step;              // Granularity of prefetch and eviction chunks.
+    size_t m_prefetched;        // End offset of the prefetched region.
+    size_t m_evicted;           // End offset of the evicted region.
+    bool m_evict;               // Whether consumed data should be evicted.
 };
 }  // namespace ov::util

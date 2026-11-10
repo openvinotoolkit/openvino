@@ -5,9 +5,9 @@
 #pragma once
 
 #include <array>
-#include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "builder/graph_emitter.hpp"
 
@@ -38,6 +38,9 @@ std::string layer_norm(GraphEmitter& e,
 // Scale a tensor by a constant: GGML_OP_SCALE with attr "scale" (and bias 0).
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name);
 
+// GGML_OP_RESHAPE with special_zero: a 0 in `target` keeps the input dim, -1 is inferred.
+std::string reshape(GraphEmitter& e, const std::string& x, std::vector<int64_t> target, const std::string& name);
+
 // "<name>.weight" -> "<name>.bias".
 std::string bias_weight_name(const std::string& weight_name);
 
@@ -50,13 +53,6 @@ std::array<std::string, 2> split_interleaved_projection(GraphEmitter& e,
                                                         int64_t groups,
                                                         int64_t width);
 
-// Register the tensors of a derived weight `base` with quant type `qtype`.
-void store_parts(GraphEmitter& e, const std::string& base, const WeightTensors& t, GgufTensorType qtype);
-
-// Concatenate the rows of two weights with the same quantization layout into one; empty on mismatch.
-std::optional<WeightTensors> concat_rows(const WeightTensors& a,
-                                         const WeightTensors& b,
-                                         GgufTensorType qa,
-                                         GgufTensorType qb);
+std::string concat_weight_rows(GraphEmitter& e, const std::string& name, const std::vector<std::string>& weights);
 
 }  // namespace ov::frontend::gguf::blocks

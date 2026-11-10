@@ -144,6 +144,7 @@
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/increase_rms_input_precision.hpp"
 #include "plugin/transformations/force_fp32_selective.hpp"
+#include "plugin/transformations/l2_norm_to_rms.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -254,6 +255,12 @@
 #include "openvino/util/log.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -472,7 +479,157 @@ extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig&
 
 namespace ov::intel_gpu {
 
+class NormalizeMoEOutputReshape : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("NormalizeMoEOutputReshape");
+
+    NormalizeMoEOutputReshape() {
+        using namespace ov::pass::pattern;
+
+        auto product = wrap_type<ov::op::v1::Multiply>();
+        auto reduction = wrap_type<ov::op::v1::ReduceSum>({product, any_input()});
+        auto reshape = wrap_type<ov::op::v1::Reshape>({reduction, any_input()});
+
+        ov::matcher_pass_callback callback = [this](ov::pass::pattern::Matcher& m) {
+            const auto root = ov::as_type_ptr<ov::op::v1::Reshape>(m.get_match_root());
+            if (transformation_callback(root) || !root->get_special_zero()) {
+                return false;
+            }
+            const auto reduce = root->input_value(0).get_node_shared_ptr();
+            const auto multiply = reduce->input_value(0).get_node_shared_ptr();
+            ov::Output<ov::Node> gemm;
+            ov::Output<ov::Node> routing;
+            for (const auto& input : multiply->input_values()) {
+                const auto node = input.get_node_shared_ptr();
+                if (ov::is_type<ov::op::internal::GatherMatmul>(node) || ov::is_type<ov::op::internal::GatherMatmulCompressed>(node)) {
+                    gemm = input;
+                } else {
+                    routing = input;
+                }
+            }
+            const auto& shape = root->get_input_partial_shape(0);
+            const auto* routing_node = routing.get_node();
+            if (gemm.get_node() == nullptr || routing_node == nullptr || shape.rank() != 2) {
+                return false;
+            }
+            const auto target = ov::util::get_constant_from_source(root->input_value(1));
+            const auto& target_shape = root->get_input_partial_shape(1);
+            if (target_shape.rank() != 1 || !target_shape[0].is_static() || target_shape[0].get_length() != 2) {
+                return false;
+            }
+            if (target) {
+                const auto values = target->cast_vector<int64_t>();
+                if (std::find(values.begin(), values.end(), 0) == values.end()) {
+                    return false;
+                }
+                if (shape[1].is_static() && shape[1].get_length() > 0 &&
+                    ((values[0] == 0 && (values[1] == 0 || values[1] == shape[1].get_length() || values[1] == -1)) ||
+                     (values[0] == -1 && values[1] == 0))) {
+                    const auto new_target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, shape[1].get_length()});
+                    ov::copy_runtime_info(target, new_target);
+                    root->input(1).replace_source_output(new_target);
+                    root->set_special_zero(false);
+                    root->validate_and_infer_types();
+                    return true;
+                }
+            }
+
+            const auto reduction_op = ov::as_type_ptr<ov::op::v1::ReduceSum>(reduce);
+            const auto multiply_op = ov::as_type_ptr<ov::op::v1::Multiply>(multiply);
+            OPENVINO_ASSERT(reduction_op && multiply_op);
+            const auto axes = ov::util::get_constant_from_source(reduction_op->input_value(1));
+            const auto routing_rank = routing_node->get_output_partial_shape(routing.get_index()).rank();
+            if (reduction_op->get_keep_dims() || !axes ||
+                (axes->cast_vector<int64_t>() != std::vector<int64_t>{0} && axes->cast_vector<int64_t>() != std::vector<int64_t>{-3}) ||
+                multiply_op->get_autob().m_type != ov::op::AutoBroadcastType::NUMPY || routing_rank.is_dynamic() || routing_rank.get_length() > 3) {
+                return false;
+            }
+
+            // Derive the original reduced shape without retaining the unfused expert computation.
+            const auto type = ov::element::i64;
+            ov::NodeVector new_nodes;
+            ov::Output<ov::Node> target_values = root->input_value(1);
+            if (target_values.get_element_type() != type) {
+                target_values = std::make_shared<ov::op::v0::Convert>(target_values, type);
+                new_nodes.push_back(target_values.get_node_shared_ptr());
+            }
+            const auto axis = ov::op::v0::Constant::create(type, ov::Shape{}, {0});
+            const auto indices_shape = std::make_shared<ov::op::v3::ShapeOf>(gemm.get_node()->input_value(2), type);
+            const auto token_dim = std::make_shared<ov::op::v8::Gather>(indices_shape, ov::op::v0::Constant::create(type, ov::Shape{1}, {0}), axis);
+            const auto weights_shape = std::make_shared<ov::op::v3::ShapeOf>(gemm.get_node()->input_value(1), type);
+            const auto hidden_dim = std::make_shared<ov::op::v8::Gather>(weights_shape, ov::op::v0::Constant::create(type, ov::Shape{1}, {1}), axis);
+            const auto gemm_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{token_dim, hidden_dim}, 0);
+            const auto routing_shape = std::make_shared<ov::op::v3::ShapeOf>(routing, type);
+            const auto padded_routing_shape = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{ov::op::v0::Constant::create(type, ov::Shape{static_cast<size_t>(3 - routing_rank.get_length())}, {1}), routing_shape},
+                0);
+            const auto routing_tail =
+                std::make_shared<ov::op::v8::Gather>(padded_routing_shape, ov::op::v0::Constant::create(type, ov::Shape{2}, {1, 2}), axis);
+            const auto one = ov::op::v0::Constant::create(type, ov::Shape{}, {1});
+            const auto original_shape = std::make_shared<ov::op::v1::Select>(std::make_shared<ov::op::v1::Equal>(gemm_shape, one), routing_tail, gemm_shape);
+            const auto zero = ov::op::v0::Constant::create(type, ov::Shape{}, {0});
+            const auto is_zero = std::make_shared<ov::op::v1::Equal>(target_values, zero);
+            // With an axis copy, special_zero infers -1 from the remaining original dimension, also for empty tensors.
+            const auto other_is_zero = std::make_shared<ov::op::v8::Gather>(is_zero, ov::op::v0::Constant::create(type, ov::Shape{2}, {1, 0}), axis);
+            const auto minus_one = ov::op::v0::Constant::create(type, ov::Shape{}, {-1});
+            const auto is_minus_one = std::make_shared<ov::op::v1::Equal>(target_values, minus_one);
+            const auto copied_minus_one = std::make_shared<ov::op::v1::LogicalAnd>(is_minus_one, other_is_zero);
+            const auto use_original = std::make_shared<ov::op::v1::LogicalOr>(is_zero, copied_minus_one);
+            const auto new_target = std::make_shared<ov::op::v1::Select>(use_original, original_shape, target_values);
+            new_nodes.insert(new_nodes.end(),
+                             {axis,
+                              indices_shape,
+                              token_dim,
+                              weights_shape,
+                              hidden_dim,
+                              gemm_shape,
+                              routing_shape,
+                              padded_routing_shape,
+                              routing_tail,
+                              one,
+                              original_shape,
+                              zero,
+                              is_zero,
+                              other_is_zero,
+                              minus_one,
+                              is_minus_one,
+                              copied_minus_one,
+                              use_original,
+                              new_target});
+            ov::copy_runtime_info(root, new_nodes);
+            root->input(1).replace_source_output(new_target);
+            root->set_special_zero(false);
+            root->validate_and_infer_types();
+            return true;
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(reshape, "NormalizeMoEOutputReshape"), callback);
+    }
+};
+
 namespace {
+
+bool skip_constant_precision_preservation(const std::shared_ptr<const ov::Node>& node,
+                                          const std::unordered_set<const ov::Node*>& sincos_constants) {
+    const auto targets = node->get_output_target_inputs(0);
+    const ov::Node* next_node = node.get();
+    if (!targets.empty()) {
+        next_node = targets.begin()->get_node();
+    }
+    if (ov::is_type<ov::op::v0::Convert>(next_node)) {
+        const auto convert_targets = next_node->get_output_target_inputs(0);
+        if (!convert_targets.empty()) {
+            next_node = convert_targets.begin()->get_node();
+        }
+    }
+    if (ov::is_type_any_of<ov::op::v0::MatMul,
+                           ov::op::internal::MOE,
+                           ov::op::internal::GatherMatmulCompressed,
+                           ov::op::internal::GroupedMatMulCompressed>(next_node)) {
+        return false;
+    }
+    return sincos_constants.count(node.get()) == 0;
+}
+
 // Detect whether the model contains a linear-attention (Mamba2 / Gated DeltaNet)
 // block. Such hybrid-attention models have an SSM gated output whose activation
 // has a wide dynamic range and is unstable under per-token INT8 dyn-quant; we
@@ -580,7 +737,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
     // are automatically propagated by copy_runtime_info through all transformations.
     // This allows moe.cpp to find bin offsets even when WCA is lost.
-    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() < 100) {
+    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() <= 100) {
         // First stamp WCA on constants with mmap descriptors but no WCA yet
         for (const auto& op : func->get_ops()) {
             auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
@@ -741,6 +898,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // oneDNN, which requires an in-order OCL queue.  If oneDNN is
                 // disabled (e.g. via OV_GPU_USE_ONEDNN=0 on an IMMAD GPU), the
                 // queue stays out-of-order and the oneDNN stream creation may assert.
+                manager.register_pass<ov::intel_gpu::NormalizeMoEOutputReshape>();
                 manager.register_pass<ov::pass::MoeOpFusion>();
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
@@ -797,17 +955,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::BroadcastElementwiseFusion>();
         manager.register_pass<ov::pass::BroadcastTransition>();
 
+        auto sincos_constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+        manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(sincos_constants);
         manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
         pass_config->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
-            [](const_node_ptr& node) -> bool {
-                auto* next_node = node->get_output_target_inputs(0).begin()->get_node();
-                if (is_type<ov::op::v0::Convert>(next_node)) {
-                    next_node = next_node->get_output_target_inputs(0).begin()->get_node();
-                }
-                return !is_type_any_of<ov::op::v0::MatMul,
-                                       ov::op::internal::MOE,
-                                       ov::op::internal::GatherMatmulCompressed,
-                                       ov::op::internal::GroupedMatMulCompressed>(next_node);
+            [sincos_constants](const_node_ptr& node) -> bool {
+                return ov::intel_gpu::skip_constant_precision_preservation(node, *sincos_constants);
             });
 
         // Disable subtract folding only for the dGPUs to meet the requirements of oneDNN:
@@ -1762,6 +1915,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.set_per_pass_validation(false);
 
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
+        manager.register_pass<ov::intel_gpu::L2NormToRMS>(device_info.max_work_group_size);
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
         manager.register_pass<ov::intel_gpu::ConvertMatMulToFullyConnected>(device_info.supports_immad);
@@ -1855,6 +2009,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovFusableProducer>(std::vector<ov::DiscreteTypeInfo>{
+            ov::intel_gpu::op::FullyConnected::get_type_info_static(),
+            ov::op::v0::MatMul::get_type_info_static(),
+            ov::op::v1::Transpose::get_type_info_static(),
+        });
 
         manager.register_pass<ov::intel_gpu::ConvertStridedSlicesToVariadicSplit>();
 
@@ -1904,6 +2063,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
+                // u2 oneDNN kernel expects fp16 activations; disabled until i8 activation support is added
+                if (root->get_input_element_type(1) == ov::element::u2) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: u2 weights require fp16 activations" << std::endl;
+                    return true;
+                }
+
                 uint64_t adj_group_size = dynamic_quantization_group_size;
                 const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
                 if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
