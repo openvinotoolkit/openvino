@@ -2432,12 +2432,12 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    // Per-channel compressed KV has two readers: sdpa_ocl on its lane (Xe2+ XMX, f16 queries; SDPAOpt::validate_impl()
-    // admits it only there) and sdpa_ref everywhere else. Both run here where they can, each with a check of the kernel
+    // Per-channel compressed KV has two readers: sdpa_ocl on its lane (Xe2+ XMX, f16 queries, enable_sdpa_micro on;
+    // SDPAOpt::validate_impl() admits it only there) and sdpa_ref everywhere else. Both run here where they can, each with a check of the kernel
     // that ran: a silent fallback to the opt kernels, which read one scale per token, would be wrong.
     const bool per_channel = granularity == kv_quant_granularity::per_channel;
     const bool per_channel_dpas =
-        per_channel && !is_bf16 && params.dt == data_types::f16 && cldnn::paged_attention::sdpa_ocl_selected(engine.get_device_info()) &&
+        per_channel && !is_bf16 && params.dt == data_types::f16 && tests::expected_dpas_backend(engine) == tests::dpas_backend::ocl &&
         cldnn::paged_attention::sdpa_ocl_per_channel_kv_ok(engine.get_device_info());
 
     const int bit_width = params.bit_width;
@@ -4610,13 +4610,7 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdp
         auto& engine = get_test_engine();
         if (dpas) {
             if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl) {
-                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
-            }
-            // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO=0 reaches enable_sdpa_micro.
-            auto config = get_test_default_config(engine);
-            config.finalize(engine);
-            if (!config.get_enable_sdpa_micro()) {
-                GTEST_SKIP() << "the DPAS SDPA kernel is turned off (enable_sdpa_micro)";
+                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl): not on its lane, or OV_GPU_ENABLE_SDPA_MICRO=0";
             }
         }
 
@@ -5268,17 +5262,11 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<std::tuple<sdpa_bro
         if (dpas) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl) {
-                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl): not on its lane, or OV_GPU_ENABLE_SDPA_MICRO=0";
             }
 #else
             GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) in a build without oneDNN";
 #endif
-            // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO=0 reaches enable_sdpa_micro.
-            auto config = get_test_default_config(engine);
-            config.finalize(engine);
-            if (!config.get_enable_sdpa_micro()) {
-                GTEST_SKIP() << "the DPAS SDPA kernel is turned off (enable_sdpa_micro)";
-            }
         }
 
         auto dims = [&](int64_t b, int64_t seq) {
@@ -5500,17 +5488,11 @@ protected:
         if (dpas) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl) {
-                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl): not on its lane, or OV_GPU_ENABLE_SDPA_MICRO=0";
             }
 #else
             GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) in a build without oneDNN";
 #endif
-            // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO=0 reaches enable_sdpa_micro.
-            auto config = get_test_default_config(engine);
-            config.finalize(engine);
-            if (!config.get_enable_sdpa_micro()) {
-                GTEST_SKIP() << "the DPAS SDPA kernel is turned off (enable_sdpa_micro)";
-            }
         }
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
