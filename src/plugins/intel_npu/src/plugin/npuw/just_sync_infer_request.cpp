@@ -750,9 +750,6 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
 
 std::string ov::npuw::JustInferRequest::layer_major_fallback_reason() const {
     for (const auto& desc : m_npuw_model->m_compiled_submodels) {
-        if (ov::npuw::attn::get_compiled_hfa(desc.pipeline.context) != nullptr) {
-            return "HFA subgraph";
-        }
         if (ov::npuw::moe::has_compiled_state(desc.pipeline)) {
             return "MoE subgraph";
         }

@@ -164,7 +164,8 @@ protected:
 
     void compile(bool prefix = false,
                  const ov::element::Type& precision = ov::element::f32,
-                 const std::string& attention = "STATIC") {
+                 const std::string& attention = "STATIC",
+                 const ov::AnyMap& extra_props = {}) {
         auto cfg = ov::test::npuw::make_test_model_config();
         cfg.num_layers = 4;
         cfg.precision = precision;
@@ -189,6 +190,7 @@ protected:
                          {"NPUW_FUNCALL_ASYNC", GetParam() ? "YES" : "NO"},
                          {"NPUW_LLM_ENABLE_PREFIX_CACHING", prefix ? "YES" : "NO"},
                          {"NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE", "16"}};
+        props.insert(extra_props.begin(), extra_props.end());
         props["NPUW_LLM_PREFILL_LAYER_MAJOR"] = "NO";
         auto ref_model = std::make_shared<ov::npuw::LLMCompiledModel>(model->clone(), plugin, props);
         reference = std::make_shared<Request>(ref_model);
@@ -276,6 +278,28 @@ protected:
         Access::chunk_major(*layer_major);
         prefill(2 * chunk + 3, true, 19);
     }
+    void compile_hfa(const ov::element::Type& precision = ov::element::f16,
+                     bool fused = false,
+                     bool mask_skipping = false) {
+        compile(false,
+                precision,
+                "HFA",
+                {{"NPUW_ATTN_HFA_FUSED", fused ? "YES" : "NO"},
+                 {"NPUW_ATTN_HFA_MASK_SKIPPING", mask_skipping ? "YES" : "NO"}});
+        auto base = Access::base(*layer_major);
+        ASSERT_TRUE(base->layer_major_fallback_reason().empty());
+        size_t hfa_subgraphs = 0;
+        for (size_t i = 0; i < base->total_subrequests(); ++i) {
+            const auto* hfa = ov::npuw::attn::get_compiled_hfa(base->subgraph_pipeline(i).context);
+            if (!hfa) {
+                continue;
+            }
+            ++hfa_subgraphs;
+            const auto mask_idx = hfa->_sdpa_attention_info._tile_input_indices.mask;
+            EXPECT_EQ(hfa->_compiled_tile_model->inputs().size() > mask_idx, !mask_skipping);
+        }
+        ASSERT_GT(hfa_subgraphs, 0u);
+    }
 };
 
 TEST_P(LLMLayerMajorPrefillTest, MultiChunkBitExact) {
@@ -325,6 +349,60 @@ TEST_P(LLMLayerMajorPrefillTest, F16DynamicAttentionBitExact) {
 }
 TEST_P(LLMLayerMajorPrefillTest, F16PyramidAttentionBitExact) {
     attention_prefill("PYRAMID");
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaMultiChunkBitExact) {
+    compile_hfa();
+    prefill(3 * chunk + 5);
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaExactMultipleOfChunk) {
+    compile_hfa();
+    prefill(2 * chunk);
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaSingleChunk) {
+    compile_hfa();
+    prefill(5);
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaF32BitExact) {
+    compile_hfa(ov::element::f32);
+    prefill(3 * chunk + 5);
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaFusedBitExact) {
+    compile_hfa(ov::element::f16, true);
+    prefill(3 * chunk + 5);
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaMaskSkippingBitExact) {
+    compile_hfa(ov::element::f16, true, true);
+    prefill(3 * chunk + 5);
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaGenerateAfterPrefill) {
+    compile_hfa();
+    const size_t length = 3 * chunk + 5;
+    prefill(length);
+    for (size_t step = 0; step < 3; ++step) {
+        input(*reference, 1, length + step);
+        input(*layer_major, 1, length + step);
+        reference->infer();
+        layer_major->infer();
+        bytes(logits(*reference), logits(*layer_major));
+    }
+}
+TEST_P(LLMLayerMajorPrefillTest, HfaResetAndChunkMajorRestore) {
+    compile_hfa();
+    auto base = Access::base(*layer_major);
+    std::vector<ov::SoPtr<ov::IAsyncInferRequest>> primary, reserve;
+    for (size_t i = 0; i < base->total_subrequests(); ++i) {
+        primary.push_back(base->get_subrequest(i));
+        reserve.push_back(base->get_pipeline_subrequest(i));
+    }
+    prefill(3 * chunk + 5);
+    prefill(2 * chunk + 3, false, 17);
+    prefill(4 * chunk, false, 23);
+    for (size_t i = 0; i < primary.size(); ++i) {
+        EXPECT_EQ(base->get_subrequest(i)._ptr, primary[i]._ptr);
+        EXPECT_EQ(base->get_pipeline_subrequest(i)._ptr, reserve[i]._ptr);
+    }
+    Access::chunk_major(*layer_major);
+    prefill(chunk + 7, true, 31);
 }
 
 INSTANTIATE_TEST_SUITE_P(FunctionPipelining, LLMLayerMajorPrefillTest, testing::Bool());
