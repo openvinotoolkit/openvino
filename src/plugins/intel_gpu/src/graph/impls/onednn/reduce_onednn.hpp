@@ -112,6 +112,18 @@ struct ReduceImplementationManager : public ImplementationManager {
             return false;
         }
 
+        // Reducing only axes of size 1 is an identity as well: with keep_dims=false the output layout has a lower rank,
+        // so the check above misses it, but oneDNN builds the descriptor on the input rank and rejects it.
+        if (in_layout.is_static()) {
+            const auto& in_shape = in_layout.get_partial_shape();
+            const auto& axes = reduce_prim->axes;
+            if (!axes.empty() && std::all_of(axes.begin(), axes.end(), [&](int64_t axis) {
+                    return axis >= 0 && axis < in_shape.rank().get_length() && in_shape[axis].get_length() == 1;
+                })) {
+                return false;
+            }
+        }
+
         // Onednn reduction does NOT support reordering of unreduced-axes.
         // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
         return reduce_prim->keep_dims || !is_reduce_blocked_axes(node);

@@ -323,6 +323,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/tensor_iterator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/conv3d_norm_activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/condition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_in_place_crop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_sum_fusion.cpp
@@ -354,11 +355,13 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/split_reshape_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/swiglu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/transpose_matmul_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/fc_mul_gate_view.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/l2_norm_to_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/loop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/matmul_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/mvn_layernorm_byxf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/prevent_f32_dequantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/reduce_identity_axes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/rms_dynamic_quantize_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/serialize.cpp

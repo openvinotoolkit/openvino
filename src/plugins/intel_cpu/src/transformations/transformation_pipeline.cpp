@@ -88,6 +88,7 @@
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/disable_bf16_comp_ltx_rope.hpp"
+#include "transformations/fp16_compression/keep_rope_angles_in_f32_for_models.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
 #include "transformations/init_node_info.hpp"
@@ -289,6 +290,13 @@
 namespace ov::intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
+
+namespace {
+// Models whose RoPE angles are computed in f32 by design, also when the model runs in f16 / bf16
+std::vector<ov::pass::KeepRopeAnglesInF32ForModels::Model> rope_angles_in_f32_models() {
+    return {ov::pass::KeepRopeAnglesInF32ForModels::Model::LTX2};
+}
+}  // namespace
 
 bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     auto is_1x1_conv = [](const ov::Node* node) {
@@ -560,6 +568,10 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
 
     type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert}};
 
+    // Before ConvertPrecision (f16) and before the angle chains get fused (bf16)
+    if (any_of(config.inferencePrecision, ov::element::f16, ov::element::bf16)) {
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepRopeAnglesInF32ForModels, rope_angles_in_f32_models());
+    }
     // It cannot be static data, because it may be difference for different inferencePrecision
     const auto precisions = get_convert_precisions();
     if (config.inferencePrecision == ov::element::f16) {

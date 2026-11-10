@@ -325,6 +325,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/gathermatmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/interaction.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/interpolate_with_post_ops.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/ltx2_rope_angle_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/matmul_quantized_subgraph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/matmul_weights_decompression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/memory_sharing_test.cpp

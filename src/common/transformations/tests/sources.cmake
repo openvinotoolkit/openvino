@@ -159,6 +159,7 @@ set(DECOMPOSITIONS_TESTS_SRCS
 
 set(FP16_COMPRESSION_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/fp16_compression/disable_bf16_comp_ltx_rope_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/fp16_compression/keep_rope_angles_in_f32_for_models_test.cpp
 )
 
 set(OFFLINE_TRANSFORMATIONS_TESTS_SRCS
