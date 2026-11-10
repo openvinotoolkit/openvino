@@ -1248,15 +1248,14 @@ public:
         config.insert(ov::enable_profiling(true));
         config.insert(ov::intel_auto::compile_for_all(true));
         expect_selected_devices({"GPU.0", "CPU", "GPU.0"});
-        std::shared_ptr<ov::ICompiledModel> compiled_model;
-        OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+        auto compiled_model = plugin->compile_model(model, config);
         // the first request ran on CPU and is kept alive without running again
         auto cpu_request = compiled_model->create_infer_request();
-        OV_ASSERT_NO_THROW(cpu_request->infer());
+        cpu_request->infer();
         EXPECT_FALSE(m_cpu_model.expired());
         // a second request switches to GPU.0, which releases CPU
         auto gpu_request = compiled_model->create_infer_request();
-        OV_ASSERT_NO_THROW(gpu_request->infer());
+        gpu_request->infer();
         EXPECT_TRUE(m_cpu_model.expired());
         EXPECT_TRUE(m_cpu_worker_request.expired());
         return cpu_request;
