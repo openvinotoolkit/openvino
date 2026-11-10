@@ -936,7 +936,7 @@ TEST(custom_gpu_primitive_f32, documented_pitch_indexing_reads_non_contiguous_in
         ASSERT_EQ(output_ptr[i], expected[i]) << "element " << i;
 }
 
-namespace {
+namespace custom_gpu_primitive_source_test {
 
 class CustomSourceOp : public ov::op::Op {
 public:
@@ -976,8 +976,6 @@ public:
     }
 };
 
-}  // namespace
-
 TEST(custom_gpu_primitive_source, friendly_names_do_not_change_generated_source) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 2});
     auto first = std::make_shared<CustomSourceOp>(input, 1.0f);
@@ -1004,3 +1002,5 @@ TEST(custom_gpu_primitive_source, different_defines_keep_generated_source_distin
     const auto second_source = ov::intel_gpu::make_custom_layer_source(second, layer);
     ASSERT_NE(first_source, second_source);
 }
+
+}  // namespace custom_gpu_primitive_source_test
