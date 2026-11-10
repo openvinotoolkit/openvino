@@ -1027,13 +1027,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
-        // Fused compressed K/V (SDPA reads the quantized cache and its per-channel scales) only where sdpa_ocl serves SDPA:
-        // Xe2+ XMX with the DPAS kernel on (not OV_GPU_ENABLE_SDPA_MICRO=0) and f16 queries (it runs after ConvertPrecision).
-        // sdpa_opt reads one scale per token, so everywhere else the quantized K/V are dequantized before SDPA. A fused op
-        // sdpa_ocl still refuses runs on sdpa_ref (SDPAOpt::validate_impl()), correct but slow; the pass keeps the ops it
-        // can tell apart unfused, and heads above 256 (slower fused there).
-        const bool fuse_compressed_kv =
-            cldnn::paged_attention::sdpa_ocl_selected(device_info, false) && config.get_enable_sdpa_micro() && infer_precision == ov::element::f16;
+        // Fused compressed K/V (SDPA reads the quantized cache and its per-channel scales) only where sdpa_ocl has that
+        // reader: Xe2+ XMX (the per-channel reads are SG16, per_channel_kv_supported() in sdpa_gen_ocl.cpp; xe_hpg's SG8
+        // arms have none) with the DPAS kernel on (not OV_GPU_ENABLE_SDPA_MICRO=0) and f16 queries (it runs after
+        // ConvertPrecision). sdpa_opt reads one scale per token, so everywhere else the quantized K/V are dequantized before
+        // SDPA. A fused op sdpa_ocl still refuses runs on sdpa_ref (SDPAOpt::validate_impl()), correct but slow; the pass
+        // keeps the ops it can tell apart unfused, and heads above 256 (slower fused there).
+        const bool fuse_compressed_kv = device_info.arch >= cldnn::gpu_arch::xe2 && cldnn::paged_attention::sdpa_ocl_selected(device_info) &&
+                                        config.get_enable_sdpa_micro() && infer_precision == ov::element::f16;
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, fuse_compressed_kv);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
@@ -1225,7 +1226,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
             // The DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed). Other XMX
-            // devices (xe_hpc, xe_hpg under TEST_USE_SDPA_OCL_HPG=0) take the rules below. The 256 limit predates sdpa_ocl (which serves heads
+            // devices (xe_hpc) take the rules below. The 256 limit predates sdpa_ocl (which serves heads
             // up to 512); raising it would change which models keep SDPA fused.
             if (device_info.supports_immad && cldnn::paged_attention::sdpa_ocl_selected(device_info) && head_size <= 256)
                 return true;
