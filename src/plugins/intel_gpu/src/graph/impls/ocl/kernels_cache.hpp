@@ -139,6 +139,11 @@ private:
     // source ahead of hashing, so the cache key covers exactly the headers that get compiled.
     nvidia_compat_headers get_nvidia_compat_headers() const;
 
+    // The source handed to the kernel builder for `batch`: batch.source joined, with each kernel's sub-group size
+    // re-expressed for the NVIDIA compatibility headers when they are in use. Dumps write this as well, so that they
+    // show exactly what gets compiled.
+    std::string get_combined_source(const batch_program& batch) const;
+
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
 

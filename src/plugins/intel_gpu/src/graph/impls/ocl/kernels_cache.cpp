@@ -431,8 +431,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
-            // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler
-            if (!dump_sources_dir.empty() && b.language != kernel_language::CM) {
+            // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler, nor for the NVIDIA OpenCL compiler.
+            if (!dump_sources_dir.empty() && b.language != kernel_language::CM && !_use_nvidia_compat) {
                 std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
@@ -503,6 +503,26 @@ kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() 
     return result;
 }
 
+std::string kernels_cache::get_combined_source(const batch_program& batch) const {
+    if (!_use_nvidia_compat) {
+        return join_strings(batch.source);
+    }
+
+    // The NVIDIA compatibility headers are already in batch.source (see get_program_source()). What is left is
+    // re-expressing each kernel's sub-group size. That is done here rather than before hashing because it runs a few
+    // regexes over every kernel, which is only worth paying when the batch actually gets compiled (or dumped); the
+    // result follows from the kernel source alone, which the hash already covers.
+    std::string combined_source;
+    const size_t header_count = std::min(batch.header_count, batch.source.size());
+    for (size_t i = 0; i < header_count; ++i) {
+        combined_source += batch.source[i];
+    }
+    for (size_t i = header_count; i < batch.source.size(); ++i) {
+        combined_source += nvidia_replace_reqd_sub_group_size(batch.source[i]);
+    }
+    return combined_source;
+}
+
 void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
     bool dump_sources = batch.dump_custom_program;
@@ -527,12 +547,15 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
                                + "_part_" + std::to_string(batch.batch_id) + "_" + std::to_string(batch.hash_value) + ext;
     }
 
+    // The source the builder compiles. It is built ahead of the cache lookup only when it is dumped, so that the dump
+    // shows exactly what the compiler gets; otherwise it is built only on a cache miss.
+    std::string combined_source;
     std::ofstream dump_file;
     if (dump_sources) {
+        combined_source = get_combined_source(batch);
         dump_file.open(current_dump_file_name);
         if (dump_file.good()) {
-            for (const auto& s : batch.source)
-                dump_file << s;
+            dump_file << combined_source;
         }
     }
     std::string cached_bin_name = get_cache_path() + std::to_string(batch.hash_value) + ".cl_cache";
@@ -546,21 +569,8 @@ void kernels_cache::build_batch(const batch_program& batch, compiled_kernels& co
     if (!precompiled.empty()) {
         _builder->build_kernels(precompiled.data(), precompiled.size(), KernelFormat::NATIVE_BIN, "", kernels);
     } else {
-        std::string combined_source;
-        if (_use_nvidia_compat) {
-            // The NVIDIA compatibility headers are already in batch.source (see get_program_source()). What is left is
-            // re-expressing each kernel's sub-group size. That is done here rather than before hashing because it runs
-            // a few regexes over every kernel, which is only worth paying when the batch actually gets compiled; the
-            // result follows from the kernel source alone, which the hash already covers.
-            const size_t header_count = std::min(batch.header_count, batch.source.size());
-            for (size_t i = 0; i < header_count; ++i) {
-                combined_source += batch.source[i];
-            }
-            for (size_t i = header_count; i < batch.source.size(); ++i) {
-                combined_source += nvidia_replace_reqd_sub_group_size(batch.source[i]);
-            }
-        } else {
-            combined_source = join_strings(batch.source);
+        if (combined_source.empty()) {
+            combined_source = get_combined_source(batch);
         }
 
         _builder->build_kernels(combined_source.data(), combined_source.size(), KernelFormat::SOURCE, batch.options, kernels);
