@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-11-45-13-000-42798063954",
+  "timestamp": "2026-11-10T11:45:13Z",
+  "run_id": "42798063954",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42798063954",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37406",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37406",
+  "author": "culhatsker",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot overwrite install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll because access is denied"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll: \nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\n    + CategoryInfo          : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n    + FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs Expand-Archive with -Force to overwrite a pre-existing install directory left over from a prior job/run on the same self-hosted Windows runner. Expand-Archive's overwrite logic first tries to Remove-Item the existing tbb12.dll, but that DLL is still memory-mapped/locked by another process (e.g. a lingering test process, antivirus scanner, or a previous job's still-running executable) on the shared runner, so the OS denies the delete with UnauthorizedAccessException. This is a known recurring infrastructure issue on this Windows GPU self-hosted runner pool, unrelated to the PR's CMakeLists.txt change.",
+  "reproduction_steps": "N/A - requires the specific Windows self-hosted runner state (stale file handle on tbb12.dll from a prior process) which cannot be reproduced locally or in a clean CI environment.",
+  "recommended_actions": [
+    "Add a retry-with-delay wrapper around Expand-Archive in the 'Extract OpenVINO packages' step to tolerate transient file locks (e.g. retry 3x with 5s backoff).",
+    "Investigate and fix the self-hosted Windows GPU runner image/cleanup process so leftover processes release tbb12.dll handles before the next job starts (e.g. ensure prior job's test binaries are fully terminated and antivirus exclusions are configured for the install directory).",
+    "Consider cleaning the install directory before extraction (Remove-Item -Recurse -Force on the whole folder before Expand-Archive) rather than relying on -Force overwrite semantics.",
+    "Approve the already-proposed workflow-rerunner pattern for 'RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand' so this transient failure is auto-retried."
+  ],
+  "prevention_strategies": "Ensure Windows self-hosted runners fully release file handles (terminate all spawned test/child processes) before starting the next job, add an antivirus/Defender exclusion for the build install directory to avoid scan-induced locks, and make extraction steps resilient to transient file-lock errors via retry logic instead of a single Expand-Archive -Force call.",
+  "historical_context": "This exact signature (95bb23aa2ed8a84d) has now been observed 7 times since 2026-11-09T19:06:46Z, most recently at 2026-11-10T10:45:50Z (run 42789868134), affecting PRs #39577, #39668, #39034, #39444 and now #37406. All prior occurrences were on the same Windows GPU unit test extraction step and were attributed to Infrastructure (runner file-lock) causes."
+}
