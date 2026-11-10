@@ -220,7 +220,7 @@ html_js_files = [
 ]
 
 # 1. Define the exact version of MathJax you want to load to guarantee the hash stays valid
-mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"
 
 # 2. Add the SRI Integrity hash and the cross-origin parameter
 mathjax_options = {
