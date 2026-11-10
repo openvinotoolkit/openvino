@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <utility>
 
-#include "cpu_parallel.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/qsa_indexer_config.hpp"
@@ -35,19 +34,6 @@ bool head_counts(const MemoryDescArgs& descs, size_t& q_heads, size_t& k_heads) 
 }
 
 }  // namespace
-
-// Phase 2 of the JIT executor: brgemm where the scorer exists, the token scorer on the JIT scoring kernel otherwise.
-template <typename T>
-void run_scorer(const QSAIndexerJitExecutor& backend,
-                const node::qsa::Ports& p,
-                const node::qsa::Config& c,
-                const node::qsa::IndexerScratch<T>& scratch,
-                const CpuParallel& parallel) {
-    if (node::qsa::run_brgemm_scorer<T>(p, c, scratch, parallel)) {
-        return;
-    }
-    node::qsa::run_token_scorer<T>(backend, p, c, scratch, parallel);
-}
 
 bool QSAIndexerJitExecutor::supports(const QSAIndexerConfig& config) {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {

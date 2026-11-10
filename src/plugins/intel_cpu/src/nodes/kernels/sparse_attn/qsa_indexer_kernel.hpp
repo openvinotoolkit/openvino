@@ -559,13 +559,19 @@ void run_token_scorer(const Backend& backend,
     });
 }
 
-// Phase 2 of the plain C++ backend.
-template <typename T>
-void run_scorer(const ScalarBackend& backend,
+// Phase 2: brgemm where the node has a scorer for this call (x64 backends), the token scorer otherwise. ScalarBackend
+// has no scorer, so it always takes the token scorer.
+template <typename T, typename Backend>
+void run_scorer(const Backend& backend,
                 const Ports& p,
                 const Config& c,
                 const IndexerScratch<T>& scratch,
                 const CpuParallel& parallel) {
+#ifdef OPENVINO_ARCH_X86_64
+    if (run_brgemm_scorer<T>(p, c, scratch, parallel)) {
+        return;
+    }
+#endif
     run_token_scorer<T>(backend, p, c, scratch, parallel);
 }
 
