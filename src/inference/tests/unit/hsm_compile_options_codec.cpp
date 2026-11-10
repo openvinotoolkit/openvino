@@ -6,13 +6,19 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdint>
+#include <ios>
+#include <limits>
 #include <locale>
 #include <map>
 #include <memory>
 #include <optional>
 #include <ostream>
+#include <set>
 #include <sstream>
+#include <stdexcept>
+#include <streambuf>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -51,6 +57,7 @@ static_assert(std::is_same_v<decltype(std::declval<hsm::IWriter&>().add_section(
               "CompileOptionsEncoder must fit the unsized IWriter::add_section(SectionEncoderPtr).");
 
 constexpr hsm::DeviceId fake_device_id = hsm::private_device_id_range_start + 42;
+constexpr size_t chunk_size = 4096;
 
 // Separators, spelled out here on purpose - the codec's own constants are not visible to the tests.
 const std::string US{"\x1f"};
@@ -258,6 +265,28 @@ void expect_rejected(std::string_view bytes) {
     EXPECT_FALSE(decode_stream(bytes));
 }
 
+template <typename Value>
+void expect_value_roundtrip(const Value& input, const std::optional<std::string>& expected_text = std::nullopt) {
+    const ov::AnyMap options{{"k", input}};
+    const auto bytes = encode(options);
+    for (const auto& [source, decoded] :
+         {std::pair{"buffer", decode_buffer(bytes)}, std::pair{"stream", decode_stream(bytes)}}) {
+        SCOPED_TRACE(source);
+        ASSERT_TRUE(decoded);
+        ASSERT_EQ(decoded->size(), 1);
+        const auto& leaf = decoded->at("k");
+        ASSERT_TRUE(leaf.is<std::string>());
+        if (expected_text) {
+            EXPECT_EQ(leaf.as<std::string>(), *expected_text);
+        }
+        const auto restored = leaf.as<Value>();
+        EXPECT_EQ(restored, input);
+        if constexpr (std::is_floating_point_v<Value>) {
+            EXPECT_EQ(std::signbit(restored), std::signbit(input));
+        }
+    }
+}
+
 template <class Case>
 std::string case_name(const ::testing::TestParamInfo<Case>& info) {
     return info.param.name;
@@ -270,9 +299,7 @@ std::string case_name(const ::testing::TestParamInfo<Case>& info) {
 using HsmCompileOptionsFormatReferenceTest = ::testing::TestWithParam<ReferenceCase>;
 
 TEST_P(HsmCompileOptionsFormatReferenceTest, reference_digest_follows_the_documented_rule) {
-    const auto& entries = GetParam().entries;
-    const auto& digest = GetParam().digest;
-    EXPECT_EQ(digest_of(entries), digest);
+    EXPECT_EQ(digest_of(GetParam().entries), GetParam().digest);
 }
 
 INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
@@ -309,6 +336,26 @@ INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
 
 namespace {
 struct NoStringForm {};
+
+struct ThrowingStringForm {};
+
+std::ostream& operator<<(std::ostream&, const ThrowingStringForm&) {
+    throw std::runtime_error{"printer failure"};
+}
+
+struct SinkFailure : std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
+
+class NonSeekableStringBuf : public std::stringbuf {
+public:
+    using std::stringbuf::stringbuf;
+
+protected:
+    pos_type seekpos(pos_type, std::ios_base::openmode) override {
+        return pos_type{off_type{-1}};
+    }
+};
 
 struct InvalidOptionsCase {
     std::string name;
@@ -364,6 +411,53 @@ TEST(HsmCompileOptionsEncodeTest, error_for_non_string_value_without_text_names_
     EXPECT_NE(message.find("THE_KEY"), std::string::npos) << message;
     EXPECT_NE(message.find("NoStringForm"), std::string::npos) << message;
 }
+
+TEST(HsmCompileOptionsEncodeTest, printer_exception_is_wrapped_with_key_and_original_message) {
+    const ov::AnyMap options{{"THE_KEY", ThrowingStringForm{}}};
+
+    try {
+        encode(options);
+        FAIL() << "Expected a conversion exception";
+    } catch (const ov::Exception& error) {
+        const std::string message{error.what()};
+        EXPECT_NE(message.find("THE_KEY"), std::string::npos) << message;
+        EXPECT_NE(message.find("printer failure"), std::string::npos) << message;
+    }
+}
+
+using HsmCompileOptionsEncodeSinkExceptionTest = ::testing::TestWithParam<size_t>;
+
+TEST_P(HsmCompileOptionsEncodeSinkExceptionTest, sink_exception_propagates_without_further_output) {
+    const hsm::CompileOptionsEncoder encoder{single_string_case.input};
+    std::string written;
+    size_t failed_calls = 0;
+
+    try {
+        encoder.encode([&](ov::util::MemoryView chunk) {
+            if (written.size() >= GetParam()) {
+                ++failed_calls;
+                throw SinkFailure{"sink failure"};
+            }
+            written += to_string(chunk);
+        });
+        FAIL() << "Expected a sink exception";
+    } catch (const SinkFailure& error) {
+        EXPECT_STREQ(error.what(), "sink failure");
+    }
+
+    EXPECT_EQ(failed_calls, 1);
+    EXPECT_EQ(written, single_string_case.entries.substr(0, GetParam()));
+}
+
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
+                         HsmCompileOptionsEncodeSinkExceptionTest,
+                         ::testing::Values(size_t{0}, size_t{2}, single_string_case.entries.size()),
+                         [](const ::testing::TestParamInfo<size_t>& info) {
+                             if (info.param == 0) {
+                                 return "first_output";
+                             }
+                             return info.param == single_string_case.entries.size() ? "digest" : "partial_output";
+                         });
 
 TEST(HsmCompileOptionsEncodeTest, encoder_encodes_borrowed_map_only_in_encode) {
     ov::AnyMap options{{"", "invalid until fixed"}};
@@ -525,6 +619,36 @@ std::vector<MalformedCase> malformed_cases() {
     }
     return cases;
 }
+
+std::vector<MalformedCase> malformed_multi_chunk_cases() {
+    std::vector<MalformedCase> cases;
+    for (const size_t offset : {chunk_size - 1, chunk_size, chunk_size + 1}) {
+        const auto suffix = "_at_" + std::to_string(offset);
+        const auto value_prefix = "k" + US + std::string(offset - 2, 'v');
+        using pairs = std::initializer_list<std::pair<const char*, std::string>>;
+        for (const auto& [name, illegal] : pairs{{"NUL", "\0"s}, {"GS", GS}, {"RS", RS}, {"FS", FS}}) {
+            cases.push_back({"illegal_value_byte_"s + name + suffix, with_digest(value_prefix + illegal + US + FS)});
+        }
+
+        const auto pad_to_offset = [offset](const std::string& entry) {
+            return entry + "r" + RS + std::string(offset - entry.size() - 3, 'x') + RS;
+        };
+        const auto leaf_prefix = pad_to_offset("k" + US + "1" + US);
+        const auto map_prefix = pad_to_offset("k" + GS + GS);
+        cases.push_back({"duplicate_leaf" + suffix, with_digest(leaf_prefix + "k" + US + "2" + US + FS)});
+        cases.push_back({"duplicate_map" + suffix, with_digest(map_prefix + "k" + GS + GS + FS)});
+        cases.push_back({"leaf_then_map" + suffix, with_digest(leaf_prefix + "k" + GS + GS + FS)});
+        cases.push_back({"map_then_leaf" + suffix, with_digest(map_prefix + "k" + US + "2" + US + FS)});
+        cases.push_back({"extra_top_level_gs" + suffix, with_digest(leaf_prefix + GS + FS)});
+        cases.push_back(
+            {"fs_in_nested_map" + suffix, with_digest("M" + GS + "k" + US + std::string(offset - 5, 'v') + US + FS)});
+
+        cases.push_back({"truncated_key" + suffix, std::string(offset, 'k')});
+        cases.push_back({"truncated_value" + suffix, value_prefix});
+        cases.push_back({"truncated_reserved_block" + suffix, "r" + RS + std::string(offset - 2, 'x')});
+    }
+    return cases;
+}
 }  // namespace
 
 using HsmCompileOptionsDecodeMalformedTest = ::testing::TestWithParam<MalformedCase>;
@@ -536,6 +660,11 @@ TEST_P(HsmCompileOptionsDecodeMalformedTest, decode_rejects) {
 INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
                          HsmCompileOptionsDecodeMalformedTest,
                          ::testing::ValuesIn(malformed_cases()),
+                         case_name<MalformedCase>);
+
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptionsMultiChunk,
+                         HsmCompileOptionsDecodeMalformedTest,
+                         ::testing::ValuesIn(malformed_multi_chunk_cases()),
                          case_name<MalformedCase>);
 
 TEST(HsmCompileOptionsDecodeTest, decoded_strings_convert_to_property_types) {
@@ -566,10 +695,31 @@ TEST(HsmCompileOptionsDecodeTest, unreadable_section_is_rejected) {
     EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), stream, 0}));
 }
 
+TEST(HsmCompileOptionsDecodeTest, stream_read_exception_returns_nullopt) {
+    const auto bytes = single_string_case.bytes();
+    std::stringstream stream{bytes.substr(0, bytes.size() - 1)};
+    stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+
+    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), stream, 0}));
+    EXPECT_TRUE(stream.fail());
+    EXPECT_TRUE(stream.eof());
+}
+
+TEST(HsmCompileOptionsDecodeTest, stream_seek_exception_returns_nullopt) {
+    const auto bytes = single_string_case.bytes();
+    NonSeekableStringBuf buffer{bytes};
+    std::istream stream{&buffer};
+    stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+
+    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), stream, 0}));
+    EXPECT_TRUE(stream.fail());
+    EXPECT_FALSE(stream.eof());
+}
+
 // --- Decoding: sizes around the decoder's read chunk, no limits ---
 
 TEST(HsmCompileOptionsDecodeTest, payload_ending_around_the_chunk_boundary_is_decoded) {
-    for (size_t length = 4070; length <= 4110; ++length) {
+    for (size_t length = chunk_size - 26; length <= chunk_size + 14; ++length) {
         SCOPED_TRACE(length);
         const std::string value(length, 'x');
         expect_decoded(with_digest("k" + US + value + US + FS), {{"k", value}});
@@ -577,19 +727,91 @@ TEST(HsmCompileOptionsDecodeTest, payload_ending_around_the_chunk_boundary_is_de
 }
 
 TEST(HsmCompileOptionsDecodeTest, key_and_value_larger_than_a_chunk_are_decoded) {
-    const std::string key(5000, 'k');
-    const std::string value(100000, 'v');
+    const std::string key(chunk_size + 100, 'k');
+    const std::string value(25 * chunk_size, 'v');
 
     expect_decoded(with_digest(key + US + value + US + FS), {{key, value}});
 }
 
 TEST(HsmCompileOptionsDecodeTest, reserved_block_larger_than_a_chunk_is_skipped) {
-    const std::string content(10000, 'z');
+    const std::string content(2 * chunk_size + 300, 'z');
 
     expect_decoded(with_digest("r" + RS + content + RS + "k" + US + "v" + US + FS), {{"k", "v"}});
 }
 
+TEST(HsmCompileOptionsDecodeTest, stream_truncated_after_first_chunk_is_rejected) {
+    const auto bytes = with_digest("k" + US + std::string(chunk_size + 3, 'v') + US + FS);
+    std::stringstream stream{bytes.substr(0, chunk_size)};
+
+    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), stream, 0}));
+    EXPECT_TRUE(stream.fail());
+    EXPECT_TRUE(stream.eof());
+    EXPECT_EQ(stream.gcount(), 0);
+}
+
+TEST(HsmCompileOptionsDecodeTest, stream_missing_digest_after_full_chunk_is_rejected) {
+    const auto prefix = "k" + US;
+    const auto suffix = US + FS;
+    const auto entries = prefix + std::string(chunk_size - prefix.size() - suffix.size(), 'v') + suffix;
+    ASSERT_EQ(entries.size(), chunk_size);
+    const auto bytes = with_digest(entries);
+    std::stringstream stream{entries};
+
+    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(bytes.size()), stream, 0}));
+    EXPECT_TRUE(stream.fail());
+    EXPECT_TRUE(stream.eof());
+    EXPECT_EQ(stream.gcount(), 0);
+}
+
 // --- Round trip of generated options ---
+
+TEST(HsmCompileOptionsRoundTripTest, integer_limits_are_preserved) {
+    for (const auto value : {std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max()}) {
+        SCOPED_TRACE(value);
+        expect_value_roundtrip(value, std::to_string(value));
+    }
+    for (const auto value : {uint64_t{0}, std::numeric_limits<uint64_t>::max()}) {
+        SCOPED_TRACE(value);
+        expect_value_roundtrip(value, std::to_string(value));
+    }
+}
+
+template <typename Value>
+class HsmCompileOptionsFloatingPointTest : public ::testing::Test {};
+
+using CompileOptionsFloatingPointTypes = ::testing::Types<float, double, long double>;
+TYPED_TEST_SUITE(HsmCompileOptionsFloatingPointTest, CompileOptionsFloatingPointTypes);
+
+TYPED_TEST(HsmCompileOptionsFloatingPointTest, finite_limits_roundtrip_exactly) {
+    for (const auto value : {std::numeric_limits<TypeParam>::lowest(),
+                             std::numeric_limits<TypeParam>::max(),
+                             std::numeric_limits<TypeParam>::min(),
+                             std::nextafter(TypeParam{1}, TypeParam{2})}) {
+        SCOPED_TRACE(value);
+        expect_value_roundtrip(value);
+    }
+}
+
+TYPED_TEST(HsmCompileOptionsFloatingPointTest, signed_zero_is_preserved) {
+    expect_value_roundtrip(TypeParam{0});
+    expect_value_roundtrip(-TypeParam{0});
+}
+
+TEST(HsmCompileOptionsRoundTripTest, vector_is_restored_from_a_string_leaf) {
+    expect_value_roundtrip(std::vector<int>{-2, 0, 3}, "-2 0 3");
+}
+
+TEST(HsmCompileOptionsRoundTripTest, set_is_restored_from_a_string_leaf) {
+    expect_value_roundtrip(std::set<std::string>{"a", "b"}, "a b");
+}
+
+TEST(HsmCompileOptionsRoundTripTest, printable_map_is_restored_from_a_string_leaf) {
+    expect_value_roundtrip(std::map<std::string, int>{{"a", 1}, {"b", -2}}, "{a:1,b:-2}");
+}
+
+TEST(HsmCompileOptionsRoundTripTest, boolean_false_is_restored_from_no) {
+    expect_value_roundtrip(false, "NO");
+}
 
 TEST(HsmCompileOptionsRoundTripTest, deeply_nested_options_are_restored) {
     // Far deeper than real options: exercises encoder recursion and the decoder's heap level stack.
