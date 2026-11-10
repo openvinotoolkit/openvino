@@ -33,7 +33,7 @@ using namespace ov::op;
 
 namespace {
 // A string argument as the FX decoder exposes it: a string Constant or a Python str value. Empty if neither.
-std::string optional_const_string(const NodeContext& context, size_t idx) {
+std::string optional_const_string(const NodeContext& context, int idx) {
     try {
         return context.const_input<std::string>(idx);
     } catch (const std::exception&) {
