@@ -5,6 +5,7 @@ OpenVINO uses caches to accelerate builds and tests while minimizing network usa
 ## Table of Contents
 
 * [Available Caches](#available-caches)
+* [Staging Hugging Face proxy test](#staging-hugging-face-proxy-test)
 * [GitHub Actions Cache](#github-actions-cache)
 * [Shared Drive Cache](#shared-drive-cache)
 * [Cloud Storage via Azure Blob Storage](#cloud-storage-via-azure-blob-storage)
@@ -28,6 +29,53 @@ Three types of caches are available:
   * Used to cache and share build artifacts with [`sccache`](https://github.com/mozilla/sccache).
 
 Jobs in the workflows utilize these caches based on their requirements.
+
+## Staging Hugging Face proxy test
+
+This staging configuration routes AKS jobs to runner labels ending in `-st`.
+GitHub-hosted and dedicated GPU runner selections are unchanged.
+Hugging Face model-download jobs use the proxy instead of the shared model cache:
+
+```yaml
+steps:
+  # Checkout .github/actions and set up Python before this step.
+  - name: Setup Hugging Face proxy
+    uses: ./.github/actions/setup_hf_proxy
+```
+
+The action exports `HF_ENDPOINT=http://hf-proxy.hf-proxy.svc.cluster.local`,
+`HF_HUB_DISABLE_XET=1`, `HF_HOME=${{ runner.temp }}/hf-home`, and both
+`HF_HUB_CACHE` and `HUGGINGFACE_HUB_CACHE` as `${{ runner.temp }}/hf-home/hub`
+through `GITHUB_ENV` for subsequent steps. Run it in the reusable job itself:
+caller workflow environment variables are not inherited by reusable workflows.
+The `runner` context is used inside the action's step, where it is valid, rather
+than workflow- or job-level `env`.
+Both cache variables are explicit because some model-test helpers otherwise
+select their own temporary cache, and inherited cache settings can override
+`HF_HOME`. Xet is disabled so Hub downloads use the proxy's HTTP path.
+Existing token-file settings are preserved.
+
+Steps with confirmed HF model download or initialization paths have
+`(HuggingFace model download)` appended to their display names. This includes
+mixed-source suites: only their Hugging Face Hub requests use the HF proxy.
+The label identifies a possible download/cache lookup, not proof that bytes
+were transferred; cached models and skipped test cases may require no download.
+Proxy setup, package installation and non-HF-only steps are not labeled.
+
+All participating runners, including macOS and dedicated GPU runners, must be
+able to resolve and reach this cluster-local endpoint. Every selected AKS pool,
+including Windows, must have a provisioned `-st` counterpart accessible to the
+repository. There is no direct-download fallback if the proxy is unavailable.
+These settings affect Hugging Face Hub clients, not hard-coded download URLs or
+other model hosts such as Kaggle and torchvision.
+
+Models occupy local runner disk space even on a warm proxy hit. Size runner
+storage for the selected test scope plus conversion scratch space; full nightly
+model suites can require hundreds of GB. Shared mounts remain available where
+needed for non-Hugging-Face assets, dependencies and authentication.
+This is a staging-only experiment, not a recommendation to replace warm
+production shares; restore production runner labels and cache settings before
+promoting the configuration.
 
 ## GitHub Actions Cache
 
