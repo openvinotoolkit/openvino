@@ -745,9 +745,9 @@ std::set<std::vector<element::Type>> jit_minimum_emitter::get_supported_precisio
 /// SQUARED_DIFFERENCE ///
 jit_squared_difference_emitter::jit_squared_difference_emitter(x64::jit_generator_t* host,
                                                                x64::cpu_isa_t host_isa,
-                                                               [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                                                               ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+                                                               const std::shared_ptr<ov::Node>& node,
+                                                               [[maybe_unused]] ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
 jit_squared_difference_emitter::jit_squared_difference_emitter(x64::jit_generator_t* host,
                                                                x64::cpu_isa_t host_isa,
                                                                ov::element::Type exec_prc)
