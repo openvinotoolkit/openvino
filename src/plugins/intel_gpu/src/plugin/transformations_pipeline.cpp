@@ -304,7 +304,7 @@ static bool is_cm_u2_gnk_decompression(const std::shared_ptr<const ov::Node>& mu
     if (!order || order->cast_vector<int64_t>() != std::vector<int64_t>{1, 0, 2})
         return false;
     const auto* reshape = ov::as_type<ov::op::v1::Reshape>(single_consumer(transpose));
-    if (!reshape || reshape->get_input_partial_shape(0).rank() != 3 || reshape->get_output_partial_shape(0).rank() != 2)
+    if (reshape == nullptr || reshape->get_input_partial_shape(0).rank() != 3 || reshape->get_output_partial_shape(0).rank() != 2)
         return false;
     const auto reshape_consumers = reshape->get_output_target_inputs(0);
     if (reshape_consumers.empty() || !std::all_of(reshape_consumers.begin(), reshape_consumers.end(), [](const ov::Input<ov::Node>& in) {
