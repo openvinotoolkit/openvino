@@ -12,12 +12,13 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/executor_factory.hpp"
-#include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/qsa_indexer_config.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+
+namespace ov::intel_cpu::node::qsa {
+class QsaBrgemm;  // x64 only, see kernels/sparse_attn/qsa_brgemm.hpp
+}  // namespace ov::intel_cpu::node::qsa
 
 namespace ov::intel_cpu::node {
 
@@ -72,14 +73,13 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    void bindMemoryArguments();
-
-    // The implementations (executors/qsa_indexer_implementations.cpp): the scoring on brgemm where the CPU, the
-    // precision and the head counts allow it, plain C++ otherwise.
-    QSAIndexerAttrs m_attrs;
-    ExecutorFactoryPtr<QSAIndexerAttrs> m_factory;
-    ExecutorPtr m_executor;
-    MemoryArgs m_memory;
+    // The computation is the cross-compiled kernel qsa_indexer_compute (AVX-512 / AVX2 / plain C++ by the CPU); the
+    // scoring of the blocks runs on brgemm instead where the CPU, the precision and the head counts allow it.
+    ov::intel_cpu::QSAIndexerNode::Config m_config;
+#ifdef OPENVINO_ARCH_X86_64
+    std::shared_ptr<const qsa::QsaBrgemm> m_brgemm;  // null: the kernel scores the blocks itself
+#endif
+    impl_desc_type m_impl = impl_desc_type::ref;
 };
 
 }  // namespace ov::intel_cpu::node

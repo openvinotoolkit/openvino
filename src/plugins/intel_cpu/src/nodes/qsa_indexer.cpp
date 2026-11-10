@@ -5,10 +5,8 @@
 #include "qsa_indexer.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -19,14 +17,11 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/common/blocked_desc_creator.h"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/executor_factory.hpp"
-#include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/qsa_indexer_config.hpp"
-#include "nodes/node_config.h"
+#include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
+#include "nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -35,6 +30,11 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+#include "utils/plain_tensor.hpp"
+
+#ifdef OPENVINO_ARCH_X86_64
+#    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -105,7 +105,7 @@ QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
     const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
     OPENVINO_ASSERT(qsa_indexer, "Expected QSAIndexer node");
-    m_attrs.config = qsa_indexer->get_config();
+    m_config = qsa_indexer->get_config();
 }
 
 void QSAIndexer::initSupportedPrimitiveDescriptors() {
@@ -117,59 +117,97 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     // KEY_LENGTH stays i32 -- reordering it to f32 would numerically convert the index values.
     // sel_indices/sel_count are i32; the state outputs never share memory with their inputs: the update is
     // out-of-place.
-    const auto& creators_map = BlockedDescCreator::getCommonCreators();
     const auto data_precision = getOriginalInputPrecisionAtPort(InputIdx::Q_IDX);
 
-    MemoryDescArgs descs;
+    std::vector<PortConfigurator> in_port_configs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         const ov::element::Type precision = i == InputIdx::KEY_LENGTH ? ov::element::i32 : data_precision;
-        descs[qsa_src_arg(i)] = creators_map.at(LayoutType::ncsp)->createSharedDesc(precision, getInputShapeAtPort(i));
+        in_port_configs.emplace_back(LayoutType::ncsp, precision, getInputShapeAtPort(i), false, -1);
     }
+    std::vector<PortConfigurator> out_port_configs;
     for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
         const bool is_index = i == OutputIdx::SEL_INDICES || i == OutputIdx::SEL_COUNT;
-        descs[qsa_dst_arg(i)] =
-            creators_map.at(LayoutType::ncsp)
-                ->createSharedDesc(is_index ? ov::element::i32 : data_precision, getOutputShapeAtPort(i));
+        out_port_configs.emplace_back(LayoutType::ncsp,
+                                      is_index ? ov::element::i32 : data_precision,
+                                      getOutputShapeAtPort(i),
+                                      false,
+                                      -1);
     }
-
-    auto execution_context = std::make_shared<ExecutorContext>(context, getImplPriority());
-    m_factory = std::make_shared<ExecutorFactory<QSAIndexerAttrs>>(m_attrs, execution_context, descs);
-
-    const auto node_descriptors_list = m_factory->getProperMemoryDescriptors(descs);
-    for (const auto& node_descriptors : node_descriptors_list) {
-        NodeConfig node_config;
-        node_config.inConfs.resize(getParentEdges().size());
-        for (size_t i = 0; i < getParentEdges().size(); ++i) {
-            node_config.inConfs[i] = PortConfig{node_descriptors.at(qsa_src_arg(i))};
-        }
-        for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
-            node_config.outConfs.emplace_back(node_descriptors.at(qsa_dst_arg(i)));
-        }
-        supportedPrimitiveDescriptors.emplace_back(node_config, impl_desc_type::undef);
-    }
-}
-
-void QSAIndexer::bindMemoryArguments() {
-    for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        m_memory[qsa_src_arg(i)] = getSrcMemoryAtPort(i);
-    }
-    for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
-        m_memory[qsa_dst_arg(i)] = getDstMemoryAtPort(i);
-    }
+    addSupportedPrimDesc(in_port_configs, out_port_configs, impl_desc_type::ref_any);
 }
 
 void QSAIndexer::createPrimitive() {
-    bindMemoryArguments();
-
-    m_executor = m_factory->make(m_memory);
+    const auto precision = getSrcMemoryAtPort(InputIdx::Q_IDX)->getDesc().getPrecision();
+    m_impl = qsa::kernel_impl_type();
+#ifdef OPENVINO_ARCH_X86_64
+    // The scoring on brgemm where the CPU, the precision and the head counts allow it; the head counts are static, the
+    // batch and the window are not. The scorer is shared by the layers of the same configuration.
+    const auto& c = m_config;
+    const size_t q_heads = getInputShapeAtPort(InputIdx::Q_IDX).getDims()[2];
+    const size_t k_heads = getInputShapeAtPort(InputIdx::K_IDX).getDims()[2];
+    if (q_heads != Shape::UNDEFINED_DIM && k_heads != Shape::UNDEFINED_DIM) {
+        m_brgemm = qsa::QsaBrgemm::get(
+            context->getParamsCache(),
+            qsa::QsaBrgemm::Config{q_heads,
+                                   k_heads,
+                                   c.h_sel,
+                                   c.indexer_head_dim,
+                                   c.indexer_rotary_dim,
+                                   c.block_topk,
+                                   static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
+                                   c.eps,
+                                   QSAIndexerNode::effective_scale(c),
+                                   precision,
+                                   c.order_by_score});
+    }
+    if (m_brgemm) {
+        m_impl = qsa::score_impl_type(precision);
+    }
+#endif
     Node::createPrimitive();
-    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_impl);
 }
 
 void QSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
-    bindMemoryArguments();
+    std::vector<MemoryPtr> inputs(getParentEdges().size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        inputs[i] = getSrcMemoryAtPort(i);
+    }
+    std::vector<MemoryPtr> outputs(OutputIdx::COUNT);
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        outputs[i] = getDstMemoryAtPort(i);
+    }
+    const qsa::DensePorts ports(inputs, outputs);
+    const auto cpu_parallel = context->getCpuParallel();
 
-    m_executor->execute(m_memory);
+    // The calls that have complete blocks to score go to the brgemm scorer, which plans its scratch from the sizes of
+    // the call; the other calls are scored by the kernel itself.
+    const qsa::QsaBrgemm* brgemm = nullptr;
+    size_t scorer_shared_bytes = 0;
+    size_t scorer_thread_bytes = 0;
+#ifdef OPENVINO_ARCH_X86_64
+    if (m_brgemm && ports.summary_cache.size(2) > 0) {
+        const auto stats = qsa::row_stats(ports, m_config);
+        const auto plan = m_brgemm->plan(ports.q_idx.size(0), stats.max_current, stats.max_row_blocks);
+        brgemm = m_brgemm.get();
+        scorer_shared_bytes = plan.shared_bytes;
+        scorer_thread_bytes = plan.thread_bytes;
+    }
+#endif
+    const qsa::DenseScratchLayout layout(ports,
+                                         m_config,
+                                         scorer_shared_bytes,
+                                         scorer_thread_bytes,
+                                         static_cast<size_t>(cpu_parallel->get_num_worker_threads()));
+    const auto scratch = context->getScratchPad()->createScratchPadMem(
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{layout.total_bytes}));
+
+    ov::Extensions::Cpu::XARCH::qsa_indexer_compute(ports,
+                                                    m_config,
+                                                    layout,
+                                                    scratch->getDataAs<uint8_t>(),
+                                                    brgemm,
+                                                    cpu_parallel);
 }
 
 bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

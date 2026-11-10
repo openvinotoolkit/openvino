@@ -5,19 +5,20 @@
 #include "paged_qsa_indexer.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "graph_context.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/common/blocked_desc_creator.h"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/executor_factory.hpp"
-#include "nodes/executors/memory_arguments.hpp"
-#include "nodes/executors/paged_qsa_indexer_config.hpp"
-#include "nodes/node_config.h"
+#include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
+#include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -26,12 +27,16 @@
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
+#ifdef OPENVINO_ARCH_X86_64
+#    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
+#endif
+
 namespace ov::intel_cpu::node {
 
 namespace {
 
 using InputIdx = ov::op::internal::PagedQSAIndexer::InputIdx;
-using OutputIdx = PagedQSAIndexerOutputIdx;
+using OutputIdx = qsa::paged::OutputIdx;
 
 }  // namespace
 
@@ -43,7 +48,7 @@ PagedQSAIndexer::PagedQSAIndexer(const std::shared_ptr<ov::Node>& op, const Grap
     }
     const auto paged_qsa_indexer = ov::as_type_ptr<const ov::op::internal::PagedQSAIndexer>(op);
     OPENVINO_ASSERT(paged_qsa_indexer, "Expected PagedQSAIndexer node");
-    m_attrs.config = paged_qsa_indexer->get_config();
+    m_config = paged_qsa_indexer->get_config();
 }
 
 void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
@@ -51,63 +56,104 @@ void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
         return;
     }
     // Every floating-point data port is independently echoed at whatever precision (f32/f16/bf16) was negotiated
-    // upstream -- the kernels read and write all of them through row conversions rather than hardcoding f32, since
+    // upstream -- the kernel reads and writes all of them through row conversions rather than hardcoding f32, since
     // index_key_cache/index_block_rope_cache/block_index_keys_cache grow every step and forcing a whole-tensor Reorder
     // on every call would redo that conversion for the entire history each time. The page-table and index inputs stay
     // i32 -- reordering them to f32 would numerically convert the index values instead of reinterpreting them. The two
     // outputs are always i32.
-    const auto& creators_map = BlockedDescCreator::getCommonCreators();
-    MemoryDescArgs descs;
+    std::vector<PortConfigurator> in_port_configs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         const bool is_i32_port = i == InputIdx::PAST_LENS || i == InputIdx::SUBSEQUENCE_BEGINS ||
                                  i == InputIdx::BLOCK_INDICES || i == InputIdx::BLOCK_INDICES_BEGINS;
         const ov::element::Type precision = is_i32_port ? ov::element::i32 : getOriginalInputPrecisionAtPort(i);
-        descs[paged_qsa_src_arg(i)] =
-            creators_map.at(LayoutType::ncsp)->createSharedDesc(precision, getInputShapeAtPort(i));
+        in_port_configs.emplace_back(LayoutType::ncsp, precision, getInputShapeAtPort(i), false, -1);
     }
+    std::vector<PortConfigurator> out_port_configs;
     for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
-        descs[paged_qsa_dst_arg(i)] =
-            creators_map.at(LayoutType::ncsp)->createSharedDesc(ov::element::i32, getOutputShapeAtPort(i));
+        out_port_configs.emplace_back(LayoutType::ncsp, ov::element::i32, getOutputShapeAtPort(i), false, -1);
     }
-
-    auto execution_context = std::make_shared<ExecutorContext>(context, getImplPriority());
-    m_factory = std::make_shared<ExecutorFactory<PagedQSAIndexerAttrs>>(m_attrs, execution_context, descs);
-
-    const auto node_descriptors_list = m_factory->getProperMemoryDescriptors(descs);
-    for (const auto& node_descriptors : node_descriptors_list) {
-        NodeConfig node_config;
-        node_config.inConfs.resize(getParentEdges().size());
-        for (size_t i = 0; i < getParentEdges().size(); ++i) {
-            node_config.inConfs[i] = PortConfig{node_descriptors.at(paged_qsa_src_arg(i))};
-        }
-        for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
-            node_config.outConfs.emplace_back(node_descriptors.at(paged_qsa_dst_arg(i)));
-        }
-        supportedPrimitiveDescriptors.emplace_back(node_config, impl_desc_type::undef);
-    }
-}
-
-void PagedQSAIndexer::bindMemoryArguments() {
-    for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        m_memory[paged_qsa_src_arg(i)] = getSrcMemoryAtPort(i);
-    }
-    for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
-        m_memory[paged_qsa_dst_arg(i)] = getDstMemoryAtPort(i);
-    }
+    addSupportedPrimDesc(in_port_configs, out_port_configs, impl_desc_type::ref_any);
 }
 
 void PagedQSAIndexer::createPrimitive() {
-    bindMemoryArguments();
-
-    m_executor = m_factory->make(m_memory);
+    const auto summary_precision = getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE)->getDesc().getPrecision();
+    m_impl = qsa::kernel_impl_type();
+#ifdef OPENVINO_ARCH_X86_64
+    // The scoring on brgemm where the CPU, the precisions and the head counts allow it; the query and key rows are
+    // [tokens, heads * dim], the token count is dynamic. The query is rounded to the precision of the summary blocks
+    // for the brgemm products: only done when it is that precision already.
+    const auto& c = m_config;
+    const auto query_precision = getSrcMemoryAtPort(InputIdx::INDEX_QUERY)->getDesc().getPrecision();
+    const auto q_width = getInputShapeAtPort(InputIdx::INDEX_QUERY).getDims()[1];
+    const auto k_width = getInputShapeAtPort(InputIdx::RAW_INDEX_KEYS).getDims()[1];
+    if (q_width != Shape::UNDEFINED_DIM && k_width != Shape::UNDEFINED_DIM && c.indexer_head_dim != 0 &&
+        query_precision == summary_precision) {
+        const size_t q_heads = q_width / c.indexer_head_dim;
+        const size_t k_heads = k_width / c.indexer_head_dim;
+        if (k_heads != 0 && q_heads % k_heads == 0) {
+            m_brgemm = qsa::QsaBrgemm::get(
+                context->getParamsCache(),
+                qsa::QsaBrgemm::Config{q_heads,
+                                       k_heads,
+                                       c.num_selection_heads,
+                                       c.indexer_head_dim,
+                                       c.indexer_rotary_dim,
+                                       c.block_topk,
+                                       static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
+                                       c.epsilon,
+                                       ov::op::internal::PagedQSAIndexer::effective_scale(c),
+                                       summary_precision});
+        }
+    }
+    if (m_brgemm) {
+        m_impl = qsa::score_impl_type(summary_precision);
+    }
+#endif
     Node::createPrimitive();
-    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_impl);
 }
 
 void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
-    bindMemoryArguments();
+    std::vector<MemoryPtr> inputs(getParentEdges().size());
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        inputs[i] = getSrcMemoryAtPort(i);
+    }
+    std::vector<MemoryPtr> outputs(OutputIdx::COUNT);
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        outputs[i] = getDstMemoryAtPort(i);
+    }
+    const qsa::paged::PagedPorts ports(inputs, outputs);
+    const auto cpu_parallel = context->getCpuParallel();
+    const auto stats = qsa::paged::seq_stats(ports, m_config);
 
-    m_executor->execute(m_memory);
+    // The calls that have complete blocks to score go to the brgemm scorer, which plans its scratch from the sizes of
+    // the call; the other calls are scored by the kernel itself.
+    const qsa::QsaBrgemm* brgemm = nullptr;
+    size_t scorer_shared_bytes = 0;
+    size_t scorer_thread_bytes = 0;
+#ifdef OPENVINO_ARCH_X86_64
+    if (m_brgemm && stats.max_blocks > 0) {
+        const auto plan = m_brgemm->plan(qsa::paged::num_sequences(ports), stats.max_q_len, stats.max_blocks);
+        brgemm = m_brgemm.get();
+        scorer_shared_bytes = plan.shared_bytes;
+        scorer_thread_bytes = plan.thread_bytes;
+    }
+#endif
+    const qsa::paged::PagedScratchLayout layout(ports,
+                                                m_config,
+                                                stats.max_blocks,
+                                                scorer_shared_bytes,
+                                                scorer_thread_bytes,
+                                                static_cast<size_t>(cpu_parallel->get_num_worker_threads()));
+    const auto scratch = context->getScratchPad()->createScratchPadMem(
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, Shape{layout.total_bytes}));
+
+    ov::Extensions::Cpu::XARCH::paged_qsa_indexer_compute(ports,
+                                                          m_config,
+                                                          layout,
+                                                          scratch->getDataAs<uint8_t>(),
+                                                          brgemm,
+                                                          cpu_parallel);
 }
 
 bool PagedQSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
