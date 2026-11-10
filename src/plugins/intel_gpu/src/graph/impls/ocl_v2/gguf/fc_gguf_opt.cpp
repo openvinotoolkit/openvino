@@ -1238,7 +1238,8 @@ private:
         // LM Head heuristic: large vocabulary output (N ≥ 50000, e.g. Qwen3=151936, Llama2=32000).
         // LM Head must preserve f16 activation precision for logit accuracy; use WOQ (no INT8 DQ).
         const bool is_lm_head = (static_cast<size_t>(N) >= 50000);
-        const bool run_dq = !use_f16 && m_use_dq_act && !is_lm_head;
+        const bool run_dq = !use_f16 && m_use_dq_act && !is_lm_head &&
+                    params.get_input_layout(0).data_type == data_types::f16;
         const bool act_asym = gguf_prefill_dq_act_asymmetric();
         // Use the safe group size: if the user-requested group < K AND the weight is
         // asymmetric, the fast gemm_t would require precomputed B-group-sums (needsBGroupSums)
