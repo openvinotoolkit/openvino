@@ -17,21 +17,9 @@
 #include <memory>
 #include <mutex>
 #include <regex>
-#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
-
-#define CUDA_CHECK(call)                                                                 \
-    do {                                                                                 \
-        CUresult _r = (call);                                                            \
-        if (_r != CUDA_SUCCESS) {                                                        \
-            const char* _err_str = nullptr;                                              \
-            cuGetErrorString(_r, &_err_str);                                             \
-            OPENVINO_THROW("[GPU][NVIDIA] CUDA error ", static_cast<int>(_r),            \
-                           " in " #call ": ", _err_str ? _err_str : "unknown");          \
-        }                                                                                \
-    } while (0)
 
 namespace cldnn {
 namespace sycl {
