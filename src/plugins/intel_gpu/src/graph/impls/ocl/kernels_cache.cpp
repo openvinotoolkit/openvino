@@ -342,6 +342,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         }
     }
 
+    // The NVIDIA compatibility headers are the same for every batch, so they are assembled once here rather than per batch.
+    const auto nvidia_compat = _use_nvidia_compat ? get_nvidia_compat_headers() : nvidia_compat_headers{};
+
     // Compute hash value for each batch
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
     // of the precompiled binaries or get_undef_jit calls
@@ -418,10 +421,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // and friends declare as functions, so emitting them any earlier would macro-expand those names inside their
             // own declarations. See nvidia/compat_sg_overrides.cl.
             if (_use_nvidia_compat) {
-                const auto compat = get_nvidia_compat_headers();
                 const size_t header_count = std::min(b.header_count, b.source.size());
-                b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(header_count), compat.sg_overrides);
-                b.source.insert(b.source.begin(), compat.prelude);
+                b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(header_count), nvidia_compat.sg_overrides);
+                b.source.insert(b.source.begin(), nvidia_compat.prelude);
                 b.header_count = header_count + 2;
             }
 
