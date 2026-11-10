@@ -517,6 +517,42 @@ TEST_F(GGUFParser, ActivationDqPreservesFp32Input) {
                                      : static_cast<float>(output.data<const ov::float16>()[index]);
             ASSERT_NEAR(actual, 0.5f, 0.001f) << index;
         }
+        if (precision == ov::element::f16) {
+            for (const bool compile_asymmetric : {true, false}) {
+                SCOPED_TRACE(compile_asymmetric);
+                GgufScopedEnvironment compile_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "128");
+                GgufScopedEnvironment compile_asym("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC",
+                                                  compile_asymmetric ? "1" : "0");
+                GgufScopedEnvironment compile_requant("OV_GPU_GGUF_REQUANT_GROUP", "64");
+                auto cached = core.compile_model(model, "GPU", ov::hint::inference_precision(precision),
+                                                 ov::num_streams(1));
+                std::stringstream blob;
+                cached.export_model(blob);
+                GgufScopedEnvironment import_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "512");
+                GgufScopedEnvironment import_asym("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC",
+                                                 compile_asymmetric ? "0" : "1");
+                GgufScopedEnvironment import_requant("OV_GPU_GGUF_REQUANT_GROUP", "32");
+                ov::Core import_core;
+                auto imported = import_core.import_model(blob, "GPU", ov::hint::inference_precision(precision),
+                                                          ov::num_streams(1));
+                for (auto* compiled_model : {&cached, &imported}) {
+                    auto restored_request = compiled_model->create_infer_request();
+                    for (size_t index = 0; index < input.get_size(); ++index)
+                        input.data<ov::float16>()[index] = ov::float16(0.015625f *
+                            static_cast<float>(1 << ((index % columns) / 128)));
+                    restored_request.set_input_tensor(input);
+                    restored_request.infer();
+                    const auto restored_output = restored_request.get_output_tensor();
+                    ASSERT_EQ(restored_output.get_size(), rows * channels);
+                    for (size_t index = 0; index < restored_output.get_size(); ++index) {
+                        const float actual = restored_output.get_element_type() == ov::element::f32
+                            ? restored_output.data<const float>()[index]
+                            : static_cast<float>(restored_output.data<const ov::float16>()[index]);
+                        ASSERT_NEAR(actual, 0.9375f, 0.001f) << index;
+                    }
+                }
+            }
+        }
     }
 #endif
 }
