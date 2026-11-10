@@ -37,9 +37,9 @@ static bool ran_sdpa_ocl(const cldnn::network::ptr& network, std::string& entrie
 }
 
 // The DPAS kernel of the device's lane, which serves PREFILL and MIXED with token_type_ids like any other step: sdpa_ocl
-// on its lane (Xe2+ XMX). Empty where it does not run.
+// on its lane (Xe2+ and xe_hpg XMX). Empty where it does not run.
 static std::string lane_dpas_kernel() {
-    return tests::expected_dpas_backend(tests::get_test_engine(), true, tests::pa_hpg_tiers(true)) == tests::dpas_backend::ocl ? "sdpa_ocl" : "";
+    return tests::expected_dpas_backend(tests::get_test_engine()) == tests::dpas_backend::ocl ? "sdpa_ocl" : "";
 }
 
 // The same for MIXED, which runs pa_multi_token with the DPAS kernel off (OV_GPU_ENABLE_SDPA_MICRO=0). Empty where

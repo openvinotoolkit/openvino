@@ -6,22 +6,6 @@
 
 #include "dpas_backend_test_helper.h"
 
-namespace {
-// The HpgTier bits of the PA primitive run_gpu_inference() builds for `p` (see tests::pa_hpg_tiers).
-uint32_t pa_hpg_tiers(const paged_attention_test_params& p) {
-    const bool token_type_ids = p.token_type_ids.has_value() || p.empty_token_type_ids || (p.has_sink_input && p.force_flashattn_v2);
-    const bool features = p.has_sink_input || token_type_ids || p.has_qq_bias || p.sliding_window_size != 0 || p.k_head_size != p.v_head_size ||
-                          p.runtime_scale_multiplier.has_value();
-    auto cache = tests::pa_cache::f16;
-    if (p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4) {
-        cache = tests::pa_cache::u4;
-    } else if (p.kv_cache_compression) {
-        cache = p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL ? tests::pa_cache::i8_by_channel : tests::pa_cache::i8_by_token;
-    }
-    return tests::pa_hpg_tiers(features, cache);
-}
-}  // namespace
-
 class paged_attention_test: public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
@@ -36,7 +20,7 @@ class paged_attention_u4_mixed_micro_test : public PagedAttentionTest<paged_atte
 
 TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     auto p = GetParam();
-    const auto backend = tests::expected_dpas_backend(tests::get_test_engine(), true, pa_hpg_tiers(p));
+    const auto backend = tests::expected_dpas_backend(tests::get_test_engine());
     if (backend == tests::dpas_backend::none)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
@@ -310,10 +294,9 @@ class paged_attention_feature_pad_test : public PagedAttentionTest<paged_attenti
 
 namespace {
 // The suite only means something where sdpa_ocl serves PREFILL / MIXED; elsewhere the multi-token kernel is
-// pa_sdpa_opt, which has its own padding handling. The lane alone is not enough: xe_hpg with
-// TEST_USE_SDPA_OCL_HPG=1 and no tier ready is on the lane, yet every op still runs the opt kernels.
-bool sdpa_ocl_serves_prefill_mixed(uint32_t hpg_tiers = 0) {
-    return tests::expected_dpas_backend(tests::get_test_engine(), true, hpg_tiers) == tests::dpas_backend::ocl;
+// pa_sdpa_opt, which has its own padding handling.
+bool sdpa_ocl_serves_prefill_mixed() {
+    return tests::expected_dpas_backend(tests::get_test_engine()) == tests::dpas_backend::ocl;
 }
 
 // The kernel select_gqa_multi_tokens_kernel() (paged_attention_opt.cpp) gives this op: the GQA fallback
@@ -582,7 +565,7 @@ class paged_attention_prefill_h128_test : public PagedAttentionTest<paged_attent
 public:
     void run_case(paged_attention_test_params p) {
         // As in paged_attention_feature_pad_test: padded rows are sdpa_ocl's gate to get right (sdpa_micro misreads the 2 B one).
-        if (p.input_pads.has_value() && !sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
+        if (p.input_pads.has_value() && !sdpa_ocl_serves_prefill_mixed())
             GTEST_SKIP() << "the padded cases check the gates of sdpa_ocl, which does not serve this op here";
         execute(p, true);
     }
@@ -733,8 +716,8 @@ class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTes
 TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
     // Off the sdpa_ocl lane the k != v MIXED cases run pa_multi_token, so there is no sdpa_ocl kernel to assert on.
     auto p = GetParam();
-    if (!sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
-        GTEST_SKIP() << "sdpa_ocl is not this device's DPAS kernel (pre-Xe2 without TEST_USE_SDPA_OCL_HPG=1 or a ready tier, or no oneDNN)";
+    if (!sdpa_ocl_serves_prefill_mixed())
+        GTEST_SKIP() << "sdpa_ocl is not this device's DPAS kernel (not Xe2+ or xe_hpg XMX, or no oneDNN)";
 
     ASSERT_TRUE(this->pam.has_value());
     if (!pa_dpas_kernel_enabled_by_config())
@@ -1087,7 +1070,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink, paged_attention_test, ::tes
 // The PA features on an f16 cache, PREFILL and MIXED, with a sharp softmax where the feature allows it: a sliding window
 // that cuts key tiles and 16-key blocks, a sink, bidirectional image groups (token_type_ids), the speculative qq_bias tree
 // mask, k != v and a runtime scale. Where sdpa_ocl serves the op's stage, a case also asserts that sdpa_ocl is among its
-// kernels: the tier mask and the host gates route an op away silently, and the opt kernels pass most of these too.
+// kernels: the host gates route an op away silently, and the opt kernels pass most of these too.
 // PREFILL and MIXED run sdpa_ocl wherever it serves the op. One suite per feature, so that a negative control
 // (SDPA_OCL_NEG_SG8=7 / 8 / 9) selects its own cases.
 class paged_attention_feature_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -1095,7 +1078,7 @@ class paged_attention_feature_test : public PagedAttentionTest<paged_attention_t
 TEST_P(paged_attention_feature_test, matches_reference) {
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
-    const bool ocl = sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p));
+    const bool ocl = sdpa_ocl_serves_prefill_mixed();
     auto result = run_gpu_inference(*this->pam, p);
     if (ocl) {
         auto pa_inst = result.network->get_primitive("paged_attention");
@@ -2713,7 +2696,7 @@ public:
         const bool prefill = std::all_of(p.subsequences.begin(), p.subsequences.end(), [](const SubsequenceDescriptor& s) {
             return s.past_len == 0;
         });
-        const auto backend = tests::expected_dpas_backend(engine, true, pa_hpg_tiers(p));
+        const auto backend = tests::expected_dpas_backend(engine);
         std::string expected;
         switch (backend) {
         case tests::dpas_backend::ocl:
@@ -2772,7 +2755,7 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 // GENERATE on the token-major K page of each kind (f16, i8 BY_TOKEN, i8 BY_CHANNEL, u4 BY_CHANNEL), wherever
-// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg on its opt-in lane with TEST_USE_SDPA_OCL_DECODE=1 (the SG8 reader,
+// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg with TEST_USE_SDPA_OCL_DECODE=1 (the SG8 reader,
 // sdpa_ocl_hpg_decode.cl; without it xe_hpg runs GENERATE on the opt kernels and every case SKIPs). Every subsequence is
 // one new token, so GENERATE is the only stage that reads the cache (kv_cache_update writes the new token token-major
 // first). paged_attention_opt.cl reads a token-major page too, so the test asks which kernel ran rather than relying on a
@@ -2921,7 +2904,7 @@ TEST_P(paged_attention_mixed_tm_test, matches_reference) {
 
 void paged_attention_mixed_tm_test::run_token_major(paged_attention_test_params p) {
     ASSERT_TRUE(this->pam.has_value());
-    if (!sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
+    if (!sdpa_ocl_serves_prefill_mixed())
         GTEST_SKIP() << "sdpa_ocl does not serve this PA op here (the suite checks sdpa_ocl's token-major readers)";
     auto result = run_gpu_inference(*this->pam, p);
     auto pa_inst = result.network->get_primitive("paged_attention");
@@ -3106,7 +3089,7 @@ TEST_P(paged_attention_comp_tm_repeat_test, bit_exact_across_runs) {
     constexpr int kRuns = 8;
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
-    if (!sdpa_ocl_serves_prefill_mixed(pa_hpg_tiers(p)))
+    if (!sdpa_ocl_serves_prefill_mixed())
         GTEST_SKIP() << "sdpa_ocl does not serve this PA op here (the suite checks sdpa_ocl's token-major readers)";
     auto read = [](const cldnn::memory::ptr& mem) {
         cldnn::mem_lock<uint16_t, cldnn::mem_lock_type::read> ptr(mem, tests::get_test_stream());

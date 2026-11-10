@@ -1837,83 +1837,6 @@ size_t sdpa_ocl_max_wg_size(gpu_arch arch) {
     return max_wg_size_for(arch);
 }
 
-uint32_t hpg_tiers_ready() {
-    static const uint32_t ready = []() {
-        uint32_t mask = kHpgTiersReady;
-        const char* env = std::getenv("SDPA_OCL_HPG_TIERS");
-        if (env == nullptr || env[0] == '\0') {
-            return mask;
-        }
-        static const std::pair<const char*, HpgTier> names[] = {{"PLAIN_F16_STATIC", PLAIN_F16_STATIC},
-                                                                {"PLAIN_EXT", PLAIN_EXT},
-                                                                {"PLAIN_I8", PLAIN_I8},
-                                                                {"PA_PREFILL", PA_PREFILL},
-                                                                {"PA_MIXED_F16", PA_MIXED_F16},
-                                                                {"PA_FEATURES", PA_FEATURES},
-                                                                {"PA_I8_TOKEN", PA_I8_TOKEN},
-                                                                {"PA_I8_CHANNEL", PA_I8_CHANNEL},
-                                                                {"PA_U4", PA_U4}};
-        std::string rest(env);
-        if (rest == "all") {
-            for (const auto& n : names)
-                mask |= n.second;
-            return mask;
-        }
-        // A typo must not silently leave a tier off (the dump would just miss ops).
-        size_t pos = 0;
-        while (pos <= rest.size()) {
-            const auto comma = rest.find(',', pos);
-            const auto item = rest.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
-            bool found = false;
-            for (const auto& n : names) {
-                if (item == n.first) {
-                    mask |= n.second;
-                    found = true;
-                }
-            }
-            OPENVINO_ASSERT(found, "[GPU] SDPA_OCL_HPG_TIERS: unknown tier '", item, "' (all or a comma list of tier names)");
-            if (comma == std::string::npos)
-                break;
-            pos = comma + 1;
-        }
-        return mask;
-    }();
-    return ready;
-}
-
-uint32_t SDPAOclGenerator::hpg_tier_required(const kernel_impl_params& params) {
-    uint32_t bits = 0;
-    if (params.is_type<paged_attention>()) {
-        const auto desc = params.typed_desc<paged_attention>();
-        // supported() admits an op for both stages (PREFILL reads the K/V inputs, MIXED the cache).
-        bits |= PA_PREFILL | PA_MIXED_F16;
-        if (desc->has_sink_input || desc->has_token_type_ids || desc->has_qq_bias || desc->sliding_window != 0 || desc->k_head_size != desc->v_head_size ||
-            !desc->scale_val.has_value()) {
-            bits |= PA_FEATURES;
-        }
-        const auto cache_dt = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type;
-        // u4 is stored as u8: the configured cache precision tells the two apart.
-        if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision())) {
-            bits |= PA_U4;
-        } else if (data_type_traits::is_i8_u8(cache_dt)) {
-            bits |= desc->is_key_by_channel ? PA_I8_CHANNEL : PA_I8_TOKEN;
-        }
-        return bits;
-    }
-    const auto desc = params.typed_desc<scaled_dot_product_attention>();
-    bits |= PLAIN_F16_STATIC;
-    const auto q_len = get_seq_length(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));  // -1: dynamic
-    if (params.is_dynamic() || q_len <= 1 || params.input_layouts[0].data_type != ov::element::f16 || desc->is_causal || desc->has_attn_mask_input ||
-        desc->attn_mask_val.has_value() || desc->has_sink_input || desc->has_scale_input) {
-        bits |= PLAIN_EXT;
-    }
-    if (desc->is_kv_compressed || data_type_traits::is_i8_u8(params.input_layouts[1].data_type) ||
-        data_type_traits::is_i4_u4(params.input_layouts[1].data_type)) {
-        bits |= PLAIN_I8;
-    }
-    return bits;
-}
-
 namespace {
 // Per-channel compressed K/V (the GQA decomposition's quantized cache): one scale, and with asymmetric quantization one
 // zero point, per head-dim channel of a KV head, as planar [B or 1, KV heads or 1, 1, head size] tensors. Read on Xe2
@@ -1970,15 +1893,9 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
         return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
-    // Xe2+ (the 2D block IO kernels) and xe_hpg (the SG8 arms; not under TEST_USE_SDPA_OCL_HPG=0). Every caller already
-    // requires XMX.
+    // Xe2+ (the 2D block IO kernels) and xe_hpg (the SG8 arms). Every caller already requires XMX.
     const auto arch = params.get_device_info().arch;
     if (!paged_attention::sdpa_ocl_arch_ok(params.get_device_info())) {
-        return false;
-    }
-    // xe_hpg (SG8) runs only the op families whose kernel arm exists; returning false, never throwing, so the op takes the
-    // route of an op sdpa_ocl refuses (add_stage would swallow an exception as a silent opt fallback).
-    if (arch < gpu_arch::xe2 && !hpg_tiers_cover(hpg_tier_required(params), hpg_tiers_ready())) {
         return false;
     }
     // xe_hpg serves plain SDPA on an i8 KV cache only (k_tile_dword_i8 / v_tile_gather). A plain int4 cache has no nibble

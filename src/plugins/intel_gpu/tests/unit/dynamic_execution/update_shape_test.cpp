@@ -368,9 +368,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     auto qkv_rnd = rg.generate_random_1d<ov::float16>(qkv_mem_layout.count(), 0, 10);
     set_values(qkv_mem, qkv_rnd);
 
-    // MIXED with token_type_ids stays on the DPAS kernel of the lane, which reads token_type_ids itself. token_type_ids
-    // makes it a PA_FEATURES op on xe_hpg. The K page is token-major everywhere (paged_attention.hpp).
-    const auto backend = tests::expected_dpas_backend(engine, true, tests::pa_hpg_tiers(true));
+    // MIXED with token_type_ids stays on the DPAS kernel of the lane, which reads token_type_ids itself. The K page is
+    // token-major everywhere (paged_attention.hpp).
+    const auto backend = tests::expected_dpas_backend(engine);
     const bool dpas_mixed = backend == tests::dpas_backend::ocl;
     auto key_cache_mem_layout = layout{ov::PartialShape{2, 2, 16, 64}, data_types::f16, format::bfyx};
     auto value_cache_mem_layout = layout{ov::PartialShape{2, 2, 16, 64}, data_types::f16, format::bfyx};
