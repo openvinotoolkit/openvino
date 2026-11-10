@@ -80,12 +80,23 @@ ov::npuw::BagelInferRequest::Variant& ov::npuw::BagelInferRequest::variant_for(
     }
     Variant variant;
     variant.request = compiled->create_infer_request();
-    // Variants are reshaped clones of the same model, so ports keep their order
-    OPENVINO_ASSERT(compiled->inputs().size() == m_compiled_model->inputs().size() &&
-                        compiled->outputs().size() == m_compiled_model->outputs().size(),
-                    "NPUW_BAGEL: static variant ports differ from the model ports");
+    // Variants are reshaped clones of the same model, so input ports keep their order
+    OPENVINO_ASSERT(compiled->inputs().size() == m_compiled_model->inputs().size(),
+                    "NPUW_BAGEL: static variant inputs differ from the model inputs");
     variant.inputs = compiled->inputs();
-    variant.outputs = compiled->outputs();
+    const auto& inner = compiled->outputs();
+    for (std::size_t i = 0; i < m_compiled_model->outputs().size(); ++i) {
+        if (inner.size() == m_compiled_model->outputs().size()) {
+            variant.outputs.push_back(inner[i]);
+            continue;
+        }
+        // Some outputs were dropped from the variant, so the rest is matched by name
+        const auto& name = m_compiled_model->outputs()[i].get_any_name();
+        const auto it = std::find_if(inner.begin(), inner.end(), [&](const ov::Output<const ov::Node>& p) {
+            return p.get_names().count(name) > 0;
+        });
+        variant.outputs.push_back(it == inner.end() ? std::nullopt : std::optional(*it));
+    }
     return m_variants.emplace(compiled._ptr.get(), std::move(variant)).first->second;
 }
 
@@ -120,7 +131,7 @@ void ov::npuw::BagelInferRequest::infer_per_shape() {
     variant.request->infer();
     const auto& outputs = m_compiled_model->outputs();
     for (std::size_t i = 0; i < outputs.size(); ++i) {
-        ov::ISyncInferRequest::set_tensor(outputs[i], variant.request->get_tensor(variant.outputs[i]));
+        ov::ISyncInferRequest::set_tensor(outputs[i], variant.request->get_tensor(*variant.outputs[i]));
     }
 }
 
@@ -144,6 +155,43 @@ void ov::npuw::BagelInferRequest::infer_language_model() {
                     " != ",
                     call.seq);
     OPENVINO_ASSERT(mask->get_element_type() == ov::element::f32, "NPUW_BAGEL: attention_mask must be f32");
+
+    // check_tensors() is skipped for the dynamic ports, so every size the copies below rely on is checked here
+    OPENVINO_ASSERT(call.seq > 0, "NPUW_BAGEL: inputs_embeds must not be empty");
+    OPENVINO_ASSERT(input("position_ids")->get_size() == call.seq,
+                    "NPUW_BAGEL: position_ids must have ",
+                    call.seq,
+                    " elements");
+    OPENVINO_ASSERT(mask->get_shape() == ov::Shape({1, 1, call.seq, call.kv + call.seq}),
+                    "NPUW_BAGEL: attention_mask must be [1, 1, ",
+                    call.seq,
+                    ", ",
+                    call.kv + call.seq,
+                    "], got ",
+                    mask->get_shape());
+    if (call.gen > 0) {
+        OPENVINO_ASSERT(input("x_t")->get_shape()[0] == call.gen && input("vae_position_ids")->get_size() == call.gen,
+                        "NPUW_BAGEL: x_t and vae_position_ids must have one row per gen_index entry");
+    }
+    for (const auto& item : m_input_idx) {
+        if (item.first.rfind("past_key_values.", 0) == 0) {
+            OPENVINO_ASSERT(input(item.first)->get_shape()[2] == call.kv,
+                            "NPUW_BAGEL: all past_key_values inputs must have length ",
+                            call.kv);
+        }
+    }
+    // The indices drive scatters on the device, so they must address rows of inputs_embeds
+    for (const auto& indices : {und, gen}) {
+        const auto* begin = indices->data<const int64_t>();
+        OPENVINO_ASSERT(std::all_of(begin,
+                                    begin + indices->get_size(),
+                                    [&](int64_t i) {
+                                        return i >= 0 && static_cast<std::size_t>(i) < call.seq;
+                                    }),
+                        "NPUW_BAGEL: und_index and gen_index values must be in [0, ",
+                        call.seq,
+                        ")");
+    }
 
     // The NPU can't take zero-size tensors: a call without generation tokens gets one masked
     // dummy generation token in the padding
@@ -237,11 +285,18 @@ void ov::npuw::BagelInferRequest::infer_language_model() {
 }
 
 void ov::npuw::BagelInferRequest::crop_output(std::size_t idx) {
-    m_pending[idx] = false;
     const auto& port = m_compiled_model->outputs()[idx];
     const auto& name = port.get_any_name();
-    const auto src = m_last->request->get_tensor(m_last->outputs[idx]);
     const auto& c = m_call;
+    m_pending[idx] = false;
+    if (!m_last->outputs[idx].has_value()) {
+        // Not computed by this variant (logits outside decode): reported with zero rows
+        auto shape = port.get_partial_shape();
+        shape[0] = 0;
+        ov::ISyncInferRequest::set_tensor(port, ov::make_tensor(port.get_element_type(), shape.to_shape()));
+        return;
+    }
+    const auto src = m_last->request->get_tensor(*m_last->outputs[idx]);
 
     ov::Shape shape = src->get_shape();
     if (name == "logits") {
