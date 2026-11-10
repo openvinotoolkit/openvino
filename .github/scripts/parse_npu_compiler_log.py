@@ -190,7 +190,11 @@ def main() -> None:
 
         memory_kb = find_value(MEMORY_PATTERNS, line)
         if memory_kb is not None:
-            models[current_model]["compilation_memory_usage_kb"] = memory_kb
+            # Peak memory is a maximum: a later smaller (or zero) report, or a further compilation
+            # of the same model, must not hide the largest one seen.
+            previous = models[current_model]["compilation_memory_usage_kb"]
+            if not isinstance(previous, (int, float)) or memory_kb > previous:
+                models[current_model]["compilation_memory_usage_kb"] = memory_kb
             continue
 
         compile_time_ms = find_value(TIME_PATTERNS, line)

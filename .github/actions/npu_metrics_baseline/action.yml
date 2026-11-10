@@ -141,15 +141,26 @@ runs:
 
     # Only master pushes refresh the baseline; PRs and merge queue runs just read it.
     # This replaces the restored file, so it must stay after the comparison above.
+    # Staging is skipped when the run produced no metrics file (e.g. every suite was skipped),
+    # and the save below only runs if something was staged. Both steps are report-only.
     - name: Stage NPU compiler metrics baseline
+      id: stage
       if: inputs.mode == 'compare' && inputs.publish == 'true' && github.event_name == 'push' && github.ref_name == 'master'
+      continue-on-error: true
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force "${{ inputs.metrics-dir }}\npu_baseline" | Out-Null
-        Copy-Item "${{ inputs.metrics-dir }}\TEST-npu_compiler_${{ inputs.platform }}.json" "${{ inputs.metrics-dir }}\npu_baseline\" -ErrorAction Stop
+        $current = "${{ inputs.metrics-dir }}\TEST-npu_compiler_${{ inputs.platform }}.json"
+        if (Test-Path $current) {
+          New-Item -ItemType Directory -Force "${{ inputs.metrics-dir }}\npu_baseline" | Out-Null
+          Copy-Item $current "${{ inputs.metrics-dir }}\npu_baseline\" -ErrorAction Stop
+          "staged=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        } else {
+          Write-Host "No metrics were produced by this run; the baseline is not updated."
+        }
 
     - name: Save NPU compiler metrics baseline
-      if: inputs.mode == 'compare' && inputs.publish == 'true' && github.event_name == 'push' && github.ref_name == 'master'
+      if: inputs.mode == 'compare' && inputs.publish == 'true' && github.event_name == 'push' && github.ref_name == 'master' && steps.stage.outputs.staged == 'true'
+      continue-on-error: true
       uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ${{ inputs.metrics-dir }}\npu_baseline

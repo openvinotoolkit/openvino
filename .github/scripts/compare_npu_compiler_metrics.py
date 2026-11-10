@@ -111,8 +111,15 @@ def compare(baseline: dict, current: dict, thresholds: dict[str, float], baselin
 
 
 def worst_percent(entry: dict) -> float:
-    percents = [m.get("percent") for m in entry.get("metrics", {}).values()]
-    return max((p for p in percents if p is not None), default=0.0)
+    # A regressed metric without a percent has a zero baseline, which is the worst case.
+    # no_data metrics also have no percent but must not count.
+    worst = 0.0
+    for metric in entry.get("metrics", {}).values():
+        if metric["status"] != "regressed":
+            continue
+        percent = metric.get("percent")
+        worst = max(worst, float("inf") if percent is None else percent)
+    return worst
 
 
 def format_cell(metric: dict) -> str:
