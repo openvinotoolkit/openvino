@@ -29,7 +29,8 @@ class CacheWarmupManager;
 //     object to CacheWarmupManager (once per object).
 //  2. The manager's single worker thread calls run(), which handles the devices one by one:
 //     - caching disabled for the device (no cache dir/path) -> skip;
-//     - the blob for this model/config is already in the cache -> skip;
+//     - a single-file cache (*.bin) -> skip with a warning, its writes are not safe to run in the background;
+//     - an existing blob is not probed for: Core decides whether it is still usable, so a stale one is rewritten;
 //     - otherwise call core->compile_model() with a low-priority, reduced-thread config that keeps the cache key
 //       unchanged, so Core itself writes the blob; the resulting compiled model is dropped immediately.
 //     A failure on one device is logged and does not affect the other devices or the user's compiled model.

@@ -998,8 +998,17 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             }
 
             if (threshold_filtered_devices.empty()) {
-                // Fall back when all candidates exceed their thresholds.
-                LOG_DEBUG_TAG("All candidate devices exceed their utilization thresholds. Falling back to %s",
+                // Nothing is under its threshold, so take the device with the lowest absolute utilization instead of
+                // the highest priority one. Every candidate has a known utilization here (only those were excluded),
+                // and std::min_element keeps the priority order on ties.
+                last_device = *std::min_element(valid_devices.begin(),
+                                                valid_devices.end(),
+                                                [&](const DeviceInformation& a, const DeviceInformation& b) {
+                                                    return device_utilizations.at(a.device_name) <
+                                                           device_utilizations.at(b.device_name);
+                                                });
+                LOG_DEBUG_TAG("All candidate devices exceed their utilization thresholds. Falling back to the least "
+                              "loaded one: %s",
                               last_device.device_name.c_str());
                 ptr_select_device = &last_device;
             } else {

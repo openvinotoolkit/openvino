@@ -678,6 +678,29 @@ TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, thresholdResultIsKeptWhenP
     plugin->unregister_priority(0, result.unique_name);
 }
 
+TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, leastLoadedDeviceIsSelectedWhenAllExceedThresholds) {
+    std::string netPrecision = "FP32";
+    std::vector<DeviceInformation> devices = {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU_01", 0}};
+    std::unordered_map<std::string, unsigned> thresholds = {{"CPU", 20}, {"NPU", 20}};
+    deviceUtilization = {{"CPU", 90.f}, {"NPU", 40.f}};
+
+    // Both exceed their thresholds; NPU is less loaded although CPU has the higher priority.
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, {});
+    EXPECT_EQ(result.unique_name, "NPU_01");
+    plugin->unregister_priority(0, result.unique_name);
+}
+
+TEST_F(SelectDeviceThresholdBeforePerfCurveTableTest, priorityOrderBreaksTieWhenAllExceedThresholds) {
+    std::string netPrecision = "FP32";
+    std::vector<DeviceInformation> devices = {{"CPU", {}, -1, "01", "CPU_01", 0}, {"NPU", {}, -1, "01", "NPU_01", 0}};
+    std::unordered_map<std::string, unsigned> thresholds = {{"CPU", 20}, {"NPU", 20}};
+    deviceUtilization = {{"CPU", 50.f}, {"NPU", 50.f}};
+
+    auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, {});
+    EXPECT_EQ(result.unique_name, "CPU_01");
+    plugin->unregister_priority(0, result.unique_name);
+}
+
 // ------------------------------------------------------------------------------------------
 // sort_device_by_perf_curve() unit tests: verify score computation (exact match, interpolation),
 // stable ordering (scored-ascending first, unscored trailing in original relative order), and
