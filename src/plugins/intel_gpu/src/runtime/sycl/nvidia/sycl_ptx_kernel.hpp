@@ -20,27 +20,6 @@
 namespace cldnn {
 namespace sycl {
 
-// How a launch places the NDRange on the CUDA axes, which cap block.z at 64 and grid.y/z at 65535. See
-// "Work-group layout on CUDA" in compat_common.cl for what the kernel sees in each block layout.
-enum class block_layout : uint8_t {
-    plain,      // dimension d on axis d
-    exchanged,  // local size (X, 1, Z) with Z > 64: the block (X, Z, 1)
-    folded,     // local size (X, Y, Z) with Z > 64 and Y > 1: the block (X, Z, Y), dimensions 1 and 2 folded
-};
-enum class grid_layout : uint8_t {
-    plain,     // work-group dimension d on axis d
-    swap_x_y,  // work-group dimensions 0 and 1 exchanged
-    swap_x_z,  // work-group dimensions 0 and 2 exchanged
-};
-
-// A launch layout is one block layout with one grid layout, numbered for the per-layout module caches.
-constexpr size_t launch_layout_count = 9;
-constexpr size_t launch_layout_index(block_layout block, grid_layout grid) {
-    return static_cast<size_t>(block) * 3 + static_cast<size_t>(grid);
-}
-constexpr block_layout launch_layout_block(size_t layout_idx) { return static_cast<block_layout>(layout_idx / 3); }
-constexpr grid_layout launch_layout_grid(size_t layout_idx) { return static_cast<grid_layout>(layout_idx % 3); }
-
 // A CUmodule loaded from PTX, unloaded when the last reference goes.  That can be on any thread - an
 // application thread releasing the last kernel, with no context or another one current - so the module
 // remembers the context it was loaded into and unloads from it.  When that is the device's primary
@@ -69,9 +48,10 @@ struct cuda_function {
 // loaded once for the batch rather than once for every kernel in it.
 class ptx_program {
 public:
-    // One module per launch layout: the layout is baked into the PTX special registers, so each layout a
-    // kernel is launched through needs its own rewritten module.
-    static constexpr size_t layout_count = launch_layout_count;
+    // One module per launch layout (a block layout combined with a grid layout, see sycl_ptx_kernel.cpp): the
+    // layout is baked into the PTX special registers, so each layout a kernel is launched through needs its own
+    // rewritten module.
+    static constexpr size_t layout_count = 9;
 
     // The largest alignment an OpenCL type needs (double16, long16), used for a __local parameter whose alignment
     // the PTX does not record: binaries cached before patch_ptx_local kept it.
