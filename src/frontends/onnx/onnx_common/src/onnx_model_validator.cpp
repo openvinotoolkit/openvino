@@ -7,10 +7,10 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
-#include <exception>
 #include <map>
 #include <unordered_set>
-#include <vector>
+
+#include "openvino/core/except.hpp"
 
 namespace {
 namespace onnx {
@@ -25,13 +25,14 @@ enum Field {
     OPSET_IMPORT = 8,
     METADATA_PROPS = 14,
     TRAINING_INFO = 20,
-    FUNCTIONS = 25
+    FUNCTIONS = 25,
+    CONFIGURATION = 26
 };
 
 enum WireType { VARINT = 0, BITS_64 = 1, LENGTH_DELIMITED = 2, START_GROUP = 3, END_GROUP = 4, BITS_32 = 5 };
 
 // A PB key consists of a field number (defined in onnx.proto) and a type of data that follows this key
-using PbKey = std::pair<char, char>;
+using PbKey = std::pair<uint32_t, uint32_t>;
 
 // This pair represents a key found in the encoded model and optional size of the payload
 // that follows the key (in bytes). The payload should be skipped for fast check purposes.
@@ -50,6 +51,7 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
         {METADATA_PROPS, LENGTH_DELIMITED},
         {TRAINING_INFO, LENGTH_DELIMITED},
         {FUNCTIONS, LENGTH_DELIMITED},
+        {CONFIGURATION, LENGTH_DELIMITED},
     };
 
     if (!onnx_fields.count(static_cast<Field>(decoded_key.first))) {
@@ -59,71 +61,44 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
     return onnx_fields.at(static_cast<Field>(decoded_key.first)) == static_cast<WireType>(decoded_key.second);
 }
 
-/**
- * Only 7 bits in each component of a varint count in this algorithm. The components form
- * a decoded number when they are concatenated bitwise in reverse order. For example:
- * bytes = [b1, b2, b3, b4]
- * varint = b4 ++ b3 ++ b2 ++ b1  <== only 7 bits of each byte should be extracted before concat
- *
- *             b1         b2
- * bytes = [00101100, 00000010]
- *             b2         b1
- * varint = 0000010 ++ 0101100 = 100101100 => decimal: 300
- * Each consecutive varint byte needs to be left-shifted "7 x its position in the vector"
- * and bitwise added to the accumulator afterward.
- */
-uint32_t varint_bytes_to_number(const std::vector<uint8_t>& bytes) {
-    uint32_t accumulator = 0u;
-
-    for (size_t i = 0; i < bytes.size(); ++i) {
-        uint32_t b = bytes[i];
-        b <<= 7 * i;
-        accumulator |= b;
-    }
-
-    return accumulator;
-}
-
 uint32_t decode_varint(std::istream& model) {
-    std::vector<uint8_t> bytes;
-    // max 4 bytes for a single value because this function returns a 32-bit long decoded varint
-    const size_t MAX_VARINT_BYTES = 4u;
-    // optimization to avoid allocations during push_back calls
-    bytes.reserve(MAX_VARINT_BYTES);
-
-    char key_component = 0;
-    model.get(key_component);
-
-    // keep reading all bytes which have the MSB on from the stream
-    while (key_component & 0x80 && bytes.size() < MAX_VARINT_BYTES) {
-        // drop the most significant bit
-        const uint8_t component = key_component & ~0x80;
-        bytes.push_back(component);
-        model.get(key_component);
+    uint32_t value = 0;
+    for (uint32_t shift = 0; shift < 32; shift += 7) {
+        const auto byte = model.get();
+        OPENVINO_ASSERT(byte != std::char_traits<char>::eof() && (shift != 28 || (byte & 0xf0) == 0),
+                        "Invalid protobuf varint");
+        value |= static_cast<uint32_t>(byte & 0x7f) << shift;
+        if ((byte & 0x80) == 0) {
+            return value;
+        }
     }
-    // add the last byte - the one with MSB off
-    bytes.push_back(key_component);
-
-    return varint_bytes_to_number(bytes);
+    OPENVINO_THROW("Invalid protobuf varint");
 }
 
-PbKey decode_key(const char key) {
+void consume_varint64(std::istream& model) {
+    for (uint32_t index = 0; index < 10; ++index) {
+        const auto byte = model.get();
+        OPENVINO_ASSERT(byte != std::char_traits<char>::eof() && (index != 9 || (byte & 0xfe) == 0),
+                        "Invalid protobuf varint");
+        if ((byte & 0x80) == 0) {
+            return;
+        }
+    }
+    OPENVINO_THROW("Invalid protobuf varint");
+}
+
+PbKey decode_key(uint32_t key) {
     // 3 least significant bits
-    const char wire_type = key & 0b111;
+    const auto wire_type = key & 0b111;
     // remaining bits
-    const char field_number = key >> 3;
+    const auto field_number = key >> 3;
     return {field_number, wire_type};
 }
 
 ONNXField decode_next_field(std::istream& model) {
-    char key = 0;
-    model.get(key);
+    const auto decoded_key = decode_key(decode_varint(model));
 
-    const auto decoded_key = decode_key(key);
-
-    if (!is_correct_onnx_field(decoded_key)) {
-        throw std::runtime_error{"Incorrect field detected in the processed model"};
-    }
+    OPENVINO_ASSERT(is_correct_onnx_field(decoded_key), "Incorrect field detected in the processed model");
 
     const auto onnx_field = static_cast<Field>(decoded_key.first);
 
@@ -131,7 +106,7 @@ ONNXField decode_next_field(std::istream& model) {
     case VARINT: {
         // the decoded varint is the payload in this case but its value does not matter
         // in the fast check process so it can be discarded
-        decode_varint(model);
+        consume_varint64(model);
         return {onnx_field, 0};
     }
     case LENGTH_DELIMITED:
@@ -143,9 +118,9 @@ ONNXField decode_next_field(std::istream& model) {
         return {onnx_field, 4};
     case START_GROUP:
     case END_GROUP:
-        throw std::runtime_error{"StartGroup and EndGroup are not used in ONNX models"};
+        OPENVINO_THROW("StartGroup and EndGroup are not used in ONNX models");
     default:
-        throw std::runtime_error{"Unknown WireType encountered in the model"};
+        OPENVINO_THROW("Unknown WireType encountered in the model");
     }
 }
 
@@ -165,7 +140,8 @@ bool is_valid_model(std::istream& model) {
         while (!model.eof() && onnx_fields_found.size() < EXPECTED_FIELDS_FOUND) {
             const auto field = ::onnx::decode_next_field(model);
 
-            if (onnx_fields_found.count(field.first) > 0) {
+            // ModelProto.configuration is a repeated field.
+            if (field.first != ::onnx::CONFIGURATION && onnx_fields_found.count(field.first) > 0) {
                 // if the same field is found twice, this is not a valid ONNX model
                 return false;
             } else {

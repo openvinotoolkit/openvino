@@ -208,6 +208,8 @@ Neural Network Compression Framework
 
 * PyTorch 2.13 is now supported.
 
+* Updated ONNX dependency to version 1.23.2.
+
 OpenVINO Tokenizers
 +++++++++++++++++++
 
