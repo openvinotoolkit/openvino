@@ -107,9 +107,9 @@ struct SDPAOpt : public ImplementationManager {
         // SDPAOclGenerator::supported(): when sdpa_ocl refuses a compressed op, opt still gets it and, if this is false, SDPARef
         // does, so no impl disappears, but the op is silently demoted. A passing compressed test is therefore not proof of the
         // ocl lane; check which kernel was dispatched. The one layout the DPAS kernels refuse (an asymmetric bf16 zero-point
-        // buffer) is taken over by the regular sdpa_opt multi-token/single-token stages. An XMX device off the lane (xe_hpc,
-        // xe_hpg under TEST_USE_SDPA_OCL_HPG=0) has no DPAS SDPA kernel, so the sdpa_opt stages and their planar
-        // zero-point path take it, instead of SDPARef. Non-XMX devices get the interleaved layout (kv_cache_compression.cpp).
+        // buffer) is taken over by the regular sdpa_opt multi-token/single-token stages. An XMX device off the lane (xe_hpc)
+        // has no DPAS SDPA kernel, so the sdpa_opt stages and their planar zero-point path take it, instead of SDPARef.
+        // Non-XMX devices get the interleaved layout (kv_cache_compression.cpp).
         const auto& info = p->get_device_info();
         const bool xmx_off_lane = info.supports_immad && !cldnn::paged_attention::sdpa_ocl_selected(info);
         return !use_asymmetric_quantization || combine_scales_and_zp || xmx_off_lane || dpas_lane_op_supported(*p) || has_bf16_compressed_kv_zero_point(*p);
