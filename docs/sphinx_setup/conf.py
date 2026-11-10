@@ -219,6 +219,15 @@ html_js_files = [
     'js/modern.js',
 ]
 
+# 1. Define the exact version of MathJax you want to load to guarantee the hash stays valid
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+
+# 2. Add the SRI Integrity hash and the cross-origin parameter
+mathjax_options = {
+    'integrity': 'sha384-Wuix6BuhrWbjDBs24bXrjf4ZQ5aFeFWBuKkFekO2t8xFU0iNaLQfp2K6/1Nxveei',
+    'crossorigin': 'anonymous'
+}
+
 # monkeypatch sphinx api doc to prevent showing inheritance from object and enum.Enum
 add_line = ClassDocumenter.add_line
 
