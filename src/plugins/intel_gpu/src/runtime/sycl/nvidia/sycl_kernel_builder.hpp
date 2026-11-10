@@ -38,7 +38,7 @@ private:
 
     // The OpenCL builder is initialized lazily on first use, on the OpenCL device the SYCL device shares.
     mutable std::shared_ptr<::cldnn::ocl::ocl_kernel_builder> _ocl_builder;
-    mutable std::mutex _mutex;
+    mutable std::once_flag _ocl_builder_once;
 };
 
 }  // namespace nvidia
