@@ -34,6 +34,10 @@ bool EncryptedSchedulesFlagSection::get_flag() const {
     return m_flag;
 }
 
+void EncryptedSchedulesFlagSection::set_flag(const bool new_value) {
+    m_flag = new_value;
+}
+
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> EncryptedSchedulesFlagSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::decode");

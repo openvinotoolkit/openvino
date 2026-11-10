@@ -14,6 +14,7 @@
 #include "executor.hpp"
 #include "hsm_read_write.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
@@ -39,18 +40,32 @@ bool blob_contains_only_main_schedule(const BlobSectionsRegistry& blobSectionsRe
  * @param blobSectionsRegistry
  * @param config
  */
-void sync_encryption_callbacks(const BlobSectionsRegistry& blobSectionsRegistry, const Config& config) {
+void sync_encryption_callbacks(BlobSectionsRegistry& blobSectionsRegistry, const Config& config) {
     std::function<std::string(const std::string&)> encryptionCallback = nullptr;
     if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data())) {
         encryptionCallback = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
     }
 
+    // First update the section within the registry
+    const std::shared_ptr<ISection> section =
+        blobSectionsRegistry.retrieve_unique_section_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG);
+    std::shared_ptr<EncryptedSchedulesFlagSection> casted_section;
+    if (section) {
+        casted_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(section);
+        OPENVINO_ASSERT(casted_section);
+
+        casted_section->set_flag(encryptionCallback != nullptr);
+    } else if (encryptionCallback) {
+        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+    }
+
+    // Then update the encryption callback within the compiler schedule section(s)
     auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-        blobSectionsRegistry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+        blobSectionsRegistry.retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
 
     if (elfMainScheduleSection) {
         auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-            blobSectionsRegistry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+            blobSectionsRegistry.retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
 
         elfMainScheduleSection->set_encryption_callback(encryptionCallback);
         if (initSchedulesSection) {
@@ -58,7 +73,7 @@ void sync_encryption_callbacks(const BlobSectionsRegistry& blobSectionsRegistry,
         }
     } else {
         auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            blobSectionsRegistry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+            blobSectionsRegistry.retrieve_unique_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE));
         dynamicScheduleSection->set_encryption_callback(encryptionCallback);
     }
 }

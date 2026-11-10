@@ -114,14 +114,14 @@
 
 // TEST_P(ELFSchedulesSections, MainScheduleSectionNonEmpty) {
 //     auto section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-//         reader->retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
 //     ASSERT_NE(section, nullptr);
 //     EXPECT_GT(section->get_schedule().get_byte_size(), 0);
 // }
 
 // TEST_P(ELFSchedulesSections, MainScheduleDataPageAligned) {
 //     auto section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-//         reader->retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
 //     ASSERT_NE(section, nullptr);
 
 //     auto* blob_begin = static_cast<const uint8_t*>(blob.data());
@@ -134,7 +134,7 @@
 
 // TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesSectionNonEmpty) {
 //     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-//         reader->retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
 //     ASSERT_NE(section, nullptr);
 
 //     auto schedules = section->get_schedules();
@@ -146,7 +146,7 @@
 
 // TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesDataPageAligned) {
 //     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-//         reader->retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
 //     ASSERT_NE(section, nullptr);
 //     auto schedules = section->get_schedules();
 //     ASSERT_GT(schedules.size(), 0);
@@ -162,7 +162,7 @@
 
 // TEST_P(ELFSchedulesWeightsSeparation, InitSchedulesContainedInsideBlob) {
 //     auto section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-//         reader->retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+//         reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
 //     ASSERT_NE(section, nullptr);
 
 //     auto* blob_begin = static_cast<const uint8_t*>(blob.data());
@@ -177,7 +177,7 @@
 // using ELFSchedulesNoInits = ELFSchedulesSections;
 
 // TEST_P(ELFSchedulesNoInits, InitSchedulesSectionAbsent) {
-//     auto section = reader->retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES);
+//     auto section = reader->retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
 //     EXPECT_EQ(section, nullptr);
 // }
 

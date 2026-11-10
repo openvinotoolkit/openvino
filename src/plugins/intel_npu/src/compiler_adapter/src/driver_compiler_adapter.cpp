@@ -148,14 +148,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                          /* blob = */ std::nullopt,
                                          get_compatibility_descriptor(graphDesc._handle));
 
-    if (adapterDesc.secureCompile) {
-        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
-    }
-
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(
-        graph,
-        adapterDesc.secureCompile ? updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt : nullptr));
+    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(graph));
 
     return graph;
 }
@@ -282,18 +276,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                                              /* persistentBlob = */ false,
                                                              get_compatibility_descriptor(mainGraphHandle._handle));
 
-    std::function<std::string(const std::string&)> encryptionCallback = nullptr;
-    if (updatedConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-        updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        encryptionCallback = updatedConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
-        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
-    }
-
     // At export time, all schedules (main + inits) shall be stored in the blob.
-    blobSectionsRegistry.register_section(
-        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback));
-    blobSectionsRegistry.register_section(
-        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback));
+    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph));
+    blobSectionsRegistry.register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
 
     return weightlessGraph;
 }

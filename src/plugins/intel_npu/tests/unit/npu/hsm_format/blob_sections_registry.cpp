@@ -26,7 +26,7 @@ using BlobSectionsRegistryTest = testing::Test;
 TEST_F(BlobSectionsRegistryTest, EmptyRegistryGetters) {
     BlobSectionsRegistry registry;
     ASSERT_EQ(registry.retrieve_section(0), nullptr);
-    ASSERT_EQ(registry.retrieve_any_section(SectionTypeCode::BATCH_SIZE), nullptr);
+    ASSERT_EQ(registry.retrieve_unique_section_of_type(SectionTypeCode::BATCH_SIZE), nullptr);
     ASSERT_TRUE(registry.retrieve_sections(SectionTypeCode::BATCH_SIZE).empty());
     ASSERT_TRUE(registry.get_write_queue().empty());
     ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::BATCH_SIZE));
@@ -124,9 +124,9 @@ TEST_F(BlobSectionsRegistryTest, NormalRegistryGetters) {
 
     ASSERT_EQ(registry.retrieve_section(3), nullptr);
 
-    auto retrieved_section = registry.retrieve_any_section(SectionTypeCode::BATCH_SIZE);
+    auto retrieved_section = registry.retrieve_unique_section_of_type(SectionTypeCode::BATCH_SIZE);
     ASSERT_TRUE(retrieved_section == retrieved_section_1 || retrieved_section == retrieved_section_2);
-    ASSERT_EQ(registry.retrieve_any_section(SectionTypeCode::IO_LAYOUTS), nullptr);
+    ASSERT_EQ(registry.retrieve_unique_section_of_type(SectionTypeCode::IO_LAYOUTS), nullptr);
 
     const std::vector<std::shared_ptr<ISection>> retrieved_sections =
         registry.retrieve_sections(SectionTypeCode::BATCH_SIZE);

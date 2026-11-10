@@ -57,13 +57,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        BlobSectionsRegistry& blobSectionsRegistry) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
-    std::function<std::string(const std::string&)> encryptionCallback = nullptr;
-    if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-        config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        encryptionCallback = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
-        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
-    }
-
     _logger.debug("compile start");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
@@ -82,7 +75,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         const auto graph = std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
 
         // Tell the blob writer to store the dynamic schedule in the blob at export time
-        blobSectionsRegistry.register_section(std::make_shared<DynamicScheduleSection>(graph, encryptionCallback));
+        blobSectionsRegistry.register_section(std::make_shared<DynamicScheduleSection>(graph));
         return graph;
     }
 
@@ -115,7 +108,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 
     // Tell the blob writer to store the main schedule in the blob at export time
-    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(graph, encryptionCallback));
+    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(graph));
 
     return graph;
 }
@@ -277,18 +270,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         /* persistentBlob = */ true,
         compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
 
-    std::function<std::string(const std::string&)> encryptionCallback = nullptr;
-    if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-        localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        encryptionCallback = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
-        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
-    }
-
     // At export time, all schedules (main + inits) shall be stored in the blob
-    blobSectionsRegistry.register_section(
-        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback));
-    blobSectionsRegistry.register_section(
-        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback));
+    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(weightlessGraph));
+    blobSectionsRegistry.register_section(std::make_shared<ELFInitSchedulesSection>(weightlessGraph));
 
     return weightlessGraph;
 }

@@ -62,12 +62,21 @@ std::shared_ptr<ISection> BlobSectionsRegistry::retrieve_section(const SectionID
     return nullptr;
 }
 
-std::shared_ptr<ISection> BlobSectionsRegistry::retrieve_any_section(const SectionType section_type) const {
-    if (!m_types_to_sections.count(section_type) || m_types_to_sections.at(section_type).empty()) {
+std::shared_ptr<ISection> BlobSectionsRegistry::retrieve_unique_section_of_type(const SectionType section_type) const {
+    // TODO test this
+    switch (count_sections_of_type(section_type)) {
+    case 0: {
         return nullptr;
     }
-
-    return *m_types_to_sections.at(section_type).begin();
+    case 1: {
+        *m_types_to_sections.at(section_type).begin();
+    }
+    default: {
+        OPENVINO_THROW("Requested to retrieve a unique section of type ",
+                       section_type.to_string(),
+                       ", but multiple sections of that type have been found within the registry");
+    }
+    }
 }
 
 std::vector<std::shared_ptr<ISection>> BlobSectionsRegistry::retrieve_sections(const SectionType type) const {

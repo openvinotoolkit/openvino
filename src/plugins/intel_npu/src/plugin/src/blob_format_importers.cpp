@@ -493,11 +493,11 @@ public:
 
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elf_main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
 
         if (elf_main_schedule_section) {
             auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-                m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+                m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
 
             elf_main_schedule_section->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
             if (init_schedules_section) {
@@ -505,7 +505,7 @@ public:
             }
         } else {
             auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-                m_blob_sections_registry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+                m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE));
             dynamic_schedule_section->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
@@ -578,7 +578,7 @@ private:
      */
     void decrypt_schedules() override {
         const auto encrypted_schedules_flag_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
         const bool is_payload_encrypted =
             encrypted_schedules_flag_section ? encrypted_schedules_flag_section->get_flag() : false;
         if (!is_payload_encrypted) {
@@ -594,7 +594,7 @@ private:
             m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt;
 
         auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE));
         if (dynamic_schedule_section) {
             m_logger.debug("Decrypting the dynamic compiler schedule");
             dynamic_schedule_section->decrypt(decryption_callback);
@@ -602,14 +602,14 @@ private:
         }
 
         auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
         OPENVINO_ASSERT(main_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
 
         m_logger.debug("Decrypting the compiler main schedule");
         main_schedule_section->decrypt(decryption_callback);
 
         auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
         if (init_schedules_section) {
             m_logger.debug("Decrypting the compiler init schedules");
             init_schedules_section->decrypt(decryption_callback);
@@ -618,34 +618,34 @@ private:
 
     ov::Tensor extract_main_schedule() const override {
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
             return main_schedule_section->get_schedule();
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE));
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_schedule();
     }
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override {
         const auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
 
         return init_schedules_section ? std::make_optional<>(init_schedules_section->get_schedules()) : std::nullopt;
     }
 
     std::optional<int> extract_batch_size() const override {
         const auto batch_size_section = std::dynamic_pointer_cast<BatchSizeSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::BATCH_SIZE));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::BATCH_SIZE));
 
         return batch_size_section ? std::make_optional<>(batch_size_section->get_batch_size()) : std::nullopt;
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
         const auto io_layouts_section = std::dynamic_pointer_cast<IOLayoutsSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::IO_LAYOUTS));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::IO_LAYOUTS));
 
         return io_layouts_section ? std::make_optional<>(std::make_pair<>(io_layouts_section->get_input_layouts(),
                                                                           io_layouts_section->get_output_layouts()))
@@ -654,7 +654,7 @@ private:
 
     std::optional<uint32_t> extract_compiler_version() const override {
         const auto compiler_version_section = std::dynamic_pointer_cast<CompilerVersionSection>(
-            m_blob_sections_registry.retrieve_any_section(SectionTypeCode::COMPILER_VERSION));
+            m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::COMPILER_VERSION));
 
         return compiler_version_section ? std::make_optional<>(compiler_version_section->get_compiler_version())
                                         : std::nullopt;
