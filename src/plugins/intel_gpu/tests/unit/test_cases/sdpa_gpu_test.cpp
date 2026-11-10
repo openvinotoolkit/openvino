@@ -1143,7 +1143,7 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
     const auto p = GetParam();
 
     // Written for sdpa_micro's PREFETCH_K0/PREFETCH_K (removed with it); kept as multi-K-tile coverage of the DPAS kernel.
-    if (tests::expected_dpas_backend(engine, false) != tests::dpas_backend::ocl)
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     const ov::Shape q_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_q),
@@ -1765,7 +1765,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     constexpr int head_size = 64;
 
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     tests::random_generator rg;
@@ -1857,7 +1857,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     constexpr int head_size = 64;
 
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     tests::random_generator rg;
@@ -1950,7 +1950,7 @@ TEST_P(sdpa_micro_key_broadcast_mask_test, matches_reference) {
     constexpr size_t head_size = 128;
 
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     const ov::Shape q_shape{1, heads, seq_q, head_size};
@@ -2437,7 +2437,8 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     // that ran: a silent fallback to the opt kernels, which read one scale per token, would be wrong.
     const bool per_channel = granularity == kv_quant_granularity::per_channel;
     const bool per_channel_dpas =
-        per_channel && !is_bf16 && params.dt == data_types::f16 && cldnn::paged_attention::sdpa_ocl_selected(engine.get_device_info(), false);
+        per_channel && !is_bf16 && params.dt == data_types::f16 && engine.get_device_info().arch >= cldnn::gpu_arch::xe2 &&
+        cldnn::paged_attention::sdpa_ocl_selected(engine.get_device_info());
 
     const int bit_width = params.bit_width;
     const bool asymmetric = params.asymmetric;
@@ -2797,7 +2798,7 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
 
     auto& engine = get_test_engine();
     // Written for sdpa_micro's PREFETCH_MASK (removed with it); kept as a broadcast-mask check of the DPAS kernel.
-    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     const layout qkv_layout({1, heads, seq_len, head_size}, data_types::f16, format::bfyx);
@@ -2879,8 +2880,7 @@ public:
         auto& engine = get_test_engine();
         const bool prefill = p.sequence_length_q > 1;
         const bool unaligned = p.head_size % 16 != 0;
-        // This harness always feeds a mask input, which is PLAIN_EXT on xe_hpg (SDPAOclGenerator::hpg_tier_required()).
-        const auto backend = tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT);
+        const auto backend = tests::expected_dpas_backend(engine);
         std::string expected;
         switch (backend) {
         case tests::dpas_backend::ocl:
@@ -2946,11 +2946,11 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_gpu_test::PrintToStringParamName
 );
 
-// Sharp-softmax check of the SG8 (xe_hpg) operand mapping of sdpa_ocl, plain f16, static, q == kv > 1, no mask / causal / scale input
-// (the PLAIN_F16_STATIC tier). Every query's logit row has ONE key that wins by a wide margin, and every key / value row is unique, so
+// Sharp-softmax check of the SG8 (xe_hpg) operand mapping of sdpa_ocl, plain f16, static, q == kv > 1, no mask / causal / scale input.
+// Every query's logit row has ONE key that wins by a wide margin, and every key / value row is unique, so
 // a lane that reads the wrong head dim, key pair or query row moves the winner or mixes in another value row: the output is off by
 // ~the value spread, far above the f16 tolerance. Random N(0, 0.1)-like data would not show it (pa-harness-data-hides-qk-errors).
-// Runs wherever sdpa_ocl serves the op (Xe2 and xe_hpg with TEST_USE_SDPA_OCL_HPG=1), SKIPs elsewhere; the SDPA_OCL_NEG_SG8=1..3
+// Runs wherever sdpa_ocl serves the op (Xe2+ and xe_hpg XMX), SKIPs elsewhere; the SDPA_OCL_NEG_SG8=1..3
 // groups of test/sdpa_ocl_gtests.sh break the mapping on purpose and must FAIL it. max_abs_err is recorded so a NEG run that fails on
 // the error can be told from one that fails on a crash.
 struct sdpa_hpg_sharp_params {
@@ -2980,8 +2980,8 @@ struct sdpa_hpg_sharp_test : public ::testing::TestWithParam<sdpa_hpg_sharp_para
 TEST_P(sdpa_hpg_sharp_test, f16_static_prefill) {
     const auto p = GetParam();
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false) != tests::dpas_backend::ocl)
-        GTEST_SKIP() << "sdpa_ocl does not serve plain f16 static SDPA on this device (xe_hpg needs TEST_USE_SDPA_OCL_HPG=1 and TEST_USE_SDPA_OCL not 0)";
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "sdpa_ocl does not serve plain f16 static SDPA on this device";
 
     const int d = p.head_size;
     const int n = p.seq_len;
@@ -3089,7 +3089,7 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_hpg_sharp_test::PrintToStringParamName
 );
 
-// The rest of plain SDPA on xe_hpg (the PLAIN_EXT tier): bf16, attn_mask (per key / full 2D / const scalar), causal, sink, dynamic
+// The rest of plain SDPA on xe_hpg: bf16, attn_mask (per key / full 2D / const scalar), causal, sink, dynamic
 // shape, a single query, and a K view whose row pitch or base breaks the 4 B alignment of the dword K read. Same idea as the sharp
 // test: every value row is unique and the softmax has a clear winner per (head, query), so a lane that reads the wrong mask element,
 // key pair or query row moves the winner and the output is off by ~the value spread, far above the tolerance. Two data modes,
@@ -3163,8 +3163,8 @@ TEST_P(sdpa_hpg_ext_test, plain_sdpa) {
     using T = sdpa_hpg_sharp_test;
     const auto p = GetParam();
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
-        GTEST_SKIP() << "sdpa_ocl does not serve plain SDPA on this device (xe_hpg needs TEST_USE_SDPA_OCL_HPG=1 and TEST_USE_SDPA_OCL not 0)";
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "sdpa_ocl does not serve plain SDPA on this device";
     ASSERT_TRUE(!p.sink || p.mask == 1 || p.mask == 2);
     ASSERT_TRUE(!(p.dynamic && p.k_pad)) << "the padded K cases are static";
     ASSERT_TRUE(p.mask != 2 || p.q_len > 1) << "a [.., 1, kv] mask is the per-key kind";
@@ -3453,9 +3453,8 @@ TEST_P(sdpa_hpg_rows_test, plain_sdpa) {
     using T = sdpa_hpg_sharp_test;
     const auto p = GetParam();
     auto& engine = get_test_engine();
-    const uint32_t tiers = ov::intel_gpu::ocl::PLAIN_F16_STATIC | (p.dynamic ? ov::intel_gpu::ocl::PLAIN_EXT : 0u);
-    if (tests::expected_dpas_backend(engine, false, tiers) != tests::dpas_backend::ocl)
-        GTEST_SKIP() << "sdpa_ocl does not serve plain SDPA on this device (xe_hpg needs TEST_USE_SDPA_OCL_HPG=1 and TEST_USE_SDPA_OCL not 0)";
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "sdpa_ocl does not serve plain SDPA on this device";
     ASSERT_TRUE(!(p.dynamic && p.pad_kv)) << "the padded K / V cases are static";
     ASSERT_EQ(p.heads % p.kv_heads, 0);
     ASSERT_TRUE(p.mask >= 0 && p.mask <= 4);
@@ -3722,9 +3721,7 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     const auto p = GetParam();
     auto& engine = get_test_engine();
     const bool bf16 = p.dt == data_types::bf16;
-    const uint32_t tiers =
-        ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_I8 | (p.q_len <= 1 || bf16 ? ov::intel_gpu::ocl::PLAIN_EXT : 0u);
-    const auto backend = tests::expected_dpas_backend(engine, false, tiers);
+    const auto backend = tests::expected_dpas_backend(engine);
     if (backend == tests::dpas_backend::none)
         GTEST_SKIP() << "no DPAS backend on this device";
 
@@ -4612,7 +4609,7 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdp
     void execute(const sdpa_sliding_window_test_params& p, bool dpas) {
         auto& engine = get_test_engine();
         if (dpas) {
-            if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+            if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl) {
                 GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
             }
             // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO=0 reaches enable_sdpa_micro.
@@ -4798,7 +4795,7 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+    if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl) {
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
     }
 
@@ -5270,8 +5267,7 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<std::tuple<sdpa_bro
         auto& engine = get_test_engine();
         if (dpas) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            // A mask, causal, a dynamic shape and one query need PLAIN_EXT on xe_hpg.
-            if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+            if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl) {
                 GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
             }
 #else
@@ -5503,8 +5499,7 @@ protected:
         auto& engine = get_test_engine();
         if (dpas) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            // A mask, causal, bf16 and one query need PLAIN_EXT on xe_hpg.
-            if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+            if (tests::expected_dpas_backend(engine) != tests::dpas_backend::ocl) {
                 GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
             }
 #else
