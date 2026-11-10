@@ -33,6 +33,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/topk.hpp"
@@ -2013,6 +2014,36 @@ TEST(GGUFOps, ReshapeCase2MergeHeadsIsLayoutPolymorphic) {
 
     expect_near(sdpa_out, x, 0.0f);
     expect_near(pa_out, x, 0.0f);
+}
+
+// The s_copy remainder writeback copies rows gathered from a [1, 1, slots, F] recurrent cache, which GET_ROWS
+// returns as [1, rows, F], back into the cache from the runtime slot `rs_slot_begin_<name>`.
+TEST(GGUFOps, CpyRecurrentRemainderWritebackAcceptsGatheredRows) {
+    constexpr size_t slots = 4, width = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_CPY")
+                     .input("rows", ov::element::f32, {1, -1, width})
+                     .input("cache", ov::element::f32, {1, 1, slots, width})
+                     .input("rs_slot_begin_out", ov::element::i64, {1})
+                     .output("out", ov::element::f32, {1, 1, slots, width})
+                     .op_case(3)
+                     .build();
+    std::vector<float> cache(slots * width, -1.0f);
+    for (size_t rows : {1u, 2u}) {
+        SCOPED_TRACE(rows);
+        std::vector<float> values(rows * width);
+        std::iota(values.begin(), values.end(), 10.0f);
+        ov::Tensor begin(ov::element::i64, {1});
+        begin.data<int64_t>()[0] = 1;
+        auto out = run_on_cpu(model,
+                              {{"rows", make_f32_tensor({1, rows, width}, values)},
+                               {"cache", make_f32_tensor({1, 1, slots, width}, cache)},
+                               {"rs_slot_begin_out", begin}});
+        ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, slots, width}));
+        auto expected = cache;
+        std::copy(values.begin(), values.end(), expected.begin() + width);
+        expect_near(out, expected, 0.0f, 0.0f);
+    }
 }
 
 // SET_ROWS into a flattened KV-cache row (row_size taken from the dst input, not the op output):
@@ -4844,6 +4875,81 @@ TEST(GGUFOps, ViewRawDynamicLayerOffsetWithSingletonCapture) {
                 ASSERT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, 1, tokens, 4}));
                 const auto begin = values.begin() + layer * tokens * 4;
                 expect_near(request.get_output_tensor(), std::vector<float>(begin, begin + tokens * 4), 0.0f, 0.0f);
+            }
+        }
+    }
+}
+
+TEST(GGUFOps, ViewPerLayerSliceAsSharedSplit) {
+    class LayerViewsDecoder : public SingleOpDecoder {
+    public:
+        LayerViewsDecoder(const std::shared_ptr<GgufDecoder>& inputs, std::vector<std::shared_ptr<GgufDecoder>> nodes)
+            : SingleOpDecoder(*std::dynamic_pointer_cast<SingleOpDecoder>(inputs)),
+              m_nodes(std::move(nodes)) {}
+
+        void visit_subgraph(std::function<void(std::shared_ptr<GgufDecoder>)> visitor) const override {
+            for (const auto& node : m_nodes)
+                visitor(node);
+        }
+
+        std::vector<std::string> get_model_output_names() const override {
+            return {"layer0", "layer2"};
+        }
+
+    private:
+        std::vector<std::shared_ptr<GgufDecoder>> m_nodes;
+    };
+
+    constexpr size_t layers = 3, width = 4;
+    const std::vector<size_t> selected{0, 2};
+    const ov::PartialShape live{1, layers, -1, width};
+    auto view = [&](size_t layer, bool prefer_split) {
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_VIEW")
+                           .input("x", ov::element::f32, live)
+                           .output("layer" + std::to_string(layer), ov::element::f32, {1, 1, 1, width})
+                           .attr("view_input_strides", std::vector<int64_t>{4, 16, 16, 48})
+                           .attr("view_output_strides", std::vector<int64_t>{4, 16, 16, 16})
+                           .attr("view_offset_bytes", int64_t{16} * static_cast<int64_t>(layer))
+                           .attr("output_dynamic_axis", 2)
+                           .attr("view_prefer_split", prefer_split);
+        return std::make_shared<CapturedInputDecoder>(
+            builder.decoder(),
+            std::map<std::string, ov::PartialShape>{{"x", {1, layers, 1, width}}});
+    };
+    for (bool prefer_split : {false, true}) {
+        SCOPED_TRACE(prefer_split);
+        auto inputs = SingleOpBuilder().op("GGML_OP_VIEW").input("x", ov::element::f32, live).decoder();
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<LayerViewsDecoder>(
+            inputs,
+            std::vector<std::shared_ptr<GgufDecoder>>{view(selected[0], prefer_split),
+                                                      view(selected[1], prefer_split)});
+        FrontEnd fe;
+        auto model = fe.convert(fe.load(decoder));
+        size_t splits = 0, slices = 0;
+        for (const auto& node : model->get_ops()) {
+            splits += ov::is_type<ov::op::v1::Split>(node) ? 1 : 0;
+            slices += ov::is_type<ov::op::v8::Slice>(node) ? 1 : 0;
+        }
+        EXPECT_EQ(splits, prefer_split ? 1u : 0u);
+        EXPECT_EQ(slices, prefer_split ? 0u : 2u);
+
+        ov::Core core;
+        auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (size_t tokens : {1u, 5u}) {
+            SCOPED_TRACE(tokens);
+            std::vector<float> values(layers * tokens * width);
+            std::iota(values.begin(), values.end(), 0.0f);
+            request.set_tensor("x", make_f32_tensor({1, layers, tokens, width}, values));
+            request.infer();
+            for (size_t i = 0; i < selected.size(); ++i) {
+                ASSERT_EQ(request.get_output_tensor(i).get_shape(), (ov::Shape{1, 1, tokens, width}));
+                const auto begin = values.begin() + selected[i] * tokens * width;
+                expect_near(request.get_output_tensor(i),
+                            std::vector<float>(begin, begin + tokens * width),
+                            0.0f,
+                            0.0f);
             }
         }
     }

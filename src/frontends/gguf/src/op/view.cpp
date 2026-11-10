@@ -17,6 +17,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -25,6 +26,51 @@
 namespace ov::frontend::gguf::op {
 
 namespace {
+// A view selecting one unit chunk along a single axis (gemma-4's per-layer input, once per layer) as an output of a
+// Split shared by all such views of `input`.
+ov::Output<ov::Node> shared_split_view(const ov::Output<ov::Node>& input,
+                                       const ov::Shape& src_shape,
+                                       const ov::Shape& dst_shape,
+                                       const std::vector<int64_t>& begin) {
+    const auto live = input.get_partial_shape();
+    if (live.rank().is_dynamic() || static_cast<size_t>(live.rank().get_length()) != src_shape.size()) {
+        return {};
+    }
+    int64_t axis = -1;
+    for (size_t i = 0; i < src_shape.size(); ++i) {
+        if (src_shape[i] == dst_shape[i]) {
+            if (begin[i] != 0) {
+                return {};
+            }
+            continue;
+        }
+        if (axis >= 0 || dst_shape[i] != 1) {
+            return {};
+        }
+        axis = static_cast<int64_t>(i);
+    }
+    if (axis < 0 || live[axis].is_dynamic() || live[axis].get_length() != static_cast<int64_t>(src_shape[axis])) {
+        return {};
+    }
+
+    // The Split keeps its input alive, so the input only keeps a weak reference to it.
+    auto src_node = input.get_node_shared_ptr();
+    const auto key = "gguf_view_split_" + std::to_string(input.get_index()) + "_" + std::to_string(axis);
+    auto& rt_info = src_node->get_rt_info();
+    std::shared_ptr<ov::Node> split;
+    if (const auto it = rt_info.find(key); it != rt_info.end() && it->second.is<std::weak_ptr<ov::Node>>()) {
+        split = it->second.as<std::weak_ptr<ov::Node>>().lock();
+    }
+    if (!split) {
+        split = std::make_shared<ov::op::v1::Split>(input,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {}, {axis}),
+                                                    src_shape[axis]);
+        split->set_friendly_name(src_node->get_friendly_name() + "_split");
+        rt_info[key] = std::weak_ptr<ov::Node>(split);
+    }
+    return split->output(static_cast<size_t>(begin[axis]));
+}
+
 // Put the reshape target's single -1 on the axis carrying the runtime token count, recovered by
 // element-count conservation: product(tgt) / product(res_ps's static dims). No-op for a static
 // res_ps, where the target is already exact and a -1 could land on the wrong axis.
@@ -847,6 +893,14 @@ OutputVector translate_view(const NodeContext& context) {
                         end[ov_axis] = std::numeric_limits<int64_t>::max();
                     }
                     axes[ov_axis] = static_cast<int64_t>(ov_axis);
+                }
+                // A shared Split output avoids a per-run StridedSlice shape inference on GPU and keeps per-layer
+                // slice indices out of repeated subgraphs in static (NPU) graphs.
+                if (context.get_attribute<bool>("view_prefer_split", false)) {
+                    auto split = shared_split_view(context.get_input(0), src_shape, dst_shape, begin);
+                    if (split.get_node()) {
+                        return {split};
+                    }
                 }
                 auto result = std::make_shared<ov::op::v8::Slice>(
                     raw_input,

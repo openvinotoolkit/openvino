@@ -23,7 +23,7 @@ permissions: read-all
 env:
   # mvafin/llama.cpp@ov-pr342-rebased, the head of ravi9/llama.cpp#399 (ravi9/llama.cpp#342 rebased).
   LLAMA_CPP_REPO: mvafin/llama.cpp
-  LLAMA_CPP_REF: 8d31ecb7514dca6072b7fda2f4353c883174b0c6
+  LLAMA_CPP_REF: 980e0a21d070b3af4cf1fac713e854245facd216
   LLAMA_CPP_DIR: ${{ github.workspace }}/llama.cpp
   LLAMA_CPP_BUILD_DIR: ${{ github.workspace }}/llama.cpp/build
   LLAMA_MODEL_DIR: ${{ github.workspace }}/llama.cpp/build/gguf-test-models

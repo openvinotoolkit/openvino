@@ -20,6 +20,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -219,6 +220,11 @@ OutputVector translate_cpy(const NodeContext& context) {
             src.get_node_shared_ptr()->set_friendly_name("conv_writeback_source_" + context.get_name());
         } else {
             src = context.get_input(0);
+            // Rows gathered from a [1, 1, slots, F] cache come back as [1, rows, F]; add the slot axis.
+            const auto src_rank = src.get_partial_shape().rank();
+            if (src_rank.is_static() && src_rank.get_length() == 3) {
+                src = std::make_shared<ov::op::v0::Unsqueeze>(src, zero);
+            }
         }
 
         if (src.get_element_type() != type) {
