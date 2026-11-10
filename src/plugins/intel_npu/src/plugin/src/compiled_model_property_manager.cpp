@@ -264,9 +264,9 @@ void CompiledModelPropertyManager::registerProperties() {
             return _config.get<EXPORT_RAW_BLOB>();
         },
         [this](const ov::Any& value) {
-            Config tmpConfig = _config;
-            tmpConfig.update(ov::intel_npu::export_raw_blob.name(), value);
-            if (tmpConfig.get<EXPORT_RAW_BLOB>()) {
+            const bool enableRawBlobExport =
+                value.is<bool>() ? value.as<bool>() : EXPORT_RAW_BLOB::parse(value.as<std::string>());
+            if (enableRawBlobExport) {
                 // A raw blob contains only the ELF main schedule. Anything that would have to be stored as metadata
                 // in order to import the model correctly cannot be represented, thus the request is rejected.
                 OPENVINO_ASSERT(_graph != nullptr, "Missing graph");
@@ -281,7 +281,7 @@ void CompiledModelPropertyManager::registerProperties() {
                                 "Cannot enable ", ov::intel_npu::export_raw_blob.name(),
                                 ": the compiled model holds batch information that requires metadata to be exported.");
             }
-            _config = std::move(tmpConfig);
+            _config.update(ov::intel_npu::export_raw_blob.name(), enableRawBlobExport);
         }
     );
     register_property(ov::cache_encryption_callbacks.name(), true, ov::PropertyMutability::WO,
