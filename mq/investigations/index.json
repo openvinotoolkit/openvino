@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 360,
+  "total": 361,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3508,6 +3508,15 @@
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
       "signature_hash": "95bb23aa2ed8a84d",
+      "pr_number": "37406"
+    },
+    {
+      "investigation_id": "2026-11-10-12-35-30-000-42798063954",
+      "run_id": "42798063954",
+      "timestamp": "2026-11-10T12:35:30Z",
+      "title": "GGUF frontend test_parser.cpp fails to build under C++20 mode (char8_t/std::string mismatch in unicode path concatenation)",
+      "category": "Code Issue",
+      "signature_hash": "60c87e1ef4d6a044",
       "pr_number": "37406"
     }
   ]

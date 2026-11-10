@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-10-12-35-30-000-42798063954",
+  "timestamp": "2026-11-10T12:35:30Z",
+  "run_id": "42798063954",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42798063954",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37406",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37406",
+  "author": "culhatsker",
+  "category": "Code Issue",
+  "title": "GGUF frontend test_parser.cpp fails to build under C++20 mode (char8_t/std::string mismatch in unicode path concatenation)",
+  "signature": "error c2676 binary operator std string does not define operator conversion acceptable predefined operator make_path no matching overloaded function found char8_t const object must be initialized|Code Issue",
+  "signature_hash": "60c87e1ef4d6a044",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build - OpenVINO step fails compiling src/frontends/gguf/tests/test_parser.cpp with C2676/C2672/C2737/C3536 errors"
+    }
+  ],
+  "key_errors": [
+    "FAILED: src/frontends/gguf/tests/CMakeFiles/ov_gguf_frontend_tests.dir/Release/test_parser.cpp.obj\nC:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2676: binary '+': 'std::string' does not define this operator or a conversion to a type acceptable to the predefined operator",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2672: 'ov::util::make_path': no matching overloaded function found",
+    "C:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(731): error C2737: 'unicode_prefix': const object must be initialized\nC:\\actions-runner\\_work\\openvino\\openvino\\openvino\\src\\frontends\\gguf\\tests\\test_parser.cpp(733): error C3536: 'unicode_prefix': cannot be used before it is initialized\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "In test_parser.cpp line 731, the code does `ov::util::make_path(m_base + u8\"_模型_żółć\")` where `m_base` is `std::string` and the literal is a UTF-8 `char8_t` string literal (`u8\"...\"`). Under the C++20 standard (this job builds with `-DCMAKE_CXX_STANDARD=20`), `u8\"...\"` literals are typed as `const char8_t[]` instead of `const char[]` (a C++20 language change), so `std::string::operator+` can no longer implicitly convert/concatenate it with `std::string`, causing MSVC error C2676. The resulting compile error leaves `unicode_prefix` uninitialized (C2737/C3536), cascading into a hard build failure that aborts the whole Ninja build. This is unrelated to the PR's actual change (src/plugins/intel_npu/.../CMakeLists.txt) — it is a pre-existing GGUF test source incompatible with C++20 char8_t typing, previously seen on PRs #39524 and #39270.",
+  "reproduction_steps": "Configure and build OpenVINO with `-DCMAKE_CXX_STANDARD=20 -DENABLE_OV_GGUF_FRONTEND=ON -DENABLE_TESTS=ON` (any platform/compiler enforcing char8_t typing for u8 literals, e.g. MSVC 19.42+ or GCC/Clang with -std=c++20) and build target `ov_gguf_frontend_tests`; the compile of src/frontends/gguf/tests/test_parser.cpp fails at line 731.",
+  "recommended_actions": [
+    "In src/frontends/gguf/tests/test_parser.cpp:731, stop concatenating std::string with a u8 literal directly; instead construct the unicode suffix as a std::u8string (or std::string via explicit (const char*) reinterpret of the u8 literal's data) before calling ov::util::make_path, e.g. `ov::util::make_path(m_base + std::string(reinterpret_cast<const char*>(u8\"_模型_żółć\")))` or build the path by concatenating std::filesystem::path components instead of raw strings.",
+    "Alternatively, change m_base concatenation to use std::filesystem::path throughout (path / path) rather than std::string '+' so char8_t literal handling is delegated to std::filesystem::path's native u8string constructor overload.",
+    "Add a dedicated C++20 CI smoke build (or enable a non-blocking cpp20 job for the gguf frontend tests target specifically) to catch this class of char8_t typing issue before merge, since the regular blocking Windows job may use an older C++ standard.",
+    "Once fixed, this build is 'non-blocking' per job name, so after the source fix, verify the non-blocking build job also turns green on a subsequent merge-queue run."
+  ],
+  "prevention_strategies": "Avoid raw std::string + u8\"...\" concatenation in portable C++20 code; always wrap UTF-8 literals via std::u8string or std::filesystem::path construction helpers so compiler char8_t strictness does not break the build. Add a lightweight CI job (or clang-tidy/cpplint rule) that flags `u8\"` literal usage concatenated with std::string via operator+.",
+  "historical_context": "This exact signature (60c87e1ef4d6a044) has been seen 2 times before (2026-11-05T10:50:38Z on run 41997458873 for PR #39270, and 2026-11-05T14:03:59Z on run 42026335242 for PR #39524), always in the 'Build (C++20, non-blocking)' job, and always traced to the same line 731 unicode_prefix construction in test_parser.cpp. This is now the 3rd occurrence, confirming the C++20 GGUF test source bug has not yet been fixed."
+}
