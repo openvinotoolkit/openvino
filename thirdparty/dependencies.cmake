@@ -387,12 +387,21 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
+        set(Protobuf_VERSION_REQUIRED "6.31.1")
         # only protobuf's own CONFIG package propagates Abseil, which protobuf 22 and newer requires
         find_package(Protobuf REQUIRED CONFIG)
-        # protobuf release number is the minor component: release 26 is 5.26, release 33 is 6.33.
-        # it cannot be checked by find_package, whose version argument requires an exact major match
-        if(Protobuf_VERSION_MINOR VERSION_LESS 26)
-            message(FATAL_ERROR "Protobuf 26 (5.26) or newer is required, but ${Protobuf_VERSION} is found")
+        if(Protobuf_VERSION VERSION_LESS "${Protobuf_VERSION_REQUIRED}")
+            message(FATAL_ERROR "Protobuf ${Protobuf_VERSION_REQUIRED} or newer is required, but ${Protobuf_VERSION} is found")
+        endif()
+        if(Protobuf_FOUND)
+            # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
+            set(protobuf_config CONFIG)
+        else()
+            if(OV_VCPKG_BUILD)
+                set(protobuf_config CONFIG)
+            endif()
+            # otherwise, fallback to existing default
+            find_package(Protobuf ${Protobuf_VERSION_REQUIRED} REQUIRED ${protobuf_config})
         endif()
         # exported into OpenVINOConfig.cmake for static build
         set(protobuf_config CONFIG)
