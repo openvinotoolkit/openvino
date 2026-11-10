@@ -132,11 +132,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # PDB related flags
     #
 
-    # CI builds start from scratch, so incremental linking only adds padding, a second link
-    # to embed manifests and stale blocks in PDB files.
+    # With embedded debug information (/Z7, e.g. for compiler caches) the linker builds PDB files
+    # from scratch anyway, while incremental linking adds padding and thunks to binaries, a second
+    # link to embed manifests and stale blocks in PDB files.
     # /INCREMENTAL:NO is added as a link option: third-party projects (e.g. level_zero) rewrite
     # "/INCREMENTAL" in the linker flag variables and would turn it into "/INCREMENTAL:NO:NO".
-    if(DEFINED ENV{GITHUB_ACTIONS})
+    if(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT MATCHES "Embedded")
         foreach(link_type IN ITEMS EXE SHARED MODULE)
             foreach(config IN ITEMS DEBUG RELWITHDEBINFO)
                 string(REGEX REPLACE "(^| )/INCREMENTAL( |$)" " "
