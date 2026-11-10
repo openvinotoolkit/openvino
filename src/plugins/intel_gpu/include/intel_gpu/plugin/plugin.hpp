@@ -16,14 +16,20 @@ namespace ov::intel_gpu {
 class Plugin : public ov::IPlugin {
 private:
     std::string m_default_device_id = "0";
-    std::map<std::string, cldnn::device::ptr> m_device_map;
-    std::map<std::string, ExecutionConfig> m_configs_map;
+    mutable std::map<std::string, cldnn::device::ptr> m_device_map;
+    mutable std::once_flag m_devices_once;
+    // set_property values in call order; an empty id applies to every device.
+    std::vector<std::pair<std::string, ov::AnyMap>> m_user_configs;
     ov::AnyMap m_compiled_model_runtime_properties;
 
     mutable std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
     mutable std::once_flag m_default_contexts_once;
 
     std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
+
+    // Enumerates devices on first need, so loading the plugin or an offline compile makes no OpenCL call.
+    void ensure_devices() const;
+    ExecutionConfig get_config(const std::string& device_id) const;
 
     // Rename our enumerated devices to the ids Core assigned (ov::internal::device_id_map).
     void apply_device_id_map(const std::map<std::string, std::string>& id_map);
