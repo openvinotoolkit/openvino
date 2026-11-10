@@ -26,7 +26,7 @@ ov::Tensor make_zero_tensor(const ov::element::Type& precision, const ov::Shape&
 // new_spec/qsa-prepare-17.rst's padding-aware prepare+selection pseudocode directly -- NOT a copy
 // of the CPU node's PlainTensor-based indexing/control flow. `summary_cache`/`past_raw_k`/
 // `past_rope` are caller-owned state threaded in by reference across sequential calls, mirroring
-// the production op's state. Also used by the QSAPrepare + SparseAttentionIndexer fusion subgraph test.
+// the production op's state.
 struct QSAIndexerOracle {
     size_t h_iq = 0;
     size_t h_ik = 0;

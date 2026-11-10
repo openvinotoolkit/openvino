@@ -84,7 +84,7 @@ void check_rope_table_shape(const ov::Node* node,
 }
 
 // All floating-point inputs share one element type: the CPU kernel is instantiated for that precision, so
-// converting the other ports is the job of whoever builds the op (see QSAIndexerFusion).
+// converting the other ports is the job of whoever builds the op.
 void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indices) {
     auto data_type = ov::element::dynamic;
     for (auto idx : indices) {
