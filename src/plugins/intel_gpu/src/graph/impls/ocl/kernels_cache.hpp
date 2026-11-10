@@ -94,8 +94,9 @@ public:
                     "sdpa_utils"
                 };
                 for (const auto& kv : batch_headers) {
-                    // Skip NVIDIA-specific headers; get_program_source() adds the ones a batch needs, in the order
-                    // they need to be in, once the batch's kernels are known
+                    // Skip the NVIDIA compatibility headers: get_program_source() adds all of them to every batch of the
+                    // NVIDIA SYCL backend itself, laid out as prelude | batch headers | sg overrides | kernels, which the
+                    // alphabetical order of batch_headers would not give.
                     if (kv.first.rfind("nvidia/", 0) == 0)
                         continue;
                     if (std::find(micro_kernel_include_names.begin(), micro_kernel_include_names.end(), kv.first) == micro_kernel_include_names.end()) {
