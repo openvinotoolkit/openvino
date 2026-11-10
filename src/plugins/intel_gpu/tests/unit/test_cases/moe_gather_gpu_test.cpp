@@ -191,6 +191,11 @@ static void test_moe_gather_rank3(bool has_batch_dim, bool tokens_first) {
         ASSERT_EQ(output->get_layout().count(), token_indices.size() * hidden_size);
         ASSERT_GE(output->get_mem_tracker() ? output->get_mem_tracker()->size() : output->size(),
                   token_indices.size() * hidden_size * sizeof(ov::float16));
+        const bool expected_batch_layout = (num_tokens == 1) ? has_batch_dim : !tokens_first;
+        const ov::PartialShape expected_out_shape = expected_batch_layout
+            ? ov::PartialShape{ov::Dimension(1), ov::Dimension(static_cast<int64_t>(token_indices.size())), ov::Dimension(static_cast<int64_t>(hidden_size))}
+            : ov::PartialShape{ov::Dimension(static_cast<int64_t>(token_indices.size())), ov::Dimension(1), ov::Dimension(static_cast<int64_t>(hidden_size))};
+        ASSERT_EQ(output->get_layout().get_partial_shape(), expected_out_shape);
         cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
         for (size_t r = 0; r < token_indices.size(); ++r) {
             for (size_t h = 0; h < hidden_size; ++h) {
