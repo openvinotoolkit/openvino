@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -28,6 +27,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
+#    include "cpu_types.h"
 #    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
 #endif
 
@@ -76,9 +76,9 @@ void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
 }
 
 void PagedQSAIndexer::createPrimitive() {
-    const auto summary_precision = getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE)->getDesc().getPrecision();
     m_impl = qsa::kernel_impl_type();
 #ifdef OPENVINO_ARCH_X86_64
+    const auto summary_precision = getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE)->getDesc().getPrecision();
     // The scoring on brgemm where the CPU, the precisions and the head counts allow it; the query and key rows are
     // [tokens, heads * dim], the token count is dynamic. The query is rounded to the precision of the summary blocks
     // for the brgemm products: only done when it is that precision already.

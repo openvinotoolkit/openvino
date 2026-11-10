@@ -30,10 +30,10 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
-#include "utils/plain_tensor.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
+#    include "utils/plain_tensor.hpp"
 #endif
 
 namespace ov::intel_cpu::node {
@@ -137,9 +137,9 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
 }
 
 void QSAIndexer::createPrimitive() {
-    const auto precision = getSrcMemoryAtPort(InputIdx::Q_IDX)->getDesc().getPrecision();
     m_impl = qsa::kernel_impl_type();
 #ifdef OPENVINO_ARCH_X86_64
+    const auto precision = getSrcMemoryAtPort(InputIdx::Q_IDX)->getDesc().getPrecision();
     // The scoring on brgemm where the CPU, the precision and the head counts allow it; the head counts are static, the
     // batch and the window are not. The scorer is shared by the layers of the same configuration.
     const auto& c = m_config;
