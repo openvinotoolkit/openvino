@@ -155,7 +155,7 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
     const auto selected = embedding_result(model, modality);
     const auto adapter = get_model_adapter(selected);
     if (layout == Layout::VISION_ENCODERS && !adapter)
-        require_projector_layout(model);
+        read_projector_layout(model);
     auto live_before = std::make_shared<std::unordered_set<const ov::Node*>>();
     SnapshotLiveParameters(live_before).run_on_model(model);
     ComponentStateSelection states;

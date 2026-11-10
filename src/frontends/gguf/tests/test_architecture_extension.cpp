@@ -612,9 +612,9 @@ TEST(GGUFArchitectureExtension, TypedUnknownLayerNormFactoryControlsScalesAndLay
         return parameters;
     });
     auto loaded = get_gguf_data(path);
-    auto& [metadata, weights, qtypes, mappings] = loaded;
+    auto& [metadata, weights, mappings] = loaded;
     detail::MetadataStore store{metadata};
-    detail::WeightStore tensors{weights, qtypes};
+    detail::WeightStore tensors{weights};
     const BuildContext context{GgufMetadata(store), "custom-normalization", &tensors};
     const auto graph = definition.factory(context)->build();
     EXPECT_TRUE(graph->use_per_op_rope);
@@ -641,7 +641,7 @@ TEST(GGUFArchitectureExtension, TypedGatedDeltaNetFactoryScalesBothResidualBranc
     const auto path = write_decoder_gguf(scratch.path(), "custom-recurrent");
     ASSERT_FALSE(path.empty());
     auto loaded = get_gguf_data(path);
-    auto& [metadata, weights, qtypes, mappings] = loaded;
+    auto& [metadata, weights, mappings] = loaded;
     for (int layer = 0; layer < 2; ++layer) {
         const auto prefix = "blk." + std::to_string(layer) + ".";
         const std::map<std::string, ov::Shape> shapes{{"attn_qkv.weight", {12, 8}},
@@ -660,7 +660,7 @@ TEST(GGUFArchitectureExtension, TypedGatedDeltaNetFactoryScalesBothResidualBranc
         }
     }
     detail::MetadataStore store{metadata};
-    detail::WeightStore tensors{weights, qtypes};
+    detail::WeightStore tensors{weights};
     const BuildContext context{GgufMetadata(store), "custom-recurrent", &tensors};
     for (float scale : {1.0f, 0.375f}) {
         const auto definition = make_decoder_architecture("custom-recurrent", [scale](const BuildContext& context) {
