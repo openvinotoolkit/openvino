@@ -344,7 +344,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     }
 
     // The NVIDIA compatibility headers are the same for every batch, so they are assembled once here rather than per batch.
-    const auto nvidia_compat = _use_nvidia_compat ? get_nvidia_compat_headers() : nvidia_compat_headers{};
+    const auto nvidia_compat = _targets_nvidia ? get_nvidia_compat_headers() : nvidia_compat_headers{};
 
     // Compute hash value for each batch
     // Hash calculation might require additional optimizations, but currently execution time of this part is much smaller than loading
@@ -421,7 +421,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // The overrides must sit between the headers and the kernels: they shadow names that sub_group_block_read.cl
             // and friends declare as functions, so emitting them any earlier would macro-expand those names inside their
             // own declarations. See nvidia/compat_sg_overrides.cl.
-            if (_use_nvidia_compat) {
+            if (_targets_nvidia) {
                 OPENVINO_ASSERT(b.header_count <= b.source.size(), "[GPU] Batch has ", b.header_count,
                                 " headers but only ", b.source.size(), " source entries");
                 b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(b.header_count), nvidia_compat.sg_overrides);
@@ -444,7 +444,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
             // Add -g -s to build options to allow IGC assembly dumper to associate assembler sources with corresponding OpenCL kernel code lines
             // Should be used with the IGC_ShaderDump option
             // Note: Skip adding -g -s for CM kernels as these options are not supported by CM compiler, nor for the NVIDIA OpenCL compiler.
-            if (!dump_sources_dir.empty() && b.language != kernel_language::CM && !_use_nvidia_compat) {
+            if (!dump_sources_dir.empty() && b.language != kernel_language::CM && !_targets_nvidia) {
                 std::string current_dump_file_name = std::move(dump_sources_dir);
                 if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
                     current_dump_file_name += '/';
@@ -473,7 +473,7 @@ kernels_cache::kernels_cache(engine& engine,
     , batch_headers(std::move(batch_headers)) {
     // The NVIDIA SYCL backend always compiles with clBuildProgram on the NVIDIA OpenCL runtime and launches the PTX
     // through CUDA, so it always needs the compatibility headers.
-    _use_nvidia_compat = engine.runtime_type() == runtime_types::sycl && _device->get_info().vendor_id == NVIDIA_VENDOR_ID;
+    _targets_nvidia = engine.runtime_type() == runtime_types::sycl && _device->get_info().vendor_id == NVIDIA_VENDOR_ID;
 }
 
 kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() const {
@@ -516,7 +516,7 @@ kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() 
 }
 
 std::string kernels_cache::get_combined_source(const batch_program& batch) const {
-    if (!_use_nvidia_compat) {
+    if (!_targets_nvidia) {
         return join_strings(batch.source);
     }
 
