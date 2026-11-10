@@ -40,6 +40,7 @@
 #include <fstream>
 #include <set>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <memory>
 #include <utility>
@@ -123,8 +124,8 @@ namespace {
 bool on_define_line(const std::string& src, size_t pos) {
     size_t line_start = src.rfind('\n', pos);
     line_start = (line_start == std::string::npos) ? 0 : line_start + 1;
-    size_t define_pos = src.find("#define", line_start);
-    return define_pos != std::string::npos && define_pos < pos;
+    // Look only between the start of the line and the occurrence, not on to the end of the source.
+    return std::string_view(src).substr(line_start, pos - line_start).find("#define") != std::string_view::npos;
 }
 
 // The [begin, end) byte ranges of the comments in src, in order: a '//' comment to the end of its line, a '/* */'
