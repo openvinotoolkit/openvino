@@ -537,9 +537,9 @@ TEST(pa_kv_reorder_gpu, many_heads_dispatch_is_uniform) {
     ASSERT_EQ(wgs.global.size(), wgs.local.size());
     for (size_t i = 0; i < wgs.global.size(); i++) {
         ASSERT_NE(wgs.local[i], 0u) << "axis " << i;
-        EXPECT_EQ(wgs.global[i] % wgs.local[i], 0u)
-            << "non-uniform work-group on axis " << i << ": gws=" << wgs.global[i] << " lws=" << wgs.local[i] << " (kv_heads=" << kv_heads
-            << ", max_work_group_size=" << engine.get_device_info().max_work_group_size << ")";
+        EXPECT_EQ(wgs.global[i] % wgs.local[i], 0u) << "non-uniform work-group on axis " << i << ": gws=" << wgs.global[i] << " lws=" << wgs.local[i]
+                                                    << " (kv_heads=" << kv_heads << ", max_work_group_size=" << engine.get_device_info().max_work_group_size
+                                                    << ")";
     }
 
     cldnn::mem_lock<ov::float16, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());

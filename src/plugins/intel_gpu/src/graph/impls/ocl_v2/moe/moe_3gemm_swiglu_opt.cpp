@@ -463,8 +463,7 @@ static void check_gemv_shape(const RuntimeParams& params) {
                     fake_gs,
                     " must be 2, 4 or 8 times SUBGROUP_SIZE.");
     // A chunk must not cross a quantization group, and K must be a whole number of chunks.
-    OPENVINO_ASSERT(gate_up_group_size % fake_gs == 0 && down_group_size % fake_gs == 0 && hidden_size % fake_gs == 0 &&
-                        inter_size % fake_gs == 0,
+    OPENVINO_ASSERT(gate_up_group_size % fake_gs == 0 && down_group_size % fake_gs == 0 && hidden_size % fake_gs == 0 && inter_size % fake_gs == 0,
                     "MoE GEMV kernel does not support hidden_size=",
                     hidden_size,
                     ", inter_size=",
