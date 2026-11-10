@@ -404,6 +404,8 @@ struct cuda_dispatch {
     unsigned int grid[3] = {1, 1, 1};
 
     unsigned int block_threads() const { return block[0] * block[1] * block[2]; }
+    // An NDRange with a zero extent has no work-items. A block extent is never 0, so the grid tells.
+    bool empty() const { return grid[0] == 0 || grid[1] == 0 || grid[2] == 0; }
 
     // For error messages: a kernel is launched with many shapes, and a failure is only reproducible with the one
     // that failed.
@@ -615,6 +617,10 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh, const kernel_arguments_desc& 
                                  args = std::move(args),
                                  state = _state,
                                  dispatch](::sycl::interop_handle ih) {
+        // As clEnqueueNDRangeKernel does since OpenCL 2.1, a command without work-items succeeds without launching
+        // anything: cuLaunchKernel would reject the zero grid. The task still runs, so the ordering it was given holds.
+        if (dispatch.empty())
+            return;
         const auto function = state->function_for_launch(dispatch.layout.index(), dispatch.block_threads());
         kernel_params params = build_kernel_params(args, buffers, accessors, ih, *function, state->local_alignments);
         auto cu_stream = ih.get_native_queue<::sycl::backend::ext_oneapi_cuda>();
