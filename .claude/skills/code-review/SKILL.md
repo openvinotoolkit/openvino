@@ -24,8 +24,15 @@ of unrelated legacy code.
    source code. Distinguish source content from diff markers, line numbers,
    and other review annotations. Verify the failure against the configured
    behavior or documented requirements; do not assume additional triggers,
-   unsupported usage, or stricter rules. If the available evidence does not
-   establish a defect, omit the finding.
+   unsupported usage, or rules stricter than the documented ones. If the
+   available evidence establishes neither a defect nor a violation of a loaded
+   component guide, omit the finding.
+5. Report a violation of a rule from a loaded component guide as a finding of
+   at least medium severity, even when it causes no immediate failure: the
+   guides are merge requirements, not optional style. Cite the guide and the
+   rule, state the consequence of the violation, and use the fix the guide
+   prescribes. Ask the author to check the rest of the change against the
+   guide, since the review may not list every violation.
 
 ## Conditional review modes
 
@@ -117,7 +124,8 @@ Report all material, high-confidence, actionable findings in descending order
 of practical impact. Each finding should include:
 
 - the exact changed location, linked when the review interface supports it;
-- the failure mode and its impact on OpenVINO users, builds, or runtime; and
+- the failure mode and its impact on OpenVINO users, builds, or runtime, or,
+  for a guide violation, the cited rule and the consequence of breaking it; and
 - a minimal, concrete fix direction.
 
 Keep one issue per finding and use one representative location for a repeated

@@ -48,7 +48,7 @@ struct GgufGraph {
 
     // Model inputs (Parameters) and extra inputs (e.g. attention_size; Parameter or Constant).
     // Same semantics as the corresponding GgufDecoder getters. Weights are not here: they are
-    // emitted into `nodes` as GGML_OP_NONE leaves (see emit_weight_op).
+    // emitted into `nodes` as GGML_OP_NONE leaves (see add_weight).
     std::map<std::string, std::shared_ptr<ov::Node>> model_inputs;
     std::map<std::string, std::shared_ptr<ov::Node>> model_extra_inputs;
     std::vector<std::string> model_output_names;

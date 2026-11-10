@@ -141,14 +141,19 @@ std::shared_ptr<ov::Node> TranslateSession::create_const_or_param(
     std::shared_ptr<ov::Node> node;
     const auto& shape = input_tensor->get_partial_shape();
     const bool is_empty_shape = shape.is_static() && ov::shape_size(shape.to_shape()) == 0;
+    const bool has_inline_data = input_tensor->get_data() != nullptr;
+    const bool has_external_data = input_tensor->get_data_location() != nullptr;
     // STRING initializers carry data in get_data_any() with get_data()==nullptr; treat as Constants.
-    if (input_tensor->get_data_location() != nullptr || input_tensor->get_data() != nullptr ||
-        !input_tensor->get_data_any().empty()) {
-        node = Tensor(input_tensor).get_ov_constant();
-    } else if (!is_model_input && is_empty_shape) {  // empty constant
+    const bool has_string_data = !input_tensor->get_data_any().empty();
+    // get_ov_constant() would turn a zero-element initializer into a scalar failsafe Constant.
+    const bool is_empty_initializer = is_empty_shape && input_tensor->get_data_size() == 0 && !has_external_data &&
+                                      !has_string_data && (has_inline_data || !is_model_input);
+    if (is_empty_initializer) {
         node = ov::op::v0::Constant::create(input_tensor->get_element_type(),
                                             input_tensor->get_partial_shape().to_shape(),
                                             {});
+    } else if (has_inline_data || has_external_data || has_string_data) {
+        node = Tensor(input_tensor).get_ov_constant();
     } else {
         node = std::make_shared<ov::op::v0::Parameter>(input_tensor->get_element_type(),
                                                        input_tensor->get_partial_shape());
