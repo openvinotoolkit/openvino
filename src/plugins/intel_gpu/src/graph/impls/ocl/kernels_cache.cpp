@@ -189,7 +189,7 @@ std::string sub_group_size_from_work_group_size(const std::string& args) {
         return {};
     }
     const std::string wg = "(" + dims[0] + ")*(" + dims[1] + ")*(" + dims[2] + ")";
-    return "(" + wg + ") == 8u ? 8u : ((" + wg + ") == 16u ? 16u : 32u)";
+    return "(" + wg + ") == 8u ? 8u : ((" + wg + ") == 16u ? 16u : _NV_DEFAULT_SUB_GROUP_SIZE)";
 }
 
 }  // namespace
@@ -277,8 +277,9 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     // lazily, so naming a jit constant that is only defined further down (SUBGROUP_SIZE, SIMD, ...) is fine.
     modified = redefine_directive(first_arg) + modified;
 
-    // Restore the default at the end of the entry so nothing leaks into the next kernel of the batch.
-    modified += "\n#undef _NV_SUB_GROUP_SIZE\n#define _NV_SUB_GROUP_SIZE 32u\n";
+    // Restore the default at the end of the entry so nothing leaks into the next kernel of the batch. It is restored by
+    // name: nvidia/compat_sg.cl alone holds its value.
+    modified += "\n#undef _NV_SUB_GROUP_SIZE\n#define _NV_SUB_GROUP_SIZE _NV_DEFAULT_SUB_GROUP_SIZE\n";
     return modified;
 }
 
