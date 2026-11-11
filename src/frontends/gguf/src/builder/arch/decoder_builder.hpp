@@ -46,15 +46,14 @@ private:
     bool selects_output_rows(int il) const {
         return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model && !m_export_hidden;
     }
-    std::string nextn_weight(const std::string& name) const {
-        return "blk." + std::to_string(m_cfg.n_layer - 1) + ".nextn." + name + ".weight";
-    }
+    std::string nextn_weight(const std::string& name) const;
     std::string lm_head_weight() const;
 
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
     blocks::KvCachePlan m_kv;
     bool m_mtp = false;
+    int m_nextn_layer = -1;
     bool m_export_hidden = false;
 };
 

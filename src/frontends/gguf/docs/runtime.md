@@ -138,6 +138,13 @@ PrismML's `Ternary-Bonsai-2-4B-PQ2_0-MTP-Q8_0.gguf` (tied, Hadamard v2) and
 target weights plus a Q8_0 NextN block. A plain Bonsai GGUF without the embedded NextN
 weights cannot be used as an MTP draft.
 
+Other llama.cpp NextN families use the same draft prologue and head fallbacks, and
+the target conversion already excludes their NextN blocks. The draft is limited to
+the families accepted by `has_mtp_draft()` in `decoder_builder.cpp`. Before adding a
+family, check that its NextN block builds as a regular layer of that family and compare
+the draft with the ggml MTP graph. A separate `nextn.embed_tokens.weight` table
+(GLM-4.5) and chained multi-block drafts (`step35`) are not supported yet.
+
 `GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
 for consumers that keep GGUF IO. The llama.cpp backend uses its own stateful lowering for its
 cache-slot and fixed-mask semantics, without GenAI adaptation.

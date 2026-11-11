@@ -72,7 +72,8 @@ std::string write_decoder_gguf(const std::string& dir,
                                bool layer_norm = false,
                                bool mtp = false,
                                bool separate_embedding = false,
-                               const std::vector<std::string>& hadamard_names = {}) {
+                               const std::vector<std::string>& hadamard_names = {},
+                               bool tied_hadamard = false) {
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
@@ -95,7 +96,11 @@ std::string write_decoder_gguf(const std::string& dir,
         writer.kv_u32_array(arch + ".rope.dimension_sections", {1, 1, 0, 0});
         if (!hadamard_names.empty()) {
             const std::string p = "prism.hadamard.";
-            writer.kv_u32(p + "version", 1);
+            writer.kv_u32(p + "version", tied_hadamard ? 2 : 1);
+            if (tied_hadamard) {
+                writer.kv_bool(p + "tied_output", true);
+                writer.kv_str_array(p + "inverse_weight_names", {"token_embd.weight"});
+            }
             writer.kv_u32(p + "block_size", 8);
             writer.kv_str(p + "transform", "normalized-sylvester-walsh-hadamard");
             writer.kv_str(p + "axis", "input-last-dimension");
@@ -111,7 +116,7 @@ std::string write_decoder_gguf(const std::string& dir,
     };
     weight("token_embd.weight", {8, 16});
     weight("output_norm.weight", {8}, true);
-    if (!hadamard_names.empty())
+    if (!hadamard_names.empty() && !tied_hadamard)
         weight("output.weight", {8, 16});
     if (layer_norm)
         weight("output_norm.bias", {8});
@@ -278,12 +283,18 @@ TEST(GGUFGenAIExtension, QwenMtpComponentHasIndependentCacheAndHiddenStateInputs
 
 TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamardWeights) {
     using Extension = ov::frontend::gguf::GenAIExtension;
-    // The draft uses its NextN head, so output.weight is unused; target-only names leave nothing rotated.
-    for (const auto& names : {std::vector<std::string>{"output.weight", "blk.1.nextn.shared_head_head.weight"},
-                              std::vector<std::string>{"output.weight", "blk.0.attn_q.weight"}}) {
-        SCOPED_TRACE(names.back());
+    // The draft uses its NextN head, so output.weight (or the tied token_embd head) is unused;
+    // target-only names leave nothing rotated.
+    const std::vector<std::pair<std::vector<std::string>, bool>> cases{
+        {{"output.weight", "blk.1.nextn.shared_head_head.weight"}, false},
+        {{"output.weight", "blk.0.attn_q.weight"}, false},
+        {{"blk.0.attn_q.weight", "blk.1.nextn.shared_head_head.weight"}, true},
+        {{"blk.0.attn_q.weight"}, true},
+    };
+    for (const auto& [names, tied] : cases) {
+        SCOPED_TRACE(names.back() + (tied ? " tied" : ""));
         ScratchDir scratch;
-        const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true, false, names);
+        const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true, false, names, tied);
         ov::frontend::gguf::FrontEnd frontend;
         const auto input = frontend.load(path);
         frontend.add_extension(std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp"));

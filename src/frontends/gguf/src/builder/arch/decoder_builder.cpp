@@ -41,21 +41,40 @@ namespace {
 // Dynamic token length, used for model-input Parameters only.
 constexpr int64_t D = -1;
 
+// Families drafted like llama.cpp's NextN MTP graphs: enorm/hnorm -> eh_proj -> one regular block
+// -> shared_head_norm/output_norm -> shared_head_head/output. Add a family once its NextN block is
+// verified to be a regular layer of that family against the ggml MTP graph.
+bool has_mtp_draft(const std::string& architecture) {
+    return architecture == "qwen35";
+}
+
+// The draft uses the first NextN block (llama.cpp: n_layer() + nextn_layer_offset 0).
+int nextn_layer(const DecoderParameters& parameters) {
+    return parameters.dimensions.layers - parameters.hybrid.nextn_layers;
+}
+
+std::string nextn_tensor(int layer, const std::string& name) {
+    return "blk." + std::to_string(layer) + ".nextn." + name + ".weight";
+}
+
 DecoderParameters component_parameters(const BuildContext& context, DecoderParameters parameters) {
     OPENVINO_ASSERT(context.component.empty() || context.component == "mtp",
                     "[GGUF] unknown decoder component: ",
                     context.component);
     if (context.component.empty())
         return parameters;
-    OPENVINO_ASSERT(
-        parameters.architecture == "qwen35" && parameters.hybrid.nextn_layers == 1 && parameters.dimensions.layers > 1,
-        "[GGUF] MTP requires a qwen35 checkpoint with exactly one NextN block and at least one target layer");
-    const auto embedding = "blk." + std::to_string(parameters.dimensions.layers - 1) + ".nextn.embed_tokens.weight";
-    OPENVINO_ASSERT(!context.weights->weights.count(embedding),
+    OPENVINO_ASSERT(parameters.hybrid.nextn_layers == 1 && parameters.dimensions.layers > 1,
+                    "[GGUF] MTP requires exactly one NextN block and at least one target layer");
+    OPENVINO_ASSERT(has_mtp_draft(parameters.architecture),
+                    "[GGUF] MTP is not supported for architecture: ",
+                    parameters.architecture);
+    const auto layer = nextn_layer(parameters);
+    OPENVINO_ASSERT(!context.weights->weights.count(nextn_tensor(layer, "embed_tokens")),
                     "[GGUF] MTP requires shared token embeddings; a separate NextN embedding table is not supported");
     parameters.hybrid.nextn_layers = 0;
     parameters.layers.resize(parameters.dimensions.layers);
-    parameters.layers.back().recurrent = false;
+    // NextN blocks are attention blocks, also in hybrid recurrent families.
+    parameters.layers[layer].recurrent = false;
     parameters.model_contract.sequence_inputs = {"hidden_states"};
     return parameters;
 }
@@ -66,11 +85,12 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
       m_emit(context.weights->weights, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)),
       m_mtp(context.component == "mtp"),
-      m_export_hidden(parameters.architecture == "qwen35" && parameters.hybrid.nextn_layers > 0) {
+      m_nextn_layer(m_mtp ? nextn_layer(parameters) : -1),
+      m_export_hidden(has_mtp_draft(parameters.architecture) && parameters.hybrid.nextn_layers > 0) {
     if (m_mtp) {
         // Keep Hadamard names for weights the draft uses: shared embeddings, its head and the NextN block.
         auto metadata = detail::MetadataAccess::get(context.metadata).map;
-        const auto prefix = "blk." + std::to_string(m_cfg.n_layer - 1) + ".";
+        const auto prefix = "blk." + std::to_string(m_nextn_layer) + ".";
         const auto head = lm_head_weight();
         bool rotated = false;
         for (const auto& key : {"prism.hadamard.weight_names", "prism.hadamard.inverse_weight_names"}) {
@@ -372,6 +392,10 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     return cur;
 }
 
+std::string DecoderBuilder::nextn_weight(const std::string& name) const {
+    return nextn_tensor(m_nextn_layer, name);
+}
+
 std::string DecoderBuilder::lm_head_weight() const {
     if (m_mtp && m_emit.has_weight(nextn_weight("shared_head_head")))
         return nextn_weight("shared_head_head");
@@ -457,7 +481,9 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         m_emit.add_weight(nextn_weight("eh_proj"));
         cur = m_emit.add_op("GGML_OP_MUL_MAT", "mtp_eh_proj", {nextn_weight("eh_proj"), cur});
     }
-    for (int il = m_mtp ? m_cfg.n_layer - 1 : 0; il < m_cfg.n_layer; ++il) {
+    const int first_layer = m_mtp ? m_nextn_layer : 0;
+    const int end_layer = m_mtp ? m_nextn_layer + 1 : m_cfg.n_layer;
+    for (int il = first_layer; il < end_layer; ++il) {
         cur = build_layer(il, cur);
     }
 
