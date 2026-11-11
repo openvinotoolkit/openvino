@@ -59,7 +59,8 @@ JitConstants make_jit(JitConstants jit, const std::shared_ptr<const paged_qsa_in
 }
 
 constexpr size_t max_slm_bytes = 64 * 1024;
-constexpr size_t score_wg_size = 16;  // subgroups per query tile in the systolic score kernel
+// 16 SIMD16 subgroups; 8 block rows per subgroup = 128 rows per work-group iteration.
+constexpr size_t score_wg_size = 16;
 constexpr size_t score_partition_blocks = 32;
 
 bool is_decode_shape(const kernel_impl_params& params) {
