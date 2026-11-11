@@ -94,8 +94,9 @@ namespace ov::Extensions::Cpu::XARCH {
 // description). The node writes the current-step K/V into the caches first (paged_attn_memcpy /
 // paged_attn_quantkv, parallel over token x kv head), so this reads them: it parallelizes the sparse attention over
 // (global query token, query head), with one preallocated scratch block per worker thread (SparsePAScratchLayout).
-// Query, output and plain caches share one floating-point type (f32/f16/bf16); quantized caches are described by
-// `quant`. The physical page size is quant.block_size, or the key cache's dim 2 for plain caches.
+// Query and output share one floating-point type (f32/f16/bf16); plain caches have it too, or are f16 next to f32
+// data (like PagedAttention); quantized caches are described by `quant`. The physical page size is quant.block_size, or
+// the key cache's dim 2 for plain caches.
 void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                        const ov::intel_cpu::PlainTensor& key_cache,
                        const ov::intel_cpu::PlainTensor& value_cache,

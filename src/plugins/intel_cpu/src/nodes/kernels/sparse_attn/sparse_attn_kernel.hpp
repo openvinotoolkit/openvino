@@ -14,9 +14,24 @@
 
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
+
+// Calls f(T{}) with the C++ type of the floating-point precision `prec` (f32 unless bf16 / f16).
+template <typename F>
+void visit_float_type(ov::element::Type prec, const F& f) {
+    if (prec == ov::element::bf16) {
+        f(ov::bfloat16{});
+    } else if (prec == ov::element::f16) {
+        f(ov::float16{});
+    } else {
+        f(float{});
+    }
+}
 
 // scores[head * score_stride + r] = q[head, :] . keys[r, :] for head < num_q_heads, r < rows.
 // q: f32 [num_q_heads, head_size]; keys: [rows, head_size] contiguous. The block kernels of paged_attn_kernel.hpp take

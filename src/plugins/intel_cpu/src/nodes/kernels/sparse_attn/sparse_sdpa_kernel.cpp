@@ -96,18 +96,6 @@ void dequant_rows(const PlainTensor& cache,
 // head). Adjacent selected blocks form a run; K/V are read (or dequantized) once per pack and every head runs an online
 // softmax.
 
-// Calls f(T{}) with the C++ type of the data precision `prec`.
-template <typename F>
-void visit_float_type(ov::element::Type prec, const F& f) {
-    if (prec == ov::element::bf16) {
-        f(ov::bfloat16{});
-    } else if (prec == ov::element::f16) {
-        f(ov::float16{});
-    } else {
-        f(float{});
-    }
-}
-
 struct DecodeItem {
     const PlainTensor& query;
     const PlainTensor& key;

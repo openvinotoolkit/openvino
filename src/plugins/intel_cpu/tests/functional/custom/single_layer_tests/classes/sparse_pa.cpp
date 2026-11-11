@@ -262,6 +262,13 @@ std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<S
     return result.str();
 }
 
+float SparsePALayerCPUTest::through_cache(float value) const {
+    if (cache_type() == ov::element::f16) {
+        return static_cast<float>(ov::float16(value));
+    }
+    return value;
+}
+
 size_t SparsePALayerCPUTest::sequence_len(size_t step_len, size_t sequence) const {
     if (!m_cfg.mixed_lengths) {
         return step_len;
@@ -345,7 +352,8 @@ void SparsePALayerCPUTest::SetUp() {
             m_cfg.key_bychannel ? ov::internal::CacheQuantMode::BY_CHANNEL : ov::internal::CacheQuantMode::BY_TOKEN;
         configuration[ov::internal::value_cache_quant_mode.name()] = ov::internal::CacheQuantMode::BY_TOKEN;
     } else {
-        configuration.insert(ov::hint::kv_cache_precision(data_precision));
+        // The cache inputs are declared at the data precision; ConvertPagedAttnInputs gives them the cache type.
+        configuration.insert(ov::hint::kv_cache_precision(cache_type()));
     }
 
     const size_t Hkv = m_cfg.num_kv_heads;
@@ -498,8 +506,8 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
 
     // The caches start out empty and are written by the op itself in every step, like a real multi-call sequence.
     if (step == 0) {
-        m_key_cache = ov::Tensor(quantized() ? m_cfg.cache_precision : m_data_precision, cache_shape(true));
-        m_value_cache = ov::Tensor(quantized() ? m_cfg.cache_precision : m_data_precision, cache_shape(false));
+        m_key_cache = ov::Tensor(cache_type(), cache_shape(true));
+        m_value_cache = ov::Tensor(cache_type(), cache_shape(false));
         std::memset(m_key_cache.data(), 0, m_key_cache.get_byte_size());
         std::memset(m_value_cache.data(), 0, m_value_cache.get_byte_size());
     }
@@ -667,8 +675,12 @@ std::vector<ov::Tensor> SparsePALayerCPUTest::calculate_refs() {
                         fake_quant_by_token(prec, m_cfg.group_size, k_src, k_dst, Dh);
                     }
                 } else {
-                    std::copy_n(k_src, Dh, k_dst);
-                    std::copy_n(v_src, Dv, v_dst);
+                    for (size_t d = 0; d < Dh; d++) {
+                        k_dst[d] = through_cache(k_src[d]);
+                    }
+                    for (size_t d = 0; d < Dv; d++) {
+                        v_dst[d] = through_cache(v_src[d]);
+                    }
                 }
             }
             if (quantized() && m_cfg.key_bychannel) {

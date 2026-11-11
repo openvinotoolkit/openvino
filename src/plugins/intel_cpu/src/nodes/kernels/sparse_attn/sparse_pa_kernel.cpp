@@ -376,7 +376,6 @@ int64_t visible_rows(const PackWork& w, int64_t kpos0, int64_t n) {
 
 // Attention over up to `n` consecutive logical positions [kpos0, kpos0 + n) that lie inside one physical page, clamped
 // to the positions the query may see.
-template <typename T>
 void attention_over_run(PackWork& w, int64_t kpos0, int64_t n) {
     n = visible_rows(w, kpos0, n);
     if (n == 0) {
@@ -385,19 +384,21 @@ void attention_over_run(PackWork& w, int64_t kpos0, int64_t n) {
     if (w.quant.enabled()) {
         attention_over_run_quant(w, kpos0, n);
     } else {
-        attention_over_run_plain<T>(w, kpos0, n);
+        // The query rows are f32 here, so only the cache rows need their own type (f16 next to f32 data, like
+        // PagedAttention; the rows are converted in registers).
+        visit_float_type(w.key_cache.get_precision(), [&](auto cache_tag) {
+            attention_over_run_plain<decltype(cache_tag)>(w, kpos0, n);
+        });
     }
 }
 
 // Attention over the key_block_size-wide block starting at `block_start`.
-template <typename T>
 void attention_over_block(PackWork& w, int64_t block_start) {
-    attention_over_run<T>(w, block_start, w.key_block_size);
+    attention_over_run(w, block_start, w.key_block_size);
 }
 
 // Attention over the selected complete blocks: adjacent blocks of the same physical page form one run (up to
 // max_run_rows rows), so the block kernels see as many rows per call as possible.
-template <typename T>
 void attention_selected_blocks_simd(PackWork& w, const int32_t* block_ids, size_t nblocks) {
     const int64_t page_blocks = w.page_size / w.key_block_size;
     const int64_t max_run_blocks = std::max<int64_t>(w.max_run_rows / w.key_block_size, 1);
@@ -410,7 +411,7 @@ void attention_selected_blocks_simd(PackWork& w, const int32_t* block_ids, size_
                (first + run_blocks) / page_blocks == first / page_blocks) {
             run_blocks++;
         }
-        attention_over_run<T>(w, first * w.key_block_size, run_blocks * w.key_block_size);
+        attention_over_run(w, first * w.key_block_size, run_blocks * w.key_block_size);
         i += static_cast<size_t>(run_blocks);
     }
 }
@@ -418,11 +419,10 @@ void attention_selected_blocks_simd(PackWork& w, const int32_t* block_ids, size_
 // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never encodes the current
 // incomplete trailing block. When causal, the consumer derives and attends that tail itself from the query's own
 // logical position; it is empty at a block boundary.
-template <typename T>
 void attention_causal_tail_simd(PackWork& w) {
     if (w.causal) {
         const int64_t tail_start = ((w.token_pos + 1) / w.key_block_size) * w.key_block_size;
-        attention_over_run<T>(w, tail_start, w.token_pos - tail_start + 1);
+        attention_over_run(w, tail_start, w.token_pos - tail_start + 1);
     }
 }
 
@@ -563,8 +563,8 @@ void attention_work_item(const SparsePAArgs& a,
     }
 #endif
     if (!done) {
-        attention_selected_blocks_simd<T>(w, block_ids, nblocks);
-        attention_causal_tail_simd<T>(w);
+        attention_selected_blocks_simd(w, block_ids, nblocks);
+        attention_causal_tail_simd(w);
     }
 
     for (size_t head = 0; head < w.pack_size; head++) {
@@ -642,9 +642,14 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
     const auto data_prc = query.get_precision();
     OPENVINO_ASSERT(out.get_precision() == data_prc, "[CPU] sparse_pa: query/output precisions must match");
-    OPENVINO_ASSERT(
-        quant.enabled() || (key_cache.get_precision() == data_prc && value_cache.get_precision() == data_prc),
-        "[CPU] sparse_pa: plain caches must have the query precision");
+    // Plain caches: the query precision, or f16 next to f32 data like PagedAttention (read in place, no conversion
+    // pass). The AMX tiles are built for the query precision, so a cache of another type uses the SIMD heads.
+    const bool cache_is_data = key_cache.get_precision() == data_prc && value_cache.get_precision() == data_prc;
+    OPENVINO_ASSERT(quant.enabled() || cache_is_data ||
+                        (data_prc == ov::element::f32 && key_cache.get_precision() == ov::element::f16 &&
+                         value_cache.get_precision() == ov::element::f16),
+                    "[CPU] sparse_pa: plain caches must have the query precision, or f16 with f32 data");
+    const bool tiles = brgemm.enabled() && (quant.enabled() || cache_is_data);
     OPENVINO_ASSERT(!brgemm.enabled() || brgemm.prec == data_prc,
                     "[CPU] sparse_pa: the brgemm kernels must be built for the query precision");
     OPENVINO_ASSERT(scratch != nullptr && token_ids != nullptr, "[CPU] sparse_pa: scratch must not be null");
@@ -662,11 +667,11 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
     // A decode token (a sequence of one new token) is a brgemm item too when its selection holds enough K / V bytes
     // (plain caches; a quantized cache would be dequantized into the tile first).
     const bool decode_brgemm =
-        brgemm.enabled() && !quant.enabled() &&
+        tiles && !quant.enabled() &&
         sel_indices.size(2) * key_block_size * (k_head_size + v_head_size) * brgemm.prec.size() >=
             kBrgemmDecodeMinBytes;
     const auto is_brgemm_sequence = [&](size_t seq) {
-        return brgemm.enabled() && (begins[seq + 1] - begins[seq] > 1 || decode_brgemm);
+        return tiles && (begins[seq + 1] - begins[seq] > 1 || decode_brgemm);
     };
     WorkList work;
     work.token_ids = token_ids;

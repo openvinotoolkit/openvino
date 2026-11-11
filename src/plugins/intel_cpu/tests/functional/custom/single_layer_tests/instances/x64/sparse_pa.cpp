@@ -334,6 +334,22 @@ std::vector<SparsePALayerTestParams> quantized_cases() {
                                        /*max_blocks=*/128))};
 }
 
+// f16 caches next to f32 data, the one plain cache type that differs from the data type (as in PagedAttention): the
+// inference precision follows the data precision and ConvertPagedAttnInputs gives the caches their type. The SIMD heads
+// read the f16 rows in place.
+std::vector<SparsePALayerTestParams> f16_cache_cases() {
+    const auto f32 = ov::element::f32;
+    const auto with_f16_cache = [](SparsePAConfig cfg) {
+        cfg.cache_precision = ov::element::f16;
+        return cfg;
+    };
+    const auto small = plain_config(/*sel_heads=*/2, /*key_block_size=*/2, /*page_size=*/8, /*max_blocks=*/4, kRandom);
+    const auto tile = plain_config(/*sel_heads=*/1, /*key_block_size=*/4, /*page_size=*/32, /*max_blocks=*/8, kRecent);
+    return {make_case(f32, /*head_size=*/16, Batch::kSingle, with_f16_cache(small)),
+            make_case(f32, /*head_size=*/16, Batch::kMixed, with_f16_cache(small)),
+            make_case(f32, /*head_size=*/32, Batch::kMixed, with_f16_cache(tile))};
+}
+
 // The same cases with the selected blocks of a row in random order instead of ascending (SparseAttention does not
 // depend on the order): no adjacent runs remain.
 std::vector<SparsePALayerTestParams> shuffled(std::vector<SparsePALayerTestParams> cases) {
@@ -358,6 +374,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache,
                          SparsePALayerCPUTest,
                          testing::ValuesIn(quantized_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_F16Cache,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(f16_cache_cases()),
                          SparsePALayerCPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain_Shuffled,

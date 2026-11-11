@@ -309,6 +309,17 @@ void SparsePA::initSupportedPrimitiveDescriptors() {
     // every step and forcing a whole-tensor Reorder on every call would redo that conversion for
     // the entire history each time. The page-table and selection-plan inputs stay i32; SCALE keeps its own precision
     // (the op requires it to match query/key/value, which dynamic-shape inference re-validates) and is read as f32.
+    // Plain caches: the query type, or f16 next to f32 data like PagedAttention.
+    if (!m_quant.enabled()) {
+        const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+        const auto cache_prec = getOriginalInputPrecisionAtPort(InputIdx::KEY_CACHE);
+        CPU_NODE_ASSERT(cache_prec == query_prec || (query_prec == ov::element::f32 && cache_prec == ov::element::f16),
+                        "plain caches must have the query precision, or f16 with an f32 query, but got ",
+                        cache_prec,
+                        " caches with a ",
+                        query_prec,
+                        " query");
+    }
     std::vector<PortConfigurator> inPortConfigs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         const bool is_i32_port = i == InputIdx::BLOCK_INDICES || i == InputIdx::BLOCK_INDICES_BEGINS ||
@@ -424,9 +435,10 @@ bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
         };
         const auto key_cache_prec = op->get_input_element_type(InputIdx::KEY_CACHE);
         const auto value_cache_prec = op->get_input_element_type(InputIdx::VALUE_CACHE);
-        const auto query_prec = op->get_input_element_type(InputIdx::QUERY);
-        if (is_plain(key_cache_prec) && (key_cache_prec != query_prec || value_cache_prec != query_prec)) {
-            errorMessage = "SparsePA CPU implementation requires plain caches to have the query precision.";
+        // Whether the plain cache type fits the query type is checked on the precisions the graph settles on (see
+        // initSupportedPrimitiveDescriptors): the inference precision may still change the query type.
+        if (is_plain(key_cache_prec) && key_cache_prec != value_cache_prec) {
+            errorMessage = "SparsePA CPU implementation requires the plain key and value caches to have one type.";
             return false;
         }
         if ((!is_plain(key_cache_prec) || !is_plain(value_cache_prec)) &&

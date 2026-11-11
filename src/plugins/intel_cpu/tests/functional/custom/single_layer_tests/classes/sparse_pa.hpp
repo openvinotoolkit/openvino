@@ -32,7 +32,8 @@ struct SparsePAConfig {
     size_t key_block_size = 2;
     size_t page_size = 4;  // tokens per physical cache block; a multiple of key_block_size
     size_t max_selected_blocks = 4;
-    // u8/u4: quantized KV caches, laid out as PagedAttention does. Anything else: plain caches at the data precision.
+    // u8/u4: quantized KV caches, laid out as PagedAttention does. f16 with f32 data: f16 plain caches. dynamic: plain
+    // caches at the data precision.
     ov::element::Type cache_precision = ov::element::dynamic;
     bool key_bychannel = false;  // quantized key cache by channel, else by token (the value cache is always by token)
     size_t group_size = 0;       // by-token quantization group, 0: the whole row
@@ -67,6 +68,12 @@ private:
     [[nodiscard]] bool quantized() const {
         return m_cfg.cache_precision == ov::element::u8 || m_cfg.cache_precision == ov::element::u4;
     }
+    // Element type of the cache tensors handed to the op.
+    [[nodiscard]] ov::element::Type cache_type() const {
+        return m_cfg.cache_precision == ov::element::dynamic ? m_data_precision : m_cfg.cache_precision;
+    }
+    // A value as the op reads it back from a plain cache of cache_type().
+    [[nodiscard]] float through_cache(float value) const;
     // New tokens of `sequence` in a step whose shape says `step_len`.
     [[nodiscard]] size_t sequence_len(size_t step_len, size_t sequence) const;
     // Final key/value cache shapes: quantization parameters live inside the cache tensor (see SparsePAQuant).
