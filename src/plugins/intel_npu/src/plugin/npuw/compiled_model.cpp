@@ -3101,10 +3101,20 @@ void ov::npuw::CompiledModel::implement_properties() {
           [&](const ::intel_npu::Config&) {
               GET_PLUGIN_PROP(ov::hint::inference_precision);
           }}},
+        // The NPU plugin no longer exposes enable_cpu_pinning, so it cannot be queried from there. NPUW still accepts
+        // it (it is forwarded to the submodels on devices which support it, e.g. CPU), so report the value given by
+        // the user and fall back to the property default otherwise.
         {ov::hint::enable_cpu_pinning.name(),
          {ov::PropertyMutability::RO,
-          [&](const ::intel_npu::Config&) {
-              GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
+          [&](const ::intel_npu::Config&) -> ov::Any {
+              {
+                  std::lock_guard<std::mutex> lock(m_props_mutex);
+                  if (auto it = m_non_npuw_props.find(ov::hint::enable_cpu_pinning.name());
+                      it != m_non_npuw_props.end()) {
+                      return it->second.as<bool>();
+                  }
+              }
+              return false;
           }}},
         // clang-format off
         {ov::hint::model_priority.name(),
