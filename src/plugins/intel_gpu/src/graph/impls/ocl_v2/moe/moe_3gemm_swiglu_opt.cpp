@@ -4,6 +4,7 @@
 
 // clang-format off
 #include "moe_3gemm_gen_micro.hpp"
+#include "moe_3gemm_dyn_quan.hpp"
 #include "moe_3gemm_int3_gemm.hpp"
 #include "moe_3gemm_int3_gemv.hpp"
 #include "moe_otd_runtime.hpp"
@@ -82,8 +83,15 @@ enum class MoeGemmImpl : uint8_t {
     int3_batched_gemv,  // OCL batched GEMV kernels for u3 weights (moe_3gemm_int3.cl), decode only
     micro_gemm,         // OCL micro-kernel GEMM, prefill only
     grouped_gemm,       // one OneDNN grouped matmul per GEMM layer
+    int3_grouped_gemm,  // the grouped GEMM path for u3 weights on dynamically quantized activations (MoE3GemmDynQuan) and
+                        // the moe_3gemm_int3_gemm.cl GEMMs instead of OneDNN
     per_expert_onednn,  // OneDNN matmul per activated expert, prefill only
 };
+
+// Both share the routing masks, the expert-sorted rows and the scatter of the grouped GEMM path
+bool is_grouped_gemm(MoeGemmImpl impl) {
+    return impl == MoeGemmImpl::grouped_gemm || impl == MoeGemmImpl::int3_grouped_gemm;
+}
 
 class MoE3GemmSwigluGather : public KernelGenerator {
 public:
@@ -675,10 +683,10 @@ public:
     // u3 decode on the moe_3gemm_int3 batched GEMV
     Stage::Ptr int3_gemv_gate_up = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::GATE_UP);
     Stage::Ptr int3_gemv_down = make_stage<MoE3GemmInt3Gemv>(MoE3GemmInt3Gemv::Projection::DOWN);
-    // u3 expert GEMMs of the grouped GEMM path on dynamically quantized activations, replacing the OneDNN grouped matmuls
-    Stage::Ptr int3_quantize = make_stage<MoE3GemmInt3Quantize>(/*swiglu=*/false);
-    Stage::Ptr int3_quantize_swiglu = make_stage<MoE3GemmInt3Quantize>(/*swiglu=*/true);
-    Stage::Ptr int3_gather_quantized = make_stage<MoE3GemmInt3GatherQuantized>();
+    // Dynamic quantization of the grouped GEMM path activations, and the u3 expert GEMMs on them
+    Stage::Ptr dyn_quan_quantize = make_stage<MoE3GemmDynQuanQuantize>(/*swiglu=*/false);
+    Stage::Ptr dyn_quan_quantize_swiglu = make_stage<MoE3GemmDynQuanQuantize>(/*swiglu=*/true);
+    Stage::Ptr dyn_quan_gather = make_stage<MoE3GemmDynQuanGather>();
     Stage::Ptr int3_gate_up_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/true);
     Stage::Ptr int3_gate_up_tiled = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::GATE_UP, /*row_mode=*/false);
     Stage::Ptr int3_down_row = make_stage<MoE3GemmInt3Gemm>(MoE3GemmInt3Gemm::Projection::DOWN, /*row_mode=*/true);
@@ -1030,7 +1038,7 @@ public:
 
     bool should_pre_zero_output() {
         // OTD may fallback to exec_per_expert_onednn_linear which accumulates via index_add
-        return prefill_impl != MoeGemmImpl::grouped_gemm || _weight_provider->is_offloaded();
+        return !is_grouped_gemm(prefill_impl) || _weight_provider->is_offloaded();
     }
 
     bool should_validate_dnnl_weights() {
@@ -1061,13 +1069,20 @@ public:
     size_t batched_gemv_threshold = 32;
     // Output columns per subgroup of the u3 batched GEMV, per MoE3GemmInt3Gemv::Projection
     std::array<size_t, 2> int3_gemv_nbs{};
-    // u3 experts of the grouped GEMM path run on the int8 moe_3gemm_int3_gemm kernels instead of OneDNN
-    bool use_int3_gemm = false;
-    // Constant per impl, per MoE3GemmInt3Gemm::Projection
+    // Constant per impl, per MoE3GemmDynQuan::Projection; set when an impl runs on dynamically quantized activations
+    std::array<MoE3GemmDynQuan::Shape, 2> dyn_quan_shapes{};
     std::array<MoE3GemmInt3Gemm::Shape, 2> int3_gemm_shapes{};
 
+    const MoE3GemmDynQuan::Shape& dyn_quan_shape(MoE3GemmDynQuan::Projection proj) const {
+        return dyn_quan_shapes[static_cast<size_t>(proj)];
+    }
     const MoE3GemmInt3Gemm::Shape& int3_gemm_shape(MoE3GemmInt3Gemm::Projection proj) const {
         return int3_gemm_shapes[static_cast<size_t>(proj)];
+    }
+
+    // Whether the grouped GEMM path quantizes its activations (MoE3GemmDynQuan) in prefill or decode
+    bool uses_dyn_quan() const {
+        return prefill_impl == MoeGemmImpl::int3_grouped_gemm || decode_impl == MoeGemmImpl::int3_grouped_gemm;
     }
 
     MoeGemmImpl select_impl(size_t token_num) const {
@@ -1080,6 +1095,7 @@ public:
         case MoeGemmImpl::micro_gemm:
             return force_gpu_mask_gen_prefill;
         case MoeGemmImpl::grouped_gemm:
+        case MoeGemmImpl::int3_grouped_gemm:
             // OTD computes the expert lease on the host
             if (_weight_provider->is_offloaded()) {
                 return false;
@@ -1087,8 +1103,8 @@ public:
             // GPU mask gen avoids the host sync on topk, but the host never sees the real max rows per expert, which the
             // grouped GEMM needs as a dispatch hint, so token_num is used instead. That is exact for one token
             // but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms on Qwen3.6-35B-A3B int3).
-            // The prefill tiles of the u3 GEMMs are built by the host mask gen.
-            return (force_gpu_mask_gen_prefill && !use_int3_gemm) || token_num == 1;
+            // The row tiles of the u3 GEMMs are built by the host mask gen; one token needs none.
+            return (force_gpu_mask_gen_prefill && impl == MoeGemmImpl::grouped_gemm) || token_num == 1;
         default:
             return false;
         }
@@ -1096,33 +1112,39 @@ public:
 
     // Whether the grouped GEMM GPU mask gen stage and its per-expert buffers are needed
     bool needs_grouped_gpu_mask_gen() const {
-        return decode_impl == MoeGemmImpl::grouped_gemm || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
+        return is_grouped_gemm(decode_impl) || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
     }
 
     // Resident single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
     bool needs_gather_scratch(size_t token_num) const {
-        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm || (token_num == 1 && _weight_provider->is_offloaded());
+        return token_num > 1 || is_grouped_gemm(decode_impl) || (token_num == 1 && _weight_provider->is_offloaded());
     }
 
     static bool is_batched_gemv_supported(data_types weight_dt) {
         return one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f16});
     }
 
-    // Weights without a batched GEMV OCL kernel decode through OneDNN grouped GEMM instead
+    // The grouped GEMM path runs the u3 experts on their int8 GEMMs where those and dynamic quantization apply
+    static MoeGemmImpl select_grouped_gemm_impl(const RuntimeParams& params) {
+        return MoE3GemmInt3Gemm::is_supported(params) ? MoeGemmImpl::int3_grouped_gemm : MoeGemmImpl::grouped_gemm;
+    }
+
+    // Weights without a batched GEMV OCL kernel decode through the grouped GEMM path instead
     static MoeGemmImpl select_decode_impl(const RuntimeParams& params, data_types weight_dt) {
         if (MoE3GemmInt3Gemv::is_supported(params)) {
             return MoeGemmImpl::int3_batched_gemv;
         }
-        return is_batched_gemv_supported(weight_dt) ? MoeGemmImpl::batched_gemv : MoeGemmImpl::grouped_gemm;
+        return is_batched_gemv_supported(weight_dt) ? MoeGemmImpl::batched_gemv : select_grouped_gemm_impl(params);
     }
 
-    static MoeGemmImpl select_prefill_impl(const ExecutionConfig& config, data_types weight_dt, gpu_arch arch) {
+    static MoeGemmImpl select_prefill_impl(const RuntimeParams& params, data_types weight_dt) {
+        const auto& config = params.get_program().get_config();
         // No GEMV-based prefill for this weight type (u3): prefill goes through the grouped GEMM path
         if (!is_batched_gemv_supported(weight_dt) || config.get_moe_use_grouped_gemm_prefill()) {
-            return MoeGemmImpl::grouped_gemm;
+            return select_grouped_gemm_impl(params);
         }
         // micro_gemm is better than the per-expert onednn loop. Remove the weight limitation once it supports i8/u8.
-        if (config.get_moe_use_micro_gemm_prefill() && arch >= gpu_arch::xe2 && one_of(weight_dt, {data_types::u4, data_types::i4})) {
+        if (config.get_moe_use_micro_gemm_prefill() && params.get_device_info().arch >= gpu_arch::xe2 && one_of(weight_dt, {data_types::u4, data_types::i4})) {
             return MoeGemmImpl::micro_gemm;
         }
         return MoeGemmImpl::per_expert_onednn;
@@ -1142,16 +1164,16 @@ public:
 
         const auto& weight_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
         decode_impl = select_decode_impl(params, weight_dt);
-        prefill_impl = select_prefill_impl(config, weight_dt, params.prog->get_engine().get_device_info().arch);
-        use_int3_gemm = prefill_impl == MoeGemmImpl::grouped_gemm && MoE3GemmInt3Gemm::is_supported(params);
-        if (use_int3_gemm) {
-            for (auto proj : {MoE3GemmInt3Gemm::Projection::GATE_UP, MoE3GemmInt3Gemm::Projection::DOWN}) {
+        prefill_impl = select_prefill_impl(params, weight_dt);
+        if (uses_dyn_quan()) {
+            for (auto proj : {MoE3GemmDynQuan::Projection::GATE_UP, MoE3GemmDynQuan::Projection::DOWN}) {
+                dyn_quan_shapes[static_cast<size_t>(proj)] = MoE3GemmDynQuan::get_shape(params, proj);
                 int3_gemm_shapes[static_cast<size_t>(proj)] = MoE3GemmInt3Gemm::get_shape(params, proj);
             }
         }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): prefill_impl=" << static_cast<int>(prefill_impl)
-                               << ", decode_impl=" << static_cast<int>(decode_impl) << ", use_int3_gemm=" << use_int3_gemm << std::endl;
+                               << ", decode_impl=" << static_cast<int>(decode_impl) << std::endl;
 
         if (decode_impl == MoeGemmImpl::int3_batched_gemv) {
             for (auto proj : {MoE3GemmInt3Gemv::Projection::GATE_UP, MoE3GemmInt3Gemv::Projection::DOWN}) {
@@ -1199,14 +1221,14 @@ public:
             add_stage(micro_gemm_down, params);
             add_stage(prefill_scatter_reduce, params);
         }
-        if (prefill_impl == MoeGemmImpl::grouped_gemm) {
+        if (is_grouped_gemm(prefill_impl) || is_grouped_gemm(decode_impl)) {
             add_stage(grouped_gemm_prefill_gather, params);
             add_stage(grouped_gemm_prefill_swiglu, params);
             add_stage(prefill_scatter_reduce_row_lut, params);
-            if (use_int3_gemm) {
-                add_stage(int3_quantize, params);
-                add_stage(int3_quantize_swiglu, params);
-                add_stage(int3_gather_quantized, params);
+            if (uses_dyn_quan()) {
+                add_stage(dyn_quan_quantize, params);
+                add_stage(dyn_quan_quantize_swiglu, params);
+                add_stage(dyn_quan_gather, params);
                 add_stage(int3_gate_up_row, params);
                 add_stage(int3_gate_up_tiled, params);
                 add_stage(int3_down_row, params);
@@ -1456,9 +1478,11 @@ public:
             ob << nb;
         }
         ob << batched_gemv_threshold;
-        ob << use_int3_gemm;
+        for (const auto& shape : dyn_quan_shapes) {
+            ob << shape.k << shape.group_size;
+        }
         for (const auto& shape : int3_gemm_shapes) {
-            ob << shape.k << shape.n << shape.weight_group_size << shape.group_size;
+            ob << shape.k << shape.group_size << shape.n << shape.weight_group_size;
         }
     }
 
@@ -1473,9 +1497,11 @@ public:
             ib >> nb;
         }
         ib >> batched_gemv_threshold;
-        ib >> use_int3_gemm;
+        for (auto& shape : dyn_quan_shapes) {
+            ib >> shape.k >> shape.group_size;
+        }
         for (auto& shape : int3_gemm_shapes) {
-            ib >> shape.k >> shape.n >> shape.weight_group_size >> shape.group_size;
+            ib >> shape.k >> shape.group_size >> shape.n >> shape.weight_group_size;
         }
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
@@ -1503,7 +1529,7 @@ public:
         cur_moe->decode_impl = decode_impl;
         cur_moe->int3_gemv_nbs = int3_gemv_nbs;
         cur_moe->batched_gemv_threshold = batched_gemv_threshold;
-        cur_moe->use_int3_gemm = use_int3_gemm;
+        cur_moe->dyn_quan_shapes = dyn_quan_shapes;
         cur_moe->int3_gemm_shapes = int3_gemm_shapes;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
@@ -1531,7 +1557,14 @@ public:
         //         scratch.up = up(scratch.x)
         //         scratch.gate = gate(scratch.x) * scratch.up
         //         scratch.y = down(scratch.gate) * routing_weights
-        internal_buffers.emplace_back(layout_down_out, false);  // 2: up/gate input, scratch.x has same layout with down output (GPU-only)
+        // 2: up/gate input, scratch.x has same layout with down output (GPU-only). With dynamic quantization it holds the
+        // int8 gathered rows instead, the gate/up input and then the down input.
+        size_t gate_up_input_size = static_cast<size_t>(config.hidden_size);
+        if (uses_dyn_quan()) {
+            const size_t max_k = std::max(dyn_quan_shape(MoE3GemmDynQuan::Projection::GATE_UP).k, dyn_quan_shape(MoE3GemmDynQuan::Projection::DOWN).k);
+            gate_up_input_size = std::max(gate_up_input_size, ceil_div(max_k, ov::element::Type(data_type).size()));
+        }
+        internal_buffers.emplace_back(layout(ov::Shape{max_batch, gate_up_input_size}, data_type, cldnn::format::bfyx), false);
         layout routing_layout(ov::Shape{max_batch}, data_type, cldnn::format::bfyx);
         internal_buffers.emplace_back(routing_layout, false);     // 3: routing_weights
         internal_buffers.emplace_back(layout_gateup_out, false);  // 4: gate output, scratch.gate has same layout with up (GPU-only)
@@ -1555,7 +1588,7 @@ public:
             internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 11: actual_used_expert_num
         }
         // for grouped_gemm: scatter_reduce via moe_scatter_reduction_row_lut (13); gather uses 10, OneDNN desc uses 12
-        if (prefill_impl == MoeGemmImpl::grouped_gemm && needs_gather_scratch(token_num)) {
+        if ((is_grouped_gemm(prefill_impl) || is_grouped_gemm(decode_impl)) && needs_gather_scratch(token_num)) {
             // Buffers 7-9 and 11 fed the base scatter_reduce kernel, which the grouped path replaced
             // with the row_lut kernel. The slots stay to keep the shared indices, the storage does not,
             // except 7 and 9, which the grouped GPU mask gen writes (one entry per activated expert).
@@ -1573,21 +1606,19 @@ public:
             layout layout_grouped_offsets(ov::Shape{expert_num}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_grouped_offsets, false);  // 12: grouped end-offsets
             internal_buffers.emplace_back(layout_token_idx, false);        // 13: row_lut
-            if (use_int3_gemm) {
+            if (uses_dyn_quan()) {
                 // Shared by the gate/up input and the down input, which is quantized after gate and up are done
-                const auto& gate_up = int3_gemm_shape(MoE3GemmInt3Gemm::Projection::GATE_UP);
-                const auto& down = int3_gemm_shape(MoE3GemmInt3Gemm::Projection::DOWN);
+                const auto& gate_up = dyn_quan_shape(MoE3GemmDynQuan::Projection::GATE_UP);
+                const auto& down = dyn_quan_shape(MoE3GemmDynQuan::Projection::DOWN);
                 const size_t rows = token_num * max_topk;
-                const size_t row_size = std::max(gate_up.k, down.k);
-                const size_t row_groups = std::max(gate_up.k / gate_up.group_size, down.k / down.group_size);
-                internal_buffers.emplace_back(layout(ov::Shape{rows, row_size}, ov::element::i8, cldnn::format::bfyx), false);         // 14
-                internal_buffers.emplace_back(layout(ov::Shape{rows, row_groups * 2}, ov::element::f32, cldnn::format::bfyx), false);  // 15
+                const size_t row_groups = std::max(gate_up.groups(), down.groups());
+                internal_buffers.emplace_back(layout(ov::Shape{rows, row_groups}, ov::element::f16, cldnn::format::bfyx), false);  // 14
+                internal_buffers.emplace_back(layout(ov::Shape{rows, row_groups}, ov::element::i32, cldnn::format::bfyx), false);  // 15
+                // The hidden states quantized once per token, gathered into 2, 14 and 15
+                internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.groups()}, ov::element::f16, cldnn::format::bfyx), false);  // 16
+                internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.groups()}, ov::element::i32, cldnn::format::bfyx), false);  // 17
                 const size_t max_tiles = MoE3GemmInt3Gemm::get_max_tiles(expert_num, rows);
-                internal_buffers.emplace_back(layout(ov::Shape{max_tiles * 2}, ov::element::i32, cldnn::format::bfyx), false);  // 16
-                // The hidden states quantized once per token, gathered into 14 and 15
-                internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.k}, ov::element::i8, cldnn::format::bfyx), false);  // 17
-                internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.k / gate_up.group_size * 2}, ov::element::f32, cldnn::format::bfyx),
-                                              false);  // 18
+                internal_buffers.emplace_back(layout(ov::Shape{max_tiles * 2}, ov::element::i32, cldnn::format::bfyx), false);  // 18
             }
         }
         return internal_buffers;
@@ -2701,14 +2732,15 @@ public:
     //
     // Note: "total" = token_num * max_topk, sorted by expert assignment.
     //
-    // With use_int3_gemm, the grouped matmuls and the SiLU run on the moe_3gemm_int3_gemm kernels instead
-    // (exec_int3_grouped_gemm): the activations are quantized to int8, and the SiLU is fused into the
-    // quantization of the down projection input.
+    // With MoeGemmImpl::int3_grouped_gemm, the gather, the grouped matmuls and the SiLU run on the
+    // MoE3GemmDynQuan and moe_3gemm_int3_gemm kernels instead (exec_int3_grouped_gemm): the activations
+    // are quantized to int8, and the SiLU is fused into the quantization of the down projection input.
     //
     cldnn::event::ptr exec_grouped_gemm_cpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
                                                      cldnn::stream& stream,
                                                      typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                     scratch_buffers& scratch) {
+                                                     scratch_buffers& scratch,
+                                                     MoeGemmImpl impl) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_grouped_gemm_cpu_mask_gen"));
 
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
@@ -2811,11 +2843,11 @@ public:
         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]
             ->copy_from(stream, grouped_offsets_cpu.data(), 0, 0, grouped_offsets_cpu.size() * sizeof(grouped_offsets_cpu[0]), true);
         size_t int3_tile_count = 0;
-        if (use_int3_gemm && max_tokens_per_expert > MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS) {
+        if (impl == MoeGemmImpl::int3_grouped_gemm && max_tokens_per_expert > MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS) {
             int3_tile_count = upload_int3_tiles(stream, instance, grouped_offsets_cpu);
         }
 
-        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, max_tokens_per_expert, int3_tile_count);
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, impl, max_tokens_per_expert, int3_tile_count);
     }
 
     // Tile list of the u3 expert GEMMs: {expert, first row} of every MoE3GemmInt3Gemm::TILE_ROWS-row tile that holds
@@ -2838,9 +2870,80 @@ public:
         return tiles.size() / 2;
     }
 
-    // Steps 2-5 on the u3 kernels: the hidden states are quantized to int8 once per token and gathered for gate and up,
-    // and act(gate) * up is quantized again for down. Rows are sorted by expert, with the end offsets in
-    // MOE_INTERNAL_BUFFER_GROUPED_OFFSETS. Row mode takes no tile list (tile_count is 0).
+    // The int8 gathered rows of the grouped GEMM path and their per-group scales and sums (MoE3GemmDynQuan)
+    struct dyn_quan_rows {
+        memory::ptr quantized;
+        memory::ptr scales;
+        memory::ptr sums;
+    };
+
+    dyn_quan_rows get_dyn_quan_rows(typed_primitive_inst<moe_3gemm_fused_compressed>& instance) const {
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+        return {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT],
+                intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_SCALES],
+                intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_SUMS]};
+    }
+
+    cldnn::event::ptr exec_dyn_quan_quantize(cldnn::event::ptr ret_event,
+                                             typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                             Stage& stage,
+                                             std::vector<memory::ptr> inputs,
+                                             const dyn_quan_rows& outputs,
+                                             size_t rows,
+                                             MoE3GemmDynQuan::Projection proj) const {
+        constexpr size_t simd = MoE3GemmDynQuan::SIMD;
+        const size_t groups = rows * dyn_quan_shape(proj).groups();
+        return execute_stage({ret_event},
+                             instance,
+                             stage,
+                             std::move(inputs),
+                             {outputs.quantized, outputs.scales, outputs.sums},
+                             {groups * simd, 1, 1},
+                             {simd, 1, 1});
+    }
+
+    // Gate/up input: the hidden states quantized once per token, then gathered into their rows sorted by expert
+    cldnn::event::ptr exec_dyn_quan_gate_up_input(cldnn::event::ptr ret_event, typed_primitive_inst<moe_3gemm_fused_compressed>& instance, int total_rows) {
+        const auto& intermediates_memories = instance.get_intermediates_memories();
+        auto hidden_states_layout = instance.get_impl_params()->input_layouts[static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)];
+        const auto token_num = get_seq_len(hidden_states_layout);
+        const dyn_quan_rows tokens{intermediates_memories[MOE_INTERNAL_BUFFER_DOWN_OUTPUT],
+                                   intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SCALES],
+                                   intermediates_memories[MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SUMS]};
+        ret_event = exec_dyn_quan_quantize(ret_event,
+                                           instance,
+                                           *dyn_quan_quantize,
+                                           {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))},
+                                           tokens,
+                                           token_num,
+                                           MoE3GemmDynQuan::Projection::GATE_UP);
+        const auto rows = get_dyn_quan_rows(instance);
+        const size_t items = MoE3GemmDynQuan::get_gather_items(dyn_quan_shape(MoE3GemmDynQuan::Projection::GATE_UP));
+        return execute_stage({ret_event},
+                             instance,
+                             *dyn_quan_gather,
+                             {tokens.quantized, tokens.scales, tokens.sums, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
+                             {rows.quantized, rows.scales, rows.sums},
+                             {items, static_cast<size_t>(total_rows), 1},
+                             {items, 1, 1});
+    }
+
+    // Down input: act(gate) * up of the gathered rows
+    cldnn::event::ptr exec_dyn_quan_down_input(cldnn::event::ptr ret_event,
+                                               typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                                               scratch_buffers& scratch,
+                                               int total_rows) {
+        return exec_dyn_quan_quantize(ret_event,
+                                      instance,
+                                      *dyn_quan_quantize_swiglu,
+                                      {scratch.up, scratch.gate},
+                                      get_dyn_quan_rows(instance),
+                                      static_cast<size_t>(total_rows),
+                                      MoE3GemmDynQuan::Projection::DOWN);
+    }
+
+    // Steps 2-5 on the dynamically quantized activations and the u3 GEMMs. Rows are sorted by expert, with the end
+    // offsets in MOE_INTERNAL_BUFFER_GROUPED_OFFSETS. Row mode takes no tile list (tile_count is 0).
     cldnn::event::ptr exec_int3_grouped_gemm(cldnn::event::ptr ret_event,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                              scratch_buffers& scratch,
@@ -2852,21 +2955,15 @@ public:
         const auto& intermediates_memories = instance.get_intermediates_memories();
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
         const int num_experts = get_num_grouped_experts(static_cast<int>(config.num_expert));
-        auto quantized = intermediates_memories[MOE_INTERNAL_BUFFER_INT3_QUANTIZED_INPUT];
-        auto quantization_vars = intermediates_memories[MOE_INTERNAL_BUFFER_INT3_QUANTIZATION_VARS];
+        const auto rows = get_dyn_quan_rows(instance);
         auto offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
         const auto& wei = scratch.moe_fusion_wei_addr;
         const bool row_mode = max_rows_per_expert <= MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS;
 
-        const auto quantize = [&](Stage& stage, std::vector<memory::ptr> inputs, std::vector<memory::ptr> outputs, size_t rows, Projection proj) {
-            const auto& shape = int3_gemm_shape(proj);
-            const size_t groups = rows * shape.k / shape.group_size;
-            ret_event = execute_stage({ret_event}, instance, stage, std::move(inputs), std::move(outputs), {groups * simd, 1, 1}, {simd, 1, 1});
-        };
         const auto gemm = [&](Projection proj, int w, memory::ptr output) {
             const auto& shape = int3_gemm_shape(proj);
             const bool down = proj == Projection::DOWN;
-            std::vector<memory::ptr> inputs{quantized, quantization_vars, wei.weight[w], wei.scale[w], wei.zp[w], offsets};
+            std::vector<memory::ptr> inputs{rows.quantized, rows.scales, rows.sums, wei.weight[w], wei.scale[w], wei.zp[w], offsets};
             if (row_mode) {
                 const size_t sg_k = MoE3GemmInt3Gemm::get_row_sg_k(shape);
                 ret_event = execute_stage({ret_event},
@@ -2893,28 +2990,10 @@ public:
             }
         };
 
-        {
-            auto quantized_tokens = intermediates_memories[MOE_INTERNAL_BUFFER_INT3_QUANTIZED_TOKENS];
-            auto token_vars = intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TOKEN_QUANTIZATION_VARS];
-            auto hidden_states_layout = instance.get_impl_params()->input_layouts[static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)];
-            const auto token_num = get_seq_len(hidden_states_layout);
-            quantize(*int3_quantize,
-                     {instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES))},
-                     {quantized_tokens, token_vars},
-                     token_num,
-                     Projection::GATE_UP);
-            const size_t items = MoE3GemmInt3Gemm::get_gather_items(int3_gemm_shape(Projection::GATE_UP));
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *int3_gather_quantized,
-                                      {quantized_tokens, token_vars, intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]},
-                                      {quantized, quantization_vars},
-                                      {items, static_cast<size_t>(total_rows), 1},
-                                      {items, 1, 1});
-        }
+        ret_event = exec_dyn_quan_gate_up_input(ret_event, instance, total_rows);
         gemm(Projection::GATE_UP, 0, scratch.gate);
         gemm(Projection::GATE_UP, 1, scratch.up);
-        quantize(*int3_quantize_swiglu, {scratch.up, scratch.gate}, {quantized, quantization_vars}, total_rows, Projection::DOWN);
+        ret_event = exec_dyn_quan_down_input(ret_event, instance, scratch, total_rows);
         gemm(Projection::DOWN, 2, scratch.y);
         return ret_event;
     }
@@ -2926,6 +3005,7 @@ public:
                                              cldnn::stream& stream,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                              scratch_buffers& scratch,
+                                             MoeGemmImpl impl,
                                              int max_tokens_per_expert,
                                              size_t int3_tile_count = 0) {
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
@@ -2935,7 +3015,7 @@ public:
         const auto& intermediates_memories = instance.get_intermediates_memories();
         int total_gathered_tokens = static_cast<int>(token_num) * static_cast<int>(config.top_k);
 
-        if (use_int3_gemm) {
+        if (impl == MoeGemmImpl::int3_grouped_gemm) {
             ret_event = exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, max_tokens_per_expert, int3_tile_count);
         } else {
             ret_event = exec_onednn_grouped_gemm(ret_event, stream, instance, scratch, total_gathered_tokens, max_tokens_per_expert);
@@ -3073,7 +3153,8 @@ public:
     cldnn::event::ptr exec_grouped_gemm_gpu_mask_gen(const std::vector<cldnn::event::ptr>& events,
                                                      cldnn::stream& stream,
                                                      typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
-                                                     scratch_buffers& scratch) {
+                                                     scratch_buffers& scratch,
+                                                     MoeGemmImpl impl) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("moe_3gemm_swiglu_opt_impl::exec_grouped_gemm_gpu_mask_gen"));
 
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
@@ -3103,7 +3184,11 @@ public:
                                        false,
                                        {static_cast<int>(token_num)});
         // The top-k experts of a token are distinct, so an expert gets at most one row per token
-        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, static_cast<int>(token_num));
+        OPENVINO_ASSERT(impl != MoeGemmImpl::int3_grouped_gemm || static_cast<int>(token_num) <= MoE3GemmInt3Gemm::ROW_MODE_MAX_ROWS,
+                        "The u3 expert GEMMs need the host mask gen for the row tiles of ",
+                        token_num,
+                        " tokens");
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, impl, static_cast<int>(token_num));
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
@@ -3173,9 +3258,9 @@ public:
         update_rt_params(instance);
         if (impl == MoeGemmImpl::micro_gemm) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
-        } else if (impl == MoeGemmImpl::grouped_gemm) {
-            ret_env = use_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch)
-                                       : exec_grouped_gemm_cpu_mask_gen(events, stream, instance, scratch);
+        } else if (is_grouped_gemm(impl)) {
+            ret_env = use_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch, impl)
+                                       : exec_grouped_gemm_cpu_mask_gen(events, stream, instance, scratch, impl);
             // In OTD mode the grouped_gemm path interleaves OCL kernels with OneDNN
             // grouped matmul on the same in-order queue. The framework's event-based
             // scheduling may proceed to subsequent graph nodes before scatter_reduce
@@ -3194,7 +3279,7 @@ public:
             // same in-order OCL queue, so submission order guarantees execution order.
             // No explicit wait() is needed — the in-order queue serializes all GPU work,
             // and any subsequent primitive on the same queue will see the completed output.
-            if (impl == MoeGemmImpl::grouped_gemm && ret_env) {
+            if (is_grouped_gemm(impl) && ret_env) {
                 // ensure grouped GEMM fully completes before executing shared expert, which relies on its output being ready;
                 // For grouped_gemm path, scatter_reduce (OCL) is preceded by multiple OCL <--> OneDNN
                 // transitions inside exec_grouped_gemm_cpu_mask_gen. The implicit ordering between

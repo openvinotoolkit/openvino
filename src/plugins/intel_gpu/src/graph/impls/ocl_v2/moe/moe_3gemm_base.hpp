@@ -25,11 +25,13 @@ namespace ov::intel_gpu::ocl {
 #define MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM         11  // num_actual_used_experts
 #define MOE_INTERNAL_BUFFER_GROUPED_OFFSETS                12  // int32_t cumulative end-offsets per expert for OneDNN grouped GEMM
 #define MOE_INTERNAL_BUFFER_ROW_LUT                        13  // gathered row index per (token, topk), inverse of token idx per expert
-#define MOE_INTERNAL_BUFFER_INT3_QUANTIZED_INPUT           14  // int8 gathered activations of the u3 expert GEMMs
-#define MOE_INTERNAL_BUFFER_INT3_QUANTIZATION_VARS         15  // per-group {scale, sum} of the int8 activations
-#define MOE_INTERNAL_BUFFER_INT3_TILES                     16  // {expert, first row} per prefill row tile of the u3 expert GEMMs
-#define MOE_INTERNAL_BUFFER_INT3_QUANTIZED_TOKENS          17  // int8 hidden states of the u3 expert GEMMs, one row per token
-#define MOE_INTERNAL_BUFFER_INT3_TOKEN_QUANTIZATION_VARS   18  // per-group {scale, sum} of the int8 hidden states
+// Dynamically quantized activations of the expert GEMMs: the int8 values of the gathered rows live in buffer 2 and
+// those of the hidden states, one row per token, in buffer 1, which the down projection writes only after the gather.
+#define MOE_INTERNAL_BUFFER_QUANTIZED_SCALES       14  // per-group dequantization scales of the int8 gathered rows
+#define MOE_INTERNAL_BUFFER_QUANTIZED_SUMS         15  // per-group sums of the int8 gathered rows
+#define MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SCALES 16  // per-group dequantization scales of the int8 hidden states
+#define MOE_INTERNAL_BUFFER_QUANTIZED_TOKEN_SUMS   17  // per-group sums of the int8 hidden states
+#define MOE_INTERNAL_BUFFER_INT3_TILES             18  // {expert, first row} per prefill row tile of the u3 expert GEMMs
 
 #define ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL 1
 

@@ -11,14 +11,8 @@
 //                    ( sum_{k in g} A[r, k] * W[e, n, k]  -  zp[e, g, n] * sum_{k in g} A[r, k] )
 //
 // where row r of the gathered activations belongs to expert e. The rows are
-// sorted by expert, and offsets[e] is the exclusive end row of expert e.
-//
-// The activations are quantized to int8 per GROUP_SIZE run by the QUANTIZE
-// entry point, which also records the dequantization scale and the sum of the
-// quantized values of each group; the sum applies the weight zero point once per
-// (row, group). QUANTIZE_SWIGLU does the same for act(gate) * up, which is the
-// input of the down projection. GATHER_QUANTIZED copies the quantized hidden
-// states of each token into its rows of the gathered activations.
+// sorted by expert, and offsets[e] is the exclusive end row of expert e. The
+// activations, their scales and their sums come from moe_3gemm_dyn_quan.cl.
 //
 // Weights are the plain [E, N, K] u3 tensor: each output channel is a
 // LSB-first bit stream of K values, so a run of 32 values (a granule) is exactly
@@ -31,122 +25,6 @@
 //    {expert, first row} tiles of SG_M * TILE_M rows. The SG_M subgroups of a
 //    work-group share one decoded weight tile through SLM and each multiply it
 //    with TILE_M rows through DPAS.
-
-#if QUANTIZE || QUANTIZE_SWIGLU
-
-#include "moe_gate_activation.cl"
-
-#define QUANT_SIMD     16
-#define QUANT_PER_LANE (GROUP_SIZE / QUANT_SIMD)
-
-#if QUANT_PER_LANE == 8
-#   define QUANT_HALF_VEC      half8
-#   define QUANT_FLOAT_VEC     float8
-#   define QUANT_CHAR_VEC      char8
-#   define QUANT_VLOAD(p)      vload8(0, p)
-#   define QUANT_VSTORE(v, p)  vstore8(v, 0, p)
-#   define QUANT_CONVERT_F(v)  convert_float8(v)
-#   define QUANT_CONVERT_C(v)  convert_char8_sat_rte(v)
-#elif QUANT_PER_LANE == 4
-#   define QUANT_HALF_VEC      half4
-#   define QUANT_FLOAT_VEC     float4
-#   define QUANT_CHAR_VEC      char4
-#   define QUANT_VLOAD(p)      vload4(0, p)
-#   define QUANT_VSTORE(v, p)  vstore4(v, 0, p)
-#   define QUANT_CONVERT_F(v)  convert_float4(v)
-#   define QUANT_CONVERT_C(v)  convert_char4_sat_rte(v)
-#else
-#   error "moe_3gemm_int3_gemm.cl - unsupported GROUP_SIZE"
-#endif
-
-// One 16-lane subgroup quantizes one GROUP_SIZE run; each lane owns
-// QUANT_PER_LANE consecutive elements.
-REQD_SUB_GROUP_SIZE(QUANT_SIMD)
-KERNEL(moe_int3_quantize)(
-#if QUANTIZE_SWIGLU
-    const __global half* up,
-    const __global half* gate,
-#else
-    const __global half* input,
-#endif
-    __global char* quantized_input,
-    __global float* quan_var)
-{
-    const uint group = (uint)get_global_id(0) / QUANT_SIMD;
-    const uint lane = get_sub_group_local_id();
-    const uint offset = group * GROUP_SIZE + lane * QUANT_PER_LANE;
-
-#if QUANTIZE_SWIGLU
-    const QUANT_FLOAT_VEC g = QUANT_CONVERT_F(QUANT_VLOAD(&gate[offset]));
-    const QUANT_FLOAT_VEC u = QUANT_CONVERT_F(QUANT_VLOAD(&up[offset]));
-    QUANT_FLOAT_VEC v;
-    unroll_for (uint i = 0; i < QUANT_PER_LANE; ++i)
-        v[i] = MOE_GATE_ACT(g[i]) * u[i];
-    // The f16 activation paths store act(gate) * up as f16 before the down projection.
-    v = QUANT_CONVERT_F(CAT(convert_, QUANT_HALF_VEC)(v));
-#else
-    const QUANT_FLOAT_VEC v = QUANT_CONVERT_F(QUANT_VLOAD(&input[offset]));
-#endif
-
-    float lane_max = 0.001f;
-    unroll_for (uint i = 0; i < QUANT_PER_LANE; ++i)
-        lane_max = fmax(lane_max, fabs(v[i]));
-    const float max_value = sub_group_reduce_max(lane_max);
-
-    const float quan_scale = max_value / 127.f;
-    const QUANT_CHAR_VEC q = QUANT_CONVERT_C(v / quan_scale);
-    QUANT_VSTORE(q, &quantized_input[offset]);
-
-    int lane_sum = 0;
-    unroll_for (uint i = 0; i < QUANT_PER_LANE; ++i)
-        lane_sum += q[i];
-    const int quantized_sum = sub_group_reduce_add(lane_sum);
-
-    // The activation sum is kept in f32: it reaches a few thousand, where f16
-    // spacing is already 1.0, and it is subtracted from a same-magnitude integer
-    // accumulator.
-    if (lane == 0) {
-        quan_var[group * 2 + 0] = quan_scale;
-        quan_var[group * 2 + 1] = (float)quantized_sum;
-    }
-}
-
-#undef QUANT_SIMD
-#undef QUANT_PER_LANE
-#undef QUANT_HALF_VEC
-#undef QUANT_FLOAT_VEC
-#undef QUANT_CHAR_VEC
-#undef QUANT_VLOAD
-#undef QUANT_VSTORE
-#undef QUANT_CONVERT_F
-#undef QUANT_CONVERT_C
-
-#elif GATHER_QUANTIZED
-
-// The hidden states are quantized once per token; each gathered row copies the
-// int8 values (ROW_SIZE bytes) and the VARS_SIZE {scale, sum} floats of its token.
-KERNEL(moe_int3_gather_quantized)(
-    const __global char* quantized_tokens,
-    const __global float* token_vars,
-    const __global int* token_idx,
-    __global char* quantized_input,
-    __global float* quan_var)
-{
-    const uint i = (uint)get_global_id(0);
-    const uint row = (uint)get_global_id(1);
-    const int token = token_idx[row];
-    if (token < 0)
-        return;
-    if (i < ROW_SIZE / 16) {
-        const __global uint4* src = (const __global uint4*)(quantized_tokens + (size_t)token * ROW_SIZE);
-        __global uint4* dst = (__global uint4*)(quantized_input + (size_t)row * ROW_SIZE);
-        dst[i] = src[i];
-    }
-    if (i < VARS_SIZE)
-        quan_var[(size_t)row * VARS_SIZE + i] = token_vars[(size_t)token * VARS_SIZE + i];
-}
-
-#elif GEMM
 
 #pragma OPENCL EXTENSION cl_intel_subgroups : enable
 #pragma OPENCL EXTENSION cl_intel_subgroups_short : enable
@@ -230,7 +108,8 @@ REQD_SUB_GROUP_SIZE(SIMD)
 __attribute__((reqd_work_group_size(SIMD, SG_COUNT, 1)))
 KERNEL(moe_int3_gemm)(
     const __global char* quantized_input,   // [rows, K]
-    const __global float* quan_var,         // [rows, GROUPS_K, 2]
+    const __global half* a_scales,          // [rows, GROUPS_K]
+    const __global int* a_sums,             // [rows, GROUPS_K]
     const __global uint* weights,           // [E, N, K] u3
     const __global half* scale,             // [E, W_GROUPS_K, N]
 #if HAS_ZP
@@ -263,7 +142,10 @@ KERNEL(moe_int3_gemm)(
 
     const __global uint* B = weights + ((size_t)expert * N_SIZE + n) * CHUNKS_K * GRANULE_UINTS;
     const __global uint* A = (const __global uint*)(quantized_input + (size_t)row * K_SIZE);
-    const __global float* V = quan_var + (size_t)row * GROUPS_K * 2;
+    const __global half* AS = a_scales + (size_t)row * GROUPS_K;
+#if HAS_ZP
+    const __global int* AZ = a_sums + (size_t)row * GROUPS_K;
+#endif
 
     float out = 0.0f;
     for (uint g = sg; g < GROUPS_K; g += SG_K) {
@@ -284,9 +166,9 @@ KERNEL(moe_int3_gemm)(
         }
         float part = (float)acc;
 #if HAS_ZP
-        part -= WEI_ZP(expert, n, g) * V[g * 2 + 1];
+        part -= WEI_ZP(expert, n, g) * (float)AZ[g];
 #endif
-        out += part * V[g * 2] * WEI_SCALE(expert, n, g);
+        out += part * (float)AS[g] * WEI_SCALE(expert, n, g);
     }
 
 #if SG_K > 1
@@ -331,10 +213,10 @@ KERNEL(moe_int3_gemm)(
     const bool has_rows = (int)m0 < rows;
 
     const __global char* A = quantized_input + (size_t)row_begin * K_SIZE;
-    // {activation scale, activation sum} of row m0 + rb * 16 + lane
-    const __global float* V[RB];
+    // Activation scales and sums of row m0 + rb * 16 + lane
+    size_t V[RB];
     unroll_for (uint rb = 0; rb < RB; ++rb)
-        V[rb] = quan_var + (size_t)(row_begin + min((int)(m0 + rb * 16 + lane), rows - 1)) * GROUPS_K * 2;
+        V[rb] = (size_t)(row_begin + min((int)(m0 + rb * 16 + lane), rows - 1)) * GROUPS_K;
 #if ZP_SCALAR
     const float zp_scalar = (float)zp[0];
 #endif
@@ -391,8 +273,12 @@ KERNEL(moe_int3_gemm)(
 #endif
             }
             float2 sv[RB];
-            unroll_for (uint rb = 0; rb < RB; ++rb)
-                sv[rb] = vload2(g, V[rb]);
+            unroll_for (uint rb = 0; rb < RB; ++rb) {
+                sv[rb].x = (float)a_scales[V[rb] + g];
+#if HAS_ZP
+                sv[rb].y = (float)a_sums[V[rb] + g];
+#endif
+            }
 
             ushort a_all[NH][RB][32];
             unroll_for (uint h = 0; h < NH; ++h)
@@ -473,5 +359,3 @@ KERNEL(moe_int3_gemm)(
 #undef CHUNKS_K
 #undef GROUPS_K
 #undef W_GROUPS_K
-
-#endif
