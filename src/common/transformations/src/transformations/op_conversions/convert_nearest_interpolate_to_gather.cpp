@@ -158,9 +158,6 @@ ConvertNearestInterpolateToGather::ConvertNearestInterpolateToGather() {
                 continue;
             }
             const auto scale = is_scales_mode ? scales[i] : static_cast<float>(out) / static_cast<float>(in);
-            if (!(scale > 1.0f)) {
-                continue;
-            }
 
             std::vector<int64_t> indices(out);
             for (int64_t out_idx = 0; out_idx < static_cast<int64_t>(out); ++out_idx) {
