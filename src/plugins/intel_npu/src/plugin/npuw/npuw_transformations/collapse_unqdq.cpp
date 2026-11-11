@@ -94,7 +94,8 @@ public:
         auto cvt_q = opp::wrap_type<ov::op::v0::Convert>({fake_q});
         auto cvt_dq = opp::wrap_type<ov::op::v0::Convert>({cvt_q});
         auto subtract = opp::optional<ov::op::v1::Subtract>({cvt_dq, opp::any_input()});
-        auto multiply = opp::wrap_type<ov::op::v1::Multiply>({subtract, opp::any_input()});
+        auto scale = opp::any_input();
+        auto multiply = opp::wrap_type<ov::op::v1::Multiply>({subtract, scale});
 
         // Note: use [=] so pattern nodes stay alive inside the callback.
         ov::matcher_pass_callback callback = [=](opp::Matcher& m) {
@@ -103,12 +104,11 @@ public:
             const auto matched_multiply = ov::as_type_ptr<ov::op::v1::Multiply>(m.get_match_root());
             const auto matched_input = node_to_output.at(input);
 
-            const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(matched_multiply->get_input_node_ptr(0));
-            if (!has_subtract && !is_identity_quantizer_without_zp(node_to_output.at(fq_in_low),
-                                                                   node_to_output.at(fq_in_high),
-                                                                   node_to_output.at(fq_out_low),
-                                                                   node_to_output.at(fq_out_high),
-                                                                   matched_multiply->input_value(1))) {
+            if (!node_to_output.count(subtract) && !is_identity_quantizer_without_zp(node_to_output.at(fq_in_low),
+                                                                                     node_to_output.at(fq_in_high),
+                                                                                     node_to_output.at(fq_out_low),
+                                                                                     node_to_output.at(fq_out_high),
+                                                                                     node_to_output.at(scale))) {
                 return false;
             }
 
