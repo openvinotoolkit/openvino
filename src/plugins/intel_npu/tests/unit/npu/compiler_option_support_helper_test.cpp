@@ -35,7 +35,7 @@ public:
 };
 
 TEST(CompilerOptionSupportHelperTests, ReturnsCachedSupportedOptionWithoutBackend) {
-    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
     const auto key = static_cast<::intel_npu::OptionSupportCache::CacheKey>(CompilerType::PLUGIN);
     helper.getOptionSupportCache()->addSupportedOption(key, "CACHED_OPTION", true);
 
@@ -43,7 +43,7 @@ TEST(CompilerOptionSupportHelperTests, ReturnsCachedSupportedOptionWithoutBacken
 }
 
 TEST(CompilerOptionSupportHelperTests, ReturnsCachedUnsupportedOptionWithoutBackend) {
-    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
     const auto key = static_cast<::intel_npu::OptionSupportCache::CacheKey>(CompilerType::DRIVER);
     helper.getOptionSupportCache()->addSupportedOption(key, "CACHED_OPTION", false);
 
@@ -51,7 +51,7 @@ TEST(CompilerOptionSupportHelperTests, ReturnsCachedUnsupportedOptionWithoutBack
 }
 
 TEST(CompilerOptionSupportHelperTests, KeepsCompilerTypeCacheEntriesIndependent) {
-    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
     const auto pluginKey = static_cast<::intel_npu::OptionSupportCache::CacheKey>(CompilerType::PLUGIN);
     const auto driverKey = static_cast<::intel_npu::OptionSupportCache::CacheKey>(CompilerType::DRIVER);
     helper.getOptionSupportCache()->addSupportedOption(pluginKey, "SHARED_OPTION", true);
@@ -62,19 +62,19 @@ TEST(CompilerOptionSupportHelperTests, KeepsCompilerTypeCacheEntriesIndependent)
 }
 
 TEST(CompilerOptionSupportHelperTests, RejectsPreferPluginBeforeCompilerLookup) {
-    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
 
     EXPECT_THROW(helper.isOptionSupported(CompilerType::PREFER_PLUGIN, "ANY_OPTION"), ov::Exception);
 }
 
 TEST(CompilerOptionSupportHelperTests, RejectsCompilerTypeOutsideSupportedList) {
-    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
 
     EXPECT_THROW(helper.isOptionSupported(static_cast<CompilerType>(999), "ANY_OPTION"), ov::Exception);
 }
 
 TEST(CompilerOptionSupportHelperTests, ExposesSharedOptionSupportCache) {
-    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper({nullptr}, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
 
     ASSERT_NE(helper.getOptionSupportCache(), nullptr);
 }
@@ -82,7 +82,7 @@ TEST(CompilerOptionSupportHelperTests, ExposesSharedOptionSupportCache) {
 TEST(CompilerOptionSupportHelperTests, DriverLookupWithoutDeviceThrows) {
     auto backend = std::make_shared<MockEngineBackendNoDevice>();
     ov::SoPtr<::intel_npu::IEngineBackend> backendPtr(backend);
-    ::intel_npu::CompilerOptionSupportHelper helper(backendPtr, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper(backendPtr, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
 
     EXPECT_THROW(helper.isOptionSupported(CompilerType::DRIVER, "ANY_OPTION"), ov::Exception);
 }
@@ -90,7 +90,7 @@ TEST(CompilerOptionSupportHelperTests, DriverLookupWithoutDeviceThrows) {
 TEST(CompilerOptionSupportHelperTests, OptionValueBypassesCacheAndReachesCompilerLookup) {
     auto backend = std::make_shared<MockEngineBackendNoDevice>();
     ov::SoPtr<::intel_npu::IEngineBackend> backendPtr(backend);
-    ::intel_npu::CompilerOptionSupportHelper helper(backendPtr, ::intel_npu::CompilerAdapterFactory());
+    ::intel_npu::CompilerOptionSupportHelper helper(backendPtr, std::make_shared<const ::intel_npu::CompilerAdapterFactory>(::intel_npu::VCLFunctionTableProvider{}));
     const auto key = static_cast<::intel_npu::OptionSupportCache::CacheKey>(CompilerType::DRIVER);
     helper.getOptionSupportCache()->addSupportedOption(key, "ANY_OPTION", true);
 
