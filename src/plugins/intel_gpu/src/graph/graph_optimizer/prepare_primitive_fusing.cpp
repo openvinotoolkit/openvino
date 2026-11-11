@@ -1533,6 +1533,22 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         if (permute_order.size() != 2 && weightable_node->is_type<fully_connected>()) {
             if (permute_order == std::vector<uint16_t>{0, 2, 1} ||
                 permute_order == std::vector<uint16_t>{0, 1, 3, 2}) {
+                // The {1, 0} order swaps the two outermost dims of the constant layout. That equals the original
+                // permute only when the constant data lives in those two dims, i.e. it is already 2d
+                // (e.g. [N, K, 1] or a rank-2 constant). A constant such as [1, N, K] keeps its data in the inner
+                // dims, and swapping the outer ones would reinterpret the [N, K] buffer as [K, N].
+                const auto& const_pshape = prev_const.get_output_layout().get_partial_shape();
+                if (const_pshape.is_dynamic())
+                    continue;
+                bool data_in_outer_dims = true;
+                for (size_t i = 2; i < const_pshape.size(); ++i) {
+                    if (const_pshape[i].get_length() != 1) {
+                        data_in_outer_dims = false;
+                        break;
+                    }
+                }
+                if (!data_in_outer_dims)
+                    continue;
                 permute_order = {1, 0};
             } else {
                 continue;
