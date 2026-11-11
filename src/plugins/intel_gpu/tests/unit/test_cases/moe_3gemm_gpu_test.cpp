@@ -401,7 +401,8 @@ struct Moe3GemmReference {
                                   expert_weights.begin() + top_k,
                                   expert_weights.end(),
                                   [](const std::pair<float, size_t>& a, const std::pair<float, size_t>& b) {
-                                      return a.first > b.first;
+                                      // Ties go to the lower expert index, as in moe_router_fused
+                                      return a.first > b.first || (a.first == b.first && a.second < b.second);
                                   });
 
                 // Normalize top-k weights
@@ -493,7 +494,8 @@ struct Moe3GemmReference {
                                   expert_weights.begin() + top_k,
                                   expert_weights.end(),
                                   [](const std::pair<float, size_t>& a, const std::pair<float, size_t>& b) {
-                                      return a.first > b.first;
+                                      // Ties go to the lower expert index, as in moe_router_fused
+                                      return a.first > b.first || (a.first == b.first && a.second < b.second);
                                   });
 
                 // Gather sigmoid scores at top-k indices and normalize
