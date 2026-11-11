@@ -2,16 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// The computation of the PagedQSAIndexer node: the per-token math of the QSAIndexer (see qsa_indexer_kernel.hpp), but
-// every cache (index_key_cache, index_block_rope_cache, block_index_keys_cache) is addressed through the shared
-// PagedAttention page table (block_indices, block_indices_begins, subsequence_begins, past_lens) instead of a flat
-// [B, ...] layout. A call of the node, per sequence:
-//   1. appends the raw index keys of its new tokens to the paged key cache;
-//   2. pools every block the new tokens complete (mean of its `ratio` raw keys -> RMSNorm -> partial RoPE with the
-//      coefficients of the first token of the block) into the paged summary cache;
-//   3. scores, for every new token, the complete blocks it can see and keeps the block_topk best block ids, ascending.
-// The kernel (paged_qsa_indexer_kernel.cpp) is cross-compiled: one entry for every instruction set. This header holds
-// what the node and the kernel share: the ports, the plan of a call and the layout of its scratch.
+// PagedQSAIndexer computation: the per-token math of the QSAIndexer (see qsa_indexer_kernel.hpp) over caches addressed
+// through the PagedAttention page table. A call appends the new raw keys, pools the blocks they complete, and keeps
+// each token's block_topk best blocks. This header holds what the node and the kernel share.
 
 #pragma once
 
@@ -89,9 +82,9 @@ inline size_t index_key_heads(const PagedPorts& p, const Config& c) {
     return p.k_idx.size(1) / c.indexer_head_dim;
 }
 
-// What a call knows about one sequence: where its tokens and its page-table row are, and which index blocks it
-// completes. past_blocks = past_len / key_block_size blocks were complete before the call, new_blocks =
-// (past_len + q_len) / key_block_size - past_blocks are completed by it. It also carries the paging of the caches.
+// What a call knows about one sequence: its tokens, its page-table row and the index blocks it completes:
+// past_blocks = past_len / key_block_size were complete before, new_blocks = (past_len + q_len) / key_block_size -
+// past_blocks are completed by it.
 struct SeqPlan {
     int64_t key_block_size;  // tokens per index block
     int64_t page_size;       // tokens per page of the caches, from the shape of the key cache
@@ -180,10 +173,8 @@ inline CacheAddress block_address(const PagedPorts& p, const SeqPlan& plan, int6
     return {page, static_cast<size_t>(block_idx % plan.slots_per_page)};
 }
 
-// All floating-point data ports of PagedQSAIndexer (index_query, raw_index_keys, rope_cos, rope_sin, q_norm_weight,
-// k_norm_weight, index_key_cache, index_block_rope_cache, block_index_keys_cache) may independently be f32, f16 or
-// bf16: the kernel converts the rows it touches, so the compute stays f32 without a whole-tensor Reorder on every call
-// over caches that grow every step.
+// All floating-point ports share one precision, f32, f16 or bf16 (the op validates it). The kernel converts the rows
+// it touches, so the compute stays f32 without a whole-tensor Reorder of caches that grow every step.
 
 // The buffers of one worker thread's slice of the scratch; the phases run one after the other, so they share them.
 struct ThreadLayout {
@@ -218,9 +209,8 @@ struct ThreadLayout {
 };
 
 // The scratch of one call, one allocation (a second createScratchPadMem() could free the first's memory):
-//   [ token -> sequence array, f32 q / k norm weights | what the brgemm scorer shares between the threads |
-//     one slice per worker thread ]
-// The scorer lays out its own slices over the same space, after the phases of the kernel have used theirs.
+//   [ token -> sequence array, f32 norm weights | brgemm scorer's shared part | one slice per worker thread ]
+// The scorer lays out its own slices over the same space, after the kernel's phases.
 struct PagedScratchLayout {
     ThreadLayout thread;
     size_t norm_weights_offset;

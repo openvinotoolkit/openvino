@@ -55,12 +55,9 @@ void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    // Every floating-point data port is independently echoed at whatever precision (f32/f16/bf16) was negotiated
-    // upstream -- the kernel reads and writes all of them through row conversions rather than hardcoding f32, since
-    // index_key_cache/index_block_rope_cache/block_index_keys_cache grow every step and forcing a whole-tensor Reorder
-    // on every call would redo that conversion for the entire history each time. The page-table and index inputs stay
-    // i32 -- reordering them to f32 would numerically convert the index values instead of reinterpreting them. The two
-    // outputs are always i32.
+    // Every floating-point port is echoed at the precision negotiated upstream (the op validates it is the same), so
+    // the growing caches need no Reorder: the kernel converts rows itself. The page-table and index inputs stay i32;
+    // the outputs are i32.
     std::vector<PortConfigurator> in_port_configs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         const bool is_i32_port = i == InputIdx::PAST_LENS || i == InputIdx::SUBSEQUENCE_BEGINS ||
@@ -79,9 +76,9 @@ void PagedQSAIndexer::createPrimitive() {
     m_impl = qsa::kernel_impl_type();
 #ifdef OPENVINO_ARCH_X86_64
     const auto summary_precision = getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE)->getDesc().getPrecision();
-    // The scoring on brgemm where the CPU, the precisions and the head counts allow it; the query and key rows are
-    // [tokens, heads * dim], the token count is dynamic. The query is rounded to the precision of the summary blocks
-    // for the brgemm products: only done when it is that precision already.
+    // Scoring on brgemm where the CPU, the precisions and the head counts allow it. Query and key rows are
+    // [tokens, heads * dim] with a dynamic token count. The brgemm products need the query in the summary precision,
+    // so it is used only when it already has it.
     const auto& c = m_config;
     const auto query_precision = getSrcMemoryAtPort(InputIdx::INDEX_QUERY)->getDesc().getPrecision();
     const auto q_width = getInputShapeAtPort(InputIdx::INDEX_QUERY).getDims()[1];

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
@@ -50,40 +51,16 @@ using ov::intel_cpu::node::qsa::paged::token_address;
 
 static_assert(ThreadLayout::kStageRows == qsa::kScoreRows);
 
-// Rows of any of the three float types of a port (each port has its own precision, looked up per call), as f32.
-template <typename... Idx>
-void load_row(const PlainTensor& t, size_t len, float* dst, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        cvt_copy(dst, t.ptr<ov::bfloat16>(idx...), 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        cvt_copy(dst, t.ptr<ov::float16>(idx...), 1, len, 0, 0);
-    } else {
-        cvt_copy(dst, t.ptr<float>(idx...), 1, len, 0, 0);
-    }
-}
-
-template <typename... Idx>
-void store_row(const PlainTensor& t, size_t len, const float* src, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        cvt_copy(t.ptr<ov::bfloat16>(idx...), src, 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        cvt_copy(t.ptr<ov::float16>(idx...), src, 1, len, 0, 0);
-    } else {
-        cvt_copy(t.ptr<float>(idx...), src, 1, len, 0, 0);
-    }
-}
-
-// Read-only f32 view of a row: the row itself when the tensor is f32 (no copy), otherwise the row converted into
-// `scratch`.
-template <typename... Idx>
+// A row of a port as f32: the row itself when the data is f32 (no copy), otherwise converted into `scratch`. All the
+// floating-point ports have the precision T (the op validates it), so no port needs a run-time lookup of its own.
+template <typename T, typename... Idx>
 const float* row_view(const PlainTensor& t, size_t len, float* scratch, Idx... idx) {
-    if (t.get_precision() == ov::element::f32) {
+    if constexpr (std::is_same_v<T, float>) {
         return t.ptr<float>(idx...);
+    } else {
+        cvt_copy(scratch, t.ptr<T>(idx...), 1, len, 0, 0);
+        return scratch;
     }
-    load_row(t, len, scratch, idx...);
-    return scratch;
 }
 
 // The buffers of one worker thread's slice of the scratch; the phases run one after the other, so they share them.
@@ -103,7 +80,12 @@ struct ThreadBuffers {
 
 // The scratch of a call, bound to its memory.
 struct Scratch {
-    Scratch(const PagedPorts& p, const Config& c, const PagedScratchLayout& layout, uint8_t* memory)
+    template <typename T>
+    Scratch(std::in_place_type_t<T>,
+            const PagedPorts& p,
+            const Config& c,
+            const PagedScratchLayout& layout,
+            uint8_t* memory)
         : token_seq(reinterpret_cast<int32_t*>(memory)),
           shared(memory + layout.scorer_shared_offset),
           threads(memory + layout.threads_offset),
@@ -111,10 +93,9 @@ struct Scratch {
         const size_t D_idx = c.indexer_head_dim;
         auto* const q_norm = reinterpret_cast<float*>(memory + layout.norm_weights_offset);
         auto* const k_norm = q_norm + D_idx;
-        load_row(p.q_norm_weight, D_idx, q_norm);
-        load_row(p.k_norm_weight, D_idx, k_norm);
-        q_norm_w = q_norm;
-        k_norm_w = k_norm;
+        // f32 weights are used in place; 16-bit ones are converted once per call into the scratch
+        q_norm_w = qsa::row_as_f32(p.q_norm_weight.ptr<T>(), D_idx, q_norm);
+        k_norm_w = qsa::row_as_f32(p.k_norm_weight.ptr<T>(), D_idx, k_norm);
         const size_t tokens = num_tokens(p);
         std::fill_n(token_seq, tokens, static_cast<int32_t>(-1));
         for (size_t seq = 0; seq < num_sequences(p); seq++) {
@@ -156,10 +137,9 @@ private:
 };
 
 #ifdef OPENVINO_ARCH_X86_64
-// The paged layout of a call as the brgemm scoring sees it (see BrgemmRunner): the rows are the sequences, the token v
-// of a sequence is the flat token plan.token_begin + v, and the summary blocks of a sequence are addressed through the
-// page table: a page holds `slots_per_page` consecutive blocks of a K head, and the pages of a sequence are anywhere
-// in the cache. `T` is the precision of the summary cache.
+// The paged layout of a call as the brgemm scoring sees it (see BrgemmRunner): rows are sequences, token v of a
+// sequence is flat token plan.token_begin + v, and summary blocks are addressed through the page table. `T` is the
+// summary cache precision.
 template <typename T>
 class PagedSource {
 public:
@@ -181,13 +161,13 @@ public:
         return plan(seq).total_blocks();
     }
     [[nodiscard]] const float* query_row(size_t seq, int64_t v, size_t h, float* buf) const {
-        return row_view(m_p.q_idx, m_c.indexer_head_dim, buf, token(seq, v), h * m_c.indexer_head_dim);
+        return row_view<T>(m_p.q_idx, m_c.indexer_head_dim, buf, token(seq, v), h * m_c.indexer_head_dim);
     }
     [[nodiscard]] const float* rope_cos(size_t seq, int64_t v, float* buf) const {
-        return row_view(m_p.rope_cos, m_c.indexer_rotary_dim, buf, token(seq, v));
+        return row_view<T>(m_p.rope_cos, m_c.indexer_rotary_dim, buf, token(seq, v));
     }
     [[nodiscard]] const float* rope_sin(size_t seq, int64_t v, float* buf) const {
-        return row_view(m_p.rope_sin, m_c.indexer_rotary_dim, buf, token(seq, v));
+        return row_view<T>(m_p.rope_sin, m_c.indexer_rotary_dim, buf, token(seq, v));
     }
     [[nodiscard]] const float* q_norm_weight() const {
         return m_q_norm_w;
@@ -246,11 +226,10 @@ void run_brgemm_scorer(const QsaBrgemm& brgemm,
 }
 #endif
 
-// ---- Phase 1, per token: append the token's raw index keys to the paged cache, and when it starts a block record the
-// interleaved cos/sin row of that first token, so the block's summary (finalized once the block completes, possibly in
-// a later call) can be RoPE'ed with the exact coefficients of its first token, regardless of KV-cache slot vs logical
-// position drift (continuous batching, chunked prefill, mRoPE, ...). The capacity bound skips a trailing block that
-// starts within the allocated page range but has no room to ever complete. ----
+// ---- Phase 1, per token: append the raw index keys to the paged cache. A token that starts a block also stores its
+// interleaved cos/sin row, for the block's summary to use once the block completes. A block that can never complete
+// is skipped. ----
+template <typename T>
 void store_token_rows(const PagedPorts& p, const Config& c, const Scratch& scratch, size_t token) {
     const auto plan = seq_plan(p, c, static_cast<size_t>(scratch.token_seq[token]));
     const int64_t logical_pos = plan.past_len + (static_cast<int64_t>(token) - plan.token_begin);
@@ -262,26 +241,27 @@ void store_token_rows(const PagedPorts& p, const Config& c, const Scratch& scrat
         const int64_t block_idx = logical_pos / plan.key_block_size;
         if (block_idx < plan.block_capacity) {
             float* const cos_sin = buf.cos_sin;
-            const float* const cos_row = row_view(p.rope_cos, rotary_dim, buf.cos_tmp, token);
-            const float* const sin_row = row_view(p.rope_sin, rotary_dim, buf.sin_tmp, token);
+            const float* const cos_row = row_view<T>(p.rope_cos, rotary_dim, buf.cos_tmp, token);
+            const float* const sin_row = row_view<T>(p.rope_sin, rotary_dim, buf.sin_tmp, token);
             for (size_t j = 0; j < rotary_dim; j++) {
                 cos_sin[2 * j] = cos_row[j];
                 cos_sin[2 * j + 1] = sin_row[j];
             }
             const auto [page, slot] = block_address(p, plan, block_idx);
-            store_row(p.indexer_rope_cache, 2 * rotary_dim, cos_sin, page, slot);
+            cvt_copy(p.indexer_rope_cache.ptr<T>(page, slot), cos_sin, 1, 2 * rotary_dim, 0, 0);
         }
     }
     const auto [cur_page, cur_slot] = token_address(p, plan, logical_pos);
     for (size_t key_head = 0; key_head < index_key_heads(p, c); key_head++) {
-        const float* const row = row_view(p.k_idx, D_idx, buf.row_buf, token, key_head * D_idx);
-        store_row(p.raw_k_cache, D_idx, row, cur_page, key_head, cur_slot);
+        const float* const row = row_view<T>(p.k_idx, D_idx, buf.row_buf, token, key_head * D_idx);
+        cvt_copy(p.raw_k_cache.ptr<T>(cur_page, key_head, cur_slot), row, 1, D_idx, 0, 0);
     }
 }
 
 // ---- Phase 2, per (sequence, index-key head, block completed by the call): the summary of the block is the mean of
 // its raw keys, RMSNorm'ed and RoPE'd with the coefficients of its first token. The blocks are independent of each
 // other. ----
+template <typename T>
 void pool_block(const PagedPorts& p, const Config& c, const Scratch& scratch, size_t seq, size_t key_head, size_t j) {
     const auto plan = seq_plan(p, c, seq);
     const auto buf = scratch.thread();
@@ -295,22 +275,21 @@ void pool_block(const PagedPorts& p, const Config& c, const Scratch& scratch, si
     std::fill_n(pooled, D_idx, 0.0F);
     for (int64_t pos = block_start; pos < block_start + plan.key_block_size; pos++) {
         const auto [p_page, p_slot] = token_address(p, plan, pos);
-        qsa::add_inplace(pooled, row_view(p.raw_k_cache, D_idx, buf.row_buf, p_page, key_head, p_slot), D_idx);
+        qsa::add_inplace(pooled, row_view<T>(p.raw_k_cache, D_idx, buf.row_buf, p_page, key_head, p_slot), D_idx);
     }
     qsa::scale_inplace(pooled, 1.0F / static_cast<float>(plan.key_block_size), D_idx);
     // the cos / sin of the first token of the block were stored interleaved; the RoPE takes them apart
-    const float* const cos_sin = row_view(p.indexer_rope_cache, 2 * rotary_dim, buf.cos_sin, block_page, block_slot);
+    const float* const cos_sin = row_view<T>(p.indexer_rope_cache, 2 * rotary_dim, buf.cos_sin, block_page, block_slot);
     for (size_t k = 0; k < rotary_dim; k++) {
         buf.cos_tmp[k] = cos_sin[2 * k];
         buf.sin_tmp[k] = cos_sin[2 * k + 1];
     }
     qsa::rms_rope(pooled, buf.summary_buf, scratch.k_norm_w, D_idx, rotary_dim, c.epsilon, buf.cos_tmp, buf.sin_tmp);
-    store_row(p.summary_cache, D_idx, buf.summary_buf, block_page, key_head, block_slot);
+    cvt_copy(p.summary_cache.ptr<T>(block_page, key_head, block_slot), buf.summary_buf, 1, D_idx, 0, 0);
 }
 
-// ---- Phase 3, per token: the query RMSNorm + partial RoPE of every index-query head, then per selection head the
-// score of every complete block (the sum over the heads of the selection head of max(0, q . summary)) and the top-k
-// blocks in ascending block order. T is the precision of the summary cache. ----
+// ---- Phase 3, per token: RMSNorm + partial RoPE of every index-query head, then per selection head the score of
+// each complete block (sum over its heads of max(0, q . summary)) and the top-k blocks in ascending order. ----
 template <typename T>
 void select_blocks(const PagedPorts& p, const Config& c, const Scratch& scratch, size_t token) {
     const auto plan = seq_plan(p, c, static_cast<size_t>(scratch.token_seq[token]));
@@ -323,10 +302,10 @@ void select_blocks(const PagedPorts& p, const Config& c, const Scratch& scratch,
     const size_t selection_heads = c.num_selection_heads;
     const float scale = ov::op::internal::PagedQSAIndexer::effective_scale(c);
 
-    const float* const cos_row = row_view(p.rope_cos, rotary_dim, buf.cos_tmp, token);
-    const float* const sin_row = row_view(p.rope_sin, rotary_dim, buf.sin_tmp, token);
+    const float* const cos_row = row_view<T>(p.rope_cos, rotary_dim, buf.cos_tmp, token);
+    const float* const sin_row = row_view<T>(p.rope_sin, rotary_dim, buf.sin_tmp, token);
     for (size_t h = 0; h < index_queries; h++) {
-        const float* const q_row = row_view(p.q_idx, D_idx, buf.row_buf, token, h * D_idx);
+        const float* const q_row = row_view<T>(p.q_idx, D_idx, buf.row_buf, token, h * D_idx);
         qsa::rms_rope(q_row,
                       buf.q_normed + h * D_idx,
                       scratch.q_norm_w,
@@ -384,7 +363,7 @@ void run_indexer(const PagedPorts& ports,
                  const ov::intel_cpu::CpuParallel& parallel) {
     const size_t tokens = num_tokens(ports);
     const auto stats = ov::intel_cpu::node::qsa::paged::seq_stats(ports, config);
-    const Scratch scratch(ports, config, layout, memory);
+    const Scratch scratch(std::in_place_type<T>, ports, config, layout, memory);
 
     std::fill_n(ports.sel_indices.ptr<int32_t>(), tokens * config.num_selection_heads * config.block_topk, -1);
     std::fill_n(ports.sel_count.ptr<int32_t>(), tokens * config.num_selection_heads, 0);
@@ -393,7 +372,7 @@ void run_indexer(const PagedPorts& ports,
     // slots.
     parallel.parallel_for(tokens, [&](size_t token) {
         if (scratch.token_seq[token] >= 0) {
-            store_token_rows(ports, config, scratch, token);
+            store_token_rows<T>(ports, config, scratch, token);
         }
     });
     // Phase 2: the blocks this call completes are independent of each other (they read the raw rows of this and of
@@ -404,7 +383,7 @@ void run_indexer(const PagedPorts& ports,
                                 static_cast<size_t>(stats.max_new_blocks),
                                 [&](size_t seq, size_t key_head, size_t j) {
                                     if (static_cast<int64_t>(j) < seq_plan(ports, config, seq).new_blocks) {
-                                        pool_block(ports, config, scratch, seq, key_head, j);
+                                        pool_block<T>(ports, config, scratch, seq, key_head, j);
                                     }
                                 });
     }
