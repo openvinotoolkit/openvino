@@ -13,7 +13,8 @@ namespace ov::frontend::gguf {
 void prepare_graph_inputs(TensorMap& values, GgufDecoder& decoder);
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& values,
-                    const std::unordered_map<std::string, CreatorFunction>& translators);
+                    const std::unordered_map<std::string, CreatorFunction>& translators,
+                    const std::shared_ptr<ConstantCache>& constant_cache = {});
 
 class TranslateSession {
 public:
