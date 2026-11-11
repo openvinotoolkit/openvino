@@ -19,6 +19,7 @@
 #include "common/convert_common.hpp"
 #include "gc/GpuCompiler.h"
 #include "gc/Runtime/GpuRuntime.h"
+#include "intel_gpu/primitives/mlir_primitive.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
@@ -395,8 +396,7 @@ public:
             const auto& layout = mem->get_layout();
             // Input formats are validated against the program's requirements in mlir_primitive_impl::execute_impl;
             // Here we only validate that the format can be expressed as memref strides (is supported by gc-runtime).
-            // TODO: bzyxf is a "simple" format too, move it into format::is_simple_data_format.
-            OPENVINO_ASSERT(cldnn::format::is_simple_data_format(layout.format) || layout.format == cldnn::format::bzyxf,
+            OPENVINO_ASSERT(cldnn::mlir_primitive::is_strided_format(layout.format),
                             "[GPU] mlir_primitive '",
                             instance.id(),
                             "', ",

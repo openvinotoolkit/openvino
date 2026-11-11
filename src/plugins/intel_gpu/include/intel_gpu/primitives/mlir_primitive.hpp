@@ -45,9 +45,28 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
     // formats. Inputs without an entry must be in the default (plain) format for their rank.
     std::map<size_t, format::type> required_input_fmts;
 
+    // Whether a buffer in `fmt` is a plain (unblocked) strided one, i.e. is expressible as memref strides.
+    static bool is_strided_format(const format& fmt) {
+        // TODO: bzyxf is a "simple" format too, move it into format::is_simple_data_format.
+        return format::is_simple_data_format(fmt) || fmt == format::bzyxf;
+    }
+
     [[nodiscard]] format::type get_required_input_format(size_t idx, size_t rank) const {
         const auto it = required_input_fmts.find(idx);
-        return it != required_input_fmts.end() ? it->second : format::get_default_format(rank).value;
+        if (it == required_input_fmts.end()) {
+            return format::get_default_format(rank).value;
+        }
+        const format fmt = it->second;
+        OPENVINO_ASSERT(fmt.dimension() >= rank && is_strided_format(fmt),
+                        "[GPU] mlir_primitive '",
+                        id,
+                        "': unsupported required format ",
+                        fmt.to_string(),
+                        " for the rank-",
+                        rank,
+                        " input ",
+                        idx);
+        return it->second;
     }
 
     void save(BinaryOutputBuffer& /*ob*/) const override {
