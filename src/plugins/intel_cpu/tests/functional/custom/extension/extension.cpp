@@ -6,9 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
+#include <string>
+
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
 using testing::ElementsAreArray;
@@ -192,6 +196,18 @@ TEST(Extension, smoke_XmlModelWithExtensionFromDSO) {
     auto compiled_model = core.compile_model(ov_model);
 
     infer_model(core, compiled_model, input_values, expected);
+
+    auto cpu_model = core.compile_model(ov_model, "CPU");
+    const auto requirements = cpu_model.get_property(ov::runtime_requirements);
+    EXPECT_EQ(requirements.find("Identity"), std::string::npos) << requirements;
+    EXPECT_EQ(core.get_property("CPU", ov::compatibility_check, {{ov::runtime_requirements.name(), requirements}}),
+              ov::CompatibilityCheck::SUPPORTED);
+
+    std::stringstream blob;
+    OV_ASSERT_NO_THROW(cpu_model.export_model(blob));
+    ov::CompiledModel imported_model;
+    OV_ASSERT_NO_THROW(imported_model = core.import_model(blob, "CPU"));
+    infer_model(core, imported_model, input_values, expected);
 }
 
 TEST(DISABLED_Extension, OnnxModelWithExtensionFromDSO) {

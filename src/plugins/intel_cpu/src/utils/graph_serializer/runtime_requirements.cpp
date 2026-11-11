@@ -17,6 +17,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "config.h"
@@ -45,6 +46,10 @@
 #    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #    include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#    include "cpu/aarch64/cpu_isa_traits.hpp"
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -122,45 +127,62 @@ std::string get_opset_name(const ov::Node& node) {
     return version_id == nullptr ? "experimental" : version_id;
 }
 
-// Host capabilities a transformed graph may depend on. A capability is present only if all its predicates are true,
-// i.e. both the CPUID (OV_CPU_MAX_ISA aware) and the oneDNN (ONEDNN_MAX_CPU_ISA aware) views agree.
+// Host capabilities a transformed graph may depend on.
 using Predicate = bool (*)();
-const std::map<std::string, std::vector<Predicate>, std::less<>>& capabilities() {
-    static const std::map<std::string, std::vector<Predicate>, std::less<>> caps = {
-        {"bf16", {[] {
+const std::map<std::string, Predicate, std::less<>>& capabilities() {
+    static const std::map<std::string, Predicate, std::less<>> caps = {
+        {"bf16",
+         [] {
              return hasHardwareSupport(ov::element::bf16);
-         }}},
-        {"f16", {[] {
+         }},
+        {"f16",
+         [] {
              return hasHardwareSupport(ov::element::f16);
-         }}},
+         }},
 #if defined(OPENVINO_ARCH_X86_64)
-        {"avx2",
-         {ov::with_cpu_x86_avx2,
-          [] {
-              return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
-          }}},
-        {"amx_bf16",
-         {ov::with_cpu_x86_avx512_core_amx,
-          [] {
-              return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx);
-          }}},
-        {"amx_fp16",
-         {ov::with_cpu_x86_avx512_core_amx_fp16,
-          [] {
-              return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
-          }}},
-        {"brgemm_bf16", {brgemm_utils::is_bf16_supported}},
-        {"brgemm_f16", {brgemm_utils::is_fp16_supported}},
-        {"brgemm_i8", {brgemm_utils::is_i8_supported}},
-        {"fp8_bf16", {[] {
+        {"ov.avx2", ov::with_cpu_x86_avx2},
+        {"ov.amx_bf16", ov::with_cpu_x86_avx512_core_amx},
+        {"ov.amx_fp16", ov::with_cpu_x86_avx512_core_amx_fp16},
+        {"dnnl.avx2",
+         [] {
+             return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
+         }},
+        {"brgemm_bf16", brgemm_utils::is_bf16_supported},
+        {"brgemm_f16", brgemm_utils::is_fp16_supported},
+        {"brgemm_i8", brgemm_utils::is_i8_supported},
+        {"fp8_bf16",
+         [] {
              return hasFp8WeightsDecompressionSupport(ov::element::bf16);
-         }}},
-        {"fp8_f16", {[] {
+         }},
+        {"fp8_f16",
+         [] {
              return hasFp8WeightsDecompressionSupport(ov::element::f16);
-         }}},
+         }},
+#elif defined(OPENVINO_ARCH_ARM64)
+        {"dnnl.asimd",
+         [] {
+             return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+         }},
+#elif defined(OPENVINO_ARCH_RISCV64)
+        {"ov.rvv",
+         [] {
+             return ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv);
+         }},
 #endif
     };
     return caps;
+}
+
+std::string subgraph_capability() {
+#if defined(OPENVINO_ARCH_X86_64)
+    return "dnnl.avx2";
+#elif defined(OPENVINO_ARCH_ARM64)
+    return "dnnl.asimd";
+#elif defined(OPENVINO_ARCH_RISCV64)
+    return "ov.rvv";
+#else
+    return {};
+#endif
 }
 
 std::optional<bool> has_capability(std::string_view name) {
@@ -169,9 +191,7 @@ std::optional<bool> has_capability(std::string_view name) {
     if (it == caps.end()) {
         return std::nullopt;
     }
-    return std::all_of(it->second.begin(), it->second.end(), [](const Predicate& predicate) {
-        return predicate();
-    });
+    return it->second();
 }
 
 class RequirementsCollector {
@@ -227,8 +247,12 @@ private:
 
     void collect_op(const ov::Node& node) {
         auto opset = get_opset_name(node);
-        if (!is_standard_opset(opset)) {
-            m_ops[opset].insert(node.get_type_info().name);
+        if (is_standard_opset(opset)) {
+            return;
+        }
+        const std::string name = node.get_type_info().name;
+        if (known_internal_ops().count(opset + "::" + name) != 0) {
+            m_ops[opset].insert(name);
         }
     }
 
@@ -238,9 +262,14 @@ private:
                 m_has_bf16_tensors |= output.get_element_type() == ov::element::bf16;
             }
         }
+        if (ov::is_type<ov::snippets::op::Subgraph>(&node)) {
+            if (auto cap = subgraph_capability(); !cap.empty()) {
+                m_caps.insert(std::move(cap));
+            }
+        }
 #if defined(OPENVINO_ARCH_X86_64)
-        if (ov::is_type<ov::op::internal::RMS>(&node) || ov::is_type<ov::snippets::op::Subgraph>(&node)) {
-            m_caps.insert("avx2");
+        if (ov::is_type<ov::op::internal::RMS>(&node)) {
+            m_caps.insert("ov.avx2");
         }
         if (in_snippets && (ov::is_type<ov::op::v0::MatMul>(&node) || ov::is_type<ov::snippets::op::Brgemm>(&node))) {
             for (const auto& input : node.inputs()) {
@@ -255,7 +284,7 @@ private:
             }
         }
         if (ov::is_type<ov::intel_cpu::LLMMLPNode>(&node) || ov::is_type<ov::intel_cpu::QKVProjectionNode>(&node)) {
-            m_caps.insert(node.get_input_element_type(0) == ov::element::f16 ? "amx_fp16" : "amx_bf16");
+            m_caps.insert(node.get_input_element_type(0) == ov::element::f16 ? "ov.amx_fp16" : "ov.amx_bf16");
         }
         if (ov::is_type<ov::op::internal::FullyConnectedCompressed>(&node) ||
             ov::is_type<ov::op::internal::GatherMatmulCompressed>(&node)) {
@@ -265,9 +294,10 @@ private:
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
-    // See FullyConnected::isSupportedCompressedOperation() and GatherMatmul::isSupportedCompressedOperation()
+    // The compressed matmuls are executed with oneDNN, see FullyConnected::isSupportedCompressedOperation() and
+    // GatherMatmul::isSupportedCompressedOperation()
     void collect_compressed_matmul_caps(const ov::Node& node) {
-        m_caps.insert("avx2");
+        m_caps.insert("dnnl.avx2");
         const auto weights_precision = node.get_input_element_type(1);
         if (weights_precision == ov::element::f8e4m3 || weights_precision == ov::element::f8e5m2) {
             m_caps.insert(node.get_input_element_type(0) == ov::element::f16 ? "fp8_f16" : "fp8_bf16");

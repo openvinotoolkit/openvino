@@ -29,8 +29,10 @@ static constexpr uint64_t runtime_requirements_max_size = 4096;
  * - ops  - internal (non-standard opset) operations serialized into the blob, grouped by opset:
  *          <opset>::<op>[@<schema>]+<op>...,<opset>::...  Every op must be known by the consumer with the same
  *          schema version (see internal_op_schema_versions() in runtime_requirements.cpp).
- * - caps - host capabilities required by the transformed graph, e.g. "avx2" for RMS or compressed FC,
- *          "amx_bf16" for LLMMLP/QKVProjection.
+ * - caps - host capabilities the graph needs, each op requires only what it really uses. "ov." capabilities are
+ *          checked with the OpenVINO CPU feature detection, "dnnl." capabilities with oneDNN. Examples: ov.avx2 for
+ *          RMS, ov.amx_bf16 for LLMMLP and QKVProjection, dnnl.avx2 for compressed matmuls. A snippets Subgraph
+ *          needs dnnl.avx2 on x86_64, dnnl.asimd on arm64 and ov.rvv on riscv64.
  *
  * @param model  Transformed model which is serialized into the blob.
  * @param config Configuration the model was transformed with.
