@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-16-57-30-196-43049573225",
+  "timestamp": "2026-11-11T16:57:30Z",
+  "run_id": "43049573225",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43049573225",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39532",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39532",
+  "author": "StefaniaHergane",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update/install fails because archive.ubuntu.com, azure.archive.ubuntu.com and security.ubuntu.com could not be DNS-resolved inside the container."
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://archive.ubuntu.com/ubuntu jammy InRelease\n  Temporary failure resolving 'archive.ubuntu.com'",
+    "W: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease  Temporary failure resolving 'archive.ubuntu.com'",
+    "W: Some index files failed to download. They have been ignored, or old ones used instead.",
+    "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step runs apt-get update/install inside a container, and DNS resolution for archive.ubuntu.com, azure.archive.ubuntu.com, and security.ubuntu.com intermittently failed ('Temporary failure resolving'), causing apt to fall back to stale/empty package indexes. As a result several base packages (gnupg, wget, ca-certificates, lsb-release) had no installation candidate and the step exited with code 100. This is a transient runner/container DNS or network outage, not caused by the PR under test (PR #39532 only touches NPU compiler-adapter C++ source and a unit test, unrelated to debian packaging).",
+  "reproduction_steps": "N/A - transient DNS resolution failure on GitHub-hosted runner's container network; not reliably reproducible locally. Re-running the failed job is the standard mitigation.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job (DNS outage is expected to clear on retry).",
+    "Consider adding a DNS retry/backoff wrapper or an explicit resolver (e.g. retry apt-get update with exponential backoff) around the apt-get step in job_debian_packages.yml to reduce flakiness.",
+    "Monitor recurrence: this exact signature has now been seen 4+ times within 12 hours; if it continues, escalate to infra/runner team to check the self-hosted/azure mirror DNS path."
+  ],
+  "prevention_strategies": "Add retry logic (e.g. `apt-get update` with a small retry loop) around network-dependent steps in job_debian_packages.yml, and/or pre-pull dependencies into a cached base image so flaky upstream Ubuntu mirror DNS does not block the merge queue.",
+  "historical_context": "Same signature (hash d734e6d0da3ffc69) has been recorded 4 times between 2026-11-11T14:34:10Z and 2026-11-11T16:19:57Z, affecting PRs #39262 and #39693 — this run is the 5th occurrence in the same window, confirming an active, ongoing DNS/network issue on the merge-queue runners rather than an isolated incident. A related but distinct signature (different wording, 'Could not connect'/'Unable to connect' to azure.archive.ubuntu.com) was seen repeatedly around 2026-08-18/19."
+}
