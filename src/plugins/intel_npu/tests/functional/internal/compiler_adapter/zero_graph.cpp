@@ -79,8 +79,8 @@ public:
 
 protected:
     void SetUp() override {
-        _logGuard.emplace(ov::log::Level::ERR);
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        _logGuard.emplace(ov::log::Level::ERR);
 
         std::tie(targetDevice, configuration, zeGraphNpuExtVersion) = this->GetParam();
 
