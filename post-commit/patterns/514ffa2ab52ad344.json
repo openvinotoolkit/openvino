@@ -4,10 +4,11 @@
   "signature_hash": "514ffa2ab52ad344",
   "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
   "category": "Infrastructure",
-  "count": 9,
+  "count": 10,
   "first_seen": "2026-11-09T16:30:00Z",
-  "last_seen": "2026-11-10T19:25:24Z",
+  "last_seen": "2026-11-11T04:51:06Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/42948228219",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42869238491",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42866126427",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42855007382",
@@ -19,6 +20,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/42626586527"
   ],
   "affected_commits": [
+    "8ff77a113464069a57cc0cf0ee6f7d4bb857c640",
     "b1c159de24d368b12f07e2ed39d3cef2c81beaa5",
     "3b0ee896233e8a108ecc43b59c854116e3f251c8",
     "ccb7ccc4022f5c555df04ea2c0372c461037bebc",
@@ -30,6 +32,7 @@
     "41aa722bf4d15ebcd2869da881b577335d7a1155"
   ],
   "recent_timestamps": [
+    "2026-11-11T04:51:06Z",
     "2026-11-10T19:25:24Z",
     "2026-11-10T19:12:00Z",
     "2026-11-10T18:01:09Z",

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-04-51-06-000-42948228219",
+  "timestamp": "2026-11-11T04:51:06Z",
+  "run_id": "42948228219",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42948228219",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "8ff77a113464069a57cc0cf0ee6f7d4bb857c640",
+  "pr_number": "39628",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39628",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to locked tbb12.dll",
+  "signature": "windows runner extract openvino packages expand-archive remove-item access to the path denied unauthorizedaccessexception locked dll file|Infrastructure",
+  "signature_hash": "514ffa2ab52ad344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "'Extract OpenVINO packages' step fails: Expand-Archive cannot overwrite tbb12.dll because the file is locked by another process."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll:\nAccess to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:1029\n+ ... Remove-Item -LiteralPath $currentArchiveEntryFileInfo.Ful ...\n+ CategoryInfo : PermissionDenied: (C:\\actions-runn...b\\bin\\tbb12.dll:FileInfo) [Remove-Item], UnauthorizedAccessException\n+ FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs 'Expand-Archive ... -Force' on a Windows self-hosted runner to overwrite a previous install directory. Expand-Archive's -Force first tries to delete the existing tbb12.dll before re-extracting it, but the DLL is still held open/locked by another process on the shared, persistent runner workspace (e.g. a lingering antivirus scan, a previous test process, or an OS file-indexer holding a handle), causing an UnauthorizedAccessException and failing the whole step with exit code 1. This is a long-running recurring infrastructure flake on this runner pool/workflow (now seen 10 times over the last ~1.5 days across many unrelated commits), not a code regression introduced by the triggering commit (which is a GPU debug-logging-only change).",
+  "reproduction_steps": "N/A - requires the specific Windows self-hosted runner state (locked tbb12.dll handle); not reproducible from a clean local checkout. Can be approximated locally by holding tbb12.dll open (e.g. via a running process linked against it) and then running Expand-Archive -Force over the same path.",
+  "recommended_actions": [
+    "Escalate to runner infra/DevOps: investigate why tbb12.dll remains locked between jobs on the Windows self-hosted runner pool used for 'GPU unit tests' (process handle leaks, AV scanning, workspace not fully cleaned between runs).",
+    "Consider replacing 'Expand-Archive -Force' with a step that first stops/ kills any lingering processes referencing the install directory, or that extracts to a fresh/unique directory per run instead of overwriting in place.",
+    "Add a retry-with-backoff wrapper around the extraction step as a stop-gap while the root lock cause is investigated.",
+    "Audit other steps/tools on this runner (antivirus, indexing service, residual test binaries) that could hold a handle on runtime/3rdparty/tbb/bin/tbb12.dll after a previous job."
+  ],
+  "prevention_strategies": "Ensure Windows self-hosted runner workspaces are fully isolated/cleaned between jobs (e.g. ephemeral runners or forced process cleanup) so DLLs from a prior job are never left locked when the next job's extraction step runs. Add a pre-extraction step that explicitly releases handles (e.g. via handle.exe or process kill) on the install directory before Expand-Archive runs.",
+  "historical_context": "Identical signature observed 9 times previously between 2026-11-09T16:30:00Z and 2026-11-10T19:25:24Z (see pattern 514ffa2ab52ad344), all on the 'Windows (VS 2022, Python 3.11, Release)' workflow's 'GPU unit tests' job, across many different commits — confirming this is a persistent runner-infrastructure issue unrelated to code changes."
+}
