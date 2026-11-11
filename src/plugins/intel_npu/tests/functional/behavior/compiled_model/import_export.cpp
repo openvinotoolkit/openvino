@@ -284,10 +284,14 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnPluginBatchedCompil
     ov::Core core;
 
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2, 2, 2});
+    input->set_friendly_name("input");
+    input->get_output_tensor(0).set_names({"tensor_input"});
     input->set_layout("N...");
     auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
     auto add = std::make_shared<ov::op::v1::Add>(input, constant);
     auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("result");
+    result->get_output_tensor(0).set_names({"tensor_output"});
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 
     auto config = configuration;
