@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-10-17-29-000-42983827471",
+  "timestamp": "2026-11-11T10:17:29Z",
+  "run_id": "42983827471",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42983827471",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39568",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39568",
+  "author": "jade-cho",
+  "category": "Infrastructure",
+  "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
+  "signature": "remove item cannot remove item access to the path is denied unauthorizedaccessexception|Infrastructure",
+  "signature_hash": "95bb23aa2ed8a84d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "Extract OpenVINO packages step fails: Remove-Item cannot delete tbb12.dll, Access to the path is denied (UnauthorizedAccessException)"
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot remove item C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll: Access to the path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\runtime\\3rdparty\\tbb\\bin\\tbb12.dll' is denied. + FullyQualifiedErrorId : RemoveFileSystemItemUnAuthorizedAccess,Microsoft.PowerShell.Commands.RemoveItemCommand",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "Expand-Archive -Force attempts to delete the pre-existing install directory's tbb12.dll before re-extracting the package, but the file is still locked by another process (likely a lingering GPU test/runner process or AV scanner on the self-hosted Windows runner 'ov-dmz-35'), so Remove-Item throws UnauthorizedAccessException and the step fails with exit code 1. This is the 10th occurrence of this exact signature on self-hosted Windows GPU runners; the recurring lock is a runner/host-level hygiene issue, not a code defect introduced by this PR.",
+  "reproduction_steps": "N/A - requires the specific self-hosted Windows GPU runner state (stale file handle on tbb12.dll under the shared install directory); not reproducible outside the affected runner.",
+  "recommended_actions": [
+    "Re-run the failed 'GPU unit tests' job; this signature is transient and usually clears on retry.",
+    "Investigate runner 'ov-dmz-35' (and other intel-gpu pool Windows runners) for processes holding a lock on install/runtime/3rdparty/tbb/bin/tbb12.dll between job runs (e.g., a lingering benchmark/test process, antivirus scan, or Windows Search indexer).",
+    "Consider cleaning the install directory on job start with a retry/backoff wrapper around Expand-Archive, or extracting to a fresh per-run directory instead of reusing/overwriting a persistent install path."
+  ],
+  "prevention_strategies": "Add a short retry-with-backoff around Expand-Archive on Windows self-hosted runners, and/or ensure prior job steps fully terminate OpenVINO processes (e.g. test binaries linking tbb12.dll) and release file handles before cleanup starts. Periodically restart/recycle the affected self-hosted runners to clear stuck handles.",
+  "historical_context": "Same signature recorded 9 times previously (2026-11-09 through 2026-11-10) across multiple unrelated PRs (#39653, #39617, #37406, #39577, #39668, #39034, #39444), always on self-hosted Windows GPU runners during the 'Extract OpenVINO packages' step. A rerun_search_string candidate for this signature was already verified in a prior run but has not yet been approved into errors_to_look_for.json."
+}
