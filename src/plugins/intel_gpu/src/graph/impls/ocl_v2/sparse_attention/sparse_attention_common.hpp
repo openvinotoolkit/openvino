@@ -167,9 +167,11 @@ protected:
             break;
         case AttKind::Gqa:
             jit.make("QSA_IS_CAUSAL", desc->causal ? 1 : 0);
+            jit.make("QSA_GQA_WORKERS", gqa_workers);
             break;
         case AttKind::GqaSplit:
             jit.make("QSA_IS_CAUSAL", desc->causal ? 1 : 0);
+            jit.make("QSA_GQA_WORKERS", gqa_workers);
             jit.make("QSA_GQA_SPLIT", 1);
             jit.make("QSA_SPLIT_PARTITIONS", gqa_split_partitions);
             break;

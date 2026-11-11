@@ -16,6 +16,8 @@
 //                           QSA_XMX_WORKERS, the XMX building blocks (needs QSA_K_HEAD_SIZE, ...)
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 #ifdef cl_intel_subgroups_short
 #    pragma OPENCL EXTENSION cl_intel_subgroups_short : enable
@@ -43,40 +45,40 @@
 inline void FUNC(qsa_rd)(const __global ushort* p, __private ushort* out, const uint n) {
     uint j = 0;
     for (; j + 8 <= n; j += 8) {
-        ushort8 r = intel_sub_group_block_read_us8(p + j * QSA_SG);
+        ushort8 r = BLOCK_READN(ushort, 8, p, j * QSA_SG);
         out[j + 0] = r.s0; out[j + 1] = r.s1; out[j + 2] = r.s2; out[j + 3] = r.s3;
         out[j + 4] = r.s4; out[j + 5] = r.s5; out[j + 6] = r.s6; out[j + 7] = r.s7;
     }
     if (n - j >= 4) {
-        ushort4 r = intel_sub_group_block_read_us4(p + j * QSA_SG);
+        ushort4 r = BLOCK_READN(ushort, 4, p, j * QSA_SG);
         out[j + 0] = r.s0; out[j + 1] = r.s1; out[j + 2] = r.s2; out[j + 3] = r.s3;
         j += 4;
     }
     if (n - j >= 2) {
-        ushort2 r = intel_sub_group_block_read_us2(p + j * QSA_SG);
+        ushort2 r = BLOCK_READN(ushort, 2, p, j * QSA_SG);
         out[j + 0] = r.s0; out[j + 1] = r.s1;
         j += 2;
     }
     if (n - j >= 1) {
-        out[j] = intel_sub_group_block_read_us(p + j * QSA_SG);
+        out[j] = BLOCK_READN(ushort, 1, p, j * QSA_SG);
     }
 }
 
 inline void FUNC(qsa_wr)(__global ushort* p, const __private ushort* v, const uint n) {
     uint j = 0;
     for (; j + 8 <= n; j += 8) {
-        intel_sub_group_block_write_us8(p + j * QSA_SG, (ushort8)(v[j + 0], v[j + 1], v[j + 2], v[j + 3], v[j + 4], v[j + 5], v[j + 6], v[j + 7]));
+        BLOCK_WRITEN(ushort, 8, p, j * QSA_SG, (ushort8)(v[j + 0], v[j + 1], v[j + 2], v[j + 3], v[j + 4], v[j + 5], v[j + 6], v[j + 7]));
     }
     if (n - j >= 4) {
-        intel_sub_group_block_write_us4(p + j * QSA_SG, (ushort4)(v[j + 0], v[j + 1], v[j + 2], v[j + 3]));
+        BLOCK_WRITEN(ushort, 4, p, j * QSA_SG, (ushort4)(v[j + 0], v[j + 1], v[j + 2], v[j + 3]));
         j += 4;
     }
     if (n - j >= 2) {
-        intel_sub_group_block_write_us2(p + j * QSA_SG, (ushort2)(v[j + 0], v[j + 1]));
+        BLOCK_WRITEN(ushort, 2, p, j * QSA_SG, (ushort2)(v[j + 0], v[j + 1]));
         j += 2;
     }
     if (n - j >= 1) {
-        intel_sub_group_block_write_us(p + j * QSA_SG, v[j]);
+        BLOCK_WRITEN(ushort, 1, p, j * QSA_SG, v[j]);
     }
 }
 
@@ -245,22 +247,22 @@ inline void FUNC(qsa_q_loc)(const uint page,
 inline void FUNC(qsa_rd_uc)(const __global uchar* p, __private uchar* out, const uint n) {
     uint j = 0;
     for (; j + 8 <= n; j += 8) {
-        uchar8 r = intel_sub_group_block_read_uc8(p + j * QSA_SG);
+        uchar8 r = BLOCK_READN(uchar, 8, p, j * QSA_SG);
         out[j + 0] = r.s0; out[j + 1] = r.s1; out[j + 2] = r.s2; out[j + 3] = r.s3;
         out[j + 4] = r.s4; out[j + 5] = r.s5; out[j + 6] = r.s6; out[j + 7] = r.s7;
     }
     if (n - j >= 4) {
-        uchar4 r = intel_sub_group_block_read_uc4(p + j * QSA_SG);
+        uchar4 r = BLOCK_READN(uchar, 4, p, j * QSA_SG);
         out[j + 0] = r.s0; out[j + 1] = r.s1; out[j + 2] = r.s2; out[j + 3] = r.s3;
         j += 4;
     }
     if (n - j >= 2) {
-        uchar2 r = intel_sub_group_block_read_uc2(p + j * QSA_SG);
+        uchar2 r = BLOCK_READN(uchar, 2, p, j * QSA_SG);
         out[j + 0] = r.s0; out[j + 1] = r.s1;
         j += 2;
     }
     if (n - j >= 1) {
-        out[j] = intel_sub_group_block_read_uc(p + j * QSA_SG);
+        out[j] = BLOCK_READN(uchar, 1, p, j * QSA_SG);
     }
 }
 
@@ -647,22 +649,16 @@ inline void FUNC(qsa_scalar_attend)(const __global half* krow,
 #        define QSA_XST_FLOATS (2 * 8 * QSA_SG)
 
 #        ifdef cl_intel_subgroup_local_block_io
-#            define QSA_SLM_WRITE8(p, v) intel_sub_group_block_write8((__local uint*)(p), as_uint8(v))
-#            define QSA_SLM_READ8(p) as_float8(intel_sub_group_block_read8((__local uint*)(p)))
+#            define QSA_SLM_WRITE8(p, v) BLOCK_WRITEN_SLM(float, 8, p, 0, v)
 #        else
 #            define QSA_SLM_WRITE8(p, v) FUNC_CALL(qsa_slm_write8)((__local float*)(p), v)
-#            define QSA_SLM_READ8(p) FUNC_CALL(qsa_slm_read8)((__local float*)(p))
 inline void FUNC(qsa_slm_write8)(__local float* p, float8 v) {
     const uint l = get_sub_group_local_id();
     p[0 * QSA_SG + l] = v.s0; p[1 * QSA_SG + l] = v.s1; p[2 * QSA_SG + l] = v.s2; p[3 * QSA_SG + l] = v.s3;
     p[4 * QSA_SG + l] = v.s4; p[5 * QSA_SG + l] = v.s5; p[6 * QSA_SG + l] = v.s6; p[7 * QSA_SG + l] = v.s7;
 }
-inline float8 FUNC(qsa_slm_read8)(__local float* p) {
-    const uint l = get_sub_group_local_id();
-    return (float8)(p[0 * QSA_SG + l], p[1 * QSA_SG + l], p[2 * QSA_SG + l], p[3 * QSA_SG + l],
-                    p[4 * QSA_SG + l], p[5 * QSA_SG + l], p[6 * QSA_SG + l], p[7 * QSA_SG + l]);
-}
 #        endif
+#        define QSA_SLM_READ8(p) BLOCK_READN_SLM(float, 8, p, 0)
 
 // K rows of one step as the A operand: kr[i][k] = K[row i][worker * XDH + 16 k + lane]. `koff` is this lane's
 // (row = lane) element offset into the K cache; rows >= valid_kv are zero.

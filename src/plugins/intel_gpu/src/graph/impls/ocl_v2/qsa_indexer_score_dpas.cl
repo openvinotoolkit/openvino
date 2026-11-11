@@ -145,14 +145,7 @@ KERNEL(qsa_indexer_score_dpas)(const __global half* indexer_q,           // [tok
             unroll_for (uint k = 0; k < QSA_KT; k++) {
                 const short8 a = (short8)((short)rowd[0][k], (short)rowd[1][k], (short)rowd[2][k], (short)rowd[3][k],
                                           (short)rowd[4][k], (short)rowd[5][k], (short)rowd[6][k], (short)rowd[7][k]);
-#ifdef cl_intel_subgroup_local_block_io
-                const int8 bq = as_int8(intel_sub_group_block_read8(&slm_q[h * QSA_KT + k][0][0]));
-#else
-                const int8 bq = (int8)(as_int(slm_q[h * QSA_KT + k][0][lane]), as_int(slm_q[h * QSA_KT + k][1][lane]),
-                                       as_int(slm_q[h * QSA_KT + k][2][lane]), as_int(slm_q[h * QSA_KT + k][3][lane]),
-                                       as_int(slm_q[h * QSA_KT + k][4][lane]), as_int(slm_q[h * QSA_KT + k][5][lane]),
-                                       as_int(slm_q[h * QSA_KT + k][6][lane]), as_int(slm_q[h * QSA_KT + k][7][lane]));
-#endif
+                const int8 bq = BLOCK_READN_SLM(int, 8, &slm_q[h * QSA_KT + k][0][0], 0);
                 st = intel_sub_group_f16_f16_matrix_mad_k16(a, bq, st);
             }
             // ReLU per indexer head, strictly before the head reduction.

@@ -58,9 +58,11 @@ JitConstants make_jit(JitConstants jit, const std::shared_ptr<const paged_qsa_in
     return jit;
 }
 
+// Occupancy-driven cap on the SLM one score work-group stages (half of a 128KB Xe2 core), further limited by the device.
 constexpr size_t max_slm_bytes = 64 * 1024;
-// 16 SIMD16 subgroups; 8 block rows per subgroup = 128 rows per work-group iteration.
+// Subgroups per score work-group (lane = query, so 16 SIMD16 subgroups = 256 work-items); each takes 8 block rows per pass.
 constexpr size_t score_wg_size = 16;
+// Blocks per decode score partition; tuned on BMG B580 (the former 512 was slower than score_dpas).
 constexpr size_t score_partition_blocks = 32;
 
 bool is_decode_shape(const kernel_impl_params& params) {
@@ -99,7 +101,7 @@ bool can_use_dpas_score(const paged_qsa_indexer& desc,
         return false;
     }
     const auto staged_bytes = h_iq * (desc.indexer_head_dim / qsa::dpas_k_step) * qsa::dpas_k_step * qsa::dpas_query_tile * sizeof(ov::float16);
-    return staged_bytes <= max_slm_bytes;
+    return staged_bytes <= std::min<size_t>(info.max_local_mem_size, max_slm_bytes);
 }
 
 bool use_dpas_score(const kernel_impl_params& params) {

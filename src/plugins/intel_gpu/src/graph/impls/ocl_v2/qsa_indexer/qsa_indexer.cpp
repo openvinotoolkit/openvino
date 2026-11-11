@@ -36,7 +36,7 @@ QSAIndexerRuntimeParams* rt_of(ImplRuntimeParams* rt) {
 /// H_iq / H_ik, derived from the 4D [B, L, H, D_idx] index_query/raw_index_keys layouts (B/L may be dynamic).
 size_t index_heads_4d(const layout& l) {
     const auto& ps = l.get_partial_shape();
-    OPENVINO_ASSERT(ps.rank().is_static() && ps.size() >= 3 && ps[2].is_static(),
+    OPENVINO_ASSERT(ps.rank().is_static() && ps.size() == 4 && ps[2].is_static(),
                     "[GPU][OCL] qsa_indexer: expected a rank-4 [B, L, H, D_idx] input with a static head count");
     return static_cast<size_t>(ps[2].get_length());
 }
@@ -54,8 +54,11 @@ JitConstants make_jit(JitConstants jit, const std::shared_ptr<const qsa_indexer>
     return jit;
 }
 
+// Occupancy-driven cap on the SLM one score work-group stages (half of a 128KB Xe2 core), further limited by the device.
 constexpr size_t max_slm_bytes = 64 * 1024;
+// Subgroups per score work-group (lane = query, so 16 SIMD16 subgroups = 256 work-items); each takes 8 block rows per pass.
 constexpr size_t score_wg_size = 16;
+// Blocks per decode score partition
 constexpr size_t score_partition_blocks = 32;
 
 bool is_decode_shape(const kernel_impl_params& params) {
@@ -64,7 +67,7 @@ bool is_decode_shape(const kernel_impl_params& params) {
         return false;
     }
     const auto& shape = index_query_layout.get_shape();
-    OPENVINO_ASSERT(shape.size() >= 2, "[GPU][OCL] qsa_indexer: expected a rank-4 [B, L, H, D_idx] input");
+    OPENVINO_ASSERT(shape.size() == 4, "[GPU][OCL] qsa_indexer: expected a rank-4 [B, L, H, D_idx] input");
     return shape[1] == 1;
 }
 
@@ -85,7 +88,7 @@ bool can_use_dpas_score(const qsa_indexer& desc, size_t h_iq, const cldnn::devic
         return false;
     }
     const auto staged_bytes = h_iq * (desc.indexer_head_dim / qsa::dpas_k_step) * qsa::dpas_k_step * qsa::dpas_query_tile * sizeof(ov::float16);
-    return staged_bytes <= max_slm_bytes;
+    return staged_bytes <= std::min<size_t>(info.max_local_mem_size, max_slm_bytes);
 }
 
 bool use_dpas_score(const kernel_impl_params& params) {
