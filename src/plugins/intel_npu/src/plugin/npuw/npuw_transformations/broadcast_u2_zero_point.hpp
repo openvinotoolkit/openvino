@@ -9,7 +9,7 @@
 namespace ov::npuw {
 
 // Broadcasts a scalar zero point in the dequantization chain of u2 weights to a per-group u2 Constant:
-//   Convert(Constant u2 [..., groups, group_size]) -> Subtract <- Constant (floating-point scalar)
+//   Convert(Constant u2 [..., groups, group_size]) -> Subtract <- [Convert] <- Constant (scalar)
 // becomes
 //   Convert(Constant u2 [..., groups, group_size]) -> Subtract <- Convert(Constant u2 [..., groups, 1])
 // The rewrite is applied only when the zero point is an integer in the range of u2, so the numerical result is
