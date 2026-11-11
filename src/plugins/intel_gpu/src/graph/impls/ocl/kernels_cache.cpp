@@ -34,7 +34,6 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
-#include <iterator>
 #include <functional>
 #include <sstream>
 #include <fstream>
@@ -127,41 +126,6 @@ bool on_define_line(const std::string& src, size_t pos) {
     return std::string_view(src).substr(line_start, pos - line_start).find("#define") != std::string_view::npos;
 }
 
-// The [begin, end) byte ranges of the comments in src, in order: a '//' comment to the end of its line, a '/* */'
-// comment to its '*/'. String and character literals are stepped over, so a '//' or '/*' inside one starts nothing.
-// An occurrence in a comment is not a kernel's request - custom kernels mention them in comments - and rewriting it
-// would end a '//' comment at the inserted directive and turn the rest of the line into code.
-std::vector<std::pair<size_t, size_t>> comment_ranges(const std::string& src) {
-    std::vector<std::pair<size_t, size_t>> ranges;
-    for (size_t i = 0; i < src.size(); ++i) {
-        const char c = src[i];
-        if (c == '"' || c == '\'') {
-            for (++i; i < src.size() && src[i] != c && src[i] != '\n'; ++i) {
-                if (src[i] == '\\') {
-                    ++i;
-                }
-            }
-        } else if (c == '/' && i + 1 < src.size() && src[i + 1] == '/') {
-            const size_t end = std::min(src.find('\n', i + 2), src.size());
-            ranges.emplace_back(i, end);
-            i = end;
-        } else if (c == '/' && i + 1 < src.size() && src[i + 1] == '*') {
-            const size_t close = src.find("*/", i + 2);
-            const size_t end = close == std::string::npos ? src.size() : close + 2;
-            ranges.emplace_back(i, end);
-            i = end - 1;
-        }
-    }
-    return ranges;
-}
-
-bool in_ranges(const std::vector<std::pair<size_t, size_t>>& ranges, size_t pos) {
-    auto it = std::upper_bound(ranges.begin(), ranges.end(), pos, [](size_t p, const std::pair<size_t, size_t>& r) {
-        return p < r.first;
-    });
-    return it != ranges.begin() && pos < std::prev(it)->second;
-}
-
 std::string redefine_directive(const std::string& arg) {
     return "\n#undef _NV_SUB_GROUP_SIZE\n#define _NV_SUB_GROUP_SIZE (" + arg + ")\n";
 }
@@ -190,6 +154,8 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     // Kernels state their sub-group size through common.cl's REQD_SUB_GROUP_SIZE(x) or a raw
     // __attribute__((intel_reqd_sub_group_size(x))). Neither takes effect on NVIDIA, so each is re-expressed as
     // _NV_SUB_GROUP_SIZE, which the sub-group helpers in nvidia/compat_sg.cl read.
+    // Comments are not looked into: codegen strips them from the built-in kernels, and a custom kernel that names a
+    // request in a comment is not supported.
     // One pattern for both spellings, so the occurrences are visited in source order and the first request - the one
     // repeated at the top of the entry - is the first in the source whichever spelling states it. Group 1 is the raw
     // attribute's argument, group 2 the macro's.
@@ -207,10 +173,9 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
                        const std::function<std::pair<std::string, bool>(const std::smatch&)>& to_size) {
         std::string out;
         size_t last = 0;
-        const auto comments = comment_ranges(text);
         for (std::sregex_iterator it(text.begin(), text.end(), re), end; it != end; ++it) {
             const size_t pos = static_cast<size_t>(it->position());
-            if (on_define_line(text, pos) || in_ranges(comments, pos)) {
+            if (on_define_line(text, pos)) {
                 continue;
             }
             const auto [arg, keep_match] = to_size(*it);
@@ -236,8 +201,8 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
         // original. The raw attribute has to go - the NVIDIA compiler does not know it.
         return m[1].matched ? std::make_pair(m[1].str(), false) : std::make_pair(m[2].str(), true);
     };
-    // A regex search and the comment scan in rewrite() cost a pass over the source each, and most kernels ask for no
-    // particular sub-group size: look for the keywords the patterns need before running them.
+    // A regex search costs a pass over the source, and most kernels ask for no particular sub-group size: look for the
+    // keywords the patterns need before running them.
     const auto contains = [&src](const char* keyword) { return src.find(keyword) != std::string::npos; };
 
     std::string modified;
