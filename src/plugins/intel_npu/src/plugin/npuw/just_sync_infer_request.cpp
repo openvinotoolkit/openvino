@@ -748,7 +748,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     LOG_DEBUG("Done");
 }
 
-std::string ov::npuw::JustInferRequest::layer_major_fallback_reason() const {
+std::string ov::npuw::JustInferRequest::spatial_prefill_fallback_reason() const {
     for (const auto& desc : m_npuw_model->m_compiled_submodels) {
         if (ov::npuw::moe::has_compiled_state(desc.pipeline)) {
             return "MoE subgraph";
@@ -762,7 +762,7 @@ bool ov::npuw::JustInferRequest::is_repeated_function_call(std::size_t idx) cons
     return desc.replaced_by && *desc.replaced_by != idx;
 }
 
-std::size_t ov::npuw::JustInferRequest::layer_major_global_link_count() const {
+std::size_t ov::npuw::JustInferRequest::spatial_prefill_global_link_count() const {
     std::set<LinkFrom> links;
     for (const auto& link : m_npuw_model->m_submodels_input_to_prev_output) {
         if (std::find(m_npuw_model->m_outputs_to_submodels_outputs.begin(),
@@ -774,7 +774,7 @@ std::size_t ov::npuw::JustInferRequest::layer_major_global_link_count() const {
     return links.size();
 }
 
-ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocate_layer_major_input(const ov::Output<const ov::Node>& port) {
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocate_spatial_prefill_input(const ov::Output<const ov::Node>& port) {
     const auto& inputs = m_npuw_model->inputs();
     const auto input = std::find(inputs.begin(), inputs.end(), port);
     OPENVINO_ASSERT(input != inputs.end());
@@ -783,8 +783,14 @@ ov::npuw::TensorPtr ov::npuw::JustInferRequest::allocate_layer_major_input(const
     return tensor;
 }
 
-void ov::npuw::JustInferRequest::allocate_layer_major_banks(std::size_t max_chunks) {
-    if (!m_layer_major_banks.empty()) {
+ov::npuw::TensorPtr ov::npuw::JustInferRequest::SpatialPrefillLink::view(std::size_t chunk) const {
+    auto slice = ov::npuw::util::view(full, dim, chunk * extent, extent);
+    // Reset strides on leading unit dimensions without copying the contiguous slice.
+    return ov::get_tensor_impl(ov::Tensor(slice->get_element_type(), chunk_shape, slice->data()));
+}
+
+void ov::npuw::JustInferRequest::allocate_spatial_prefill_links(std::size_t max_chunks) {
+    if (!m_spatial_prefill_links.empty()) {
         return;
     }
     std::map<LinkFrom, std::size_t> last_consumers;
@@ -795,15 +801,15 @@ void ov::npuw::JustInferRequest::allocate_layer_major_banks(std::size_t max_chun
         auto& last = last_consumers[link.second];
         last = std::max(last, link.first.first);
     }
-    struct Bank {
+    struct Buffer {
         ov::element::Type type;
         ov::Shape shape;
         std::string device;
         std::size_t last;
-        std::shared_ptr<std::vector<TensorPtr>> tensors;
+        TensorPtr tensor;
     };
-    std::vector<Bank> banks;
-    decltype(m_layer_major_banks) table;
+    std::vector<Buffer> buffers;
+    decltype(m_spatial_prefill_links) table;
     for (const auto& entry : last_consumers) {
         const auto& from = entry.first;
         const auto& desc = m_npuw_model->m_compiled_submodels[from.first];
@@ -812,28 +818,39 @@ void ov::npuw::JustInferRequest::allocate_layer_major_banks(std::size_t max_chun
             desc.replaced_by ? m_funcall_result.at(from) : request->get_tensor(request->get_outputs().at(from.second));
         const auto device = desc.replaced_by ? m_npuw_model->funcall_mem_device(real(from.first))
                                              : m_npuw_model->submodel_device(from.first);
-        auto free_bank = std::find_if(banks.begin(), banks.end(), [&](const Bank& bank) {
-            return bank.last < from.first && bank.type == original->get_element_type() &&
-                   bank.shape == original->get_shape() && bank.device == device;
+        const auto& chunk_shape = original->get_shape();
+        const auto first = std::find_if(chunk_shape.begin(), chunk_shape.end(), [](std::size_t size) {
+            return size > 1;
         });
-        if (free_bank == banks.end()) {
-            auto tensors = std::make_shared<std::vector<TensorPtr>>();
-            for (std::size_t c = 0; c < max_chunks; ++c) {
-                tensors->push_back(allocMem(original->get_element_type(), original->get_shape(), device));
-            }
-            banks.push_back({original->get_element_type(), original->get_shape(), device, entry.second, tensors});
-            table.emplace(from, std::move(tensors));
+        const auto dim = first == chunk_shape.end() ? 0u : std::distance(chunk_shape.begin(), first);
+        auto full_shape = chunk_shape.empty() ? ov::Shape{1} : chunk_shape;
+        const auto extent = full_shape[dim];
+        full_shape[dim] *= max_chunks;
+        auto free_buffer = std::find_if(buffers.begin(), buffers.end(), [&](const Buffer& buffer) {
+            return buffer.last < from.first && buffer.type == original->get_element_type() &&
+                   buffer.shape == full_shape && buffer.device == device;
+        });
+        TensorPtr full;
+        if (free_buffer == buffers.end()) {
+            full = allocMem(original->get_element_type(), full_shape, device);
+            buffers.push_back({original->get_element_type(), full_shape, device, entry.second, full});
         } else {
-            free_bank->last = entry.second;
-            table.emplace(from, free_bank->tensors);
+            free_buffer->last = entry.second;
+            full = free_buffer->tensor;
         }
+        OPENVINO_ASSERT(ov::npuw::util::view(full, dim, 0, extent)->is_continuous());
+        SpatialPrefillLink link{full, chunk_shape, static_cast<std::size_t>(dim), extent};
+        const auto default_strides =
+            ov::Tensor(original->get_element_type(), chunk_shape, original->data()).get_strides();
+        OPENVINO_ASSERT(link.view(0)->get_strides() == default_strides);
+        table.emplace(from, std::move(link));
     }
-    m_layer_major_banks = std::move(table);
+    m_spatial_prefill_links = std::move(table);
 }
 
-void ov::npuw::JustInferRequest::bind_layer_major_banks(std::size_t idx,
-                                                        std::size_t chunk,
-                                                        const LayerMajorBind& bind_normal) {
+void ov::npuw::JustInferRequest::bind_spatial_prefill_links(std::size_t idx,
+                                                            std::size_t chunk,
+                                                            const SpatialPrefillBind& bind_normal) {
     auto bind_producer = [&](const LinkFrom& from, const TensorPtr& tensor) {
         if (m_npuw_model->m_compiled_submodels[from.first].replaced_by) {
             m_funcall_result[from] = tensor;
@@ -842,20 +859,20 @@ void ov::npuw::JustInferRequest::bind_layer_major_banks(std::size_t idx,
             bind_normal(request, request->get_outputs().at(from.second), tensor);
         }
     };
-    for (const auto& bank : m_layer_major_banks) {
-        if (bank.first.first == idx) {
-            bind_producer(bank.first, bank.second->at(chunk));
+    for (const auto& link : m_spatial_prefill_links) {
+        if (link.first.first == idx) {
+            bind_producer(link.first, link.second.view(chunk));
         }
     }
     for (const auto& link : m_npuw_model->m_submodels_input_to_prev_output) {
         if (link.first.first != idx) {
             continue;
         }
-        auto bank = m_layer_major_banks.find(link.second);
-        if (bank == m_layer_major_banks.end()) {
+        auto buffer = m_spatial_prefill_links.find(link.second);
+        if (buffer == m_spatial_prefill_links.end()) {
             continue;
         }
-        const auto& tensor = bank->second->at(chunk);
+        const auto tensor = buffer->second.view(chunk);
         bind_producer(link.second, tensor);
         if (!m_npuw_model->m_compiled_submodels[idx].replaced_by) {
             auto request = m_subrequests[idx];
@@ -864,19 +881,21 @@ void ov::npuw::JustInferRequest::bind_layer_major_banks(std::size_t idx,
     }
 }
 
-void ov::npuw::JustInferRequest::infer_layer_major(const LayerMajorPlan& plan) {
-    OPENVINO_ASSERT(layer_major_fallback_reason().empty(), "Unsupported layer-major prefill model");
+void ov::npuw::JustInferRequest::infer_spatial_prefill(const SpatialPrefillPlan& plan) {
+    OPENVINO_ASSERT(spatial_prefill_fallback_reason().empty(), "Unsupported spatial prefill model");
     OPENVINO_ASSERT(!plan.chunks.empty() && plan.chunks.size() <= plan.max_chunks);
+    const ov::npuw::runtime::spatial::Range range(plan.chunks.size() * plan.chunk_size, plan.chunk_size);
+    OPENVINO_ASSERT(range.tail == 0);
     for (std::size_t out = 0; out < m_npuw_model->outputs().size(); ++out) {
         const auto from = m_npuw_model->m_outputs_to_submodels_outputs.at(out);
         if (!m_funcall_result.count(from)) {
             m_funcall_result[from] = get_tensor(m_npuw_model->outputs()[out]);
         }
     }
-    allocate_layer_major_banks(plan.max_chunks);
+    allocate_spatial_prefill_links(plan.max_chunks);
     std::map<LinkFrom, TensorPtr> dual_outputs;
     for (const auto& from : m_npuw_model->m_outputs_to_submodels_outputs) {
-        if (m_layer_major_banks.count(from)) {
+        if (m_spatial_prefill_links.count(from)) {
             dual_outputs.emplace(from, m_funcall_result.at(from));
         }
     }
@@ -891,7 +910,7 @@ void ov::npuw::JustInferRequest::infer_layer_major(const LayerMajorPlan& plan) {
         TensorPtr tensor;
     };
     std::map<std::pair<ov::IAsyncInferRequest*, ov::Output<const ov::Node>>, Binding> bindings;
-    const LayerMajorBind bind_normal =
+    const SpatialPrefillBind bind_normal =
         [&](const RqPtr& request, const ov::Output<const ov::Node>& port, const TensorPtr& tensor) {
             const auto key = std::make_pair(request._ptr.get(), port);
             if (!bindings.count(key)) {
@@ -900,7 +919,7 @@ void ov::npuw::JustInferRequest::infer_layer_major(const LayerMajorPlan& plan) {
             request->set_tensor(port, tensor);
         };
     auto restore = [&]() {
-        m_layer_major_chunk.reset();
+        m_spatial_prefill_chunk.reset();
         m_port_to_tensor = saved_storage;
         m_funcall_result = saved_results;
         m_spatial_io = saved_spatial;
@@ -911,6 +930,7 @@ void ov::npuw::JustInferRequest::infer_layer_major(const LayerMajorPlan& plan) {
         }
     };
     try {
+        // Spatial prefill: for each subgraph, all chunks (slices).
         for (std::size_t idx = 0; idx < m_num_submodels; ++idx) {
             if (!valid_subrequest(idx)) {
                 continue;
@@ -919,48 +939,52 @@ void ov::npuw::JustInferRequest::infer_layer_major(const LayerMajorPlan& plan) {
             auto* behavior = get_subgraph_behavior(idx);
             subscribe_subrequest(idx, [](std::exception_ptr) {});
             m_profile[profile_tag(idx)].record([&]() {
-                for (std::size_t c = 0; c < plan.chunks.size(); ++c) {
-                    m_layer_major_chunk = c;
-                    for (const auto& input : plan.chunks[c]) {
-                        m_port_to_tensor.at(input.first).tensor = input.second;
-                    }
-                    if (plan.before_chunk) {
-                        plan.before_chunk(c);
-                    }
-                    if (m_spatial_selector) {
-                        m_spatial_selector->prepare();
-                    }
-                    if (behavior) {
-                        auto ctx = make_behavior_context(real_idx, idx);
-                        behavior->prepare(ctx);
-                    }
-                    bind_layer_major_banks(idx, c, bind_normal);
-                    bind_global_parameters(idx);
-                    bind_global_results(idx);
-                    if (m_npuw_model->m_compiled_submodels[idx].replaced_by &&
-                        !behavior_handles_function_prologue(idx)) {
-                        function_prologue(idx);
-                    }
-                    if (behavior) {
-                        auto ctx = make_behavior_context(real_idx, idx);
-                        behavior->prologue(ctx);
-                    }
-                    dump_input_tensors(idx);
-                    unsafe_infer(real_idx, idx);
-                    dump_output_tensors(idx);
-                    if (behavior) {
-                        auto ctx = make_behavior_context(real_idx, idx);
-                        behavior->epilogue(ctx);
-                    }
-                    for (const auto& output : dual_outputs) {
-                        if (output.first.first == idx) {
-                            m_layer_major_banks.at(output.first)->at(c)->copy_to(output.second._ptr);
+                ov::npuw::runtime::spatial::for_each_slice(
+                    range,
+                    [&](std::size_t offset, std::size_t, bool is_tail, std::size_t) {
+                        OPENVINO_ASSERT(!is_tail);
+                        const auto c = offset / range.nway;
+                        m_spatial_prefill_chunk = c;
+                        for (const auto& input : plan.chunks[c]) {
+                            m_port_to_tensor.at(input.first).tensor = input.second;
                         }
-                    }
-                    if (plan.on_subgraph_chunk_done) {
-                        plan.on_subgraph_chunk_done(idx, c);
-                    }
-                }
+                        if (plan.before_chunk) {
+                            plan.before_chunk(c);
+                        }
+                        if (m_spatial_selector) {
+                            m_spatial_selector->prepare();
+                        }
+                        if (behavior) {
+                            auto ctx = make_behavior_context(real_idx, idx);
+                            behavior->prepare(ctx);
+                        }
+                        bind_spatial_prefill_links(idx, c, bind_normal);
+                        bind_global_parameters(idx);
+                        bind_global_results(idx);
+                        if (m_npuw_model->m_compiled_submodels[idx].replaced_by &&
+                            !behavior_handles_function_prologue(idx)) {
+                            function_prologue(idx);
+                        }
+                        if (behavior) {
+                            auto ctx = make_behavior_context(real_idx, idx);
+                            behavior->prologue(ctx);
+                        }
+                        dump_input_tensors(idx);
+                        unsafe_infer(real_idx, idx);
+                        dump_output_tensors(idx);
+                        if (behavior) {
+                            auto ctx = make_behavior_context(real_idx, idx);
+                            behavior->epilogue(ctx);
+                        }
+                        for (const auto& output : dual_outputs) {
+                            if (output.first.first == idx) {
+                                m_spatial_prefill_links.at(output.first).view(c)->copy_to(output.second._ptr);
+                            }
+                        }
+                        if (plan.on_subgraph_chunk_done) {
+                            plan.on_subgraph_chunk_done(idx, c);
+                        }
+                    });
             });
             complete_subrequest(idx);
         }
@@ -1010,7 +1034,8 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
     // pick which subrequest we actually work on here
-    if (!m_layer_major_chunk && now_idx() && real_idx == real(now_idx().value()) && is_pipelined(now_idx().value())) {
+    if (!m_spatial_prefill_chunk && now_idx() && real_idx == real(now_idx().value()) &&
+        is_pipelined(now_idx().value())) {
         LOG_DEBUG("Accessing the pipeline subrequest");
         // The real index of request we need to prepare IS
         // the same request which executes now AND
@@ -1035,9 +1060,9 @@ void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
         LOG_DEBUG("Skipping bind_glo - function will do it for itself");
         return;
     }
-    if (m_layer_major_chunk) {
+    if (m_spatial_prefill_chunk) {
         for (const auto& result : m_subrequests_gio[idx].global_results) {
-            if (!m_layer_major_banks.count({idx, result.second})) {
+            if (!m_spatial_prefill_links.count({idx, result.second})) {
                 m_subrequests[idx]->set_tensor(m_subrequests[idx]->get_outputs().at(result.second),
                                                get_tensor(m_npuw_model->outputs().at(result.first)));
             }
@@ -1113,8 +1138,9 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     // 2. Unpack the function closure -- right here, if pipelining if not enabled.
     // If it is enabled, the flow is a little bit different - see run_subrequest_for_success()
     // for details.
-    if (m_layer_major_chunk ? *m_layer_major_chunk == 0 && m_closure_update_required && !func_desc.forced_to_fcall
-                            : (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall)) {
+    if (m_spatial_prefill_chunk
+            ? *m_spatial_prefill_chunk == 0 && m_closure_update_required && !func_desc.forced_to_fcall
+            : (!is_pipelined(idx) && m_closure_update_required && !func_desc.forced_to_fcall)) {
         LOG_DEBUG("Unpacking closures...");
         LOG_BLOCK();
         unpack_closure(idx, m_subrequests[real_idx]);
@@ -1279,75 +1305,69 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
     // a temporary tensor, and then the sub-nwway range will be copied from the
     // request's output range.
 
-    std::size_t offset = 0u;
-    for (std::size_t i = 0u; i < spatial.nway_iters; i++, offset += spatial.nway) {
-        if (!m_spatial_selector->need_submit(offset, spatial.nway)) {
-            continue;
-        }
+    ov::npuw::runtime::spatial::for_each_slice(
+        {spatial.range, spatial.nway},
+        [&](std::size_t offset, std::size_t len, bool is_tail, std::size_t) {
+            if (!is_tail) {
+                // Collect spatial inputs for this offset
+                for (auto&& param : spatial.params) {
+                    const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+                    const auto& iview =
+                        ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, len);
+                    r->set_tensor(iport, iview);
+                }  // for(params)
 
-        // Collect spatial inputs for this offset
-        for (auto&& param : spatial.params) {
-            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-            const auto& iview =
-                ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.nway);
-            r->set_tensor(iport, iview);
-        }  // for(params)
+                // Now set the spatial outputs
+                for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                    const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+                    r->set_tensor(
+                        oport,
+                        ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx), spatial.out_dim, offset, len));
+                }  // for(outputs)
 
-        // Now set the spatial outputs
-        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-            const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-            r->set_tensor(oport,
-                          ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
-                                               spatial.out_dim,
-                                               offset,
-                                               spatial.nway));
-        }  // for(outputs)
+                // Now run the part
+                r->infer();
+                return;
+            }
 
-        // Now run the part
-        r->infer();
-    }  // for(full_nway_times)
+            // Now process the tail, if required
+            // Copy the sub-ranges to spatial inputs
+            // NOTE: tails buffers are read from/written to at 0th offset!
+            for (auto&& param : spatial.params) {
+                auto in_view =
+                    ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, len);
 
-    // Now process the tail, if required
-    if (spatial.tail_size && m_spatial_selector->need_submit(offset, spatial.tail_size)) {
-        // Copy the sub-ranges to spatial inputs
-        // NOTE: tails buffers are read from/written to at 0th offset!
-        for (auto&& param : spatial.params) {
-            auto in_view =
-                ov::npuw::util::view(m_spatial_io[real_idx].inputs.at(param.idx), param.dim, offset, spatial.tail_size);
+                const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
+                auto out_view =
+                    ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx), param.dim, 0, len);
 
-            const auto& iport = comp_model_desc.compiled_model->inputs()[param.idx];
-            auto out_view =
-                ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx), param.dim, 0, spatial.tail_size);
+                NPUW_ASSERT(out_view._ptr &&
+                            "null view of spatial input tail tensor — m_spatial_io may be uninitialized");
+                in_view->copy_to(out_view._ptr);
+                r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
+            }  // for(params)
 
-            NPUW_ASSERT(out_view._ptr && "null view of spatial input tail tensor — m_spatial_io may be uninitialized");
-            in_view->copy_to(out_view._ptr);
-            r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
-        }  // for(params)
+            // Now set the tail tensors
+            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
+                r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
+            }  // for(outputs)
 
-        // Now set the tail tensors
-        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-            const auto& oport = comp_model_desc.compiled_model->outputs()[out_idx];
-            r->set_tensor(oport, m_spatial_io[real_idx].output_tails.at(out_idx));
-        }  // for(outputs)
+            // Now run the tail infer
+            r->infer();
 
-        // Now run the tail infer
-        r->infer();
+            // Now copy the views from the output full-nway tensor to the output tensors
+            for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
+                auto in_view =
+                    ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx), spatial.out_dim, 0, len);
 
-        // Now copy the views from the output full-nway tensor to the output tensors
-        for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
-            auto in_view = ov::npuw::util::view(m_spatial_io[real_idx].output_tails.at(out_idx),
-                                                spatial.out_dim,
-                                                0,
-                                                spatial.tail_size);
-
-            auto out_view = ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx),
-                                                 spatial.out_dim,
-                                                 offset,
-                                                 spatial.tail_size);
-            NPUW_ASSERT(out_view._ptr && "null view of spatial output tensor — m_spatial_io may be uninitialized");
-            in_view->copy_to(out_view._ptr);
-        }  // for(outputs)
-    }
+                auto out_view =
+                    ov::npuw::util::view(m_spatial_io[real_idx].outputs.at(out_idx), spatial.out_dim, offset, len);
+                NPUW_ASSERT(out_view._ptr && "null view of spatial output tensor — m_spatial_io may be uninitialized");
+                in_view->copy_to(out_view._ptr);
+            }  // for(outputs)
+        },
+        m_spatial_selector.get());
 }
 
 void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t idx) {

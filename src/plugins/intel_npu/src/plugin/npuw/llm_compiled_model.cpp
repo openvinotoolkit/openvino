@@ -896,7 +896,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
-    m_prefill_layer_major = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_LAYER_MAJOR>();
+    m_prefill_spatial = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_SPATIAL>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
 
     uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
@@ -1990,7 +1990,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
 
         // Deserialize config
         stream & compiled->m_cfg;
-        compiled->m_prefill_layer_major = compiled->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_LAYER_MAJOR>();
+        compiled->m_prefill_spatial = compiled->m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_SPATIAL>();
         compiled->implement_properties();
 
         // Deserialize KV cache model variants
@@ -2280,7 +2280,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
                           BIND(npuw::llm::generate_pyramid, NPUW_LLM_GENERATE_PYRAMID, get),
                           BIND(npuw::llm::prefill_chunk_size, NPUW_LLM_PREFILL_CHUNK_SIZE, get),
-                          BIND(npuw::llm::prefill_layer_major, NPUW_LLM_PREFILL_LAYER_MAJOR, get),
+                          BIND(npuw::llm::prefill_spatial, NPUW_LLM_PREFILL_SPATIAL, get),
                           BIND(npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT, getString),
                           BIND(npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT, getString),
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),

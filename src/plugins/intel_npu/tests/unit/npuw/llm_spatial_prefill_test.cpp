@@ -6,9 +6,12 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <numeric>
+#include <set>
 #include <vector>
 
 #include "just_sync_infer_request.hpp"
@@ -19,10 +22,10 @@
 
 namespace ov::test::npuw {
 
-struct LLMLayerMajorPrefillTestAccess {
+struct LLMSpatialPrefillTestAccess {
     using Request = ov::npuw::LLMInferRequest;
     static uint64_t runs(const Request& req) {
-        return req.m_layer_major_runs;
+        return req.m_spatial_prefill_runs;
     }
     static auto& desc(Request& req) {
         return req.m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -45,10 +48,28 @@ struct LLMLayerMajorPrefillTestAccess {
         return std::dynamic_pointer_cast<ov::npuw::JustInferRequest>(req.m_prefill_base_request);
     }
     static void chunk_major(Request& req) {
-        req.m_use_layer_major_prefill = false;
+        req.m_use_spatial_prefill = false;
     }
     static const auto& snapshots(const Request& req) {
-        return req.m_layer_major_inputs;
+        return req.m_spatial_prefill_inputs;
+    }
+    static const auto& links(const ov::npuw::JustInferRequest& req) {
+        return req.m_spatial_prefill_links;
+    }
+    static auto last_consumers(ov::npuw::JustInferRequest& req) {
+        ov::npuw::MemAccessSim sim(req.m_npuw_model);
+        std::map<ov::npuw::LinkFrom, size_t> last;
+        for (size_t idx = 0; idx < req.total_subrequests(); ++idx) {
+            if (!req.valid_subrequest(idx)) {
+                continue;
+            }
+            for (const auto& from : sim.read_list(idx)) {
+                if (req.valid_subrequest(from.first)) {
+                    last[from] = std::max(last[from], idx);
+                }
+            }
+        }
+        return last;
     }
 };
 
@@ -56,7 +77,7 @@ struct LLMLayerMajorPrefillTestAccess {
 
 namespace {
 
-using Access = ov::test::npuw::LLMLayerMajorPrefillTestAccess;
+using Access = ov::test::npuw::LLMSpatialPrefillTestAccess;
 using Request = ov::npuw::LLMInferRequest;
 
 class CPUInferRequest : public ov::ISyncInferRequest {
@@ -118,13 +139,13 @@ private:
     mutable ov::CompiledModel m_compiled;
 };
 
-class LLMLayerMajorPrefillTest : public testing::TestWithParam<bool> {
+class LLMSpatialPrefillTest : public testing::TestWithParam<bool> {
 protected:
     static constexpr size_t chunk = 16;
     std::shared_ptr<ov::Core> cpu = std::make_shared<ov::Core>();
     std::shared_ptr<ov::test::npuw::NullPlugin> plugin = std::make_shared<ov::test::npuw::NullPlugin>();
     std::shared_ptr<testing::NiceMock<ov::MockICore>> core = std::make_shared<testing::NiceMock<ov::MockICore>>();
-    std::shared_ptr<Request> reference, layer_major;
+    std::shared_ptr<Request> reference, spatial_prefill;
 
     void SetUp() override {
         using testing::_;
@@ -191,15 +212,15 @@ protected:
                          {"NPUW_LLM_ENABLE_PREFIX_CACHING", prefix ? "YES" : "NO"},
                          {"NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE", "16"}};
         props.insert(extra_props.begin(), extra_props.end());
-        props["NPUW_LLM_PREFILL_LAYER_MAJOR"] = "NO";
+        props["NPUW_LLM_PREFILL_SPATIAL"] = "NO";
         auto ref_model = std::make_shared<ov::npuw::LLMCompiledModel>(model->clone(), plugin, props);
         reference = std::make_shared<Request>(ref_model);
-        props["NPUW_LLM_PREFILL_LAYER_MAJOR"] = "YES";
+        props["NPUW_LLM_PREFILL_SPATIAL"] = "YES";
         auto lm_model = std::make_shared<ov::npuw::LLMCompiledModel>(model->clone(), plugin, props);
-        layer_major = std::make_shared<Request>(lm_model);
-        EXPECT_FALSE(ref_model->get_property("NPUW_LLM_PREFILL_LAYER_MAJOR").as<bool>());
-        EXPECT_TRUE(lm_model->get_property("NPUW_LLM_PREFILL_LAYER_MAJOR").as<bool>());
-        auto base = Access::base(*layer_major);
+        spatial_prefill = std::make_shared<Request>(lm_model);
+        EXPECT_FALSE(ref_model->get_property("NPUW_LLM_PREFILL_SPATIAL").as<bool>());
+        EXPECT_TRUE(lm_model->get_property("NPUW_LLM_PREFILL_SPATIAL").as<bool>());
+        auto base = Access::base(*spatial_prefill);
         ASSERT_NE(base, nullptr);
         ASSERT_GT(base->total_subrequests(), 2u);
         size_t calls = 0;
@@ -235,31 +256,31 @@ protected:
         return req.get_tensor(port.value());
     }
     void compare() {
-        bytes(logits(*reference), logits(*layer_major));
-        EXPECT_EQ(Access::desc(*reference).num_stored_tokens, Access::desc(*layer_major).num_stored_tokens);
-        EXPECT_EQ(Access::present_tokens(*reference), Access::present_tokens(*layer_major));
+        bytes(logits(*reference), logits(*spatial_prefill));
+        EXPECT_EQ(Access::desc(*reference).num_stored_tokens, Access::desc(*spatial_prefill).num_stored_tokens);
+        EXPECT_EQ(Access::present_tokens(*reference), Access::present_tokens(*spatial_prefill));
         for (const auto& name : Access::names(*reference)) {
             SCOPED_TRACE(name);
-            bytes(Access::past(*reference, name), Access::past(*layer_major, name));
-            bytes(Access::present(*reference, name), Access::present(*layer_major, name));
+            bytes(Access::past(*reference, name), Access::past(*spatial_prefill, name));
+            bytes(Access::present(*reference, name), Access::present(*spatial_prefill, name));
         }
     }
     void prefill(size_t length, bool fallback = false, int64_t salt = 0) {
-        const auto runs = Access::runs(*layer_major);
+        const auto runs = Access::runs(*spatial_prefill);
         input(*reference, length, 0, salt);
-        input(*layer_major, length, 0, salt);
+        input(*spatial_prefill, length, 0, salt);
         reference->infer();
-        layer_major->infer();
-        EXPECT_EQ(Access::runs(*layer_major), runs + (fallback ? 0 : 1));
-        EXPECT_EQ(Access::desc(*layer_major).num_stored_tokens, length);
-        EXPECT_EQ(Access::present_tokens(*layer_major), (length - 1) % chunk + 1);
+        spatial_prefill->infer();
+        EXPECT_EQ(Access::runs(*spatial_prefill), runs + (fallback ? 0 : 1));
+        EXPECT_EQ(Access::desc(*spatial_prefill).num_stored_tokens, length);
+        EXPECT_EQ(Access::present_tokens(*spatial_prefill), (length - 1) % chunk + 1);
         compare();
     }
     void attention_prefill(const std::string& hint) {
         compile(false, ov::element::f16, hint);
-        auto base = Access::base(*layer_major);
-        ASSERT_TRUE(base->layer_major_fallback_reason().empty());
-        ASSERT_GT(base->layer_major_global_link_count(), 0u);
+        auto base = Access::base(*spatial_prefill);
+        ASSERT_TRUE(base->spatial_prefill_fallback_reason().empty());
+        ASSERT_GT(base->spatial_prefill_global_link_count(), 0u);
         size_t attention_subgraphs = 0;
         std::vector<ov::SoPtr<ov::IAsyncInferRequest>> primary, reserve;
         for (size_t i = 0; i < base->total_subrequests(); ++i) {
@@ -271,11 +292,32 @@ protected:
         }
         ASSERT_GT(attention_subgraphs, 0u);
         prefill(3 * chunk + 5);
+        size_t non_token_outer_links = 0;
+        for (const auto& entry : Access::links(*base)) {
+            const auto& link = entry.second;
+            const auto& shape = link.chunk_shape;
+            if (shape.size() == 4 && shape[0] == 1 && shape[1] > 1 && shape[2] == chunk) {
+                ++non_token_outer_links;
+                EXPECT_EQ(link.dim, 1u);
+                EXPECT_EQ(link.extent, shape[1]);
+                auto full_shape = shape;
+                full_shape[1] *= Access::snapshots(*spatial_prefill).size();
+                EXPECT_EQ(link.full->get_shape(), full_shape);
+                const auto first = link.view(0);
+                const auto second = link.view(1);
+                const auto default_strides = ov::Tensor(first->get_element_type(), shape, first->data()).get_strides();
+                EXPECT_EQ(first->get_strides(), default_strides);
+                EXPECT_EQ(second->get_strides(), default_strides);
+                EXPECT_EQ(static_cast<const uint8_t*>(second->data()) - static_cast<const uint8_t*>(first->data()),
+                          first->get_byte_size());
+            }
+        }
+        ASSERT_GT(non_token_outer_links, 0u);
         for (size_t i = 0; i < primary.size(); ++i) {
             EXPECT_EQ(base->get_subrequest(i)._ptr, primary[i]._ptr);
             EXPECT_EQ(base->get_pipeline_subrequest(i)._ptr, reserve[i]._ptr);
         }
-        Access::chunk_major(*layer_major);
+        Access::chunk_major(*spatial_prefill);
         prefill(2 * chunk + 3, true, 19);
     }
     void compile_hfa(const ov::element::Type& precision = ov::element::f16,
@@ -286,8 +328,8 @@ protected:
                 "HFA",
                 {{"NPUW_ATTN_HFA_FUSED", fused ? "YES" : "NO"},
                  {"NPUW_ATTN_HFA_MASK_SKIPPING", mask_skipping ? "YES" : "NO"}});
-        auto base = Access::base(*layer_major);
-        ASSERT_TRUE(base->layer_major_fallback_reason().empty());
+        auto base = Access::base(*spatial_prefill);
+        ASSERT_TRUE(base->spatial_prefill_fallback_reason().empty());
         size_t hfa_subgraphs = 0;
         for (size_t i = 0; i < base->total_subrequests(); ++i) {
             const auto* hfa = ov::npuw::attn::get_compiled_hfa(base->subgraph_pipeline(i).context);
@@ -302,93 +344,93 @@ protected:
     }
 };
 
-TEST_P(LLMLayerMajorPrefillTest, MultiChunkBitExact) {
+TEST_P(LLMSpatialPrefillTest, MultiChunkBitExact) {
     compile();
     prefill(3 * chunk + 5);
 }
-TEST_P(LLMLayerMajorPrefillTest, ExactMultipleOfChunk) {
+TEST_P(LLMSpatialPrefillTest, ExactMultipleOfChunk) {
     compile();
     prefill(2 * chunk);
 }
-TEST_P(LLMLayerMajorPrefillTest, SingleChunk) {
+TEST_P(LLMSpatialPrefillTest, SingleChunk) {
     compile();
     prefill(5);
 }
-TEST_P(LLMLayerMajorPrefillTest, GenerateAfterPrefill) {
+TEST_P(LLMSpatialPrefillTest, GenerateAfterPrefill) {
     compile();
     const size_t length = 3 * chunk + 5;
     prefill(length);
     for (size_t step = 0; step < 3; ++step) {
         input(*reference, 1, length + step);
-        input(*layer_major, 1, length + step);
+        input(*spatial_prefill, 1, length + step);
         reference->infer();
-        layer_major->infer();
-        bytes(logits(*reference), logits(*layer_major));
+        spatial_prefill->infer();
+        bytes(logits(*reference), logits(*spatial_prefill));
     }
 }
-TEST_P(LLMLayerMajorPrefillTest, SecondPromptAfterReset) {
+TEST_P(LLMSpatialPrefillTest, SecondPromptAfterReset) {
     compile();
     prefill(3 * chunk + 5);
-    const auto snapshots = Access::snapshots(*layer_major);
+    const auto snapshots = Access::snapshots(*spatial_prefill);
     prefill(2 * chunk + 3, false, 17);
-    ASSERT_EQ(Access::snapshots(*layer_major).size(), snapshots.size());
+    ASSERT_EQ(Access::snapshots(*spatial_prefill).size(), snapshots.size());
     for (size_t c = 0; c < snapshots.size(); ++c) {
         for (const auto& input : snapshots[c]) {
-            EXPECT_EQ(Access::snapshots(*layer_major)[c].at(input.first)._ptr, input.second._ptr);
+            EXPECT_EQ(Access::snapshots(*spatial_prefill)[c].at(input.first)._ptr, input.second._ptr);
         }
     }
-    Access::chunk_major(*layer_major);
+    Access::chunk_major(*spatial_prefill);
     prefill(chunk + 7, true, 31);
 }
-TEST_P(LLMLayerMajorPrefillTest, FallbackWithPrefixCaching) {
+TEST_P(LLMSpatialPrefillTest, FallbackWithPrefixCaching) {
     compile(true);
     prefill(3 * chunk + 5, true);
 }
-TEST_P(LLMLayerMajorPrefillTest, F16DynamicAttentionBitExact) {
+TEST_P(LLMSpatialPrefillTest, F16DynamicAttentionBitExact) {
     attention_prefill("DYNAMIC");
 }
-TEST_P(LLMLayerMajorPrefillTest, F16PyramidAttentionBitExact) {
+TEST_P(LLMSpatialPrefillTest, F16PyramidAttentionBitExact) {
     attention_prefill("PYRAMID");
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaMultiChunkBitExact) {
+TEST_P(LLMSpatialPrefillTest, HfaMultiChunkBitExact) {
     compile_hfa();
     prefill(3 * chunk + 5);
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaExactMultipleOfChunk) {
+TEST_P(LLMSpatialPrefillTest, HfaExactMultipleOfChunk) {
     compile_hfa();
     prefill(2 * chunk);
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaSingleChunk) {
+TEST_P(LLMSpatialPrefillTest, HfaSingleChunk) {
     compile_hfa();
     prefill(5);
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaF32BitExact) {
+TEST_P(LLMSpatialPrefillTest, HfaF32BitExact) {
     compile_hfa(ov::element::f32);
     prefill(3 * chunk + 5);
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaFusedBitExact) {
+TEST_P(LLMSpatialPrefillTest, HfaFusedBitExact) {
     compile_hfa(ov::element::f16, true);
     prefill(3 * chunk + 5);
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaMaskSkippingBitExact) {
+TEST_P(LLMSpatialPrefillTest, HfaMaskSkippingBitExact) {
     compile_hfa(ov::element::f16, true, true);
     prefill(3 * chunk + 5);
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaGenerateAfterPrefill) {
+TEST_P(LLMSpatialPrefillTest, HfaGenerateAfterPrefill) {
     compile_hfa();
     const size_t length = 3 * chunk + 5;
     prefill(length);
     for (size_t step = 0; step < 3; ++step) {
         input(*reference, 1, length + step);
-        input(*layer_major, 1, length + step);
+        input(*spatial_prefill, 1, length + step);
         reference->infer();
-        layer_major->infer();
-        bytes(logits(*reference), logits(*layer_major));
+        spatial_prefill->infer();
+        bytes(logits(*reference), logits(*spatial_prefill));
     }
 }
-TEST_P(LLMLayerMajorPrefillTest, HfaResetAndChunkMajorRestore) {
+TEST_P(LLMSpatialPrefillTest, HfaResetAndChunkMajorRestore) {
     compile_hfa();
-    auto base = Access::base(*layer_major);
+    auto base = Access::base(*spatial_prefill);
     std::vector<ov::SoPtr<ov::IAsyncInferRequest>> primary, reserve;
     for (size_t i = 0; i < base->total_subrequests(); ++i) {
         primary.push_back(base->get_subrequest(i));
@@ -401,10 +443,54 @@ TEST_P(LLMLayerMajorPrefillTest, HfaResetAndChunkMajorRestore) {
         EXPECT_EQ(base->get_subrequest(i)._ptr, primary[i]._ptr);
         EXPECT_EQ(base->get_pipeline_subrequest(i)._ptr, reserve[i]._ptr);
     }
-    Access::chunk_major(*layer_major);
+    Access::chunk_major(*spatial_prefill);
     prefill(chunk + 7, true, 31);
 }
 
-INSTANTIATE_TEST_SUITE_P(FunctionPipelining, LLMLayerMajorPrefillTest, testing::Bool());
+TEST_P(LLMSpatialPrefillTest, LinkBufferLivenessAndBytes) {
+    compile();
+    prefill(3 * chunk + 5);
+    auto base = Access::base(*spatial_prefill);
+    const auto& links = Access::links(*base);
+    const auto last = Access::last_consumers(*base);
+    const auto max_chunks = Access::snapshots(*spatial_prefill).size();
+    struct Buffer {
+        ov::element::Type type;
+        ov::Shape shape;
+        std::string device;
+        size_t last;
+        ov::npuw::TensorPtr tensor;
+    };
+    std::vector<Buffer> old_buffers;
+    std::set<ov::ITensor*> distinct;
+    size_t actual_bytes = 0, expected_bytes = 0;
+    ASSERT_GE(links.size(), 3u);
+    for (const auto& entry : links) {
+        const auto& link = entry.second;
+        const auto type = link.full->get_element_type();
+        const auto device = base->subgraph_device(entry.first.first);
+        auto free_buffer = std::find_if(old_buffers.begin(), old_buffers.end(), [&](const Buffer& buffer) {
+            return buffer.last < entry.first.first && buffer.type == type && buffer.shape == link.chunk_shape &&
+                   buffer.device == device;
+        });
+        const auto bytes = max_chunks * ov::shape_size(link.chunk_shape) * type.size();
+        EXPECT_EQ(link.full->get_byte_size(), bytes);
+        if (free_buffer == old_buffers.end()) {
+            old_buffers.push_back({type, link.chunk_shape, device, last.at(entry.first), link.full});
+            expected_bytes += bytes;
+        } else {
+            EXPECT_EQ(link.full._ptr, free_buffer->tensor._ptr);
+            free_buffer->last = last.at(entry.first);
+        }
+        if (distinct.insert(link.full._ptr.get()).second) {
+            actual_bytes += link.full->get_byte_size();
+        }
+    }
+    EXPECT_EQ(distinct.size(), old_buffers.size());
+    EXPECT_EQ(actual_bytes, expected_bytes);
+    EXPECT_LT(distinct.size(), links.size());
+}
+
+INSTANTIATE_TEST_SUITE_P(FunctionPipelining, LLMSpatialPrefillTest, testing::Bool());
 
 }  // namespace

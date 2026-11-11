@@ -151,7 +151,7 @@ std::vector<Case> make_cases() {
                                                            "DEVICE_ROUTED"),
         bool_case<::intel_npu::NPUW_LLM_GENERATE_PYRAMID>("NPUW_LLM_GENERATE_PYRAMID", "YES", true),
         numeric_case<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>("NPUW_LLM_PREFILL_CHUNK_SIZE", "256", uint64_t{256}),
-        bool_case<::intel_npu::NPUW_LLM_PREFILL_LAYER_MAJOR>("NPUW_LLM_PREFILL_LAYER_MAJOR", "YES", true),
+        bool_case<::intel_npu::NPUW_LLM_PREFILL_SPATIAL>("NPUW_LLM_PREFILL_SPATIAL", "YES", true),
         bool_case<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>("NPUW_LLM_ENABLE_PREFIX_CACHING", "YES", true),
         numeric_case<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>("NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE",
                                                                       "128",
@@ -215,6 +215,15 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
 
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>(), "PYRAMID");
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
+}
+
+TEST(NPUWConfigOptionsSmokeTest, SpatialPrefillDefaultAndProperty) {
+    EXPECT_TRUE(make_config().get<::intel_npu::NPUW_LLM_PREFILL_SPATIAL>());
+    EXPECT_EQ(std::string(ov::intel_npu::npuw::llm::prefill_spatial.name()), "NPUW_LLM_PREFILL_SPATIAL");
+    const auto cfg = make_config({{"NPUW_LLM_PREFILL_SPATIAL", "NO"}});
+    ::intel_npu::Config restored(make_options_desc());
+    restored.fromString(cfg.toString());
+    EXPECT_FALSE(restored.get<::intel_npu::NPUW_LLM_PREFILL_SPATIAL>());
 }
 
 // The scoring tags are ordinary exposed options and must parse and survive a

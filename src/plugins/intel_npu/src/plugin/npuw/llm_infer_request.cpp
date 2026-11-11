@@ -724,7 +724,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_generate_initialized = false;
 
-    init_layer_major_prefill();
+    init_spatial_prefill();
 
     m_llm_profile.report_on_die = ov::npuw::profiling_enabled();
     m_llm_profile.area = "LLM/execution";
@@ -1335,9 +1335,9 @@ void LLMInferRequest::accumulate_other_chunked_outputs(uint32_t start_offset,
     }
 }
 
-void ov::npuw::LLMInferRequest::init_layer_major_prefill() {
+void ov::npuw::LLMInferRequest::init_spatial_prefill() {
     const auto& compiled = m_npuw_llm_compiled_model;
-    if (!compiled->m_prefill_layer_major || !compiled->m_use_chunk_prefill) {
+    if (!compiled->m_prefill_spatial || !compiled->m_use_chunk_prefill) {
         return;
     }
     auto just = std::dynamic_pointer_cast<JustInferRequest>(m_prefill_base_request);
@@ -1357,15 +1357,15 @@ void ov::npuw::LLMInferRequest::init_layer_major_prefill() {
     } else if (!just) {
         reason = "prefill request is not JustInferRequest";
     } else {
-        reason = just->layer_major_fallback_reason();
+        reason = just->spatial_prefill_fallback_reason();
     }
     if (!reason.empty()) {
-        LOG_WARN("Layer-major prefill falls back to chunk-major: " << reason);
+        LOG_WARN("Spatial prefill falls back to chunk-major: " << reason);
         return;
     }
     auto prefill = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(compiled->m_prefill_compiled);
     OPENVINO_ASSERT(prefill);
-    m_layer_major_kv_pairs.resize(prefill->num_submodels());
+    m_spatial_prefill_kv_pairs.resize(prefill->num_submodels());
     for (const auto& past : m_kvcache_past_names) {
         const auto present = std::regex_replace(past, std::regex(layer_names::past_key_values), "present");
         const auto& port = m_prefill_out_ports.at(present);
@@ -1373,10 +1373,10 @@ void ov::npuw::LLMInferRequest::init_layer_major_prefill() {
         OPENVINO_ASSERT(output != prefill->outputs().end());
         const auto idx = std::distance(prefill->outputs().begin(), output);
         const auto producer = prefill->m_outputs_to_submodels_outputs.at(idx).first;
-        m_layer_major_kv_pairs.at(producer).emplace_back(past, present);
+        m_spatial_prefill_kv_pairs.at(producer).emplace_back(past, present);
     }
-    m_use_layer_major_prefill = true;
-    LOG_INFO("Layer-major prefill is enabled");
+    m_use_spatial_prefill = true;
+    LOG_INFO("Spatial prefill is enabled");
 }
 
 void ov::npuw::LLMInferRequest::update_layer_kvcache(const std::vector<KVPair>& pairs,
@@ -1396,16 +1396,17 @@ void ov::npuw::LLMInferRequest::update_layer_kvcache(const std::vector<KVPair>& 
     }
 }
 
-void ov::npuw::LLMInferRequest::infer_layer_major_prefill(const PrefillChunkInputs& inputs) {
+void ov::npuw::LLMInferRequest::infer_spatial_prefill(const PrefillChunkInputs& inputs) {
     auto just = std::dynamic_pointer_cast<JustInferRequest>(m_prefill_base_request);
     OPENVINO_ASSERT(just);
     auto& desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto initial_stored = desc.num_stored_tokens;
     const auto chunk_size = static_cast<uint32_t>(m_npuw_llm_compiled_model->m_prefill_chunk_size);
-    JustInferRequest::LayerMajorPlan plan;
+    JustInferRequest::SpatialPrefillPlan plan;
     plan.max_chunks = desc.max_prompt_size / chunk_size;
-    if (!m_layer_major_inputs_ready) {
-        m_layer_major_inputs.resize(plan.max_chunks);
+    plan.chunk_size = chunk_size;
+    if (!m_spatial_prefill_inputs_ready) {
+        m_spatial_prefill_inputs.resize(plan.max_chunks);
         for (const auto& name : {m_input_ids_name,
                                  std::string(layer_names::attention_mask),
                                  std::string(layer_names::position_ids),
@@ -1416,14 +1417,14 @@ void ov::npuw::LLMInferRequest::infer_layer_major_prefill(const PrefillChunkInpu
             if (port == m_prefill_in_ports.end()) {
                 continue;
             }
-            for (auto& chunk : m_layer_major_inputs) {
+            for (auto& chunk : m_spatial_prefill_inputs) {
                 auto& tensor = chunk[port->second];
                 if (!tensor) {
-                    tensor = just->allocate_layer_major_input(port->second);
+                    tensor = just->allocate_spatial_prefill_input(port->second);
                 }
             }
         }
-        m_layer_major_inputs_ready = true;
+        m_spatial_prefill_inputs_ready = true;
     }
     struct Chunk {
         uint32_t start, length, history;
@@ -1438,7 +1439,7 @@ void ov::npuw::LLMInferRequest::infer_layer_major_prefill(const PrefillChunkInpu
             chunks.push_back({desc.num_stored_tokens, length, desc.num_stored_tokens});
             m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
                 prepare_prefill_chunk(inputs, length, visual_tokens_scattered);
-                const auto& snapshot = m_layer_major_inputs.at(plan.chunks.size());
+                const auto& snapshot = m_spatial_prefill_inputs.at(plan.chunks.size());
                 for (const auto& input : snapshot) {
                     m_prefill_request->get_tensor(input.first)->copy_to(input.second._ptr);
                 }
@@ -1464,17 +1465,17 @@ void ov::npuw::LLMInferRequest::infer_layer_major_prefill(const PrefillChunkInpu
     plan.on_subgraph_chunk_done = [&](size_t idx, size_t c) {
         if (c + 1 < chunks.size()) {
             m_llm_profile["1/prefill:3d.update_kvcache"].record([&]() {
-                update_layer_kvcache(m_layer_major_kv_pairs.at(idx), chunks[c].start, chunks[c].length);
+                update_layer_kvcache(m_spatial_prefill_kv_pairs.at(idx), chunks[c].start, chunks[c].length);
             });
         }
     };
     m_llm_profile["1/prefill:3b.infer"].record([&]() {
-        just->infer_layer_major(plan);
+        just->infer_spatial_prefill(plan);
     });
     desc.num_stored_tokens = total;
     m_tokens_in_present_chunk = chunks.back().length;
-    ++m_layer_major_runs;
-    LOG_DEBUG("Layer-major prefill done: " << chunks.size() << " chunks");
+    ++m_spatial_prefill_runs;
+    LOG_DEBUG("Spatial prefill done: " << chunks.size() << " chunks");
 }
 
 void ov::npuw::LLMInferRequest::prepare_prefill_chunk(const PrefillChunkInputs& inputs,
@@ -1621,13 +1622,13 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                     per_layer_inputs,
                                     visual_pos_masks,
                                     deepstack_visual_embeds};
-    if (m_use_layer_major_prefill && m_continued_prefill_base == 0) {
-        infer_layer_major_prefill(inputs);
+    if (m_use_spatial_prefill && m_continued_prefill_base == 0) {
+        infer_spatial_prefill(inputs);
         return;
     }
-    if (m_use_layer_major_prefill && !m_layer_major_continuation_warned) {
-        LOG_WARN("Layer-major prefill falls back to chunk-major: continued prefill");
-        m_layer_major_continuation_warned = true;
+    if (m_use_spatial_prefill && !m_spatial_prefill_continuation_warned) {
+        LOG_WARN("Spatial prefill falls back to chunk-major: continued prefill");
+        m_spatial_prefill_continuation_warned = true;
     }
 
     const auto input_prompt_len = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
