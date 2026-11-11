@@ -36,6 +36,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/al/include
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/tests/functional/behavior/npuw/test_engine/models
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
