@@ -88,3 +88,18 @@ def test_fast_infer_binds_bf16_input(monkeypatch):
     bound = req.get_tensor(port)
     assert bound.element_type == ov.Type.bf16
     assert bound.data.ctypes.data == arr.ctypes.data, "bf16 input was copied, not shared"
+
+
+@pytest.mark.precommit
+def test_static_passthrough_output_follows_rebound_input(monkeypatch):
+    """A Result fed by a Parameter shares the input's tensor, so its output must be fetched again after a rebind."""
+    monkeypatch.setenv("OV_FAST_INFER", "1")
+    param = ops.parameter([2, 4], ov.Type.f32, name="x")
+    model = ov.Model([param.output(0), ops.multiply(param, ops.constant(2.0, ov.Type.f32)).output(0)], [param])
+    compiled = ov.Core().compile_model(model, "CPU")
+    req = compiled.create_infer_request()
+    for fill in (1.0, 5.0):
+        out = runtime_hooks.infer_with_pa(req, compiled, {compiled.inputs[0]: np.full((2, 4), fill, np.float32)})
+        passthrough, doubled = (np.asarray(out[o]) for o in compiled.outputs)
+        assert (passthrough == fill).all(), f"passthrough output is stale: {passthrough.flat[0]} for input {fill}"
+        assert (doubled == 2 * fill).all()
