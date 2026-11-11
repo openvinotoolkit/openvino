@@ -125,9 +125,9 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
                 dynamic_quantization_group_size = zp_group_size;
             }
 
-            GPU_DEBUG_LOG << "FC dyn-quantize by per-token. Actual dyn_quan_group_size(" << dynamic_quantization_group_size << ") : From scale_group_size ("
-                          << scale_group_size << ", zp_group_size(" << zp_group_size << "), zp_group_num(" << zp_group_num << "), ifm_size ("
-                          << get_input_bf_size(params).second << ")" << std::endl;
+            GPU_DEBUG_TAGGED(LOG, "dynquan") << params.layerID << " per-token requested. Actual group_size " << dynamic_quantization_group_size
+                                             << " from scale_group_size " << scale_group_size << ", zp_group_size " << zp_group_size << ", zp_group_num "
+                                             << zp_group_num << ", ifm_size " << get_input_bf_size(params).second << std::endl;
             return (size_t)dynamic_quantization_group_size;
         }
     }
@@ -138,8 +138,8 @@ size_t get_dynamic_quantize_group_size(const fully_connected_params& params) {
             dynamic_quantization_group_size = group_size;
 
             if (dynamic_quantization_group_size > scale_group_size) {
-                GPU_DEBUG_TRACE_DETAIL << " Scale group size " << scale_group_size << " is smaller than FC dyn-quan group size "
-                                       << dynamic_quantization_group_size << ". Reduce FC dyn-quan group size to scale size." << std::endl;
+                GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " scale_group_size " << scale_group_size << " is smaller than group_size "
+                                                          << dynamic_quantization_group_size << ". Reduce group_size to scale_group_size." << std::endl;
                 dynamic_quantization_group_size = scale_group_size;
             }
 
@@ -154,17 +154,20 @@ bool should_dynamic_quantize(const fully_connected_params& params) {
     size_t dynamic_quantization_group_size = get_dynamic_quantize_group_size(params);
 
     if (params.inputs[0].GetFirstElementOffset() != 0) {
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: input has non-zero offset (padding)" << std::endl;
         return false;
     }
 
     if (dynamic_quantization_group_size < min_quantize_grp_size) {
-        GPU_DEBUG_TRACE_DETAIL << "Set dynamic_quantize_group_size " << dynamic_quantization_group_size << " is smaller than minimum supported size 32"
-                               << std::endl;
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: group_size " << dynamic_quantization_group_size
+                                                  << " is smaller than minimum supported size " << min_quantize_grp_size << std::endl;
         return false;
     }
 
     const size_t scale_group_size = get_scale_group_size(params);
     if ((scale_group_size % min_quantize_grp_size) != 0) {
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: scale_group_size " << scale_group_size << " is not a multiple of "
+                                                  << min_quantize_grp_size << std::endl;
         return false;
     }
 
@@ -174,17 +177,22 @@ bool should_dynamic_quantize(const fully_connected_params& params) {
 
     if ((scale_group_size % simd == 0) && (input_f % dynamic_quantization_group_size == 0) && (params.is_shape_agnostic || input_b > min_slm_size) &&
         params.inputs[0].GetDType() == Datatype::F16 && is_weight_dyn_quantizable(params)) {
-        GPU_DEBUG_TRACE_DETAIL << " Dynamic quantizing for FC : scale_group_size: " << scale_group_size
-                               << ", Dyn-quan group size: " << dynamic_quantization_group_size
-                               << ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType())
-                               << ", O:" << kernel_selector::toString(params.outputs[0].GetDType())
-                               << ", W:" << kernel_selector::toString(params.weights.GetDType())
-                               << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout()) << ") B: " << params.inputs[0].Batch().v
-                               << ", F: " << params.inputs[0].Feature().v << ", Y: " << params.inputs[0].Y().v << ", X: " << params.inputs[0].X().v
-                               << ", input_b: " << input_b << ", input_f: " << input_f << std ::endl;
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " applied: scale_group_size " << scale_group_size << ", group_size "
+                                                  << dynamic_quantization_group_size << ", Type(I:" << kernel_selector::toString(params.inputs[0].GetDType())
+                                                  << ", O:" << kernel_selector::toString(params.outputs[0].GetDType())
+                                                  << ", W:" << kernel_selector::toString(params.weights.GetDType())
+                                                  << "), Format(W:" << kernel_selector::toString(params.weights.GetLayout())
+                                                  << ") B: " << params.inputs[0].Batch().v << ", F: " << params.inputs[0].Feature().v
+                                                  << ", Y: " << params.inputs[0].Y().v << ", X: " << params.inputs[0].X().v << ", input_b: " << input_b
+                                                  << ", input_f: " << input_f << std ::endl;
         return true;
     }
 
+    GPU_DEBUG_TAGGED(TRACE, "dynquan") << params.layerID << " turned off: requires scale_group_size % " << simd << " == 0 (" << scale_group_size
+                                              << "), input_f % group_size == 0 (" << input_f << " / " << dynamic_quantization_group_size
+                                              << "), shape-agnostic or input_b > " << min_slm_size << " (input_b " << input_b << "), f16 input ("
+                                              << kernel_selector::toString(params.inputs[0].GetDType()) << ") and quantizable weight ("
+                                              << kernel_selector::toString(params.weights.GetDType()) << ")" << std::endl;
     return false;
 }
 

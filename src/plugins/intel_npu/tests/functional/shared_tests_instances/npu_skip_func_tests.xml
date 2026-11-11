@@ -433,4 +433,13 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#199570  -->
+    <skip_config>
+        <message>Tests with abnomally large durations</message>
+        <filters>
+            <filter>.*InferWithHostCompileMultithreadTests.*</filter>
+            <filter>.*InferWithHostCompileTests.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
