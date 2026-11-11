@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "transformations/op_conversions/convert_linear_interpolate_to_gather.hpp"
 #include "transformations/op_conversions/convert_nearest_interpolate_to_gather.hpp"
 #include "xml_serializer.hpp"
 
@@ -328,6 +329,7 @@ protected:
         // Replace it with the exact Gather decomposition until the compiler ships the fix.
         if ((_compilerVersion.major < 8) || (_compilerVersion.major == 8 && _compilerVersion.minor < 5)) {
             manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+            manager.register_pass<ov::pass::ConvertLinearInterpolateToGather>();
         }
 
         manager.run_passes(model);
