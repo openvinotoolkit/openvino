@@ -272,17 +272,25 @@ SDPA_OCL_INLINE void FUNC(hpg_kq_comp)(__private float8 (*scores)[kq_query_block
                     const int mb = 2 * pg + hb;
                     const __global KEY_DATA_T *k_row = k_page[pg] + (size_t)page_row[mb] * PA_K_ROW_ELEMS;
     #if IS_PA_K_U4
-                    // Depths db * 16 + 2j and + 1: the low and the high nibble of byte db * 8 + j (unsigned).
-                    const uchar8 kb = as_uchar8(vload2(0, (const __global uint *)(k_row + db * DPAS_K / 2)));
+                    // Depths db * 16 + 2j and + 1: the low and the high nibble of byte db * 8 + j (unsigned), four
+                    // per 16-bit word of the read (U4_TO_HALF, exact). With the same form in hpg_sv_comp a MIXED call
+                    // took 1-7% less than with byte-wise conversions; this half alone took more (llama-3.1-8b 809
+                    // against 787 us).
+                    const ushort4 kw = as_ushort4(vload2(0, (const __global uint *)(k_row + db * DPAS_K / 2)));
                     half16 kq;
                     #pragma unroll
-                    for (int j = 0; j < DPAS_K / 2; ++j) {
+                    for (int i = 0; i < DPAS_K / 4; ++i) {
         #if defined(NEG_SG8) && NEG_SG8 == 25
-                        kq[2 * j] = (half)(kb[j] >> 4);  // negative control: the two nibbles of a byte swapped
-                        kq[2 * j + 1] = (half)(kb[j] & 0x0F);
+                        // Negative control: the two nibbles of a byte swapped.
+                        kq[4 * i] = U4_TO_HALF(kw[i], 4);
+                        kq[4 * i + 1] = U4_TO_HALF(kw[i], 0);
+                        kq[4 * i + 2] = U4_TO_HALF(kw[i], 12);
+                        kq[4 * i + 3] = U4_TO_HALF(kw[i], 8);
         #else
-                        kq[2 * j] = (half)(kb[j] & 0x0F);
-                        kq[2 * j + 1] = (half)(kb[j] >> 4);
+                        kq[4 * i] = U4_TO_HALF(kw[i], 0);
+                        kq[4 * i + 1] = U4_TO_HALF(kw[i], 4);
+                        kq[4 * i + 2] = U4_TO_HALF(kw[i], 8);
+                        kq[4 * i + 3] = U4_TO_HALF(kw[i], 12);
         #endif
                     }
     #else
@@ -551,14 +559,26 @@ SDPA_OCL_INLINE void FUNC(hpg_sv_comp)(__private float8 (*acc)[sv_value_blocks],
             const uint2 we = (uint2)(even[2 * vb], even[2 * vb + 1]);
             const uint2 wo = (uint2)(odd[2 * vb], odd[2 * vb + 1]);
     #if IS_PA_K_U4
-            const half8 he = convert_half8((as_uchar8(we) >> v_sh) & (uchar)0x0F);
-            const half8 ho = convert_half8((as_uchar8(wo) >> v_sh) & (uchar)0x0F);
+            // u4: each nibble goes straight to its slot of the interleaved operand, two values per 16-bit word of each
+            // row (U4_TO_HALF, exact; with hpg_kq_comp's form, 1-7% less per MIXED call than converting the bytes and
+            // interleaving them after).
+            const ushort4 ue = as_ushort4(we);
+            const ushort4 uo = as_ushort4(wo);
+            half16 va;
+            #pragma unroll
+            for (int i = 0; i < 4; ++i) {
+                va[4 * i] = U4_TO_HALF(ue[i], v_sh) - zp.s0;
+                va[4 * i + 1] = U4_TO_HALF(uo[i], v_sh) - zp.s1;
+                va[4 * i + 2] = U4_TO_HALF(ue[i], 8 + v_sh) - zp.s0;
+                va[4 * i + 3] = U4_TO_HALF(uo[i], 8 + v_sh) - zp.s1;
+            }
+            const int8 v_a = as_int8(va);
     #else
             const half8 he = convert_half8(as_char8(we));
             const half8 ho = convert_half8(as_char8(wo));
-    #endif
             const int8 v_a = as_int8(shuffle2(he - (half8)zp.s0, ho - (half8)zp.s1,
                                               (ushort16)(0, 8, 1, 9, 2, 10, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15)));
+    #endif
             #pragma unroll
             for (int qb = 0; qb < sv_score_blocks; ++qb)
                 acc[qb][vb] = DPAS_MAD_K16(v_a, p_cur[qb], acc[qb][vb]);
