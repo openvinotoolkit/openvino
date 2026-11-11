@@ -313,6 +313,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU
+    info.supports_bf16 = info.supports_immad;
 
     return info;
 }

@@ -137,4 +137,16 @@ const ov::AnyMap& GgufBuilderDecoder::get_mmproj_config() const {
     return m_graph->mmproj_config;
 }
 
+const ModelAdapters& GgufBuilderDecoder::get_model_adapters() const {
+    return m_graph->model_adapters;
+}
+
+ModelContract GgufBuilderDecoder::get_model_contract() const {
+    return m_graph->model_contract;
+}
+
+std::string GgufBuilderDecoder::get_architecture() const {
+    return m_graph->architecture;
+}
+
 }  // namespace ov::frontend::gguf

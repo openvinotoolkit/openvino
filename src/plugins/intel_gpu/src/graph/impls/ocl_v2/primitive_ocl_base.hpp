@@ -315,8 +315,15 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
-        // Kernels are indexed by their position in _order (see get_kernels_source()).
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
+            // sub_kernel_idx is a LOCAL index (0..get_kernels_source().size()-1), i.e. a position
+            // within the source list returned by get_kernels_source(), which iterates `_order` -
+            // it is NOT a global `_stages` index. Multi-stage impls (any node whose add_stage()
+            // calls registered more than one stage, or a single-stage node whose stage isn't at
+            // _stages[0]) need
+            // the same local->global translation init_kernels()/init_by_cached_kernels() already do
+            // via `_order[i]`, otherwise this silently binds the compiled kernel to the wrong Stage
+            // object (or leaves the real stage's kernel null) - a guaranteed crash on execute().
             _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }

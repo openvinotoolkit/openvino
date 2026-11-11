@@ -12,6 +12,7 @@
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -396,8 +397,9 @@ RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 RoPEFusionPreprocess::RoPEFusionPreprocess() {
     MATCHER_SCOPE(RoPEFusionPreprocess);
 
-    // Pattern for input to be sliced (for models with combined QKV projection)
-    auto input_to_slice = pattern::any_input(pattern::rank_equals(4));
+    // Pattern for input to be sliced (for models with combined QKV projection). Axis 3 must
+    // be static so a negative Slice/StridedSlice bound can be resolved against its extent.
+    auto input_to_slice = pattern::any_input(pattern::rank_equals(4) && pattern::has_static_dim(3));
     // Pattern for input to be transposed (for models that transpose before RoPE)
     auto input_to_trans = pattern::any_input(pattern::rank_equals(4));
 
@@ -425,13 +427,21 @@ RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
         auto config = rope_node->get_config();
         if (pattern_map.count(input_to_slice) && slice_start.is_integer() && slice_stop.is_integer()) {
-            config.slice_start = static_cast<size_t>(slice_start.i());
-            config.slice_stop = static_cast<size_t>(slice_stop.i());
+            // Axis 3 is static (guaranteed by input_to_slice's predicate); resolve the
+            // negative bounds against its real extent before storing as size_t offsets.
+            const auto& sliced_input = pattern_map.at(input_to_slice);
+            const auto extent = sliced_input.get_partial_shape()[3].get_length();
+            auto start = ov::util::normalize(slice_start.i(), extent);
+            auto stop = ov::util::normalize(slice_stop.i(), extent);
+            if (start < 0 || stop <= start || stop > extent)
+                return false;
+            config.slice_start = static_cast<size_t>(start);
+            config.slice_stop = static_cast<size_t>(stop);
             config.input_trans0213 = true;
-            rope_node->set_argument(0, pattern_map.at(input_to_slice));
+            rope_node->input(0).replace_source_output(sliced_input);
         } else if (pattern_map.count(input_to_trans)) {
             config.input_trans0213 = true;
-            rope_node->set_argument(0, pattern_map.at(input_to_trans));
+            rope_node->input(0).replace_source_output(pattern_map.at(input_to_trans));
         } else {
             return false;
         }

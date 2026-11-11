@@ -26,60 +26,60 @@ RUN dpkg --add-architecture arm64 && \
     apt-get install software-properties-common && \
     apt-get update && \
     apt-get install \
-        pciutils \
-        dmidecode \
-        clinfo \
-        lshw \
-        procps \
-        g++ \
-        ninja-build \
-        smbclient \
-        software-properties-common \
-        crossbuild-essential-arm64 \
-        libpython3-dev:arm64 \
-        python3-pip \
-        libsqlite3-dev \
-        libsqlite3-dev:arm64 \
-        zlib1g-dev:arm64 \
-        libgflags2.2:arm64 \
-        libgflags-dev:arm64 \
-        libpugixml1v5:arm64 \
-        libtbb2:arm64 \
-        nlohmann-json3-dev \
-        libpugixml-dev:arm64 \
-        libtbb-dev:arm64 \
-        shellcheck \
-        lintian \
-        libffi-dev \
-        libssl-dev \
-        chrpath \
-        libssl-dev \
-        libprotobuf-dev \
-        libprotoc-dev \
-        protobuf-compiler \
-        lcov \
-        # parallel gzip
-        pigz \
-        # For ARM CPU plugin
-        scons \
-        # To extract OpenCV .xz archives
-        liblzma-dev \
-        # For wheel packaging
-        patchelf \
-        # check python wheel for duplicated files
-        fdupes \
-        # Need to curl from pypa without warnings
-        openssl \
-        # For Java API
-        default-jdk \
-        # To build documentation
-        graphviz \
-        texlive \
-        liblua5.2-0 \
-        # JS API
-        libgtk-3-0 \
-        libgbm1 \
-        && \
+    pciutils \
+    dmidecode \
+    clinfo \
+    lshw \
+    procps \
+    g++ \
+    ninja-build \
+    smbclient \
+    software-properties-common \
+    crossbuild-essential-arm64 \
+    libpython3-dev:arm64 \
+    python3-pip \
+    libsqlite3-dev \
+    libsqlite3-dev:arm64 \
+    zlib1g-dev:arm64 \
+    libgflags2.2:arm64 \
+    libgflags-dev:arm64 \
+    libpugixml1v5:arm64 \
+    libtbb2:arm64 \
+    nlohmann-json3-dev \
+    libpugixml-dev:arm64 \
+    libtbb-dev:arm64 \
+    shellcheck \
+    lintian \
+    libffi-dev \
+    libssl-dev \
+    chrpath \
+    libssl-dev \
+    libprotobuf-dev \
+    libprotoc-dev \
+    protobuf-compiler \
+    lcov \
+    # parallel gzip
+    pigz \
+    # For ARM CPU plugin
+    scons \
+    # To extract OpenCV .xz archives
+    liblzma-dev \
+    # For wheel packaging
+    patchelf \
+    # check python wheel for duplicated files
+    fdupes \
+    # Need to curl from pypa without warnings
+    openssl \
+    # For Java API
+    default-jdk \
+    # To build documentation
+    graphviz \
+    texlive \
+    liblua5.2-0 \
+    # JS API
+    libgtk-3-0 \
+    libgbm1 \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -93,7 +93,7 @@ RUN apt-get update && \
     apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
 # Install sscache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
@@ -112,14 +112,14 @@ RUN curl -O https://www.python.org/ftp/python/3.11.3/Python-3.11.3.tar.xz && \
 # Cross-compile Python 3.11 for ARM64
 RUN cd Python-3.11.3 && make distclean && \
     ./configure \
-        --host=aarch64-linux-gnu \
-        --build=x86_64-linux-gnu \
-        --disable-ipv6 \
-        --enable-shared \
-        --prefix=/opt/python3.11_arm \
-        --with-build-python \
-        ac_cv_file__dev_ptmx=no \
-        ac_cv_file__dev_ptc=no && \
+    --host=aarch64-linux-gnu \
+    --build=x86_64-linux-gnu \
+    --disable-ipv6 \
+    --enable-shared \
+    --prefix=/opt/python3.11_arm \
+    --with-build-python \
+    ac_cv_file__dev_ptmx=no \
+    ac_cv_file__dev_ptc=no && \
     make -j4 && make altinstall
 
 ENV PATH="$SCCACHE_HOME:$PATH"

@@ -1673,6 +1673,13 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "0.25f";
             is_fp = false;
             break;
+        case Datatype::UINT3:
+            type = "uchar";
+            to_type = "convert_uchar(v)";
+            to_type_sat = "convert_uchar_sat(v)";
+            type_size = "0.375f";
+            is_fp = false;
+            break;
         case Datatype::UINT4:
             type = "uchar";
             to_type = "convert_uchar(v)";
@@ -1816,6 +1823,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
         case WeightsType::UINT2:
             return MakeTypeJitConstants(Datatype::UINT2, macroName);
+        case WeightsType::UINT3:
+            return MakeTypeJitConstants(Datatype::UINT3, macroName);
         case WeightsType::INT4:
             return MakeTypeJitConstants(Datatype::INT4, macroName);
         case WeightsType::UINT4:
