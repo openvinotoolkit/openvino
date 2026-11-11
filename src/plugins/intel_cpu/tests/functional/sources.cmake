@@ -116,6 +116,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/group_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/gru_sequence.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/bitwise_shift.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/col2im.cpp
@@ -281,6 +282,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/comparison.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution_backprop_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution.cpp
@@ -298,6 +300,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/rms_norm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/softmax.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/transpose.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_attention_mask.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_convert_saturation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_embed_tokens_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/bf16_rotary_emb_matmul.cpp
@@ -312,6 +315,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/conv_u8_fuse_sum_i8.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/conv_u8s8f32.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/conv_with_zero_point_fuse.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/eltwise_chain.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/fq_caching.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/fq_fused_with_ss.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/fq_layer_dq_bias.cpp

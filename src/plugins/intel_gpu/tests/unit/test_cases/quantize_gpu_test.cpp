@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include "quantize_inst.h"
 
+#include <cmath>
 #include <cstddef>
 
 using namespace cldnn;
@@ -606,6 +607,69 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+    }
+}
+
+// OOB in quantize_gpu_scale_shift_opt kernel when the output layout is b_fs_yx_fsv32
+TEST(quantize_gpu, scale_shift_opt_b_fs_yx_fsv32_feature_not_aligned) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const int b = 1;
+    const int f = 16;   // deliberately NOT a multiple of 32 -> 16 padding feature work-items
+    const int y = 256;  // large spatial size so an unguarded padding work-item reads INPUT0 well past
+    const int x = 256;  // the end of the allocation (reproduces the GPU fault, not just a benign over-read)
+
+    auto input       = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, y, x } });
+    auto input_low   = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, f, 1, 1 } });
+    auto input_high  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, f, 1, 1 } });
+    auto output_low  = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+    auto output_high = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 1, 1 } });
+
+    set_values(input, rg.generate_random_1d<float>(b * f * y * x, -10, 10));
+    set_values(input_low, rg.generate_random_1d<float>(f, -10, -1));
+    set_values(input_high, rg.generate_random_1d<float>(f, 1, 10));
+    set_values(output_low,  { 0.0f });
+    set_values(output_high, { 255.0f });
+
+    auto build_topology = [&]() {
+        topology topology;
+        topology.add(
+            input_layout("input", input->get_layout()),
+            data("input_low", input_low),
+            data("input_high", input_high),
+            data("output_low", output_low),
+            data("output_high", output_high),
+            quantize("quantize", input_info("input"), input_info("input_low"), input_info("input_high"),
+                     input_info("output_low"), input_info("output_high"), 256, data_types::u8),
+            reorder("out", input_info("quantize"), format::bfyx, data_types::u8)
+        );
+        return topology;
+    };
+
+    // Both runs use the same quantize_gpu_scale_shift_opt kernel (so output values are identical)
+    auto run = [&](format::type out_format) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc quantize_impl = { out_format, "quantize_gpu_scale_shift_opt" };
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ { "quantize", quantize_impl } }));
+
+        network network(engine, build_topology(), config);
+        network.set_input_data("input", input);
+        return network.execute().at("out").get_memory();
+    };
+
+    auto ref_mem = run(format::bfyx);
+    auto opt_mem = run(format::b_fs_yx_fsv32);
+
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+
+    ASSERT_EQ(opt_mem->count(), ref_mem->count());
+    ASSERT_EQ(opt_mem->count(), static_cast<size_t>(b * f * y * x));
+    for (size_t i = 0; i < ref_mem->count(); ++i) {
+        ASSERT_EQ(opt_ptr[i], ref_ptr[i]) << " i=" << i;
     }
 }
 
@@ -1221,3 +1285,119 @@ INSTANTIATE_TEST_SUITE_P(quantize_smoke,
                             quantize_random_test_params{ data_types::f32, data_types::u8, {1, 16, 10, 10}, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32, 5}
                         ));
 #endif
+
+// Ranges of rank >= 5 that vary along spatial dimensions (e.g. weight FakeQuantize ranges [C,1,1,1,KW]
+// produced by NNCF for depthwise GroupConvolution) must be broadcast per dimension when
+// prepare_quantization precomputes scales and shifts.
+struct quantize_nd_ranges_params {
+    ov::Shape data_shape;
+    ov::Shape range_shape;
+};
+
+class quantize_nd_ranges_test : public ::testing::TestWithParam<quantize_nd_ranges_params> {};
+
+TEST_P(quantize_nd_ranges_test, per_element_ranges) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    const int levels = 255;
+    const auto fmt = format::get_default_format(p.data_shape.size());
+
+    const size_t data_count = ov::shape_size(p.data_shape);
+    const size_t range_count = ov::shape_size(p.range_shape);
+    const auto rank = p.data_shape.size();
+
+    std::vector<float> in_lo(range_count), in_hi(range_count), out_lo(range_count), out_hi(range_count);
+    for (size_t i = 0; i < range_count; i++) {
+        in_hi[i] = 1.0f + 0.5f * static_cast<float>(i);
+        in_lo[i] = -in_hi[i];
+        out_lo[i] = -2.0f * in_hi[i];
+        out_hi[i] = 3.0f * in_hi[i];
+    }
+
+    // Maps a data element to the broadcast range element (numpy broadcasting, same rank).
+    auto range_index = [&](size_t data_idx) {
+        size_t r_idx = 0;
+        size_t r_pitch = 1;
+        for (size_t d = rank; d-- > 0;) {
+            const size_t coord = data_idx % p.data_shape[d];
+            data_idx /= p.data_shape[d];
+            if (p.range_shape[d] != 1)
+                r_idx += coord * r_pitch;
+            r_pitch *= p.range_shape[d];
+        }
+        return r_idx;
+    };
+
+    // Input values are placed at a quarter step between quantization levels (no rounding ties),
+    // with some of them outside of [in_lo, in_hi] to exercise clamping.
+    std::vector<float> input_data(data_count), ref(data_count);
+    for (size_t i = 0; i < data_count; i++) {
+        const size_t r = range_index(i);
+        const float step = (in_hi[r] - in_lo[r]) / static_cast<float>(levels - 1);
+        const int k = static_cast<int>((i * 37) % (levels + 10)) - 5;
+        input_data[i] = in_lo[r] + (static_cast<float>(k) + 0.25f) * step;
+
+        const float x = input_data[i];
+        if (x <= in_lo[r]) {
+            ref[i] = out_lo[r];
+        } else if (x > in_hi[r]) {
+            ref[i] = out_hi[r];
+        } else {
+            const float q = std::round((x - in_lo[r]) / (in_hi[r] - in_lo[r]) * static_cast<float>(levels - 1));
+            ref[i] = q / static_cast<float>(levels - 1) * (out_hi[r] - out_lo[r]) + out_lo[r];
+        }
+    }
+
+    auto input = engine.allocate_memory({ov::PartialShape(p.data_shape), data_types::f32, fmt});
+    auto make_range = [&](const std::vector<float>& values) {
+        auto mem = engine.allocate_memory({ov::PartialShape(p.range_shape), data_types::f32, fmt});
+        set_values(mem, values);
+        return mem;
+    };
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()),
+                 data("input_low", make_range(in_lo)),
+                 data("input_high", make_range(in_hi)),
+                 data("output_low", make_range(out_lo)),
+                 data("output_high", make_range(out_hi)),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          levels,
+                          data_types::f32),
+                 reorder("out", input_info("quantize"), fmt, data_types::f32));
+
+    // optimize_data is required to run prepare_quantization (scale/shift precomputation).
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("out").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output->count(), data_count);
+    for (size_t i = 0; i < data_count; i++) {
+        ASSERT_NEAR(output_ptr[i], ref[i], 1e-4f * std::max(1.0f, std::fabs(ref[i]))) << " index = " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(quantize_smoke,
+                         quantize_nd_ranges_test,
+                         testing::Values(
+                             // 5D: depthwise GroupConvolution weights [G,O,I,KH,KW]
+                             quantize_nd_ranges_params{{16, 1, 1, 3, 3}, {16, 1, 1, 1, 3}},
+                             quantize_nd_ranges_params{{16, 1, 1, 3, 3}, {16, 1, 1, 3, 1}},
+                             quantize_nd_ranges_params{{16, 1, 1, 3, 3}, {16, 1, 1, 3, 3}},
+                             quantize_nd_ranges_params{{16, 1, 1, 3, 3}, {1, 1, 1, 1, 3}},
+                             quantize_nd_ranges_params{{4, 2, 3, 3, 3}, {4, 1, 3, 1, 1}},
+                             quantize_nd_ranges_params{{2, 8, 4, 5, 6}, {1, 8, 4, 1, 6}},
+                             // 6D
+                             quantize_nd_ranges_params{{2, 3, 4, 2, 3, 5}, {1, 3, 4, 1, 1, 5}},
+                             // 4D (regression check for the previously supported path)
+                             quantize_nd_ranges_params{{16, 1, 3, 3}, {16, 1, 1, 3}}));
