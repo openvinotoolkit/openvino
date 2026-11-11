@@ -1052,6 +1052,7 @@ private:
                 vpmovsdb(op, vmm_dst);
             } else {
                 uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+                vpermq(ymm_dst, ymm_dst, 0x08);
                 uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
                 vmovq(op, xmm_dst);
             }
