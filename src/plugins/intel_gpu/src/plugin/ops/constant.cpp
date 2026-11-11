@@ -165,15 +165,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
                           << ", layout: " << constLayout.to_short_string() << std::endl;
             return;
         }
-        auto partial_upload = try_prepare_partial_upload(p.get_engine(),
-                                 p.get_config(),
-                                 op,
-                                 const_shape,
-                                 out_dtype,
-                                 constFormat,
-                                 constLayout);
-
-
+        auto partial_upload = try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, constFormat, constLayout);
 
         if (partial_upload.enabled) {
             mem = partial_upload.memory;

@@ -48,6 +48,7 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/emitters/snippets/common/compiled_snippet_cpu.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/emitter_factory.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/jit_debug_emitter_base.hpp
+    ${CPU_SRC_DIR}/emitters/snippets/common/jit_kernel_emitter_utils.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/jit_segfault_detector_emitter_base.hpp
     ${CPU_SRC_DIR}/emitters/snippets/common/verbose_utils.hpp
     ${CPU_SRC_DIR}/emitters/snippets/cpu_kernel_executor_table.hpp
@@ -305,6 +306,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/grid_sample.hpp
     ${CPU_SRC_DIR}/nodes/grn.cpp
     ${CPU_SRC_DIR}/nodes/grn.h
+    ${CPU_SRC_DIR}/nodes/histc.cpp
+    ${CPU_SRC_DIR}/nodes/histc.h
     ${CPU_SRC_DIR}/nodes/identity.cpp
     ${CPU_SRC_DIR}/nodes/identity.hpp
     ${CPU_SRC_DIR}/nodes/if.cpp
@@ -597,6 +600,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/align_matmul_input_ranks.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/causal_mask_preprocess_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_broadcast_to_tiles.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_broadcast_to_tiles.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/pass/convert_fq_rnn_to_quantized_rnn.cpp
@@ -681,6 +686,11 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/utils/general_utils.h
     ${CPU_SRC_DIR}/utils/graph_serializer/deserializer.cpp
     ${CPU_SRC_DIR}/utils/graph_serializer/deserializer.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_common.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_reader_handler.cpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_reader_handler.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_writer_handler.cpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_writer_handler.hpp
     ${CPU_SRC_DIR}/utils/graph_serializer/serializer.cpp
     ${CPU_SRC_DIR}/utils/graph_serializer/serializer.hpp
     ${CPU_SRC_DIR}/utils/memory_stats_dump.hpp

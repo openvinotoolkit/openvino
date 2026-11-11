@@ -89,6 +89,7 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"SoftSign", Type::Eltwise},
         {"ErfInv", Type::Eltwise},
         {"SegmentMax", Type::SegmentMax},
+        {"Histc", Type::Histc},
         {"Select", Type::Eltwise},
         {"Log", Type::Eltwise},
         {"BitwiseAnd", Type::Eltwise},
@@ -405,6 +406,7 @@ std::string NameFromType(const Type type) {
         CASE(RMS);
         CASE(SearchSorted);
         CASE(SegmentMax);
+        CASE(Histc);
         CASE(LoRA);
         CASE(GatherMatmul);
         CASE(GatedDeltaNet);
