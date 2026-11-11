@@ -68,20 +68,28 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
       m_mtp(context.component == "mtp"),
       m_export_hidden(parameters.architecture == "qwen35" && parameters.hybrid.nextn_layers > 0) {
     if (m_mtp) {
+        // Keep Hadamard names for weights the draft uses: shared embeddings, its head and the NextN block.
         auto metadata = detail::MetadataAccess::get(context.metadata).map;
         const auto prefix = "blk." + std::to_string(m_cfg.n_layer - 1) + ".";
+        const auto head = lm_head_weight();
+        bool rotated = false;
         for (const auto& key : {"prism.hadamard.weight_names", "prism.hadamard.inverse_weight_names"}) {
-            const auto it = metadata.find(key);
-            if (it == metadata.end())
-                continue;
-            auto& names = std::get<std::vector<std::string>>(it->second);
-            names.erase(std::remove_if(names.begin(),
-                                       names.end(),
-                                       [&](const auto& name) {
-                                           return name != "token_embd.weight" && name != "output.weight" &&
-                                                  name.rfind(prefix, 0) != 0;
-                                       }),
-                        names.end());
+            if (const auto it = metadata.find(key); it != metadata.end()) {
+                auto& names = std::get<std::vector<std::string>>(it->second);
+                names.erase(std::remove_if(names.begin(),
+                                           names.end(),
+                                           [&](const auto& name) {
+                                               return name != "token_embd.weight" && name != head &&
+                                                      name.rfind(prefix, 0) != 0;
+                                           }),
+                            names.end());
+                rotated = rotated || !names.empty();
+            }
+        }
+        // An untied draft that uses no rotated weight has no Hadamard transform.
+        if (!rotated && !metadata.count("prism.hadamard.tied_output")) {
+            for (auto it = metadata.begin(); it != metadata.end();)
+                it = it->first.rfind("prism.hadamard.", 0) == 0 ? metadata.erase(it) : std::next(it);
         }
         const detail::MetadataStore store{metadata};
         m_cfg.configure_graph(m_emit, GgufMetadata(store));
@@ -364,12 +372,17 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     return cur;
 }
 
+std::string DecoderBuilder::lm_head_weight() const {
+    if (m_mtp && m_emit.has_weight(nextn_weight("shared_head_head")))
+        return nextn_weight("shared_head_head");
+    return m_emit.has_weight("output.weight") ? "output.weight" : "token_embd.weight";
+}
+
 std::string DecoderBuilder::build_head(const std::string& in) {
     // final norm + lm_head
     const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
-    const auto mtp_prefix = "blk." + std::to_string(m_cfg.n_layer - 1) + ".";
-    const auto norm_weight = m_mtp && m_emit.has_weight(mtp_prefix + "nextn.shared_head_norm.weight")
-                                 ? mtp_prefix + "nextn.shared_head_norm.weight"
+    const auto norm_weight = m_mtp && m_emit.has_weight(nextn_weight("shared_head_norm"))
+                                 ? nextn_weight("shared_head_norm")
                                  : std::string("output_norm.weight");
     std::string cur = norm(m_emit, in, norm_weight, "result_norm", m_cfg.rms_eps);
     if (m_export_hidden) {
@@ -400,10 +413,7 @@ std::string DecoderBuilder::build_head(const std::string& in) {
         return "embeddings";
     }
 
-    const std::string lm_head_w = m_mtp && m_emit.has_weight(mtp_prefix + "nextn.shared_head_head.weight")
-                                      ? mtp_prefix + "nextn.shared_head_head.weight"
-                                  : m_emit.has_weight("output.weight") ? "output.weight"
-                                                                       : "token_embd.weight";
+    const auto lm_head_w = lm_head_weight();
     m_emit.add_weight(lm_head_w);
     auto logits = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {lm_head_w, cur});
     // MiniCPM scales the logits (1/(n_embd/dim_model_base)).
@@ -438,15 +448,14 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     }
 
     if (m_mtp) {
-        const auto prefix = "blk." + std::to_string(m_cfg.n_layer - 1) + ".";
         auto hidden = m_emit.add_input("hidden_states", f32, ps({D, D, m_cfg.n_embd}));
         auto lifted = std::make_shared<ov::op::v0::Unsqueeze>(hidden, ov::op::v0::Constant::create(i64, {1}, {1}));
         (*m_emit.graph()->values)["mtp_hidden"] = lifted;
-        auto h = blocks::rms_norm(m_emit, "mtp_hidden", prefix + "nextn.hnorm.weight", "mtp_hnorm", m_cfg.rms_eps);
-        auto e = blocks::rms_norm(m_emit, cur, prefix + "nextn.enorm.weight", "mtp_enorm", m_cfg.rms_eps);
+        auto h = blocks::rms_norm(m_emit, "mtp_hidden", nextn_weight("hnorm"), "mtp_hnorm", m_cfg.rms_eps);
+        auto e = blocks::rms_norm(m_emit, cur, nextn_weight("enorm"), "mtp_enorm", m_cfg.rms_eps);
         cur = m_emit.add_op("GGML_OP_CONCAT", "mtp_concat", {e, h}, 0, {{"concat_axis", 0}});
-        m_emit.add_weight(prefix + "nextn.eh_proj.weight");
-        cur = m_emit.add_op("GGML_OP_MUL_MAT", "mtp_eh_proj", {prefix + "nextn.eh_proj.weight", cur});
+        m_emit.add_weight(nextn_weight("eh_proj"));
+        cur = m_emit.add_op("GGML_OP_MUL_MAT", "mtp_eh_proj", {nextn_weight("eh_proj"), cur});
     }
     for (int il = m_mtp ? m_cfg.n_layer - 1 : 0; il < m_cfg.n_layer; ++il) {
         cur = build_layer(il, cur);

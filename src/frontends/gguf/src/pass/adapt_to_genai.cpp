@@ -806,20 +806,16 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
     // so removing it is safe.
     ov::ParameterVector kept{input_ids, attention_mask, position_ids};
+    for (const auto& p : {inputs_embeds, per_layer_inputs, token_type_ids})
+        if (p)
+            kept.push_back(p);
+    model->add_parameters(kept);
     for (const auto& name : contract.sequence_inputs) {
         auto parameter = find_parameter(model, name);
         OPENVINO_ASSERT(parameter && parameter->get_partial_shape().rank() == 3,
                         "[GGUF] declared sequence input must be a rank-3 parameter: ",
                         name);
         kept.push_back(parameter);
-    }
-    for (const auto& p : {inputs_embeds, per_layer_inputs, token_type_ids})
-        if (p)
-            kept.push_back(p);
-    for (const auto& parameter : kept) {
-        const auto& parameters = model->get_parameters();
-        if (std::find(parameters.begin(), parameters.end(), parameter) == parameters.end())
-            model->add_parameters({parameter});
     }
     const auto params_snapshot = model->get_parameters();  // copy: remove_parameter mutates the list
     for (const auto& p : params_snapshot) {

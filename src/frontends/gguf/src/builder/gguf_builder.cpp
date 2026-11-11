@@ -48,7 +48,7 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
     return cfg;
 }
 
-GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, const std::string& component) {
+GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
     auto data = std::make_shared<GGUFLoad>(std::move(loaded));
     auto& metadata = std::get<0>(*data);
 
@@ -73,8 +73,9 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, co
                        registry.describe_supported(),
                        ". Register an ArchitectureExtension.");
     }
-    return [data, definition = *definition, projectors = registry.projectors(), component](
-               const std::unordered_map<std::string, CreatorFunction>& translators) {
+    return [data, definition = *definition, projectors = registry.projectors()](
+               const std::unordered_map<std::string, CreatorFunction>& translators,
+               const std::string& component) {
         const auto& [metadata, weights, mmap] = *data;
         const detail::MetadataStore meta_store{metadata};
         const GgufMetadata meta_view(meta_store);
@@ -99,16 +100,12 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry, co
 
 }  // namespace
 
-GraphBuilder load_gguf_builder(const std::filesystem::path& file,
-                               const ArchRegistry& registry,
-                               const std::string& component) {
-    return make_gguf_builder(get_gguf_data(file), registry, component);
+GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry) {
+    return make_gguf_builder(get_gguf_data(file), registry);
 }
 
-GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files,
-                               const ArchRegistry& registry,
-                               const std::string& component) {
-    return make_gguf_builder(get_gguf_data(files), registry, component);
+GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files, const ArchRegistry& registry) {
+    return make_gguf_builder(get_gguf_data(files), registry);
 }
 
 }  // namespace ov::frontend::gguf

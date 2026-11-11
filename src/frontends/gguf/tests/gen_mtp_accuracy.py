@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-"""Generate MTP logits/hidden states using CPU-only llama.cpp, revision
+"""Generate MTP draft and target logits/hidden states using CPU-only llama.cpp, revision
 5047748f114564fcf271e6a648f60e2d2eae6264.
 
 Build mtp_oracle.cpp with include/, src/, ggml/include/ and link libllama,
@@ -41,6 +41,11 @@ def main():
             arrays[f"logits_{step}"] = rows[:, :32].reshape(1, length, 32)
             arrays[f"hidden_output_{step}"] = rows[:, 32:].reshape(1, length, 32)
             cursor += 2 * count
+        for step, length in enumerate((3, 1, 2)):
+            arrays[f"target_logits_{step}"] = raw[cursor:cursor + 32].reshape(1, 1, 32)
+            cursor += 32
+            arrays[f"target_hidden_{step}"] = raw[cursor:cursor + length * 32].reshape(1, length, 32)
+            cursor += length * 32
         assert cursor == len(raw), "Unexpected MTP oracle output size"
         destination = Path(__file__).parent / "test_data" / "arch_accuracy" / "qwen35-mtp.npz"
         save_npz(destination, arrays)

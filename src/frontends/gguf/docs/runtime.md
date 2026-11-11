@@ -118,17 +118,17 @@ auto draft = frontend->convert(frontend->load("model-with-mtp.gguf"));
 auto text_embeddings = extension->get_embedding_model();
 ```
 
-Use separate frontend/extension instances for the target and draft. Both return
-`last_hidden_state [B,T,D]` after final normalization, before any output-head
-Hadamard transform. The draft also takes `hidden_states [B,T,D]`; pair target
-hidden state at token `t` with the embedding of token `t+1`. The embedding,
-hidden-state normalization, EH projection, full-attention block and output head belong to
-the draft. The head is the checkpoint's NextN head when present, otherwise the target
-`output.weight` or, for a tied checkpoint, the latent `token_embd.weight` with its forward
-Hadamard transform. Target and draft caches are
-independent. Missing NextN metadata or an unsupported component fails conversion.
-The current MTP path requires shared target/draft token embeddings; a separate
-`nextn.embed_tokens.weight` table is rejected rather than ignored.
+Use separate frontend/extension instances for the target and draft. The component
+is read when `convert()` runs, so the extension may be registered before or after
+`load()`. Both graphs return `last_hidden_state [B,T,D]` for every token after final
+normalization, before any output-head Hadamard transform. The draft also takes
+`hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of
+token `t+1`. The draft owns the embedding, hidden-state normalization, EH projection,
+full-attention block and output head. Its head is the checkpoint's NextN head when
+present, otherwise the target `output.weight` or, for a tied checkpoint, the latent
+`token_embd.weight` with its forward Hadamard transform. Target and draft caches are
+independent. Missing NextN metadata, a separate `nextn.embed_tokens.weight` table or an
+unsupported component fails conversion.
 
 The frontend supplies graphs, not an MTP sampler. OpenVINO GenAI's
 `speculative_type="mtp"` option (llama.cpp `--spec-type draft-mtp`) converts both
