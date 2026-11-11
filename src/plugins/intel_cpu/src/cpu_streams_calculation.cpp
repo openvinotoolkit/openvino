@@ -363,7 +363,8 @@ void determine_tbb_partitioner_and_threads(Config& config,
                           is_all_core_auto_case_high_lp_share_residual_vision_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
                           is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) ||
-                          is_all_core_auto_case_high_tolerance_non_light_conv_profile(tolerance) ||
+                          (!int8_intensive &&
+                           is_all_core_auto_case_high_tolerance_non_light_conv_profile(tolerance)) ||
                           (is_all_core_auto_case(tolerance) &&
                            !is_all_core_auto_case_small_conv_exclusion_profile(tolerance, lp_ecore_share)))) {
         config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
