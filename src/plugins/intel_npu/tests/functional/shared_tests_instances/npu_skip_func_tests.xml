@@ -433,4 +433,17 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#199570  -->
+    <skip_config>
+        <message>Tests with abnomally large durations</message>
+        <filters>
+            <filter>.*InferWithHostCompileMultithreadTests.*</filter>
+            <filter>.*InferWithHostCompileTests.CompileTimeConfig.*</filter>
+            <filter>.*InferWithHostCompileTests.MemRefReuse.*</filter>
+            <filter>.*InferWithHostCompileTests.SharedCommonQueue.*</filter>
+            <filter>.*InferWithHostCompileTests.SetProperty.*</filter>
+            <filter>.*InferWithHostCompileTests.DynamicBatch.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
