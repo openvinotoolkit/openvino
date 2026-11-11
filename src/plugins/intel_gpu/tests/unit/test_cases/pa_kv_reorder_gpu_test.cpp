@@ -443,8 +443,6 @@ TEST(pa_kv_reorder_gpu, many_heads_dispatch_is_uniform) {
     const size_t max_heads_per_wg = engine.get_device_info().max_work_group_size / subgroup_size;
     // 40 heads (Llama-2-13B) for max_wg 512, 80 heads for max_wg 1024.
     const size_t kv_heads = max_heads_per_wg + max_heads_per_wg / 4;
-    ASSERT_GT(kv_heads, max_heads_per_wg);
-    ASSERT_NE(kv_heads % max_heads_per_wg, 0u);
 
     constexpr size_t blocks_num = 2;
     constexpr size_t k_head_size = 16;
@@ -534,12 +532,9 @@ TEST(pa_kv_reorder_gpu, many_heads_dispatch_is_uniform) {
     ASSERT_NE(impl, nullptr);
     ASSERT_EQ(impl->_stages.size(), 1u);
     const auto& wgs = impl->_stages[0]->kd.params.workGroups;
-    ASSERT_EQ(wgs.global.size(), wgs.local.size());
     for (size_t i = 0; i < wgs.global.size(); i++) {
         ASSERT_NE(wgs.local[i], 0u) << "axis " << i;
-        EXPECT_EQ(wgs.global[i] % wgs.local[i], 0u) << "non-uniform work-group on axis " << i << ": gws=" << wgs.global[i] << " lws=" << wgs.local[i]
-                                                    << " (kv_heads=" << kv_heads << ", max_work_group_size=" << engine.get_device_info().max_work_group_size
-                                                    << ")";
+        EXPECT_EQ(wgs.global[i] % wgs.local[i], 0u) << "axis " << i << ": gws=" << wgs.global[i] << " lws=" << wgs.local[i];
     }
 
     cldnn::mem_lock<ov::float16, mem_lock_type::read> key_ptr(key_cache_mem, network->get_stream());

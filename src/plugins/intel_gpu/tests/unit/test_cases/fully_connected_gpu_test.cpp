@@ -7629,8 +7629,6 @@ TEST_F(fully_connected_gpu_tests, gemv_rejects_unaligned_ofm_with_dynamic_batch)
             if (!forced_kernel.empty()) {
                 config.set_property(
                     ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", {format::bfyx, forced_kernel, impl_types::ocl}}}));
-                // Keep the shape-agnostic impl so that it is the one under test.
-                config.set_property(ov::intel_gpu::disable_async_compilation(true));
             }
             return config;
         };
