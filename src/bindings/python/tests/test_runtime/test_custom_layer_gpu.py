@@ -238,8 +238,8 @@ def test_custom_layer_dynamic_cache_restoration(device, tmp_path, mode):
         f'WorkSizes global="B*F*Y*X,1,1" local="1,1,1"/></CustomLayer>'
     )
     (assets / "custom.xml").write_text(xml)
-    p = ops.parameter(ov.PartialShape([-1, -1] if concat else [-1, 4]), ov.Type.f32, name="input")
-    params = [p]
+    input_parameter = ops.parameter(ov.PartialShape([-1, -1] if concat else [-1, 4]), ov.Type.f32, name="input")
+    params = [input_parameter]
     if concat:
         second = ops.parameter(ov.PartialShape([-1, -1]), ov.Type.f32, name="second")
         params.append(second)
@@ -251,12 +251,12 @@ def test_custom_layer_dynamic_cache_restoration(device, tmp_path, mode):
         body_p = ops.parameter([-1, 4], ov.Type.f32, name="body_input")
         yes = ov.Model([ops.relu(body_p, name="custom_op")], [body_p])
         no_p = ops.parameter([-1, 4], ov.Type.f32, name="else_input")
-        no = ov.Model([ops.negative(no_p)], [no_p])
+        else_body = ov.Model([ops.negative(no_p)], [no_p])
         branch = ops.if_op(condition)
         branch.set_then_body(yes)
-        branch.set_else_body(no)
-        branch.set_input(p.output(0), body_p, no_p)
-        branch.set_output(yes.get_results()[0], no.get_results()[0])
+        branch.set_else_body(else_body)
+        branch.set_input(input_parameter.output(0), body_p, no_p)
+        branch.set_output(yes.get_results()[0], else_body.get_results()[0])
         branch.validate_and_infer_types()
         result = branch
     elif mode in ("loop", "loop_invariant"):
@@ -269,14 +269,14 @@ def test_custom_layer_dynamic_cache_restoration(device, tmp_path, mode):
         loop = ops.loop(trip, ops.constant(np.array(True)))
         loop.set_function(body)
         if mode == "loop_invariant":
-            loop.set_invariant_input(body_p, p.output(0))
+            loop.set_invariant_input(body_p, input_parameter.output(0))
         else:
-            loop.set_merged_input(body_p, p.output(0), activation.output(0))
+            loop.set_merged_input(body_p, input_parameter.output(0), activation.output(0))
         loop.set_special_body_ports([-1, 0])
         result = loop.get_iter_value(activation.output(0), -1)
         loop.validate_and_infer_types()
     else:
-        source = ops.add(p, ops.constant(np.float32(1))) if half else p
+        source = ops.add(input_parameter, ops.constant(np.float32(1))) if half else input_parameter
         result = ops.relu(source, name="custom_op")
         if half:
             result = ops.multiply(result, ops.constant(np.float32(2)))
