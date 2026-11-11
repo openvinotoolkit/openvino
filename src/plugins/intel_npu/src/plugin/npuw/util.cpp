@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <cstring>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -391,6 +392,14 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     // FIXME: Move under common switch when XARCH::unpack is implemented
     if (type_from == ov::element::nf4 && type_to == ov::element::f16) {
         unpack_nf4f16(from, to, unpack_options);
+        return;
+    }
+
+    // The NPU compiler maps boolean inputs to u8, so a boolean closure tensor may be bound
+    // to a u8 input of the compiled subgraph. Both types store one byte per element.
+    if (type_from == ov::element::boolean && type_to == ov::element::u8) {
+        NPUW_ASSERT(from->get_byte_size() == to->get_byte_size());
+        std::memcpy(to->data(), from->data(), from->get_byte_size());
         return;
     }
 

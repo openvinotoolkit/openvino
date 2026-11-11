@@ -799,6 +799,27 @@ TEST_P(I8AsymmetricUnpackTests, i8_asymmetric) {
     }
 }
 
+TEST(UnpackBooleanTests, boolean_to_u8) {
+    const ov::Shape shape{1, 1, 128, 128};
+    const auto element_count = shape_size(shape);
+
+    std::vector<char> mask(element_count);
+    for (std::size_t index = 0; index < element_count; ++index) {
+        mask[index] = static_cast<char>(index % 3 == 0);
+    }
+
+    auto from = ov::make_tensor(ov::element::boolean, shape, mask.data());
+    auto to = ov::make_tensor(ov::element::u8, shape);
+    std::fill_n(to->data<uint8_t>(), element_count, uint8_t{0xff});
+
+    ASSERT_NO_THROW_WITH_MESSAGE(ov::npuw::util::unpack(from, to));
+
+    const auto* output = to->data<const uint8_t>();
+    for (std::size_t index = 0; index < element_count; ++index) {
+        ASSERT_EQ(output[index], static_cast<uint8_t>(index % 3 == 0)) << "at index " << index;
+    }
+}
+
 #define Tensors [](std::vector<int>& input, std::vector<int>&scale, std::vector<int>&zerop)
 
 
