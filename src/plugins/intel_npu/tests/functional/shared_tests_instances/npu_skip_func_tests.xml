@@ -438,11 +438,7 @@ Example:
         <message>Tests with abnomally large durations</message>
         <filters>
             <filter>.*InferWithHostCompileMultithreadTests.*</filter>
-            <filter>.*InferWithHostCompileTests.CompileTimeConfig.*</filter>
-            <filter>.*InferWithHostCompileTests.MemRefReuse.*</filter>
-            <filter>.*InferWithHostCompileTests.SharedCommonQueue.*</filter>
-            <filter>.*InferWithHostCompileTests.SetProperty.*</filter>
-            <filter>.*InferWithHostCompileTests.DynamicBatch.*</filter>
+            <filter>.*InferWithHostCompileTests.*</filter>
         </filters>
     </skip_config>
 
