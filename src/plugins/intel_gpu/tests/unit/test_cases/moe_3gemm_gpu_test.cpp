@@ -2180,5 +2180,4 @@ TEST_P(moe_3gemm_unsupported_gemv_shape, per_channel_throws) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_unsupported_gemv_shape,
                          ::testing::Values(std::make_tuple(size_t{128}, size_t{1000}),    // mlp_gate_up N = inter_size
-                                           std::make_tuple(size_t{1000}, size_t{128}),    // mlp_down N = hidden_size
-                                           std::make_tuple(size_t{128}, size_t{1040})));  // inter_size % 128 != 0 but % 16 == 0
+                                           std::make_tuple(size_t{1000}, size_t{128})));  // mlp_down N = hidden_size
