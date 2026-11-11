@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-16-05-55-000-43040586954",
+  "timestamp": "2026-11-11T16:05:55Z",
+  "run_id": "43040586954",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43040586954",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39693",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39693",
+  "author": "asukhobo",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update fails: DNS resolution of all Ubuntu mirror hosts (archive.ubuntu.com, azure.archive.ubuntu.com, security.ubuntu.com) times out with 'Temporary failure resolving', leaving wget/gnupg/ca-certificates/lsb-release uninstallable."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the Debian Packages job failed (`exit 1`)."
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://azure.archive.ubuntu.com/ubuntu jammy InRelease\n  Temporary failure resolving 'azure.archive.ubuntu.com'",
+    "W: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease  Temporary failure resolving 'archive.ubuntu.com'",
+    "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step runs apt-get update before installing wget/gnupg/lsb-release/ca-certificates as prerequisites for adding the Intel OpenVINO apt repo. On this run the runner's DNS resolver could not resolve any of the Ubuntu mirror hosts (archive.ubuntu.com, azure.archive.ubuntu.com, security.ubuntu.com) for about 4 minutes straight, so apt-get update silently fell back to stale/empty package indexes, and the subsequent apt-get install failed because none of the required packages were resolvable from the (now empty) package lists. This is a transient DNS/networking outage on the Azure-hosted runner's resolver, unrelated to the PR's NPUW/Whisper code changes.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a runner-side DNS/network outage. Rerunning the job typically succeeds once the runner's resolver recovers.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job (a plain retry recovers once DNS resolution for Ubuntu mirrors is restored).",
+    "Consider adding a retry/backoff wrapper (e.g. a few retries with delay) around `apt-get update` in job_debian_packages.yml to tolerate transient resolver hiccups without failing the whole merge-queue run.",
+    "No action required from the PR author; the failure is unrelated to the changed files in PR #39693."
+  ],
+  "prevention_strategies": "Wrap apt-get update/install steps with retry logic (e.g. actions-rs/retry or a shell loop with sleep+retry) in job_debian_packages.yml, and/or pin a DNS-independent mirror or local apt cache for CI runners to reduce exposure to upstream DNS outages.",
+  "historical_context": "This exact DNS-resolution failure signature (signature_hash d734e6d0da3ffc69) has now been recorded 3 times in the last ~90 minutes, including two prior runs for the same PR #39693 (runs 43030484756 and 43040586616). Several related but distinct 'azure.archive.ubuntu.com' connectivity-failure signatures (7d2e2ff59d37c6b4, c8d00529252cfb02, e65acb49deb19d88, a3d456bd40bd9f42, 98edf6d4fbc865bd, 7d52cc57d8ed2a36) also exist in the pattern database, indicating recurring flakiness in the Debian Packages job's network dependency on Ubuntu's archive mirrors. A rerun-pattern PR (#39740) for this exact signature was already opened by CI Doctor and is pending maintainer review/merge."
+}
