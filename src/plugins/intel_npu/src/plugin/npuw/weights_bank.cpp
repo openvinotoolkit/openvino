@@ -4,6 +4,9 @@
 
 #include "weights_bank.hpp"
 
+#include <algorithm>
+#include <limits>
+
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "serialization.hpp"
@@ -57,7 +60,7 @@ Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& allo
 }
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
-    const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
+    const std::string& device_for_alloc = canonical_bank_device(m_alloc_device.empty() ? device : m_alloc_device);
 
     std::unique_lock guard(m_mutex);
 
@@ -65,6 +68,7 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
 
     auto iter_registered = device_bank.registered_tensors.find(tensor);
     if (iter_registered == device_bank.registered_tensors.end()) {
+        NPUW_ASSERT(uid_count < std::numeric_limits<int64_t>::max() && "Weights bank uid space exhausted");
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
         device_bank.storage[uid] = {tensor, ov::Tensor()};
@@ -78,11 +82,13 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
 }
 
 ov::Tensor Bank::get(int64_t uid, const std::string& device) {
-    const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
+    const std::string& device_for_alloc = canonical_bank_device(m_alloc_device.empty() ? device : m_alloc_device);
 
     std::unique_lock guard(m_mutex);
 
-    auto& device_bank = m_device_banks.at(device_for_alloc);
+    auto iter_bank = m_device_banks.find(device_for_alloc);
+    NPUW_ASSERT(iter_bank != m_device_banks.end() && "Device not found within list of devices from weights bank");
+    auto& device_bank = iter_bank->second;
     auto iter_device = device_bank.storage.find(uid);
 
     NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
@@ -151,7 +157,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
     // Note: not locking here. This is a private function, so Bank should handle the locks around it
     // as we lock in evaluate_and_allocate() now.
     std::vector<TensorToAllocate> uids_to_allocated;
-    uids_to_allocated.reserve(uid_count);
+    uids_to_allocated.reserve(to_process.size());
 
     for (const auto& lt : to_process) {
         auto iter_device_registered = device_bank.registered_tensors.find(lt);
@@ -240,20 +246,13 @@ void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const
     // This method is supposed to be used only during deserialization
     std::unique_lock guard(m_mutex);
     NPUW_ASSERT(uid >= 0 && "Malformed blob: negative weights bank uid");
+    NPUW_ASSERT(static_cast<uint64_t>(uid) < static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) &&
+                "Malformed blob: weights bank uid exceeds max int value");
 
     const auto device = canonical_bank_device(stored_device);
     auto& device_bank = m_device_banks[device];
     NPUW_ASSERT(device_bank.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
-
     uid_count = std::max(uid_count, uid + 1);
-
-    auto iter_device = device_bank.storage.find(uid);
-
-    if (iter_device != device_bank.storage.end()) {
-        // Shouldn't be possible
-        NPUW_ASSERT(false);
-        return;
-    }
 
     if (device == "CPU") {
         // Just read deserialized tensor into the bank

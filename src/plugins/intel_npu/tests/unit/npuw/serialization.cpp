@@ -1898,11 +1898,28 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
 }
 
-TEST(SerializationTest, OVTypes_WeightsBank_npu_roundtrip) {
+TEST(SerializationTest, WeightsBank_RejectsOutOfRangeUid) {
+    for (const int64_t bad_uid : {int64_t{-1}, std::numeric_limits<int64_t>::max()}) {
+        std::stringstream ss;
+        auto w = ov::npuw::orc::Stream::writer(ss);
+        std::size_t bank_size = 1, storage_size = 1;
+        std::string device = "CPU";
+        int64_t uid = bad_uid;
+        w & bank_size & device & storage_size & uid;
+        ov::npuw::weights::Bank res(nullptr, "", "bad");
+        OV_EXPECT_THROW(ov::npuw::s11n::read(ss, res), ov::Exception, testing::HasSubstr("weights bank uid"));
+    }
+}
+
+TEST(SerializationTest, WeightsBank_LegacyNpuKey_Restore) {
     using namespace ov::npuw::s11n;
 
     auto first = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {1.0f, 2.0f}, 0);
     auto second = make_weightless_constant<float>(ov::element::f32, ov::Shape{2}, {3.0f, 4.0f}, first->get_byte_size());
+    auto third = make_weightless_constant<float>(ov::element::f32,
+                                                 ov::Shape{2},
+                                                 {5.0f, 6.0f},
+                                                 first->get_byte_size() + second->get_byte_size());
 
     auto mock_core = std::make_shared<testing::NiceMock<ov::MockICore>>();
     ON_CALL(*mock_core, get_default_context(testing::_)).WillByDefault([](const std::string& device) {
@@ -1914,27 +1931,34 @@ TEST(SerializationTest, OVTypes_WeightsBank_npu_roundtrip) {
         return mock_remote_context;
     });
 
-    ov::npuw::weights::Bank var_legacy(mock_core, "NPU", "test-bank");
-    const auto uid0 = var_legacy.registerLT(ov::npuw::weights::LazyTensor(first), "NPU");
-    const auto uid0_dup = var_legacy.registerLT(ov::npuw::weights::LazyTensor(first), "NPU");
-    const auto uid1 = var_legacy.registerLT(ov::npuw::weights::LazyTensor(second), "NPU");
-    EXPECT_EQ(uid0, uid0_dup);
-    EXPECT_NE(uid0, uid1);
+    ov::npuw::weights::Bank old_bank(nullptr, "CPU", "old");
+    const auto uid0 = old_bank.registerLT(ov::npuw::weights::LazyTensor(first), "CPU");
+    const auto uid1 = old_bank.registerLT(ov::npuw::weights::LazyTensor(second), "CPU");
+    old_bank.evaluate_and_allocate();
 
-    var_legacy.evaluate_and_allocate();
+    std::stringstream tmp;
+    write(tmp, old_bank);
+    auto legacy_blob = tmp.str();
+    const auto pos = legacy_blob.find("CPU");
+    ASSERT_NE(pos, std::string::npos);
+    legacy_blob.replace(pos, 3, "NPU");
 
-    ov::npuw::weights::Bank res(mock_core, "", "restored-bank");
-    std::stringstream ss;
-
-    write(ss, var_legacy);
-    read(ss, res);
-
-    expect_tensors_equal(var_legacy.get(uid0, "NPU"), res.get(uid0, "NPU.0"));
-    expect_tensors_equal(var_legacy.get(uid1, "NPU"), res.get(uid1, "NPU.0"));
-    {
-        const auto uid1_dup = res.registerLT(ov::npuw::weights::LazyTensor(second), "NPU.0");
+    for (const std::string alloc : {"", "NPU"}) {
+        ov::npuw::weights::Bank res(mock_core, alloc, "restored-bank");
+        std::stringstream ss(legacy_blob);
+        read(ss, res);
+        expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, "NPU.0"));
+        expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, "NPU.0"));
+        if (alloc.empty()) {
+            EXPECT_THROW(res.get(uid0, "GPU"), ov::Exception);
+        }
+        const auto uid_new = res.registerLT(ov::npuw::weights::LazyTensor(third), "NPU.0");
+        EXPECT_NE(uid_new, uid0);
+        EXPECT_NE(uid_new, uid1);
         res.evaluate_and_allocate();
-        expect_tensors_equal(var_legacy.get(uid1, "NPU.0"), res.get(uid1_dup, "NPU.0"));
+        expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, "NPU.0"));
+        expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, "NPU.0"));
+        expect_tensors_equal(ov::npuw::weights::LazyTensor(third).eval(), res.get(uid_new, "NPU.0"));
     }
 }
 
