@@ -455,8 +455,16 @@ cuda_dispatch choose_cuda_dispatch(const std::vector<size_t>& gws,
     }
     if (lws.empty())
         default_local_size(global_extent, block_extent);
+    // A grid has no partial blocks, so a local size that does not divide the global size would launch work-items past
+    // it that the kernel cannot tell apart. OpenCL 2.0 allows such a last work-group to be smaller; that is not
+    // implemented here, so the launch is refused instead.
     for (size_t d = 0; d < 3; ++d) {
-        grid_extent[d] = global_extent[d] / block_extent[d] + (global_extent[d] % block_extent[d] != 0 ? 1 : 0);
+        if (global_extent[d] % block_extent[d] != 0) {
+            OPENVINO_THROW("[GPU] Kernel '", kernel_name, "' cannot be launched: its local size ", block_extent[d],
+                           " does not divide its global size ", global_extent[d], " in dimension ", d,
+                           ", and partial work-groups are not supported");
+        }
+        grid_extent[d] = global_extent[d] / block_extent[d];
     }
 
     // CUDA caps the axes asymmetrically (block.z <= 64, grid.y and grid.z <= 65535), so the launch picks how the
