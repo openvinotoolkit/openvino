@@ -47,7 +47,7 @@ bool is_identity_quantizer_without_zp(const ov::Output<ov::Node>& in_low_n,
                                       const ov::Output<ov::Node>& scale_n) {
     auto get_constant = [](const ov::Output<ov::Node>& output) -> std::optional<float> {
         const auto constant = ov::util::get_constant_from_source(output);
-        if (constant == nullptr) {
+        if (constant == nullptr || ov::util::is_empty_constant_tensor(constant->output(0))) {
             return std::nullopt;
         }
         float value = 0.f;
@@ -62,14 +62,14 @@ bool is_identity_quantizer_without_zp(const ov::Output<ov::Node>& in_low_n,
         return false;
     }
 
-    // Tolerance: one quantization step (|scale|)
-    const float tol = std::abs(*s);
+    // Tolerance: half a quantization step (|scale| * 0.5)
+    const float tolerance = std::abs(*s) * 0.5f;
     const auto scaled_out_low = *out_low * *s;
     const auto scaled_out_high = *out_high * *s;
-    auto isclose = [](float a, float b, float tolerance) {
+    auto isclose = [tolerance](float a, float b) {
         return std::abs(a - b) <= tolerance;
     };
-    return isclose(*in_low, scaled_out_low, tol) && isclose(*in_high, scaled_out_high, tol);
+    return isclose(*in_low, scaled_out_low) && isclose(*in_high, scaled_out_high);
 }
 
 }  // namespace
