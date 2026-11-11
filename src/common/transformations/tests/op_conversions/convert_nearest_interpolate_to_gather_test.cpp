@@ -219,8 +219,9 @@ TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_linear_untouched)
     manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
 }
 
-TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_downscale_untouched) {
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_downscale) {
     manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+    // scale 0.5 on 4 -> 2: asymmetric coords 0, 2; FLOOR -> 0, 2
     model = create_interpolate(ov::PartialShape{1, 1, 4, 4},
                                {0.5f, 0.5f},
                                {},
@@ -228,6 +229,36 @@ TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_downscale_untouch
                                CoordinateTransformMode::ASYMMETRIC,
                                NearestMode::FLOOR,
                                ShapeCalcMode::SCALES);
+    model_ref = create_gather_ref(ov::PartialShape{1, 1, 4, 4}, {0, 2}, {0, 2});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_downscale_simple) {
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+    // scale 0.75 on 4 -> 3: asymmetric coords 0, 1.333, 2.667; SIMPLE rounds downscaling up -> 0, 2, 3
+    model = create_interpolate(ov::PartialShape{1, 1, 4, 4},
+                               {0.75f, 0.75f},
+                               {},
+                               AXES_HW,
+                               CoordinateTransformMode::ASYMMETRIC,
+                               NearestMode::SIMPLE,
+                               ShapeCalcMode::SCALES);
+    model_ref = create_gather_ref(ov::PartialShape{1, 1, 4, 4}, {0, 2, 3}, {0, 2, 3});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_fractional_upscale) {
+    manager.register_pass<ov::pass::ConvertNearestInterpolateToGather>();
+    // scale 1.5 on 2 -> 3: asymmetric coords 0, 0.667, 1.333; FLOOR -> 0, 0, 1
+    model = create_interpolate(INPUT_2X2,
+                               {1.5f, 1.5f},
+                               {},
+                               AXES_HW,
+                               CoordinateTransformMode::ASYMMETRIC,
+                               NearestMode::FLOOR,
+                               ShapeCalcMode::SCALES);
+    model_ref = create_gather_ref(INPUT_2X2, {0, 0, 1}, {0, 0, 1});
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
 TEST_F(TransformationTestsF, ConvertNearestInterpolateToGather_dynamic_untouched) {

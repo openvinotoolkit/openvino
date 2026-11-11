@@ -32,9 +32,9 @@ namespace pass {
  *  - the op is Interpolate-4 or Interpolate-11 with mode = nearest, antialias = false and no padding;
  *  - the input and output shapes are static, so the index mapping is known at transformation time;
  *  - the scales/sizes input (and the axes input, when present) is constant-foldable;
- *  - at least one interpolated axis is upscaling (scale greater than 1). Downscaling axes and linear/cubic
- *    modes are left untouched: the decomposition is exact but only upscaling is affected by the reported
- *    backend defect, so the pass stays out of the way elsewhere.
+ *  - at least one interpolated axis changes size. Both upscaling and downscaling axes are rewritten; the
+ *    decomposition is exact for both (the nearest mapping is precomputed from the same formula the reference
+ *    implementation uses). Linear/cubic modes are left untouched.
  */
 class TRANSFORMATIONS_API ConvertNearestInterpolateToGather : public MatcherPass {
 public:
