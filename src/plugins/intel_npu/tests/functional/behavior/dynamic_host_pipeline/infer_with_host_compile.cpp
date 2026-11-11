@@ -3,9 +3,11 @@
 //
 
 #include <algorithm>
+#include <array>
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <cstring>
 #include <functional>
+#include <map>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -18,6 +20,10 @@
 #include "espcn_x2_model.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -97,9 +103,9 @@ public:
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
-        #if !defined(OPENVINO_STATIC_LIBRARY) && !defined(USE_STATIC_IE)
-            ov::test::utils::register_template_plugin(core);
-        #endif  // !OPENVINO_STATIC_LIBRARY && !USE_STATIC_IE
+#if !defined(OPENVINO_STATIC_LIBRARY) && !defined(USE_STATIC_IE)
+        ov::test::utils::register_template_plugin(core);
+#endif  // !OPENVINO_STATIC_LIBRARY && !USE_STATIC_IE
         std::vector<std::string> deviceNames =
             core.get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (auto name : deviceNames) {
@@ -1630,10 +1636,164 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     },
 };
 
-const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H1080xW960_NCHW", "ESPCN_x2_DynNHW_H1080xW960_NCHW"};
+const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_H1080xW960_NCHW",
+                                                      "ESPCN_x2_DynNHW_H1080xW960_NCHW"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithDefaultHostCompileTests,
                          ::testing::Combine(::testing::ValuesIn(devices),
                                             ::testing::ValuesIn(defaultHostCompileconfigs),
                                             ::testing::ValuesIn(defaultHCModelNames)),
                          ov::test::utils::appendPlatformTypeTestName<InferWithDefaultHostCompileTests>);
+
+namespace ov {
+namespace test {
+namespace behavior {
+
+using InferWithHostCompileUnboundedTests = InferWithHostCompileTests;
+
+namespace {
+
+// An unbounded dim has no upper bound in the model and runs at its size, then at half of it.
+struct AttentionDim {
+    size_t size;
+    bool unbounded = false;
+};
+
+struct AttentionDims {
+    AttentionDim batch;            // N
+    AttentionDim heads;            // H
+    AttentionDim sourceSeqLen;     // S
+    AttentionDim targetSeqLen;     // L
+    AttentionDim qkEmbeddingSize;  // E
+    AttentionDim vEmbeddingSize;   // Ev
+};
+
+}  // namespace
+
+// An imported blob builds its ports from the Level Zero argument descriptors, not from the original ov::Model.
+// A dimension without an upper bound must come back fully dynamic, so set_tensor accepts any extent and the
+// imported model computes the same result as the one it was exported from.
+TEST_P(InferWithHostCompileUnboundedTests, ImportAndInferWithUnboundedDimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+
+    static const std::map<std::string, AttentionDims> models = {
+        {"SDPA_UnboundedKV", {{1}, {4}, {128, true}, {32}, {64}, {32}}},
+        {"SDPA_UnboundedQ", {{1}, {4}, {64}, {64, true}, {64}, {32}}},
+    };
+    const auto& dims = models.at(selectedModelName);
+
+    using ShapeDims = std::array<AttentionDim, 4>;
+    const std::array<ShapeDims, 3> qkvDims = {{{dims.batch, dims.heads, dims.targetSeqLen, dims.qkEmbeddingSize},
+                                               {dims.batch, dims.heads, dims.sourceSeqLen, dims.qkEmbeddingSize},
+                                               {dims.batch, dims.heads, dims.vEmbeddingSize, dims.sourceSeqLen}}};
+
+    ov::ParameterVector params;
+    for (const auto& shapeDims : qkvDims) {
+        ov::PartialShape shape;
+        for (const auto& dim : shapeDims) {
+            shape.push_back(dim.unbounded ? ov::Dimension::dynamic() : ov::Dimension(dim.size));
+        }
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape));
+    }
+    params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1}));
+    // SDPA takes the scale after the mask, so the mask slot gets a neutral constant.
+    const auto mask = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0f});
+    // SDPA expects V as [N, H, S, Ev]. The compiler folds this Transpose into the attention kernel, so no unbounded
+    // tensor has to be permuted.
+    const auto v = std::make_shared<ov::op::v1::Transpose>(
+        params[2],
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 1, 3, 2}));
+    const auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
+        ov::OutputVector{params[0], params[1], v, mask, params[3]},
+        false);
+    const auto model = std::make_shared<ov::Model>(sdpa->outputs(), params, "UnboundedAttention");
+
+    // The decomposed MatMul-Softmax-MatMul chain does not support unbounded dims, only the fused attention kernel.
+    configuration[ov::intel_npu::compilation_mode_params.name()] = "decompose-attention=false";
+
+    ov::CompiledModel compiledModel;
+    OV_ASSERT_NO_THROW(compiledModel = core.compile_model(model, target_device, configuration));
+
+    std::stringstream modelStream;
+    OV_ASSERT_NO_THROW(compiledModel.export_model(modelStream));
+
+    ov::CompiledModel importedModel;
+    OV_ASSERT_NO_THROW(importedModel = core.import_model(modelStream, target_device, configuration));
+
+    const auto expectUnboundedDimsKept =
+        [](const ov::PartialShape& original, const ov::PartialShape& imported, const std::string& portName) {
+            ASSERT_EQ(imported.rank(), original.rank()) << portName;
+            for (size_t index = 0; index < original.size(); ++index) {
+                if (original[index].get_max_length() == -1) {
+                    EXPECT_EQ(imported[index], ov::Dimension::dynamic())
+                        << "Dimension " << index << " of " << portName << " should stay unbounded, got " << imported;
+                }
+            }
+        };
+    ASSERT_EQ(importedModel.inputs().size(), model->inputs().size());
+    ASSERT_EQ(importedModel.outputs().size(), model->outputs().size());
+    for (size_t i = 0; i < model->inputs().size(); ++i) {
+        expectUnboundedDimsKept(model->input(i).get_partial_shape(),
+                                importedModel.input(i).get_partial_shape(),
+                                "input " + std::to_string(i));
+    }
+    for (size_t i = 0; i < model->outputs().size(); ++i) {
+        expectUnboundedDimsKept(model->output(i).get_partial_shape(),
+                                importedModel.output(i).get_partial_shape(),
+                                "output " + std::to_string(i));
+    }
+
+    ov::InferRequest reqCompiled;
+    ov::InferRequest reqImported;
+    OV_ASSERT_NO_THROW(reqCompiled = compiledModel.create_infer_request());
+    OV_ASSERT_NO_THROW(reqImported = importedModel.create_infer_request());
+
+    for (size_t run = 0; run < 2; ++run) {
+        std::vector<ov::Tensor> inputs;
+        for (const auto& shapeDims : qkvDims) {
+            ov::Shape shape;
+            for (const auto& dim : shapeDims) {
+                shape.push_back(dim.unbounded ? dim.size >> run : dim.size);
+            }
+            inputs.push_back(ov::test::utils::create_and_fill_tensor(ov::element::f16,
+                                                                     shape,
+                                                                     ov::test::utils::InputGenerateData(-1, 2, 32768)));
+        }
+        ov::Tensor scale(ov::element::f16, ov::Shape{1});
+        scale.data<ov::float16>()[0] = ov::float16(0.125f);
+        inputs.push_back(scale);
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            OV_ASSERT_NO_THROW(reqCompiled.set_input_tensor(i, inputs[i]));
+            OV_ASSERT_NO_THROW(reqImported.set_input_tensor(i, inputs[i]));
+        }
+        OV_ASSERT_NO_THROW(reqCompiled.infer());
+        OV_ASSERT_NO_THROW(reqImported.infer());
+
+        const auto expected = reqCompiled.get_output_tensor();
+        const auto actual = reqImported.get_output_tensor();
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ASSERT_EQ(std::memcmp(actual.data(), expected.data(), expected.get_byte_size()), 0)
+            << "Imported model output differs from the compiled model output for Q " << inputs[0].get_shape() << ", K "
+            << inputs[1].get_shape() << ", V " << inputs[2].get_shape();
+    }
+}
+
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov
+
+const std::vector<std::string> unboundedModelNames = {
+    "SDPA_UnboundedKV",
+    "SDPA_UnboundedQ",
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         InferWithHostCompileUnboundedTests,
+                         ::testing::Combine(::testing::ValuesIn(devices),
+                                            ::testing::ValuesIn(configs),
+                                            ::testing::ValuesIn(unboundedModelNames)),
+                         ov::test::utils::appendPlatformTypeTestName<InferWithHostCompileUnboundedTests>);
