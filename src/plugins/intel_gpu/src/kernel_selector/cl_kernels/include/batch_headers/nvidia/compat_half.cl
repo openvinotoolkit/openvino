@@ -243,10 +243,10 @@ static inline int    __attribute__((overloadable)) convert_int     (half x){retu
 static inline uint   __attribute__((overloadable)) convert_uint    (half x){return (uint  )(float)(x);}
 static inline long   __attribute__((overloadable)) convert_long    (half x){return (long  )(float)(x);}
 static inline ulong  __attribute__((overloadable)) convert_ulong   (half x){return (ulong )(float)(x);}
-static inline char   __attribute__((overloadable)) convert_char_sat  (half x){float f=(float)(x);return f<-128.0f?(char)-128:f>127.0f?(char)127:(char)f;}
-static inline uchar  __attribute__((overloadable)) convert_uchar_sat (half x){float f=(float)(x);return f<0.0f?(uchar)0:f>255.0f?(uchar)255:(uchar)f;}
-static inline short  __attribute__((overloadable)) convert_short_sat (half x){float f=(float)(x);return f<-32768.0f?(short)-32768:f>32767.0f?(short)32767:(short)f;}
-static inline ushort __attribute__((overloadable)) convert_ushort_sat(half x){float f=(float)(x);return f<0.0f?(ushort)0:f>65535.0f?(ushort)65535:(ushort)f;}
+static inline char   __attribute__((overloadable)) convert_char_sat  (half x){return convert_char_sat  ((float)x);}
+static inline uchar  __attribute__((overloadable)) convert_uchar_sat (half x){return convert_uchar_sat ((float)x);}
+static inline short  __attribute__((overloadable)) convert_short_sat (half x){return convert_short_sat ((float)x);}
+static inline ushort __attribute__((overloadable)) convert_ushort_sat(half x){return convert_ushort_sat((float)x);}
 
 // Half vectors reach the integer types through float, widened by convert_float<w> (see the half <-> float section).
 #define OV_NV_CONV_INT_VEC(fn, type, w) \
