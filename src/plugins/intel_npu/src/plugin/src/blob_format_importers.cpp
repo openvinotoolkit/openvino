@@ -499,7 +499,7 @@ public:
             auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
                 m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES));
 
-            elf_main_schedule_section->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
+            elf_main_schedule_section->set_graph(m_graph);
             if (init_schedules_section) {
                 init_schedules_section->set_graph(std::dynamic_pointer_cast<WeightlessGraph>(m_graph));
             }
