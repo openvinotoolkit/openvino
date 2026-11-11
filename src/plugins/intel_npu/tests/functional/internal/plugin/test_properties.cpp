@@ -805,6 +805,42 @@ TEST_P(WSCompileCallNumberPropertyTests, RemainsAvailableAsInternalCompilerOptio
     ASSERT_EQ(filteredConfig.get<::intel_npu::WS_COMPILE_CALL_NUMBER>(), 3);
 }
 
+using WriteOnlyPropertyTests = PropertiesManagerTests;
+
+// Write-only properties cannot be handed back to the user (e.g. the Python bindings have no Any -> object conversion
+// for ov::EncryptionCallbacks or std::shared_ptr<const ov::Model>), so reading them must succeed and return an empty
+// ov::Any.
+TEST_P(WriteOnlyPropertyTests, AllSupportedWriteOnlyPropertiesReturnEmptyAny) {
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(
+        supportedProperties =
+            propertiesManager->getProperty(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>());
+
+    size_t writeOnlyCount = 0;
+    for (const auto& property : supportedProperties) {
+        if (property.get_mutability() != ov::PropertyMutability::WO) {
+            continue;
+        }
+        ++writeOnlyCount;
+
+        ov::Any value;
+        OV_ASSERT_NO_THROW(value = propertiesManager->getProperty(property));
+        EXPECT_TRUE(value.empty()) << "Write-only property " << property << " must return an empty ov::Any";
+    }
+
+    ASSERT_GT(writeOnlyCount, 0u);
+}
+
+// Private (non-public) write-only properties are not part of supported_properties, so they are queried by name. The
+// property name is the test parameter.
+using PrivateWriteOnlyPropertyTests = PropertiesManagerTests;
+
+TEST_P(PrivateWriteOnlyPropertyTests, ReturnsEmptyAny) {
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = propertiesManager->getProperty(configuration));
+    EXPECT_TRUE(value.empty()) << configuration;
+}
+
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
 
 TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported) {
@@ -1089,6 +1125,20 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          WSCompileCallNumberPropertyTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         WriteOnlyPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+const std::vector<std::string> private_write_only_properties = {{ov::loaded_from_cache.name()}};
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         PrivateWriteOnlyPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(private_write_only_properties)),
                          PropertiesManagerTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
