@@ -4,26 +4,15 @@
 // Copyright (C) 2026 FUJITSU LIMITED
 //
 // Sub-group emulation for NVIDIA: sub-group size / id queries, shuffles, barrier and voting, broadcast, reductions and
-// block read / write, all parameterised on the emulated sub-group size.
+// block read / write, parameterised on the emulated sub-group size.
 //
-// NVIDIA hardware executes in 32-wide warps, but OpenVINO kernels ask for sub-groups of 32, 16 or 8 through
-// REQD_SUB_GROUP_SIZE(). A narrower sub-group is emulated by treating every aligned group of _NV_SUB_GROUP_SIZE lanes
-// inside a warp as one sub-group: shuffles are confined to that segment and reductions stop at that width.
+// NVIDIA warps are 32 wide, but OpenVINO kernels ask for sub-groups of 32, 16 or 8. A narrower sub-group is an aligned
+// group of _NV_SUB_GROUP_SIZE lanes of a warp: shuffles are confined to it and reductions stop at its width.
 //
-// Everything that depends on the sub-group size takes it as an explicit sg_size argument and is reached through a
-// macro that passes _NV_SUB_GROUP_SIZE. Macro bodies are expanded at the call site, so redefining _NV_SUB_GROUP_SIZE
-// ahead of a kernel changes the behaviour of that kernel alone. A plain function would instead bake in whatever value
-// _NV_SUB_GROUP_SIZE had where the function was defined - and since the batch headers are emitted once at the top of
-// the program, that value would always be the 32 default. This is why every helper below is parameterised.
-//
-// kernels_cache.cpp rewrites REQD_SUB_GROUP_SIZE(x) and __attribute__((intel_reqd_sub_group_size(x))) into a
-// redefinition of _NV_SUB_GROUP_SIZE at the top of the owning source entry and restores the default at its end.
-// nvidia/compat_sg_overrides.cl, emitted after the batch headers, redirects the names that those headers define as
-// functions (_sub_group_block_read*, _sub_group_block_write*, _sub_group_shuffle) to the parameterised helpers here.
-//
-// kernels_cache.cpp emits this file as part of the NVIDIA prelude; nvidia_prelude_names there fixes the order.
-// Dependencies are listed here instead of as #include lines: primitive_db_gen.py strips #include from batch headers
-// anyway, and its dependency sort fails on include graphs that reach the same header along two paths.
+// Every helper that depends on the sub-group size takes it as an sg_size argument and is reached through a macro that
+// passes _NV_SUB_GROUP_SIZE. Macros expand at the call site, so the redefinition kernels_cache.cpp puts ahead of each
+// kernel takes effect there; a plain function would keep the value at its definition, always the 32 default.
+// compat_sg_overrides.cl redirects the names the batch headers define as functions to these helpers.
 //
 // Depends on:
 //     nvidia/compat_common.cl   cl_khr_fp16, _nv_get_linear_tid / _nv_get_total_threads (work-item ids)
@@ -40,12 +29,9 @@
 // --------------------------------------------------------------------------------------------------------------------
 // Lane id
 // --------------------------------------------------------------------------------------------------------------------
-// The work-item ids (_nv_get_linear_tid, _nv_get_total_threads) come from compat_common.cl, which also binds
-// get_local_linear_id() to them. %laneid does not change while a work-item runs either, so this asm is not volatile
-// like them: the compiler may then fold the reads that every shuffle, vote and block access repeats through
-// _nv_sg_mask and _nv_get_sub_group_local_id. The work-item id comment in compat_common.cl lists what that code
-// shape exposed. The shfl.sync / vote.sync / bar.warp.sync asm further down stays volatile, since it synchronises
-// the warp.
+// %laneid does not change while a work-item runs, so like the work-item ids in compat_common.cl this asm is not
+// volatile and repeated reads may be folded. The shfl.sync / vote.sync / bar.warp.sync asm below stays volatile, since
+// it synchronises the warp.
 
 static inline uint _nv_laneid(void){
     uint lane;
@@ -57,9 +43,8 @@ static inline uint _nv_laneid(void){
 // Emulated sub-group membership and shfl.sync operands
 // --------------------------------------------------------------------------------------------------------------------
 
-// Work-items of the caller's emulated sub-group that the work-group actually launched. A sub-group is narrower than
-// sg_size whenever the work-group is smaller than one sub-group - softmax_gpu_bf asks for a 16-wide sub-group and
-// dispatches a local size of 4 - or when the work-group size leaves the last sub-group short.
+// Work-items of the caller's emulated sub-group that the work-group actually launched: fewer than sg_size when the
+// work-group is smaller than one sub-group or leaves the last one short.
 static inline uint _nv_sg_valid_count(uint sg_size){
     const uint linear = _nv_get_linear_tid();
     const uint base = linear - (linear % sg_size);
@@ -67,11 +52,9 @@ static inline uint _nv_sg_valid_count(uint sg_size){
     return remaining < sg_size ? remaining : sg_size;
 }
 
-// Lanes of the current warp that make up the caller's emulated sub-group. Lanes the work-group never launched are
-// left out: naming them in a shfl.sync / vote.sync / bar.warp.sync member mask is undefined behaviour, and a mask
-// that claims they exist makes vote.sync.ballot based helpers such as sub_group_all read as if those lanes had
-// voted false. This also covers the last warp of a work-group whose size is not a multiple of 32 on the
-// non-emulated path, where sg_size is 32.
+// Lanes of the current warp that make up the caller's emulated sub-group, leaving out lanes the work-group never
+// launched: naming them in a shfl.sync / vote.sync / bar.warp.sync member mask is undefined, and ballot-based helpers
+// such as sub_group_all would read them as voting false.
 static inline uint _nv_sg_mask(uint sg_size){
     const uint base = _nv_laneid() & ~(sg_size - 1u);
     const uint valid = _nv_sg_valid_count(sg_size);
@@ -233,10 +216,8 @@ static inline long __attribute__((overloadable)) _nv_sub_group_broadcast(long x,
 // --------------------------------------------------------------------------------------------------------------------
 // sub-group shuffle
 // --------------------------------------------------------------------------------------------------------------------
-// intel_sub_group_shuffle allows a per-lane index, unlike sub_group_broadcast. shfl.sync.idx reads the index from a
-// register per lane, so routing shuffle through the broadcast helper keeps the per-lane index intact.
-// The _sub_group_shuffle* spellings are bound in nvidia/compat_sg_overrides.cl, after the batch headers have
-// declared their own (sub-group-size 32) versions of those names.
+// intel_sub_group_shuffle takes a per-lane index; shfl.sync.idx reads it from a register per lane, so the broadcast
+// helper serves both. The _sub_group_shuffle* spellings are bound in compat_sg_overrides.cl.
 
 #define OV_NV_SGSH_1(type)                                                                                    \
 static inline type __attribute__((overloadable)) _nv_sub_group_shuffle(type v, uint c, uint sg){              \
@@ -336,14 +317,9 @@ OV_NV_SGSHUD_AS(half, ushort)
 // sub-group reductions
 // --------------------------------------------------------------------------------------------------------------------
 
-// The butterfly below is only correct while every lane it names exists, so it is kept for the full sub-group and a
-// short one walks the work-items it does have instead. A partial butterfly is not an option: with a non power of two
-// number of valid lanes an XOR exchange folds in values that already aggregate absent lanes, so no per-step guard
-// recovers the right answer. The linear form costs O(n) shuffles, but it only runs on sub-groups the work-group left
-// short; the full path is the one every existing kernel takes. Every lane of a short sub-group folds the values in
-// the same order, lane 0 first, so all of them return the same bits. Starting from the lane's own value would let
-// float and half sums differ in the last bit between lanes, which the butterfly never does: each of its exchanges
-// combines the same two values on both lanes.
+// The butterfly is only correct while every lane it names exists, so a short sub-group walks its valid work-items
+// instead (a partial butterfly would fold in values that already aggregate absent lanes). Every lane folds them in
+// the same order, lane 0 first, so all lanes return the same bits, as the butterfly does.
 #define OV_NV_SG_REDUCE(name, type, combine, to_u, from_u)                                                             \
 static inline type __attribute__((overloadable)) name(type val, uint sg){                                              \
     const uint n = _nv_sg_valid_count(sg);                                                                             \
@@ -407,16 +383,10 @@ OV_NV_SG_REDUCE(_nv_sub_group_reduce_min, half,  OV_NV_SG_MIN,   OV_NV_SG_U_OF_H
 // --------------------------------------------------------------------------------------------------------------------
 // sub-group block read / write
 // --------------------------------------------------------------------------------------------------------------------
-// Lane i of a sub-group accesses elements i, i + sg, i + 2*sg ... from the base pointer shared by the sub-group.
-// The address space is part of the signature, so one name serves both the plain and the _slm family through the
-// __global and __local overloads.
-//
-// The base pointer is taken from the sub-group's first lane. cl_intel_subgroups requires it to be the same for
-// every work-item, and Intel hardware enforces that by reading the address out of a uniform register, so a kernel
-// that hands the built-in a pointer varying across the sub-group still gets the first lane's. Several kernels rely
-// on this: sdpa_opt.cl folds head_size_idx, which is get_local_id(2), into the value pointer and then expects the
-// block read to supply the per-lane part, so reading through each lane's own pointer would add it twice. The
-// accessors below hand lane 0's pointer to every lane through the ulong overload of _nv_sub_group_broadcast.
+// Lane i of a sub-group accesses elements i, i + sg, i + 2*sg ... from the base pointer; the __global and __local
+// overloads serve the plain and the _slm family alike.
+// The base pointer is lane 0's, broadcast to every lane: Intel hardware reads it from a uniform register, so kernels
+// that pass a pointer varying across the sub-group (sdpa_opt.cl among them) still get the first lane's.
 
 #define OV_NV_CAT_(a, b) a##b
 #define OV_NV_CAT(a, b) OV_NV_CAT_(a, b)

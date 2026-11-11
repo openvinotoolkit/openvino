@@ -5,13 +5,8 @@
 //
 // half support for the native NVIDIA OpenCL compiler, which enables cl_khr_fp16 but leaves most of the half built-ins
 // out: the HALF_* limits, math overloads, convert_* families, as_* reinterprets, vloadN / vstoreN, the relational
-// built-ins and the half atomics of cl_ext_float_atomics that istft_ref.cl uses. The convert_* section also carries the
-// emulation of Intel's out-of-range float to integer conversion, which is not specific to half but belongs to the same
-// family of overrides.
-//
-// kernels_cache.cpp emits this file as part of the NVIDIA prelude; nvidia_prelude_names there fixes the order.
-// Dependencies are listed here instead of as #include lines: primitive_db_gen.py strips #include from batch headers
-// anyway, and its dependency sort fails on include graphs that reach the same header along two paths.
+// built-ins and the half atomics of cl_ext_float_atomics. The convert_* section also emulates Intel's out-of-range
+// float to integer conversion, which is not specific to half.
 //
 // Depends on:
 //     nvidia/compat_common.cl   cl_khr_fp16
@@ -56,15 +51,9 @@
 // --------------------------------------------------------------------------------------------------------------------
 // half <-> float conversions
 // --------------------------------------------------------------------------------------------------------------------
-// The native NVIDIA OpenCL compiler (seen on A100, driver 590.48.01) miscompiles a half8 -> float8
-// __builtin_convertvector whose operand comes straight from a vector load, such as the
-// ((const __global half8*)p)[0] that jitter emits for fused-op inputs: it folds the load into the widening and drops
-// cvt.f32.f16 for lanes 0-5, which then hold the raw half bits as tiny denormals. Loads from global, constant and
-// local memory are all affected; a half8 assembled in registers converts correctly. convert_float8 therefore widens
-// lane by lane, and every helper further down widens half vectors through convert_float<w> instead of calling
-// __builtin_convertvector itself, so that width 8 always takes the lane-wise path. Widths 2, 3, 4 and 16 stay on the
-// builtin: vector-loaded from global, constant or local memory, or built by vloadN, they converted correctly both
-// bare and through every helper below.
+// The NVIDIA compiler (A100, driver 590.48.01) miscompiles a half8 -> float8 __builtin_convertvector whose operand
+// comes straight from a vector load, leaving lanes 0-5 unconverted. convert_float8 therefore widens lane by lane, and
+// the helpers below widen half vectors through convert_float<w>; the other widths convert correctly on the builtin.
 
 #undef convert_float
 #define convert_float(x)   ((float)(x))
@@ -100,10 +89,7 @@ OV_NV_CONVERT_FLOAT8(ulong)
 #define convert_float8(x) ov_nv_convert_float8(x)
 #undef convert_float16
 #define convert_float16(x) __builtin_convertvector((x), float16)
-// Narrowing does not share the half8 problem above. On the same A100 / driver, vectors of float, double and every
-// integer type at widths 2, 3, 4, 8 and 16, vector-loaded from data another work-item wrote, narrowed correctly with
-// __builtin_convertvector (round to nearest even, overflow to infinity), and so did float vectors narrowed and then
-// vector-stored as half at every width, so these stay on the builtin.
+// Narrowing does not share that problem, so it stays on the builtin.
 #undef convert_half2
 #define convert_half2(x)   __builtin_convertvector((x), half2)
 #undef convert_half3
@@ -141,21 +127,12 @@ OV_NV_H_BINARY_VEC(fn,impl,16) \
 OV_NV_H_BINARY_BCAST(fn,2) OV_NV_H_BINARY_BCAST(fn,3) OV_NV_H_BINARY_BCAST(fn,4) OV_NV_H_BINARY_BCAST(fn,8) OV_NV_H_BINARY_BCAST(fn,16)
 #define OV_NV_H_BINARY(fn) OV_NV_H_BINARY_IMPL(fn,fn)
 
-// pow on the native NVIDIA compiler is not correctly rounded even when the exact result is representable in float:
-// pow(114.0f, 2.0f) returns 12996.001f on A100 (driver 590.48.01). Rounding to half turns that float ulp into a half
-// ulp whenever the exact result sits halfway between two halves (12996 -> 13000 instead of 12992), so half pow with an
-// integral exponent goes through pown, which gave the correctly rounded half for every finite half base and exponents
-// -3..6 on the same device. The bound keeps the int conversion defined and still covers every finite half exponent,
-// half pow being the only caller.
-// An exponent of 0.5 has the same problem (pow(15.992188f, 0.5f) rounds to 4 instead of 3.998047) and goes through
-// sqrt, which gave the correctly rounded half for every half base. fabs turns sqrt(-0) = -0 into the +0 pow returns,
-// and -inf is mapped to the +inf pow returns, where sqrt gives NaN.
-// Exponents of -1 and -0.5 are taken out for speed: pown(a, -1) is slower than pow, and both are about ten times
-// slower than 1 / a and rsqrt on the same device. Exponent -1 comes from every non-constant float Divide, which
-// ConvertDivide turns into a multiply by pow(b, -1); -0.5 comes from RMS / MVN patterns that are not fused. Both forms
-// gave the correctly rounded half for every half base; fabs turns rsqrt(-0) = -inf into the +inf pow returns, and -inf
-// is mapped to the +0 pow returns, where rsqrt gives NaN.
-// A constant exponent folds all these tests away at compile time.
+// pow on the NVIDIA compiler (A100, driver 590.48.01) is not correctly rounded even when the exact result is
+// representable (pow(114.0f, 2.0f) gives 12996.001f), which can round a half result to the wrong neighbour. Integral
+// exponents therefore go through pown and 0.5 through sqrt, both correctly rounded for every half base; -1 and -0.5,
+// common from Divide and from RMS / MVN patterns, take 1 / a and rsqrt, about ten times faster. fabs and the -inf
+// cases keep the results pow gives for -0 and -inf. Half pow is the only caller, and a constant exponent folds the
+// tests away.
 static inline float __attribute__((overloadable)) ov_nv_pow_f(float a, float b) {
     if (b == 0.5f)
         return (a == -INFINITY) ? INFINITY : fabs(sqrt(a));
@@ -267,11 +244,8 @@ OV_NV_CONV_INT_SFX_VEC(fn, type, sfx, 16)
 OV_NV_CONV_INT_SFX(fn, type, _rte) OV_NV_CONV_INT_SFX(fn, type, _rtp) OV_NV_CONV_INT_SFX(fn, type, _sat_rte)
 #define OV_NV_CONV_INT_ALL(fn, type) \
 OV_NV_CONV_INT(fn, type) OV_NV_CONV_INT_ROUNDING(fn, type)
-// cl_kernel.h declares convert_<type>[_rte|_rtp|_sat_rte] for every source type except half, so each rounding
-// family is filled in below for all eight integer destinations, scalar forms included. Leaving a family at
-// char/uchar only breaks any kernel that rounds a half vector into a wider destination, such as the
-// convert_int8_rte in dynamic_quantize_gpu_opt.cl. The plain family is only needed for the four 32- and 64-bit
-// destinations; see above for the narrow ones.
+// cl_kernel.h declares convert_<type>[_rte|_rtp|_sat_rte] for every source type except half, so each rounding family
+// is filled in for all eight integer destinations, and the plain family for the 32- and 64-bit ones (see above).
 OV_NV_CONV_INT_ROUNDING(convert_char,   char)
 OV_NV_CONV_INT_ROUNDING(convert_uchar,  uchar)
 OV_NV_CONV_INT_ROUNDING(convert_short,  short)
@@ -290,23 +264,12 @@ OV_NV_CONV_INT_ALL(convert_ulong,  ulong)
 // --------------------------------------------------------------------------------------------------------------------
 // Out-of-range float to integer conversions
 // --------------------------------------------------------------------------------------------------------------------
-// convert_<type>() without _sat is undefined by the OpenCL spec when the value does not fit the destination, and the
-// NVIDIA implementation clamps the whole way down: convert_char(4404.0f) gives 127 and convert_uchar(-127.0f) gives
-// 0. Intel converts in two steps instead - float to the 32-bit integer of the *same signedness* as the destination,
-// then a truncation to the narrow type - and kernels are written against that result.
-// The two steps behave differently at each end of the range, so the signed and the unsigned forms need different
-// emulations:
-//   - char/short go through int, where the float conversion keeps the value and the truncation keeps the low bits:
-//     convert_char(4404.0f) is 52. reduce_gpu_b_fs_yx_fsv16 accumulates in int, converts to ACTIVATION_TYPE float
-//     and converts that to its i8 output, so a sum of 4404 has to come out as 52.
-//   - uchar/ushort go through uint, where a negative float has no representation and clamps to zero before the
-//     truncation ever runs: convert_uchar(-127.0f) is 0. quantize writes its output range low bound straight through
-//     TO_OUTPUT_TYPE, so an out_low of -127 has to come out as 0 and not as the 129 that int would leave behind.
-// Positive overflow still wraps in both forms - convert_uchar(4404.0f) is 52 - and in-range values are unaffected:
-// the float still truncates toward zero. Integer sources are unaffected too, since int and uint truncate to the same
-// low bits.
-// These have to be macros: the scalar forms are already declared non-static by cl_kernel.h and the vector forms are
-// macros there, so neither can be overridden with a definition of the same signature.
+// convert_<type>() without _sat is undefined for values that do not fit. NVIDIA clamps (convert_char(4404.0f) is 127),
+// while Intel converts to the 32-bit integer of the destination's signedness and then truncates, and kernels are
+// written against that: char / short go through int and keep the low bits (convert_char(4404.0f) is 52), uchar /
+// ushort go through uint, where a negative float clamps to 0 (convert_uchar(-127.0f) is 0). In-range values and
+// integer sources are unaffected.
+// These have to be macros: cl_kernel.h declares the scalar forms non-static and defines the vector forms as macros.
 #undef convert_char
 #define convert_char(x) ((char)(int)(x))
 #undef convert_uchar
@@ -434,14 +397,8 @@ OV_NV_VSTORE(__global)
 // --------------------------------------------------------------------------------------------------------------------
 // Relational built-ins
 // --------------------------------------------------------------------------------------------------------------------
-// NVIDIA OpenCL headers expose relational built-ins for float and double, but
-// not for half, so the overloads below fill that gap.
-//
-// A relational built-in taking halfN returns shortN, not intN: the result feeds
-// select() and the vector form of ?:, both of which require the condition to have
-// the same element size as the operands. Returning intN makes the compiler reject
-// 'half2 r = cond ? a : b' and assignments to the short vectors that callers such
-// as detection_output_common.cl (CMP_TYPE4) declare.
+// The NVIDIA headers declare the relational built-ins for float and double only. Those taking halfN return shortN:
+// select() and the vector ?: need the condition's element size to match the operands.
 #define OV_NV_H_RELATIONAL_VEC(fn,w) \
 static inline short##w __attribute__((overloadable)) fn(half##w a,half##w b){return convert_short##w(fn(convert_float##w(a),convert_float##w(b)));}
 #define OV_NV_H_RELATIONAL(fn) \
@@ -456,19 +413,14 @@ static inline bool __attribute__((overloadable)) isinf(half x) {
     return (h & (ushort)0x7FFF) == (ushort)0x7C00;
 }
 
-// The vector forms are reached through the activation jit for RELU_NEGATIVE_SLOPE,
-// which expands to '(isinf(m)) ? ... : ...' with m typed as the vectorised slope.
-// Same element-size rule as above, hence shortN.
+// The vector forms are used through the activation jit (RELU_NEGATIVE_SLOPE); shortN as above.
 #define OV_NV_H_ISINF(w) \
 static inline short##w __attribute__((overloadable)) isinf(half##w x){return convert_short##w(isinf(convert_float##w(x)));}
 OV_NV_H_ISINF(2) OV_NV_H_ISINF(3) OV_NV_H_ISINF(4) OV_NV_H_ISINF(8) OV_NV_H_ISINF(16)
 #undef OV_NV_H_ISINF
 
-// Reached through the eltwise jit for MIN / MAX, which propagates NaN with
-// 'isnan((ACCUMULATOR_TYPE)x) ? ...'. Without a half overload the call is ambiguous
-// between the float / double / vector candidates in cl_kernel.h.
-// The scalar form returns int as the OpenCL spec requires; the vector forms return
-// shortN by the element-size rule above.
+// Used through the eltwise jit for MIN / MAX, where a half argument is otherwise ambiguous. The scalar form returns int
+// as the spec requires, the vector forms shortN as above.
 static inline int __attribute__((overloadable)) isnan(half x) {
     ushort h = as_ushort(x);
     return (h & (ushort)0x7FFF) > (ushort)0x7C00;
@@ -481,15 +433,11 @@ OV_NV_H_ISNAN(2) OV_NV_H_ISNAN(3) OV_NV_H_ISNAN(4) OV_NV_H_ISNAN(8) OV_NV_H_ISNA
 // --------------------------------------------------------------------------------------------------------------------
 // Atomics on half (cl_ext_float_atomics, __opencl_c_ext_fp16_global_atomic_load_store)
 // --------------------------------------------------------------------------------------------------------------------
-// The NVIDIA compiler has neither atomic_half nor the fp16 atomic_load / atomic_store / atomic_exchange that
-// cl_ext_float_atomics adds. istft_ref.cl declares its f16 accumulation helper for every output type, #errors when the
-// feature macro is missing and accumulates f16 output with atomic_exchange, so without these even its f32 kernels
-// failed to build. PTX has no 16-bit atom.exch, so the exchange is a loop on the 16-bit atom.cas.b16 (sm_70 and later).
-// Only the default-order forms are provided: sequentially consistent at device scope, done by placing fence.sc.gpu on
-// both sides of a relaxed access, which is stronger than required. The _explicit forms are left out on purpose, so a
-// caller asking for them fails to compile rather than getting different semantics. atomic_half is a plain typedef of
-// half, so unlike a real atomic type it does not stop non-atomic accesses. The functions are static inline and reach
-// only the PTX of kernels that call them.
+// The NVIDIA compiler has no atomic_half nor the fp16 atomic_load / store / exchange, which istft_ref.cl needs to build
+// at all. PTX has no 16-bit atom.exch, so the exchange loops on atom.cas.b16 (sm_70 and later). Only the default-order
+// forms exist, sequentially consistent through fence.sc.gpu around a relaxed access; the _explicit forms are left out
+// so that a caller fails to compile rather than get other semantics. atomic_half is a plain typedef of half, so it does
+// not stop non-atomic accesses.
 typedef half atomic_half;
 #ifndef __opencl_c_ext_fp16_global_atomic_load_store
 #define __opencl_c_ext_fp16_global_atomic_load_store 1

@@ -3,16 +3,16 @@
 //
 // Copyright (C) 2026 FUJITSU LIMITED
 //
-// Common base of the NVIDIA compatibility prelude: extension pragmas, feature macros and work-item id helpers.
-// Keep it to the extension / feature-macro setup and to helpers shared by several of the later compat_*.cl files;
-// code used by a single feature belongs in that feature's file.
+// Common base of the NVIDIA compatibility prelude: extension pragmas, feature macros and the work-item id helpers the
+// later compat_*.cl files share; code used by a single feature belongs in that feature's file.
 //
-// kernels_cache.cpp emits the prelude as the concatenation of nvidia_prelude_names, in this order:
+// kernels_cache.cpp puts the prelude ahead of the batch headers, in the order of nvidia_prelude_names:
 //     nvidia/compat_common.cl   this file
-//     nvidia/compat_half.cl     half limits, math, conversions, reinterprets, vload/vstore, relational
+//     nvidia/compat_half.cl     half limits, math, conversions, reinterprets, vload/vstore, relational, atomics
 //     nvidia/compat_sg.cl       sub-group emulation
 //     nvidia/compat_wg.cl       work-group collectives
-// Each file relies only on the ones before it.
+// Each file relies only on the ones before it, and lists them instead of #including them: primitive_db_gen.py strips
+// #include from batch headers, and its dependency sort fails on include graphs that reach a header along two paths.
 
 #ifdef __NV_CL_C_VERSION
 
@@ -20,64 +20,38 @@
 #ifndef cl_khr_fp16
 #define cl_khr_fp16 1
 #endif
-// The host reports supports_intel_subgroups_short for NVIDIA devices (sycl_device.cpp), so the kernel selector
-// can pick kernels whose whole body sits under #if defined(cl_intel_subgroups_short) (convolution_gpu_bfyx_direct_
-// 10_12_16, convolution_gpu_bfyx_gemm_like_fp16). The NVIDIA compiler never defines the macro, so without this those
-// kernels preprocess to nothing and the batch comes back one entry point short. The 16-bit block accessors the
-// extension would supply are the intel_sub_group_block_{read,write}_us* macros defined in compat_sg.cl, so
-// sub_group_block_read.cl and sub_group_block_write.cl reach the same helpers either way; compat_sg_overrides.cl
-// then #undefs the _sub_group_block_*_us* spellings those headers define and binds them again.
+// sycl_device.cpp reports supports_intel_subgroups_short for NVIDIA devices, so kernels whose body sits under
+// #if defined(cl_intel_subgroups_short) can be picked; the NVIDIA compiler never defines the macro, and without it those
+// kernels would preprocess to nothing. compat_sg.cl provides the 16-bit accessors the extension would.
 #ifndef cl_intel_subgroups_short
 #define cl_intel_subgroups_short 1
 #endif
 
 // Work-item ids.
-// OpenVINO builds the kernels with clBuildProgram but launches the resulting PTX with cuLaunchKernel, which never
-// writes the %envreg special registers the NVIDIA OpenCL runtime sets up. sycl_kernel_builder.cpp patches %envreg0-8
-// (global offsets and group counts) in the PTX, but not %envreg9, the work dimension. The built-in
-// get_global_linear_id() and get_local_linear_id() branch on that register (one, two or three dimensions) and fall
-// through to 0 when it holds anything else, so every work-item got linear id 0: grid_sample_opt_bilinear_zeros, with a
-// {1, 256, 1} local size, had all its work-items handle the first element and left the rest of the output at 0.
-// The helpers below replace these built-ins, and the other work-item ones, and read the special registers instead -
-// directly, or through placeholders the runtime replaces with them (see "Work-group layout on CUDA" below); OpenVINO
-// always launches with a zero global offset. Trying the built-ins through clEnqueueNDRangeKernel
-// does not show the problem, since the OpenCL runtime does set %envreg9 there.
+// The PTX is launched with cuLaunchKernel, which never sets the %envreg registers the NVIDIA OpenCL runtime fills in.
+// sycl_kernel_builder.cpp patches %envreg0-8, but not %envreg9 (the work dimension) on which the built-in
+// get_global_linear_id() / get_local_linear_id() branch, so the helpers below replace the work-item built-ins and read
+// the special registers instead, directly or through the layout placeholders below. OpenVINO always launches with a
+// zero global offset.
 // The asm is not volatile, here and for _nv_laneid in compat_sg.cl: these registers do not change while a work-item
-// runs, so the compiler may fold repeated reads, which cuts the S2R count. The code shape this gives exposed three
-// problems on an A100 with the sub-group size emulation on, each fixed where it lies rather than by keeping volatile:
-//  - convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32: with the lane and sub-group ids from one %tid read, the x-boundary
-//    test was unswitched out of the SLM fill loop and a race between the SLM stores of two sub-groups returned wrong
-//    values (fusings_gpu/conv_int8_*). The kernel now guards those stores.
-//  - convolution_gpu_bfyx_f16 / _1x1 with fused eltwise ops: ptxas contracted a half multiply and add into HFMA2,
-//    1 ulp away from the unfused reference (conv_fp32_eltwise_fusing_extend_ops.pattern03_sub_div/3 and /4). The
-//    test's f16 tolerance now allows for that.
-//  - sdpa_opt__multi_tokens: its register count rose past the 128 a 512-work-item work-group can use, and the launch
-//    failed (smoke_adaptive_rkv/adaptive_rkv_diversity_test.basic/23). sycl_ptx_kernel now loads a kernel that does
-//    not fit its work-group again with CU_JIT_THREADS_PER_BLOCK.
-// A kernel whose SLM accesses between work-items are not synchronised can still change behaviour with the code shape;
-// compute-sanitizer --tool racecheck reports such accesses even when the results happen to be right.
+// runs, so repeated reads may be folded. Kernels whose SLM accesses are not synchronised can change behaviour with it.
 
 // Work-group layout on CUDA.
-// CUDA allows at most 64 threads along blockDim.z, while an OpenCL work-group may have up to max_work_group_size
-// work-items along any dimension. sycl_ptx_kernel.cpp therefore launches a work-group of local size (X, Y, Z) with
-// Z > 64 as the CUDA block (X, Z, Y): it folds dimensions 1 and 2 into one axis of Y * Z work-items, counted by
-// r = tid.y + ntid.y * tid.z, and keeps Y in %ntid.z (Y * Z <= 1024 and Z > 64 leave Y <= 15). The hardware still
-// numbers the threads x fastest, so r and the linear local id - and with them the warp lanes the sub-group emulation
-// relies on - are those of the OpenCL work-group, and the local ids are recovered as r % Y and r / Y. When Y is 1
-// that is a plain exchange of the two axes and needs no division.
+// CUDA allows at most 64 threads along blockDim.z, so sycl_ptx_kernel.cpp launches a work-group of local size
+// (X, Y, Z) with Z > 64 as the CUDA block (X, Z, Y): dimensions 1 and 2 fold into one axis of Y * Z work-items,
+// counted by r = tid.y + ntid.y * tid.z, with Y kept in %ntid.z. The hardware still numbers the threads x fastest, so
+// the linear local id - and the warp lanes the sub-group emulation relies on - stay those of the OpenCL work-group,
+// and the local ids are r % Y and r / Y (a plain exchange of the two axes when Y is 1).
 //
-// So that the same PTX serves every layout, the helpers below do not read the values that depend on it from
-// special registers but from %envreg27-31, which cuLaunchKernel never sets and the NVIDIA OpenCL built-ins do not use
-// (they use %envreg0-9). When sycl_ptx_kernel.cpp loads the PTX it replaces each of them with the special register
-// the chosen layout calls for, so the asm here never reaches the hardware as written:
-//     %envreg27-30  local id 1, local id 2, local size 1, local size 2: the axes they sit on in the layout.
+// So that one PTX serves every layout, the values that depend on it are read from %envreg27-31, which neither
+// cuLaunchKernel nor the NVIDIA built-ins use; sycl_ptx_kernel.cpp replaces each with the special register the chosen
+// layout calls for when it loads the PTX:
+//     %envreg27-30  local id 1, local id 2, local size 1, local size 2.
 //     %envreg31     the divisor of the fold: %ntid.z when Y > 1 is folded, %ntid.y otherwise. Compared with %ntid.y
-//                   it selects the division, and in the other layouts ptxas folds the comparison and drops it.
-// The OpenCL built-ins these helpers replace would read the wrong axis once the layout moves dimensions 1 and 2.
-// %envreg27-30 only spare the division when Y is 1 and could be dropped first, so they take the lower numbers.
+//                   it selects the division, which ptxas drops in the other layouts.
 // Dimension 0, the hardware y and z values and the work-group ids and counts are read from their special registers
-// directly: the layout never moves dimension 0, the hardware numbering is what the fold is built on, and the grid
-// axes are remapped by renaming %ctaid/%nctaid.
+// directly: the layout never moves dimension 0, the fold is built on the hardware numbering, and the grid axes are
+// remapped by renaming %ctaid / %nctaid.
 static inline uint _nv_hw_tid_x(void)      { uint v; __asm__("mov.u32 %0, %%tid.x;"  : "=r"(v)); return v; }
 static inline uint _nv_hw_tid_y(void)      { uint v; __asm__("mov.u32 %0, %%tid.y;"  : "=r"(v)); return v; }
 static inline uint _nv_hw_tid_z(void)      { uint v; __asm__("mov.u32 %0, %%tid.z;"  : "=r"(v)); return v; }
