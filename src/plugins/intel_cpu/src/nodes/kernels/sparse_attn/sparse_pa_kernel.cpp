@@ -645,6 +645,8 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
     OPENVINO_ASSERT(
         quant.enabled() || (key_cache.get_precision() == data_prc && value_cache.get_precision() == data_prc),
         "[CPU] sparse_pa: plain caches must have the query precision");
+    OPENVINO_ASSERT(!brgemm.enabled() || brgemm.prec == data_prc,
+                    "[CPU] sparse_pa: the brgemm kernels must be built for the query precision");
     OPENVINO_ASSERT(scratch != nullptr && token_ids != nullptr, "[CPU] sparse_pa: scratch must not be null");
     OPENVINO_ASSERT(subsequence_begins.size(0) >= 1, "[CPU] sparse_pa: subsequence_begins must be non-empty");
 

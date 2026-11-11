@@ -3,20 +3,14 @@
 //
 #pragma once
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <numeric>
 
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
-#endif
 
 // Defined outside XARCH, like QuantizeParam, so the cross-compiled dispatcher can name it in the signature.
 namespace ov::Extensions::Cpu {

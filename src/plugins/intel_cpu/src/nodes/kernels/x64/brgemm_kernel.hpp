@@ -45,7 +45,8 @@ public:
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
     // b_transpose indicates wheter B matrix is transposed.
-    // fuse_relu applies ReLU to the result as a brgemm post-op: C = max(0, A * B)
+    // fuse_relu applies ReLU to the result as a brgemm post-op: C = max(0, A * B). BrgemmKernelQuantized has no such
+    // option: its post-op slot is taken by the scales.
     BrgemmKernel(size_t M,
                  size_t N,
                  size_t K,

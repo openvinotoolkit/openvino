@@ -119,17 +119,6 @@ void dequant_rows(const PlainTensor& cache,
 // head). Adjacent selected blocks form a run; K/V are read (or dequantized) once per pack and every head runs an online
 // softmax.
 
-template <typename T>
-constexpr ov::element::Type_t prec_of() {
-    if constexpr (std::is_same_v<T, ov::bfloat16>) {
-        return ov::element::bf16;
-    } else if constexpr (std::is_same_v<T, ov::float16>) {
-        return ov::element::f16;
-    } else {
-        return ov::element::f32;
-    }
-}
-
 // Calls f(T{}) with the C++ type of the (not quantized) element type `prec`.
 template <typename F>
 void visit_float_type(ov::element::Type prec, const F& f) {
@@ -466,6 +455,15 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                                   brgemm_scratch,
                                   brgemm_bytes_per_thread,
                                   max_q_head_pack_size(num_heads, num_kv_heads, h_sel)};
+        // The brgemm path reads the query and the output as the brgemm's data type, and so the key and value unless
+        // the cache is compressed (u8 / u4 rows, dequantized on the fly).
+        OPENVINO_ASSERT(query.get_precision() == brgemm.prec && out.get_precision() == brgemm.prec &&
+                            (key_quant.enabled() || key.get_precision() == brgemm.prec) &&
+                            (value_quant.enabled() || value.get_precision() == brgemm.prec),
+                        "[CPU] sparse_sdpa: the brgemm path requires the query, output and plain key and value of "
+                        "the brgemm precision");
+        OPENVINO_ASSERT(brgemm_scratch != nullptr && brgemm_layout.total <= brgemm_bytes_per_thread,
+                        "[CPU] sparse_sdpa: the brgemm scratch is missing or too small");
         if (brgemm.prec == ov::element::bf16) {
             sparse_sdpa_brgemm<ov::bfloat16>(args, cpu_parallel);
         } else {

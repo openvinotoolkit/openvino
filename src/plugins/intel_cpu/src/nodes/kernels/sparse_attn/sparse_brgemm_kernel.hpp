@@ -71,6 +71,7 @@ struct BrgemmPack {
 /// invariant.
 template <typename T>
 struct WeightLayout {
+    static_assert(sizeof(T) == 2, "the brgemm weights are 16-bit data (bf16 / f16)");
     float* storage;  // [pack_size, tile_rows] floats
     size_t tile_rows;
 
@@ -122,6 +123,7 @@ struct BrgemmBuffers {
 /// a 32 x (k_head_size / 2) transpose of 32-bit values, 16 x 16 at a time.
 template <typename T>
 void pack_k_block(const T* const* kv_ptrs, size_t k_head_size, T* dst) {
+    static_assert(sizeof(T) == 2, "the rows are packed as 16-bit data (bf16 / f16)");
     auto* out = reinterpret_cast<uint32_t*>(dst);
     const size_t pairs = k_head_size / 2;
     for (size_t half = 0; half < 2; half++) {
@@ -169,6 +171,7 @@ void pack_k_block(const T* const* kv_ptrs, size_t k_head_size, T* dst) {
 /// into the row i of dst, whose stride is 2 * v_head_size elements.
 template <typename T>
 void pack_v_block(const T* const* kv_ptrs, size_t v_head_size, T* dst) {
+    static_assert(sizeof(T) == 2, "the rows are packed as 16-bit data (bf16 / f16)");
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     const auto midx = _mm512_loadu_si512(idx);
     auto* out_row = reinterpret_cast<uint16_t*>(dst);

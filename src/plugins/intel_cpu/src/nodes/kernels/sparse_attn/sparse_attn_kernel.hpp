@@ -21,13 +21,13 @@ namespace ov::Extensions::Cpu::XARCH {
 // scores[head * score_stride + r] = q[head, :] . keys[r, :] for head < num_q_heads, r < rows.
 // q: f32 [num_q_heads, head_size]; keys: [rows, head_size] contiguous.
 template <typename T>
-static inline void qk_scores_gqa(const float* q,
-                                 size_t num_q_heads,
-                                 size_t head_size,
-                                 T* keys,
-                                 size_t rows,
-                                 float* scores,
-                                 size_t score_stride) {
+inline void qk_scores_gqa(const float* q,
+                          size_t num_q_heads,
+                          size_t head_size,
+                          T* keys,
+                          size_t rows,
+                          float* scores,
+                          size_t score_stride) {
     constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
     size_t h = 0;
 #if defined(HAVE_AVX512F)
@@ -158,13 +158,13 @@ static inline void qk_scores_gqa(const float* q,
 // acc[head, :] += sum_r weights[head * weight_stride + r] * values[r, :] for head < num_q_heads, r < rows.
 // acc: f32 [num_q_heads, value_size]; values: [rows, value_size] contiguous.
 template <typename T>
-static inline void pv_accumulate_gqa(float* acc,
-                                     size_t num_q_heads,
-                                     size_t value_size,
-                                     const float* weights,
-                                     size_t weight_stride,
-                                     T* values,
-                                     size_t rows) {
+inline void pv_accumulate_gqa(float* acc,
+                              size_t num_q_heads,
+                              size_t value_size,
+                              const float* weights,
+                              size_t weight_stride,
+                              T* values,
+                              size_t rows) {
     constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
     size_t h = 0;
 #if defined(HAVE_AVX512F)

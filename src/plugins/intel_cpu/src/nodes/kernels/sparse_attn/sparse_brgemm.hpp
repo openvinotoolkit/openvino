@@ -174,7 +174,7 @@ struct SparseBrgemmKernels {
                                                            k_head_size,
                                                            k_head_size,
                                                            tile_rows,
-                                                           true,
+                                                           /*b_transposed=*/true,
                                                            prec);
         pv_overwrite = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
                                                                      v_head_size,
@@ -182,7 +182,7 @@ struct SparseBrgemmKernels {
                                                                      weights_row_stride(tile_rows),
                                                                      v_head_size,
                                                                      v_head_size,
-                                                                     false,
+                                                                     /*b_transposed=*/false,
                                                                      prec);
         pv_accumulate = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
                                                                       v_head_size,
@@ -190,9 +190,9 @@ struct SparseBrgemmKernels {
                                                                       weights_row_stride(tile_rows),
                                                                       v_head_size,
                                                                       v_head_size,
-                                                                      false,
+                                                                      /*b_transposed=*/false,
                                                                       prec,
-                                                                      true);
+                                                                      /*b_accumulate=*/true);
         handle = {qk.get(), pv_overwrite.get(), pv_accumulate.get(), tile_rows, prec};
     }
 };

@@ -12,10 +12,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
-#ifdef OPENVINO_ARCH_X86_64
-#    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
-#endif
-
 namespace ov::Extensions::Cpu {
 
 // Describes how the key (or value) cache rows are stored. A plain cache is read as is (any of f32/f16/bf16, see
@@ -32,8 +28,10 @@ struct SparseKVQuant {
     bool by_channel = false;
     const ov::intel_cpu::PlainTensor* scale_zp = nullptr;
 
+    // A compressed cache needs the scale / zero point tensor and a group; the by-channel layout exists for u8 only.
     [[nodiscard]] bool enabled() const {
-        return scale_zp != nullptr && (prec == ov::element::u8 || prec == ov::element::u4);
+        return scale_zp != nullptr && group_size > 0 &&
+               (prec == ov::element::u8 || (prec == ov::element::u4 && !by_channel));
     }
 };
 

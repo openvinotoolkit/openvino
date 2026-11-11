@@ -53,7 +53,9 @@ SparsePA::SparsePA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     }
     const auto sparse_pa = ov::as_type_ptr<const ov::op::internal::PagedSparseAttention>(op);
     OPENVINO_ASSERT(sparse_pa, "Expected PagedSparseAttention node");
-    OPENVINO_ASSERT(deriveConfig(*sparse_pa, m_config, errorMessage), errorMessage);
+    if (!deriveConfig(*sparse_pa, m_config, errorMessage)) {
+        OPENVINO_THROW(errorMessage);
+    }
     if (!deriveQuant(errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
@@ -218,11 +220,27 @@ bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Co
         reason = "PagedSparseAttention CPU implementation requires static head dimensions.";
         return false;
     }
+    const auto query_width = static_cast<size_t>(query_ps[1].get_length());
+    const auto key_width = static_cast<size_t>(key_ps[1].get_length());
+    const auto value_width = static_cast<size_t>(value_ps[1].get_length());
     config.num_kv_heads = static_cast<size_t>(key_cache_ps[1].get_length());
     config.num_selection_heads = static_cast<size_t>(selected_ps[1].get_length());
-    config.k_head_size = static_cast<size_t>(key_ps[1].get_length()) / config.num_kv_heads;
-    config.v_head_size = static_cast<size_t>(value_ps[1].get_length()) / config.num_kv_heads;
-    config.num_heads = static_cast<size_t>(query_ps[1].get_length()) / config.k_head_size;
+    // The head sizes are derived from the widths of the flattened inputs: they must split evenly.
+    if (config.num_kv_heads == 0 || key_width % config.num_kv_heads != 0 || value_width % config.num_kv_heads != 0) {
+        reason = "PagedSparseAttention: key and value widths must be multiples of the number of KV heads.";
+        return false;
+    }
+    config.k_head_size = key_width / config.num_kv_heads;
+    config.v_head_size = value_width / config.num_kv_heads;
+    if (config.k_head_size == 0 || config.v_head_size == 0 || query_width % config.k_head_size != 0) {
+        reason = "PagedSparseAttention: the query width must be a multiple of the key head size.";
+        return false;
+    }
+    config.num_heads = query_width / config.k_head_size;
+    if (config.num_heads == 0 || config.num_heads % config.num_kv_heads != 0) {
+        reason = "PagedSparseAttention: the number of query heads must be a multiple of the number of KV heads.";
+        return false;
+    }
     config.key_block_size = static_cast<size_t>(op.get_key_block_size());
     config.causal = true;
     if (config.num_selection_heads != 1 && config.num_selection_heads != config.num_kv_heads &&
