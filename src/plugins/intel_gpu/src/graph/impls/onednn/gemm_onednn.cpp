@@ -134,6 +134,7 @@ protected:
         if (instance.can_be_optimized()) {
             return;
         }
+
         if (instance.get_input_layout(0).count() == 0 ||
             instance.get_input_layout(1).count() == 0) {
             return;
@@ -245,8 +246,9 @@ protected:
             std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
             if (dims.size() > order.size()) {
                 size_t orders_to_add = dims.size() - order.size();
-                for (size_t i = 0; i < orders_to_add; ++i)
+                for (size_t i = 0; i < orders_to_add; ++i) {
                     order.insert(order.begin(), i);
+                }
                 for (size_t i = orders_to_add; i < order.size(); ++i) {
                     order[i] = order[i] + orders_to_add;
                 }
@@ -376,7 +378,6 @@ protected:
                 out_md,
                 attr);
         }
-
         return std::make_shared<dnnl::matmul::primitive_desc>(
             engine.get_onednn_engine(),
             in0_md,
