@@ -82,9 +82,9 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
             if (device_bank.second.storage.count(uid) != 1) {
                 return false;
             }
-            // Fallback logic for parsed weights bank from old blobs included:
-            // `NPU.0`, `NPU.1` etc. will be evaluated to `NPU` bank device unless new lazy tensors
-            // are registered in the imported weight bank
+            // Exact device key, or the un-indexed "NPU" key written by old blobs,
+            // which serves any NPU.<n> request for the uids restored under it. uids are unique across
+            // the bank, so at most one key can hold a given uid.
             return device_bank.first == device_for_alloc ||
                    (device_bank.first == "NPU" && ov::npuw::util::starts_with(device_for_alloc, "NPU."));
         });
@@ -255,8 +255,8 @@ void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const
     NPUW_ASSERT(static_cast<uint64_t>(uid) < static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) &&
                 "Malformed blob: weights bank uid exceeds max int value");
 
-    for (const auto& [key, other] : m_device_banks) {
-        NPUW_ASSERT(other.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
+    for (const auto& bank : m_device_banks) {
+        NPUW_ASSERT(bank.second.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
     }
     auto& device_bank = m_device_banks[device];
     uid_count = std::max(uid_count, uid + 1);
