@@ -44,14 +44,16 @@
 // scale, rounded once; lsum takes P). New keys read Vc rows as PREFILL reads V. Rows are clamped to lim - 1, so every read
 // is of a written slot.
 
-// The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score
-// tile is the KQ query tile), and each holds 16 or 32 value columns of the head (hpg_pa_prefill_tiling()). The head need not
+// The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup, 32 for a compressed MIXED at heads 96 / 128 / 256
+// (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score tile is the KQ query tile), and each holds 16 or 32 value columns of
+// the head (hpg_pa_prefill_tiling()). The head need not
 // be a power of two (96) nor a multiple of 16: plain SDPA at head 72 (HPG_TAIL = 8) has a last depth tile of 8 depths (K and
 // Q read 16 B there and the rest is zero) and a last value subgroup of 8 columns, which reads the 16 columns that end the
 // head and stores its upper 8 (sv_col below), so no load leaves the head.
 #define HPG_TAIL (K_HEAD_SIZE % DPAS_K)
 #if !(SG8 && (IS_PREFILL || IS_PA_MIXED) && K_HEAD_SIZE == V_HEAD_SIZE && (HPG_TAIL == 0 || HPG_TAIL == DPAS_K / 2) && \
-      kq_sg_tile_queries == 16 && sv_sg_tile_scores == 16 && sv_sg_per_wg_scores == kq_sg_per_wg_queries && \
+      (kq_sg_tile_queries == 16 || kq_sg_tile_queries == 32) && sv_sg_tile_scores == kq_sg_tile_queries && \
+      sv_sg_per_wg_scores == kq_sg_per_wg_queries && \
       sv_sg_per_wg_values == kq_sg_per_wg_keys && (sv_sg_tile_values == 16 || sv_sg_tile_values == 32) && \
       sv_sg_tile_values * sv_sg_per_wg_values == V_HEAD_SIZE + HPG_TAIL)
 #  error "sdpa_ocl_hpg_pa_prefill.cl: the host gate (hpg_pa_prefill_ok()) and this kernel disagree on the shape or the tiling"
@@ -642,7 +644,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const uint sg_j_kq = sg_ij / kq_sg_per_wg_keys;
     const int sg_i0_kq = sg_i_kq * kq_sg_tile_keys;
     const int sg_j0_kq = sg_j_kq * kq_sg_tile_queries;
-    // The S*V subgroup of sg_ij owns the same 16 queries as its KQ subgroup (sg_i_sv == sg_j_kq), so alpha[] applies to
+    // The S*V subgroup of sg_ij owns the same queries as its KQ subgroup (sg_i_sv == sg_j_kq), so alpha[] applies to
     // the accumulator rows as they are.
     const uint sg_i_sv = sg_ij / sv_sg_per_wg_values;
     const uint sg_j_sv = sg_ij % sv_sg_per_wg_values;
@@ -957,7 +959,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         half v_sc[kq_key_blocks];
         if (from_cache)
             FUNC_CALL(hpg_v_scales)(v_sc, block_indices, V, key_base, lim, lane);
-        // A subgroup whose 16 queries are all past q contributes nothing that is stored.
+        // A subgroup whose queries are all past q contributes nothing that is stored.
         if (wg_j0 + sg_j0_kq < q)
             FUNC_CALL(hpg_kq_comp)(S_tile, block_indices, K, (const __global half *)Kc, ldkc, from_cache, key_base, lim,
                                    past_len, Q_slm + Q_SLM_OFF(0, sg_j0_kq / SUBGROUP_SIZE),
@@ -968,7 +970,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii)
             k_mask[ii] = (key_base + ii * SUBGROUP_SIZE + (int)lane < lim) ? 0.0f : -INFINITY;
 #else
-        // A subgroup whose 16 queries are all past q contributes nothing that is stored.
+        // A subgroup whose queries are all past q contributes nothing that is stored.
         if (wg_j0 + sg_j0_kq < q)
             FUNC_CALL(hpg_kq)(S_tile, HPG_PAGES (const global half *)K, ldk, key_base, causal_k,
                               Q_slm + Q_SLM_OFF(0, sg_j0_kq / SUBGROUP_SIZE),

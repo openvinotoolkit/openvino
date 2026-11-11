@@ -217,7 +217,7 @@ and sliding-window bounds, the `S_max_slm` / `S_sum_slm` exchange) and changes w
 
 | | Generic SG8 kernel | xe_hpg PA PREFILL kernel |
 |---|---|---|
-| Tiling | 16 x 16 keys x queries, 4 x 2 subgroups (64 x 32) up to head 128, 8 x 2 / 16 x 2 at 256 / 512 | head 64: 32 x 16, 4 x 2 subgroups (128 x 32); head 72 (plain SDPA): 32 x 16, 5 x 2 (160 x 32); head 96: 32 x 16, 6 x 2 (192 x 32); head 128: 32 x 16, 8 x 2 (256 x 32); head 256: 16 x 16, 16 x 2 (256 x 32); head 512: 16 x 16, 32 x 1 (512 x 16); each S*V subgroup holds the 16 queries of its KQ subgroup and 16 value columns |
+| Tiling | 16 x 16 keys x queries, 4 x 2 subgroups (64 x 32) up to head 128, 8 x 2 / 16 x 2 at 256 / 512 | head 64: 32 x 16, 4 x 2 subgroups (128 x 32); head 72 (plain SDPA): 32 x 16, 5 x 2 (160 x 32); head 96: 32 x 16, 6 x 2 (192 x 32); head 128: 32 x 16, 8 x 2 (256 x 32); head 256: 16 x 16, 16 x 2 (256 x 32); head 512: 16 x 16, 32 x 1 (512 x 16); a MIXED on a compressed cache at heads 96 / 128 / 256: 16 x 32, 6 / 8 / 16 x 1 (96 / 128 / 256 x 32); each S*V subgroup holds the queries of its KQ subgroup and 16 value columns |
 | KQ | DPAS(K, Q): K repacked to the `int8` A operand | DPAS(Q, K): Q staged so that one `ulong4` SLM block read is the A operand, K read straight from the input as the B operand (one 32 B read per key row); the scores are transposed to lane = query through 64 dwords of SLM per subgroup |
 | S*V | DPAS(P, V), V gathered per value | DPAS(V, P): V rows read as dwords and interleaved per key pair, the output tile is lane = query |
 | V latency | loads in the S*V loop | the first `HPG_PA_V_LEAD` key blocks of V (6; 3 with 32 value columns per S*V subgroup; 1 at head 512, see "xe_hpg follow-ups") are loaded before the wait of the P barrier and the loop keeps that lead: IGC 2.41 sinks loads that nothing pins toward their use, which left the V latency exposed |
@@ -273,7 +273,14 @@ static), 300 new tokens after 520 past ones (51-53, one per cache, so a tile cro
 heads 96 / 256 / 512 on the three caches (55-58). 19-28 keep the generic kernel's meanings and fail the same cases by
 name in both kernels (the generic one under `SDPA_OCL_HPG_PA_MIXED=0`): 20 / 56 / 56 / 38 / 35 / 35 / 18 / 18 / 45 / 43
 of the 59. With `SDPA_OCL_PA_CUR_F16=0` the u4 ones of 48-58 (49, 53, 56, 58) fail as well, by 0.025-0.035, the u4
-rounding of the new tokens. Its speed on the port is not measured yet.
+rounding of the new tokens.
+
+At heads 96, 128 and 256 the compressed MIXED takes 16 x 32 subgroup tiles in one query row of subgroups (6 / 8 / 16 x 1:
+96 / 128 / 256 x 32; `hpg_pa_prefill_tiling()` with `comp_mixed`): with the two query subgroups of the 32 x 16 tiles both
+dequantized every K and V element of the workgroup tile. A u4 MIXED of 256-token chunks in 4K-token prompts took
+0.68-0.73x the device time per call at heads 128 and 256 and 0.78x at 96; head 64 keeps 32 x 16 tiles, since its 4 x 1
+workgroup (64 x 32) was slower, on an f16 cache too ("Compressed MIXED in 32-query subgroup tiles on xe_hpg" in the
+Change history; `SDPA_OCL_HPG_PA_COMP_Q32=0` keeps the 32 x 16 tiles).
 
 The kernel also serves plain SDPA (its PREFILL stage) without causality, a runtime scalar mask, a runtime scale, a sink
 or a compressed / indirect KV cache, at the same heads (`hpg_plain_prefill_ok()`; a constant scale input is a literal; a
@@ -2234,7 +2241,8 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_HPG_PA_MIXED` | `0`: xe_hpg PA MIXED (f16, i8 or u4 cache) at those heads takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
 | `SDPA_OCL_HPG_PLAIN_PREFILL` | `0`: xe_hpg plain SDPA (no causality) at heads 64 / 72 / 96 / 128 / 256 / 512 takes the generic kernel instead of `sdpa_ocl_hpg_pa_prefill.cl` |
 | `SDPA_OCL_HPG_PA_V_LEAD` | key blocks of V the xe_hpg PA PREFILL kernel loads ahead (1..key blocks of the tile, default 6; 3 at head 128 is miscompiled with a dynamic K / V padding, see "xe_hpg follow-ups") |
-| `SDPA_OCL_HPG_PA_TILE_KEYS` / `_PER_WG_KEYS` / `_PER_WG_QUERIES` | xe_hpg PA PREFILL kernel tiling (16 / 32 keys per subgroup tile, subgroups along keys / queries); a tiling the kernel is not written for throws |
+| `SDPA_OCL_HPG_PA_TILE_KEYS` / `_TILE_QUERIES` / `_PER_WG_KEYS` / `_PER_WG_QUERIES` | xe_hpg PA PREFILL kernel tiling (16 / 32 keys and 16 / 32 queries per subgroup tile, subgroups along keys / queries); a tiling the kernel is not written for throws |
+| `SDPA_OCL_HPG_PA_COMP_Q32` | `0`: the xe_hpg PA PREFILL kernel's compressed MIXED at heads 96 / 128 / 256 keeps the 32 x 16 subgroup tiles of two query subgroups (default 1: 16 x 32 tiles, one query subgroup) |
 | `SDPA_OCL_HPG_PA_KQ_UNROLL` | xe_hpg PA PREFILL kernel: unroll of the KQ depth loop (default whole up to head 128, 2 at 256; `0` = whole) |
 | `SDPA_OCL_SG8_KQ_UNROLL` / `SDPA_OCL_SG8_SV_UNROLL` | xe_hpg generic kernel: unroll of the KQ depth loop / S*V key loop (default 1 = not unrolled, `0` = unrolled whole, which spills) |
 | `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback, and the unaligned-Q staging of the xe_hpg PA PREFILL kernel (must pass, but for the IGC hazard cases in "xe_hpg follow-ups"); `5` / `6` read the full / per-key mask with the wrong lane width / one lane off (must fail the mask tests); `7` / `8` / `9` count the sink in every subgroup / read qq_bias transposed / end the sliding window one 16-key block short (must fail the PA feature tests); `10` reads plain-SDPA K / V of batch 0, KV head 0 in the PREFILL kernel (must fail `smoke_sdpa_hpg_rows`); `11` / `12` / `13` break the mask of the xe_hpg PREFILL kernel, `18` its head-72 output columns (above), and in its PA MIXED `14` swaps the two 8-key halves of each K page, `15` ignores the past in the causal bound, `16` swaps V of adjacent pages (each must fail `smoke_paged_attention_mixed_tm` but the cases it cannot change: 100 / 105 / 100 of 105); on an i8 BY_TOKEN page in the generic kernel's MIXED `19` reads the K comp of tokens 0..7 for both 8-key groups of a page, `20` swaps the V scales of a lane's two keys, `21` takes the V zps of the next key pair, `22` swaps the two K channels of a dword (each must fail the i8 BY_TOKEN cases 0-16 of `smoke_paged_attention_comp_tm` but its PREFILL-only case 13: 15 / 16 / 16 / 16 of 17, 19 also passing the V-only case 5; 20 / 21 / 22 also fail the 13 BY_CHANNEL cases that read a page, 20 / 21 the 14 u4 ones too); on an i8 BY_CHANNEL page `23` swaps the (scale, zp) pairs of a lane's two channels, `24` scale and zp of a pair (each must fail the BY_CHANNEL cases 17-30 but the PREFILL-only case 27: 13 of 14, and the 14 u4 cases that read a page); on a u4 page `25` reads the other nibble of K, `26` of V (each must fail the u4 cases 33-47 but the PREFILL-only case 43: 14 of 15); for the new tokens of a compressed MIXED `27` / `28` read the next token's Kc / Vc row (each must fail `smoke_paged_attention_comp_tm` but its PREFILL-only and tolerance-hidden cases: 34 / 32 of cases 0-47); the PREFILL kernel's compressed MIXED (the default for most of those cases) carries `19`-`28` with the same meanings and fails the same cases by name (all 59 cases: 20 / 56 / 56 / 38 / 35 / 35 / 18 / 18 / 45 / 43; the generic kernel's counts are taken under `SDPA_OCL_HPG_PA_MIXED=0`), and there `29` does not cut the key loop at past_len (must fail the 9 u4 MIXED cases, where a new token's u4 rounding shows); `30` reads key `lane` for both halves of a page, `31` swaps the S*V key pair, `32` reads the page of chunk % 8 (pages 8-15 of a partition wrong), `33` swaps the BY_CHANNEL pairs, `34` drops the BY_TOKEN K zero point, `35` gives both keys of a pair the even key's V scale in the SG8 decode reader (each must fail `smoke_paged_attention_decode_tm`); `36` swaps the two keys of a K pair, `37` the V pages of adjacent blocks, `38` reads the odd V row of a pair past k in the generic kernel's token-major MIXED readers (with `SDPA_OCL_HPG_PA_MIXED=0`, each must fail `smoke_paged_attention_mixed_tm`: 36 / 37 fail 100 of 105, 38 exactly the 15 NaN-poisoned cases) |
@@ -2947,6 +2955,70 @@ xe_hpg builds this kernel, so Xe2 is unchanged.
 - Not checked: why lead 1 is clean (an empirical result on this driver; the hazard is not pinned down), the Linux
   driver with lead 1, Xe2 (the B70; the code path is xe_hpg-only).
 
+### Compressed MIXED in 32-query subgroup tiles on xe_hpg (2026-11-11)
+
+The xe_hpg PA PREFILL kernel's MIXED on a compressed cache (i8 BY_TOKEN, i8 / u4 BY_CHANNEL) takes 16 x 32 subgroup tiles
+in one row of query subgroups at heads 96 / 128 / 256: 6 / 8 / 16 x 1 subgroups, 96 / 128 / 256 x 32 workgroup tiles
+(`hpg_pa_prefill_tiling()` with `comp_mixed`; `SDPA_OCL_HPG_PA_COMP_Q32=0` keeps the 32 x 16 tiles of two query
+subgroups). The kernel body was already written for any number of 8-query blocks; its tiling check now takes 16 or 32
+queries per subgroup tile, and the host asserts the same. Head 64 and 512, PREFILL, the f16 MIXED and plain SDPA keep their
+tilings. `SDPA_OCL_HPG_PA_TILE_QUERIES` joins the tiling overrides.
+
+- Why: with two query subgroups per workgroup both dequantized every K and V element of the workgroup tile, and the
+  per-lane u4 dequant is long: the u4 KQ loop of the 32 x 16 tiles had about 467 instructions per 8 DPAS (273 moves:
+  nibble extraction, byte and word repacks, the conversion, `- zp`, `* scale`, the operand moves), the RC's
+  `sdpa_micro__generate`, which dequantizes once per workgroup into SLM with packed SIMD16 / 32 operations, about 90
+  (iga64 of the dumped binaries). Replacing the u4 K / V dequant by the raw bits (a timing-only bound, wrong values,
+  injected source, llama-3.1-8b) took 840 / 915 us per call, both 605, against 1,154-1,162.
+- Device time per MIXED call (llm_bench, cliloader, A770, Windows driver 32.0.101.9175, a 4K-token prompt in 256-token
+  chunks (`max_num_batched_tokens` 256), the OFF build with and without the switch, two interleaved rounds each):
+
+  | model (head) | 32 x 16 tiles | 16 x 32 tiles | ratio | pip RC |
+  |---|---|---|---|---|
+  | llama-3.1-8b (128), u4 | 1,154.5-1,157.2 us | 786.3-787.5 | 0.68 | 921.7 (`sdpa_micro`) |
+  | qwen3-8b (128), u4 | 1,170.4-1,172.7 | 829.9-831.2 | 0.71 | 897.7 |
+  | phi-3.5-mini (96), u4 | 1,353.7-1,365.9 | 1,058.9-1,060.7 | 0.78 | 3,003.8 (`paged_attention_opt`) |
+  | gemma-2-9b-it (256), u4 | 1,185.2-1,189.8 | 866.4-867.6 | 0.73 | 1,019.4 |
+  | llama-3.2-1b (64), u4, not taken | 694.7-697.5 | 857.8-858.9 | 1.23 | 498.7 |
+  | llama-3.1-8b (128), f16 cache (control) | 530.0-536.5 | 478.5-478.6 | 0.90 | 807.3 |
+  | llama-3.2-1b (64), f16 cache (control) | 286.9-295.4 | 476.0-481.2 | 1.64 | 365.3 |
+
+  The f16 rows take the same tiling through the overrides (`SDPA_OCL_HPG_PA_TILE_KEYS=16 _TILE_QUERIES=32
+  _PER_WG_QUERIES=1`), where nothing is dequantized: at head 128 the workgroup shape is worth about 55 of the 369 us, the
+  rest is the dequant done once. At head 64 the 4 x 1 workgroup is slower on either cache: 256 workgroups of 4 subgroups
+  fill half of the A770's 2,048 256-GRF threads (head 128: 2,048 instead of 4,096). gemma-3-4b-it's MIXED (token_type_ids,
+  the generic kernel) took 2,953.4-2,956.3 us in both builds.
+- i8 caches, same method (llama-3.1-8b): BY_CHANNEL 812.4-813.8 us against 1,114.4-1,115.9 (0.73x; the RC 979.7),
+  BY_TOKEN 726.4-726.7 against 989.5-990.4 (0.73x; the RC 922.8). The default build without the switch: u4 llama-3.1-8b
+  787.8, qwen3-8b 832.0, llama-3.2-1b (head 64) 697.9.
+- First token against the 2026.5 RC (pip), the ON install (`SDPA_OCL_NO_GETENV=ON`, the product build), the same 4K
+  prompts in 256-token chunks, 32 output tokens, median of two rounds: llama-3.1-8b 1,140.0 ms against 1,217.5 (0.94x;
+  1.08x before the change), qwen3-8b 1,180.4 / 1,238.7 (0.95x; 1.11x), gemma-2-9b-it 1,569.6 / 1,711.4 (0.92x),
+  phi-3.5-mini 1,119.8 / 2,090.8 (0.54x), llama-3.2-1b 339.6 / 299.8 (1.13x, unchanged); the second token 0.98-1.02x.
+  The OFF build took the same first token within 0.4%.
+- Checks:
+  - the kit on all four lanes against the last baselines (`h512l1`): identical in all 38 groups;
+  - the compressed MIXED of `smoke_paged_attention_comp_tm` at heads 96 / 128 / 256 compiles with 16 x 32 tiles (source
+    dump). `SDPA_OCL_NEG_SG8=15` and `19`-`29` fail the same cases by name with either tiling: 34 / 18 / 50 / 50 / 34 /
+    29 / 31 / 16 / 16 / 29 / 27 / 7 of the 59; `15` fails 8, 9, 10, 23-25, 39, 41, 51-53, 55, 57 and 58 at those heads
+    (the three caches, a tile crossing past_len in 51-53). These counts are lower than the ones under "xe_hpg PA
+    PREFILL kernel" (50; 20 / 56 / 56 / 38 / 35 / 35 / 18 / 18 / 45 / 43; 9), which are older: a small MIXED step now
+    takes the GQA fallback (case 38 runs `paged_attention_opt__gqa_multi_tokens_fallback`, "Small GQA MIXED step on the
+    token-major page"), and some u4 cases run this kernel and still pass under `15` (33, 40; not investigated). Under
+    `SDPA_OCL_HPG_PA_MIXED=0` the generic kernel fails the same cases by name under `19`-`28` but `23`, where it passes
+    the u4 cases 33-36, 40 and 49 that this kernel fails;
+  - with 16 x 32 tiles forced at every head and in both stages through the overrides, every case of
+    `smoke_paged_attention_comp_tm` and `_mixed_tm` (f16) but head 512 passes: sliding windows, sinks, several
+    subsequences, page tails and dynamic paddings, which these suites have at head 64 only. The 21 head-512 cases take
+    another kernel there (the tiling does not fit DG2's local memory) and fail the suites' kernel check;
+  - Xe2: the 1,192 sources the Xe2 host code generates for the comp / mixed / PREFILL-heads / `sdpa_hpg_rows` suites
+    (`OV_GPU_ARCH_OVERRIDE=xe2`) are identical before and after but in the `HPG_PA_PREFILL` block, which Xe2 does not
+    compile, where the tiling check line changed;
+  - gemma-3-4b-it's MIXED kernels are the generic ones (`HAS_TOKEN_TYPE_IDS`, no `HPG_PA_PREFILL`; source dump).
+- Not checked: the B70 (the code path is xe_hpg-only), the Linux driver, chunks other than 256 tokens (a larger chunk has
+  more workgroups, so fewer subgroups per workgroup matter less), i8 at heads 96 / 256, the real models' output beyond
+  the unit references.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -3065,6 +3137,9 @@ re-measures against the opt kernels.
   - MIXED of 256-token chunks (a 4K prompt, `max_num_batched_tokens` 256): `sdpa_ocl_mixed` 1.26-1.40x
     `sdpa_micro__generate` per call (llama-3.1-8b 1142 against 904 us, qwen3-8b 1158 / 882, llama-3.2-1b 699 / 500),
     first token 1.09-1.16x.
+    Since "Compressed MIXED in 32-query subgroup tiles on xe_hpg" (2026-11-11): 0.85x / 0.93x at head 128 (llama-3.1-8b
+    788 against 922 us, qwen3-8b 832 / 898), first token 0.94x / 0.95x; llama-3.2-1b (head 64) unchanged, 1.40x (698 /
+    499), first token 1.13x.
   - Image generation (flux.1-schnell, its 32-token prompt, plain SDPA): 0.94x. The VAE's head-512 SDPA made the image
     black then (V lead 6); with the V lead of 1 of 2026-11-10 the image is right and the ratio the same (0.94x).
 
