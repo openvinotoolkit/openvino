@@ -89,8 +89,6 @@ macro(ov_gpu_add_backend_target)
         ${ARG_BYPASS}
     )
 
-    ov_keep_debug_info_in_pdb(${ARG_NAME})
-
     get_property(CURRENT_LIBS GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL)
     list(APPEND CURRENT_LIBS ${ARG_LINK_LIBRARIES})
     set_property(GLOBAL PROPERTY EXTRA_LINK_LIBRARIES_GLOBAL ${CURRENT_LIBS})
@@ -166,9 +164,6 @@ foreach(backend IN LISTS BACKEND_LIBS)
     target_link_libraries(${backend} INTERFACE $<LINK_ONLY:${TARGET_NAME}>)
     ov_install_static_lib(${backend} ${OV_CPACK_COMP_CORE})
 endforeach()
-
-# Embedded debug information pushes this static library past MSVC's 4 GB archive limit
-ov_keep_debug_info_in_pdb(${TARGET_NAME})
 
 target_compile_options(${TARGET_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
 

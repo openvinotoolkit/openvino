@@ -137,9 +137,8 @@ Users:
   (`C:\mount\caches\ccache\shared\windows\<build-variant>\x86_64\<build-type>`).
   ccache cannot cache MSVC `/Zi` compilations, so the Debug build sets
   `-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded` (`/Z7`). Static libraries installed
-  to the developer package and the Intel GPU graph library stay on `/Zi` through
-  `ov_keep_debug_info_in_pdb()`, to keep the package size and MSVC's 4 GB archive limit,
-  so they are not cached. Builds with embedded debug information also link without
+  to the developer package stay on `/Zi` through `ov_keep_debug_info_in_pdb()` to keep
+  the package size, so they are not cached. Builds with embedded debug information also link without
   `/INCREMENTAL`, which keeps PDB files free of stale incremental-link data.
 
 Old entries are evicted together with the rest of `/mount/caches/ccache` and
