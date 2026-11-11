@@ -225,6 +225,54 @@ TEST_F(AutoCacheWarmupTest, warmsUpCpuAndOtherCandidates) {
     }));
 }
 
+TEST_F(AutoCacheWarmupTest, warmupLimitsHostThreadsOfOtherCandidates) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, "GPU.0", actual_device});
+    const std::vector<ov::PropertyName> cpu_props = {ov::inference_num_threads};
+    ON_CALL(*core, get_property(StrEq(cpu_device), StrEq(ov::supported_properties.name()), _))
+        .WillByDefault(Return(ov::Any(cpu_props)));
+    use_default_startup_compilation();
+    std::mutex configs_mutex;
+    ov::AnyMap cpu_config;
+    ov::AnyMap gpu_config;
+    std::atomic<int> compiled{0};
+    auto warmup_compiled_model = make_compiled_model();
+    const auto capture = [&](ov::AnyMap& target) {
+        return [&](const std::shared_ptr<const ov::Model>&, const std::string&, const ov::AnyMap& compile_config) {
+            std::lock_guard<std::mutex> lock(configs_mutex);
+            target = compile_config;
+            compiled++;
+            return ov::SoPtr<ov::ICompiledModel>{warmup_compiled_model, {}};
+        };
+    };
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq(cpu_device)),
+                          _))
+        .WillByDefault(::testing::Invoke(capture(cpu_config)));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                          _))
+        .WillByDefault(::testing::Invoke(capture(gpu_config)));
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    ASSERT_TRUE(wait_until([&] {
+        return compiled.load() == 2;
+    }));
+    // All hardware threads but two (one for inference, one for other work), at least one.
+    const int expected = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 2);
+    std::lock_guard<std::mutex> lock(configs_mutex);
+    ASSERT_EQ(gpu_config.count(ov::compilation_num_threads.name()), 1u);
+    EXPECT_EQ(gpu_config.at(ov::compilation_num_threads.name()).as<int>(), expected);
+    EXPECT_EQ(gpu_config.count(ov::inference_num_threads.name()), 0u);
+    ASSERT_EQ(cpu_config.count(ov::inference_num_threads.name()), 1u);
+    EXPECT_EQ(cpu_config.at(ov::inference_num_threads.name()).as<int>(), expected);
+    EXPECT_EQ(cpu_config.count(ov::compilation_num_threads.name()), 0u);
+}
+
 TEST_F(AutoCacheWarmupTest, warmsUpCpuWhenItIsTheOnlyOtherCandidate) {
     set_global_cache("test_cache_dir");
     set_devices({cpu_device, actual_device});
@@ -749,7 +797,7 @@ TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenCpuIsActualDevice) {
     EXPECT_EQ(cpu_count.load(), 1);
 }
 
-TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheThrows) {
+TEST_F(AutoCacheWarmupTest, candidatesWithoutCacheThrows) {
     set_global_cache("");
     set_devices({"GPU.0", cpu_device});
     on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {

@@ -34,7 +34,7 @@ core.set_property("AUTO", ov::device::priorities("GPU,CPU"));
 {
 //! [compile_for_all]
 ov::Core core;
-auto model = core.read_model("model.xml");
+auto model = core.read_model("sample.xml");
 auto compiled_model = core.compile_model(model,
                                          "AUTO",
                                          ov::device::priorities("GPU,CPU"),

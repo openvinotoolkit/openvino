@@ -30,8 +30,9 @@ class CacheWarmupManager;
 //  2. The manager's single worker thread calls run(), which handles the devices one by one:
 //     - caching disabled for the device (no cache dir/path) -> skip;
 //     - otherwise call core->compile_model(): Core imports a valid cached blob or compiles and writes a new one;
-//       the resulting compiled model is dropped immediately. GPU gets low host priority / fewer compile threads
-//       (config unchanged for other devices, e.g. CPU, which has no such property).
+//       the resulting compiled model is dropped immediately. The host load is reduced: GPU gets low host priority,
+//       and the compile threads are limited to hardware threads - 2 (at least 1) via compilation_num_threads, or
+//       inference_num_threads for CPU. A config change that would alter the cache key is not applied.
 //     A failure on one device is logged and does not affect the other devices or the user's compiled model.
 //  3. stop() (owning compiled model destroyed) skips the not yet started devices and waits for the compilation in
 //     flight, so the core and the model are not used after the owner is gone.

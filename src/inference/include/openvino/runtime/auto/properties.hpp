@@ -33,13 +33,16 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
 /**
  * @brief Enables background cache warm-up for AUTO candidate devices other than the one AUTO serves inference on,
  * including CPU when it is a candidate. Warm-up fills the model cache for a later compile_model call; it does not
- * switch the current compiled model to another device.
+ * switch the current compiled model to another device. A warmed CPU cache blob speeds up later compile_model calls
+ * that pick CPU as the actual device; it is not used by the AUTO startup-fallback CPU helper, which compiles with
+ * caching disabled.
  *
  * Requires ov::cache_dir or ov::cache_path; compiling the model throws if neither is set, except in cumulative
  * throughput mode or when ov::cache_blob_id is set, where the property is ignored. The property is also ignored
  * when no other candidate exists, but that check happens after the cache validation, so a single-candidate
  * compilation without a cache location still throws. When active, it disables
- * ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback for this compile. Failures of
+ * ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback for this compile. Devices are
+ * skipped when the cache path is a single-file cache (*.bin). Failures of
  * the background compilation are logged as warnings; a failure to snapshot the model is reported by compile_model.
  * See the AUTO device selection article for details.
  *

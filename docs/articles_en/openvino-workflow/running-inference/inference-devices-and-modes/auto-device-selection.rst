@@ -254,8 +254,11 @@ Warm-up compiles one device at a time and releases each temporary compiled model
 memory overhead, including a private clone for in-memory models. Destroying the AUTO compiled model cancels pending
 warm-ups and waits for any compilation already in progress.
 
-GPU warm-up runs with low host task priority, but the CPU plugin has no equivalent setting. A background CPU warm-up
-therefore competes with ongoing inference for host CPU cores and memory bandwidth.
+Warm-up limits its host CPU usage to the number of hardware threads minus two, but at least one: the
+``ov::compilation_num_threads`` property is used for devices that support it (for example GPU and NPU), and
+``ov::inference_num_threads`` for CPU. GPU warm-up also runs with low host task priority, which the CPU plugin does
+not support. Background warm-up can therefore still compete with ongoing inference for host CPU cores and memory
+bandwidth, especially when CPU is a warm-up candidate.
 
 See :doc:`Model Caching Overview <../optimize-inference/optimizing-latency/model-caching-overview>` for cache settings.
 
