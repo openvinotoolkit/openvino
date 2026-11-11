@@ -52,10 +52,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         // scale (e.g. f32 -> f16 inserted by ConvertPrecision). Keep it for runtime scales: stripping it would
         // leak the source precision into the FC scale input. Constants need no Convert because Convert(Constant)
         // is constant-folded long before this pass.
-        const bool scale_convert_absorbed = pattern_map.count(mul_const_convert_m) > 0 &&
-                                            !ov::is_type<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node());
-        const ov::Output<Node> scale_output = scale_convert_absorbed ? pattern_map.at(mul_const_convert_m)
-                                                                     : pattern_map.at(mul_const_m);
+        const bool scale_convert_absorbed =
+            pattern_map.count(mul_const_convert_m) > 0 && !ov::is_type<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node());
+        const ov::Output<Node> scale_output = scale_convert_absorbed ? pattern_map.at(mul_const_convert_m) : pattern_map.at(mul_const_m);
         auto scale_shape = scale_output.get_shape();
         const bool with_zero_point = pattern_map.count(subtract_m) > 0;
         bool sub_with_convert = pattern_map.count(sub_convert_const_m) > 0;
@@ -81,8 +80,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const bool weights_batch_squeezed = dequantized_pshape.is_static() && dequantized_pshape.size() == weight_shape.size() + 1 &&
                                             dequantized_pshape[0] == 1 &&
                                             std::equal(weight_shape.begin(), weight_shape.end(), dequantized_pshape.to_shape().begin() + 1);
-        bool grouped = scale_shape.size() == weight_shape.size() + 1 &&
-                       !(weights_batch_squeezed && scale_shape.back() == 1);
+        bool grouped = scale_shape.size() == weight_shape.size() + 1 && !(weights_batch_squeezed && scale_shape.back() == 1);
         if (has_transpose_before_reshape) {
             if (weight_ptr->get_element_type() != ov::element::u2) {
                 return false;
@@ -175,9 +173,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         };
 
         const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
-        const auto& scale = has_transpose_before_reshape
-                                ? scale_output.get_node_shared_ptr()
-                                : reshape_input(scale_output.get_node_shared_ptr());
+        const auto& scale = has_transpose_before_reshape ? scale_output.get_node_shared_ptr() : reshape_input(scale_output.get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
         if (with_zero_point) {
@@ -207,9 +203,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 return reshaped_zp;
             };
             const auto zp_value = normalize_zp_precision(pattern_map.at(sub_const_m).get_node_shared_ptr());
-            const auto zero_point = has_transpose_before_reshape
-                                        ? zp_value
-                                        : reshape_input(zp_value);
+            const auto zero_point = has_transpose_before_reshape ? zp_value : reshape_input(zp_value);
             optional_zero_point = convert_zp_const(zero_point);
         }
 

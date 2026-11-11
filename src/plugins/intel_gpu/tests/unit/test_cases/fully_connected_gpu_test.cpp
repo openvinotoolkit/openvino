@@ -6232,7 +6232,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_per_group_t
     this->test_compressed_int8_parameter_scale_zp(true, true);
 }
 
-
 // ov::Core resolves plain "GPU" to the first enumerated device and ignores --device_suffix, so pin the
 // execution device to the one behind get_test_engine() (the plugin reports the very cldnn device_info uuid).
 static std::string get_engine_gpu_device_name() {
@@ -6289,10 +6288,8 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_full_pipeli
         }
     }
     ASSERT_TRUE(fc_compressed != nullptr) << "runtime scale/zp graph was not compressed";
-    EXPECT_EQ(fc_compressed->get_input_element_type(3), ov::element::f16)
-        << "scale input must keep the graph precision (its Convert must not be stripped)";
-    EXPECT_EQ(fc_compressed->get_input_element_type(4), ov::element::u8)
-        << "zero point input must stay an integer value";
+    EXPECT_EQ(fc_compressed->get_input_element_type(3), ov::element::f16) << "scale input must keep the graph precision (its Convert must not be stripped)";
+    EXPECT_EQ(fc_compressed->get_input_element_type(4), ov::element::u8) << "zero point input must stay an integer value";
 
     // Execute through the real plugin entry point, on the device selected by --device_suffix.
     ov::Core core;
