@@ -28,7 +28,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gated_residual.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -185,6 +184,12 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         // The only executor is the oneDNN/JIT one, which exists on x86-64 only.
         errorMessage = "GatedResidual is only supported on x86-64.";
         return false;
+#else
+        // Every mode (READ / FINAL_MIX / WRITE) runs JIT kernels that are instantiated for avx2 and avx512_core only.
+        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2)) {
+            errorMessage = "GatedResidual requires at least AVX2.";
+            return false;
+        }
 #endif
 
         const auto mode = gr->get_mode();
@@ -198,15 +203,6 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 return false;
             }
             if (layout->compressed) {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-                if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2)) {
-                    errorMessage = "GatedResidual compressed weights require at least AVX2.";
-                    return false;
-                }
-#else
-                errorMessage = "GatedResidual compressed weights are only supported on x86-64 with AVX2.";
-                return false;
-#endif
                 weight_ports = {ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
                 scale_ports = {ReadInputIdx::SCALE_DOWN, ReadInputIdx::SCALE_UP};
                 if (layout->has_zp) {
