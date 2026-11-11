@@ -23,6 +23,7 @@ struct ScatterNDUpdate : public ImplementationManager {
         static constexpr std::array supported_inout_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i32,
             ov::element::i64,
             ov::element::i8,
@@ -41,6 +42,10 @@ struct ScatterNDUpdate : public ImplementationManager {
         if (!one_of(in0_layout.data_type, supported_inout_types) || !one_of(in1_layout.data_type, supported_indices_types) ||
             !one_of(in2_layout.data_type, supported_inout_types) || !one_of(out_layout.data_type, supported_inout_types)) {
             return false;
+        }
+
+        if (in0_layout.data_type == ov::element::bf16 || in2_layout.data_type == ov::element::bf16 || out_layout.data_type == ov::element::bf16) {
+            return everyone_is(ov::element::bf16, in0_layout.data_type, in2_layout.data_type, out_layout.data_type) && node.get_fused_primitives().empty();
         }
 
         return fused_ops_are_one_of<eltwise, activation, quantize>(node.get_fused_primitives());

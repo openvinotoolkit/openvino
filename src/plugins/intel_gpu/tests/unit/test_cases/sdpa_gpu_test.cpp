@@ -2717,6 +2717,18 @@ TEST(sdpa_gpu_custom, static_mismatched_kv_head_size_multi_token_uses_sg_scale_f
     ASSERT_NE(kd.params.workGroups.local[2], regressed_local_z);
 }
 
+TEST(sdpa_gpu_custom, multi_token_partition_respects_local_memory) {
+    auto info = get_test_engine().get_device_info();
+    info.max_work_group_size = 1024;
+    info.max_local_mem_size = 64 * 1024;
+    using ov::intel_gpu::ocl::get_seq_len_partition_size;
+    using ov::intel_gpu::ocl::SDPAStage;
+
+    EXPECT_EQ(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 512), 384u);
+    EXPECT_EQ(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 256), 640u);
+    EXPECT_EQ(get_seq_len_partition_size(info, 128, SDPAStage::MULTI_TOKENS, 128), 256u);
+}
+
 TEST(sdpa_gpu_custom, different_rank_orders_dynamic_v_head_size_rejects_opt) {
     auto& engine = get_test_engine();
 

@@ -388,6 +388,11 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
             return;
         }
 
+        if (p.precision == ov::element::bf16) {
+            execute_t<ov::bfloat16>(p, cldnn_precision, 0.06f, 0.06f);
+            return;
+        }
+
         if (p.precision == ov::element::f32) {
             execute_t<float>(p, cldnn_precision, 1e-4f, 1e-4f);
             return;
@@ -413,6 +418,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
                          paged_causal_conv1d_gpu_test,
                          ::testing::Values(paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true},
                                            paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::bf16, true},
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::bf16, false},
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true},
                                            paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f32, true},
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, false},
