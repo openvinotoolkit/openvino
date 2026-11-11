@@ -12,15 +12,6 @@
 #include "serialization.hpp"
 #include "util.hpp"
 
-namespace {
-// Blobs written by older OpenVINO releases stored the NPU bank under "NPU",
-// but ov::execution_devices now reports "NPU.0". Normalize on read so each
-// physical device has exactly one key in m_device_banks.
-std::string canonical_bank_device(const std::string& device) {
-    return device == "NPU" ? std::string("NPU.0") : device;
-}
-}  // namespace
-
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
 
@@ -60,7 +51,7 @@ Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& allo
 }
 
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
-    const std::string& device_for_alloc = canonical_bank_device(m_alloc_device.empty() ? device : m_alloc_device);
+    const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::unique_lock guard(m_mutex);
 
@@ -82,11 +73,21 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
 }
 
 ov::Tensor Bank::get(int64_t uid, const std::string& device) {
-    const std::string& device_for_alloc = canonical_bank_device(m_alloc_device.empty() ? device : m_alloc_device);
+    const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
     std::unique_lock guard(m_mutex);
 
-    auto iter_bank = m_device_banks.find(device_for_alloc);
+    auto iter_bank =
+        std::find_if(m_device_banks.begin(), m_device_banks.end(), [&device_for_alloc, uid](const auto& device_bank) {
+            if (device_bank.second.storage.count(uid) != 1) {
+                return false;
+            }
+            // Exact device key, or the un-indexed "NPU" key written by old blobs,
+            // which serves any NPU.<n> request for the uids restored under it. uids are unique across
+            // the bank, so at most one key can hold a given uid.
+            return device_bank.first == device_for_alloc ||
+                   (device_bank.first == "NPU" && ov::npuw::util::starts_with(device_for_alloc, "NPU."));
+        });
     OPENVINO_ASSERT(iter_bank != m_device_banks.end(),
                     "NPUW: weights bank '",
                     m_bank_name,
@@ -247,16 +248,17 @@ void Bank::serialize(ov::npuw::orc::Stream& stream) {
     LOG_INFO("DONE.");
 }
 
-void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& stored_device) {
+void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const std::string& device) {
     // This method is supposed to be used only during deserialization
     std::unique_lock guard(m_mutex);
     NPUW_ASSERT(uid >= 0 && "Malformed blob: negative weights bank uid");
     NPUW_ASSERT(static_cast<uint64_t>(uid) < static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) &&
                 "Malformed blob: weights bank uid exceeds max int value");
 
-    const auto device = canonical_bank_device(stored_device);
+    for (const auto& bank : m_device_banks) {
+        NPUW_ASSERT(bank.second.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
+    }
     auto& device_bank = m_device_banks[device];
-    NPUW_ASSERT(device_bank.storage.count(uid) == 0 && "Malformed blob: duplicate weights bank uid");
     uid_count = std::max(uid_count, uid + 1);
 
     if (device == "CPU") {
