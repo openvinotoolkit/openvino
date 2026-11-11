@@ -14,13 +14,11 @@ from .side_channel import _bind_gdn_side_channel, _bind_paged_attention_side_cha
 # Per-InferRequest caches for the OV_FAST_INFER fast path.
 _fastinfer_port_cache = {}
 _fastinfer_bound_ids = {}   # id(req) -> [[val_id, ov_tensor_ref], ...] per port
-_fastinfer_out_cache = {}   # id(req) -> {out_port: numpy_view}
-_fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
 
 
 def clear_caches():
     """Drop the fast-infer caches: their id() keys are reused once the objects are freed."""
-    for cache in (_fastinfer_port_cache, _fastinfer_bound_ids, _fastinfer_out_cache, _fastinfer_out_static):
+    for cache in (_fastinfer_port_cache, _fastinfer_bound_ids):
         cache.clear()
 
 
@@ -158,23 +156,11 @@ def infer_with_pa(req, compiled, call_kwargs):
             _slot[1] = _t  # keep alive
     except Exception:
         _fastinfer_bound_ids.pop(id(req), None)
-        _fastinfer_out_cache.pop(id(req), None)
         return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
     try:
         req.infer(share_outputs=True)
-        # Cached output views pin the first call's shape, so reuse them only for static outputs.
-        _static_out = _fastinfer_out_static.get(_pc_key)
-        if _static_out is None:
-            _static_out = all(o.get_partial_shape().is_static for o in compiled.outputs)
-            _fastinfer_out_static[_pc_key] = _static_out
-        if not _static_out:
-            return {out: req.get_tensor(out).data for out in compiled.outputs}
-        _out = _fastinfer_out_cache.get(_req_key)
-        if _out is None:
-            _out = {out: req.get_tensor(out).data for out in compiled.outputs}
-            _fastinfer_out_cache[_req_key] = _out
-        return _out
+        # Fetched every call: an output fed by a Parameter shares the input's tensor, which the next call may rebind.
+        return {out: req.get_tensor(out).data for out in compiled.outputs}
     except Exception:
         _fastinfer_bound_ids.pop(id(req), None)
-        _fastinfer_out_cache.pop(id(req), None)
         raise

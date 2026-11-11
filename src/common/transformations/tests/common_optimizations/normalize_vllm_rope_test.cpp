@@ -51,7 +51,8 @@ Output<Node> vllm_rope(const Output<Node>& x,
     if (p.split_lengths.empty()) {
         split = std::make_shared<v1::Split>(x, axis, 2);
     } else {
-        std::shared_ptr<Node> lengths = v0::Constant::create(element::i64, Shape{2}, p.split_lengths);
+        std::shared_ptr<Node> lengths =
+            v0::Constant::create(element::i64, Shape{p.split_lengths.size()}, p.split_lengths);
         if (p.lengths_as_input) {
             params.push_back(param(Shape{2}, element::i64));
             lengths = params.back();
@@ -152,6 +153,8 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(
         // [7, 1] halves are not neox RoPE; rewriting them as [D/2, D/2] would change the output shape.
         RoPEParams{"unequal_split", Shape{5, 4, 8}, Shape{}, Shape{}, {7, 1}},
+        // Outputs 0 and 1 of a [4, 4, 4] split look like halves, but the input is 12 wide.
+        RoPEParams{"three_way_split", Shape{5, 4, 12}, Shape{5, 4, 4}, Shape{5, 4, 4}, {4, 4, 4}},
         RoPEParams{"non_constant_split_lengths", Shape{5, 4, 8}, Shape{5, 4, 4}, Shape{5, 4, 4}, {4, 4}, -1, true},
         RoPEParams{"non_last_concat_axis", Shape{5, 4, 8}, Shape{5, 1, 4}, Shape{5, 1, 4}, {}, 0},
         RoPEParams{"dynamic_cos_width", Shape{5, 4, 8}, PartialShape{5, 1, -1}, Shape{5, 1, 4}, {}},
