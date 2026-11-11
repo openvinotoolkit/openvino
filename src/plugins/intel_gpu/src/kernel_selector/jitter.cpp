@@ -2,18 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cinttypes>
-
 #include "jitter.h"
-#include "kernel_selector_utils.h"
-#include "tensor_type.h"
-#include <string>
+
+#include <activation/activation_kernel_base.h>
+#include <eltwise/eltwise_kernel_base.h>
+#include <quantize/quantize_kernel_params.h>
+
+#include <cinttypes>
 #include <memory>
+#include <string>
 #include <utility>
 
-#include <quantize/quantize_kernel_params.h>
-#include <eltwise/eltwise_kernel_base.h>
-#include <activation/activation_kernel_base.h>
+#include "intel_gpu/op/swoosh.hpp"
+#include "kernel_selector_utils.h"
+#include "tensor_type.h"
 
 namespace {
 class JitTerm {
@@ -1366,6 +1368,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
             break;
         }
+        case ActivationFunction::SWOOSH: {
+            auto offset = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            auto bias = disable_type_conversion ? "n"_jit : to_type("n"_jit);
+            const JitTerm shifted = input - offset;
+            const JitTerm softplus = max_func(shifted, zero) + log(one + exp(neg(abs_func(shifted))));
+            const JitTerm slope_literal{std::to_string(ov::intel_gpu::op::swoosh_constants::slope)};
+            const JitTerm slope = disable_type_conversion ? slope_literal : to_type(slope_literal);
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (softplus - slope * input - bias).str()));
+            break;
+        }
         case ActivationFunction::SOFTSIGN: {
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
@@ -1659,6 +1673,13 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             type_size = "0.25f";
             is_fp = false;
             break;
+        case Datatype::UINT3:
+            type = "uchar";
+            to_type = "convert_uchar(v)";
+            to_type_sat = "convert_uchar_sat(v)";
+            type_size = "0.375f";
+            is_fp = false;
+            break;
         case Datatype::UINT4:
             type = "uchar";
             to_type = "convert_uchar(v)";
@@ -1802,6 +1823,8 @@ JitConstants MakeTypeJitConstants(WeightsType weightsType, const std::string& ma
             return MakeTypeJitConstants(Datatype::UINT8, macroName);
         case WeightsType::UINT2:
             return MakeTypeJitConstants(Datatype::UINT2, macroName);
+        case WeightsType::UINT3:
+            return MakeTypeJitConstants(Datatype::UINT3, macroName);
         case WeightsType::INT4:
             return MakeTypeJitConstants(Datatype::INT4, macroName);
         case WeightsType::UINT4:

@@ -311,6 +311,10 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     } else {
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
+        // Refresh dynamic arguments during preparation even if the input shape is unchanged.
+        if (is_dynamic()) {
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
         // Replacing the primary output means any borrowed remote permute view is no longer active.
         if (idx == 0)
             _remote_permute_output_alias.reset();
@@ -460,13 +464,15 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!get_node().is_type<kv_cache>() && !get_node().is_type<strided_slice>() && !input_shape_changed && _impl_params->get_output_layout().is_static()) {
+    if (!get_node().is_type<kv_cache>() && !get_node().is_type<stateless_kv>() && !get_node().is_type<strided_slice>() &&
+        !input_shape_changed && _impl_params->get_output_layout().is_static()) {
         return;
     }
 
     std::vector<event::ptr> dependencies_events;
     auto queue_type = get_network().get_stream().get_queue_type();
     bool has_runtime_deps = false;
+    bool need_queue_finish = false;
     for (auto& i : get_node().get_shape_infer_dependencies()) {
         // Some primitives may have flexible count of deps (e.g. reshape), thus allow skipping some deps
         if (memory_deps.count(i) > 0 || i >= get_node().get_dependencies().size()) {
@@ -492,21 +498,23 @@ void primitive_inst::update_shape() {
                                                                                      : dep->get_node().get_preferred_impl_type() == impl_types::cpu)) {
             has_runtime_deps = true;
 
-            // Events may be not created for in-order queue, so take them for OOO queue only
-            if (queue_type == QueueTypes::out_of_order && dep->get_impl_params()->out_event) {
+            if (dep->get_impl_params()->out_event) {
                 dependencies_events.push_back(dep->get_impl_params()->out_event);
 
-                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
+                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer will wait event for dependency " << i << "\n";
+            } else if (queue_type != QueueTypes::out_of_order) {
+                need_queue_finish = true;
+                GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer will finish queue for dependency " << i << "\n";
             }
         }
     }
 
     if (has_runtime_deps) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape_sync: " + id()));
-        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization for " << id() << " shape inference\n";
-        if (!dependencies_events.empty() && queue_type == QueueTypes::out_of_order) {
+        GPU_DEBUG_TRACE_DETAIL << "runtime synchronization(" << (need_queue_finish ? "finish" : "event") << ") for " << id() << " shape inference\n";
+        if (!need_queue_finish) {
             get_network().get_stream().wait_for_events(dependencies_events);
-        } else if (queue_type == QueueTypes::in_order) {
+        } else {
             get_network().get_stream().finish();
         }
     }
@@ -561,6 +569,12 @@ void primitive_inst::update_shape() {
                 _impl_params->output_layouts[2] = compressed_cache_variable->get_compression_zp_state()->get_layout();
             }
         }
+    }
+
+    if (get_node().is_type<stateless_kv>()) {
+        auto& stateless_kv_instance = downcast<stateless_kv_inst>(*this);
+        const auto desc = get_node().as<stateless_kv>().get_primitive();
+        stateless_kv_instance.set_runtime_state(stateless_kv_inst::compute_runtime_state(*_impl_params, *desc));
     }
 
     if (get_node().is_type<kv_cache>()) {
@@ -834,7 +848,7 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
 
     const auto& past_layout = _impl_params->get_input_layout();
-    const auto& mid_layout = _impl_params->get_output_layout(0);     // output to present_kv
+    const auto& mid_layout = _impl_params->get_output_layout(0);  // output to present_kv
     const auto& target_layout = _impl_params->get_output_layout(1);  // output to sdpa
 
     auto& result = **output_it;
@@ -906,15 +920,62 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
                            << (past_tensor ? past_tensor->get_layout().to_short_string() : "") << ") and output[" << present_tensor->buffer_ptr() << "]("
                            << present_tensor->get_layout().to_short_string() << ")(" << result.id() << ") same:" << is_same << std::endl;
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
-                           << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
-                           << ") opt:" << result.can_be_optimized() << std::endl;
-
-    if (_outputs[0]) {
-        OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
-    }
+                            << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
+                            << ") opt:" << result.can_be_optimized() << std::endl;
+    
     _outputs[0] = kv_present;
-    _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
-    this->_mem_allocated = false;
+
+    const auto& state = downcast<stateless_kv_inst>(*this).get_runtime_state();
+    OPENVINO_ASSERT(state.has_value(), "[GPU] stateless_kv runtime state wasn't initialized before output allocation");
+    const auto is_rolling = state->is_rolling();
+    GPU_DEBUG_TRACE_DETAIL << id() << ": runtime state" << (is_rolling ? "(rolling)" : "") << ": past=" << state->past_seq_len
+                           << " present=" << state->present_seq_len << " new=" << state->new_token_len << ", front_idx: past=" << state->past_front_idx
+                           << " present=" << state->present_front_idx << " sdpa=" << state->sdpa_front_idx << std::endl;
+    auto& memory_pool = get_network().get_memory_pool();
+
+    if (_mem_allocated) {
+        OPENVINO_ASSERT(_outputs[1], "stateless_kv should only allocate output[1] for itself");
+        const auto concat_axis = ov::util::normalize(get_typed_desc<stateless_kv>()->concat_axis, target_layout.get_rank());
+        const auto current_len = target_layout.get_partial_shape()[concat_axis].get_length();
+        const auto last_len = _outputs[1]->get_layout().get_partial_shape()[concat_axis].get_length();
+        const auto layout_match = target_layout == _outputs[1]->get_layout();
+        const auto can_reuse = is_rolling && layout_match;
+        GPU_DEBUG_TRACE_DETAIL << id() << ": current_len=" << current_len << " last_len=" << last_len << ", layout " << (layout_match ? "match" : "changed")
+                               << ", sdpa buffer:" << (can_reuse ? " reuse" : " release") << std::endl;
+        if (!can_reuse){
+            memory_pool.release_memory(_outputs[1].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
+            _outputs[1] = nullptr;
+            _max_output_layout_count[1] = 0;
+            _mem_allocated = false;
+        }
+    }
+
+    if (!is_rolling) {
+        GPU_DEBUG_TRACE_DETAIL << id() << ": reuse present output as SDPA output for non-rolling update" << std::endl;
+        _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
+        _max_output_layout_count[1] = target_layout.get_linear_size();
+        _mem_allocated = false;
+    } else {
+        if (!_mem_allocated) {
+            _outputs[1] = nullptr;
+            GPU_DEBUG_TRACE_DETAIL << id() << ": allocate independent SDPA output for rolling update, required=" << target_layout.bytes_count() << std::endl;
+            _outputs[1] = allocate_output(engine,
+                                          memory_pool,
+                                          get_node(),
+                                          *_impl_params,
+                                          _runtime_memory_dependencies,
+                                          get_network_id(),
+                                          get_network().is_internal(),
+                                          1,
+                                          false,
+                                          is_output_buffer(this, true),
+                                          nullptr,
+                                          true);
+            _max_output_layout_count[1] = target_layout.get_linear_size();
+            _mem_allocated = true;
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+    }
 }
 
 void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
@@ -1115,10 +1176,30 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layouts = actual_layouts;
+    auto is_fused_prim_of_user = [](const primitive_inst* user, const primitive_id& id) -> bool {
+        for (const auto& p : user->get_node().get_fused_primitives()) {
+            if (p.has_outer_dep()) {
+                const auto start_idx = p.outer_dep_start_idx;
+                // exclude fused_node from total_num_deps
+                const auto end_idx = p.outer_dep_start_idx + p.total_num_deps - 1;
+                for (size_t idx = start_idx; idx < end_idx; idx++) {
+                    if (user->get_node().get_dependency(idx).id() == id) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
     // A skipped node takes its input's memory right below and returns, so the sizing would be thrown away; its FC users
-    // then run update_shape() themselves.
+    // then run update_shape() themselves. Except an FC user whose shape was already updated by its input[0] producer:
+    // it skips its own update_shape(), so a skipped node that is its fused-op input must still refresh it below.
     const bool reuses_input_memory =
-        !get_node().is_type<concatenation>() && (get_node().is_runtime_skippable() || get_node().is_type<crop>()) && can_be_optimized();
+        !get_node().is_type<concatenation>() && (get_node().is_runtime_skippable() || get_node().is_type<crop>()) && can_be_optimized() &&
+        std::none_of(get_user_insts().begin(), get_user_insts().end(), [&](const primitive_inst* user) {
+            return user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_update_shape_done_by_other &&
+                   is_fused_prim_of_user(user, id());
+        });
     std::vector<cldnn::primitive_inst*> user_insts;
     if (!reuses_input_memory) {
         const auto& user_insts_origin = get_user_insts();
@@ -1141,25 +1222,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         OPENVINO_ASSERT(user_insts.size() == user_insts_origin.size(), "Should have same size between ", user_insts.size(), " and ", user_insts_origin.size());
     }
     for (auto* user : user_insts) {
-        auto is_fused_prim_of_user = [&](primitive_id id) -> bool {
-            for (const auto& p : user->get_node().get_fused_primitives()) {
-                if (p.has_outer_dep()) {
-                    const auto start_idx = p.outer_dep_start_idx;
-                    // exclude fused_node from total_num_deps
-                    const auto end_idx = p.outer_dep_start_idx + p.total_num_deps - 1;
-                    for (size_t idx = start_idx; idx < end_idx; idx++) {
-                        if (user->get_node().get_dependency(idx).id() == id) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        };
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
-            if (user->_deps[0].first == this || (is_fused_prim_of_user(id()) && user->_update_shape_done_by_other)) {
+            if (user->_deps[0].first == this || (is_fused_prim_of_user(user, id()) && user->_update_shape_done_by_other)) {
                 size_t dep_idx = 0;
                 for (const auto& dep : user->_deps) {
                     if (dep.first->id() == id()) {
@@ -2782,7 +2848,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
       _can_be_optimized(node.can_be_optimized()),
       _can_share_buffer(node.can_share_buffer()),
       _is_constant(node.is_constant()),
-      _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output()) {
+      _needs_completion_event(is_any_user_cpu(node.get_users()) || node.is_output() || node.is_shape_infer_dep()) {
     // When dynamic shape node has huge upper boundary which causes bigger mem size than system max allocable mem size, do not allocate in build time.
     auto output_layout = node.get_output_layout();
     auto& engine = network.get_engine();

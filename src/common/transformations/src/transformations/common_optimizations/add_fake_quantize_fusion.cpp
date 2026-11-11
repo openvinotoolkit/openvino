@@ -79,7 +79,7 @@ AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             if (diff > 0) {
                 // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
                 const_shape.insert(const_shape.begin(), diff, 1);
-                new_const = std::make_shared<v1::Reshape>(
+                new_const = ov::op::util::make_try_fold<v1::Reshape>(
                     new_const,
                     v0::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
                     false);

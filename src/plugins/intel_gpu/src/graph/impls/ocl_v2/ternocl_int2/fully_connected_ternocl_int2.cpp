@@ -423,7 +423,9 @@ protected:
     }
 
     Int8Launch& get_int8_launch(size_t M) {
-        auto& l = _int8_launch[launch_class(M) - 4];
+        const auto cls = launch_class(M);
+        OPENVINO_ASSERT(cls >= 4, "[GPU] ternocl int2: int8 launch requires M > 8");
+        auto& l = _int8_launch[cls - 4];
         if (l.gemm)
             return l;
         l.t = int8_tile(_K, _N, M);

@@ -53,6 +53,8 @@ uint8_t DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type dataType) {
     case dnnl::memory::data_type::nf4:
     case dnnl::memory::data_type::s4:
     case dnnl::memory::data_type::u4:
+    case dnnl::memory::data_type::u2:
+    case dnnl::memory::data_type::u3:
     case dnnl::memory::data_type::e8m0:
     case dnnl::memory::data_type::f8_e4m3:
     case dnnl::memory::data_type::f8_e5m2:
@@ -92,6 +94,8 @@ std::optional<dnnl::memory::data_type> DnnlExtensionUtils::ElementTypeToDataType
         return memory::data_type::u4;
     case ov::element::u2:
         return memory::data_type::u2;
+    case ov::element::u3:
+        return memory::data_type::u3;
     case ov::element::f8e8m0:
         return memory::data_type::e8m0;
     case ov::element::f8e4m3:
@@ -141,6 +145,8 @@ ov::element::Type DnnlExtensionUtils::DataTypeToElementType(const dnnl::memory::
         return ov::element::u4;
     case memory::data_type::u2:
         return ov::element::u2;
+    case memory::data_type::u3:
+        return ov::element::u3;
     case memory::data_type::e8m0:
         return ov::element::f8e8m0;
     case memory::data_type::f8_e4m3:
