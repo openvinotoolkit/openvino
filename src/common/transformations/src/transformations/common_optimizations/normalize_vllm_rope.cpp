@@ -56,7 +56,8 @@ ov::pass::NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         wrap_type_strict_index<v1::Split>({x_m, wrap_const()},
                                           splits_last_axis && half_width && attrs_match({{"num_splits", 2}}));
     auto variadic_split_m =
-        wrap_type_strict_index<v1::VariadicSplit>({x_m, wrap_const(), wrap_const()}, splits_last_axis && half_width);
+        wrap_type_strict_index<v1::VariadicSplit>({x_m, wrap_const(), wrap_type<v0::Constant>(shape_matches("[2]"))},
+                                                  splits_last_axis && half_width);
     auto x1_m = split_m->output(0) | variadic_split_m->output(0);
     auto x2_m = split_m->output(1) | variadic_split_m->output(1);
     auto cos_m = any_input(half_width);
