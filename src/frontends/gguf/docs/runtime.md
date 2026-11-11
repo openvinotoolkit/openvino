@@ -107,28 +107,42 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 ### Embedded Qwen3.5 MTP
 
 A `qwen35` GGUF with `qwen35.nextn_predict_layers=1` can supply both a target
-decoder and its single NextN draft block. The ordinary conversion excludes the
-NextN block from the target. Select `"mtp"` explicitly to convert only the draft:
+decoder and its single NextN draft block. Ordinary conversion excludes the
+NextN block and returns logits only. Select `"mtp_target"` to export the hidden
+states needed by speculative decoding, and `"mtp"` to convert only the draft:
 
 ```cpp
-auto extension = std::make_shared<GenAIExtension>(
+auto target_frontend = manager.load_by_framework("gguf");
+auto target_extension = std::make_shared<GenAIExtension>(
+    GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp_target");
+target_frontend->add_extension(target_extension);
+auto target = target_frontend->convert(target_frontend->load("model-with-mtp.gguf"));
+auto text_embeddings = target_extension->get_embedding_model();
+
+auto draft_frontend = manager.load_by_framework("gguf");
+auto draft_extension = std::make_shared<GenAIExtension>(
     GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
-frontend->add_extension(extension);
-auto draft = frontend->convert(frontend->load("model-with-mtp.gguf"));
-auto text_embeddings = extension->get_embedding_model();
+draft_frontend->add_extension(draft_extension);
+auto draft = draft_frontend->convert(draft_frontend->load("model-with-mtp.gguf"));
 ```
 
 Use separate frontend/extension instances for the target and draft. The component
 is read when `convert()` runs, so the extension may be registered before or after
-`load()`. Both graphs return `last_hidden_state [B,T,D]` for every token after final
+`load()`. The `"mtp_target"` component also works for a compatible target without an
+embedded NextN block when the draft is supplied separately. Both selected graphs return
+`last_hidden_state [B,T,D]` for every token after final
 normalization, before any output-head Hadamard transform. The draft also takes
 `hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of
 token `t+1`. The draft owns the embedding, hidden-state normalization, EH projection,
 full-attention block and output head. Its head is the checkpoint's NextN head when
 present, otherwise the target `output.weight` or, for a tied checkpoint, the latent
 `token_embd.weight` with its forward Hadamard transform. Target and draft caches are
-independent. Missing NextN metadata, a separate `nextn.embed_tokens.weight` table or an
-unsupported component fails conversion.
+independent. Missing NextN metadata for the draft, a separate `nextn.embed_tokens.weight`
+table or an unsupported component fails conversion.
+
+Per-layer KV-head, recurrent and sliding-window metadata may describe the target
+layers or all stored layers. When the draft KV-head count is omitted, it is inferred
+from the NextN key projection.
 
 The frontend supplies graphs, not an MTP sampler. OpenVINO GenAI's
 `speculative_type="mtp"` option (llama.cpp `--spec-type draft-mtp`) converts both

@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/blocks/common.hpp"
@@ -69,11 +70,18 @@ bool hadamard_tied_output(const MetadataMap& metadata) {
 }
 
 DecoderParameters component_parameters(const BuildContext& context, DecoderParameters parameters) {
-    OPENVINO_ASSERT(context.component.empty() || context.component == "mtp",
+    OPENVINO_ASSERT(context.component.empty() || context.component == "mtp" || context.component == "mtp_target",
                     "[GGUF] unknown decoder component: ",
                     context.component);
     if (context.component.empty())
         return parameters;
+    if (context.component == "mtp_target") {
+        OPENVINO_ASSERT(has_mtp_draft(parameters.architecture),
+                        "[GGUF] MTP is not supported for architecture: ",
+                        parameters.architecture);
+        OPENVINO_ASSERT(!parameters.embedding_model, "[GGUF] MTP requires a generative decoder");
+        return parameters;
+    }
     OPENVINO_ASSERT(parameters.hybrid.nextn_layers == 1 && parameters.dimensions.layers > 1,
                     "[GGUF] MTP requires exactly one NextN block and at least one target layer");
     OPENVINO_ASSERT(has_mtp_draft(parameters.architecture),
@@ -82,10 +90,41 @@ DecoderParameters component_parameters(const BuildContext& context, DecoderParam
     const auto layer = nextn_layer(parameters);
     OPENVINO_ASSERT(!context.weights->weights.count(nextn_tensor(layer, "embed_tokens")),
                     "[GGUF] MTP requires shared token embeddings; a separate NextN embedding table is not supported");
+    const auto target_layers = static_cast<size_t>(layer);
+    const auto stored_layers = static_cast<size_t>(parameters.dimensions.layers);
+    OPENVINO_ASSERT(parameters.layers.empty() || parameters.layers.size() == target_layers ||
+                        parameters.layers.size() == stored_layers,
+                    "[GGUF] per-layer settings must describe every decoder layer");
+    parameters.layers.resize(stored_layers);
+
+    auto& kv_heads = parameters.dimensions.kv_heads_per_layer;
+    const bool infer_nextn_kv_heads = kv_heads.size() == target_layers;
+    if (infer_nextn_kv_heads)
+        kv_heads.push_back(1);
+    if (parameters.attention.sliding_layers.size() == target_layers)
+        parameters.attention.sliding_layers.push_back(0);
+    if (parameters.hybrid.recurrent_layers.size() == target_layers)
+        parameters.hybrid.recurrent_layers.push_back(0);
+
     parameters.hybrid.nextn_layers = 0;
-    parameters.layers.resize(parameters.dimensions.layers);
     // NextN blocks are attention blocks, also in hybrid recurrent families.
     parameters.layers[layer].recurrent = false;
+    if (infer_nextn_kv_heads) {
+        const auto key = "blk." + std::to_string(layer) + ".attn_k.weight";
+        const auto weight = context.weights->weights.find(key);
+        OPENVINO_ASSERT(weight != context.weights->weights.end() && weight->second.shape.size() == 2,
+                        "[GGUF] cannot infer NextN KV heads from ",
+                        key);
+        // The temporary nonzero KV count lets DecoderConfig resolve attention-only SWA.
+        const auto head_size = DecoderConfig(parameters, context.weights->weights).layer_head_size(layer);
+        const auto rows = weight->second.shape[0];
+        OPENVINO_ASSERT(
+            rows > 0 && rows % static_cast<size_t>(head_size) == 0 &&
+                rows / static_cast<size_t>(head_size) <= static_cast<size_t>(std::numeric_limits<int>::max()),
+            "[GGUF] invalid NextN KV head dimensions for ",
+            key);
+        kv_heads.back() = static_cast<uint32_t>(rows / static_cast<size_t>(head_size));
+    }
     parameters.model_contract.sequence_inputs = {"hidden_states"};
     return parameters;
 }
@@ -97,7 +136,7 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
       m_kv(blocks::KvCachePlan::build(m_cfg)),
       m_mtp(context.component == "mtp"),
       m_nextn_layer(m_mtp ? nextn_layer(parameters) : -1),
-      m_export_hidden(has_mtp_draft(parameters.architecture) && parameters.hybrid.nextn_layers > 0) {
+      m_export_hidden(m_mtp || context.component == "mtp_target") {
     if (m_mtp) {
         // Keep Hadamard names for weights the draft uses: shared embeddings, its head and the NextN block.
         auto metadata = detail::MetadataAccess::get(context.metadata).map;

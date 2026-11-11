@@ -62,6 +62,12 @@ std::vector<int32_t> integers(const GgufMetadata& m, const std::string& key) {
     }
     return result;
 }
+bool is_array(const GgufMetadata& m, const std::string& key) {
+    const auto& value = detail::MetadataAccess::get(m).map.at(key);
+    if (const auto* tensor = std::get_if<ov::Tensor>(&value))
+        return !tensor->get_shape().empty();
+    return std::holds_alternative<std::vector<int32_t>>(value);
+}
 }  // namespace
 
 DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParameters p) {
@@ -96,7 +102,7 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
                     "[GGUF] decoder dimensions and attention.head_count must be positive");
     d.head_size = integer(m, key("attention.key_length"), d.head_size > 0 ? d.head_size : d.embedding / d.query_heads);
     const auto kv_key = key("attention.head_count_kv");
-    if (m.has(kv_key) && !m.get_int(kv_key)) {
+    if (m.has(kv_key) && (is_array(m, kv_key) || !m.get_int(kv_key))) {
         const auto heads = integers(m, kv_key);
         d.kv_heads_per_layer.clear();
         for (const auto count : heads) {
@@ -170,7 +176,7 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
         const auto& stored_pattern = detail::MetadataAccess::get(m).map.at(pattern);
         const auto* tensor = std::get_if<ov::Tensor>(&stored_pattern);
         const bool boolean_pattern = tensor && tensor->get_element_type() == ov::element::boolean;
-        if (!boolean_pattern && m.get_int(pattern)) {
+        if (!boolean_pattern && !is_array(m, pattern) && m.get_int(pattern)) {
             a.sliding_period = integer(m, pattern, a.sliding_period);
             a.sliding_layers.clear();
         } else {
@@ -217,7 +223,8 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     hybrid.nextn_layers = integer(m, key("nextn_predict_layers"), hybrid.nextn_layers);
     const auto recurrent_key = key("attention.recurrent_layers");
     if (m.has(recurrent_key)) {
-        if (const auto value = m.get_int(recurrent_key)) {
+        const auto value = m.get_int(recurrent_key);
+        if (value && !is_array(m, recurrent_key)) {
             OPENVINO_ASSERT(*value == 0 || *value == 1, "[GGUF] invalid recurrent layer flag");
             hybrid.recurrent_layers.assign(d.layers, static_cast<int32_t>(*value));
         } else {

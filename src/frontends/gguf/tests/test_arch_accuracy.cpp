@@ -61,11 +61,13 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     for (const auto& [mode, component] : {std::pair{Extension::InputMode::IDS_TO_LOGITS, std::string{}},
                                           {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{}},
+                                          {Extension::InputMode::IDS_TO_LOGITS, std::string{"mtp_target"}},
+                                          {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp_target"}},
                                           {Extension::InputMode::IDS_TO_LOGITS, std::string{"mtp"}},
                                           {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}}}) {
         SCOPED_TRACE(static_cast<int>(mode));
         SCOPED_TRACE(component);
-        const bool mtp = !component.empty();
+        const bool mtp = component == "mtp";
         ov::frontend::gguf::FrontEnd frontend;
         auto extension = std::make_shared<Extension>(mode, component);
         frontend.add_extension(extension);
@@ -81,6 +83,10 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
         if (mtp) {
             EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 32}));
         }
+        if (component.empty())
+            EXPECT_EQ(model->outputs().size(), 1);
+        else
+            EXPECT_NO_THROW(model->output("last_hidden_state"));
         EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
         ov::Core core;
         const auto compile = [&](const std::shared_ptr<ov::Model>& graph) {
@@ -125,8 +131,10 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
             request.set_tensor("position_ids", positions);
             request.set_tensor("beam_idx", beam);
             request.infer();
-            for (const auto& [output, key] : {std::pair{"logits", mtp ? "logits_" : "target_logits_"},
-                                              {"last_hidden_state", mtp ? "hidden_output_" : "target_hidden_"}}) {
+            std::vector<std::pair<const char*, const char*>> outputs{{"logits", mtp ? "logits_" : "target_logits_"}};
+            if (!component.empty())
+                outputs.emplace_back("last_hidden_state", mtp ? "hidden_output_" : "target_hidden_");
+            for (const auto& [output, key] : outputs) {
                 SCOPED_TRACE(output);
                 const auto& expected = ov_gguf_test::npz_array(arrays, std::string(key) + std::to_string(step));
                 const auto actual = request.get_tensor(output);
@@ -139,6 +147,92 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
                     1e-5);
             }
             offset += length;
+        }
+    }
+}
+
+TEST(GGUFQwenMtpAccuracy, DraftRejectsMalformedPerLayerOverrides) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    parameters.layers.resize(parameters.dimensions.layers + 1);
+    detail::WeightStore tensors{std::get<1>(loaded)};
+    const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, "mtp"};
+    OV_EXPECT_THROW(DecoderBuilder(context, parameters),
+                    ov::Exception,
+                    testing::HasSubstr("per-layer settings must describe every decoder layer"));
+}
+
+TEST(GGUFQwenMtpAccuracy, DraftRejectsMalformedNextNKvProjection) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    parameters.dimensions.kv_heads_per_layer.resize(parameters.dimensions.layers - 1, 0);
+    auto& weights = std::get<1>(loaded);
+    const auto key = "blk." + std::to_string(parameters.dimensions.layers - 1) + ".attn_k.weight";
+    weights.at(key).shape[0] = parameters.dimensions.head_size + 1;
+    detail::WeightStore tensors{weights};
+    const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, "mtp"};
+    OV_EXPECT_THROW(DecoderBuilder(context, parameters),
+                    ov::Exception,
+                    testing::HasSubstr("invalid NextN KV head dimensions"));
+}
+
+TEST(GGUFQwenMtpAccuracy, DraftInfersKvHeadsUsingSlidingHeadSize) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    const auto layer = parameters.dimensions.layers - 1;
+    parameters.dimensions.kv_heads_per_layer.resize(layer, 0);
+    parameters.attention.sliding_layers.resize(parameters.dimensions.layers, 0);
+    parameters.attention.sliding_layers[layer] = 1;
+    parameters.attention.sliding_head_size = parameters.dimensions.head_size / 2;
+    parameters.attention.sliding_rope.n_dims = parameters.attention.sliding_head_size;
+    auto& weights = std::get<1>(loaded);
+    const auto key = "blk." + std::to_string(layer) + ".attn_k.weight";
+    weights.at(key).shape[0] = parameters.attention.sliding_head_size;
+    detail::WeightStore tensors{weights};
+    const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, "mtp"};
+    EXPECT_NO_THROW(DecoderBuilder(context, parameters));
+}
+
+TEST(GGUFQwenMtpAccuracy, TargetGraphsDoNotDependOnNextNMetadata) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    const auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    auto target_only = parameters;
+    target_only.dimensions.layers -= target_only.hybrid.nextn_layers;
+    target_only.hybrid.nextn_layers = 0;
+    detail::WeightStore tensors{std::get<1>(loaded)};
+    for (const auto& component : {std::string{}, std::string{"mtp_target"}}) {
+        SCOPED_TRACE(component);
+        const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, component};
+        const auto with_nextn = DecoderBuilder(context, parameters).build();
+        const auto without_nextn = DecoderBuilder(context, target_only).build();
+        EXPECT_EQ(with_nextn->model_output_names, without_nextn->model_output_names);
+        EXPECT_EQ(with_nextn->model_contract.sequence_outputs,
+                  component.empty() ? std::vector<std::string>{} : std::vector<std::string>{"last_hidden_state"});
+        EXPECT_EQ(with_nextn->model_contract.sequence_outputs, without_nextn->model_contract.sequence_outputs);
+        ASSERT_EQ(with_nextn->nodes.size(), without_nextn->nodes.size());
+        for (size_t i = 0; i < with_nextn->nodes.size(); ++i) {
+            const auto& actual = with_nextn->nodes[i];
+            const auto& reference = without_nextn->nodes[i];
+            EXPECT_EQ(actual.name, reference.name);
+            EXPECT_EQ(actual.op_type, reference.op_type);
+            EXPECT_EQ(actual.input_names, reference.input_names);
+            EXPECT_EQ(actual.op_case, reference.op_case);
         }
     }
 }

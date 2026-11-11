@@ -11,6 +11,7 @@
 #include <memory>
 #include <numeric>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "builder/api/metadata_store.hpp"
@@ -47,6 +48,14 @@ using ov::frontend::gguf::RopeMode;
 
 namespace {
 
+struct LayerMetadata {
+    std::vector<uint32_t> kv_heads;
+    std::vector<uint32_t> recurrent;
+    std::vector<uint32_t> sliding;
+    uint32_t nextn_kv_heads = 1;
+    uint32_t nextn_swa_head_size = 0;
+};
+
 // Remove the generated files even when a test fails.
 class ScratchDir {
 public:
@@ -75,14 +84,27 @@ std::string write_decoder_gguf(const std::string& dir,
                                const std::vector<std::string>& hadamard_names = {},
                                bool tied_hadamard = false,
                                bool explicit_untied_hadamard = false,
-                               bool inverse_embedding_hadamard = false) {
+                               bool inverse_embedding_hadamard = false,
+                               const LayerMetadata& layer_metadata = {}) {
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
     writer.kv_u32(arch + ".block_count", layers);
     writer.kv_u32(arch + ".embedding_length", 8);
     writer.kv_u32(arch + ".attention.head_count", 2);
-    writer.kv_u32(arch + ".attention.head_count_kv", 1);
+    if (layer_metadata.kv_heads.empty())
+        writer.kv_u32(arch + ".attention.head_count_kv", 1);
+    else
+        writer.kv_u32_array(arch + ".attention.head_count_kv", layer_metadata.kv_heads);
+    if (!layer_metadata.recurrent.empty())
+        writer.kv_u32_array(arch + ".attention.recurrent_layers", layer_metadata.recurrent);
+    if (!layer_metadata.sliding.empty())
+        writer.kv_u32_array(arch + ".attention.sliding_window_pattern", layer_metadata.sliding);
+    if (layer_metadata.nextn_swa_head_size) {
+        writer.kv_u32(arch + ".attention.sliding_window", 4);
+        writer.kv_u32(arch + ".attention.key_length_swa", layer_metadata.nextn_swa_head_size);
+        writer.kv_u32(arch + ".rope.dimension_count_swa", layer_metadata.nextn_swa_head_size);
+    }
     writer.kv_u32(arch + ".rope.dimension_count", 4);
     writer.kv_u32(arch + ".context_length", 32);
     writer.kv_f32(arch + (layer_norm ? ".attention.layer_norm_epsilon" : ".attention.layer_norm_rms_epsilon"), 1e-5f);
@@ -127,19 +149,22 @@ std::string write_decoder_gguf(const std::string& dir,
         weight(prefix + "attn_norm.weight", {8}, true);
         if (layer_norm)
             weight(prefix + "attn_norm.bias", {8});
-        weight(prefix + "attn_q.weight", {8, mtp ? 16u : 8u});
-        weight(prefix + "attn_k.weight", {8, 4});
-        weight(prefix + "attn_v.weight", {8, 4});
-        weight(prefix + "attn_output.weight", {8, 8});
-        weight(prefix + "attn_q_norm.weight", {4}, true);
-        weight(prefix + "attn_k_norm.weight", {4}, true);
+        const bool nextn = mtp && layer == layers - 1;
+        const auto head_size = nextn && layer_metadata.nextn_swa_head_size ? layer_metadata.nextn_swa_head_size : 4u;
+        weight(prefix + "attn_q.weight", {8, mtp ? 4 * head_size : 8u});
+        const auto kv_width = nextn ? head_size * layer_metadata.nextn_kv_heads : 4u;
+        weight(prefix + "attn_k.weight", {8, kv_width});
+        weight(prefix + "attn_v.weight", {8, kv_width});
+        weight(prefix + "attn_output.weight", {mtp ? 2 * head_size : 8u, 8});
+        weight(prefix + "attn_q_norm.weight", {head_size}, true);
+        weight(prefix + "attn_k_norm.weight", {head_size}, true);
         weight(prefix + "ffn_norm.weight", {8}, true);
         if (layer_norm)
             weight(prefix + "ffn_norm.bias", {8});
         weight(prefix + "ffn_gate.weight", {8, 12});
         weight(prefix + "ffn_up.weight", {8, 12});
         weight(prefix + "ffn_down.weight", {12, 8});
-        if (mtp && layer == layers - 1) {
+        if (nextn) {
             weight(prefix + "nextn.eh_proj.weight", {16, 8});
             weight(prefix + "nextn.enorm.weight", {8}, true);
             weight(prefix + "nextn.hnorm.weight", {8}, true);
@@ -266,7 +291,8 @@ TEST(GGUFGenAIExtension, QwenMtpComponentHasIndependentCacheAndHiddenStateInputs
     ScratchDir scratch;
     const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true);
     using Extension = ov::frontend::gguf::GenAIExtension;
-    for (const auto& component : {std::string{}, std::string{"mtp"}}) {
+    for (const auto& component : {std::string{}, std::string{"mtp_target"}, std::string{"mtp"}}) {
+        SCOPED_TRACE(component);
         ov::frontend::gguf::FrontEnd frontend;
         auto extension = std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, component);
         frontend.add_extension(extension);
@@ -275,12 +301,95 @@ TEST(GGUFGenAIExtension, QwenMtpComponentHasIndependentCacheAndHiddenStateInputs
         EXPECT_EQ(model->get_variables().size(), 2);
         EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
         EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
-        EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
         EXPECT_EQ(model->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
-        if (!component.empty()) {
+        if (component.empty()) {
+            EXPECT_EQ(model->outputs().size(), 1);
+        } else {
+            EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        }
+        if (component == "mtp") {
             EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        } else {
+            EXPECT_THROW(model->input("hidden_states"), ov::Exception);
         }
         EXPECT_NO_THROW(ov::Core{}.compile_model(model, "CPU"));
+    }
+}
+
+TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    const std::vector<std::pair<LayerMetadata, LayerMetadata>> cases{
+        {LayerMetadata{{0}, {1}, {0}, 1}, LayerMetadata{{0, 1}, {1, 0}, {0, 0}, 1}},
+        {LayerMetadata{{0}, {1}, {0, 1}, 2, 2}, LayerMetadata{{0, 2}, {1, 0}, {0, 1}, 2, 2}},
+    };
+    for (const auto& [target_only, all_layers] : cases) {
+        SCOPED_TRACE(target_only.nextn_swa_head_size);
+        ScratchDir target_only_dir;
+        ScratchDir all_layers_dir;
+        const auto load = [&](const std::string& dir, const LayerMetadata& metadata) {
+            const auto path =
+                write_decoder_gguf(dir, "qwen35", 2, false, true, false, {}, false, false, false, metadata);
+            auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
+            return convert_with(path, {extension});
+        };
+        const auto target_only_model = load(target_only_dir.path(), target_only);
+        const auto all_layers_model = load(all_layers_dir.path(), all_layers);
+        ov::Core core;
+        const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+            return core
+                .compile_model(model,
+                               "CPU",
+                               ov::hint::inference_precision(ov::element::f32),
+                               ov::hint::dynamic_quantization_group_size(0),
+                               ov::hint::kv_cache_precision(ov::element::f32))
+                .create_infer_request();
+        };
+        auto actual = compile(target_only_model);
+        auto reference = compile(all_layers_model);
+        size_t past = 0;
+        for (const size_t tokens : {3u, 1u}) {
+            ov::Tensor ids(ov::element::i64, {1, tokens}), positions(ov::element::i64, {1, tokens});
+            ov::Tensor mask(ov::element::i64, {1, past + tokens}), beam(ov::element::i32, {1});
+            ov::Tensor hidden(ov::element::f32, {1, tokens, 8});
+            std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+            *beam.data<int32_t>() = 0;
+            for (size_t i = 0; i < tokens; ++i) {
+                ids.data<int64_t>()[i] = static_cast<int64_t>(past + i + 1);
+                positions.data<int64_t>()[i] = static_cast<int64_t>(past + i);
+            }
+            for (size_t i = 0; i < hidden.get_size(); ++i)
+                hidden.data<float>()[i] = 0.1f * std::sin(static_cast<float>(i + past));
+            for (auto* request : {&actual, &reference}) {
+                request->set_tensor("input_ids", ids);
+                request->set_tensor("position_ids", positions);
+                request->set_tensor("attention_mask", mask);
+                request->set_tensor("beam_idx", beam);
+                request->set_tensor("hidden_states", hidden);
+                request->infer();
+            }
+            for (const auto* name : {"logits", "last_hidden_state"}) {
+                const auto actual_output = actual.get_tensor(name);
+                const auto reference_output = reference.get_tensor(name);
+                ASSERT_EQ(actual_output.get_shape(), reference_output.get_shape());
+                for (size_t i = 0; i < actual_output.get_size(); ++i)
+                    EXPECT_NEAR(actual_output.data<const float>()[i], reference_output.data<const float>()[i], 1e-5f);
+            }
+            past += tokens;
+        }
+    }
+}
+
+TEST(GGUFGenAIExtension, MtpDraftRejectsMalformedLayerMetadata) {
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    for (const auto& metadata :
+         {LayerMetadata{{0, 1, 1}, {}, {}}, LayerMetadata{{}, {1, 0, 0}, {}}, LayerMetadata{{}, {}, {0, 0, 0}}}) {
+        ScratchDir scratch;
+        const auto path =
+            write_decoder_gguf(scratch.path(), "qwen35", 2, false, true, false, {}, false, false, false, metadata);
+        const auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
+        OV_EXPECT_THROW(convert_with(path, {extension}),
+                        ov::Exception,
+                        testing::HasSubstr("per-layer settings must describe every decoder layer"));
     }
 }
 
@@ -331,6 +440,16 @@ TEST(GGUFGenAIExtension, MtpComponentRejectsMissingNextNWeights) {
     OV_EXPECT_THROW(convert_with(path, {std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS, "mtp")}),
                     ov::Exception,
                     testing::HasSubstr("exactly one NextN block"));
+}
+
+TEST(GGUFGenAIExtension, MtpTargetRejectsUnsupportedArchitecture) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path());
+    using Extension = ov::frontend::gguf::GenAIExtension;
+    OV_EXPECT_THROW(
+        convert_with(path, {std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp_target")}),
+        ov::Exception,
+        testing::HasSubstr("MTP is not supported for architecture"));
 }
 
 TEST(GGUFGenAIExtension, MtpComponentRejectsMissingTargetAndSeparateEmbeddings) {
