@@ -4,6 +4,8 @@
 
 #include "opt.hpp"
 
+#include <algorithm>
+
 #include "../../logging.hpp"
 #include "../../npuw_transformations/insert_vocab_sub128.hpp"
 #include "../../util.hpp"
@@ -1067,6 +1069,24 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
         std::size_t axis_to_concat = -1;
         std::tie(orig_multiply, axis_to_concat) = mul_to_mms.first;
 
+        // A later pass can replace the activation after DQParMMGQ registered it. For example,
+        // HostGatherQuantAsymm replaces the dequantized vocabulary that feeds the first layer
+        // directly (no norm in between). A MatMul on the old activation would bring the replaced
+        // chain back into the graph.
+        const bool reads_orig_multiply =
+            std::all_of(parallel_matmuls.begin(), parallel_matmuls.end(), [&](const Context::DQParMM& dqmm) {
+                const auto act = dqmm.mm->input_value(0);
+                if (act == orig_multiply) {
+                    return true;
+                }
+                const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(act.get_node_shared_ptr());
+                return convert && convert->input_value(0) == orig_multiply;
+            });
+        if (!reads_orig_multiply) {
+            LOG_VERB("Parallel MatMuls found, but their activation was replaced after the match");
+            continue;
+        }
+
         const ov::Shape orig_act_shape = orig_multiply.get_shape();
 
         if (!util::is_set(axis_to_concat, ctx.pmm_dims)) {
@@ -1145,6 +1165,10 @@ void mergeParallelMatMuls(const std::shared_ptr<ov::Model>& m, Context& ctx) {
             offset += this_orig_wshape[axis_to_concat];
         }
     }
+    // The keys are ov::Output objects: they keep the activation nodes alive. A replaced
+    // activation chain (see above) stays connected to its closure Parameters while the context
+    // holds it, so partitioning would keep these Parameters and their closures (CVS-199500).
+    ctx.par_dq_mms.clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

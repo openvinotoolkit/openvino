@@ -743,6 +743,104 @@ TEST(HostGatherQuantAsymmTest, RejectsUnmarked128Subtractions) {
     EXPECT_EQ(count_subtracts(model), 3);
 }
 
+namespace {
+
+// A head function where the dequantized vocabulary feeds the first layer MatMuls directly, with no
+// norm in between (for example EXAONE-4.0): ids -> Gather(W, Z, S) -> Convert -> Sub128 -> Subtract ->
+// Multiply -> Convert -> group-quantized MatMuls. DQParMMGQ registers this Multiply as the activation
+// of the MatMuls, and HostGatherQuantAsymm then replaces it.
+std::shared_ptr<ov::Model> make_head_with_direct_gq_readers(std::size_t num_matmuls) {
+    auto model = make_parameter_gather_model(128.0f);
+    auto converted = model->get_results().front()->input_value(0);
+    model->remove_result(model->get_results().front());
+
+    constexpr std::size_t groups = 16;
+    constexpr std::size_t group_size = 128;  // groups * group_size == hidden size of the vocabulary
+    constexpr std::size_t out_features = 64;
+    for (std::size_t index = 0; index < num_matmuls; ++index) {
+        auto weight =
+            std::make_shared<ov::opset10::Parameter>(ov::element::i4, ov::Shape{groups, group_size, out_features});
+        auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{groups, 1, out_features});
+        auto weight_convert = std::make_shared<ov::opset10::Convert>(weight, ov::element::f16);
+        auto scaled = std::make_shared<ov::opset10::Multiply>(weight_convert, scale);
+        auto shape = ov::opset10::Constant::create(ov::element::i32,
+                                                   ov::Shape{2},
+                                                   std::vector<int32_t>{groups * group_size, out_features});
+        auto reshaped = std::make_shared<ov::opset10::Reshape>(scaled, shape, false);
+        auto matmul = std::make_shared<ov::opset10::MatMul>(converted, reshaped, false, false);
+        model->add_parameters({weight, scale});
+        model->add_results({std::make_shared<ov::opset10::Result>(matmul)});
+    }
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// Runs the passes in the order of Partitioner::optimize()
+void run_head_tail_passes(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns::opt::Context& context) {
+    context.pmm_dims = "2";
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(context));
+    rewrite.run_on_model(model);
+    ASSERT_FALSE(context.par_dq_mms.empty());
+
+    ASSERT_TRUE(run_host_gather(model, context));
+    ov::npuw::patterns::opt::mergeParallelMatMuls(model, context);
+}
+
+std::size_t count_slices(const std::shared_ptr<ov::Model>& model) {
+    const auto ops = model->get_ordered_ops();
+    return std::count_if(ops.begin(), ops.end(), [](const auto& node) {
+        return ov::is_type<ov::op::v8::Slice>(node);
+    });
+}
+
+}  // namespace
+
+// CVS-199500: the context kept the replaced vocabulary chain alive, so the u8 vocabulary Parameters
+// still had readers. Partitioning then kept their closures next to the lazy Sub128 closures, and the
+// weights bank detached the shared source of both.
+TEST(HostGatherQuantAsymmTest, ReleasesReplacedVocabularyAfterParallelMatMulMerge) {
+    const auto model = make_head_with_direct_gq_readers(1);
+    const auto weights = model->get_parameters().at(1);
+    const auto zero_point = model->get_parameters().at(2);
+    ov::npuw::patterns::opt::Context context(model, 0);
+
+    run_head_tail_passes(model, context);
+
+    EXPECT_TRUE(context.par_dq_mms.empty());
+    ASSERT_EQ(context.closures_to_subtract_128.size(), 2u);
+    EXPECT_TRUE(weights->output(0).get_target_inputs().empty());
+    EXPECT_TRUE(zero_point->output(0).get_target_inputs().empty());
+}
+
+TEST(HostGatherQuantAsymmTest, DoesNotMergeMatMulsOnReplacedVocabulary) {
+    const auto model = make_head_with_direct_gq_readers(2);
+    const auto weights = model->get_parameters().at(1);
+    const auto zero_point = model->get_parameters().at(2);
+    ov::npuw::patterns::opt::Context context(model, 0);
+
+    run_head_tail_passes(model, context);
+
+    EXPECT_EQ(count_slices(model), 0u);
+    EXPECT_TRUE(context.params_to_concat.empty());
+    EXPECT_TRUE(weights->output(0).get_target_inputs().empty());
+    EXPECT_TRUE(zero_point->output(0).get_target_inputs().empty());
+}
+
+TEST(DQParMMGQTest, MergesMatMulsOnUnchangedActivation) {
+    const auto model = make_head_with_direct_gq_readers(2);
+    ov::npuw::patterns::opt::Context context(model, 0);
+    context.pmm_dims = "2";
+
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::npuw::patterns::opt::DQParMMGQ>(std::ref(context));
+    rewrite.run_on_model(model);
+    ov::npuw::patterns::opt::mergeParallelMatMuls(model, context);
+
+    EXPECT_EQ(count_slices(model), 2u);
+    EXPECT_EQ(context.params_to_concat.size(), 2u);
+}
+
 TEST(ConvertDQVocabTest, ReplacesMarkedShiftsWithLazySources) {
     const auto model = make_parameter_vocab_dq_model();
     ov::npuw::patterns::opt::Context context(model, 0);
