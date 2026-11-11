@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 371,
+  "total": 372,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3606,6 +3606,17 @@
       "investigation_id": "2026-11-11-14-34-10-000-43030484756",
       "run_id": "43030484756",
       "timestamp": "2026-11-11T14:34:10Z",
+      "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+      "category": "Network",
+      "signature_hash": "d734e6d0da3ffc69",
+      "pr_number": "39693"
+    },
+    {
+      "investigation_id": "2026-11-11-15-36-49-000-43040586616",
+      "run_id": "43040586616",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43040586616",
+      "workflow_name": "Debian Packages / Debian Packages",
+      "timestamp": "2026-11-11T15:36:49Z",
       "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
       "category": "Network",
       "signature_hash": "d734e6d0da3ffc69",

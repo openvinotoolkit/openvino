@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-15-36-49-000-43040586616",
+  "timestamp": "2026-11-11T15:36:49Z",
+  "run_id": "43040586616",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43040586616",
+  "workflow_name": "Debian Packages / Debian Packages",
+  "pr_number": "39693",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39693",
+  "author": "asukhobo",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "'Install debian packages & check conflicts' step runs apt-get update, which fails to resolve archive.ubuntu.com, azure.archive.ubuntu.com and security.ubuntu.com, leaving gnupg/wget/ca-certificates/lsb-release uninstallable; apt-get install exits with code 100."
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "'Check status of all jobs' aggregation step fails (exit 1) because the Debian Packages job it depends on failed."
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'archive.ubuntu.com'",
+    "Err:3 http://azure.archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'azure.archive.ubuntu.com'",
+    "Err:2 http://security.ubuntu.com/ubuntu noble-security InRelease\n  Temporary failure resolving 'security.ubuntu.com'",
+    "Package ca-certificates is not available, but is referred to by another package.\nE: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Debian Packages' job's 'Install debian packages & check conflicts' step runs 'apt-get update -y' against archive.ubuntu.com, azure.archive.ubuntu.com and security.ubuntu.com before installing gnupg/wget/ca-certificates/lsb-release and the local openvino .deb package. All three mirror hostnames failed DNS resolution ('Temporary failure resolving') for roughly 4 minutes of retries (15:07:51 to 15:11:59), so apt's package index was never refreshed and the subsequent 'apt-get install' could not locate the requested packages, exiting with code 100. This is the same transient DNS/network outage pattern recorded ~1 hour earlier on the same PR's branch (run 43030484756), so it recurred rather than being resolved by a prior rerun. The PR's changed files (NPUW Whisper reset-state C++/test changes) do not touch the Debian packaging workflow or its dependencies and are unrelated to this failure.",
+  "reproduction_steps": "N/A - not reliably reproducible locally; depends on hitting the same transient DNS/network outage on the GitHub-hosted runner. Re-running the failed 'Debian Packages' job alone is expected to succeed once DNS resolution recovers.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job; no code change is required since the PR's changes are unrelated to this failure.",
+    "A workflow-rerunner pattern for this exact signature ('Temporary failure resolving') was already proposed in PR #39740 (still open) after the first occurrence of this signature; merging it will let future occurrences auto-rerun instead of requiring manual intervention.",
+    "Consider adding a short retry/backoff wrapper around 'apt-get update' in the Debian Packages workflow step itself (in addition to the existing 'Acquire::Retries \"10\"' apt.conf, which only retries HTTP fetches, not DNS resolution failures) to better tolerate transient resolver outages."
+  ],
+  "prevention_strategies": "Wrap 'apt-get update' invocations in CI with an explicit shell-level retry loop that also covers DNS failures (apt's own Acquire::Retries does not retry a failed DNS lookup cleanly within the same invocation), and/or pin a resilient DNS resolver (e.g., 1.1.1.1/8.8.8.8 fallback) on the runner image for apt operations. Merging the already-open rerun-pattern PR (#39740) would let the automated rerunner handle this category of failure going forward.",
+  "historical_context": "This is the second occurrence of signature d734e6d0da3ffc69 ('Temporary failure resolving ubuntu archive mirror hosts ...') within roughly 1 hour, both on PR #39693 (runs 43030484756 and 43040586616). Repo-memory also holds several related but distinct Network-category Debian Packages patterns keyed on 'Could not connect to azure.archive.ubuntu.com' (signature_hash 7d2e2ff59d37c6b4, seen 9 times as of 2026-08-19, plus several single-occurrence TCP-connection-refused variants: 7d52cc57d8ed2a36, 98edf6d4fbc865bd, a3d456bd40bd9f42, c8d00529252cfb02, e65acb49deb19d88). Those recorded a TCP connection failure; this one is a DNS resolution failure affecting all three mirrors simultaneously, which is why it remains a separate pattern."
+}

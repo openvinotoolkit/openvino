@@ -4,16 +4,18 @@
   "signature_hash": "d734e6d0da3ffc69",
   "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
   "category": "Network",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-11-11T14:34:10Z",
-  "last_seen": "2026-11-11T14:34:10Z",
+  "last_seen": "2026-11-11T15:36:49Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43040586616",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43030484756"
   ],
   "affected_prs": [
     "https://github.com/openvinotoolkit/openvino/pull/39693"
   ],
   "recent_timestamps": [
+    "2026-11-11T15:36:49Z",
     "2026-11-11T14:34:10Z"
   ],
   "rerun_search_string": "Temporary failure resolving"
