@@ -3,19 +3,26 @@
 //
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/decompositions/rms_norm.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "ov_ops/rms.hpp"
 #include "pass/simplify_activation_shapes.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
+#include "transformations/symbolic_transformations/dereshape_matmul.hpp"
 
 namespace {
 
@@ -90,6 +97,83 @@ TEST_F(GGUFActivationShapes, KeepsMatMulOutputConsumersAtRankFour) {
     model = get_matmul_output_consumers_model();
     model_ref = get_matmul_output_consumers_model_ref();
     comparator.enable(FunctionsComparator::CONSUMERS_COUNT);
+}
+
+std::shared_ptr<ov::Model> matmul_rms_model(bool with_scale, bool with_residual, const ov::PartialShape& input_shape) {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+    const auto target = v0::Constant::create(ov::element::i64, {4}, {-1, 1, 1, 8});
+    const auto expanded = std::make_shared<v1::Reshape>(x, target, false);
+    const auto weights = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(expanded, weights, false, true);
+    const auto axes = v0::Constant::create(ov::element::i64, {1}, {-1});
+    const auto eps = v0::Constant::create(ov::element::f32, {}, {1e-5f});
+    const auto gamma = v0::Constant::create(ov::element::f32, {8}, {0.5f});
+    ov::pass::NodeRegistry reg;
+    ov::Output<ov::Node> value =
+        ov::decomposition::rms_norm(reg, fc, axes, eps, with_scale ? gamma->output(0) : ov::Output<ov::Node>{});
+    if (with_residual)
+        value = std::make_shared<v1::Add>(value, expanded);
+    return std::make_shared<ov::Model>(ov::OutputVector{value}, ov::ParameterVector{x});
+}
+
+std::shared_ptr<ov::Model> matmul_rms_model_ref(bool with_scale,
+                                                bool with_residual,
+                                                const ov::PartialShape& input_shape) {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+    const auto target = v0::Constant::create(ov::element::i64, {4}, {-1, 1, 1, 8});
+    const auto expanded = std::make_shared<v1::Reshape>(x, target, false);
+    const auto weights = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(expanded, weights, false, true);
+    const auto gamma = v0::Constant::create(ov::element::f32, {8}, {0.5f});
+    ov::Output<ov::Node> value = with_scale
+                                     ? std::make_shared<ov::op::internal::RMS>(fc, gamma, 1e-5f, ov::element::f32)
+                                     : std::make_shared<ov::op::internal::RMS>(fc, 1e-5f, ov::element::f32);
+    if (with_residual)
+        value = std::make_shared<v1::Add>(value, expanded);
+    return std::make_shared<ov::Model>(ov::OutputVector{value}, ov::ParameterVector{x});
+}
+
+TEST_F(GGUFActivationShapes, FusesMatMulRmsNormWithScaleAndResidual) {
+    model = matmul_rms_model(true, true, {-1, 1, 8});
+    model_ref = matmul_rms_model_ref(true, true, {-1, 1, 8});
+    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+    manager.register_pass<ov::pass::EliminateSqueeze>();
+    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
+}
+
+TEST_F(GGUFActivationShapes, FusesStaticMatMulRmsNormWithScaleAndResidual) {
+    model = matmul_rms_model(true, true, {2, 1, 8});
+    model_ref = matmul_rms_model_ref(true, true, {2, 1, 8});
+    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+    manager.register_pass<ov::pass::EliminateSqueeze>();
+    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
+}
+
+TEST_F(GGUFActivationShapes, FusesMatMulRmsNormWithoutScale) {
+    model = matmul_rms_model(false, false, {2, 1, 8});
+    model_ref = matmul_rms_model_ref(false, false, {2, 1, 8});
+    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+    manager.register_pass<ov::pass::EliminateSqueeze>();
+    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
+}
+
+TEST_F(GGUFActivationShapes, FusesDynamicMatMulRmsNormWithoutScaleWithResidual) {
+    model = matmul_rms_model(false, true, {-1, 1, 8});
+    model_ref = matmul_rms_model_ref(false, true, {-1, 1, 8});
+    manager.register_pass<ov::pass::RMSFusion>(false, true, true);
+    manager.register_pass<ov::pass::EliminateSqueeze>();
+    manager.register_pass<ov::pass::DeReshapeFullyConnected>();
+}
+
+TEST_F(GGUFActivationShapes, KeepsUnrelatedMatMulElementwiseConsumersAtRankFour) {
+    const auto x = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{2, 1, 3, 8});
+    const auto weights = v0::Constant::create(ov::element::f32, {8, 8}, {0.25f});
+    const auto fc = std::make_shared<v0::MatMul>(x, weights, false, true);
+    const auto scale = v0::Constant::create(ov::element::f32, {}, {0.5f});
+    const auto exponent = v0::Constant::create(ov::element::f32, {}, {2.0f});
+    model = std::make_shared<ov::Model>(
+        ov::OutputVector{std::make_shared<v1::Multiply>(fc, scale), std::make_shared<v1::Power>(fc, exponent)},
+        ov::ParameterVector{x});
 }
 
 TEST_F(GGUFActivationShapes, PreservesOtherOutputsOfReshapeProducer) {
