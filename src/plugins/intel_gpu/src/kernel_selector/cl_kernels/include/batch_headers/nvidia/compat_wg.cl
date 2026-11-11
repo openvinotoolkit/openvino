@@ -7,10 +7,8 @@
 // work_group_scan_inclusive_add and work_group_broadcast for float, and half overloads of the six collectives the
 // kernels call (work_group_scan_exclusive_add included, whose float version comes from the runtime).
 //
-// kernels_cache.cpp adds this file to the NVIDIA prelude of every batch. The 128 bytes of static shared memory
-// declared below (one float per warp of a 1024-wide work-group) live at PTX module scope, but ptxas allocates a
-// module-scope .shared variable only to the kernels that reference it, directly or through the functions they call,
-// so kernels that call none of the collectives carry none of it.
+// Every batch carries this file, but ptxas allocates the 128 bytes of shared memory below (one float per warp of a
+// 1024-wide work-group) only to the kernels that reach a collective.
 //
 // The runtime declares the float collectives itself, without static, so the float definitions here are plain inline:
 // static inline would clash with those declarations, and that non-inline declaration makes the inline definition an
@@ -19,7 +17,7 @@
 // (as with -cl-opt-disable). As OpenCL requires, every work-item of the work-group has to call a collective; each
 // call ends with a barrier, so consecutive calls can reuse the shared buffer.
 //
-// Depends on (both emitted ahead of this file as part of the NVIDIA prelude):
+// Depends on:
 //     nvidia/compat_common.cl   _nv_get_linear_tid / _nv_get_total_threads (work-item ids)
 //     nvidia/compat_sg.cl       _nv_laneid
 
@@ -33,14 +31,10 @@ static inline uint __ov_nv_wg_smem_base(void){
     return r;
 }
 
-// work_group_reduce_add / max / min (float) in two phases: a butterfly inside each warp, then one over the per-warp
-// results in __ov_wg_collective_smem. A lane folds in its partner only when the partner exists, so a short last warp
-// or a work-group of fewer than 32 work-items never mixes in the value shfl.sync leaves undefined for absent lanes;
-// lane 0, the only lane whose result is used, still sees every lane that exists.
-// The runtime supplies reduce_max / reduce_min as well, but on sm_80 (driver 590.48.01) they fold a 0 into the
-// result: reduce_max of all-negative inputs returns 0 at every work-group size, and reduce_min of all-positive inputs
-// returns 0 whenever the work-group size is not a multiple of 32. softmax_gpu_bf subtracts the row maximum before
-// exp(), so a row of logits around -200 comes out as NaN. Defining all three here takes precedence over the runtime.
+// work_group_reduce_add / max / min (float): a butterfly in each warp, then one over the per-warp results in
+// __ov_wg_collective_smem. A lane folds in its partner only when the partner exists, so short warps stay correct.
+// The runtime's reduce_max / reduce_min fold a 0 into the result on sm_80 (driver 590.48.01), so all three are
+// defined here.
 #define OV_NV_WG_REDUCE_F(name, combine)                                                                              \
 inline float __attribute__((overloadable)) name(float x){                                                             \
     const uint total = _nv_get_total_threads();                                                                       \
@@ -156,16 +150,9 @@ inline float __attribute__((overloadable)) work_group_broadcast(float x, size_t 
     return r;
 }
 
-// The NVIDIA runtime declares the work-group collectives for int, uint, long, ulong, float and double, but not for
-// half. A half argument converts to float and to double equally well, so every call with a half operand is ambiguous:
-//
-//   error: call to 'work_group_reduce_max' is ambiguous
-//
-// softmax_gpu_bf hits this whenever INPUT0_TYPE is half and the work-group is wider than a sub-group. Exact overloads
-// resolve it, because an exact match beats any conversion. Reducing in float is no less accurate than accumulating in
-// half. The float versions they forward to are defined above, except scan_exclusive_add, which the runtime supplies
-// and which returns correct results on sm_80 for work-group sizes from 1 to 1024, including sizes that are not a
-// multiple of the warp width and 2D / 3D work-groups.
+// The runtime declares the collectives for int, uint, long, ulong, float and double but not half, so a half argument
+// is ambiguous between float and double; these exact overloads resolve that and reduce in float. The float
+// scan_exclusive_add they forward to is the runtime's, which is correct on sm_80.
 static inline half __attribute__((overloadable)) work_group_reduce_add(half x){
     return (half)work_group_reduce_add((float)x);
 }

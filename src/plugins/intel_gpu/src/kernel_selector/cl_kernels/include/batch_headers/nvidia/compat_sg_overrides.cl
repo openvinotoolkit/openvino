@@ -3,30 +3,20 @@
 //
 // Copyright (C) 2026 FUJITSU LIMITED
 //
-// Binds the sub-group helpers that the shared batch headers define as plain functions to the parameterised
-// implementations in nvidia/compat_sg.cl.
+// Binds the sub-group helpers that the shared batch headers define as functions to the parameterised implementations
+// in nvidia/compat_sg.cl.
 //
-// Why this lives in a separate file instead of the prelude: sub_group_block_read.cl, sub_group_block_write.cl and
-// sub_group_shuffle.cl declare _sub_group_block_read*, _sub_group_block_write* and _sub_group_shuffle as functions
-// whenever cl_intel_subgroups is unavailable and __OPENCL_C_VERSION__ >= 200 - which is exactly the NVIDIA case.
-// Those bodies call get_sub_group_local_id() / get_max_sub_group_size() / sub_group_broadcast(), so they capture
-// whatever _NV_SUB_GROUP_SIZE happens to be where the header is expanded. The batch headers are emitted once at the
-// top of the program, so that is always the 32 default, and redefining _NV_SUB_GROUP_SIZE per kernel afterwards has
-// no effect on them.
-//
-// Defining these names as function-like macros shadows the call sites without disturbing the declarations, which is
-// legal C and keeps the shared headers untouched - and therefore keeps Intel builds byte-identical. The 32-wide
-// definitions the headers emitted stay in the translation unit but are inline and unreferenced, so they are dropped.
-//
-// Ordering is load-bearing: kernels_cache.cpp splices this file *after* the batch headers and *before* the kernel
-// sources. Placing it earlier would macro-expand the function names inside their own declarations.
+// Without cl_intel_subgroups, sub_group_block_read.cl, sub_group_block_write.cl and sub_group_shuffle.cl define
+// _sub_group_block_read*, _sub_group_block_write* and _sub_group_shuffle as functions, which keep the 32 default of
+// _NV_SUB_GROUP_SIZE whatever a kernel asks for. Function-like macros of the same names shadow the call sites instead,
+// leaving the shared headers - and the Intel builds - untouched; the 32-wide definitions go unreferenced.
+// kernels_cache.cpp therefore places this file after the batch headers and before the kernels: any earlier, it would
+// macro-expand the names inside their own declarations.
 
 #ifdef __NV_CL_C_VERSION
 
-// The prelude defines cl_intel_subgroups_short, so sub_group_block_read.cl and sub_group_block_write.cl spell the
-// ushort accessors as macros forwarding to intel_sub_group_block_*_us* instead of declaring functions. Drop those
-// macros first, so that the definitions below replace them rather than redefine them: C does not allow a function-like
-// macro to be redefined with a different replacement list, and the NVIDIA compiler warns about each of the eight names.
+// compat_common.cl defines cl_intel_subgroups_short, so the batch headers define the ushort accessors as macros; drop
+// them first, so the definitions below replace them rather than redefine them.
 #undef _sub_group_block_read_us
 #undef _sub_group_block_read_us2
 #undef _sub_group_block_read_us4
