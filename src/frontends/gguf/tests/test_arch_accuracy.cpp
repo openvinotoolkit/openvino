@@ -78,8 +78,9 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
             for (const auto& output : operation->outputs())
                 EXPECT_NE(output.get_element_type(), ov::element::f16) << operation->get_friendly_name();
         }
-        if (mtp)
+        if (mtp) {
             EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 32}));
+        }
         EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
         ov::Core core;
         const auto compile = [&](const std::shared_ptr<ov::Model>& graph) {

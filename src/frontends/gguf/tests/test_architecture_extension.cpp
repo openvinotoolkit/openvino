@@ -275,8 +275,9 @@ TEST(GGUFGenAIExtension, QwenMtpComponentHasIndependentCacheAndHiddenStateInputs
         EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
         EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
         EXPECT_EQ(model->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
-        if (!component.empty())
+        if (!component.empty()) {
             EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        }
         EXPECT_NO_THROW(ov::Core{}.compile_model(model, "CPU"));
     }
 }
