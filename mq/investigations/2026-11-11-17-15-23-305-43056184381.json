@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-17-15-23-305-43056184381",
+  "timestamp": "2026-11-11T17:15:23Z",
+  "run_id": "43056184381",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43056184381",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39262",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39262",
+  "author": "yasharth-0910",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update/install fails: DNS resolution of archive.ubuntu.com, security.ubuntu.com, azure.archive.ubuntu.com times out, causing missing install candidates for gnupg/wget/ca-certificates/lsb-release."
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Debian Packages job failed (downstream aggregate check, exit 1)."
+    }
+  ],
+  "key_errors": [
+    "Err:2 http://security.ubuntu.com/ubuntu noble-security InRelease\n  Temporary failure resolving 'security.ubuntu.com'",
+    "Err:3 http://azure.archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'azure.archive.ubuntu.com'",
+    "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step in the Debian Packages job runs apt-get update/install inside a Docker container. DNS resolution for all configured Ubuntu mirror hosts (archive.ubuntu.com, security.ubuntu.com, azure.archive.ubuntu.com) failed transiently ('Temporary failure resolving'), after ~4 minutes of repeated retries ('Ign:' lines). With no package index available, apt could not locate gnupg/wget/ca-certificates/lsb-release, and the install step failed with exit code 100. This is a recurring, environment-level DNS/network outage affecting the container's resolver or the runner's network path to Ubuntu mirrors, not a code change in the PR (the PR only touches CPU/ARM softmax kernel code, unrelated to Debian packaging).",
+  "reproduction_steps": "N/A - not reproducible locally; requires the CI runner's network conditions to intermittently fail DNS resolution to Ubuntu archive mirrors inside the job's Docker container.",
+  "recommended_actions": [
+    "Re-run the failed Debian Packages job; this is a transient network/DNS issue unrelated to the PR's code changes.",
+    "Consider adding a DNS-resolution retry/backoff wrapper around the apt-get update/install commands in job_debian_packages.yml, or adding a fallback mirror list.",
+    "Monitor repo-memory pattern d734e6d0da3ffc69 (now 6 occurrences) - if this persists, escalate to infra team to investigate possible DNS resolver instability for AKS runner containers reaching Ubuntu mirrors."
+  ],
+  "prevention_strategies": "Add a documented retry/backoff loop with longer timeout and multiple mirror fallbacks for apt-get operations in CI Docker steps that rely on Ubuntu archive mirrors; consider caching base package lists or using a pinned/cached mirror to reduce reliance on live DNS resolution.",
+  "historical_context": "This exact signature (d734e6d0da3ffc69) has now recurred 6 times, with 5 prior occurrences in the last few hours (runs 43049573225, 43046960596, 43040586954, 43040586616, 43030484756), affecting PRs #39532, #39262, #39693. All prior occurrences share the same root cause: transient DNS resolution failure for Ubuntu mirror hosts inside the Debian Packages job's container."
+}
