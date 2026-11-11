@@ -2174,7 +2174,7 @@ TEST_P(moe_3gemm_unsupported_gemv_shape, per_channel_throws) {
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    OV_EXPECT_THROW(std::make_shared<network>(engine, topology, net_config), ov::Exception, ::testing::HasSubstr("MoE GEMV kernel"));
+    OV_EXPECT_THROW(network net(engine, topology, net_config), ov::Exception, ::testing::HasSubstr("MoE GEMV kernel"));
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
