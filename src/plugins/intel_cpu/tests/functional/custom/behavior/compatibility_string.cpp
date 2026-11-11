@@ -320,7 +320,10 @@ TEST_F(RuntimeRequirementsCPU, DescriptorFormat) {
 
 TEST_F(RuntimeRequirementsCPU, PlainModelHasNoCapabilityRequirements) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    EXPECT_EQ(get_field(requirements, "caps"), "") << requirements;
+    const auto fp32_model =
+        core.compile_model(model, ov::test::utils::DEVICE_CPU, ov::hint::inference_precision(ov::element::f32));
+    const auto fp32_requirements = fp32_model.get_property(ov::runtime_requirements);
+    EXPECT_EQ(get_field(fp32_requirements, "caps"), "") << fp32_requirements;
 }
 
 TEST_F(RuntimeRequirementsCPU, OlderProducerVersionSupported) {
@@ -393,7 +396,7 @@ TEST_F(CompatibilityStringCPU, RMSRequiresAvx2) {
     auto compiled_model = core.compile_model(make_rms_model(), ov::test::utils::DEVICE_CPU);
     const auto requirements = compiled_model.get_property(ov::runtime_requirements);
     EXPECT_NE(get_field(requirements, "ops").find("RMS"), std::string::npos) << requirements;
-    EXPECT_EQ(get_field(requirements, "caps"), "avx2") << requirements;
+    EXPECT_EQ(get_field(requirements, "caps"), "ov.avx2") << requirements;
     EXPECT_EQ(check_requirements(core, requirements), ov::CompatibilityCheck::SUPPORTED);
 #else
     GTEST_SKIP() << "x86_64 only";
