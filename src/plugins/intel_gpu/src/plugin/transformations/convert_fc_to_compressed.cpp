@@ -80,7 +80,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const bool weights_batch_squeezed = dequantized_pshape.is_static() && dequantized_pshape.size() == weight_shape.size() + 1 &&
                                             dequantized_pshape[0] == 1 &&
                                             std::equal(weight_shape.begin(), weight_shape.end(), dequantized_pshape.to_shape().begin() + 1);
-        bool grouped = scale_shape.size() == weight_shape.size() + 1 && !(weights_batch_squeezed && scale_shape.back() == 1);
+        bool grouped = scale_shape.size() == weight_shape.size() + 1 && (!weights_batch_squeezed || scale_shape.back() != 1);
         if (has_transpose_before_reshape) {
             if (weight_ptr->get_element_type() != ov::element::u2) {
                 return false;
@@ -133,10 +133,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 ov::copy_weightless_cache_attr(constant, new_constant);
                 return std::static_pointer_cast<ov::Node>(new_constant);
             }
-            auto shape_const = std::make_shared<ov::op::v0::Constant>(
-                ov::element::i32,
-                ov::Shape{new_shape.size()},
-                std::vector<int64_t>(new_shape.begin(), new_shape.end()));
+            auto shape_const =
+                std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_shape.size()}, std::vector<int64_t>(new_shape.begin(), new_shape.end()));
             auto reshape = std::make_shared<ov::op::v1::Reshape>(node, shape_const, false);
             reshape->set_friendly_name(node->get_friendly_name() + "_reshape");
             ov::copy_runtime_info(node, {shape_const, reshape});
