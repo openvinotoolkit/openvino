@@ -81,7 +81,10 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
                 EXPECT_NE(output.get_element_type(), ov::element::f16) << operation->get_friendly_name();
         }
         if (mtp) {
+            EXPECT_EQ(model->get_variables().size(), 2);
             EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 32}));
+        } else {
+            EXPECT_THROW(model->input("hidden_states"), ov::Exception);
         }
         if (component.empty())
             EXPECT_EQ(model->outputs().size(), 1);
@@ -151,21 +154,6 @@ TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
     }
 }
 
-TEST(GGUFQwenMtpAccuracy, DraftRejectsMalformedPerLayerOverrides) {
-    using namespace ov::frontend::gguf;
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    auto loaded = get_gguf_data(temporary.path);
-    detail::MetadataStore store{std::get<0>(loaded)};
-    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
-    parameters.layers.resize(parameters.dimensions.layers + 1);
-    detail::WeightStore tensors{std::get<1>(loaded)};
-    const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, "mtp"};
-    OV_EXPECT_THROW(DecoderBuilder(context, parameters),
-                    ov::Exception,
-                    testing::HasSubstr("per-layer settings must describe every decoder layer"));
-}
-
 TEST(GGUFQwenMtpAccuracy, DraftRejectsMalformedNextNKvProjection) {
     using namespace ov::frontend::gguf;
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
@@ -182,27 +170,6 @@ TEST(GGUFQwenMtpAccuracy, DraftRejectsMalformedNextNKvProjection) {
     OV_EXPECT_THROW(DecoderBuilder(context, parameters),
                     ov::Exception,
                     testing::HasSubstr("invalid NextN KV head dimensions"));
-}
-
-TEST(GGUFQwenMtpAccuracy, DraftInfersKvHeadsUsingSlidingHeadSize) {
-    using namespace ov::frontend::gguf;
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    auto loaded = get_gguf_data(temporary.path);
-    detail::MetadataStore store{std::get<0>(loaded)};
-    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
-    const auto layer = parameters.dimensions.layers - 1;
-    parameters.dimensions.kv_heads_per_layer.resize(layer, 0);
-    parameters.attention.sliding_layers.resize(parameters.dimensions.layers, 0);
-    parameters.attention.sliding_layers[layer] = 1;
-    parameters.attention.sliding_head_size = parameters.dimensions.head_size / 2;
-    parameters.attention.sliding_rope.n_dims = parameters.attention.sliding_head_size;
-    auto& weights = std::get<1>(loaded);
-    const auto key = "blk." + std::to_string(layer) + ".attn_k.weight";
-    weights.at(key).shape[0] = parameters.attention.sliding_head_size;
-    detail::WeightStore tensors{weights};
-    const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, "mtp"};
-    EXPECT_NO_THROW(DecoderBuilder(context, parameters));
 }
 
 TEST(GGUFQwenMtpAccuracy, TargetGraphsDoNotDependOnNextNMetadata) {

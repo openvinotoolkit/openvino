@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -48,12 +49,18 @@ using ov::frontend::gguf::RopeMode;
 
 namespace {
 
-struct LayerMetadata {
+// qwen35 file with one NextN block; empty per-layer arrays use scalar metadata.
+struct MtpFixture {
     std::vector<uint32_t> kv_heads;
     std::vector<uint32_t> recurrent;
     std::vector<uint32_t> sliding;
     uint32_t nextn_kv_heads = 1;
     uint32_t nextn_swa_head_size = 0;
+    std::vector<std::string> hadamard_names;
+    bool tied_hadamard = false;
+    bool explicit_untied_hadamard = false;
+    bool inverse_embedding_hadamard = false;
+    bool separate_embedding = false;
 };
 
 // Remove the generated files even when a test fails.
@@ -79,31 +86,27 @@ std::string write_decoder_gguf(const std::string& dir,
                                const std::string& arch = "qwen3",
                                uint32_t layers = 2,
                                bool layer_norm = false,
-                               bool mtp = false,
-                               bool separate_embedding = false,
-                               const std::vector<std::string>& hadamard_names = {},
-                               bool tied_hadamard = false,
-                               bool explicit_untied_hadamard = false,
-                               bool inverse_embedding_hadamard = false,
-                               const LayerMetadata& layer_metadata = {}) {
+                               const std::optional<MtpFixture>& mtp = std::nullopt) {
+    const auto fixture = mtp.value_or(MtpFixture{});
+    const auto& hadamard_names = fixture.hadamard_names;
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
     writer.kv_u32(arch + ".block_count", layers);
     writer.kv_u32(arch + ".embedding_length", 8);
     writer.kv_u32(arch + ".attention.head_count", 2);
-    if (layer_metadata.kv_heads.empty())
+    if (fixture.kv_heads.empty())
         writer.kv_u32(arch + ".attention.head_count_kv", 1);
     else
-        writer.kv_u32_array(arch + ".attention.head_count_kv", layer_metadata.kv_heads);
-    if (!layer_metadata.recurrent.empty())
-        writer.kv_u32_array(arch + ".attention.recurrent_layers", layer_metadata.recurrent);
-    if (!layer_metadata.sliding.empty())
-        writer.kv_u32_array(arch + ".attention.sliding_window_pattern", layer_metadata.sliding);
-    if (layer_metadata.nextn_swa_head_size) {
+        writer.kv_u32_array(arch + ".attention.head_count_kv", fixture.kv_heads);
+    if (!fixture.recurrent.empty())
+        writer.kv_u32_array(arch + ".attention.recurrent_layers", fixture.recurrent);
+    if (!fixture.sliding.empty())
+        writer.kv_u32_array(arch + ".attention.sliding_window_pattern", fixture.sliding);
+    if (fixture.nextn_swa_head_size) {
         writer.kv_u32(arch + ".attention.sliding_window", 4);
-        writer.kv_u32(arch + ".attention.key_length_swa", layer_metadata.nextn_swa_head_size);
-        writer.kv_u32(arch + ".rope.dimension_count_swa", layer_metadata.nextn_swa_head_size);
+        writer.kv_u32(arch + ".attention.key_length_swa", fixture.nextn_swa_head_size);
+        writer.kv_u32(arch + ".rope.dimension_count_swa", fixture.nextn_swa_head_size);
     }
     writer.kv_u32(arch + ".rope.dimension_count", 4);
     writer.kv_u32(arch + ".context_length", 32);
@@ -120,10 +123,10 @@ std::string write_decoder_gguf(const std::string& dir,
         writer.kv_u32_array(arch + ".rope.dimension_sections", {1, 1, 0, 0});
         if (!hadamard_names.empty()) {
             const std::string p = "prism.hadamard.";
-            writer.kv_u32(p + "version", tied_hadamard ? 2 : 1);
-            if (tied_hadamard || explicit_untied_hadamard)
-                writer.kv_bool(p + "tied_output", tied_hadamard);
-            if (tied_hadamard || inverse_embedding_hadamard)
+            writer.kv_u32(p + "version", fixture.tied_hadamard ? 2 : 1);
+            if (fixture.tied_hadamard || fixture.explicit_untied_hadamard)
+                writer.kv_bool(p + "tied_output", fixture.tied_hadamard);
+            if (fixture.tied_hadamard || fixture.inverse_embedding_hadamard)
                 writer.kv_str_array(p + "inverse_weight_names", {"token_embd.weight"});
             writer.kv_u32(p + "block_size", 8);
             writer.kv_str(p + "transform", "normalized-sylvester-walsh-hadamard");
@@ -140,7 +143,7 @@ std::string write_decoder_gguf(const std::string& dir,
     };
     weight("token_embd.weight", {8, 16});
     weight("output_norm.weight", {8}, true);
-    if (!hadamard_names.empty() && !tied_hadamard)
+    if (!hadamard_names.empty() && !fixture.tied_hadamard)
         weight("output.weight", {8, 16});
     if (layer_norm)
         weight("output_norm.bias", {8});
@@ -150,9 +153,9 @@ std::string write_decoder_gguf(const std::string& dir,
         if (layer_norm)
             weight(prefix + "attn_norm.bias", {8});
         const bool nextn = mtp && layer == layers - 1;
-        const auto head_size = nextn && layer_metadata.nextn_swa_head_size ? layer_metadata.nextn_swa_head_size : 4u;
+        const auto head_size = nextn && fixture.nextn_swa_head_size ? fixture.nextn_swa_head_size : 4u;
         weight(prefix + "attn_q.weight", {8, mtp ? 4 * head_size : 8u});
-        const auto kv_width = nextn ? head_size * layer_metadata.nextn_kv_heads : 4u;
+        const auto kv_width = nextn ? head_size * fixture.nextn_kv_heads : 4u;
         weight(prefix + "attn_k.weight", {8, kv_width});
         weight(prefix + "attn_v.weight", {8, kv_width});
         weight(prefix + "attn_output.weight", {mtp ? 2 * head_size : 8u, 8});
@@ -169,7 +172,7 @@ std::string write_decoder_gguf(const std::string& dir,
             weight(prefix + "nextn.enorm.weight", {8}, true);
             weight(prefix + "nextn.hnorm.weight", {8}, true);
             weight(prefix + "nextn.shared_head_norm.weight", {8}, true);
-            if (separate_embedding)
+            if (fixture.separate_embedding)
                 weight(prefix + "nextn.embed_tokens.weight", {8, 16});
             if (!hadamard_names.empty())
                 weight(prefix + "nextn.shared_head_head.weight", {8, 16});
@@ -287,48 +290,20 @@ TEST(GGUFGenAIExtension, RegistrationIsLocalAndConversionCanBeRepeated) {
                     testing::HasSubstr("already registered"));
 }
 
-TEST(GGUFGenAIExtension, QwenMtpComponentHasIndependentCacheAndHiddenStateInputs) {
-    ScratchDir scratch;
-    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true);
-    using Extension = ov::frontend::gguf::GenAIExtension;
-    for (const auto& component : {std::string{}, std::string{"mtp_target"}, std::string{"mtp"}}) {
-        SCOPED_TRACE(component);
-        ov::frontend::gguf::FrontEnd frontend;
-        auto extension = std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, component);
-        frontend.add_extension(extension);
-        auto model = frontend.convert(frontend.load(path));
-        ASSERT_TRUE(extension->get_embedding_model());
-        EXPECT_EQ(model->get_variables().size(), 2);
-        EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
-        EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
-        EXPECT_EQ(model->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
-        if (component.empty()) {
-            EXPECT_EQ(model->outputs().size(), 1);
-        } else {
-            EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
-        }
-        if (component == "mtp") {
-            EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
-        } else {
-            EXPECT_THROW(model->input("hidden_states"), ov::Exception);
-        }
-        EXPECT_NO_THROW(ov::Core{}.compile_model(model, "CPU"));
-    }
-}
-
 TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
     using Extension = ov::frontend::gguf::GenAIExtension;
-    const std::vector<std::pair<LayerMetadata, LayerMetadata>> cases{
-        {LayerMetadata{{0}, {1}, {0}, 1}, LayerMetadata{{0, 1}, {1, 0}, {0, 0}, 1}},
-        {LayerMetadata{{0}, {1}, {0, 1}, 2, 2}, LayerMetadata{{0, 2}, {1, 0}, {0, 1}, 2, 2}},
+    // Target-only arrays must match the explicit full-layer reference; the second case infers
+    // two NextN KV heads from a projection using the smaller sliding-window head size.
+    const std::vector<std::pair<MtpFixture, MtpFixture>> cases{
+        {MtpFixture{{0}, {1}, {0}}, MtpFixture{{0, 1}, {1, 0}, {0, 0}}},
+        {MtpFixture{{0}, {1}, {0, 1}, 2, 2}, MtpFixture{{0, 2}, {1, 0}, {0, 1}, 2, 2}},
     };
     for (const auto& [target_only, all_layers] : cases) {
         SCOPED_TRACE(target_only.nextn_swa_head_size);
         ScratchDir target_only_dir;
         ScratchDir all_layers_dir;
-        const auto load = [&](const std::string& dir, const LayerMetadata& metadata) {
-            const auto path =
-                write_decoder_gguf(dir, "qwen35", 2, false, true, false, {}, false, false, false, metadata);
+        const auto load = [&](const std::string& dir, const MtpFixture& fixture) {
+            const auto path = write_decoder_gguf(dir, "qwen35", 2, false, fixture);
             auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
             return convert_with(path, {extension});
         };
@@ -379,20 +354,6 @@ TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
     }
 }
 
-TEST(GGUFGenAIExtension, MtpDraftRejectsMalformedLayerMetadata) {
-    using Extension = ov::frontend::gguf::GenAIExtension;
-    for (const auto& metadata :
-         {LayerMetadata{{0, 1, 1}, {}, {}}, LayerMetadata{{}, {1, 0, 0}, {}}, LayerMetadata{{}, {}, {0, 0, 0}}}) {
-        ScratchDir scratch;
-        const auto path =
-            write_decoder_gguf(scratch.path(), "qwen35", 2, false, true, false, {}, false, false, false, metadata);
-        const auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
-        OV_EXPECT_THROW(convert_with(path, {extension}),
-                        ov::Exception,
-                        testing::HasSubstr("per-layer settings must describe every decoder layer"));
-    }
-}
-
 TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamardWeights) {
     using Extension = ov::frontend::gguf::GenAIExtension;
     // The draft uses its NextN head, so output.weight (or the tied token_embd head) is unused;
@@ -414,16 +375,12 @@ TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamard
     for (const auto& test_case : cases) {
         SCOPED_TRACE(test_case.names.back() + (test_case.tied ? " tied" : ""));
         ScratchDir scratch;
-        const auto path = write_decoder_gguf(scratch.path(),
-                                             "qwen35",
-                                             2,
-                                             false,
-                                             true,
-                                             false,
-                                             test_case.names,
-                                             test_case.tied,
-                                             test_case.explicit_untied,
-                                             test_case.inverse_embedding);
+        MtpFixture fixture;
+        fixture.hadamard_names = test_case.names;
+        fixture.tied_hadamard = test_case.tied;
+        fixture.explicit_untied_hadamard = test_case.explicit_untied;
+        fixture.inverse_embedding_hadamard = test_case.inverse_embedding;
+        const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
         ov::frontend::gguf::FrontEnd frontend;
         const auto input = frontend.load(path);
         frontend.add_extension(std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp"));
@@ -433,40 +390,36 @@ TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamard
     }
 }
 
-TEST(GGUFGenAIExtension, MtpComponentRejectsMissingNextNWeights) {
-    ScratchDir scratch;
-    const auto path = write_decoder_gguf(scratch.path());
+TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
     using Extension = ov::frontend::gguf::GenAIExtension;
-    OV_EXPECT_THROW(convert_with(path, {std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS, "mtp")}),
-                    ov::Exception,
-                    testing::HasSubstr("exactly one NextN block"));
-}
-
-TEST(GGUFGenAIExtension, MtpTargetRejectsUnsupportedArchitecture) {
-    ScratchDir scratch;
-    const auto path = write_decoder_gguf(scratch.path());
-    using Extension = ov::frontend::gguf::GenAIExtension;
-    OV_EXPECT_THROW(
-        convert_with(path, {std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp_target")}),
-        ov::Exception,
-        testing::HasSubstr("MTP is not supported for architecture"));
-}
-
-TEST(GGUFGenAIExtension, MtpComponentRejectsMissingTargetAndSeparateEmbeddings) {
-    ScratchDir scratch;
-    using Extension = ov::frontend::gguf::GenAIExtension;
-    for (const auto layers : {0u, 1u}) {
-        const auto path = write_decoder_gguf(scratch.path(), "qwen35", layers, false, true);
-        OV_EXPECT_THROW(
-            convert_with(path, {std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp")}),
-            ov::Exception,
-            testing::HasSubstr(layers ? "at least one target layer" : "qwen35.block_count"));
+    MtpFixture separate_embedding;
+    separate_embedding.separate_embedding = true;
+    struct Case {
+        std::string arch;
+        uint32_t layers;
+        std::optional<MtpFixture> mtp;
+        std::string component;
+        std::string error;
+    };
+    const std::string per_layer = "per-layer settings must describe every decoder layer";
+    const std::vector<Case> cases{
+        {"qwen3", 2, std::nullopt, "mtp", "exactly one NextN block"},
+        {"qwen3", 2, std::nullopt, "mtp_target", "MTP is not supported for architecture"},
+        {"qwen35", 0, MtpFixture{}, "mtp", "qwen35.block_count"},
+        {"qwen35", 1, MtpFixture{}, "mtp", "at least one target layer"},
+        {"qwen35", 2, separate_embedding, "mtp", "shared token embeddings"},
+        {"qwen35", 2, MtpFixture{{0, 1, 1}}, "mtp", per_layer},
+        {"qwen35", 2, MtpFixture{{}, {1, 0, 0}}, "mtp", per_layer},
+        {"qwen35", 2, MtpFixture{{}, {}, {0, 0, 0}}, "mtp", per_layer},
+    };
+    for (const auto& test_case : cases) {
+        SCOPED_TRACE(test_case.error);
+        ScratchDir scratch;
+        const auto path = write_decoder_gguf(scratch.path(), test_case.arch, test_case.layers, false, test_case.mtp);
+        const auto extension =
+            std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, test_case.component);
+        OV_EXPECT_THROW(convert_with(path, {extension}), ov::Exception, testing::HasSubstr(test_case.error));
     }
-    const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true, true);
-    OV_EXPECT_THROW(
-        convert_with(path, {std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp")}),
-        ov::Exception,
-        testing::HasSubstr("shared token embeddings"));
 }
 
 TEST(GGUFArchitectureExtension, DecoderOptionsSelectTheActivation) {
