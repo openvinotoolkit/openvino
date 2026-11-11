@@ -74,6 +74,27 @@ ov::npuw::BagelInferRequest::BagelInferRequest(std::shared_ptr<const BagelCompil
 
 ov::npuw::BagelInferRequest::Variant& ov::npuw::BagelInferRequest::variant_for(
     const ov::SoPtr<ov::ICompiledModel>& compiled) {
+    auto& variant = create_variant(compiled);
+    variant.last_use = ++m_use_count;
+
+    // Each request holds its own host buffers; only the most recently used ones are kept, the compiled
+    // variants stay cached so a released request is only re-created, not recompiled
+    constexpr std::size_t kMaxLiveRequests = 2;
+    while (m_variants.size() > kMaxLiveRequests) {
+        const auto oldest = std::min_element(m_variants.begin(), m_variants.end(), [](const auto& a, const auto& b) {
+            return a.second.last_use < b.second.last_use;
+        });
+        if (m_last == &oldest->second) {
+            m_last = nullptr;
+            std::fill(m_pending.begin(), m_pending.end(), false);
+        }
+        m_variants.erase(oldest);
+    }
+    return variant;
+}
+
+ov::npuw::BagelInferRequest::Variant& ov::npuw::BagelInferRequest::create_variant(
+    const ov::SoPtr<ov::ICompiledModel>& compiled) {
     auto it = m_variants.find(compiled._ptr.get());
     if (it != m_variants.end()) {
         return it->second;
