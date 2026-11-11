@@ -34,6 +34,9 @@ public:
     TelemetryClient();
     ~TelemetryClient();
 
+    // Whether the telemetry backend (IPF) was initialized, i.e. utilization and low power mode can be queried.
+    bool is_available() const;
+
     // Resolves utilization for multiple (device_name, device_type) devices, keyed by device_name.
     // Fetches and parses the underlying IPF snapshot only once regardless of device count.
     std::unordered_map<std::string, float> utilizations(const std::vector<std::pair<std::string, std::string>>& devices);

@@ -462,8 +462,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
+    bool is_stateful_model = false;
     if (model_path.empty()) {
-        support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
+        support_devices = filter_device_by_model(support_devices_by_property, model, load_config, is_stateful_model);
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -510,11 +511,114 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
-        auto_s_context->m_low_power_device = low_power_device;
-        LOG_INFO_TAG("low_power_device is set to %s", low_power_device.c_str());
+        OPENVINO_ASSERT(!is_meta_device(low_power_device),
+                        "The meta device should not be used as low_power_device: ",
+                        low_power_device);
+        try {
+            // prefer a candidate matching by exact or base name, so "GPU" keeps resolving to the listed GPU
+            const auto candidate = std::find_if(
+                devices_with_priority.begin(),
+                devices_with_priority.end(),
+                [&low_power_device](const DeviceInformation& device) {
+                    return device.device_name == low_power_device ||
+                           ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
+                });
+            if (candidate != devices_with_priority.end()) {
+                auto_s_context->m_low_power_device = *candidate;
+            } else {
+                auto resolved_low_power_device = parse_meta_devices(low_power_device, full_property);
+                if (!resolved_low_power_device.empty())
+                    auto_s_context->m_low_power_device = resolved_low_power_device.front();
+            }
+        } catch (const ov::Exception& ex) {
+            LOG_WARNING_TAG("low_power_device '%s' is not available and will be ignored: %s",
+                            low_power_device.c_str(),
+                            ex.what());
+        }
+        if (auto_s_context->m_low_power_device)
+            LOG_INFO_TAG("low_power_device is set to %s", low_power_device.c_str());
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
+    const bool has_resource_aware_property = !auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
+                                             !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
+                                             auto_s_context->m_low_power_device.has_value();
+    const auto& low_power_info = auto_s_context->m_low_power_device;
+    // there is nothing to switch to unless a second candidate or a low power device out of the candidates exists
+    const bool has_alternative_device =
+        support_devices.size() > 1 ||
+        (low_power_info.has_value() &&
+         std::none_of(support_devices.begin(), support_devices.end(), [&](const DeviceInformation& device) {
+             return device.unique_name == low_power_info->unique_name;
+         }));
+    const bool is_throughput = auto_s_context->m_performance_hint == ov::hint::PerformanceMode::THROUGHPUT;
+    const bool is_dynamic_candidate =
+        // dynamic selection requires an in-memory model and is incompatible with bind_buffer
+        model_path.empty() && !is_cumulative && !is_stateful_model && !auto_s_context->m_bind_buffer &&
+        !is_throughput && has_alternative_device && has_resource_aware_property;
+    // without the telemetry backend nothing could be evaluated, it would only serialize the inference
+    const bool telemetry_available = !is_dynamic_candidate || is_telemetry_available();
+    auto_s_context->m_dynamic_device_selection = is_dynamic_candidate && telemetry_available;
+    if (auto_s_context->m_dynamic_device_selection) {
+        auto_s_context->m_selection_policy.reserve_device = false;
+        LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
+        // load_config treats every property as user set by now, so read the explicit ones from the inputs
+        const auto is_enabled_by_user = [&](const auto& property) {
+            const auto iter = properties.find(property.name());
+            if (iter != properties.end()) {
+                return iter->second.template as<bool>();
+            }
+            return m_plugin_config.is_set_by_user(property) && m_plugin_config.get_property(property);
+        };
+        OPENVINO_ASSERT(!is_enabled_by_user(ov::intel_auto::enable_startup_fallback),
+                        "ENABLE_STARTUP_FALLBACK is not supported together with the resource aware device selection");
+        OPENVINO_ASSERT(!is_enabled_by_user(ov::intel_auto::enable_runtime_fallback),
+                        "ENABLE_RUNTIME_FALLBACK is not supported together with the resource aware device selection");
+        if (properties.count(ov::hint::model_priority.name()) || m_plugin_config.is_set_by_user(ov::hint::model_priority)) {
+            LOG_WARNING_TAG("MODEL_PRIORITY is ignored when the resource aware device selection is active");
+        }
+        const auto has_multiple_streams = [](const ov::AnyMap& config) {
+            const auto iter = config.find(ov::num_streams.name());
+            return iter != config.end() && iter->second.as<ov::streams::Num>().num > 1;
+        };
+        bool multiple_streams = has_multiple_streams(properties);
+        for (const auto& device : support_devices) {
+            multiple_streams = multiple_streams || has_multiple_streams(device.config);
+        }
+        multiple_streams =
+            multiple_streams || (low_power_info.has_value() && has_multiple_streams(low_power_info->config));
+        OPENVINO_ASSERT(!multiple_streams,
+                        "More than one NUM_STREAMS is not supported together with the resource aware device selection");
+        // the inference is serialized, so unless the user chose a stream count one stream is enough
+        const auto set_single_stream = [&](DeviceInformation& device) {
+            if (properties.count(ov::num_streams.name()) || device.config.count(ov::num_streams.name())) {
+                return;
+            }
+            const auto supported = get_core()->get_supported_property(device.device_name, {ov::num_streams(1)});
+            device.config.insert(supported.begin(), supported.end());
+        };
+        for (auto& device : support_devices) {
+            set_single_stream(device);
+        }
+        if (auto_s_context->m_low_power_device) {
+            set_single_stream(*auto_s_context->m_low_power_device);
+        }
+        // disable startup fallback and runtime fallback
+        auto_s_context->m_startup_fallback = false;
+        auto_s_context->m_runtime_fallback = false;
+    } else if (has_resource_aware_property) {
+        if (is_stateful_model) {
+            LOG_WARNING_TAG("resource aware device selection properties are ignored for stateful models");
+        } else if (is_throughput) {
+            LOG_WARNING_TAG("resource aware device selection properties are ignored for THROUGHPUT performance hint");
+        } else if (!has_alternative_device) {
+            LOG_INFO_TAG("resource aware device selection properties are ignored, there is only one candidate device");
+        } else if (!telemetry_available) {
+            LOG_WARNING_TAG("resource aware device selection properties are ignored, the telemetry backend (IPF) is "
+                            "not available");
+        }
+    }
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
@@ -530,7 +634,40 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_model_precision = model_precision;
-    auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
+    auto_s_context->m_compile_for_all = load_config.get_property(ov::intel_auto::compile_for_all);
+    if (auto_s_context->m_compile_for_all) {
+        std::vector<const DeviceInformation*> warmup_candidates;
+        for (const auto& device : auto_s_context->m_device_priorities_initial) {
+            if (ov::DeviceIDParser(device.device_name).get_device_name() != "CPU")
+                warmup_candidates.push_back(&device);
+        }
+        // A user blob ID does not identify a device, so blobs warmed up for other devices would overwrite each other.
+        const bool has_blob_id =
+            full_property.count(ov::cache_blob_id.name()) != 0 ||
+            std::any_of(auto_s_context->m_device_priorities_initial.begin(),
+                        auto_s_context->m_device_priorities_initial.end(),
+                        [](const DeviceInformation& device) {
+                            return device.config.count(ov::cache_blob_id.name()) != 0;
+                        });
+        if (is_cumulative || has_blob_id) {
+            LOG_WARNING_TAG("compile_for_all is ignored: %s",
+                            is_cumulative ? "not supported in cumulative mode" : "not supported with ov::cache_blob_id");
+            auto_s_context->m_compile_for_all = false;
+        } else if (!std::any_of(auto_s_context->m_device_priorities_initial.begin(),
+                                auto_s_context->m_device_priorities_initial.end(),
+                                [this](const DeviceInformation& device) {
+                                    return !CacheWarmupManager::get_cache_location(*get_core(),
+                                                                                   device.config,
+                                                                                   device.device_name)
+                                                .empty();
+                                })) {
+            // Independent of how many devices the host has, so the contract of an explicit true is the same everywhere.
+            OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
+        } else if (warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
+            LOG_WARNING_TAG("compile_for_all is ignored: no other candidate device to compile");
+            auto_s_context->m_compile_for_all = false;
+        }
+    }
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
     auto_s_context->m_mtx = m_mtx;
     auto_s_context->m_priority_map = m_priority_map;
@@ -631,6 +768,13 @@ std::optional<bool> Plugin::get_low_power_mode() {
         m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
     return m_telemetry_client->is_low_power_mode();
+}
+
+bool Plugin::is_telemetry_available() const {
+    std::call_once(m_telemetry_client_init_once, [this]() {
+        m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
+    });
+    return m_telemetry_client->is_available();
 }
 
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
@@ -742,8 +886,16 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                         const std::string& model_precision,
                                         unsigned int priority,
                                         const DeviceSelectionPolicy& selection_policy,
-                                        const std::string& low_power_device) {
+                                        const std::optional<DeviceInformation>& low_power_device) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
+
+    // every candidate has been excluded, only a low power device outside of the list can still run
+    if (meta_devices.empty() && low_power_device.has_value() && get_low_power_mode().value_or(false)) {
+        if (selection_policy.reserve_device) {
+            register_priority(priority, low_power_device->unique_name);
+        }
+        return *low_power_device;
+    }
 
     const auto& utilization_thresholds = selection_policy.utilization_thresholds;
     const auto& perf_curve_table = selection_policy.perf_curve_table;
@@ -754,8 +906,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     // save the last device first
     DeviceInformation last_device = valid_devices.back();
     {
-        // begin to filter devices
-        if (m_mtx && m_priority_map) {
+        // begin to filter devices, a selection which reserves nothing takes no part in the priority arbitration
+        if (selection_policy.reserve_device && m_mtx && m_priority_map) {
             std::lock_guard<std::mutex> lck(*m_mtx);
             for (auto&& kvp : *m_priority_map) {
                 if (kvp.first >= priority) {
@@ -777,7 +929,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
     }
 
-    DeviceInformation* ptr_select_device = nullptr;
+    const DeviceInformation* ptr_select_device = nullptr;
     std::list<DeviceInformation> perf_curve_sorted_devices;
     // Resolve a device's effective utilization threshold: prefer an exact device-name match
     // (e.g. "GPU.0"), then fall back to the base device name (e.g. "GPU").
@@ -797,28 +949,22 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
         return std::nullopt;
     };
-    // Finds the configured low-power device by exact or base device name.
-    auto find_low_power_device = [&]() -> DeviceInformation* {
-        if (low_power_device.empty()) {
+    // Finds the configured low-power device
+    auto find_low_power_device = [&]() -> const DeviceInformation* {
+        if (!low_power_device.has_value() || !get_low_power_mode().value_or(false)) {
             return nullptr;
         }
         auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
-            if (device.device_name == low_power_device) {
-                return true;
-            }
-            return ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
+            return device.unique_name == low_power_device->unique_name;
         });
-        if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
-            return nullptr;
-        }
-        return &(*it);
+        return it != valid_devices.end() ? &(*it) : &low_power_device.value();
     };
-    if (valid_devices.empty()) {
+    if (auto* low_power_selected = find_low_power_device()) {
+        ptr_select_device = low_power_selected;
+    } else if (valid_devices.empty()) {
         // after remove higher priority device,but the available devices is null,
         // so select the last device of all available Devices.
         ptr_select_device = &last_device;
-    } else if (auto* low_power_selected = find_low_power_device()) {
-        ptr_select_device = low_power_selected;
     } else {
         std::unordered_map<std::string, float> device_utilizations;
         if (!utilization_thresholds.empty() || !perf_curve_table.empty()) {
@@ -857,6 +1003,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
 
             if (threshold_filtered_devices.empty()) {
                 // Fall back when all candidates exceed their thresholds.
+                LOG_DEBUG_TAG("All candidate devices exceed their utilization thresholds. Falling back to %s",
+                              last_device.device_name.c_str());
                 ptr_select_device = &last_device;
             } else {
                 valid_devices = std::move(threshold_filtered_devices);
@@ -879,7 +1027,9 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
     }
     //recode the device priority
-    register_priority(priority, ptr_select_device->unique_name);
+    if (selection_policy.reserve_device) {
+        register_priority(priority, ptr_select_device->unique_name);
+    }
     return *ptr_select_device;
 }
 
@@ -989,12 +1139,12 @@ void Plugin::unregister_priority(const unsigned int& priority, const std::string
     if (m_mtx && m_priority_map) {
         std::lock_guard<std::mutex> lck(*m_mtx);
         auto& priority_devices = (*m_priority_map)[priority];
-        for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
+        // remove the most recently registered matching entry
+        for (auto iter = priority_devices.rbegin(); iter != priority_devices.rend(); ++iter) {
             if (*iter == device_name) {
-                priority_devices.erase(iter);
+                priority_devices.erase(std::next(iter).base());
                 break;
             }
-            iter++;
         }
     }
 }
@@ -1033,38 +1183,66 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         get_device_name() != "AUTO" ||
         (properties.count(ov::hint::performance_mode.name()) &&
          properties.at(ov::hint::performance_mode.name()).as<std::string>() == "CUMULATIVE_THROUGHPUT");
+    const bool preserve_cpu_for_compile_retry = !is_cumulative_tput &&
+                                                properties.count(ov::cache_blob_id.name()) == 0 &&
+                                                properties.count(ov::intel_auto::compile_for_all.name()) &&
+                                                properties.at(ov::intel_auto::compile_for_all.name()).as<bool>();
     if (device_list_config != properties.end() && !(device_list_config->second.as<std::string>().empty())) {
         auto priorities = device_list_config->second;
         // parsing the string and splitting the comma-separated tokens
         std::vector<std::string> devices_to_be_merged =
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
+        bool can_preserve_cpu_for_compile_retry = preserve_cpu_for_compile_retry;
+        if (can_preserve_cpu_for_compile_retry) {
+            for (const auto& device : devices_to_be_merged) {
+                if (device.empty())
+                     continue;
+                if (device.front() == '-')
+                    continue;
+                try {
+                    const auto device_config = get_core()->get_supported_property(device, properties);
+                    if (device_config.count(ov::cache_blob_id.name())) {
+                        can_preserve_cpu_for_compile_retry = false;
+                        break;
+                    }
+                } catch (const std::exception&) {
+                    can_preserve_cpu_for_compile_retry = false;
+                    break;
+                }
+            }
+        }
         std::size_t num_blob_files = 0;
-        std::string cache_dir = properties.count(ov::cache_dir.name())
-                                    ? properties.at(ov::cache_dir.name()).as<std::string>()
-                                    : get_core()->get_property("", ov::cache_dir);
-        bool if_need_cache_check =
-            !is_cumulative_tput && enable_startup_cpu && (model || !model_path.empty()) && !cache_dir.empty();
+        bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && !can_preserve_cpu_for_compile_retry &&
+                                   (model || !model_path.empty()) && properties.count(ov::cache_blob_id.name()) == 0;
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
+                // Skip the excluded device
+                if (device.front() == '-')
+                    continue;
                 ov::DeviceIDParser parsed{device};
                 if (parsed.get_device_name().find("CPU") != std::string::npos)
                     continue;
                 // check if cached model exists for other devices
-                auto dev_properties = get_core()->get_supported_property(parsed.get_device_name(), properties);
-                dev_properties = get_core()->create_compile_config(parsed.get_device_name(), dev_properties);
-                std::string blobId;
-
-                if (model)
-                    blobId = ov::ModelCache::compute_hash(model, dev_properties);
-                else
-                    blobId = ov::ModelCache::compute_hash(model_path, dev_properties);
-                const auto cached_model_path = ov::util::make_path(cache_dir) / (blobId + ".blob");
-                bool is_blob_file_exist = ov::util::file_exists(cached_model_path);
+                bool is_blob_file_exist = false;
+                try {
+                    // Device-scoped settings take precedence over the global ones.
+                    const auto device_config = get_core()->get_supported_property(device, properties);
+                    const auto cache_location =
+                        CacheWarmupManager::get_cache_location(*get_core(), device_config, device);
+                    if (cache_location.empty() || device_config.count(ov::cache_blob_id.name()))
+                        continue;
+                    is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
+                                                                            device,
+                                                                            device_config,
+                                                                            model,
+                                                                            model_path,
+                                                                            cache_location);
+                } catch (const std::exception& ex) {
+                    // The probe is an optimization only; a failing device must not break compilation.
+                    LOG_DEBUG_TAG("cache probe failed for %s: %s", device.c_str(), ex.what());
+                }
                 num_blob_files += is_blob_file_exist;
-                LOG_DEBUG_TAG("device: %s %s cached blob: %s ",
-                              device.c_str(),
-                              is_blob_file_exist ? "found" : "not found",
-                              ov::util::path_to_string(cached_model_path).c_str());
+                LOG_DEBUG_TAG("device: %s %s cached blob", device.c_str(), is_blob_file_exist ? "found" : "not found");
             }
 
             if (enable_startup_cpu && num_blob_files) {
@@ -1132,7 +1310,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                             continue;
                         }
                         // Disable CPU if enable_startup_cpu and enable_runtime_cpu are both disabled
-                        if (!enable_startup_cpu && !enable_runtime_cpu) {
+                        if (!enable_startup_cpu && !enable_runtime_cpu && !can_preserve_cpu_for_compile_retry) {
                             continue;
                         }
                     }
@@ -1242,7 +1420,9 @@ std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInf
 
 std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                               const std::shared_ptr<const ov::Model>& model,
-                                                              PluginConfig& load_config) const {
+                                                              PluginConfig& load_config,
+                                                              bool& is_stateful_model) const {
+    is_stateful_model = false;
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
@@ -1258,10 +1438,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         }
     };
 
-    if (meta_devices.size() == 1) {
-        return meta_devices;
-    }
-
+    // detect statefulness before the single-candidate early return below, so callers that gate behavior on
+    // is_stateful_model (e.g. per inference dynamic device selection) get a correct answer even then
     std::vector<std::string> stateful_node_names;
     for (auto& op : model->get_ops()) {
         if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
@@ -1269,13 +1447,18 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }
-    if (stateful_node_names.empty()) {
-        // not stateful model
+    is_stateful_model = !stateful_node_names.empty();
+
+    if (!is_stateful_model) {
         return meta_devices;
     }
 
-    // disable CPU_HELP and runtime fallback if model is stateful
+    // disable CPU_HELP and runtime fallback if model is stateful, including the single candidate case
     disable_startup_runtime_fallback();
+
+    if (meta_devices.size() == 1) {
+        return meta_devices;
+    }
 
     bool isCumulative = (get_device_name() == "MULTI") || (load_config.get_property(ov::hint::performance_mode) ==
                                                            ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);

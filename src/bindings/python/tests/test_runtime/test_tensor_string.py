@@ -185,6 +185,29 @@ def test_init_with_numpy(string_data):
 
 
 @pytest.mark.parametrize(
+    ("string_data"),
+    [
+        (np.array(["text", "abc", "openvino"]).astype("S")[::-1]),  # "|S", reversed
+        (np.array(["text", "abc", "openvino", "xyz"]).astype(np.bytes_)[::2]),  # "|S", strided
+        (np.array(["text", "abc", "openvino"])[::-1]),  # "<U", reversed
+        (np.array([["text", "больше текста"], ["jeszcze więcej słów", "효과가 있었어"]]).T),  # "<U", transposed
+    ],
+)
+def test_init_with_non_contiguous_numpy(string_data):
+    assert not string_data.flags["C_CONTIGUOUS"]
+
+    tensor = ov.Tensor(string_data, shared_memory=False)
+
+    assert tensor.element_type == ov.Type.string
+    # Tensor keeps a C-contiguous copy of the data.
+    expected_data = np.ascontiguousarray(string_data)
+    # Encoded:
+    check_bytes_based(tensor, expected_data)
+    # Decoded:
+    check_string_based(tensor, expected_data)
+
+
+@pytest.mark.parametrize(
     ("init_type"),
     [
         (ov.Type.string),
@@ -340,3 +363,15 @@ def test_invalid_bytes_replaced():
     check_bytes_based(tensor, string_data, to_flat=True)
     # Decoded:
     check_string_based(tensor, np.char.decode(string_data, encoding="utf=8", errors="replace"), to_flat=True)
+
+
+@pytest.mark.parametrize(
+    ("string_data"),
+    [
+        (np.array(["\ud800"])),  # lone surrogate, not encodable to UTF-8
+        (np.array(["text", "\udfff", "openvino"])),
+    ],
+)
+def test_init_with_numpy_not_encodable_string(string_data):
+    with pytest.raises(UnicodeEncodeError, match="surrogates not allowed"):
+        ov.Tensor(string_data, shared_memory=False)

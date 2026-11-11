@@ -15,12 +15,14 @@
 #include <vector>
 
 #include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "plugin/ops/moe_offload_constant.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/dispatch_probe.hpp"
@@ -30,6 +32,7 @@
 #include "intel_gpu/runtime/profiling.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
@@ -41,7 +44,6 @@
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
-#include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -209,7 +211,7 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     // Set weightless cache attribute only for non IR (e.g. onnxruntime) models
     // This is a temporary solution. A common way of handling weightless caching will be defined later.
     if (config_copy.get_enable_weightless()) {
-        const auto weight_path = ov::util::make_path(config.get_weights_path());
+        const auto weight_path = ov::util::make_path(config_copy.get_weights_path());
 
         if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model)) {
             set_weightless_cache_attributes(cloned_model);
@@ -303,6 +305,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto transformed_model = clone_and_transform_model(model, config, context);
 
     config.finalize(context.get(), transformed_model.get());
+
+    if (config.get_offload_ratio() > 0) {
+        validate_model_resident_constant_memory(*transformed_model,
+                                                config.get_offload_ratio(),
+                                                context->get_device().get_info().max_global_mem_size);
+    }
+
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::compile_model::CreateCompiledModel");
         return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context, config, weight_sharing_context);
@@ -328,6 +337,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
     config.finalize(context_impl.get(), transformed_model.get());
+
+    if (config.get_offload_ratio() > 0) {
+        validate_model_resident_constant_memory(*transformed_model,
+                                                config.get_offload_ratio(),
+                                                context_impl->get_device().get_info().max_global_mem_size);
+    }
+
 
     return std::make_shared<CompiledModel>(transformed_model, shared_from_this(), context_impl, config, weight_sharing_context);
 }
@@ -484,6 +500,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
+    config.apply_weightless_options();
 
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
@@ -501,7 +518,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         return nullptr;
     }
 
-    if (ov::util::is_weightless_enabled(config.get_user_properties()).value_or(false)) {
+    if (config.get_enable_weightless()) {
         const auto& weights_path = ov::util::make_path(config.get_weights_path());
 
         if (weights_path.extension() != ".bin") {
@@ -537,8 +554,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
                                                          const ov::AnyMap& config) const{
     // Store tensor base in thread-local storage
     g_current_tensor_base = static_cast<const size_t*>(model.data());
-    ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
-    std::istream stream(&par_buf);
+    std::unique_ptr<std::streambuf> buf;
+#ifdef _WIN32
+    // TODO: CVS-198510 enable on Windows once prefetch shows a compile-time gain there.
+    const bool use_prefetch = false;
+#else
+    const bool use_prefetch = static_cast<bool>(ov::get_memory_hints(model));
+#endif
+    if (!use_prefetch) {
+        // Memory without hints (e.g. user provided), keep the pread path for user file mappings.
+        buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
+    } else {
+        buf = std::make_unique<ov::intel_gpu::PrefetchStreamBuf>(model);
+    }
+    std::istream stream(buf.get());
     auto compiled_model = import_model(stream, context, config);
 
     // Clear thread-local storage
@@ -908,6 +937,9 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
     capabilities.emplace_back(ov::device::capability::BIN);
     if (info.supports_fp16) {
         capabilities.emplace_back(ov::device::capability::FP16);
+    }
+    if (info.supports_bf16) {
+        capabilities.emplace_back(ov::device::capability::BF16);
     }
     if (info.supports_imad || info.supports_immad) {
         capabilities.emplace_back(ov::device::capability::INT8);

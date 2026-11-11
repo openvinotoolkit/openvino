@@ -47,6 +47,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/validation_util.cpp
     ${CMAKE_CURRENT_LIST_DIR}/version.cpp
     ${CMAKE_CURRENT_LIST_DIR}/weight_sharing_util.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/weights_prefetch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/descriptor/shared_tensor.cpp
@@ -136,6 +137,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hsigmoid.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hswish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/i420_to_bgr.cpp
@@ -186,9 +188,12 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/paged_selective_ssm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/prelu.cpp

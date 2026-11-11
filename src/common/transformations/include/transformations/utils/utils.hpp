@@ -290,6 +290,16 @@ TRANSFORMATIONS_API bool can_eliminate_eltwise_node(const std::shared_ptr<Node>&
 
 TRANSFORMATIONS_API bool is_constant_and_all_values_equal_int(const Output<Node>& output, const int64_t& v);
 
+/// Returns axes of unit dimensions of `out_shape` which are not present in `data_shape`,
+/// i.e. axes of dimensions inserted by Unsqueeze-like shape change
+TRANSFORMATIONS_API std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
+                                                            const PartialShape& out_shape);
+
+/// Returns axes of unit dimensions of `data_shape` which are not present in `out_shape`,
+/// i.e. axes of dimensions removed by Squeeze-like shape change
+TRANSFORMATIONS_API std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape,
+                                                          const PartialShape& out_shape);
+
 template <typename... AllowedTypes>
 bool is_on_path(const ov::Output<ov::Node>& output) {
     auto status = true;
