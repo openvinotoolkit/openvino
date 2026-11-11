@@ -209,7 +209,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
-                               "for property key ",
+                               " for property key ",
                                ov::intel_cpu::multi_app_thread_sync_execution.name(),
                                ". Expected only true/false.");
             }
@@ -599,20 +599,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
 
     CPU_DEBUG_CAP_ENABLE(applyDebugCapsProperties());
     updateProperties();
-}
-
-void Config::normalizeMultiAppThreadSyncExecution() {
-    runSyncInferInCallerThread = multiAppThreadSyncExecution;
-
-    if (exclusiveAsyncRequests) {
-        // Exclusive async requests mux all work through the shared async executor, so caller-thread execution is not
-        // supported for synchronous infer() in this mode.
-        runSyncInferInCallerThread = false;
-    } else if (numSubStreams > 0) {
-        // Sub-stream inference spawns subordinate requests and waits on their async execution, so the synchronous
-        // caller-thread path is unsupported and must be disabled after stream calculation.
-        runSyncInferInCallerThread = false;
-    }
 }
 
 void Config::updateProperties() {

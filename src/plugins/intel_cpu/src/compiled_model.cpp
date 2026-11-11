@@ -33,9 +33,11 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
+#include "openvino/util/log.hpp"
 #include "sub_memory_manager.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -177,6 +179,44 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 std::make_shared<CompiledModel>(model, plugin, sub_cfg, loaded_from_cache, m_sub_memory_manager));
         }
     }
+
+    // CPU_MULTI_APP_THREAD_SYNC_EXECUTION is only safe/meaningful when this CompiledModel instance (a) actually owns
+    // a real CPUStreamsExecutor (exclusiveAsyncRequests uses a shared, non-streams executor instead), and (b) is not
+    // itself an orchestrator of sub-compiled-models (those wait on their children's async execution, so forcing
+    // their own inference onto the caller thread would be unsound). m_has_sub_compiled_models is only known for
+    // certain at this point, after the sub-stream block above has run, which is why this can't be computed earlier
+    // (e.g. in Config) and must live here instead.
+    if (m_cfg.multiAppThreadSyncExecution) {
+        auto streams_executor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_task_executor);
+        m_run_sync_in_caller_thread =
+            streams_executor && !m_has_sub_compiled_models && !m_cfg.exclusiveAsyncRequests;
+        // Reject the combination outright rather than silently tolerating it: when the caller-thread
+        // sync path is actually going to be used, and CPU pinning is actually active on the executor
+        // that path dispatches through (`executor_config` reflects the real resolved pinning state used
+        // to build m_task_executor -- not m_cfg.enableCpuPinning, which can be stale/irrelevant on some
+        // branches, e.g. the zero-streams or exclusive-async-requests paths above), the TBB stream
+        // observer would pin the calling application thread to a vacant core on entry and restore it
+        // only to the broader process-wide mask on exit (not to the application's own original affinity),
+        // silently and permanently altering affinity the application never asked to have changed.
+        OPENVINO_ASSERT(!(m_run_sync_in_caller_thread && executor_config.get_cpu_pinning()),
+                        "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with CPU "
+                        "pinning (ov::hint::enable_cpu_pinning resolved to true). Running inference on the "
+                        "calling application thread while CPU pinning is enabled silently changes that thread's "
+                        "CPU affinity. Set ov::hint::enable_cpu_pinning(false) explicitly when using "
+                        "ov::intel_cpu::multi_app_thread_sync_execution(true).");
+        if (!m_run_sync_in_caller_thread) {
+            // Use OPENVINO_WARN (not DEBUG_LOG): DEBUG_LOG is gated behind ENABLE_CPU_DEBUG_CAPS, a CPU-plugin-only
+            // debug build flag that is OFF by default, so it would never reach a user running a standard build --
+            // defeating the whole point of this message, which is to surface a config downgrade that would
+            // otherwise be silent (see PR #35276 review comment F-6).
+            OPENVINO_WARN("[CPU] ov::intel_cpu::multi_app_thread_sync_execution(true) was requested but is not "
+                          "supported for this compiled model configuration (exclusiveAsyncRequests=",
+                          m_cfg.exclusiveAsyncRequests,
+                          ", has_sub_compiled_models=",
+                          m_has_sub_compiled_models,
+                          "); falling back to the regular async pipeline.");
+        }
+    }
 }
 
 CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
@@ -190,6 +230,13 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
             streamId = streamsExecutor->get_stream_id();
             socketId = std::max(0, streamsExecutor->get_socket_id());
         }
+        // Known limitation (documented, not fixed, see PR review item F-4): streamId grows from an
+        // unbounded per-thread counter, so when more concurrent (e.g. caller-thread-sync) application
+        // threads call infer() than m_graphs.size(), two threads can collide on the same graph_idx here
+        // and serialize on that graph's lock instead of being routed to a free one. Results stay
+        // numerically correct; only parallelism degrades. Use <= NUM_STREAMS concurrent application
+        // threads to get full parallelism. A lease/backpressure redesign is tracked as a longer-term
+        // follow-up rather than fixed in this PR.
         graph_idx = streamId % m_graphs.size();
     }
 
@@ -245,7 +292,7 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                             get_task_executor(),
                                             get_callback_executor(),
                                             m_optimized_single_stream,
-                                            m_cfg.runSyncInferInCallerThread);
+                                            m_run_sync_in_caller_thread);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());
@@ -391,7 +438,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::intel_cpu::multi_app_thread_sync_execution) {
         return static_cast<decltype(ov::intel_cpu::multi_app_thread_sync_execution)::value_type>(
-            config.runSyncInferInCallerThread);
+            m_run_sync_in_caller_thread);
     }
     if (name == ov::intel_cpu::enable_tensor_parallel) {
         const auto& enable_tensor_parallel = config.enableTensorParallel;

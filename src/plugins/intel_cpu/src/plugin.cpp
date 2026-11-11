@@ -316,7 +316,6 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
         conf.modelPreferThreads = 0;
     }
     get_performance_streams(conf, model);
-    conf.normalizeMultiAppThreadSyncExecution();
     // save model_prefer_threads to model rt_info when loading network
     if (!imported) {
         ov::AnyMap hints_props;

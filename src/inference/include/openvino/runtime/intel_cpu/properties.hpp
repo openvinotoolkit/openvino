@@ -129,6 +129,28 @@ static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_W
  * @code
  * core.compile_model(model, "CPU", ov::AnyMap{{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
  * @endcode
+ *
+ * @note This property is silently ignored (the compiled model falls back to the regular async
+ * pipeline) when exclusive async requests are enabled or when the model is split across
+ * sub-streams (e.g. tensor-parallel execution); use get_property() on the compiled model to read
+ * back the effective value.
+ * @note This property is rejected with an exception at compile_model() time if CPU pinning
+ * (ov::hint::enable_cpu_pinning) is, or resolves to, true -- whether the application set it
+ * explicitly or it was left at its default and the plugin's own heuristics turned it on. Running
+ * inference directly on the invoking application thread while CPU pinning is active would
+ * silently alter that thread's CPU affinity (it is pinned to a vacant core on entry to the
+ * streams executor's TBB arena and restored only to the broader process-wide mask on exit, not
+ * to the application's original affinity), which is considered unsafe. Pass
+ * ov::hint::enable_cpu_pinning(false) explicitly together with this property to compile
+ * successfully.
+ * @note Known limitations:
+ *  - If more application threads call infer() concurrently than NUM_STREAMS, threads can be
+ *    mapped onto the same internal stream/graph slot (id % NUM_STREAMS) and serialize on it;
+ *    results remain numerically correct but full per-thread parallelism requires
+ *    concurrent threads <= NUM_STREAMS.
+ *  - The invoking thread's OpenMP max-thread setting and FTZ/DAZ MXCSR bits are not currently
+ *    saved/restored around the inference call; any side effects the streams executor's dispatch
+ *    has on those are not undone before returning control to the application thread.
  */
 static constexpr Property<bool> multi_app_thread_sync_execution{"CPU_MULTI_APP_THREAD_SYNC_EXECUTION"};
 

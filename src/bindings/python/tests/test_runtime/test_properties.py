@@ -863,9 +863,42 @@ def test_compiled_model_cpu_multi_app_thread_sync_execution_property():
         "CPU",
         dict([
             intel_cpu.multi_app_thread_sync_execution(True),
+            # CPU pinning is explicitly disabled: the plugin rejects
+            # multi_app_thread_sync_execution=True combined with CPU pinning resolved to True,
+            # and pinning otherwise defaults to True on typical Linux topologies.
+            hints.enable_cpu_pinning(False),
             streams.num(4),
         ]),
     )
 
     supported_properties = compiled_model.get_property(props.supported_properties)
     assert intel_cpu.multi_app_thread_sync_execution() in supported_properties
+
+
+@pytest.mark.skipif(
+    os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test"
+)
+def test_compiled_model_cpu_multi_app_thread_sync_execution_rejects_cpu_pinning():
+    from tests.utils.helpers import generate_add_model
+
+    core = Core()
+
+    if "Intel" not in core.get_property("CPU", "FULL_DEVICE_NAME"):
+        pytest.skip("This test runs only on openvino intel cpu plugin")
+
+    # multi_app_thread_sync_execution=True runs each application thread's infer() synchronously
+    # in the caller thread, which is incompatible with CPU pinning: pinning would alter the
+    # affinity of the caller's own thread as a side effect of compile_model(). The plugin must
+    # reject this combination with an explicit error rather than silently mutating caller-thread
+    # affinity or silently disabling one of the two requested features.
+    with pytest.raises(RuntimeError):
+        core.compile_model(
+            generate_add_model(),
+            "CPU",
+            dict([
+                intel_cpu.multi_app_thread_sync_execution(True),
+                hints.enable_cpu_pinning(True),
+                streams.num(4),
+            ]),
+        )
