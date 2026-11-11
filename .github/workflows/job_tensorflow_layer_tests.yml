@@ -129,6 +129,63 @@ jobs:
           find "$tf_dir" -maxdepth 3 \( -name '_pywrap_cpu_feature_guard*.so' -o -name 'libtensorflow_framework*' \) -exec ls -l {} +
           python3 -c "import tensorflow as tf; print(tf.__version__)"
 
+      - name: Check TensorFlow import order (macOS)
+        id: tensorflow_import_order
+        if: ${{ runner.os == 'macOS' && fromJSON(inputs.affected-components).TF_FE.test }}
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          python_executable=$(python3 -c "import sys; print(sys.executable)")
+          failed=0
+          for probe in \
+            'import openvino; import tensorflow' \
+            'import openvino; import openvino_tokenizers; import tensorflow' \
+            'import tensorflow; import openvino; import openvino_tokenizers'; do
+            echo "::group::Import order: $probe"
+            if "$python_executable" -X faulthandler -u -c "$probe; print('Imports succeeded', flush=True)"; then
+              echo "Import probe passed."
+            else
+              status=$?
+              failed=1
+              echo "::warning::Import probe failed with exit code $status: $probe"
+              if command -v lldb >/dev/null 2>&1; then
+                if lldb --batch -o run -k "thread backtrace all" -- "$python_executable" -X faulthandler -u -c "$probe"; then
+                  echo "LLDB retry completed; inspect its output to see whether the crash reproduced."
+                else
+                  status=$?
+                  echo "::warning::LLDB retry exited with code $status."
+                fi
+              else
+                echo "::warning::LLDB is unavailable; native backtrace could not be collected."
+              fi
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+
+      - name: Check TensorFlow Add tests without and with xdist (macOS)
+        if: ${{ runner.os == 'macOS' && fromJSON(inputs.affected-components).TF_FE.test && steps.tensorflow_import_order.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          failed=0
+          for workers in 0 1; do
+            echo "::group::TensorFlow Add tests: -n $workers"
+            # --collect-only disables xdist, so run this small test file instead.
+            if python3 -X faulthandler -m pytest "$INSTALL_TEST_DIR/layer_tests/tensorflow_tests/test_tf_Add.py" -v -x -n "$workers" --max-worker-restart=0 -m precommit; then
+              echo "Add-test probe passed."
+            else
+              status=$?
+              failed=1
+              echo "::warning::Add-test probe with -n $workers failed with exit code $status."
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP16
+
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test && !(runner.os == 'Windows' && runner.arch == 'ARM64') }}
         run: |

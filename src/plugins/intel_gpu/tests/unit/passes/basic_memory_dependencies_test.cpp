@@ -331,4 +331,100 @@ TEST_P(basic_memory_dependencies_mul_inplace, fc_output_is_not_reused) {
 INSTANTIATE_TEST_SUITE_P(smoke, basic_memory_dependencies_mul_inplace, ::testing::Bool(), [](const ::testing::TestParamInfo<bool>& info) {
     return info.param ? "dynamic" : "static";
 });
+
+// Residual blocks with in-place oneDNN sum post-ops: "blk" adds "root" into root's buffer and "tail" adds "blk" into
+// it again, so that buffer is read up to the next block's "root", while "p2" runs in between without reading it.
+TEST(basic_memory_dependencies, onednn_sum_root_stays_in_pool) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    constexpr size_t blocks = 4;
+    auto in_layout = layout{ov::PartialShape({1, 16, 32, 32}), data_types::f16, format::bfyx};
+    auto weight_layout = layout{ov::PartialShape({16, 16, 1, 1}), data_types::f16, format::bfyx};
+    auto weight_mem = engine.allocate_memory(weight_layout);
+    auto input_mem = engine.allocate_memory(in_layout);
+    tests::random_generator rg;
+    rg.set_seed("onednn_sum_root_stays_in_pool");
+    set_values(weight_mem, rg.generate_random_1d<ov::float16>(weight_layout.count(), -0.25f, 0.25f));
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(in_layout.count(), -0.25f, 0.25f));
+
+    ov::intel_gpu::ImplForcingMap impls;
+    auto make_topology = [&]() {
+        topology topology(input_layout("input", in_layout), data("weight", weight_mem));
+        auto conv = [&](const std::string& id, const std::string& in) {
+            topology.add(convolution(id, input_info(in), "weight", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+            impls[id] = {format::b_fs_yx_fsv16, "", impl_types::onednn};
+        };
+        std::string x = "input";
+        for (size_t i = 0; i < blocks; i++) {
+            const auto n = std::to_string(i);
+            conv("root" + n, x);
+            conv("mid" + n, "root" + n);
+            conv("blk" + n, "mid" + n);
+            topology.add(eltwise("sum_blk" + n, input_info("blk" + n), input_info("root" + n), eltwise_mode::sum));
+            conv("p" + n, "sum_blk" + n);
+            conv("p2" + n, "p" + n);
+            conv("tail" + n, "p2" + n);
+            topology.add(eltwise("sum_tail" + n, input_info("tail" + n), input_info("sum_blk" + n), eltwise_mode::sum));
+            x = "sum_tail" + n;
+        }
+        topology.add(reorder("out", input_info(x), format::bfyx, data_types::f32));
+        return topology;
+    };
+    auto make_config = [&](bool enable_memory_pool) {
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::enable_memory_pool(enable_memory_pool));
+        config.set_property(ov::intel_gpu::force_implementations(impls));
+        return config;
+    };
+
+    auto ref_topology = make_topology();
+    network net_ref(engine, ref_topology, make_config(false));
+    network net(program::build_program(engine, make_topology(), make_config(true)), 0);
+
+    for (size_t i = 0; i < blocks; i++) {
+        const auto n = std::to_string(i);
+        for (const auto& [node_id, dep_id] : {std::pair{"blk" + n, "root" + n}, std::pair{"tail" + n, "blk" + n}}) {
+            auto& node = net.get_program()->get_node(node_id);
+            const auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(node);
+            ASSERT_NE(idx, -1) << node_id << " is expected to carry an in-place sum post-op";
+            ASSERT_EQ(node.get_dependency(idx).id(), dep_id);
+        }
+    }
+    auto mem = [&](const std::string& id) {
+        return net.get_primitive(id)->output_memory_ptr();
+    };
+    for (size_t i = 0; i < blocks; i++) {
+        const auto n = std::to_string(i);
+        ASSERT_TRUE(net.get_program()->get_node("root" + n).can_share_buffer()) << "root" << n << " is kept out of the pool";
+        ASSERT_FALSE(engine.is_the_same_buffer(*mem("root" + n), *mem("p2" + n))) << "p2" << n << " overwrites root" << n;
+        if (i > 0) {
+            const auto prev = std::to_string(i - 1);
+            ASSERT_FALSE(engine.is_the_same_buffer(*mem("root" + n), *mem("root" + prev))) << "root" << n << " overwrites its input";
+        }
+        // "blk" and "tail" write into root's buffer, so only other primitives show that the pool reused it.
+        bool pooled = false;
+        for (size_t j = 0; j < blocks; j++) {
+            for (const auto* id : {"root", "mid", "blk", "p", "p2", "tail"}) {
+                const auto other = id + std::to_string(j);
+                if (other != "root" + n && other != "blk" + n && other != "tail" + n)
+                    pooled = pooled || engine.is_the_same_buffer(*mem("root" + n), *mem(other));
+            }
+        }
+        ASSERT_TRUE(pooled) << "root" << n << " shares no buffer with another primitive";
+    }
+
+    net_ref.set_input_data("input", input_mem);
+    net.set_input_data("input", input_mem);
+    auto out_ref = net_ref.execute().at("out").get_memory();
+    auto out = net.execute().at("out").get_memory();
+    ASSERT_EQ(out_ref->count(), out->count());
+    cldnn::mem_lock<float> ref_ptr(out_ref, get_test_stream());
+    cldnn::mem_lock<float> out_ptr(out, get_test_stream());
+    for (size_t i = 0; i < out_ref->count(); i++) {
+        ASSERT_EQ(ref_ptr[i], out_ptr[i]) << "index " << i << ": a pooled residual buffer was overwritten while still read";
+    }
+}
 #endif  // ENABLE_ONEDNN_FOR_GPU
