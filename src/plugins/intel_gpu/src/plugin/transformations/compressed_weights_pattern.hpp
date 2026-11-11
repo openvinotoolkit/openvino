@@ -29,8 +29,13 @@ using ov::pass::operator|;
         auto weights_convert_reshape_m = wrap_type<ov::op::v1::Reshape>({weights_param_convert_m, any_input()});\
         auto decompressed_weights_m = convert_m | weights_convert_reshape_m;\
 \
+        /* Per-tensor (1-element) parameter scale/zp is not supported. */\
+        auto non_scalar_static_param = [](const ov::Output<ov::Node>& output) {\
+            const auto& ps = output.get_partial_shape();\
+            return ps.is_static() && ov::shape_size(ps.to_shape()) > 1;\
+        };\
         auto sub_value_const_m = wrap_type<ov::op::v0::Constant>();\
-        auto sub_value_param_m = wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::has_static_shape());\
+        auto sub_value_param_m = wrap_type<ov::op::v0::Parameter>(non_scalar_static_param);\
         auto sub_value_param_reshape_m =\
             wrap_type<ov::op::v1::Reshape>({sub_value_param_m, any_input()}, ov::pass::pattern::has_static_shape());\
         auto sub_value_param_convert_m = wrap_type<ov::op::v0::Convert>({sub_value_param_m});\
@@ -44,7 +49,7 @@ using ov::pass::operator|;
         auto subtract_m = sub_with_convert_m | sub_no_convert_m;\
 \
         auto mul_value_const_m = wrap_type<ov::op::v0::Constant>();\
-        auto mul_value_param_m = wrap_type<ov::op::v0::Parameter>(ov::pass::pattern::has_static_shape());\
+        auto mul_value_param_m = wrap_type<ov::op::v0::Parameter>(non_scalar_static_param);\
         auto mul_value_param_reshape_m =\
             wrap_type<ov::op::v1::Reshape>({mul_value_param_m, any_input()}, ov::pass::pattern::has_static_shape());\
         auto mul_value_param_convert_m = wrap_type<ov::op::v0::Convert>({mul_value_param_m});\
@@ -53,7 +58,8 @@ using ov::pass::operator|;
         auto mul_value_param_reshape_convert_m =\
              wrap_type<ov::op::v0::Convert>({mul_value_param_reshape_m});\
         auto mul_const_m = mul_value_const_m | mul_value_param_m | mul_value_param_reshape_m |\
-                           mul_value_param_convert_reshape_m | mul_value_param_reshape_convert_m;\
+                           mul_value_param_convert_m | mul_value_param_convert_reshape_m |\
+                           mul_value_param_reshape_convert_m;\
         auto mul_with_sub_m = wrap_type<ov::op::v1::Multiply>({subtract_m, mul_const_m});\
         auto mul_const_convert_m = ov::pass::pattern::optional<ov::op::v0::Convert>(mul_const_m);\
         auto mul_no_sub_m = wrap_type<ov::op::v1::Multiply>({decompressed_weights_m, mul_const_convert_m});\

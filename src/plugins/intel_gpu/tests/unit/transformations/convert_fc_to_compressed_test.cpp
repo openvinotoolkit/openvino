@@ -248,6 +248,41 @@ TEST_F(TransformationTestsF, ConvertFCToCompressedParameterScaleF32WithExtraMult
     }
 }
 
+// Per-tensor (1-element) runtime scale/zp Parameters are not supported, so the pass must not fire.
+TEST_P(ConvertFCToCompressedParameterScaleZpTest, SkipsPerTensorParameterScaleAndZeroPoint) {
+    const auto& [topology, with_zp] = GetParam();
+    const bool reshape_of_convert = topology == ScaleZpTopology::ReshapeOfConvert;
+
+    auto to_f16 = [](const ov::Output<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        return std::make_shared<ov::op::v0::Convert>(node, ov::element::f16);
+    };
+    auto reshape_to_2d = [](const ov::Output<ov::Node>& node) -> std::shared_ptr<ov::Node> {
+        auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {1, 1});
+        return std::make_shared<ov::op::v1::Reshape>(node, shape, false);
+    };
+    auto build = [&](const ov::Output<ov::Node>& param) {
+        return reshape_of_convert ? reshape_to_2d(to_f16(param)) : to_f16(reshape_to_2d(param));
+    };
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 16});
+    auto weights = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{32, 16}, {1});
+    auto scale = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1});
+    ov::ParameterVector params{input, scale};
+    std::shared_ptr<ov::Node> dequantized = to_f16(weights);
+    if (with_zp) {
+        auto zp = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 1});
+        params.push_back(zp);
+        dequantized = std::make_shared<ov::op::v1::Subtract>(dequantized, build(zp));
+    }
+    dequantized = std::make_shared<ov::op::v1::Multiply>(dequantized, build(scale));
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, dequantized, no_bias, ov::element::f16, true);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{fc}, params);
+    model_ref = model->clone();
+    manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+}
+
 // Batch-1 weights [1, 32, 16] squeezed to [32, 16] by a Reshape, with ungrouped Parameter scale/zp [1, 32, 1].
 // MoveFCReshapeToWeights normalizes Constant forms only, so the pass must not read the leading unit batch
 // dimension of the runtime parameters as a group axis: scale/zp are flattened to [32, 1], weights to [32, 16].
