@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-13-04-25-909-43010453343",
+  "timestamp": "2026-11-11T13:04:25Z",
+  "run_id": "43010453343",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43010453343",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "7f8922af591428220a8722460a4369c36341b6ff",
+  "pr_number": "39726",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39726",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to missing onednn_third-party-programs.txt license file",
+  "signature": "windows runner extract openvino packages expand-archive remove-item cannot find path does not exist objectnotfound pathnotfound stale workspace|Infrastructure",
+  "signature_hash": "33e8544b41961fd6",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "GPU unit tests",
+      "conclusion": "failure",
+      "symptom": "'Extract OpenVINO packages' step fails: Expand-Archive -Force attempts to delete a previously-existing 'install\\licenses\\onednn_third-party-programs.txt' before re-extracting, but Remove-Item cannot find that path, raising a non-terminating PathNotFound error that PowerShell still surfaces as a step failure (exit code 1)."
+    }
+  ],
+  "key_errors": [
+    "Remove-Item : Cannot find path 'C:\\actions-runner\\_work\\openvino\\openvino\\install\\licenses\\onednn_third-party-programs.txt' because it does not exist.\nAt C:\\Windows\\system32\\WindowsPowerShell\\v1.0\\Modules\\Microsoft.PowerShell.Archive\\Microsoft.PowerShell.Archive.psm1:411 char:46\n+ ...                 $expandedItems | % { Remove-Item $_ -Force -Recurse }\n+                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n    + CategoryInfo          : ObjectNotFound: (C:\\actions-runn...ty-programs.txt:String) [Remove-Item], ItemNotFoundException\n    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The 'Extract OpenVINO packages' step runs 'Expand-Archive ... -Force' twice against the shared, persistent 'install' directory on a self-hosted Windows GPU runner. Expand-Archive's -Force implementation (Microsoft.PowerShell.Archive.psm1) enumerates expected destination entries from the archive manifest and tries to Remove-Item each one before writing the new copy. Because the runner workspace is reused across jobs/runs and was apparently left in an inconsistent state (a prior partial extraction, cleanup step, or AV/indexing interference removed 'install\\licenses\\onednn_third-party-programs.txt' before this run started), the module's internal Remove-Item call targets a path that no longer exists, throwing an ItemNotFoundException that bubbles up and fails the whole step with exit code 1. This is an infrastructure/workspace-hygiene issue tied to the non-ephemeral self-hosted runner, not a code change from the triggering commit (which only adjusts NPU test duration skipping and does not touch packaging, licensing files, or the GPU unit test workflow).",
+  "reproduction_steps": "N/A - depends on the specific stale/partial state of the self-hosted Windows runner's 'install' directory from a previous job; not reproducible from a clean local checkout. Can be approximated locally by extracting the archive once, manually deleting 'install\\licenses\\onednn_third-party-programs.txt', then re-running 'Expand-Archive openvino_package.zip -DestinationPath install -Force' to trigger the same ObjectNotFound error from the Archive module's internal cleanup.",
+  "recommended_actions": [
+    "Escalate to runner infra/DevOps: investigate why the persistent 'install' directory on this Windows GPU runner pool ('intel-gpu' group) can be missing files that a prior successful extraction placed there (partial cleanup, antivirus quarantine, or another concurrent job touching the shared workspace).",
+    "Harden the 'Extract OpenVINO packages' step: delete/recreate the 'install' directory (e.g., 'Remove-Item -Recurse -Force' then re-create) before running Expand-Archive, instead of relying on Expand-Archive's own -Force overwrite logic which assumes the destination matches the archive's prior extraction exactly.",
+    "Alternatively, wrap Expand-Archive in a try/catch that tolerates PathNotFound errors from its internal cleanup (these are not failures of the actual extraction), or use a more robust unzip tool (e.g., 7-Zip or .NET's System.IO.Compression) that does not attempt a pre-emptive per-file Remove-Item pass.",
+    "Audit whether another concurrent step or job on the same runner (e.g., workspace cleanup tasks) races with this extraction and removes files mid-job."
+  ],
+  "prevention_strategies": "Ensure the Windows self-hosted GPU runner's 'install' workspace is fully reset (deleted and recreated, or an ephemeral runner used) before each job's extraction step, so Expand-Archive never has to reconcile against a partially-modified prior extraction. Consider switching to extracting into a fresh, uniquely-named directory per run instead of overwriting in place.",
+  "historical_context": "A related but distinct Infrastructure signature (locked tbb12.dll during the same 'Extract OpenVINO packages' step, pattern 514ffa2ab52ad344) has recurred 10 times in the last ~1.5 days on this same workflow/job, also tied to workspace-state problems on the persistent Windows self-hosted runner pool. This PathNotFound/missing-license-file variant is a first occurrence of a new signature but points to the same underlying class of problem: the 'install' directory on these runners is not reliably cleaned/reset between jobs, making Expand-Archive's -Force overwrite logic unreliable."
+}

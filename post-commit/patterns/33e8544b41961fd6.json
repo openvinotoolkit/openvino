@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "windows runner extract openvino packages expand-archive remove-item cannot find path does not exist objectnotfound pathnotfound stale workspace|Infrastructure",
+  "signature_hash": "33e8544b41961fd6",
+  "title": "Windows GPU unit tests job fails extracting OpenVINO packages due to missing onednn_third-party-programs.txt license file",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-11T13:04:25Z",
+  "last_seen": "2026-11-11T13:04:25Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43010453343"
+  ],
+  "affected_commits": [
+    "7f8922af591428220a8722460a4369c36341b6ff"
+  ],
+  "recent_timestamps": [
+    "2026-11-11T13:04:25Z"
+  ]
+}
