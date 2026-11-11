@@ -1947,18 +1947,25 @@ TEST(SerializationTest, WeightsBank_LegacyNpuKey_Restore) {
         ov::npuw::weights::Bank res(mock_core, alloc, "restored-bank");
         std::stringstream ss(legacy_blob);
         read(ss, res);
-        expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, "NPU.0"));
-        expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, "NPU.0"));
+
+        for (const std::string dev : {"NPU", "NPU.0", "NPU.1"}) {
+            expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, dev));
+            expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, dev));
+        }
         if (alloc.empty()) {
             EXPECT_THROW(res.get(uid0, "GPU"), ov::Exception);
+            const auto uid_other = res.registerLT(ov::npuw::weights::LazyTensor(third), "NPU.0");
+            res.evaluate_and_allocate();
+            EXPECT_THROW(res.get(uid_other, "NPU.1"), ov::Exception);
         }
-        const auto uid_new = res.registerLT(ov::npuw::weights::LazyTensor(third), "NPU.0");
+
+        const auto uid_new = res.registerLT(ov::npuw::weights::LazyTensor(third), "NPU.1");
         EXPECT_NE(uid_new, uid0);
         EXPECT_NE(uid_new, uid1);
         res.evaluate_and_allocate();
-        expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, "NPU.0"));
-        expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, "NPU.0"));
-        expect_tensors_equal(ov::npuw::weights::LazyTensor(third).eval(), res.get(uid_new, "NPU.0"));
+        expect_tensors_equal(old_bank.get(uid0, "CPU"), res.get(uid0, "NPU.1"));
+        expect_tensors_equal(old_bank.get(uid1, "CPU"), res.get(uid1, "NPU.1"));
+        expect_tensors_equal(ov::npuw::weights::LazyTensor(third).eval(), res.get(uid_new, "NPU.1"));
     }
 }
 
