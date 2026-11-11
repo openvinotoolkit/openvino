@@ -79,18 +79,24 @@ inline dnnl::algorithm moe_activation_to_dnnl_algo(ov::op::internal::MOE::Activa
 
 // GEMM implementation of a token-count regime. Fixed at impl creation, see moe_3gemm_swiglu_opt_impl().
 enum class MoeGemmImpl : uint8_t {
-    batched_gemv,       // OCL batched GEMV kernels, decode only
-    int3_batched_gemv,  // OCL batched GEMV kernels for u3 weights (moe_3gemm_int3.cl), decode only
-    micro_gemm,         // OCL micro-kernel GEMM, prefill only
-    grouped_gemm,       // one OneDNN grouped matmul per GEMM layer
-    int3_grouped_gemm,  // the grouped GEMM path for u3 weights on dynamically quantized activations (MoE3GemmDynQuan) and
-                        // the moe_3gemm_int3_gemm.cl GEMMs instead of OneDNN
-    per_expert_onednn,  // OneDNN matmul per activated expert, prefill only
+    batched_gemv,           // OCL batched GEMV kernels, decode only
+    int3_batched_gemv,      // OCL batched GEMV kernels for u3 weights (moe_3gemm_int3.cl), decode only
+    micro_gemm,             // OCL micro-kernel GEMM, prefill only
+    grouped_gemm,           // one OneDNN grouped matmul per GEMM layer
+    int3_grouped_gemm,      // the grouped GEMM path for u3 weights on dynamically quantized activations (MoE3GemmDynQuan) and
+                            // the moe_3gemm_int3_gemm.cl GEMMs instead of OneDNN
+    per_expert_onednn,      // OneDNN matmul per activated expert, prefill only
+    grouped_gemm_dyn_quan,  // OneDNN grouped matmuls on the dynamically quantized activations of MoE3GemmDynQuan
 };
 
-// Both share the routing masks, the expert-sorted rows and the scatter of the grouped GEMM path
+// All share the routing masks, the expert-sorted rows and the scatter of the grouped GEMM path
 bool is_grouped_gemm(MoeGemmImpl impl) {
-    return impl == MoeGemmImpl::grouped_gemm || impl == MoeGemmImpl::int3_grouped_gemm;
+    return one_of(impl, {MoeGemmImpl::grouped_gemm, MoeGemmImpl::int3_grouped_gemm, MoeGemmImpl::grouped_gemm_dyn_quan});
+}
+
+// The grouped GEMM paths on int8 activations, quantized and gathered by MoE3GemmDynQuan
+bool is_dyn_quan_grouped_gemm(MoeGemmImpl impl) {
+    return impl == MoeGemmImpl::int3_grouped_gemm || impl == MoeGemmImpl::grouped_gemm_dyn_quan;
 }
 
 class MoE3GemmSwigluGather : public KernelGenerator {
@@ -1082,6 +1088,11 @@ public:
 
     // Whether the grouped GEMM path quantizes its activations (MoE3GemmDynQuan) in prefill or decode
     bool uses_dyn_quan() const {
+        return is_dyn_quan_grouped_gemm(prefill_impl) || is_dyn_quan_grouped_gemm(decode_impl);
+    }
+
+    // Whether the grouped GEMM path runs the u3 GEMMs of MoE3GemmInt3Gemm in prefill or decode
+    bool uses_int3_gemm() const {
         return prefill_impl == MoeGemmImpl::int3_grouped_gemm || decode_impl == MoeGemmImpl::int3_grouped_gemm;
     }
 
@@ -1096,6 +1107,7 @@ public:
             return force_gpu_mask_gen_prefill;
         case MoeGemmImpl::grouped_gemm:
         case MoeGemmImpl::int3_grouped_gemm:
+        case MoeGemmImpl::grouped_gemm_dyn_quan:
             // OTD computes the expert lease on the host
             if (_weight_provider->is_offloaded()) {
                 return false;
@@ -1104,7 +1116,7 @@ public:
             // grouped GEMM needs as a dispatch hint, so token_num is used instead. That is exact for one token
             // but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms on Qwen3.6-35B-A3B int3).
             // The row tiles of the u3 GEMMs are built by the host mask gen; one token needs none.
-            return (force_gpu_mask_gen_prefill && impl == MoeGemmImpl::grouped_gemm) || token_num == 1;
+            return (force_gpu_mask_gen_prefill && impl != MoeGemmImpl::int3_grouped_gemm) || token_num == 1;
         default:
             return false;
         }
@@ -1112,7 +1124,7 @@ public:
 
     // Whether the grouped GEMM GPU mask gen stage and its per-expert buffers are needed
     bool needs_grouped_gpu_mask_gen() const {
-        return is_grouped_gemm(decode_impl) || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
+        return is_grouped_gemm(decode_impl) || (is_grouped_gemm(prefill_impl) && prefill_impl != MoeGemmImpl::int3_grouped_gemm && force_gpu_mask_gen_prefill);
     }
 
     // Resident single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
@@ -1124,9 +1136,31 @@ public:
         return one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f16});
     }
 
-    // The grouped GEMM path runs the u3 experts on their int8 GEMMs where those and dynamic quantization apply
+    // OneDNN grouped matmul on s8 activations with grouped src scales, for int8 x int4 / int8 DPAS. Only for weights
+    // without a zero point: the zero point needs the group sums of the activations, which the grouped matmul can't take
+    // (unlike the FullyConnected one), so OneDNN would convert the weights to f16 instead.
+    static bool is_onednn_dyn_quan_supported(const RuntimeParams& params) {
+        const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+        const auto& info = params.get_device_info();
+        if (info.arch < gpu_arch::xe2 || !info.supports_immad || config.has_zp || !MoE3GemmDynQuan::is_supported(params)) {
+            return false;
+        }
+        for (auto weight : {MOE3GemmInputIndex::WEIGHT_0, MOE3GemmInputIndex::WEIGHT_1, MOE3GemmInputIndex::WEIGHT_2}) {
+            const auto weight_dt = params.get_input_layout(static_cast<size_t>(weight)).data_type;
+            if (!one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8})) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // The grouped GEMM path runs on dynamically quantized activations where that applies: u3 on its own int8 GEMMs,
+    // 4- and 8-bit weights on OneDNN
     static MoeGemmImpl select_grouped_gemm_impl(const RuntimeParams& params) {
-        return MoE3GemmInt3Gemm::is_supported(params) ? MoeGemmImpl::int3_grouped_gemm : MoeGemmImpl::grouped_gemm;
+        if (MoE3GemmInt3Gemm::is_supported(params)) {
+            return MoeGemmImpl::int3_grouped_gemm;
+        }
+        return is_onednn_dyn_quan_supported(params) ? MoeGemmImpl::grouped_gemm_dyn_quan : MoeGemmImpl::grouped_gemm;
     }
 
     // Weights without a batched GEMV OCL kernel decode through the grouped GEMM path instead
@@ -1168,6 +1202,10 @@ public:
         if (uses_dyn_quan()) {
             for (auto proj : {MoE3GemmDynQuan::Projection::GATE_UP, MoE3GemmDynQuan::Projection::DOWN}) {
                 dyn_quan_shapes[static_cast<size_t>(proj)] = MoE3GemmDynQuan::get_shape(params, proj);
+            }
+        }
+        if (uses_int3_gemm()) {
+            for (auto proj : {MoE3GemmInt3Gemm::Projection::GATE_UP, MoE3GemmInt3Gemm::Projection::DOWN}) {
                 int3_gemm_shapes[static_cast<size_t>(proj)] = MoE3GemmInt3Gemm::get_shape(params, proj);
             }
         }
@@ -1229,6 +1267,8 @@ public:
                 add_stage(dyn_quan_quantize, params);
                 add_stage(dyn_quan_quantize_swiglu, params);
                 add_stage(dyn_quan_gather, params);
+            }
+            if (uses_int3_gemm()) {
                 add_stage(int3_gate_up_row, params);
                 add_stage(int3_gate_up_tiled, params);
                 add_stage(int3_down_row, params);
@@ -1617,6 +1657,9 @@ public:
                 // The hidden states quantized once per token, gathered into 2, 14 and 15
                 internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.groups()}, ov::element::f16, cldnn::format::bfyx), false);  // 16
                 internal_buffers.emplace_back(layout(ov::Shape{token_num, gate_up.groups()}, ov::element::i32, cldnn::format::bfyx), false);  // 17
+            }
+            if (uses_int3_gemm()) {
+                const size_t rows = token_num * max_topk;
                 const size_t max_tiles = MoE3GemmInt3Gemm::get_max_tiles(expert_num, rows);
                 internal_buffers.emplace_back(layout(ov::Shape{max_tiles * 2}, ov::element::i32, cldnn::format::bfyx), false);  // 18
             }
@@ -2350,6 +2393,10 @@ public:
         dnnl::memory::desc gate_zp_md;
         dnnl::memory::desc up_zp_md;
         dnnl::memory::desc down_zp_md;
+        // With dynamic quantization: the s8 activations come with per-group scales, [rows, groups] of the projection input
+        dnnl::memory::desc gate_up_src_scale_md;
+        dnnl::memory::desc down_src_scale_md;
+        bool dyn_quan = false;
         bool has_zp = false;
         // Post-ops fused into gate GEMM: eltwise(swish) + binary_mul(up_output)
         bool gate_has_post_ops = false;
@@ -2358,9 +2405,9 @@ public:
         dnnl::memory hint_mem;
         // Execute args of one GEMM. Building them costs several dnnl::memory objects (each one queries the USM
         // pointer type) per execute, so they are reused while all the buffer addresses they wrap stay the same:
-        // src, dst, grouped offsets, weights, scales, zero points, binary post-op src.
+        // src, dst, grouped offsets, weights, scales, zero points, binary post-op src, src scales.
         struct exec_args {
-            std::array<const void*, 7> key{};
+            std::array<const void*, 8> key{};
             std::unordered_map<int, dnnl::memory> args;
         };
         std::array<exec_args, 3> args;  // gate, up, down
@@ -2466,11 +2513,13 @@ public:
     }
 
     // Build (and cache) three grouped dnnl::matmul primitives for gate/up/down.
-    // Cache key is total_tokens only — the per-request max_tokens_per_expert
+    // Cache key is total_tokens and dyn_quan only — the per-request max_tokens_per_expert
     // dispatch hint is passed as a runtime argument (DNNL_ARG_HINT_MAX_GROUP_SIZE)
     // at execute() time, so no recompilation is needed when it changes.
-    grouped_onednn_kernel& get_grouped_kernel(int total_tokens, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
-        auto key = total_tokens;
+    // dyn_quan: the src is int8 with per-group scales (MoE3GemmDynQuan), and act(gate) * up is fused into the
+    // quantization of the down input instead of the gate post-ops.
+    grouped_onednn_kernel& get_grouped_kernel(int total_tokens, bool dyn_quan, typed_primitive_inst<moe_3gemm_fused_compressed>& instance) {
+        auto key = dyn_quan ? -total_tokens : total_tokens;
         if (_grouped_kernels.has(key)) {
             return *_grouped_kernels.get(key);
         }
@@ -2512,8 +2561,17 @@ public:
         // Weights layout in memory is [E, N, K] (stored transposed), expressed as acb over dims {E,K,N}.
         auto make_pd = [&](int K, int N, int group_size, dnnl::memory::data_type w_dt, size_t gemm_idx, const dnnl::post_ops& post_ops) {
             dnnl::primitive_attr attr;
-            attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
             attr.set_post_ops(post_ops);
+            auto src_dt = a_dt;
+            if (dyn_quan) {
+                // per-row(0) x per-K-group(1)
+                const auto proj = gemm_idx == 2 ? MoE3GemmDynQuan::Projection::DOWN : MoE3GemmDynQuan::Projection::GATE_UP;
+                const auto act_group_size = static_cast<dnnl::memory::dim>(dyn_quan_shape(proj).group_size);
+                attr.set_scales(DNNL_ARG_SRC, (1 << 0) | (1 << 1), {1, act_group_size}, dnnl::memory::data_type::f16);
+                src_dt = dnnl::memory::data_type::s8;
+            } else {
+                attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+            }
 
             bool has_k_groups = (group_size < K);
             const bool zp_host_scalar = static_cast<bool>(_grouped_zp_host_scalars[gemm_idx]);
@@ -2535,7 +2593,7 @@ public:
             }
 
             // Grouped src/dst: tokens are grouped by expert along axis-0
-            auto src_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
+            auto src_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, K}, src_dt, 0, num_experts, dnnl::memory::data_type::s32);
             auto dst_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
             // Weight: logical [E, K, N], physical layout acb -> stored as [E, N, K]
             auto w_md = dnnl::memory::desc(dnnl::memory::dims{num_experts, K, N}, w_dt, dnnl::memory::format_tag::acb);
@@ -2554,11 +2612,23 @@ public:
 
         auto gk = std::make_shared<grouped_onednn_kernel>();
         gk->has_zp = has_zp;
+        gk->dyn_quan = dyn_quan;
+        if (dyn_quan) {
+            for (auto proj : {MoE3GemmDynQuan::Projection::GATE_UP, MoE3GemmDynQuan::Projection::DOWN}) {
+                auto& md = proj == MoE3GemmDynQuan::Projection::DOWN ? gk->down_src_scale_md : gk->gate_up_src_scale_md;
+                md = dnnl::memory::desc({total_tokens, static_cast<dnnl::memory::dim>(dyn_quan_shape(proj).groups())},
+                                        dnnl::memory::data_type::f16,
+                                        dnnl::memory::format_tag::ab);
+            }
+        }
 
         // Gate GEMM with fused eltwise(swish/gelu) + binary_mul(up_output) post-ops.
         // This eliminates the separate grouped_gemm_prefill_swiglu OCL kernel.
         // Execution order: up GEMM first, then gate GEMM with post-ops consuming up output.
-        {
+        if (dyn_quan) {
+            gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt, 0, dnnl::post_ops());
+            gk->gate_prim = dnnl::matmul(gk->gate_pd);
+        } else {
             // Post-ops: eltwise(activation) + binary_mul(up_output as grouped tensor)
             dnnl::post_ops gate_po;
             auto activation_algo = moe_activation_to_dnnl_algo(_activation_type);
@@ -3018,7 +3088,7 @@ public:
         if (impl == MoeGemmImpl::int3_grouped_gemm) {
             ret_event = exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, max_tokens_per_expert, int3_tile_count);
         } else {
-            ret_event = exec_onednn_grouped_gemm(ret_event, stream, instance, scratch, total_gathered_tokens, max_tokens_per_expert);
+            ret_event = exec_onednn_grouped_gemm(ret_event, stream, instance, scratch, impl, total_gathered_tokens, max_tokens_per_expert);
         }
 
         // ----------------------------------------------------------------
@@ -3042,20 +3112,25 @@ public:
         return ret_event;
     }
 
-    // Steps 2-5 on OneDNN grouped GEMM: gather, gate, up, SiLU, down
+    // Steps 2-5 on OneDNN grouped GEMM: gather, gate, up, SiLU, down. With MoeGemmImpl::grouped_gemm_dyn_quan the
+    // gather and the SiLU are those of MoE3GemmDynQuan, which quantize the gate/up and the down inputs to int8.
     cldnn::event::ptr exec_onednn_grouped_gemm(cldnn::event::ptr ret_event,
                                                cldnn::stream& stream,
                                                typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                scratch_buffers& scratch,
+                                               MoeGemmImpl impl,
                                                int total_gathered_tokens,
                                                int max_tokens_per_expert) {
         auto& dnn_stream = stream.get_onednn_stream();
         const auto& intermediates_memories = instance.get_intermediates_memories();
+        const bool dyn_quan = impl == MoeGemmImpl::grouped_gemm_dyn_quan;
 
         // ----------------------------------------------------------------
         // Step 2: GPU gather – reorder input tokens sorted by expert
         // ----------------------------------------------------------------
-        {
+        if (dyn_quan) {
+            ret_event = exec_dyn_quan_gate_up_input(ret_event, instance, total_gathered_tokens);
+        } else {
             auto hidden_size = _hidden_size;
             auto block_size = get_vec_size(*instance.get_impl_params());
             auto [local_threads_count, batches_per_thread, unaligned_elements] =
@@ -3078,7 +3153,7 @@ public:
         // ----------------------------------------------------------------
         // Steps 3-5: OneDNN grouped GEMM – gate, up, SiLU, down
         // ----------------------------------------------------------------
-        auto& gk = get_grouped_kernel(total_gathered_tokens, instance);
+        auto& gk = get_grouped_kernel(total_gathered_tokens, dyn_quan, instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
@@ -3098,17 +3173,20 @@ public:
                              const memory::ptr& dst,
                              const dnnl::memory::desc& scale_md,
                              const dnnl::memory::desc& zp_md,
-                             const memory::ptr& bin_src) {
+                             const memory::ptr& bin_src,
+                             const memory::ptr& src_scales,
+                             const dnnl::memory::desc& src_scale_md) {
             const auto& host_zp = _grouped_zp_host_scalars[gemm_idx];
             const bool device_zp = gk.has_zp && !host_zp;
             auto& cache = gk.args[gemm_idx];
-            const std::array<const void*, 7> key{src->buffer_ptr(),
+            const std::array<const void*, 8> key{src->buffer_ptr(),
                                                  dst->buffer_ptr(),
                                                  row_offsets->buffer_ptr(),
                                                  wei.weight[gemm_idx]->buffer_ptr(),
                                                  wei.scale[gemm_idx]->buffer_ptr(),
                                                  device_zp ? wei.zp[gemm_idx]->buffer_ptr() : nullptr,
-                                                 bin_src ? bin_src->buffer_ptr() : nullptr};
+                                                 bin_src ? bin_src->buffer_ptr() : nullptr,
+                                                 src_scales ? src_scales->buffer_ptr() : nullptr};
             if (cache.args.empty() || cache.key != key) {
                 cache.args = {{DNNL_ARG_SRC, src->get_onednn_grouped_memory(pd.src_desc(), *row_offsets)},
                               {DNNL_ARG_WEIGHTS, wei.weight[gemm_idx]->get_onednn_memory(pd.weights_desc())},
@@ -3117,6 +3195,9 @@ public:
                               {DNNL_ARG_HINT_MAX_GROUP_SIZE, gk.hint_mem}};
                 if (gk.has_zp) {
                     cache.args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, device_zp ? wei.zp[gemm_idx]->get_onednn_memory(zp_md) : host_zp});
+                }
+                if (src_scales) {
+                    cache.args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC, src_scales->get_onednn_memory(src_scale_md)});
                 }
                 if (bin_src) {
                     // binary post-op input: grouped memory with the same layout as dst
@@ -3132,15 +3213,37 @@ public:
         // Execution order: up first (to produce binary input), then gate with fused activation+multiply.
         // This eliminates the separate grouped_gemm_prefill_swiglu OCL kernel launch.
 
+        if (dyn_quan) {
+            // The int8 rows and their scales hold the gate/up input, then the down input
+            const auto rows = get_dyn_quan_rows(instance);
+            exec_gemm(1, gk.up_prim, gk.up_pd, rows.quantized, scratch.up, gk.up_scale_md, gk.up_zp_md, nullptr, rows.scales, gk.gate_up_src_scale_md);
+            exec_gemm(0,
+                      gk.gate_prim,
+                      gk.gate_pd,
+                      rows.quantized,
+                      scratch.gate,
+                      gk.gate_scale_md,
+                      gk.gate_zp_md,
+                      nullptr,
+                      rows.scales,
+                      gk.gate_up_src_scale_md);
+            on_after_grouped_gemm(stream);
+            ret_event = exec_dyn_quan_down_input(ret_event, instance, scratch, total_gathered_tokens);
+            on_before_grouped_gather(stream);
+            exec_gemm(2, gk.down_prim, gk.down_pd, rows.quantized, scratch.y, gk.down_scale_md, gk.down_zp_md, nullptr, rows.scales, gk.down_src_scale_md);
+            on_after_grouped_gemm(stream);
+            return ret_event;
+        }
+
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
-        exec_gemm(1, gk.up_prim, gk.up_pd, scratch.x, scratch.up, gk.up_scale_md, gk.up_zp_md, nullptr);
+        exec_gemm(1, gk.up_prim, gk.up_pd, scratch.x, scratch.up, gk.up_scale_md, gk.up_zp_md, nullptr, nullptr, {});
 
         // gate GEMM with fused post-ops: gate_output = activation(X * W_gate) * up_output
         // Result written to scratch.gate, ready for down GEMM.
-        exec_gemm(0, gk.gate_prim, gk.gate_pd, scratch.x, scratch.gate, gk.gate_scale_md, gk.gate_zp_md, scratch.up);
+        exec_gemm(0, gk.gate_prim, gk.gate_pd, scratch.x, scratch.gate, gk.gate_scale_md, gk.gate_zp_md, scratch.up, nullptr, {});
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
-        exec_gemm(2, gk.down_prim, gk.down_pd, scratch.gate, scratch.y, gk.down_scale_md, gk.down_zp_md, nullptr);
+        exec_gemm(2, gk.down_prim, gk.down_pd, scratch.gate, scratch.y, gk.down_scale_md, gk.down_zp_md, nullptr, nullptr, {});
 
         // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
         on_after_grouped_gemm(stream);
