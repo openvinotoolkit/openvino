@@ -304,6 +304,15 @@ TEST(GGUFHadamardMetadata, RejectsInvalidBlocksWidthsAndUnusedWeights) {
     empty[p + "weight_names"] = std::vector<std::string>{};
     ov::frontend::gguf::GraphEmitter untied(weights, "qwen35");
     EXPECT_ANY_THROW(untied.configure_hadamard(empty));
+    auto inverse_only = empty;
+    inverse_only[p + "inverse_weight_names"] = std::vector<std::string>{"token_embd.weight"};
+    GgufWeightTable draft_weights{{"output.weight", ov::Tensor(ov::element::f32, {4, 16})},
+                                  {"token_embd.weight", ov::Tensor(ov::element::f32, {4, 16})}};
+    ov::frontend::gguf::GraphEmitter full_checkpoint(draft_weights, "qwen35");
+    EXPECT_ANY_THROW(full_checkpoint.configure_hadamard(inverse_only));
+    ov::frontend::gguf::GraphEmitter filtered_draft(draft_weights, "qwen35");
+    EXPECT_NO_THROW(filtered_draft.configure_hadamard(inverse_only, true));
+
     // A filtered MTP draft of a tied v2 checkpoint keeps only the latent embedding, which is also its LM head.
     GgufWeightTable tied_weights{{"token_embd.weight", ov::Tensor(ov::element::f32, {4, 16})}};
     auto tied = empty;

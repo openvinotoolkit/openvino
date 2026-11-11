@@ -73,7 +73,9 @@ std::string write_decoder_gguf(const std::string& dir,
                                bool mtp = false,
                                bool separate_embedding = false,
                                const std::vector<std::string>& hadamard_names = {},
-                               bool tied_hadamard = false) {
+                               bool tied_hadamard = false,
+                               bool explicit_untied_hadamard = false,
+                               bool inverse_embedding_hadamard = false) {
     const auto path = ov::util::path_join({dir, arch + ".gguf"}).string();
     GgufWriter writer;
     writer.kv_str("general.architecture", arch);
@@ -97,10 +99,10 @@ std::string write_decoder_gguf(const std::string& dir,
         if (!hadamard_names.empty()) {
             const std::string p = "prism.hadamard.";
             writer.kv_u32(p + "version", tied_hadamard ? 2 : 1);
-            if (tied_hadamard) {
-                writer.kv_bool(p + "tied_output", true);
+            if (tied_hadamard || explicit_untied_hadamard)
+                writer.kv_bool(p + "tied_output", tied_hadamard);
+            if (tied_hadamard || inverse_embedding_hadamard)
                 writer.kv_str_array(p + "inverse_weight_names", {"token_embd.weight"});
-            }
             writer.kv_u32(p + "block_size", 8);
             writer.kv_str(p + "transform", "normalized-sylvester-walsh-hadamard");
             writer.kv_str(p + "axis", "input-last-dimension");
@@ -286,16 +288,33 @@ TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamard
     using Extension = ov::frontend::gguf::GenAIExtension;
     // The draft uses its NextN head, so output.weight (or the tied token_embd head) is unused;
     // target-only names leave nothing rotated.
-    const std::vector<std::pair<std::vector<std::string>, bool>> cases{
-        {{"output.weight", "blk.1.nextn.shared_head_head.weight"}, false},
-        {{"output.weight", "blk.0.attn_q.weight"}, false},
+    struct HadamardCase {
+        std::vector<std::string> names;
+        bool tied = false;
+        bool explicit_untied = false;
+        bool inverse_embedding = false;
+    };
+    const std::vector<HadamardCase> cases{
+        {{"output.weight", "blk.1.nextn.shared_head_head.weight"}},
+        {{"output.weight", "blk.0.attn_q.weight"}},
         {{"blk.0.attn_q.weight", "blk.1.nextn.shared_head_head.weight"}, true},
         {{"blk.0.attn_q.weight"}, true},
+        {{"blk.0.attn_q.weight"}, false, true},
+        {{"output.weight"}, false, true, true},
     };
-    for (const auto& [names, tied] : cases) {
-        SCOPED_TRACE(names.back() + (tied ? " tied" : ""));
+    for (const auto& test_case : cases) {
+        SCOPED_TRACE(test_case.names.back() + (test_case.tied ? " tied" : ""));
         ScratchDir scratch;
-        const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, true, false, names, tied);
+        const auto path = write_decoder_gguf(scratch.path(),
+                                             "qwen35",
+                                             2,
+                                             false,
+                                             true,
+                                             false,
+                                             test_case.names,
+                                             test_case.tied,
+                                             test_case.explicit_untied,
+                                             test_case.inverse_embedding);
         ov::frontend::gguf::FrontEnd frontend;
         const auto input = frontend.load(path);
         frontend.add_extension(std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp"));
@@ -376,12 +395,36 @@ public:
         if (!output)
             output = tensors.require("token_embd.weight");
         ctx.set_output(ctx.node("GGML_OP_MUL_MAT", {output, cur}));
+        if (!m_ctx.component.empty())
+            ctx.acknowledge_component();
         return ctx.finish();
     }
 
 private:
     BuildContext m_ctx;
 };
+
+TEST(GGUFArchitectureExtension, ExternalBuilderCanAcknowledgeSelectedComponent) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "qwen3");
+    ASSERT_FALSE(path.empty());
+
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ArchitectureExtension>(
+        ArchitectureDefinition{"qwen3",
+                               "qwen3",
+                               [](const BuildContext& context) {
+                                   return std::make_shared<Qwen3Builder>(context);
+                               }},
+        RegistrationMode::Replace));
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>(
+        ov::frontend::gguf::GenAIExtension::InputMode::IDS_TO_LOGITS,
+        "external-component"));
+
+    const auto model = frontend.convert(frontend.load(path));
+    ASSERT_TRUE(model);
+    EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
+}
 
 constexpr uint32_t kVisEmbd = 32;
 constexpr uint32_t kVisLayers = 2;

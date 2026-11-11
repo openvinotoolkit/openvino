@@ -133,7 +133,7 @@ void GraphEmitter::validate_hadamard() const {
             OPENVINO_ASSERT(m_hadamard_consumed.count(name), "[GGUF] unused Hadamard weight: ", name);
 }
 
-void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>& config) {
+void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>& config, bool allow_inverse_only) {
     const std::string prefix = "prism.hadamard.";
     if (!config.count(prefix + "version")) {
         OPENVINO_ASSERT(std::none_of(config.begin(),
@@ -190,7 +190,8 @@ void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>&
         OPENVINO_ASSERT(m_hadamard_inverse_weights.empty() || has_weight("output.weight"),
                         "[GGUF] latent tied embedding requires Hadamard version 2");
     }
-    OPENVINO_ASSERT(!m_hadamard_weights.empty(), "[GGUF] empty Hadamard weight_names");
+    OPENVINO_ASSERT(!m_hadamard_weights.empty() || (allow_inverse_only && !m_hadamard_inverse_weights.empty()),
+                    "[GGUF] empty Hadamard weight_names");
     const auto& mode = required_metadata<std::string>(config, prefix + "sign_mode");
     OPENVINO_ASSERT(mode == "identity" || mode == "explicit", "[GGUF] unsupported Hadamard sign_mode");
     if (mode == "explicit") {

@@ -57,6 +57,17 @@ std::string nextn_tensor(int layer, const std::string& name) {
     return "blk." + std::to_string(layer) + ".nextn." + name + ".weight";
 }
 
+template <typename MetadataMap>
+bool hadamard_tied_output(const MetadataMap& metadata) {
+    const auto it = metadata.find("prism.hadamard.tied_output");
+    if (it == metadata.end())
+        return false;
+    const auto* tensor = std::get_if<ov::Tensor>(&it->second);
+    OPENVINO_ASSERT(tensor && tensor->get_element_type() == ov::element::boolean && tensor->get_size() == 1,
+                    "[GGUF] invalid prism.hadamard.tied_output");
+    return *tensor->template data<const char>() != 0;
+}
+
 DecoderParameters component_parameters(const BuildContext& context, DecoderParameters parameters) {
     OPENVINO_ASSERT(context.component.empty() || context.component == "mtp",
                     "[GGUF] unknown decoder component: ",
@@ -107,12 +118,12 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
             }
         }
         // An untied draft that uses no rotated weight has no Hadamard transform.
-        if (!rotated && !metadata.count("prism.hadamard.tied_output")) {
+        if (!rotated && !hadamard_tied_output(metadata)) {
             for (auto it = metadata.begin(); it != metadata.end();)
                 it = it->first.rfind("prism.hadamard.", 0) == 0 ? metadata.erase(it) : std::next(it);
         }
         const detail::MetadataStore store{metadata};
-        m_cfg.configure_graph(m_emit, GgufMetadata(store));
+        m_cfg.configure_graph(m_emit, GgufMetadata(store), true);
     } else {
         m_cfg.configure_graph(m_emit, context.metadata);
     }
