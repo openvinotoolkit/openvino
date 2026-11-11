@@ -33,7 +33,7 @@
 // get_global_linear_id() / get_local_linear_id() branch, so the helpers below replace the work-item built-ins and read
 // the special registers instead, directly or through the layout placeholders below. OpenVINO always launches with a
 // zero global offset.
-// The asm is not volatile, here and for _nv_laneid in compat_sg.cl: these registers do not change while a work-item
+// The asm is not volatile, here and for ov_nv_laneid in compat_sg.cl: these registers do not change while a work-item
 // runs, so repeated reads may be folded. Kernels whose SLM accesses are not synchronised can change behaviour with it.
 
 // Work-group layout on CUDA.
@@ -52,19 +52,19 @@
 // Dimension 0, the hardware y and z values and the work-group ids and counts are read from their special registers
 // directly: the layout never moves dimension 0, the fold is built on the hardware numbering, and the grid axes are
 // remapped by renaming %ctaid / %nctaid.
-static inline uint _nv_hw_tid_x(void)      { uint v; __asm__("mov.u32 %0, %%tid.x;"  : "=r"(v)); return v; }
-static inline uint _nv_hw_tid_y(void)      { uint v; __asm__("mov.u32 %0, %%tid.y;"  : "=r"(v)); return v; }
-static inline uint _nv_hw_tid_z(void)      { uint v; __asm__("mov.u32 %0, %%tid.z;"  : "=r"(v)); return v; }
-static inline uint _nv_hw_ntid_x(void)     { uint v; __asm__("mov.u32 %0, %%ntid.x;" : "=r"(v)); return v; }
-static inline uint _nv_hw_ntid_y(void)     { uint v; __asm__("mov.u32 %0, %%ntid.y;" : "=r"(v)); return v; }
-static inline uint _nv_hw_ntid_z(void)     { uint v; __asm__("mov.u32 %0, %%ntid.z;" : "=r"(v)); return v; }
-static inline uint _nv_local_id_1(void)    { uint v; __asm__("mov.b32 %0, %%envreg27;" : "=r"(v)); return v; }
-static inline uint _nv_local_id_2(void)    { uint v; __asm__("mov.b32 %0, %%envreg28;" : "=r"(v)); return v; }
-static inline uint _nv_local_size_1(void)  { uint v; __asm__("mov.b32 %0, %%envreg29;" : "=r"(v)); return v; }
-static inline uint _nv_local_size_2(void)  { uint v; __asm__("mov.b32 %0, %%envreg30;" : "=r"(v)); return v; }
-static inline uint _nv_relin_divisor(void) { uint v; __asm__("mov.b32 %0, %%envreg31;" : "=r"(v)); return v; }
+static inline uint ov_nv_hw_tid_x(void)      { uint v; __asm__("mov.u32 %0, %%tid.x;"  : "=r"(v)); return v; }
+static inline uint ov_nv_hw_tid_y(void)      { uint v; __asm__("mov.u32 %0, %%tid.y;"  : "=r"(v)); return v; }
+static inline uint ov_nv_hw_tid_z(void)      { uint v; __asm__("mov.u32 %0, %%tid.z;"  : "=r"(v)); return v; }
+static inline uint ov_nv_hw_ntid_x(void)     { uint v; __asm__("mov.u32 %0, %%ntid.x;" : "=r"(v)); return v; }
+static inline uint ov_nv_hw_ntid_y(void)     { uint v; __asm__("mov.u32 %0, %%ntid.y;" : "=r"(v)); return v; }
+static inline uint ov_nv_hw_ntid_z(void)     { uint v; __asm__("mov.u32 %0, %%ntid.z;" : "=r"(v)); return v; }
+static inline uint ov_nv_local_id_1(void)    { uint v; __asm__("mov.b32 %0, %%envreg27;" : "=r"(v)); return v; }
+static inline uint ov_nv_local_id_2(void)    { uint v; __asm__("mov.b32 %0, %%envreg28;" : "=r"(v)); return v; }
+static inline uint ov_nv_local_size_1(void)  { uint v; __asm__("mov.b32 %0, %%envreg29;" : "=r"(v)); return v; }
+static inline uint ov_nv_local_size_2(void)  { uint v; __asm__("mov.b32 %0, %%envreg30;" : "=r"(v)); return v; }
+static inline uint ov_nv_relin_divisor(void) { uint v; __asm__("mov.b32 %0, %%envreg31;" : "=r"(v)); return v; }
 
-static inline uint _nv_group_id(uint dim) {
+static inline uint ov_nv_group_id(uint dim) {
     uint v = 0;
     if (dim == 0) __asm__("mov.u32 %0, %%ctaid.x;" : "=r"(v));
     else if (dim == 1) __asm__("mov.u32 %0, %%ctaid.y;" : "=r"(v));
@@ -72,7 +72,7 @@ static inline uint _nv_group_id(uint dim) {
     return v;
 }
 
-static inline uint _nv_num_groups(uint dim) {
+static inline uint ov_nv_num_groups(uint dim) {
     uint v = 1;
     if (dim == 0) __asm__("mov.u32 %0, %%nctaid.x;" : "=r"(v));
     else if (dim == 1) __asm__("mov.u32 %0, %%nctaid.y;" : "=r"(v));
@@ -81,62 +81,62 @@ static inline uint _nv_num_groups(uint dim) {
 }
 
 // OpenCL's get_local_id().
-static inline uint _nv_local_id(uint dim) {
-    if (dim == 0) return _nv_hw_tid_x();
+static inline uint ov_nv_local_id(uint dim) {
+    if (dim == 0) return ov_nv_hw_tid_x();
     if (dim > 2) return 0;
     // Y > 1 folded with Z: the ids from the position along the folded axis. They are computed outside any branch and
     // picked with selects, so that all the calls in a function share one division (a division in a branch per call
     // site stays one per call site). In the other layouts the selects fold and ptxas drops the division.
-    const uint d = _nv_relin_divisor();
-    const uint r = _nv_hw_tid_y() + _nv_hw_ntid_y() * _nv_hw_tid_z();
+    const uint d = ov_nv_relin_divisor();
+    const uint r = ov_nv_hw_tid_y() + ov_nv_hw_ntid_y() * ov_nv_hw_tid_z();
     const uint q = r / d;
     const uint m = r - q * d;
-    const bool folded = d != _nv_hw_ntid_y();
-    return dim == 1 ? (folded ? m : _nv_local_id_1()) : (folded ? q : _nv_local_id_2());
+    const bool folded = d != ov_nv_hw_ntid_y();
+    return dim == 1 ? (folded ? m : ov_nv_local_id_1()) : (folded ? q : ov_nv_local_id_2());
 }
 
 // OpenCL's get_local_size().
-static inline uint _nv_local_size(uint dim) {
-    if (dim == 0) return _nv_hw_ntid_x();
-    if (dim == 1) return _nv_local_size_1();
-    if (dim == 2) return _nv_local_size_2();
+static inline uint ov_nv_local_size(uint dim) {
+    if (dim == 0) return ov_nv_hw_ntid_x();
+    if (dim == 1) return ov_nv_local_size_1();
+    if (dim == 2) return ov_nv_local_size_2();
     return 1;
 }
 
 // OpenCL's get_global_id() and get_global_size() with a zero global offset, formed in size_t so that NDRanges of
 // more than 2^32 work-items do not wrap.
-static inline size_t _nv_global_id(uint dim) {
+static inline size_t ov_nv_global_id(uint dim) {
     if (dim > 2) return 0;
-    return (size_t)_nv_group_id(dim) * _nv_local_size(dim) + _nv_local_id(dim);
+    return (size_t)ov_nv_group_id(dim) * ov_nv_local_size(dim) + ov_nv_local_id(dim);
 }
 
-static inline size_t _nv_global_size(uint dim) {
+static inline size_t ov_nv_global_size(uint dim) {
     if (dim > 2) return 1;
-    return (size_t)_nv_num_groups(dim) * _nv_local_size(dim);
+    return (size_t)ov_nv_num_groups(dim) * ov_nv_local_size(dim);
 }
 
 // Linear id of the work-item inside its work-group, dim 0 fastest (OpenCL's get_local_linear_id()). The hardware
 // numbering is the OpenCL one in every layout (see above), so it is formed from the hardware registers.
-static inline uint _nv_get_linear_tid(void){
-    return _nv_hw_tid_x() + _nv_hw_ntid_x() * (_nv_hw_tid_y() + _nv_hw_ntid_y() * _nv_hw_tid_z());
+static inline uint ov_nv_get_linear_tid(void){
+    return ov_nv_hw_tid_x() + ov_nv_hw_ntid_x() * (ov_nv_hw_tid_y() + ov_nv_hw_ntid_y() * ov_nv_hw_tid_z());
 }
 
 // Number of work-items in the work-group.
-static inline uint _nv_get_total_threads(void){
-    return _nv_hw_ntid_x() * _nv_hw_ntid_y() * _nv_hw_ntid_z();
+static inline uint ov_nv_get_total_threads(void){
+    return ov_nv_hw_ntid_x() * ov_nv_hw_ntid_y() * ov_nv_hw_ntid_z();
 }
 
 // Linear id of the work-item in the NDRange, dim 0 fastest (OpenCL's get_global_linear_id() with a zero offset).
-static inline size_t _nv_get_global_linear_id(void){
-    return _nv_global_id(0) + _nv_global_size(0) * (_nv_global_id(1) + _nv_global_size(1) * _nv_global_id(2));
+static inline size_t ov_nv_get_global_linear_id(void){
+    return ov_nv_global_id(0) + ov_nv_global_size(0) * (ov_nv_global_id(1) + ov_nv_global_size(1) * ov_nv_global_id(2));
 }
 
-#define get_local_id(dim)            ((size_t)_nv_local_id(dim))
-#define get_local_size(dim)          ((size_t)_nv_local_size(dim))
-#define get_enqueued_local_size(dim) ((size_t)_nv_local_size(dim))
-#define get_global_id(dim)           _nv_global_id(dim)
-#define get_global_size(dim)         _nv_global_size(dim)
-#define get_local_linear_id()        ((size_t)_nv_get_linear_tid())
-#define get_global_linear_id()       _nv_get_global_linear_id()
+#define get_local_id(dim)            ((size_t)ov_nv_local_id(dim))
+#define get_local_size(dim)          ((size_t)ov_nv_local_size(dim))
+#define get_enqueued_local_size(dim) ((size_t)ov_nv_local_size(dim))
+#define get_global_id(dim)           ov_nv_global_id(dim)
+#define get_global_size(dim)         ov_nv_global_size(dim)
+#define get_local_linear_id()        ((size_t)ov_nv_get_linear_tid())
+#define get_global_linear_id()       ov_nv_get_global_linear_id()
 
 #endif // __NV_CL_C_VERSION

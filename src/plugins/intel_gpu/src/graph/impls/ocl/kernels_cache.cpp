@@ -127,7 +127,7 @@ bool on_define_line(const std::string& src, size_t pos) {
 }
 
 std::string redefine_directive(const std::string& arg) {
-    return "\n#undef _NV_SUB_GROUP_SIZE\n#define _NV_SUB_GROUP_SIZE (" + arg + ")\n";
+    return "\n#undef OV_NV_SUB_GROUP_SIZE\n#define OV_NV_SUB_GROUP_SIZE (" + arg + ")\n";
 }
 
 // Sub-group size for a kernel that states none, from the (x, y, z) arguments of its reqd_work_group_size: a work-group
@@ -145,7 +145,7 @@ std::string sub_group_size_from_work_group_size(const std::string& args) {
         return {};
     }
     const std::string wg = "(" + dims[0] + ")*(" + dims[1] + ")*(" + dims[2] + ")";
-    return "(" + wg + ") == 8u ? 8u : ((" + wg + ") == 16u ? 16u : _NV_DEFAULT_SUB_GROUP_SIZE)";
+    return "(" + wg + ") == 8u ? 8u : ((" + wg + ") == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE)";
 }
 
 }  // namespace
@@ -153,7 +153,7 @@ std::string sub_group_size_from_work_group_size(const std::string& args) {
 std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     // Kernels state their sub-group size through common.cl's REQD_SUB_GROUP_SIZE(x) or a raw
     // __attribute__((intel_reqd_sub_group_size(x))). Neither takes effect on NVIDIA, so each is re-expressed as
-    // _NV_SUB_GROUP_SIZE, which the sub-group helpers in nvidia/compat_sg.cl read.
+    // OV_NV_SUB_GROUP_SIZE, which the sub-group helpers in nvidia/compat_sg.cl read.
     // Comments are not looked into: codegen strips them from the built-in kernels, and a custom kernel that names a
     // request in a comment is not supported.
     // One pattern for both spellings, so the occurrences are visited in source order and the first request - the one
@@ -228,7 +228,7 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
     // built-ins as well and would otherwise compile against the previous entry's value (macro bodies expand lazily, so
     // naming a jit constant defined further down is fine). Restore the default, by name, at the end of the entry so
     // nothing leaks into the next kernel of the batch.
-    return redefine_directive(first_arg) + modified + redefine_directive("_NV_DEFAULT_SUB_GROUP_SIZE");
+    return redefine_directive(first_arg) + modified + redefine_directive("OV_NV_DEFAULT_SUB_GROUP_SIZE");
 }
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {

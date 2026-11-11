@@ -18,28 +18,28 @@
 // call ends with a barrier, so consecutive calls can reuse the shared buffer.
 //
 // Depends on:
-//     nvidia/compat_common.cl   _nv_get_linear_tid / _nv_get_total_threads (work-item ids)
-//     nvidia/compat_sg.cl       _nv_laneid
+//     nvidia/compat_common.cl   ov_nv_get_linear_tid / ov_nv_get_total_threads (work-item ids)
+//     nvidia/compat_sg.cl       ov_nv_laneid
 
 #ifdef __NV_CL_C_VERSION
 
-__asm__(".shared .align 4 .b8 __ov_wg_collective_smem[128];");
+__asm__(".shared .align 4 .b8 ov_nv_wg_collective_smem[128];");
 
-static inline uint __ov_nv_wg_smem_base(void){
+static inline uint ov_nv_wg_smem_base(void){
     uint r;
-    __asm__ volatile("mov.u32 %0,__ov_wg_collective_smem;" : "=r"(r));
+    __asm__ volatile("mov.u32 %0,ov_nv_wg_collective_smem;" : "=r"(r));
     return r;
 }
 
 // work_group_reduce_add / max / min (float): a butterfly in each warp, then one over the per-warp results in
-// __ov_wg_collective_smem. A lane folds in its partner only when the partner exists, so short warps stay correct.
+// ov_nv_wg_collective_smem. A lane folds in its partner only when the partner exists, so short warps stay correct.
 // The runtime's reduce_max / reduce_min fold a 0 into the result on sm_80 (driver 590.48.01), so all three are
 // defined here.
 #define OV_NV_WG_REDUCE_F(name, combine)                                                                              \
 inline float __attribute__((overloadable)) name(float x){                                                             \
-    const uint total = _nv_get_total_threads();                                                                       \
-    const uint wid = _nv_get_linear_tid() >> 5u;                                                                      \
-    const uint laneid = _nv_laneid();                                                                                 \
+    const uint total = ov_nv_get_total_threads();                                                                     \
+    const uint wid = ov_nv_get_linear_tid() >> 5u;                                                                    \
+    const uint laneid = ov_nv_laneid();                                                                               \
     uint wn = total - wid * 32u;                                                                                      \
     if (wn > 32u) wn = 32u;                                                                                           \
     const uint mask = (wn >= 32u) ? 0xffffffffu : ((1u << wn) - 1u);                                                  \
@@ -49,7 +49,7 @@ inline float __attribute__((overloadable)) name(float x){                       
         __asm__ volatile("shfl.sync.bfly.b32 %0,%1,%2,31,%3;" : "=r"(t) : "r"(as_uint(v)), "r"(off), "r"(mask));      \
         if ((laneid ^ off) < wn) v = combine(v, as_float(t));                                                         \
     }                                                                                                                 \
-    const uint smem = __ov_nv_wg_smem_base();                                                                         \
+    const uint smem = ov_nv_wg_smem_base();                                                                           \
     if (laneid == 0u) { __asm__ volatile("st.shared.f32 [%0],%1;" :: "r"(smem + wid * 4u), "f"(v)); }                 \
     __asm__ volatile("bar.sync 0;");                                                                                  \
     if (wid == 0u) {                                                                                                  \
@@ -78,12 +78,12 @@ OV_NV_WG_REDUCE_F(work_group_reduce_min, fmin)
 #undef OV_NV_WG_REDUCE_F
 
 // work_group_scan_inclusive_add (float): an inclusive scan inside each warp; warp 0 then scans the warp totals into
-// per-warp offsets in __ov_wg_collective_smem, and every work-item adds its warp's offset to its in-warp result.
+// per-warp offsets in ov_nv_wg_collective_smem, and every work-item adds its warp's offset to its in-warp result.
 inline float __attribute__((overloadable)) work_group_scan_inclusive_add(float x){
-    uint total = _nv_get_total_threads();
-    uint fid = _nv_get_linear_tid();
+    uint total = ov_nv_get_total_threads();
+    uint fid = ov_nv_get_linear_tid();
     uint wid = fid >> 5u;
-    uint laneid = _nv_laneid();
+    uint laneid = ov_nv_laneid();
     uint wnthreads = total - wid * 32u;
     if (wnthreads > 32u) wnthreads = 32u;
     uint mask = (wnthreads >= 32u) ? 0xffffffffu : ((1u << wnthreads) - 1u);
@@ -98,7 +98,7 @@ inline float __attribute__((overloadable)) work_group_scan_inclusive_add(float x
     if (laneid >= 8u) v = as_uint(as_float(v) + as_float(t));
     __asm__ volatile("shfl.sync.up.b32 %0,%1,16,0,%2;" : "=r"(t) : "r"(v), "r"(mask));
     if (laneid >= 16u) v = as_uint(as_float(v) + as_float(t));
-    uint smem = __ov_nv_wg_smem_base();
+    uint smem = ov_nv_wg_smem_base();
     uint nw = (total + 31u) >> 5u;
     if (laneid == wnthreads - 1u) {
         __asm__ volatile("st.shared.f32 [%0],%1;" :: "r"(smem + wid * 4u), "f"(as_float(v)));
@@ -138,8 +138,8 @@ inline float __attribute__((overloadable)) work_group_scan_inclusive_add(float x
 // work_group_broadcast (float): the work-item whose flat local id equals id stores x, and every work-item reads it
 // back. The one-index form is the one OpenCL defines for 1D work-groups.
 inline float __attribute__((overloadable)) work_group_broadcast(float x, size_t id){
-    uint fid = _nv_get_linear_tid();
-    uint smem = __ov_nv_wg_smem_base();
+    uint fid = ov_nv_get_linear_tid();
+    uint smem = ov_nv_wg_smem_base();
     if (fid == (uint)id) {
         __asm__ volatile("st.shared.f32 [%0],%1;" :: "r"(smem), "f"(x));
     }

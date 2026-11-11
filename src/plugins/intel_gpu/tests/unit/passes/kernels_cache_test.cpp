@@ -250,10 +250,10 @@ TEST(kernels_cache, reuse_kernels_property) {
 
 namespace {
 
-// The _NV_SUB_GROUP_SIZE value the preprocessor sees at the first occurrence of `marker`: the rest of the line of the
+// The OV_NV_SUB_GROUP_SIZE value the preprocessor sees at the first occurrence of `marker`: the rest of the line of the
 // last redefinition ahead of it.
 std::string nv_sub_group_size_at(const std::string& src, const std::string& marker) {
-    static const std::string define = "#define _NV_SUB_GROUP_SIZE ";
+    static const std::string define = "#define OV_NV_SUB_GROUP_SIZE ";
     const size_t pos = src.find(marker);
     if (pos == std::string::npos) {
         return "<marker not found>";
@@ -295,7 +295,7 @@ TEST(nvidia_replace_reqd_sub_group_size, define_lines_are_skipped) {
     const std::string out = nvidia_replace_reqd_sub_group_size(src);
 
     EXPECT_NE(out.find(define_line), std::string::npos);
-    EXPECT_EQ(out.find("_NV_SUB_GROUP_SIZE (sg_size)"), std::string::npos);
+    EXPECT_EQ(out.find("OV_NV_SUB_GROUP_SIZE (sg_size)"), std::string::npos);
     EXPECT_EQ(nv_sub_group_size_at(out, "probe"), "(16)");
 }
 
@@ -309,9 +309,9 @@ TEST(nvidia_replace_reqd_sub_group_size, work_group_size_implies_8_or_16) {
     const std::string out16 = nvidia_replace_reqd_sub_group_size(wg16);
 
     EXPECT_EQ(nv_sub_group_size_at(out8, "wg8_kernel"),
-              "(((8)*(1)*(1)) == 8u ? 8u : (((8)*(1)*(1)) == 16u ? 16u : _NV_DEFAULT_SUB_GROUP_SIZE))");
+              "(((8)*(1)*(1)) == 8u ? 8u : (((8)*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
     EXPECT_EQ(nv_sub_group_size_at(out16, "wg16_kernel"),
-              "(((16)*(1)*(1)) == 8u ? 8u : (((16)*(1)*(1)) == 16u ? 16u : _NV_DEFAULT_SUB_GROUP_SIZE))");
+              "(((16)*(1)*(1)) == 8u ? 8u : (((16)*(1)*(1)) == 16u ? 16u : OV_NV_DEFAULT_SUB_GROUP_SIZE))");
     // reqd_work_group_size is standard OpenCL and is kept.
     EXPECT_NE(out8.find("reqd_work_group_size(8,1,1)"), std::string::npos);
 
@@ -333,5 +333,5 @@ TEST(nvidia_replace_reqd_sub_group_size, default_is_restored_between_entries) {
     // Entries are concatenated after the rewrite, as kernels_cache::build_batch() does.
     const std::string batch = nvidia_replace_reqd_sub_group_size(entry_a) + nvidia_replace_reqd_sub_group_size(entry_b);
     EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_a"), "(16)");
-    EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_b"), "(_NV_DEFAULT_SUB_GROUP_SIZE)");
+    EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_b"), "(OV_NV_DEFAULT_SUB_GROUP_SIZE)");
 }

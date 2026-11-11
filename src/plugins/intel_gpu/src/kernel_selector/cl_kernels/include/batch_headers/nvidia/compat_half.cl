@@ -443,33 +443,33 @@ typedef half atomic_half;
 #define __opencl_c_ext_fp16_global_atomic_load_store 1
 #endif
 
-static inline ushort _nv_atomic_cas_u16(volatile atomic_half* p, ushort expected, ushort desired) {
+static inline ushort ov_nv_atomic_cas_u16(volatile atomic_half* p, ushort expected, ushort desired) {
     ushort prev;
     __asm__ volatile("atom.relaxed.gpu.cas.b16 %0, [%1], %2, %3;"
                      : "=h"(prev) : "l"(p), "h"(expected), "h"(desired) : "memory");
     return prev;
 }
 
-static inline void _nv_fence_sc_gpu(void) {
+static inline void ov_nv_fence_sc_gpu(void) {
     __asm__ volatile("fence.sc.gpu;" ::: "memory");
 }
 
 static inline half __attribute__((overloadable)) atomic_exchange(volatile atomic_half* p, half desired) {
     const ushort d = as_ushort(desired);
-    _nv_fence_sc_gpu();
+    ov_nv_fence_sc_gpu();
     ushort expected = *(volatile ushort*)p;
     ushort prev;
-    while ((prev = _nv_atomic_cas_u16(p, expected, d)) != expected)
+    while ((prev = ov_nv_atomic_cas_u16(p, expected, d)) != expected)
         expected = prev;
-    _nv_fence_sc_gpu();
+    ov_nv_fence_sc_gpu();
     return as_half(prev);
 }
 
 static inline half __attribute__((overloadable)) atomic_load(volatile atomic_half* p) {
     ushort v;
-    _nv_fence_sc_gpu();
+    ov_nv_fence_sc_gpu();
     __asm__ volatile("ld.relaxed.gpu.b16 %0, [%1];" : "=h"(v) : "l"(p) : "memory");
-    _nv_fence_sc_gpu();
+    ov_nv_fence_sc_gpu();
     return as_half(v);
 }
 
