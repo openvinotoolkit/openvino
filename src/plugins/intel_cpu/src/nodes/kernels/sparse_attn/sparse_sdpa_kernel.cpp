@@ -35,31 +35,8 @@ using ov::intel_cpu::PlainTensor;
 
 namespace {
 
-// QUERY / KEY / VALUE may each be f32, f16 or bf16; only the rows touched are converted to f32, never whole tensors.
-// cvt_copy() vectorizes only inside a cross-compiled translation unit, which this file is.
-template <typename... Idx>
-void load_row_f32(const PlainTensor& t, size_t len, float* dst, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        cvt_copy(dst, reinterpret_cast<const ov::bfloat16*>(t.ptr_v(idx...)), 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        cvt_copy(dst, reinterpret_cast<const ov::float16*>(t.ptr_v(idx...)), 1, len, 0, 0);
-    } else {
-        cvt_copy(dst, reinterpret_cast<const float*>(t.ptr_v(idx...)), 1, len, 0, 0);
-    }
-}
-
-template <typename... Idx>
-void store_row_f32(const PlainTensor& t, size_t len, const float* src, Idx... idx) {
-    const auto prec = t.get_precision();
-    if (prec == ov::element::bf16) {
-        cvt_copy(reinterpret_cast<ov::bfloat16*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
-    } else if (prec == ov::element::f16) {
-        cvt_copy(reinterpret_cast<ov::float16*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
-    } else {
-        cvt_copy(reinterpret_cast<float*>(t.ptr_v(idx...)), src, 1, len, 0, 0);
-    }
-}
+// QUERY / KEY / VALUE / output share one precision T (the op validates it); only the rows touched are converted to
+// f32, never whole tensors. cvt_copy() vectorizes only inside a cross-compiled translation unit, which this file is.
 
 // Dequantizes `n` consecutive rows of the quantized cache (b, kv), starting at `pos`, into `dst` ([n, D], DstT).
 // Every row is made of D / group_size groups, each with its own {scale, zero point}.
@@ -119,7 +96,7 @@ void dequant_rows(const PlainTensor& cache,
 // head). Adjacent selected blocks form a run; K/V are read (or dequantized) once per pack and every head runs an online
 // softmax.
 
-// Calls f(T{}) with the C++ type of the (not quantized) element type `prec`.
+// Calls f(T{}) with the C++ type of the data precision `prec`.
 template <typename F>
 void visit_float_type(ov::element::Type prec, const F& f) {
     if (prec == ov::element::bf16) {
@@ -156,7 +133,7 @@ struct DecodeItem {
     float* run_max;
     float* run_sum;
     float* scores;   // [pack, score_stride]
-    float* dequant;  // rows of K, then of V, of a quantized cache
+    float* dequant;  // f32 rows of K, then of V, of a quantized cache
 };
 
 // Rows of [kpos0, kpos0 + n) the query attends (a prefix: the history ends at valid_end).
@@ -185,46 +162,45 @@ inline void softmax_step(DecodeItem& it, size_t head, size_t rows, size_t valid)
     std::fill(scores + valid, scores + rows, 0.0F);
 }
 
-// Attention of every head of the pack (one head is a pack of one) over `rows` key / value rows (all attended), in the
-// element types TK / TV: the rows are converted once and multiplied with all the heads.
-template <typename TK, typename TV>
-void attend_run_rows(DecodeItem& it, void* key_rows, void* value_rows, size_t rows) {
-    qk_scores_gqa<TK>(it.q, it.pack, it.Dh, static_cast<TK*>(key_rows), rows, it.scores, it.score_stride);
-    for (size_t head = 0; head < it.pack; head++) {
-        softmax_step(it, head, rows, rows);
-    }
-    pv_accumulate_gqa<TV>(it.acc, it.pack, it.Dv, it.scores, it.score_stride, static_cast<TV*>(value_rows), rows);
-}
-
-// Attention over up to `n` consecutive rows from the physical position kpos0, clamped to the rows the query attends.
-inline void attend_run(DecodeItem& it, int64_t kpos0, int64_t n) {
+// Attention over up to `n` consecutive rows from the physical position kpos0, clamped to the rows the query attends. A
+// quantized cache is dequantized into f32 rows (as the SIMD kernels of scaled_attn compute in float); plain rows are T.
+// The rows are converted once and multiplied with all the heads of the pack (one head is a pack of one).
+template <typename T>
+void attend_run(DecodeItem& it, int64_t kpos0, int64_t n) {
     n = visible_rows(it, kpos0, n);
     if (n <= 0) {
         return;
     }
     const auto rows = static_cast<size_t>(n);
-    const bool key_dequant = it.key_quant.enabled();
-    const bool value_dequant = it.value_quant.enabled();
+    const auto pos = static_cast<size_t>(kpos0);
     float* k_run = it.dequant;
     float* v_run = it.dequant + it.score_stride * it.Dh;
-    if (key_dequant) {
-        dequant_rows<float>(it.key, it.key_quant, it.b, it.kv, static_cast<size_t>(kpos0), rows, it.Dh, k_run);
+    if (it.key_quant.enabled()) {
+        dequant_rows<float>(it.key, it.key_quant, it.b, it.kv, pos, rows, it.Dh, k_run);
+        qk_scores_gqa<float>(it.q, it.pack, it.Dh, k_run, rows, it.scores, it.score_stride);
+    } else {
+        qk_scores_gqa<T>(it.q, it.pack, it.Dh, it.key.ptr<T>(it.b, it.kv, pos), rows, it.scores, it.score_stride);
     }
-    if (value_dequant) {
-        dequant_rows<float>(it.value, it.value_quant, it.b, it.kv, static_cast<size_t>(kpos0), rows, it.Dv, v_run);
+    for (size_t head = 0; head < it.pack; head++) {
+        softmax_step(it, head, rows, rows);
     }
-    void* key_rows = key_dequant ? static_cast<void*>(k_run) : it.key.ptr_v(it.b, it.kv, kpos0);
-    void* value_rows = value_dequant ? static_cast<void*>(v_run) : it.value.ptr_v(it.b, it.kv, kpos0);
-    visit_float_type(key_dequant ? ov::element::f32 : it.key.get_precision(), [&](auto key_type) {
-        visit_float_type(value_dequant ? ov::element::f32 : it.value.get_precision(), [&](auto value_type) {
-            attend_run_rows<decltype(key_type), decltype(value_type)>(it, key_rows, value_rows, rows);
-        });
-    });
+    if (it.value_quant.enabled()) {
+        dequant_rows<float>(it.value, it.value_quant, it.b, it.kv, pos, rows, it.Dv, v_run);
+        pv_accumulate_gqa<float>(it.acc, it.pack, it.Dv, it.scores, it.score_stride, v_run, rows);
+    } else {
+        pv_accumulate_gqa<T>(it.acc,
+                             it.pack,
+                             it.Dv,
+                             it.scores,
+                             it.score_stride,
+                             it.value.ptr<T>(it.b, it.kv, pos),
+                             rows);
+    }
 }
 
 // Attention over the blocks that start at the positions start(0 .. count), in any order: consecutive blocks that are
 // adjacent form one run of at most max_run_rows rows (each of the others is a run of its own).
-template <typename StartFn>
+template <typename T, typename StartFn>
 void attend_blocks(DecodeItem& it, size_t count, StartFn start) {
     const auto Bk = static_cast<int64_t>(it.Bk);
     const auto max_run_blocks = std::max<int64_t>(static_cast<int64_t>(it.max_run_rows) / Bk, 1);
@@ -236,7 +212,7 @@ void attend_blocks(DecodeItem& it, size_t count, StartFn start) {
                start(i + run_blocks) == first + run_blocks * Bk) {
             run_blocks++;
         }
-        attend_run(it, first, run_blocks * Bk);
+        attend_run<T>(it, first, run_blocks * Bk);
         i += static_cast<size_t>(run_blocks);
     }
 }
@@ -372,7 +348,7 @@ void attention_item_brgemm(const SdpaBrgemmArgs& a, size_t b, size_t l, size_t p
         for (size_t d = 0; d < a.Dv; d++) {
             head_acc[d] *= inv_sum;
         }
-        store_row_f32(a.out, a.Dv, head_acc, b, first_head + head, l);
+        cvt_copy(a.out.ptr<T>(b, first_head + head, l), head_acc, 1, a.Dv, 0, 0);
     }
 }
 
@@ -428,9 +404,12 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
     // Prefill, or a decode whose selection holds enough K / V bytes (kBrgemmDecodeMinBytes): the query heads sharing a
     // K head and a selection head are one item of matrix products over the gathered rows. Other decodes keep the loop
     // below.
+    // A quantized cache stays on the per-head SIMD loop: its rows would be dequantized into the tiles first, which made
+    // the decode 16-35% slower than the SIMD loop (u8, 2-4 MiB of K / V per item).
     const bool decode_brgemm =
+        !key_quant.enabled() && !value_quant.enabled() &&
         sel_indices.size(3) * sel_block_size * (k_head_size + v_head_size) * brgemm.prec.size() >=
-        kBrgemmDecodeMinBytes;
+            kBrgemmDecodeMinBytes;
     if (brgemm.enabled() && causal && (L > 1 || decode_brgemm)) {
         const SdpaBrgemmArgs args{query,
                                   key,
@@ -488,81 +467,86 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
         B * L * (num_heads / max_pack) >= 2 * static_cast<size_t>(cpu_parallel->get_num_worker_threads()) ? max_pack
                                                                                                           : 1;
 
-    cpu_parallel->parallel_for3d(B, num_heads / pack, L, [&](size_t b, size_t pack_index, size_t l) {
-        // Bottom-right-aligned logical position: the query at index l aligns with the last l-th
-        // position of the dense [0, S) key/value history. Invariant to left-padding since
-        // pad[b] + p == token_pos for the spec's logical query position p.
-        const int64_t token_pos = static_cast<int64_t>(S) - static_cast<int64_t>(L) + static_cast<int64_t>(l);
-        const size_t first_head = pack_index * pack;
-        const size_t sh = first_head / q_per_sel;
-        const size_t kv = first_head / group;
-        // Physical start of batch b's real (non-padded) history; 0 when key_length is absent.
-        const int64_t pad =
-            key_length ? static_cast<int64_t>(S) - static_cast<int64_t>(key_length[key_length_batch_stride * b]) : 0;
+    const auto run_decode = [&](auto type_tag) {
+        using T = decltype(type_tag);
+        cpu_parallel->parallel_for3d(B, num_heads / pack, L, [&](size_t b, size_t pack_index, size_t l) {
+            // Bottom-right-aligned logical position: the query at index l aligns with the last l-th
+            // position of the dense [0, S) key/value history. Invariant to left-padding since
+            // pad[b] + p == token_pos for the spec's logical query position p.
+            const int64_t token_pos = static_cast<int64_t>(S) - static_cast<int64_t>(L) + static_cast<int64_t>(l);
+            const size_t first_head = pack_index * pack;
+            const size_t sh = first_head / q_per_sel;
+            const size_t kv = first_head / group;
+            // Physical start of batch b's real (non-padded) history; 0 when key_length is absent.
+            const int64_t pad =
+                key_length ? static_cast<int64_t>(S) - static_cast<int64_t>(key_length[key_length_batch_stride * b])
+                           : 0;
 
-        const auto tid = static_cast<size_t>(parallel_get_thread_num());
-        float* const row = scratch_floats + tid * per_thread_floats;
-        DecodeItem it{query,
-                      key,
-                      value,
-                      key_quant,
-                      value_quant,
-                      b,
-                      kv,
-                      first_head,
-                      l,
-                      pack,
-                      k_head_size,
-                      v_head_size,
-                      sel_block_size,
-                      S,
-                      pad,
-                      causal ? std::min(static_cast<int64_t>(S), token_pos + 1) : static_cast<int64_t>(S),
-                      scale,
-                      layout.max_run_rows,
-                      layout.score_stride,
-                      row + layout.q,
-                      row + layout.acc,
-                      row + layout.run_max,
-                      row + layout.run_sum,
-                      row + layout.scores,
-                      row + layout.dequant};
-        for (size_t head = 0; head < pack; head++) {
-            load_row_f32(query, k_head_size, it.q + head * k_head_size, b, first_head + head, l);
-        }
-        std::fill(it.acc, it.acc + pack * v_head_size, 0.0F);
-        std::fill(it.run_max, it.run_max + pack, -std::numeric_limits<float>::infinity());
-        std::fill(it.run_sum, it.run_sum + pack, 0.0F);
-
-        const int32_t* block_ids = sel_indices.ptr<int32_t>(b, sh, l);
-        // The count comes from the producer of the selection: a negative one becomes a huge size_t, so it fails here
-        // too.
-        const auto nblocks = static_cast<size_t>(*sel_count.ptr<int32_t>(b, sh, l));
-        OPENVINO_ASSERT(nblocks <= sel_indices.size(3),
-                        "[CPU] sparse_sdpa: block_count exceeds the width of block_indices");
-        const auto block_start = [&](size_t i) {
-            return pad + static_cast<int64_t>(block_ids[i]) * static_cast<int64_t>(sel_block_size);
-        };
-        attend_blocks(it, nblocks, block_start);
-
-        // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never
-        // encodes the current incomplete trailing block. When causal, this consumer must derive and
-        // attend that tail itself from the query's own logical position.
-        if (causal) {
-            const int64_t tail_start = pad + (((token_pos - pad + 1) / static_cast<int64_t>(sel_block_size)) *
-                                              static_cast<int64_t>(sel_block_size));
-            attend_run(it, tail_start, token_pos - tail_start + 1);
-        }
-
-        for (size_t head = 0; head < pack; head++) {
-            float* acc = it.acc + head * v_head_size;
-            const float inv_sum = it.run_sum[head] > 0.0F ? 1.0F / it.run_sum[head] : 0.0F;
-            for (size_t d = 0; d < v_head_size; d++) {
-                acc[d] *= inv_sum;
+            const auto tid = static_cast<size_t>(parallel_get_thread_num());
+            float* const row = scratch_floats + tid * per_thread_floats;
+            DecodeItem it{query,
+                          key,
+                          value,
+                          key_quant,
+                          value_quant,
+                          b,
+                          kv,
+                          first_head,
+                          l,
+                          pack,
+                          k_head_size,
+                          v_head_size,
+                          sel_block_size,
+                          S,
+                          pad,
+                          causal ? std::min(static_cast<int64_t>(S), token_pos + 1) : static_cast<int64_t>(S),
+                          scale,
+                          layout.max_run_rows,
+                          layout.score_stride,
+                          row + layout.q,
+                          row + layout.acc,
+                          row + layout.run_max,
+                          row + layout.run_sum,
+                          row + layout.scores,
+                          row + layout.dequant};
+            for (size_t head = 0; head < pack; head++) {
+                cvt_copy(it.q + head * k_head_size, query.ptr<T>(b, first_head + head, l), 1, k_head_size, 0, 0);
             }
-            store_row_f32(out, v_head_size, acc, b, first_head + head, l);
-        }
-    });
+            std::fill(it.acc, it.acc + pack * v_head_size, 0.0F);
+            std::fill(it.run_max, it.run_max + pack, -std::numeric_limits<float>::infinity());
+            std::fill(it.run_sum, it.run_sum + pack, 0.0F);
+
+            const int32_t* block_ids = sel_indices.ptr<int32_t>(b, sh, l);
+            // The count comes from the producer of the selection: a negative one becomes a huge size_t, so it fails
+            // here too.
+            const auto nblocks = static_cast<size_t>(*sel_count.ptr<int32_t>(b, sh, l));
+            OPENVINO_ASSERT(nblocks <= sel_indices.size(3),
+                            "[CPU] sparse_sdpa: block_count exceeds the width of block_indices");
+            const auto block_start = [&](size_t i) {
+                return pad + static_cast<int64_t>(block_ids[i]) * static_cast<int64_t>(sel_block_size);
+            };
+            attend_blocks<T>(it, nblocks, block_start);
+
+            // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never
+            // encodes the current incomplete trailing block. When causal, this consumer must derive and
+            // attend that tail itself from the query's own logical position.
+            if (causal) {
+                const int64_t tail_start = pad + (((token_pos - pad + 1) / static_cast<int64_t>(sel_block_size)) *
+                                                  static_cast<int64_t>(sel_block_size));
+                attend_run<T>(it, tail_start, token_pos - tail_start + 1);
+            }
+
+            for (size_t head = 0; head < pack; head++) {
+                float* acc = it.acc + head * v_head_size;
+                const float inv_sum = it.run_sum[head] > 0.0F ? 1.0F / it.run_sum[head] : 0.0F;
+                for (size_t d = 0; d < v_head_size; d++) {
+                    acc[d] *= inv_sum;
+                }
+                cvt_copy(out.ptr<T>(b, first_head + head, l), acc, 1, v_head_size, 0, 0);
+            }
+        });
+    };
+    visit_float_type(query.get_precision(), run_decode);
 }
 
 void sparse_kv_dequantize_rows(const ov::intel_cpu::PlainTensor& cache,

@@ -19,12 +19,13 @@
 namespace ov::Extensions::Cpu::XARCH {
 
 // scores[head * score_stride + r] = q[head, :] . keys[r, :] for head < num_q_heads, r < rows.
-// q: f32 [num_q_heads, head_size]; keys: [rows, head_size] contiguous.
+// q: f32 [num_q_heads, head_size]; keys: [rows, head_size] contiguous. The block kernels of paged_attn_kernel.hpp take
+// non-const pointers but only read them, hence the const_casts below.
 template <typename T>
 inline void qk_scores_gqa(const float* q,
                           size_t num_q_heads,
                           size_t head_size,
-                          T* keys,
+                          const T* keys,
                           size_t rows,
                           float* scores,
                           size_t score_stride) {
@@ -81,7 +82,7 @@ inline void qk_scores_gqa(const float* q,
         // the rows left over
         for (size_t i = 0; r < rows && i < 4; i++) {
             dot_product_block<float, prec>(const_cast<float*>(q0) + i * head_size,
-                                           keys + r * head_size,
+                                           const_cast<T*>(keys) + r * head_size,
                                            s0 + i * score_stride + r,
                                            head_size,
                                            rows - r,
@@ -136,7 +137,7 @@ inline void qk_scores_gqa(const float* q,
         // the rows left over
         for (size_t i = 0; r < rows && i < 2; i++) {
             dot_product_block<float, prec>(const_cast<float*>(q0) + i * head_size,
-                                           keys + r * head_size,
+                                           const_cast<T*>(keys) + r * head_size,
                                            s0 + i * score_stride + r,
                                            head_size,
                                            rows - r,
@@ -147,7 +148,7 @@ inline void qk_scores_gqa(const float* q,
     // the heads left over, and every head without SIMD (the scalar block kernel)
     for (; h < num_q_heads; h++) {
         dot_product_block<float, prec>(const_cast<float*>(q) + h * head_size,
-                                       keys,
+                                       const_cast<T*>(keys),
                                        scores + h * score_stride,
                                        head_size,
                                        rows,
@@ -163,7 +164,7 @@ inline void pv_accumulate_gqa(float* acc,
                               size_t value_size,
                               const float* weights,
                               size_t weight_stride,
-                              T* values,
+                              const T* values,
                               size_t rows) {
     constexpr auto prec = ov::intel_cpu::precision_of<T>::value;
     size_t h = 0;
@@ -286,7 +287,12 @@ inline void pv_accumulate_gqa(float* acc,
 #endif
     // the heads left over, and every head without SIMD (the scalar block kernel)
     for (; h < num_q_heads; h++) {
-        attn_acc_value_block<T, prec>(acc + h * value_size, weights + h * weight_stride, values, value_size, rows, 0);
+        attn_acc_value_block<T, prec>(acc + h * value_size,
+                                      weights + h * weight_stride,
+                                      const_cast<T*>(values),
+                                      value_size,
+                                      rows,
+                                      0);
     }
 }
 
