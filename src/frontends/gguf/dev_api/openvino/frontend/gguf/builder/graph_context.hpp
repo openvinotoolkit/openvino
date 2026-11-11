@@ -36,8 +36,6 @@ public:
     void configure_model_contract(const ModelContract& contract);
     // Contract declared so far, including declarations installed by projector callbacks.
     ModelContract model_contract() const;
-    // Declare the requested BuildContext::component as implemented.
-    void implement_component();
     DecoderDimensions configure_decoder(RopeMode rope, const DecoderOptions& options = {});
     DecoderLayerParameters decoder_layer_parameters(int layer) const;
     GgufValue decoder_attention(int layer, const GgufValue& normalized_input);
@@ -85,6 +83,8 @@ public:
     // Put the data output before auxiliary cache outputs registered by decoder blocks.
     void set_primary_output(const GgufValue& value);
     void set_output(const GgufValue& value, const std::string& name);
+    // Acknowledge that this builder handles the component selected in BuildContext.
+    void acknowledge_component();
     // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.

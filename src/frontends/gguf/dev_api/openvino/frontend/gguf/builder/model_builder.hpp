@@ -32,9 +32,6 @@ struct GGUF_FRONTEND_API BuildContext {
     detail::WeightStore* weights = nullptr;
     const ProjectorRegistry* projectors = nullptr;
     std::string component;
-    // Set for GenAIExtension EMBEDS_TO_LOGITS_TEXT targets: a builder whose MTP draft needs target
-    // hidden states may export them as last_hidden_state.
-    bool export_hidden_state = false;
 };
 
 // Whole-model builder for any family, registered through ArchitectureDefinition.

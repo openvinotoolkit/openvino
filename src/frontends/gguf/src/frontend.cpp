@@ -109,7 +109,8 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         auto ops = merged_ops(m_impl->op_extension_translators);
         auto conversion_input = gguf_model;
         if (gguf_model->m_builder) {
-            auto graph = gguf_model->m_builder(ops);
+            const auto component = m_impl->genai_extension ? m_impl->genai_extension->m_component : std::string{};
+            auto graph = gguf_model->m_builder(ops, component);
             for (const auto& [output, adapter] : graph->model_adapters) {
                 if (adapter)
                     adapter->lifetime.insert(adapter->lifetime.end(),
@@ -206,13 +207,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                                     ov::util::path_to_string(path));
         }
         const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
-        const auto& genai = m_impl->genai_extension;
-        const auto component = genai ? genai->m_component : std::string{};
-        const bool hidden_state =
-            genai && component.empty() && genai->m_mode == GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT;
-        const auto builder = discover
-                                 ? load_gguf_builder(paths->front(), m_impl->arch_registry, component, hidden_state)
-                                 : load_gguf_builder(*paths, m_impl->arch_registry, component, hidden_state);
+        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry)
+                                      : load_gguf_builder(*paths, m_impl->arch_registry);
         return std::make_shared<InputModel>(builder, m_extensions);
     }
 

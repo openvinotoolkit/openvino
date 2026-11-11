@@ -57,33 +57,37 @@
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
 
-// Runs the fixture's token steps through a converted MTP draft (fed hidden_input_*) or target and
-// compares the last logits row and every last_hidden_state row with the oracle.
-void expect_mtp_steps(const cnpy::npz_t& arrays,
-                      const std::string& model_key,
-                      ov::frontend::gguf::GenAIExtension::InputMode mode,
-                      const std::string& component,
-                      const std::string& prefix,
-                      bool reload_ir = true) {
+// Runs the fixture's token steps through a converted qwen4exp MTP draft (fed hidden_input_*) or
+// target and compares the last logits row and every last_hidden_state row with the oracle. The
+// graphs keep extension ops (GatherMatmul, GatedDeltaNet) that IR cannot deserialize.
+void expect_qwen4exp_mtp_steps(const cnpy::npz_t& arrays,
+                               const std::string& model_key,
+                               ov::frontend::gguf::GenAIExtension::InputMode mode,
+                               const std::string& component) {
     using Extension = ov::frontend::gguf::GenAIExtension;
     const bool draft = component == "mtp";
+    const std::string logits_key = draft ? "logits_" : "target_logits_";
+    const std::string hidden_key = draft ? "hidden_output_" : "target_hidden_";
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, model_key));
     ov::frontend::gguf::FrontEnd frontend;
     auto extension = std::make_shared<Extension>(mode, component);
     frontend.add_extension(extension);
     auto model = frontend.convert(frontend.load(temporary.path));
-    if (reload_ir)
-        model = ov_gguf_test::reload_ir_model(model);
     ov::pass::ConvertPrecision(ov::element::Type_t::f16, ov::element::Type_t::f32).run_on_model(model);
     for (const auto& operation : model->get_ops()) {
         for (const auto& output : operation->outputs())
             EXPECT_NE(output.get_element_type(), ov::element::f16) << operation->get_friendly_name();
     }
-    const auto width = static_cast<int64_t>(ov_gguf_test::npz_array(arrays, prefix + "hidden_output_0").shape[2]);
-    const auto vocab = ov_gguf_test::npz_array(arrays, prefix + "logits_0").shape[2];
+    const auto width = static_cast<int64_t>(ov_gguf_test::npz_array(arrays, hidden_key + "0").shape[2]);
+    const auto vocab = ov_gguf_test::npz_array(arrays, logits_key + "0").shape[2];
     if (draft)
         EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, width}));
-    EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, width}));
+    else
+        EXPECT_THROW(model->input("hidden_states"), ov::Exception);
+    if (component.empty())
+        EXPECT_EQ(model->outputs().size(), 1);
+    else
+        EXPECT_EQ(model->output("last_hidden_state").get_partial_shape(), (ov::PartialShape{-1, -1, width}));
     EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
     ov::Core core;
     const auto compile = [&](const std::shared_ptr<ov::Model>& graph) {
@@ -111,7 +115,7 @@ void expect_mtp_steps(const cnpy::npz_t& arrays,
     int64_t offset = 0;
     for (size_t step = 0; step < 3; ++step) {
         SCOPED_TRACE(step);
-        const auto length = ov_gguf_test::npz_array(arrays, prefix + "hidden_output_" + std::to_string(step)).shape[1];
+        const auto length = ov_gguf_test::npz_array(arrays, hidden_key + std::to_string(step)).shape[1];
         ov::Tensor ids(ov::element::i64, {1, length}), positions(ov::element::i64, {1, length});
         ov::Tensor mask(ov::element::i64, {1, static_cast<size_t>(offset) + length});
         ov::Tensor beam(ov::element::i32, {1});
@@ -137,11 +141,14 @@ void expect_mtp_steps(const cnpy::npz_t& arrays,
         request.set_tensor("position_ids", positions);
         request.set_tensor("beam_idx", beam);
         request.infer();
-        for (const auto& [output, key] : {std::pair{"logits", "logits_"}, {"last_hidden_state", "hidden_output_"}}) {
+        std::vector<std::pair<std::string, std::string>> outputs{{"logits", logits_key}};
+        if (!component.empty())
+            outputs.emplace_back("last_hidden_state", hidden_key);
+        for (const auto& [output, key] : outputs) {
             SCOPED_TRACE(output);
-            const auto& expected = ov_gguf_test::npz_array(arrays, prefix + key + std::to_string(step));
+            const auto& expected = ov_gguf_test::npz_array(arrays, key + std::to_string(step));
             const auto actual = request.get_tensor(output);
-            const bool logits = std::string(output) == "logits";
+            const bool logits = output == "logits";
             const ov::Shape shape = logits ? ov::Shape{1, 1, vocab} : expected.shape;
             EXPECT_EQ(actual.get_shape(), shape);
             const auto* reference = expected.data<float>() + (logits ? expected.num_vals - vocab : 0);
@@ -153,56 +160,166 @@ void expect_mtp_steps(const cnpy::npz_t& arrays,
     }
 }
 
-const std::vector<ov::frontend::gguf::GenAIExtension::InputMode> mtp_modes{
-    ov::frontend::gguf::GenAIExtension::InputMode::IDS_TO_LOGITS,
-    ov::frontend::gguf::GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT};
-
-TEST(GGUFQwenMtpAccuracy, PrefillDecodeAndHiddenStatesMatchGgmlCpu) {
+TEST(GGUFQwenMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
+    using Extension = ov::frontend::gguf::GenAIExtension;
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
-    for (const auto mode : mtp_modes) {
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    for (const auto& [mode, component] : {std::pair{Extension::InputMode::IDS_TO_LOGITS, std::string{}},
+                                          {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{}},
+                                          {Extension::InputMode::IDS_TO_LOGITS, std::string{"mtp_target"}},
+                                          {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp_target"}},
+                                          {Extension::InputMode::IDS_TO_LOGITS, std::string{"mtp"}},
+                                          {Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, std::string{"mtp"}}}) {
         SCOPED_TRACE(static_cast<int>(mode));
-        expect_mtp_steps(arrays, "model", mode, "mtp", "");
-    }
-}
-
-TEST(GGUFQwen4ExpMtpAccuracy, DraftMatchesGgmlCpu) {
-    // qwen4exp graphs keep extension ops (GatherMatmul, GatedDeltaNet) that IR cannot deserialize.
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp-mtp.npz");
-    // An Unsloth-style head file with only the NextN block converts to the same draft as the full model.
-    for (const std::string model : {"model", "self_head_model"}) {
-        for (const auto mode : mtp_modes) {
-            SCOPED_TRACE(model + " " + std::to_string(static_cast<int>(mode)));
-            expect_mtp_steps(arrays, model, mode, "mtp", "", false);
+        SCOPED_TRACE(component);
+        const bool mtp = component == "mtp";
+        ov::frontend::gguf::FrontEnd frontend;
+        auto extension = std::make_shared<Extension>(mode, component);
+        frontend.add_extension(extension);
+        auto model = frontend.convert(frontend.load(temporary.path));
+        // GatedDeltaNet has no IR opset, so only the full-attention draft can round-trip.
+        if (mtp)
+            model = ov_gguf_test::reload_ir_model(model);
+        ov::pass::ConvertPrecision(ov::element::Type_t::f16, ov::element::Type_t::f32).run_on_model(model);
+        for (const auto& operation : model->get_ops()) {
+            for (const auto& output : operation->outputs())
+                EXPECT_NE(output.get_element_type(), ov::element::f16) << operation->get_friendly_name();
+        }
+        if (mtp) {
+            EXPECT_EQ(model->get_variables().size(), 2);
+            EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 32}));
+        } else {
+            EXPECT_THROW(model->input("hidden_states"), ov::Exception);
+        }
+        if (component.empty())
+            EXPECT_EQ(model->outputs().size(), 1);
+        else
+            EXPECT_NO_THROW(model->output("last_hidden_state"));
+        EXPECT_EQ(model->input("position_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
+        ov::Core core;
+        const auto compile = [&](const std::shared_ptr<ov::Model>& graph) {
+            return core
+                .compile_model(graph,
+                               "CPU",
+                               ov::hint::inference_precision(ov::element::f32),
+                               ov::hint::dynamic_quantization_group_size(0),
+                               ov::hint::kv_cache_precision(ov::element::f32))
+                .create_infer_request();
+        };
+        auto request = compile(model);
+        for (const auto& state : request.query_state())
+            EXPECT_EQ(state.get_state().get_element_type(), ov::element::f32);
+        ov::InferRequest lookup;
+        if (extension->get_embedding_model())
+            lookup = compile(extension->get_embedding_model());
+        int64_t offset = 0;
+        for (size_t step = 0; step < 3; ++step) {
+            SCOPED_TRACE(step);
+            const auto& hidden = ov_gguf_test::npz_array(arrays, "hidden_input_" + std::to_string(step));
+            const auto length = hidden.shape[1];
+            ov::Tensor ids(ov::element::i64, {1, length}), positions(ov::element::i64, {1, length});
+            ov::Tensor mask(ov::element::i64, {1, static_cast<size_t>(offset) + length});
+            ov::Tensor beam(ov::element::i32, {1});
+            beam.data<int32_t>()[0] = 0;
+            std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+            for (size_t i = 0; i < length; ++i) {
+                ids.data<int64_t>()[i] = offset + i + 1;
+                positions.data<int64_t>()[i] = offset + i;
+            }
+            if (lookup) {
+                lookup.set_tensor("input_ids", ids);
+                lookup.infer();
+                request.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+            } else {
+                request.set_tensor("input_ids", ids);
+            }
+            if (mtp)
+                request.set_tensor("hidden_states", ov::Tensor(ov::element::f32, hidden.shape, hidden.data<float>()));
+            request.set_tensor("attention_mask", mask);
+            request.set_tensor("position_ids", positions);
+            request.set_tensor("beam_idx", beam);
+            request.infer();
+            std::vector<std::pair<const char*, const char*>> outputs{{"logits", mtp ? "logits_" : "target_logits_"}};
+            if (!component.empty())
+                outputs.emplace_back("last_hidden_state", mtp ? "hidden_output_" : "target_hidden_");
+            for (const auto& [output, key] : outputs) {
+                SCOPED_TRACE(output);
+                const auto& expected = ov_gguf_test::npz_array(arrays, std::string(key) + std::to_string(step));
+                const auto actual = request.get_tensor(output);
+                const bool logits = std::string(output) == "logits";
+                const ov::Shape shape = logits ? ov::Shape{1, 1, 32} : expected.shape;
+                EXPECT_EQ(actual.get_shape(), shape);
+                const auto* reference = expected.data<float>() + (logits ? expected.num_vals - 32 : 0);
+                ov_gguf_test::expect_nmse_below(
+                    ov_gguf_test::nmse(actual.data<const float>(), reference, actual.get_size()),
+                    1e-5);
+            }
+            offset += length;
         }
     }
 }
 
-TEST(GGUFQwen4ExpMtpAccuracy, TargetExportsNextnHiddenStates) {
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp-mtp.npz");
-    for (const auto mode : mtp_modes) {
-        SCOPED_TRACE(static_cast<int>(mode));
-        expect_mtp_steps(arrays, "model", mode, "", "target_", false);
+TEST(GGUFQwenMtpAccuracy, DraftRejectsMalformedNextNKvProjection) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    parameters.dimensions.kv_heads_per_layer.resize(parameters.dimensions.layers - 1, 0);
+    auto& weights = std::get<1>(loaded);
+    const auto key = "blk." + std::to_string(parameters.dimensions.layers - 1) + ".attn_k.weight";
+    weights.at(key).shape[0] = parameters.dimensions.head_size + 1;
+    detail::WeightStore tensors{weights};
+    const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, "mtp"};
+    OV_EXPECT_THROW(DecoderBuilder(context, parameters),
+                    ov::Exception,
+                    testing::HasSubstr("invalid NextN KV head dimensions"));
+}
+
+TEST(GGUFQwenMtpAccuracy, TargetGraphsDoNotDependOnNextNMetadata) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35-mtp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    detail::MetadataStore store{std::get<0>(loaded)};
+    const auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Interleaved);
+    auto target_only = parameters;
+    target_only.dimensions.layers -= target_only.hybrid.nextn_layers;
+    target_only.hybrid.nextn_layers = 0;
+    detail::WeightStore tensors{std::get<1>(loaded)};
+    for (const auto& component : {std::string{}, std::string{"mtp_target"}}) {
+        SCOPED_TRACE(component);
+        const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors, nullptr, component};
+        const auto with_nextn = DecoderBuilder(context, parameters).build();
+        const auto without_nextn = DecoderBuilder(context, target_only).build();
+        EXPECT_EQ(with_nextn->model_output_names, without_nextn->model_output_names);
+        EXPECT_EQ(with_nextn->model_contract.sequence_outputs,
+                  component.empty() ? std::vector<std::string>{} : std::vector<std::string>{"last_hidden_state"});
+        EXPECT_EQ(with_nextn->model_contract.sequence_outputs, without_nextn->model_contract.sequence_outputs);
+        ASSERT_EQ(with_nextn->nodes.size(), without_nextn->nodes.size());
+        for (size_t i = 0; i < with_nextn->nodes.size(); ++i) {
+            const auto& actual = with_nextn->nodes[i];
+            const auto& reference = without_nextn->nodes[i];
+            EXPECT_EQ(actual.name, reference.name);
+            EXPECT_EQ(actual.op_type, reference.op_type);
+            EXPECT_EQ(actual.input_names, reference.input_names);
+            EXPECT_EQ(actual.op_case, reference.op_case);
+        }
     }
 }
 
-TEST(GGUFQwen4ExpMtpAccuracy, TextEmbeddingTargetExportsHiddenStatesWithoutNextn) {
+TEST(GGUFQwen4ExpMtpAccuracy, TargetAndDraftPrefillDecodeMatchGgmlCpu) {
     using Extension = ov::frontend::gguf::GenAIExtension;
-    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp.npz");
-    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-    for (const auto mode : {Extension::InputMode::IDS_TO_LOGITS,
-                            Extension::InputMode::EMBEDS_TO_LOGITS,
-                            Extension::InputMode::EMBEDS_TO_LOGITS_TEXT}) {
-        SCOPED_TRACE(static_cast<int>(mode));
-        ov::frontend::gguf::FrontEnd frontend;
-        frontend.add_extension(std::make_shared<Extension>(mode));
-        const auto model = frontend.convert(frontend.load(temporary.path));
-        const auto outputs = model->outputs();
-        const auto hidden = std::find_if(outputs.begin(), outputs.end(), [](const auto& output) {
-            return output.get_names().count("last_hidden_state") > 0;
-        });
-        ASSERT_EQ(hidden != outputs.end(), mode == Extension::InputMode::EMBEDS_TO_LOGITS_TEXT);
-        if (hidden != outputs.end())
-            EXPECT_EQ(hidden->get_partial_shape(), (ov::PartialShape{-1, -1, 64}));
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp-mtp.npz");
+    for (const auto mode : {Extension::InputMode::IDS_TO_LOGITS, Extension::InputMode::EMBEDS_TO_LOGITS_TEXT}) {
+        for (const std::string component : {"", "mtp_target", "mtp"}) {
+            SCOPED_TRACE(static_cast<int>(mode));
+            SCOPED_TRACE(component);
+            expect_qwen4exp_mtp_steps(arrays, "model", mode, component);
+        }
+        // An Unsloth-style head file with only the NextN block converts to the same draft as the full model.
+        expect_qwen4exp_mtp_steps(arrays, "self_head_model", mode, "mtp");
     }
 }
 

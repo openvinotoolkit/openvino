@@ -54,7 +54,7 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `plamo3` | plamo-3-nict-2b-base Q4_K_M | Fused QKV and gate/up, bare post-norms, SWA |
 | `qwen2` | Qwen2.5-0.5B-Instruct Q4_0 | qwen2 / qwen2.5 |
 | `qwen3` | Qwen3-0.6B Q4_0 | QK-norm before RoPE |
-| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0 | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA |
+| `qwen35` | Qwen3.5-4B Q4_0; Ternary-Bonsai-2-27B PQ2_0; Ternary-Bonsai-2-4B/9B PQ2_0-MTP-Q8_0 | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights, embedded NextN MTP draft; batching and beam search with SDPA and PA |
 | `qwen35moe` | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert |
 | `qwen3moe` | Qwen3-0.9B-A0.6B Q4_K_M | NEOX RoPE, per-head QK-norm, normalized experts |
 | `qwen4exp` | HF tiny-random Qwen3.8-Flash-Next (F32); no real checkpoint replayed (smallest GGUF is 83 GB plus a 51B-parameter n-gram table) | Qwen3.8-Flash-Next text model: GatedDeltaNet + block-sparse attention (QSA), hyper-connection streams, hashed n-gram embeddings, shared-expert MoE; see [coverage](#qwen38-flash-next-coverage) |
@@ -124,7 +124,8 @@ preview of the Qwen4 architecture. The builder converts the text model:
   `SparseAttention`: blocks of `attention.compress_ratios` tokens, a budget of
   `attention.indexer.top_k` tokens and the query's incomplete block, with a partially rotated
   RMS-normalized index query. The graph follows the form that the plugin fusions of
-  [openvinotoolkit/openvino#39309](https://github.com/openvinotoolkit/openvino/pull/39309) match.
+  [#39309](https://github.com/openvinotoolkit/openvino/pull/39309) and
+  [#39342](https://github.com/openvinotoolkit/openvino/pull/39342) match.
 - Four hyper-connection residual streams (fused or separate `down`/`inject` projections) in place
   of every norm, including the output mixer.
 - Hashed n-gram embeddings (PLE) before one layer, with a gated, dilated causal convolution.
@@ -136,9 +137,13 @@ Unsloth's release uses i-quants in every file below `UD-Q4_K_XL`, and the fronte
 i-quants. `UD-Q5_K_XL`, `UD-Q6_K_XL`, `Q8_0` and `BF16` convert. `UD-Q4_K_XL` stores its n-gram
 table as `IQ4_NL`; pair it with the `Q8_0` or `Q5_1` n-gram file.
 
-Running the sparse operations requires plugin kernels; CPU support is in #39309 and GPU support in
-[#38902](https://github.com/openvinotoolkit/openvino/pull/38902). Without them the qwen4exp tests skip.
-Validation, all on CPU with the #39309 kernels:
+Running the sparse operations requires plugin support. The GPU kernels are merged
+([#38902](https://github.com/openvinotoolkit/openvino/pull/38902)), but the passes that lower
+the core operations to them are still open: the indexer fusion in
+[#39342](https://github.com/openvinotoolkit/openvino/pull/39342) and the dense attention fusion in
+[#39309](https://github.com/openvinotoolkit/openvino/pull/39309). CPU support is in
+[#39201](https://github.com/openvinotoolkit/openvino/pull/39201). Without plugin support the
+qwen4exp tests skip. Validation, all on CPU with the kernels and fusions of #39309:
 
 - The F32 `qwen4exp` fixture matches llama.cpp `0ec4027a2` logits exactly through prefill and
   cached decode, with two-token QSA blocks that make block selection active, plus state reset; a
@@ -152,8 +157,8 @@ Validation, all on CPU with the #39309 kernels:
 - Left-padded batches with any pad id equal single-sequence runs; beam search runs.
 - `EMBEDS_TO_LOGITS` moves the n-gram lookup into a separate model with the optimum-intel IO
   (`input_ids`, `ngram_history` -> `ngram_embeddings`, `new_ngram_history`) and matches token input.
-- MTP: the `qwen4exp-mtp` fixture matches llama.cpp `0ec4027a2` for the draft and for the target's
-  exported hidden states through prefill and cached decode (NMSE below `1e-5`). The real Unsloth
+- MTP: the `qwen4exp-mtp` fixture matches llama.cpp `0ec4027a2` for the draft and for the
+  `mtp_target` hidden states through prefill and cached decode (NMSE below `1e-5`). The real Unsloth
   `mtp-Qwen3.8-Flash-Next-Q8_0.gguf` header, filled with zero weights, converts, compiles and runs
   on CPU.
 

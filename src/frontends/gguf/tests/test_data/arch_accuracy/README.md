@@ -102,17 +102,14 @@ It does not claim exact logit agreement for the frontend's lossy quantized-weigh
 Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons.
 
 The `qwen35-mtp.npz` fixture contains a hybrid target plus one full-attention NextN
-block with a distinct draft head. `mtp_oracle.cpp` evaluates the draft directly
-with nonzero external hidden states, four query/two KV heads, unequal embedding
-and query widths, partial M-RoPE, F32 KV caches and the same three cached token
-batches. It stores all logits and normalized hidden states, not only greedy
-choices. `GGUFQwenMtpAccuracy` compares both token-ID and extracted-text-embedding
-interfaces after IR round-trip, comparing the selected last-token logits and all
-hidden-state rows. The test promotes the frontend's default F16 cache graph to
-F32 to isolate component numerics from half-precision cache arithmetic.
-Both outputs use the existing decoder architecture accuracy gate (normalized
-MSE below `1e-5`). An initial pointwise diagnostic exceeded `1e-4` during cached
-decode; this test does not claim that tighter, cross-runtime agreement.
+block with a distinct draft head. `mtp_oracle.cpp` runs the same three cached token
+batches through a target context and an MTP context (nonzero external hidden
+states, partial M-RoPE, F32 KV caches). It stores the target's last-token logits
+with all post-norm hidden-state rows, and all draft logits and hidden states.
+`GGUFQwenMtpAccuracy` checks the last-token logits and all `last_hidden_state`
+rows for both components and both token-ID and text-embedding interfaces, with
+the graph promoted to F32 and normalized MSE below `1e-5`. The draft is checked
+after IR round-trip; the hybrid target contains GatedDeltaNet, which has no IR opset.
 To regenerate using its pinned upstream revision:
 
 ```sh
@@ -127,12 +124,12 @@ PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_mtp_accuracy.py --oracle ./mtp_oracl
 (`nextn_predict_layers=1`). It stores:
 
 - draft outputs for external hc-wide hidden states (`[B,T,hc*n]`);
-- target logits and `last_hidden_state` from a second oracle run (`mtp_oracle ... target`);
+- target last-token logits and all `last_hidden_state` rows;
 - Unsloth-style head files that keep only the NextN block: a self-contained one with
   `token_embd`/`output`, and one with `nextn_shared_target_tensors`.
 
-`GGUFQwen4ExpMtpAccuracy` checks the full file and the self-contained head as drafts, the target
-export, and the rejection of the shared head. qwen4exp graphs contain extension operations that
+`GGUFQwen4ExpMtpAccuracy` checks the plain and `mtp_target` targets, the full file and the
+self-contained head as drafts, and the rejection of the shared head. qwen4exp graphs contain extension operations that
 IR does not deserialize, so these tests skip the IR round-trip. Generate the fixture with the
 `qwen4exp` pin from the table above:
 

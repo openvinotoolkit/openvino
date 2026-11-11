@@ -170,6 +170,9 @@ Do not add `DecoderConfig` flags for non-decoder families such as encoders; writ
 Implement `ModelBuilder::build()` with a `GgufGraphContext`. `BuildContext` borrows metadata and
 weights for the synchronous factory/build call; a builder may copy it but must not use it afterward.
 The returned graph retains weight storage.
+`BuildContext::component` contains the component selected when conversion runs. A custom builder
+that handles the requested component must call `GgufGraphContext::acknowledge_component()`; otherwise
+the frontend rejects the graph rather than silently treating it as the target model.
 
 - Scalar getters `get_int`, `get_float`, `get_bool`, `get_str` return `std::optional`; use
   `value_or` only for defaults present in the reference. Array getters return typed vectors.

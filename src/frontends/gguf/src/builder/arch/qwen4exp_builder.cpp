@@ -4,7 +4,8 @@
 // Qwen3.8-Flash-Next (llama.cpp "qwen4exp"): Gated DeltaNet and block-sparse attention (QSA) layers
 // with MoE, four hyper-connection residual streams in place of every norm, and hashed n-gram
 // embeddings (PLE) added to the streams before one layer. The "mtp" component converts the single
-// NextN block as a draft that reads the target's hyper-connection residual.
+// NextN block as a draft that reads the target's hyper-connection residual, which the
+// "mtp_target" component exports as last_hidden_state.
 
 #include "qwen4exp_builder.hpp"
 
@@ -35,8 +36,10 @@ public:
     explicit Qwen4ExpBuilder(const BuildContext& context)
         : g(context),
           mtp(context.component == "mtp"),
-          export_requested(context.export_hidden_state) {
-        OPENVINO_ASSERT(context.component.empty() || mtp, "[GGUF] unknown qwen4exp component: ", context.component);
+          export_hidden(context.component == "mtp_target") {
+        OPENVINO_ASSERT(context.component.empty() || mtp || export_hidden,
+                        "[GGUF] unknown qwen4exp component: ",
+                        context.component);
     }
 
     std::shared_ptr<GgufGraph> build() override {
@@ -53,7 +56,6 @@ public:
 
         auto parameters = resolve_decoder_parameters(m, RopeMode::Interleaved, {});
         const auto stored_layers = static_cast<size_t>(parameters.dimensions.layers);
-        const bool has_nextn = parameters.hybrid.nextn_layers > 0;
         auto& sparse = parameters.attention.sparse;
         auto ratios = m.get_int_array(a + "attention.compress_ratios");
         if (mtp)
@@ -86,11 +88,11 @@ public:
         if (mtp)
             return build_mtp(dims.layers - 1, embeddings, out_ids);
         // The draft reads the residual of every token, so the rows are selected after the last layer.
-        const bool export_hidden = has_nextn || export_requested;
         if (export_hidden) {
             auto contract = g.model_contract();
             contract.sequence_outputs.push_back("last_hidden_state");
             g.configure_model_contract(contract);
+            g.acknowledge_component();
         }
         GgufValue ngram_embeddings;
         if (ngram.layer >= 0)
@@ -146,7 +148,7 @@ private:
         parameters.layers.back().experts = tensors.has(prefix + "ffn_gate_exps.weight");
         parameters.model_contract.sequence_inputs = {"hidden_states"};
         parameters.model_contract.sequence_outputs = {"last_hidden_state"};
-        g.implement_component();
+        g.acknowledge_component();
     }
 
     // hidden_states [B, T, hc * n] is the target (or previous draft step) residual. Embedding and
@@ -351,7 +353,7 @@ private:
 
     GgufGraphContext g;
     bool mtp = false;
-    bool export_requested = false;
+    bool export_hidden = false;
     std::unique_ptr<GgufTensors> weights;
     NgramConfig ngram;
     int64_t hc = 0, rank = 0, n_embd = 0;

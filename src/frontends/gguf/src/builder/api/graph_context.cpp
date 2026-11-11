@@ -58,11 +58,6 @@ void GgufGraphContext::configure_model_contract(const ModelContract& contract) {
     m_impl->emitter.graph()->model_contract = contract;
 }
 
-void GgufGraphContext::implement_component() {
-    m_impl->check_open();
-    m_impl->emitter.graph()->component = m_impl->build_ctx.component;
-}
-
 ModelContract GgufGraphContext::model_contract() const {
     return m_impl->emitter.graph()->model_contract;
 }
@@ -254,6 +249,11 @@ void GgufGraphContext::set_output(const GgufValue& value, const std::string& nam
     // The copy may be the source tensor itself; keep the names it already exposes.
     emitter.value(name).get_tensor().add_names({name});
     emitter.graph()->model_output_names.push_back(name);
+}
+
+void GgufGraphContext::acknowledge_component() {
+    m_impl->check_open();
+    m_impl->emitter.graph()->component = m_impl->build_ctx.component;
 }
 
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
