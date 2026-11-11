@@ -61,7 +61,6 @@ jobs:
       CCACHE_SECONDARY_STORAGE: "file:///C:/mount/caches/ccache/shared/windows/${{ inputs.build-variant }}/x86_64/${{ inputs.build-type }}|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
-      CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_COMPILERCHECK: content
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
