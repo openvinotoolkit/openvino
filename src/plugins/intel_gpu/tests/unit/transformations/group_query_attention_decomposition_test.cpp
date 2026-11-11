@@ -307,6 +307,18 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
             EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
         }
     }
+
+    if (cfg.sliding_window_cache) {
+        for (const auto& stateless_kv : statelesskvs) {
+            EXPECT_EQ(stateless_kv->get_window_size(), cfg.local_window_size);
+        }
+        ASSERT_NE(sdpa, nullptr);
+        // SDPA applies the window natively, so no explicit mask input.
+        EXPECT_EQ(sdpa->get_input_size(), 3u);
+        EXPECT_TRUE(sdpa->get_causal());
+        EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+        EXPECT_EQ(sdpa->get_sliding_window_size(), cfg.local_window_size);
+    }
 }
 
 TEST(GQADecompositionTest, static_input_uses_stateless_kv) {
@@ -623,18 +635,31 @@ TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
     expect_fixed_int4_zero_point(sdpa->input_value(6));
 }
 
-// A sliding-window cache uses the native is_causal + sliding_window_size path; the mask is elided.
-TEST(GQADecompositionTest, sliding_window_cache_uses_native_swa_without_mask) {
+TEST(GQADecompositionTest, sliding_window_cache_uses_stateless_kv) {
     GQAConfig cfg;
     cfg.local_window_size = 128;
     cfg.sliding_window_cache = true;
 
-    const auto sdpa = decompose_and_get_sdpa(cfg);
-    ASSERT_NE(sdpa, nullptr);
-    EXPECT_EQ(sdpa->get_input_size(), 3u) << "Q, K, V only -- the mask is elided; the kernel applies the window natively";
-    EXPECT_TRUE(sdpa->get_causal());
-    EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
-    EXPECT_EQ(sdpa->get_sliding_window_size(), cfg.local_window_size);
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, sliding_window_cache_static_uses_stateless_kv) {
+    GQAConfig cfg;
+    cfg.local_window_size = 64;
+    cfg.sliding_window_cache = true;
+    cfg.static_past_cache = true;
+
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, sliding_window_cache_transpose_v_fused) {
+    GQAConfig cfg;
+    cfg.local_window_size = 128;
+    cfg.sliding_window_cache = true;
+    cfg.transpose_v = true;
+    cfg.should_fuse_transpose_v = true;
+
+    expect_stateless_kv_cache_connections(cfg);
 }
 
 // Causal smooth softmax retains the explicit mask.
