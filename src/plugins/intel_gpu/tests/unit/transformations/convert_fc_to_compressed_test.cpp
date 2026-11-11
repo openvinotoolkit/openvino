@@ -119,7 +119,8 @@ public:
 // The pass must create FullyConnectedCompressed whose scale keeps the Convert(f32 -> f16), so the FC input
 // precision matches the graph, and whose zero point keeps the integer value (Convert dropped, Reshape kept).
 TEST_P(ConvertFCToCompressedParameterScaleZpTest, ConvertsParameterScaleAndZeroPoint) {
-    const auto& [topology, with_zp] = GetParam();
+    const auto topology = GetParam().topology;
+    const auto with_zp = GetParam().with_zp;
 
     auto to_f16 = [](const ov::Output<ov::Node>& node) -> std::shared_ptr<ov::Node> {
         return std::make_shared<ov::op::v0::Convert>(node, ov::element::f16);

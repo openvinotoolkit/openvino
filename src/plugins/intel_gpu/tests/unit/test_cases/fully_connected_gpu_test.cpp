@@ -6314,6 +6314,7 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_full_pipeli
         }
     }
 }
+
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
     this->test_compressed_int8_scale(false, true, 1, false, false);
 }
