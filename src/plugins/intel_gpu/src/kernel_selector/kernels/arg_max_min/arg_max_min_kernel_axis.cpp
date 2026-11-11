@@ -47,6 +47,7 @@ size_t getSortSize(const arg_max_min_params& params) {
 }
 
 bool useParallelValueSort(const arg_max_min_params& params) {
+    // A single BF16 result needs no value ordering, and the linear scan avoids per-candidate ranking.
     return params.argMaxMinSortType == ArgMaxMinSortType::VALUE &&
            (params.inputs[0].GetDType() != Datatype::BF16 || params.topK != 1);
 }
