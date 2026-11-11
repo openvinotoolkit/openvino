@@ -262,20 +262,39 @@ std::shared_ptr<ov::Model> Transpose0213MatMulFunction::initOriginal() const {
 }
 
 std::shared_ptr<ov::Model> TransposeMatMulFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
+    auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precisions[1], input_shapes[1]);
     auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 3, 1});
     auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
-    auto matmul = std::make_shared<op::v0::MatMul>(data0, transpose);
+    std::shared_ptr<Node> matmul;
+    if (precisions[1] == ov::element::i8) {
+        matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+            std::vector<element::Type>{ov::element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(transpose, element::f32).get());
+    } else {
+        matmul = std::make_shared<op::v0::MatMul>(data0, transpose);
+    }
     return std::make_shared<ov::Model>(OutputVector{matmul}, ParameterVector{data0, data1});
 }
 std::shared_ptr<ov::Model> TransposeMatMulBiasFunction::initOriginal() const {
-    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
-    auto data1 = std::make_shared<op::v0::Parameter>(precision, input_shapes[1]);
-    auto data2 = std::make_shared<op::v0::Parameter>(precision, input_shapes[2]);
+    auto data0 = std::make_shared<op::v0::Parameter>(precisions[0], input_shapes[0]);
+    auto data1 = std::make_shared<op::v0::Parameter>(precisions[1], input_shapes[1]);
+    const auto bias_precision = precisions[1] == ov::element::i8 ? ov::element::f32 : precisions[1];
+    auto data2 = std::make_shared<op::v0::Parameter>(bias_precision, input_shapes[2]);
     auto const_order = std::make_shared<op::v0::Constant>(ov::element::i32, Shape {4}, std::vector<int>{0, 2, 3, 1});
     auto transpose = std::make_shared<op::v1::Transpose>(data1, const_order);
-    auto matmul = std::make_shared<op::v0::MatMul>(data0, transpose);
+    std::shared_ptr<Node> matmul;
+    if (precisions[1] == ov::element::i8) {
+        matmul = std::make_shared<op::TypeRelaxed<op::v0::MatMul>>(
+            std::vector<element::Type>{ov::element::f32, element::f32},
+            std::vector<element::Type>{element::f32},
+            ov::op::TemporaryReplaceOutputType(data0, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(transpose, element::f32).get());
+    } else {
+        matmul = std::make_shared<op::v0::MatMul>(data0, transpose);
+    }
     auto bias = std::make_shared<op::v1::Add>(matmul, data2);
     return std::make_shared<ov::Model>(OutputVector{bias}, ParameterVector{data0, data1, data2});
 }

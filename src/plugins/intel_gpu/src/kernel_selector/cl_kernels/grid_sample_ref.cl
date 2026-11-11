@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-typedef __global INPUT0_TYPE data_t;
-typedef __global INPUT1_TYPE grid_t;
-typedef __global OUTPUT_TYPE output_t;
+// Type aliases are macros, not typedefs: kernels are batch-compiled into one OpenCL program,
+// where a typedef would leak into the next kernel and cannot be undefined.
+#define data_t __global INPUT0_TYPE
+#define grid_t __global INPUT1_TYPE
+#define output_t __global OUTPUT_TYPE
 
-typedef INPUT0_TYPE data_et;
-typedef float grid_et;
-typedef OUTPUT_TYPE output_et;
+#define data_et INPUT0_TYPE
+#define grid_et float
+#define output_et OUTPUT_TYPE
 
 inline const data_et FUNC(
     get_data_single_value)(const data_t* buffer, const size_t n, const size_t c, const size_t h, const size_t w) {
@@ -143,9 +145,9 @@ inline data_et nearest(const data_t* data, const size_t n, const size_t c, const
 
 #elif defined(INTERPOLATION_MODE_BICUBIC)
 
-typedef MAKE_VECTOR_TYPE(INPUT1_TYPE, 4) vector_grid_4_t;
-typedef MAKE_VECTOR_TYPE(INPUT0_TYPE, 4) vector_data_4_t;
-typedef MAKE_VECTOR_TYPE(INPUT0_TYPE, 16) matrix_data_4x4_t;
+#define vector_grid_4_t MAKE_VECTOR_TYPE(INPUT1_TYPE, 4)
+#define vector_data_4_t MAKE_VECTOR_TYPE(INPUT0_TYPE, 4)
+#define matrix_data_4x4_t MAKE_VECTOR_TYPE(INPUT0_TYPE, 16)
 
 inline vector_grid_4_t FUNC(cubic_coeffs)(const data_et r, const data_et A) {
     vector_grid_4_t v;
@@ -207,6 +209,9 @@ inline data_et bicubic(const data_t* data, const size_t n, const size_t c, const
 #undef inner_product_v4_v4
 #undef cubic_coeffs
 #undef gather_4x4
+#undef matrix_data_4x4_t
+#undef vector_data_4_t
+#undef vector_grid_4_t
 #else
 #error[clDNN grid_sample_ref.cl]: undefined interpolation mode
 #endif
@@ -244,3 +249,9 @@ KERNEL(grid_sample_ref)(const data_t * data,
 #undef interpolate
 #undef get_padded
 #undef denormalize
+#undef output_et
+#undef grid_et
+#undef data_et
+#undef output_t
+#undef grid_t
+#undef data_t

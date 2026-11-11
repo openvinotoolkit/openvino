@@ -1120,6 +1120,60 @@ def test_make_16bit_traceable_no_16bit_activation_cast(dtype):
         f"Expected a {ov_dtype} weight constant, got {const_dtypes}"
 
 
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@pytest.mark.parametrize("freeze", [False, True])
+def test_make_16bit_traceable_direct_weight_access(dtype, freeze):
+    """Weights of patched Linear/Embedding modules read directly by model code
+    (e.g. the DeepSeek-OCR-2 MoE router ``F.linear(x, self.gate.weight)``) must be
+    converted to the real values, not to the zero FP32 tracing placeholders."""
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    class Loop(torch.nn.Module):
+        def forward(self, value):
+            for _ in range(2):
+                return value * 1.0
+            return value + 1
+
+    class Router(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.gate = torch.nn.Linear(8, 4, bias=False)
+            self.queries = torch.nn.Embedding(3, 8)
+            # Scripted loop leaves prim::Uninitialized in the trace, which forces freezing.
+            self.loop = torch.jit.script(Loop()) if freeze else torch.nn.Identity()
+
+        def forward(self, x):
+            x = self.loop(x) + self.queries.weight.mean(0)
+            logits = torch.nn.functional.linear(x.type(torch.float32), self.gate.weight.type(torch.float32))
+            return logits.softmax(-1)
+
+    model = Router().eval().requires_grad_(False)
+    with torch.no_grad():
+        model.gate.weight.copy_(torch.linspace(-2, 2, 32).reshape(4, 8))
+        model.queries.weight.copy_(torch.linspace(-1, 1, 24).reshape(3, 8))
+    example = torch.linspace(-1, 1, 16).reshape(2, 8)
+    model = model.to(dtype)
+    reference = Router().eval()
+    reference.load_state_dict({name: value.float() for name, value in model.state_dict().items()})
+    expected = reference(example).detach().numpy()
+
+    original_weights = (model.gate.weight, model.queries.weight)
+    try:
+        patch_model.__make_16bit_traceable(model)
+        if freeze:
+            assert "prim::Uninitialized" in str(torch.jit.trace(model, example).inlined_graph)
+        with torch.no_grad():
+            converted = convert_model(model, example_input=(example,))
+        result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+    np.testing.assert_allclose(result, expected, atol=1e-3, rtol=1e-3)
+    assert model.gate.weight is original_weights[0]
+    assert model.queries.weight is original_weights[1]
+
+
 def test_dataclasses_to_dicts():
     import dataclasses
     from openvino.frontend.pytorch.patch_model import _dataclasses_to_dicts
