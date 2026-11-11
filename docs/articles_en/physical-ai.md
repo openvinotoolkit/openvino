@@ -45,7 +45,7 @@ Most deployment workflows follow the same path from an exported package to a run
 ```text
 exported policy package
     -> InferenceModel
-    -> PolicyRuntime
+    -> RobotRuntime
     -> Robot
 ```
 
@@ -53,7 +53,7 @@ Python example:
 
 ```python
 from physicalai.inference import InferenceModel
-from physicalai.runtime import PolicyRuntime, SyncExecution
+from physicalai.runtime import RobotRuntime, PolicySource, SyncExecution
 from physicalai.robot import SO101
 from physicalai.capture import UVCCamera
 
@@ -61,19 +61,16 @@ model = InferenceModel("./exports/act_policy")
 robot = SO101(port="/dev/ttyACM0")
 cameras = {"wrist": UVCCamera(device="/dev/video0", width=640, height=480)}
 
-runtime = PolicyRuntime(
+runtime = RobotRuntime(
     fps=30,
     robot=robot,
-    model=model,
+    action_source=PolicySource(model=model, execution=SyncExecution()),
     cameras=cameras,
-    execution=SyncExecution(),
 )
 
 with runtime:
     runtime.run(duration_s=60)
 ```
-
-> **Preview:** The CLI remains a planned API. See [#121](https://github.com/openvinotoolkit/physicalai/issues/121) for status.
 
 CLI example:
 

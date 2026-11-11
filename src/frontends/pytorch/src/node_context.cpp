@@ -260,6 +260,10 @@ Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) co
 }
 
 Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
+    return get_input_from_visible_context(index, false);
+}
+
+Output<Node> NodeContext::get_input_from_visible_context(size_t index, bool resolve_sequence_constants) const {
     FRONT_END_GENERAL_CHECK(index < get_input_size(), "Index ", index, " is lower than number of inputs.");
     auto input_tensor = get_input(static_cast<int>(index));
     auto input_node = input_tensor.get_node_shared_ptr();
@@ -270,6 +274,27 @@ Output<Node> NodeContext::get_input_from_visible_context(size_t index) const {
             input_tensor = m_ext_tensor_map.at(tensor_idx);
         }
     }
+    if (resolve_sequence_constants) {
+        std::function<Output<Node>(const Output<Node>&)> resolve_constants =
+            [&](const Output<Node>& value) -> Output<Node> {
+            if (ov::is_type<v0::Parameter>(value.get_node())) {
+                const auto tensor_id = m_translate_session->decode_tensor_name(value);
+                const auto external = m_ext_tensor_map.find(tensor_id);
+                if (external != m_ext_tensor_map.end()) {
+                    return external->second;
+                }
+            }
+            if (const auto sequence = ov::as_type_ptr<SequenceMark>(value.get_node_shared_ptr())) {
+                OutputVector elements;
+                for (const auto& element : sequence->input_values()) {
+                    elements.push_back(resolve_constants(element));
+                }
+                return make_list_construct(elements);
+            }
+            return value;
+        };
+        input_tensor = resolve_constants(input_tensor);
+    }
     return input_tensor;
 }
 
@@ -279,9 +304,13 @@ std::shared_ptr<ov::Model> NodeContext::convert_subgraph(size_t index) const {
     // Extend external context with internal tensors except Parameter nodes, because internal Parameters are created to
     // link internal context with external
     TensorMap ext_map(m_ext_tensor_map);
-    // map::insert does not update elements if their key is already in map; so if we have real tensors in outer scope
-    // we will not add Parameters we created in inner scope.
-    ext_map.insert(m_tensor_map->begin(), m_tensor_map->end());
+    for (const auto& [tensor_id, value] : *m_tensor_map) {
+        if (!ov::is_type<v0::Parameter>(value.get_node())) {
+            ext_map[tensor_id] = value;
+        } else {
+            ext_map.emplace(tensor_id, value);
+        }
+    }
 
     auto model = m_translate_session->convert_pytorch_model(subgraph_decoder, ext_map);
     // Remove unused parameters, they could be created as inputs to the parts of graph that weren't
@@ -411,7 +440,7 @@ bool NodeContext::input_is_none(size_t index) const {
 namespace {
 std::shared_ptr<v0::Constant> get_constant_at_input(const NodeContext& ctx, size_t index, bool allow_empty = true) {
     FRONT_END_GENERAL_CHECK(!ctx.input_is_none(index), "Input with index: ", index, " is none.");
-    auto input_val = ctx.get_input_from_visible_context(index);
+    auto input_val = ctx.get_input_from_visible_context(index, true);
     if (ctx.get_input_type(index).is<type::List>()) {
         if (allow_empty && is_empty_list(input_val))
             return {};

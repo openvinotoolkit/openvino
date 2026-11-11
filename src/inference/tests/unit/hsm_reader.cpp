@@ -230,7 +230,7 @@ TEST(ISectionReaderHandlerTest, recognizes_own_device_and_tag) {
     entry.size = 4;
 
     const std::byte payload[4] = {};
-    const hsm::Section section(entry, ov::util::MemoryView{payload, 4});
+    const hsm::Section section(entry, ov::util::as_memory_view(payload));
     RecordingHandler handler(fake_device_id, /*tag_id=*/42);
     EXPECT_TRUE(handler.handle_section(entry, section));
     EXPECT_EQ(handler.last_payload.size(), 4u);
@@ -1084,6 +1084,16 @@ TEST(HsmReaderStreamTest, rejects_container_size_exceeding_available_stream_byte
     std::memcpy(blob.data(), &header, sizeof(header));
 
     auto stream = make_stream(blob);  // not padded to match the inflated container_size
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
+}
+
+TEST(HsmReaderStreamTest, rejects_container_size_that_overflows_stream_offsets) {
+    auto blob = make_sample_reader_container();
+    auto header = hsm::Header::view(blob.data());
+    header.container_size = std::numeric_limits<uint64_t>::max();
+    std::memcpy(blob.data(), &header, sizeof(header));
+
+    auto stream = make_stream(blob, /*prefix_size=*/2);
     EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 

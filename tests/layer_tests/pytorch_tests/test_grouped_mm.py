@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
-import openvino as ov
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -48,9 +47,6 @@ class TestGroupedMMConstWeights(PytorchLayerTest):
         if ie_device.startswith("GPU"):
             if self.use_torch_export():
                 pytest.skip("skip GPU BF16 torch export (FX) grouped_mm with no offsets")
-            caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
-            if "GPU_HW_MATMUL" not in caps:
-                pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
             if precision == "FP32":
                 pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(b_shape=b_shape, bf16=self.use_torch_export()), ie_device, precision, ir_version,
@@ -95,9 +91,6 @@ class TestGroupedMMOffsetsConstWeights(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_grouped_mm_offs_const_b(self, total_tokens, k, n, offsets, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
-            caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
-            if "GPU_HW_MATMUL" not in caps:
-                pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
             if precision == "FP32":
                 pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(k=k, n=n, num_groups=len(offsets), bf16=self.use_torch_export()),
@@ -146,9 +139,6 @@ class TestFunctionalGroupedMMConstWeights(PytorchLayerTest):
         if ie_device.startswith("GPU"):
             if self.use_torch_export():
                 pytest.skip("skip GPU BF16 torch export (FX) grouped_mm with no offsets")
-            caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
-            if "GPU_HW_MATMUL" not in caps:
-                pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
             if precision == "FP32":
                 pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(b_shape=b_shape, bf16=self.use_torch_export()), ie_device, precision, ir_version,
@@ -193,9 +183,6 @@ class TestFunctionalGroupedMMOffsetsConstWeights(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     def test_functional_grouped_mm_offs_const_b(self, total_tokens, k, n, offsets, ie_device, precision, ir_version):
         if ie_device.startswith("GPU"):
-            caps = ov.Core().get_property(ie_device, ov.properties.device.capabilities)
-            if "GPU_HW_MATMUL" not in caps:
-                pytest.skip("not supported on GPU without GPU_HW_MATMUL (immad)")
             if precision == "FP32":
                 pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(k=k, n=n, num_groups=len(offsets), bf16=self.use_torch_export()),
