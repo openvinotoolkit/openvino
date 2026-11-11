@@ -99,11 +99,6 @@ bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
     }
 
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
-
-    if (params.inputs[0].GetDType() == Datatype::BF16 && params.has_dynamic_tensors()) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
     if (params.inputs.size() > 1) {
         if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims()) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
