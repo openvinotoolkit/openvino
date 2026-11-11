@@ -18,9 +18,10 @@ EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_
 std::vector<std::shared_ptr<CREToken>> EncryptedSchedulesFlagSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
-    // Blob encryption should be supported within the plugin
+    // Blob decryption should be supported by the importer when the blob is encrypted
     m_logger.debug("Added the ENCRYPTED_SCHEDULES_FLAG section type to the CRE");
-    return {std::make_shared<SectionType>(get_type())};
+    return m_flag ? std::vector<std::shared_ptr<CREToken>>{std::make_shared<SectionType>(get_type())}
+                  : std::vector<std::shared_ptr<CREToken>>{};
 }
 
 ov::util::MemoryView EncryptedSchedulesFlagSection::encode() const {

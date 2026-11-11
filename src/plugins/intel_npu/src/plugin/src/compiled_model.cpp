@@ -55,8 +55,11 @@ void sync_encryption_callbacks(BlobSectionsRegistry& blobSectionsRegistry, const
         OPENVINO_ASSERT(casted_section);
 
         casted_section->set_flag(encryptionCallback != nullptr);
-    } else if (encryptionCallback) {
-        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+    } else {
+        // Although registering the section is not neccessary in the "false" case, we do so for the sake of consistency.
+        // This allows blobs to be "diff-equal" in both unencrypted scenarios.
+        blobSectionsRegistry.register_section(
+            std::make_shared<EncryptedSchedulesFlagSection>(encryptionCallback != nullptr));
     }
 
     // Then update the encryption callback within the compiler schedule section(s)

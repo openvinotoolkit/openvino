@@ -45,10 +45,15 @@ TEST_P(EncryptedSchedulesFlagSectionTest, SetFlag) {
 TEST_P(EncryptedSchedulesFlagSectionTest, CompatibilityReqsSubexpression) {
     const std::vector<std::shared_ptr<CREToken>> requirements =
         section->get_compatibility_requirements_subexpression({});
-    ASSERT_EQ(requirements.size(), 1);
-    ASSERT_TRUE(is_section_type(requirements.at(0)));
-    ASSERT_EQ(*std::dynamic_pointer_cast<SectionType>(requirements.at(0)).get(),
-              SectionType(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
+
+    if (encrypted_flag) {
+        ASSERT_EQ(requirements.size(), 1);
+        ASSERT_TRUE(is_section_type(requirements.at(0)));
+        ASSERT_EQ(*std::dynamic_pointer_cast<SectionType>(requirements.at(0)).get(),
+                  SectionType(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
+    } else {
+        ASSERT_TRUE(requirements.empty());
+    }
 }
 
 TEST_P(EncryptedSchedulesFlagSectionTest, NullIndividualReqs) {
