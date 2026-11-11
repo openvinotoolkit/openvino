@@ -98,6 +98,14 @@ inline void FUNC(qsa_wr_f32)(__global half* p, const __private float* v, const u
     FUNC_CALL(qsa_wr)((__global ushort*)p, t, n);
 }
 
+// Same as qsa_wr_f32 with per-lane stores: driver 26.35 miscompiles the us8 block write of the RoPE'd block summary.
+inline void FUNC(qsa_wr_f32_lanes)(__global half* p, const __private float* v, const uint n) {
+    const uint lane = get_sub_group_local_id();
+    unroll_for (uint j = 0; j < n; j++) {
+        ((__global ushort*)p)[lane + QSA_SG * j] = as_ushort(convert_half_rte(v[j]));
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Address arithmetic (element offsets)
 // ---------------------------------------------------------------------------

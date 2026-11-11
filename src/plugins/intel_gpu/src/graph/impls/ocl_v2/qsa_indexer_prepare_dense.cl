@@ -125,5 +125,5 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
         FUNC_CALL(qsa_rope)(acc, rope_in + batch * 2 * ROT, rope_in + batch * 2 * ROT + 1, 2);
     }
 #endif
-    FUNC_CALL(qsa_wr_f32)(summary_cache + (batch * summary_stride + qsa_block) * DI, acc, QSA_NE);
+    FUNC_CALL(qsa_wr_f32_lanes)(summary_cache + (batch * summary_stride + qsa_block) * DI, acc, QSA_NE);
 }

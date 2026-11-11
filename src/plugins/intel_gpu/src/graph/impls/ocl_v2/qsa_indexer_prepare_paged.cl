@@ -155,5 +155,5 @@ KERNEL(qsa_indexer_prepare_paged)(const __global half* q_idx,                  /
         FUNC_CALL(qsa_rope)(acc, rope_cache + row, rope_cache + row + 1, 2);
     }
 #endif
-    FUNC_CALL(qsa_wr_f32)(summary_cache + (page * SPP + qsa_block % SPP) * DI, acc, QSA_NE);
+    FUNC_CALL(qsa_wr_f32_lanes)(summary_cache + (page * SPP + qsa_block % SPP) * DI, acc, QSA_NE);
 }
