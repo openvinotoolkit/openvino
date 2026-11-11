@@ -4,10 +4,6 @@
 
 #include "ocl_device.hpp"
 
-// The oneDNN generator header depends on the active GPU runtime and pulls in
-// SYCL headers when oneDNN is built for SYCL. It is only used by the OCL
-// runtime code below (convert_ngen_arch / detectHWInfo), so guard it with
-// OV_GPU_WITH_OCL_RT to avoid requiring SYCL headers in SYCL runtime builds.
 #if defined(ENABLE_ONEDNN_FOR_GPU) && defined(OV_GPU_WITH_OCL_RT)
 #    ifndef NOMINMAX
 #        define NOMINMAX
