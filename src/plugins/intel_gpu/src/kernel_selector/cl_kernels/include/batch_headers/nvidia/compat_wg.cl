@@ -12,9 +12,11 @@
 // module-scope .shared variable only to the kernels that reference it, directly or through the functions they call,
 // so kernels that call none of the collectives carry none of it.
 //
-// The runtime declares the float collectives itself, without static, so the definitions here are plain inline:
-// static inline would clash with those declarations, and the inline definitions are the ones the kernels end up
-// running (checked in the PTX). As OpenCL requires, every work-item of the work-group has to call a collective; each
+// The runtime declares the float collectives itself, without static, so the float definitions here are plain inline:
+// static inline would clash with those declarations, and that non-inline declaration makes the inline definition an
+// external one, so the kernels always run these. The half overloads have no runtime declaration, so they are static
+// inline: a plain inline definition alone emits no function, which fails to link wherever a call is not inlined
+// (as with -cl-opt-disable). As OpenCL requires, every work-item of the work-group has to call a collective; each
 // call ends with a barrier, so consecutive calls can reuse the shared buffer.
 //
 // Depends on (both emitted ahead of this file as part of the NVIDIA prelude):
@@ -164,22 +166,22 @@ inline float __attribute__((overloadable)) work_group_broadcast(float x, size_t 
 // half. The float versions they forward to are defined above, except scan_exclusive_add, which the runtime supplies
 // and which returns correct results on sm_80 for work-group sizes from 1 to 1024, including sizes that are not a
 // multiple of the warp width and 2D / 3D work-groups.
-inline half __attribute__((overloadable)) work_group_reduce_add(half x){
+static inline half __attribute__((overloadable)) work_group_reduce_add(half x){
     return (half)work_group_reduce_add((float)x);
 }
-inline half __attribute__((overloadable)) work_group_reduce_max(half x){
+static inline half __attribute__((overloadable)) work_group_reduce_max(half x){
     return (half)work_group_reduce_max((float)x);
 }
-inline half __attribute__((overloadable)) work_group_reduce_min(half x){
+static inline half __attribute__((overloadable)) work_group_reduce_min(half x){
     return (half)work_group_reduce_min((float)x);
 }
-inline half __attribute__((overloadable)) work_group_scan_inclusive_add(half x){
+static inline half __attribute__((overloadable)) work_group_scan_inclusive_add(half x){
     return (half)work_group_scan_inclusive_add((float)x);
 }
-inline half __attribute__((overloadable)) work_group_scan_exclusive_add(half x){
+static inline half __attribute__((overloadable)) work_group_scan_exclusive_add(half x){
     return (half)work_group_scan_exclusive_add((float)x);
 }
-inline half __attribute__((overloadable)) work_group_broadcast(half x, size_t id){
+static inline half __attribute__((overloadable)) work_group_broadcast(half x, size_t id){
     return (half)work_group_broadcast((float)x, id);
 }
 
