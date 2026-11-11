@@ -494,8 +494,14 @@ void primitive_inst::update_shape() {
             continue;
         }
 
-        if (!get_node().is_type<shape_of>() && !(dep->get_node().get_selected_impl() ? dep->get_node().get_selected_impl()->is_cpu()
-                                                                                     : dep->get_node().get_preferred_impl_type() == impl_types::cpu)) {
+        // An optimized reshape only reinterprets its input, so the data is ready when the node producing it is done.
+        const primitive_inst* producer = dep;
+        while (producer->get_node().is_type<reshape>() && producer->can_be_optimized() && !producer->dependencies().empty()) {
+            producer = producer->dependencies().front().first;
+        }
+        const auto* producer_impl = producer->get_node().get_selected_impl();
+        const bool produced_on_host = producer_impl ? producer_impl->is_cpu() : producer->get_node().get_preferred_impl_type() == impl_types::cpu;
+        if (!get_node().is_type<shape_of>() && !produced_on_host) {
             has_runtime_deps = true;
 
             if (dep->get_impl_params()->out_event) {

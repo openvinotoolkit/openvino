@@ -327,6 +327,39 @@ TEST(mark_shape_of_subgraphs, gather_compressed_no_mark) {
     ASSERT_FALSE(check_subgraph(prog->get_node("shape_of"), prog->get_node("concat")));
 }
 
+TEST(mark_shape_of_subgraphs, gather_from_big_const_no_mark) {
+    auto& engine = get_test_engine();
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                       data_types::f32, format::bfyx};
+    auto data_0 = engine.allocate_memory({ ov::PartialShape{1}, data_types::i32, format::bfyx });
+    auto small_table = engine.allocate_memory({ ov::PartialShape{16}, data_types::i32, format::bfyx });
+    auto big_table = engine.allocate_memory({ ov::PartialShape{128 * 1024 + 1}, data_types::i32, format::bfyx });
+    set_values(data_0, {0});
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("data_0", data_0));
+    topology.add(data("small_table", small_table));
+    topology.add(data("big_table", big_table));
+    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    topology.add(gather("index", input_info("shape_of"), input_info("data_0"), 0, 0, {}));
+    topology.add(gather("gather_small", input_info("small_table"), input_info("index"), 0, 0, {}));
+    topology.add(gather("gather_big", input_info("big_table"), input_info("index"), 0, 0, {}));
+    topology.add(eltwise("eltwise", input_info("gather_small"), input_info("gather_big"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    // A gather from a small const joins the shape_of subgraph (CPU); one from a big const stays on the GPU.
+    ASSERT_TRUE(prog->get_node("gather_small").is_in_shape_of_subgraph());
+    ASSERT_FALSE(prog->get_node("gather_big").is_in_shape_of_subgraph());
+}
+
 TEST(mark_shape_of_subgraphs, broadcast_not_existed_after_shapeof) {
     auto& engine = get_test_engine();
     auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), 4, ov::Dimension::dynamic(), ov::Dimension::dynamic()},

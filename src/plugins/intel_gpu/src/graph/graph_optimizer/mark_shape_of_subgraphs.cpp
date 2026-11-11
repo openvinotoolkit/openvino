@@ -125,6 +125,13 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
         }
     }
 
+    // Exclude gather from a big const tensor (e.g. a RoPE cos/sin table indexed by positions) for the same reason
+    // as strided_slice below: the CPU reference implementation would copy the rows on the host in every iteration.
+    if (node.is_type<gather>() && node.get_dependency(0).is_constant() &&
+        node.get_dependency(0).get_output_layout().count() > 128 * 1024) {
+        return false;
+    }
+
     // Exclude stride_slice primitive if it's input is big const ternsor, else CPU reference implementation
     // will lead to huge performance drop.
     if (node.is_type<strided_slice>() && node.get_dependency(0).is_constant() &&
