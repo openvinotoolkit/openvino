@@ -299,6 +299,24 @@ TEST(GGUFHadamardMetadata, RejectsInvalidBlocksWidthsAndUnusedWeights) {
     ov::frontend::gguf::GraphEmitter unused(weights, "qwen35");
     ASSERT_NO_THROW(unused.configure_hadamard(config));
     EXPECT_ANY_THROW(unused.validate_hadamard());
+
+    auto empty = config;
+    empty[p + "weight_names"] = std::vector<std::string>{};
+    ov::frontend::gguf::GraphEmitter untied(weights, "qwen35");
+    EXPECT_ANY_THROW(untied.configure_hadamard(empty));
+    // A filtered MTP draft of a tied v2 checkpoint keeps only the latent embedding, which is also its LM head.
+    GgufWeightTable tied_weights{{"token_embd.weight", ov::Tensor(ov::element::f32, {4, 16})}};
+    auto tied = empty;
+    tied[p + "version"] = scalar(2);
+    tied[p + "tied_output"] = [] {
+        ov::Tensor tensor(ov::element::boolean, {});
+        *tensor.data<char>() = 1;
+        return tensor;
+    }();
+    tied[p + "inverse_weight_names"] = std::vector<std::string>{"token_embd.weight"};
+    ov::frontend::gguf::GraphEmitter draft(tied_weights, "qwen35");
+    ASSERT_NO_THROW(draft.configure_hadamard(tied));
+    EXPECT_ANY_THROW(draft.validate_hadamard());
 }
 
 // Q4_K uses an integer zero-point by default and the faithful f16 one under OV_GGUF_Q4_K_ZP_F16,

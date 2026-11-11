@@ -169,7 +169,6 @@ void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>&
             required_metadata<std::string>(config, prefix + "axis") == "input-last-dimension",
         "[GGUF] unsupported Hadamard transform/axis");
     const auto& names = required_metadata<std::vector<std::string>>(config, prefix + "weight_names");
-    OPENVINO_ASSERT(!names.empty(), "[GGUF] empty Hadamard weight_names");
     for (const auto& name : names) {
         OPENVINO_ASSERT(has_weight(name) && m_hadamard_weights.insert(name).second,
                         "[GGUF] missing or duplicate Hadamard weight: ",
@@ -191,6 +190,7 @@ void GraphEmitter::configure_hadamard(const std::map<std::string, GGUFMetaData>&
         OPENVINO_ASSERT(m_hadamard_inverse_weights.empty() || has_weight("output.weight"),
                         "[GGUF] latent tied embedding requires Hadamard version 2");
     }
+    OPENVINO_ASSERT(!m_hadamard_weights.empty(), "[GGUF] empty Hadamard weight_names");
     const auto& mode = required_metadata<std::string>(config, prefix + "sign_mode");
     OPENVINO_ASSERT(mode == "identity" || mode == "explicit", "[GGUF] unsupported Hadamard sign_mode");
     if (mode == "explicit") {
