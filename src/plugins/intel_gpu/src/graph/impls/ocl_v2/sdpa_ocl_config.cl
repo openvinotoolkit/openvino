@@ -48,6 +48,23 @@
 #  define DT_FROM_RAW(x)       x
 #endif
 
+// The additive attention mask enters the raw score as mask * iscale (16 at head 256). A fill near the float limit
+// (PyTorch's finfo.min, which a bf16 mask keeps) or -inf overflows there to -inf. A query row whose keys are all masked
+// then has no finite score and comes out 0, where the reference gives uniform weights for a finite fill. Every folded
+// mask term is therefore clamped, as sdpa_micro does (#39148), but to a bound picked from scale (the log2-domain factor,
+// after *= LOG2E):
+// - The bound is a power of two with bound * scale in [2^30, 2^31), capped at 2^126.
+// - The products are exact, which the default softmax form S * scale - m_log2 needs. With a fixed 1e37 a fully masked
+//   row put the rounding of m_log2 (about 1e28) into every exponent, so exp2 gave inf and the output was NaN.
+//   sdpa_micro subtracts before it scales, so it never had this problem.
+// - A fully masked row now gets exponents of exactly 0, so uniform weights (the mean of V): the -bound absorbs any
+//   |q.k * scale| below 64.
+// - Next to an unmasked key, exp2 of a clamped score is still exactly 0, so rows with an unmasked key keep their bits.
+// - Masks below 2^30 in the log2 domain are unchanged (|mask| below about 7e8, which includes -1e4 and -65504).
+// - clamp() takes a NaN mask to the lower bound.
+#define SDPA_MASK_SAT_FOR(scale) ldexp(1.0f, min(126, 30 - max(ilogb(scale), -96)))
+#define SDPA_SAT_MASK(x, sat) clamp((x), -(sat), (sat))
+
 // Runtime scale input: SCALE_DATA_T is the input's own storage type (half, float, or ushort for bf16). A bf16
 // value is the upper half of the f32 with the same bits, so it widens with a shift (no bf16 helper needed,
 // which the include of bf16_utils.cl in sdpa_ocl.cl only provides for a bf16 Q).
