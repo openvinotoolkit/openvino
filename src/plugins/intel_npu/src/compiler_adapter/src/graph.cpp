@@ -4,6 +4,7 @@
 
 #include "graph.hpp"
 
+#include <fstream>
 #include <iterator>
 
 #include "compiler_impl.hpp"
@@ -31,7 +32,11 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
-      _logger("Graph", Logger::global().level()) {}
+      _logger("Graph", Logger::global().level()) {
+    std::ofstream file("test.log");
+    std::string a(reinterpret_cast<char*>(_blob->data()), _blob->get_byte_size());
+    file << a;
+}
 
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;

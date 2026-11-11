@@ -26,6 +26,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/variant_visitor.hpp"
 
 namespace {
@@ -75,6 +76,16 @@ std::optional<ov::runtime::hsm::Reader> open_hsm_reader(BlobSource& blob_source)
         blob_source.get_source());
 
     return reader;
+}
+
+std::shared_ptr<void> get_shared_object_pointer(BlobSource& blob_source) {
+    const auto source = blob_source.get_source();
+    if (const auto* tensor_and_cursor =
+            std::get_if<std::pair<std::reference_wrapper<const ov::Tensor>, size_t>>(&source)) {
+        return ov::get_tensor_impl(tensor_and_cursor->first)._so;
+    }
+
+    return nullptr;
 }
 
 /**
@@ -466,14 +477,13 @@ private:
 class BlobFormatV2Importer : public IBlobFormatImporter {
 public:
     explicit BlobFormatV2Importer(ov::runtime::hsm::Reader& base_reader,
+                                  const std::shared_ptr<void> blob_so,
                                   const std::shared_ptr<const ov::Model>& original_model,
                                   const ov::SoPtr<IEngineBackend>& backend,
                                   const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                   const Config& config)
-        : IBlobFormatImporter(original_model,
-                              backend,
-                              config,
-                              Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())) {
+        : IBlobFormatImporter(original_model, backend, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
+          m_blob_so(blob_so) {
         std::tie(m_blob_sections_registry, m_runtime_requirements) =
             hsm::read_from(base_reader, get_readers(), {}, create_instance_evaluators(option_helper));
 
@@ -620,7 +630,7 @@ private:
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
             m_blob_sections_registry.retrieve_unique_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
-            return main_schedule_section->get_schedule();
+            return ov::Tensor(main_schedule_section->get_schedule(), m_blob_so);
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
@@ -699,6 +709,7 @@ private:
 
     BlobSectionsRegistry m_blob_sections_registry;
     std::optional<RuntimeRequirements> m_runtime_requirements;
+    std::shared_ptr<void> m_blob_so;
 };
 
 }  // namespace
@@ -821,7 +832,12 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
     std::optional<ov::runtime::hsm::Reader> reader = open_hsm_reader(blob_source);
     if (reader.has_value()) {
         logger.debug("Creating a blob format v2 import handler using the factory");
-        return std::make_unique<BlobFormatV2Importer>(reader.value(), original_model, backend, option_helper, config);
+        return std::make_unique<BlobFormatV2Importer>(reader.value(),
+                                                      get_shared_object_pointer(blob_source),
+                                                      original_model,
+                                                      backend,
+                                                      option_helper,
+                                                      config);
     }
 
     // The V1 format is identified by some magic bytes at the end of the input

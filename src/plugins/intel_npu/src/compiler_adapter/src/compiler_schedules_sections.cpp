@@ -121,7 +121,6 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
                     "Logic error: the decoder received a section of the wrong type");
     OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
 
-    // TODO update the tests, there is a minimum size no more
     // TODO double check no "size_t" used for r/w sizes
     const size_t main_schedule_size = section.size();
     std::shared_ptr<ELFMainScheduleSection> result;
