@@ -804,24 +804,6 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
     const auto rope_chains_replaced = cache_rope_chains(model, max_prompt_len);
     LOG_VERB("RoPE cache: " << rope_chains_replaced << " RoPE angle chain(s) replaced by a LUT Gather");
 
-    {
-        const auto& ops = model->get_ops();
-        std::vector<std::string> left;
-        for (const auto& op : ops) {
-            if (ov::is_type<ov::op::v0::Sin>(op) || ov::is_type<ov::op::v0::Cos>(op)) {
-                left.push_back(op->get_friendly_name());
-            }
-        }
-        if (!left.empty()) {
-            std::string names;
-            for (const auto& name : left) {
-                names += (names.empty() ? "" : ", ") + name;
-            }
-            LOG_WARN("RoPE cache: " << left.size()
-                                    << " Sin/Cos node(s) are still in the model - the RoPE pattern was not "
-                                    << "recognized, angles will be computed at run time on the device: " << names);
-        }
-    }
     if (lr_cos_param) {
         model->add_parameters({lr_cos_param, lr_sin_param});
         for (auto&& input : model->inputs()) {
