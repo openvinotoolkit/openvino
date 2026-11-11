@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -38,6 +39,7 @@ private:
         std::shared_ptr<ov::IAsyncInferRequest> request;
         std::vector<ov::Output<const ov::Node>> inputs;
         std::vector<std::optional<ov::Output<const ov::Node>>> outputs;
+        std::uint64_t last_use = 0;
     };
 
     // Real and padded sizes of the last language-model call, used to crop its outputs
@@ -46,6 +48,7 @@ private:
     };
 
     Variant& variant_for(const ov::SoPtr<ov::ICompiledModel>& compiled);
+    Variant& create_variant(const ov::SoPtr<ov::ICompiledModel>& compiled);
     ov::SoPtr<ov::ITensor> input(const std::string& name) const;
     ov::SoPtr<ov::ITensor> inner_input(const Variant& variant, const std::string& name) const;
     void infer_language_model();
@@ -55,6 +58,7 @@ private:
     std::shared_ptr<const BagelCompiledModel> m_compiled_model;
     std::unordered_map<std::string, std::size_t> m_input_idx;
     std::map<const ov::ICompiledModel*, Variant> m_variants;
+    std::uint64_t m_use_count = 0;
 
     Variant* m_last = nullptr;
     LMCall m_call;

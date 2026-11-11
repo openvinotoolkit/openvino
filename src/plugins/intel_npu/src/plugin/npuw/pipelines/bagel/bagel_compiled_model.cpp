@@ -116,6 +116,23 @@ std::size_t pick_bucket(const std::vector<std::size_t>& buckets, std::size_t n, 
     return *it;
 }
 
+bool npu_supports_compiler_dq(const std::shared_ptr<const ov::IPlugin>& plugin) {
+    if (!plugin->get_core()) {
+        return false;
+    }
+    try {
+        if (plugin->get_core()->get_property("NPU", ov::available_devices).empty()) {
+            return false;
+        }
+    } catch (const ov::Exception& ex) {
+        LOG_WARN("BagelCompiledModel: failed to query NPU devices: " << ex.what());
+        return false;
+    }
+    const auto supported =
+        plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
+    return std::find(supported.begin(), supported.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") != supported.end();
+}
+
 }  // namespace
 
 ov::npuw::BagelCompiledModel::BagelCompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -135,15 +152,25 @@ ov::npuw::BagelCompiledModel::BagelCompiledModel(const std::shared_ptr<ov::Model
         (is_bagel_key(key) ? bagel_props : m_inner_props).emplace(key, value);
     }
     // Variants share one weights bank so the language-model weights are kept once; caller properties win
-    const ov::AnyMap defaults = m_mode == Mode::LANGUAGE_MODEL
-                                    ? ov::AnyMap{{"NPUW_DEVICES", "NPU"},
-                                                 {"NPUW_FOLD", "YES"},
-                                                 {"NPUW_FUNCALL_FOR_ALL", "YES"},
-                                                 {"NPUW_FUNCALL_ASYNC", "YES"},
-                                                 {"NPUW_DCOFF_TYPE", "f16"},
-                                                 {"NPUW_DCOFF_SCALE", "YES"},
-                                                 {"NPUW_WEIGHTS_BANK", ov::npuw::util::generate_random_string()}}
-                                    : ov::AnyMap{{"NPUW_ONLINE_PIPELINE", "NONE"}};
+    ov::AnyMap defaults = m_mode == Mode::LANGUAGE_MODEL
+                              ? ov::AnyMap{{"NPUW_DEVICES", "NPU"},
+                                           {"NPUW_FOLD", "YES"},
+                                           {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                           {"NPUW_FUNCALL_ASYNC", "YES"},
+                                           {"NPUW_WEIGHTS_BANK", ov::npuw::util::generate_random_string()}}
+                              : ov::AnyMap{{"NPUW_ONLINE_PIPELINE", "NONE"}};
+    if (m_mode == Mode::LANGUAGE_MODEL) {
+        // Same choice as NPUW_LLM: with compiler DQ the i4 weights stay in the graph. DCOFF moves the
+        // scale to the host and unpacks every folded layer's weights to f16 on each function call.
+        if (npu_supports_compiler_dq(plugin)) {
+            defaults.emplace("NPUW_DQ", "YES");
+            defaults.emplace("NPUW_DQ_FULL", "NO");
+            defaults.emplace("NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES");
+        } else {
+            defaults.emplace("NPUW_DCOFF_TYPE", "f16");
+            defaults.emplace("NPUW_DCOFF_SCALE", "YES");
+        }
+    }
     m_inner_props.insert(defaults.begin(), defaults.end());
     m_cfg.parseEnvVars();
     m_cfg.update(to_string_map(bagel_props));
@@ -151,7 +178,8 @@ ov::npuw::BagelCompiledModel::BagelCompiledModel(const std::shared_ptr<ov::Model
     m_kv_buckets = parse_buckets(m_cfg.get<::intel_npu::NPUW_BAGEL_KV_BUCKETS>(), "NPUW_BAGEL_KV_BUCKETS");
     if (m_mode == Mode::LANGUAGE_MODEL) {
         m_model = m_model->clone();
-        LOG_INFO("BagelCompiledModel: converted " << convert_index_copy_to_scatter_update(m_model)
+        const auto converted = convert_index_copy_to_scatter_update(m_model);
+        LOG_INFO("BagelCompiledModel: converted " << converted
                                                   << " index_copy ScatterElementsUpdate ops to ScatterUpdate");
     }
 
