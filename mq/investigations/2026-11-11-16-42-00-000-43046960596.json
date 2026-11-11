@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-16-42-00-000-43046960596",
+  "timestamp": "2026-11-11T16:42:00Z",
+  "run_id": "43046960596",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43046960596",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39262",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39262",
+  "author": "yasharth-0910",
+  "category": "Configuration",
+  "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: 'Check for working C compiler: /usr/bin/cc - broken' because sccache's wrapped compiler invocation errors out with 'sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\" ... }'"
+    },
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails after repeated 'Temporary failure resolving' DNS errors for archive.ubuntu.com, azure.archive.ubuntu.com, security.ubuntu.com (separate, already-tracked Network pattern d734e6d0da3ffc69)"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the Build and Debian Packages jobs failed"
+    }
+  ],
+  "key_errors": [
+    "-- Check for working C compiler: /usr/bin/cc - broken\nCMake Error at /usr/share/cmake-3.28/Modules/CMakeTestCCompiler.cmake:67 (message):\n  The C compiler \"/usr/bin/cc\" is not able to compile a simple test program.",
+    "FAILED: [code=2] CMakeFiles/cmTC_d4c50.dir/testCCompiler.c.o\nsccache /usr/bin/cc -o CMakeFiles/cmTC_d4c50.dir/testCCompiler.c.o -c .../testCCompiler.c\nsccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server. RequestId:eb1b65c8-501e-0031-26f9-711123000000 Time:2026-11-11T16:30:02.9964670Z\" }",
+    "uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_24_04_x86_64_Release_cpp20/.sccache_check\nresponse: Parts { status: 400, ... \"x-ms-error-code\": \"InvalidUri\" ... }"
+  ],
+  "root_cause": "The sccache server fails to start because the Azure Blob Storage connection/container URI it builds contains a double slash ('...windows.net//sccache/...'), which Azure's Blob API rejects with a 400 InvalidUri error. This happens before any PR-specific compilation occurs - it fails during CMake's trivial C-compiler-check test compile, so it is unrelated to the PR's actual source changes (which only touch the CPU/ARM softmax kernel and its tests). This is the same CI infrastructure/config misconfiguration previously recorded 3 times as pattern 08b993dbdc18ccac ('sccache Azure connection string is not trailing-slash-sanitized'), now recurring a 4th time in a different job (Build, Ubuntu 24.04) rather than the GenAI job where it was first seen.",
+  "reproduction_steps": "N/A - CI-infrastructure configuration issue in the sccache Azure Blob cache backend setup (SCCACHE_AZURE_CONNECTION_STRING / key-prefix construction), not reproducible by rebuilding locally without the same Azure cache configuration.",
+  "recommended_actions": [
+    "Fix the sccache Azure Blob Storage configuration so the computed blob URI never contains a doubled '/' (e.g., sanitize trailing slashes when concatenating the storage account URL with SCCACHE_AZURE_KEY_PREFIX in the CI environment/action that sets these variables).",
+    "Add SCCACHE_IGNORE_SERVER_IO_ERROR handling or a pre-flight check that falls back to no-cache compilation when the sccache server fails to start, instead of failing the whole CMake configure step.",
+    "Since this is the 4th occurrence of the same signature, escalate to the team owning the sccache/Azure cache CI infrastructure for a permanent fix rather than relying on reruns."
+  ],
+  "prevention_strategies": "Validate the SCCACHE_AZURE_* environment variables (connection string, key prefix) at CI setup time to catch a malformed/double-slash URI before it reaches sccache; add a guard or sanitation step in the reusable CI action that assembles the Azure blob path.",
+  "historical_context": "This exact signature (sccache Azure InvalidUri on blob URI with a doubled slash) was first recorded 2026-11-06T11:53:20Z and has now been seen 4 times total, previously in the GenAI job (runs 42198977524, 42234699742, 42681233252) and now in the C++20 Build job of this run. The root cause (CI sccache/Azure cache configuration) is identical across jobs even though the job name differs."
+}
