@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "apt-get update fails with DNS resolution errors: Temporary failure resolving 'archive.ubuntu.com'/'azure.archive.ubuntu.com'/'security.ubuntu.com'; package install fails: E: Package 'gnupg' has no installation candidate; Unable to locate package wget; E: Package 'ca-certificates' has no installation candidate|Network",
+  "signature_hash": "5af712f5b77c1b2d",
+  "title": "Debian Packages job fails apt-get update/install with DNS resolution errors on Ubuntu mirrors",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-11T14:37:01Z",
+  "last_seen": "2026-11-11T14:37:01Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43030477138"
+  ],
+  "affected_commits": [
+    "af765e25619268fff69cc94f084974d0680e1386"
+  ],
+  "recent_timestamps": [
+    "2026-11-11T14:37:01Z"
+  ]
+}

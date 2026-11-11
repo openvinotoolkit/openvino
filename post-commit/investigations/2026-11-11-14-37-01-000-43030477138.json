@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-14-37-01-000-43030477138",
+  "timestamp": "2026-11-11T14:37:01Z",
+  "run_id": "43030477138",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43030477138",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "commit_sha": "af765e25619268fff69cc94f084974d0680e1386",
+  "pr_number": "39638",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39638",
+  "author": "jade-cho",
+  "category": "Network",
+  "title": "Debian Packages job fails apt-get update/install with DNS resolution errors on Ubuntu mirrors",
+  "signature": "apt-get update fails with DNS resolution errors: Temporary failure resolving 'archive.ubuntu.com'/'azure.archive.ubuntu.com'/'security.ubuntu.com'; package install fails: E: Package 'gnupg' has no installation candidate; Unable to locate package wget; E: Package 'ca-certificates' has no installation candidate|Network",
+  "signature_hash": "5af712f5b77c1b2d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install openvino -y failed with exit code 100 due to DNS resolution failures on all Ubuntu mirror hosts"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the Debian Packages job it depends on failed"
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://azure.archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'azure.archive.ubuntu.com'\nErr:3 http://security.ubuntu.com/ubuntu noble-security InRelease\n  Temporary failure resolving 'security.ubuntu.com'\nErr:4 http://archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'archive.ubuntu.com'",
+    "W: Some index files failed to download. They have been ignored, or old ones used instead.\nPackage ca-certificates is not available, but is referred to by another package.\nE: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Debian Packages' job's container could not resolve DNS for any of the configured Ubuntu apt mirrors (azure.archive.ubuntu.com, archive.ubuntu.com, security.ubuntu.com) during 'apt-get update', spending ~4 minutes retrying before all sources failed. Because the package index was empty/stale, the subsequent 'apt-get install openvino' step could not locate transitive dependencies (gnupg, wget, ca-certificates) and failed with exit code 100. This is a transient DNS/network resolution outage in the runner's container networking or the upstream mirror infrastructure, unrelated to the merged PR #39638 (a GPU FakeQuantize precompute fix) which only touches intel_gpu C++ sources.",
+  "reproduction_steps": "N/A - not reproducible outside CI; this is a transient DNS resolution failure in the GitHub Actions runner/container network reaching Ubuntu apt mirrors. Locally, running `apt-get update && apt-get install openvino` inside the same ubuntu:24.04 container with working DNS would succeed.",
+  "recommended_actions": [
+    "Re-run the 'Debian Packages' job (post-commit doctor does not auto-rerun; a maintainer should trigger a workflow re-run) since this is a transient infrastructure issue.",
+    "Consider adding a retry-with-backoff wrapper around 'apt-get update' in job_debian_packages.yml to tolerate transient DNS failures from Ubuntu mirrors.",
+    "Monitor GitHub Actions runner status page for networking incidents around 2026-11-11T14:03-14:07Z if this recurs frequently."
+  ],
+  "prevention_strategies": "Wrap apt-get update/install steps with a retry loop (e.g., 3 attempts with exponential backoff) in the Debian Packages job definition to absorb transient DNS/mirror outages without failing the whole post-commit run. Consider pinning a more reliable mirror or using apt's `Acquire::Retries` option.",
+  "historical_context": "Related but distinct Network-category Debian Packages failures have occurred before with different root symptoms: pattern 23eeaa0c051f425e ('File has unexpected size' on archive.ubuntu.com, 2026-10-22) and pattern ad3678610dab3215 ('Hash Sum mismatch' on archive.ubuntu.com, 2026-10-22). This is the first recorded occurrence of a pure DNS resolution failure ('Temporary failure resolving') against all three Ubuntu mirror hosts simultaneously, suggesting a runner-level network/DNS issue rather than a mirror content inconsistency."
+}

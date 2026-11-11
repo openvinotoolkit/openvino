@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 90,
+  "total": 91,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -913,6 +913,15 @@
       "category": "Infrastructure",
       "signature_hash": "33e8544b41961fd6",
       "commit_sha": "7f8922af591428220a8722460a4369c36341b6ff"
+    },
+    {
+      "investigation_id": "2026-11-11-14-37-01-000-43030477138",
+      "run_id": "43030477138",
+      "timestamp": "2026-11-11T14:37:01Z",
+      "title": "Debian Packages job fails apt-get update/install with DNS resolution errors on Ubuntu mirrors",
+      "category": "Network",
+      "signature_hash": "5af712f5b77c1b2d",
+      "commit_sha": "af765e25619268fff69cc94f084974d0680e1386"
     }
   ]
 }
