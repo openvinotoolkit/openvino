@@ -41,9 +41,8 @@ const std::vector<GatedResidualShapeParams> batch_seq_shapes{
 // flattening of leading dims covered (rank-2 is what the real IR feeds).
 const ov::test::InputShape kDynBatchSeq{{-1, -1}, {{2, 3}, {4, 1}, {3, 7}, {2, 100}, {1, 1}}};
 
-// Production shape from the Qwen3.8-Flash-Next IR (openvino_language_model_i4.xml): hc_count=4,
-// hidden_size=2560 (so C*D = 10240), lowrank=320; 96 READ (with write gate), 96 WRITE and 1 FINAL_MIX
-// layers. Rank-2 dynamic rows, kept short because the reference GEMMs are scalar.
+// Large-model shape: hc_count=4, hidden_size=2560 (so C*D = 10240), lowrank=320.
+// Rank-2 dynamic rows, kept short because the reference GEMMs are scalar.
 // Prefill-sized chunk first, then decode (1 row), a short chunk, and decode again.
 const ov::test::InputShape kDynQwenRows{{-1}, {{300}, {1}, {33}, {1}}};
 const std::vector<GatedResidualShapeParams> qwen_shapes{

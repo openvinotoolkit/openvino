@@ -118,8 +118,8 @@ int decompression_mask(const dnnl::memory::dims& wei_dims, const dnnl::memory::d
 
 // s32 zero-points work uniformly across all supported weight dtypes (u8/s8/u4/s4), so there's no
 // need to special-case the zero-point storage type per weight dtype family.
-dnnl::memory::data_type decompression_zero_point_dt(dnnl::memory::data_type weights_dt) {
-    (void)weights_dt;
+// Zero-points are always handed to oneDNN as s32, whatever the weights' own type.
+constexpr dnnl::memory::data_type decompression_zero_point_dt() {
     return dnnl::memory::data_type::s32;
 }
 
@@ -129,14 +129,13 @@ dnnl::memory::data_type decompression_zero_point_dt(dnnl::memory::data_type weig
 // graph port's u4/i4/u8/i8 zero-points are widened once in make_decompression_zero_point_memory().
 dnnl::primitive_attr build_decompression_attr(const dnnl::memory::dims& wei_dims,
                                               const dnnl::memory::dims& scale_dims,
-                                              dnnl::memory::data_type weights_dt,
                                               bool has_zero_points) {
     dnnl::primitive_attr attr;
     const auto group_dims = decompression_group_dims(wei_dims, scale_dims);
     const auto mask = decompression_mask(wei_dims, group_dims);
     attr.set_scales(DNNL_ARG_WEIGHTS, mask, group_dims, dnnl::memory::data_type::f32);
     if (has_zero_points) {
-        attr.set_zero_points(DNNL_ARG_WEIGHTS, mask, group_dims, decompression_zero_point_dt(weights_dt));
+        attr.set_zero_points(DNNL_ARG_WEIGHTS, mask, group_dims, decompression_zero_point_dt());
     }
     attr.set_fpmath_mode(dnnl::fpmath_mode::any, true);
     return attr;
@@ -236,10 +235,6 @@ size_t normalize_rows(size_t m) {
     return rnd_up(m, 256);
 }
 
-// Runtime-cache key/value for the projection primitives. The cache is shared across nodes in a stream,
-// so every GatedResidual layer with the same projection shapes (all of them, in a real model) reuses one
-// primitive per projection instead of each building its own, and revisiting a row-tile size (dynamic
-// shapes) is a cache hit rather than a primitive_desc + JIT rebuild.
 // Elementwise work fused into a projection's GEMM epilogue (oneDNN post-ops, applied to the f32 accumulator
 // before the store converts to the destination type).
 enum class MatmulEpilogue : uint8_t {
@@ -249,6 +244,10 @@ enum class MatmulEpilogue : uint8_t {
     WriteGate,   // 2 * sigmoid(x * scale), the write gate
 };
 
+// Runtime-cache key/value for the projection primitives. The cache is shared across nodes in a stream,
+// so every GatedResidual layer with the same projection shapes (all of them, in a real model) reuses one
+// primitive per projection instead of each building its own, and revisiting a row-tile size (dynamic
+// shapes) is a cache hit rather than a primitive_desc + JIT rebuild.
 struct MatmulKey {
     dnnl::memory::desc src_md;
     dnnl::memory::desc weights_md;
@@ -407,8 +406,7 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
       m_weights_have_zero_points(attrs.read_layout.has_zp),
       m_layout(attrs.read_layout) {
     if (m_mode != Mode::WRITE && !m_weights_compressed) {
-        // Every projection runs from a prepacked copy of its (constant) weights. Measured end to end on the
-        // production shape, packing all three beats packing only some of them, in prefill and in decode.
+        // Every projection runs from a prepacked copy of its (constant) weights.
         m_packed[kDown].enabled = true;
         m_packed[kUp].enabled = true;
         m_packed[kInject].enabled = m_produce_write_gate;
@@ -559,14 +557,18 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
                 .first;
     }
 
-    // Rows run in tiles; each tile re-streams the weights, so bigger tiles are faster. Tile size is capped by a
-    // scratch budget in the shared scratchpad. GEMM M is bucketed (normalize_rows); padded rows are zeroed and never
-    // stored.
+    // Rows run in tiles; each tile re-streams the weights, so larger tiles amortize that traffic. Tile size is capped
+    // by a scratch budget in the shared scratchpad. GEMM M is bucketed (normalize_rows); padded rows are zeroed and
+    // never stored.
     constexpr size_t kTileRowAlignment = 32;  // keeps every normalized remainder <= the tile
     constexpr size_t kMinTileRows = 32;
     constexpr size_t kMaxTileRows = 512;
     constexpr size_t kScratchBudgetBytes = 64UL << 20;
-    const size_t bytes_per_row = (2 * CD + L) * sizeof(float);
+    // Per-row footprint of every buffer reserved in update(): rbar and logit (f32), t (GEMM precision), the optional
+    // write-gate output (data precision) and the optional low-precision copy of rbar for the GEMM.
+    const size_t bytes_per_row = (2 * CD) * sizeof(float) + L * m_gemm_precision.size() +
+                                 (m_produce_write_gate ? C * m_precision.size() : 0) +
+                                 (m_gemm_precision != ov::element::f32 ? CD * sizeof(uint16_t) : 0);
     size_t max_tile = std::clamp(kScratchBudgetBytes / bytes_per_row, kMinTileRows, kMaxTileRows);
     max_tile -= max_tile % kTileRowAlignment;
     const size_t tile_rows = std::min(m_rows, max_tile);
@@ -702,7 +704,7 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
                 // weights_md is the logical (K, N) view; the decompression group dims/mask use the [N, K] shape.
                 const auto wei_dims = k.weights_md.get_dims();
                 const dnnl::memory::dims nk{wei_dims[1], wei_dims[0]};
-                attr = build_decompression_attr(nk, k.scale_dims, k.weights_md.get_data_type(), k.has_zero_points);
+                attr = build_decompression_attr(nk, k.scale_dims, k.has_zero_points);
             }
             if (k.epilogue != MatmulEpilogue::None) {
                 dnnl::post_ops ops;
@@ -768,6 +770,14 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
 void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memory) {
     const auto& strm = m_stream;
 
+    const size_t C = m_hc_count;
+    const size_t D = m_hidden_size;
+    const size_t CD = C * D;
+    const size_t rows = m_rows;
+    if (rows == 0) {
+        return;
+    }
+
     // Re-derive the scratch pointers: the shared scratchpad block may have been reallocated (or reused
     // by other nodes) since the last call.
     auto* scratch = m_scratch->getDataAs<uint8_t>();
@@ -777,13 +787,6 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
     m_wg_gate = m_produce_write_gate ? scratch + m_off_wg_gate : nullptr;
     m_rbar_gemm =
         m_gemm_precision != ov::element::f32 ? reinterpret_cast<uint16_t*>(scratch + m_off_rbar_gemm) : nullptr;
-    const size_t C = m_hc_count;
-    const size_t D = m_hidden_size;
-    const size_t CD = C * D;
-    const size_t rows = m_rows;
-    if (rows == 0) {
-        return;
-    }
 
     // Inputs/outputs may carry any number of leading batch dims (e.g. [B,T,CD]); every row-indexed
     // row-indexed access below assumes a flat [rows, *] stride, so collapse the leading

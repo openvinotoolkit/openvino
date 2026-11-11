@@ -314,7 +314,7 @@ void GatedResidualLayerCPUTest::SetUp() {
         params = {residual, norm_weight};
 
         // Compressed weights are baked in as frozen Constants holding real quantized data (matching
-        // how deployed quantized models represent them -- see the production Qwen IR's
+        // how deployed quantized models represent them: a
         // Const(i8)->Convert->Multiply decompression subgraph), rather than runtime Parameters.
         // disable_constant_folding + enable_keep_const_precision protect their native i4/u4/i8/u8
         // element type from the CPU plugin's blanket ConvertPrecision pass, which otherwise silently
@@ -616,14 +616,6 @@ void GatedResidualLayerCPUTest::compare(const std::vector<ov::Tensor>& expected,
 
 TEST_P(GatedResidualLayerCPUTest, Inference) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    // bf16 / f16 cases need the native instructions (the executor has no upconvert path for them).
-    const auto precision = std::get<1>(GetParam()).precision;
-    if (precision == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
-        GTEST_SKIP() << "bf16 requires avx512_core_bf16";
-    }
-    if (precision == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16()) {
-        GTEST_SKIP() << "f16 requires avx512_core_fp16";
-    }
     run();
     const auto runtime_model = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 1);

@@ -28,7 +28,10 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gated_residual.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
@@ -75,6 +78,19 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
     if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+    // Uncompressed weights feed the GEMM at the port precision (no upconvert path), so a bf16/f16 port needs native
+    // bf16/f16 matmul support; otherwise run the whole node in f32 (inference_precision=bf16/f16 is also accepted on
+    // ISAs without it). Compressed weights are decompressed by oneDNN and may run the GEMM in f32 on their own.
+    if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && !m_attrs.read_layout.compressed) {
+        using dnnl::impl::cpu::x64::cpu_isa_t;
+        using dnnl::impl::cpu::x64::mayiuse;
+        if ((precision == ov::element::bf16 && !mayiuse(cpu_isa_t::avx512_core_bf16)) ||
+            (precision == ov::element::f16 && !mayiuse(cpu_isa_t::avx512_core_fp16))) {
+            precision = ov::element::f32;
+        }
+    }
+#endif
 
     // Compressed weight ports (u8/i8/u4/i4), their floating-point scale ports and their zero-point ports (the weights'
     // type) must keep their own native element type here. Forcing them to the data `precision` would make the graph
@@ -110,39 +126,6 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
     for (size_t i = 0; i < getOriginalOutputsNumber(); ++i) {
         descs[gatedResidualDstArg(i)] =
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(precision, getOutputShapeAtPort(i));
-    }
-
-    if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE) {
-        // The projection weights are the fused GEMM weights and, for compressed weights, their decompression scales
-        // and zero-points: all graph constants. The executor prepares them once (prepacked weights, converted
-        // decompression views), so non-constant inputs are not supported. Constant status is known here (it is
-        // updated as graph edges are added).
-        std::vector<size_t> constant_ports{ReadInputIdx::W_DOWN, ReadInputIdx::W_UP};
-        if (layout.write_gate) {
-            constant_ports.push_back(layout.w_inject);
-        }
-        if (layout.compressed) {
-            constant_ports.push_back(ReadInputIdx::SCALE_DOWN);
-            constant_ports.push_back(ReadInputIdx::SCALE_UP);
-            if (layout.has_zp) {
-                constant_ports.push_back(ReadInputIdx::ZP_DOWN);
-                constant_ports.push_back(ReadInputIdx::ZP_UP);
-            }
-            if (layout.write_gate) {
-                constant_ports.push_back(layout.scale_inject);
-                if (layout.has_zp) {
-                    constant_ports.push_back(layout.zp_inject);
-                }
-            }
-        }
-        for (const auto port : constant_ports) {
-            if (!getParentEdgeAt(port)->getParent()->isConstant()) {
-                OPENVINO_THROW_NOT_IMPLEMENTED("GatedResidual requires constant weights and decompression scales/"
-                                               "zero-points (input ",
-                                               port,
-                                               " is not constant).");
-            }
-        }
     }
 
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
@@ -248,6 +231,34 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                     errorMessage = "GatedResidual compressed weight scales must have a static group count.";
                     return false;
                 }
+            }
+        }
+
+        // The projection weights, decompression scales and zero-points are fused into the GEMMs and prepared once by
+        // the executor (prepacked weights, converted decompression views), so they must be graph constants.
+        const auto is_constant_input = [&](size_t i) {
+            auto node = op->get_input_node_shared_ptr(i);
+            if (ov::is_type<ov::op::v0::Convert>(node)) {
+                node = node->get_input_node_shared_ptr(0);
+            }
+            return ov::op::util::is_constant(node);
+        };
+        std::set<size_t> constant_ports;
+        constant_ports.insert(weight_ports.begin(), weight_ports.end());
+        constant_ports.insert(scale_ports.begin(), scale_ports.end());
+        constant_ports.insert(zero_point_ports.begin(), zero_point_ports.end());
+        if (mode != ov::op::internal::GatedResidual::Mode::WRITE) {
+            // Uncompressed projection weights are not in weight_ports (that set only drives the compressed type check).
+            const auto layout = gr->get_read_layout();
+            constant_ports.insert({ReadInputIdx::W_DOWN, ReadInputIdx::W_UP});
+            if (layout->write_gate) {
+                constant_ports.insert(layout->w_inject);
+            }
+        }
+        for (const auto port : constant_ports) {
+            if (!is_constant_input(port)) {
+                errorMessage = "GatedResidual requires constant weights and decompression scales/zero-points.";
+                return false;
             }
         }
 

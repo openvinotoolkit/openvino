@@ -99,10 +99,9 @@ private:
     [[nodiscard]] TileGemms createTileGemms(size_t m, const MemoryArgs& memory);
 
     // Projection weights are graph constants (enforced by the node), so each projection is prepacked once into
-    // the layout oneDNN prefers instead of running from the plain (K, N)-strided view (prefill ~29% and decode
-    // ~28% faster on the production shape). The packed layout is identical for all M, so one copy per projection
-    // serves every row count; the copy comes from the shared weights cache (as in GatherMatmul), so streams
-    // share it. Compressed weights are not packed.
+    // the layout oneDNN prefers instead of running from the plain (K, N)-strided view. The packed layout is
+    // identical for all M, so one copy per projection serves every row count; the copy comes from the shared
+    // weights cache (as in GatherMatmul), so streams share it. Compressed weights are not packed.
     enum ProjectionIdx : uint8_t { kDown = 0, kUp = 1, kInject = 2 };
     struct PackedWeights {
         bool enabled = false;
