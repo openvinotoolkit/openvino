@@ -708,9 +708,11 @@ bool ov::Node::can_constant_fold(const OutputVector& input_values) const {
         return false;
     }
 
-    // If all the inputs are constants, try to evaluate the outputs
+    // If all the inputs are constants of a static type, try to evaluate the outputs.
+    // A constant of a dynamic type (e.g. an empty placeholder input) cannot be wrapped in a tensor.
     bool all_constants = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
-        return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr());
+        return ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr()) &&
+               input.get_element_type().is_static();
     });
 
     return all_constants;
