@@ -221,10 +221,12 @@ TEST_F(PluginPropertyManagerTests, IsPropertySupportedUnknownPropertyIsFalse) {
     EXPECT_FALSE(manager->isPropertySupported("NOT_A_PROPERTY"));
 }
 
-TEST_F(PluginPropertyManagerTests, GetPropertyWriteOnlyEncryptionCallbacksReturnsEmptyAny) {
+TEST_F(PluginPropertyManagerTests, GetPropertyWriteOnlyEncryptionCallbacksReturnsDefaultCallbacks) {
     manager->setProperty({{ov::cache_encryption_callbacks.name(), ov::EncryptionCallbacks{nullptr, nullptr}}});
 
-    EXPECT_TRUE(manager->getProperty(ov::cache_encryption_callbacks.name()).empty());
+    const auto callbacks = manager->getProperty(ov::cache_encryption_callbacks.name()).as<ov::EncryptionCallbacks>();
+    EXPECT_FALSE(callbacks.encrypt);
+    EXPECT_FALSE(callbacks.decrypt);
 }
 
 TEST_F(PluginPropertyManagerTests, GetPropertyStableRuntimeMetadataReturnsValues) {
@@ -446,10 +448,8 @@ TEST_F(PluginPropertyManagerTests, GetPropertySteppingUsesDefaultWithoutBackendA
     EXPECT_EQ(manager->getProperty(ov::intel_npu::stepping.name()).as<int64_t>(), kExplicitStepping);
 }
 
-TEST_F(PluginPropertyManagerTests, GetPropertyWriteOnlyCompiledModelMetadataThrows) {
-    OV_EXPECT_THROW_HAS_SUBSTRING(manager->getProperty(ov::loaded_from_cache.name()),
-                                  ov::Exception,
-                                  "only be provided when importing a compiled model");
+TEST_F(PluginPropertyManagerTests, GetPropertyWriteOnlyCompiledModelMetadataReturnsDefaultAndCannotBeSet) {
+    EXPECT_FALSE(manager->getProperty(ov::loaded_from_cache.name()).as<bool>());
     OV_EXPECT_THROW_HAS_SUBSTRING(manager->setProperty({{ov::loaded_from_cache.name(), true}}),
                                   ov::Exception,
                                   "only be provided when importing a compiled model");
