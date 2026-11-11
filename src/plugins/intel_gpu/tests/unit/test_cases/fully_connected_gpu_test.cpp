@@ -6297,7 +6297,9 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_parameter_scale_zp_full_pipeli
     auto compiled = core.compile_model(make_model({2, 16}), device_name, ov::hint::inference_precision(ov::element::f16));
     const auto execution_devices = compiled.get_property(ov::execution_devices);
     ASSERT_FALSE(execution_devices.empty());
-    EXPECT_EQ(execution_devices.front(), device_name) << "test must run on the get_test_engine() device";
+    // A single GPU is listed as "GPU" but reported as "GPU.0", so compare by uuid rather than by name.
+    EXPECT_EQ(core.get_property(execution_devices.front(), ov::device::uuid).uuid, engine.get_device_info().uuid.uuid)
+        << "test must run on the get_test_engine() device";
     auto request = compiled.create_infer_request();
     std::vector<float> data_data(2 * 16, 1.0f);
     std::vector<float> scale_data = {2.f, 1.f, 1.f, 2.f};
