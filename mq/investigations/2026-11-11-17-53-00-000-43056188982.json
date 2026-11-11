@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-17-53-00-000-43056188982",
+  "timestamp": "2026-11-11T17:53:00Z",
+  "run_id": "43056188982",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43056188982",
+  "workflow_name": "Debian Packages",
+  "pr_number": "39532",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39532",
+  "author": "StefaniaHergane",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install/update fails: DNS resolution of Ubuntu archive mirrors (azure.archive.ubuntu.com, archive.ubuntu.com, security.ubuntu.com) times out"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the Debian Packages job failed"
+    }
+  ],
+  "key_errors": [
+    "Err:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'azure.archive.ubuntu.com'",
+    "Err:3 http://archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'archive.ubuntu.com'",
+    "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The 'Install debian packages & check conflicts' step runs `apt-get update` to refresh package indices before installing gnupg/wget/ca-certificates/lsb-release and the local OpenVINO .deb package. DNS resolution for all configured Ubuntu mirror hostnames (azure.archive.ubuntu.com, archive.ubuntu.com, security.ubuntu.com) failed with 'Temporary failure resolving' inside the job's container/runner network, so apt could not fetch any index files and subsequently reported the referenced packages as having no installation candidate. This is a transient DNS/network outage affecting the runner or its network path to the Ubuntu mirrors, not a problem with the PR's code changes (which only touch NPU compiler-adapter C++ sources unrelated to packaging).",
+  "reproduction_steps": "N/A - not reproducible locally; requires the same runner network/DNS outage. To reproduce conceptually: run `apt-get update` in the same Docker image used by the Debian Packages job while DNS resolution to archive.ubuntu.com/azure.archive.ubuntu.com is blocked or failing.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job once DNS/network connectivity recovers (handled automatically via remediate_transient_failure for this run)",
+    "Consider adding retry/backoff logic around `apt-get update` in the Debian Packages workflow step to tolerate transient mirror DNS failures",
+    "If this failure continues recurring at high frequency, escalate to infrastructure/runner team to investigate DNS resolver health on the affected runner pool"
+  ],
+  "prevention_strategies": "Add a retry loop (e.g., 3 attempts with backoff) around `apt-get update` / `apt-get install` in the Debian Packages job definition so transient DNS blips do not fail the whole job. Consider pinning a secondary/fallback mirror or using an internal apt cache/proxy to reduce dependency on public Ubuntu mirror DNS resolution.",
+  "historical_context": "This exact signature has now recurred 8 times, most within the last several hours (prior runs: 43056188729, 43056184381, 43049573225, 43046960596, 43040586954, 43040586616, 43030484756), consistently categorized as Network/DNS failures against Ubuntu apt mirrors. A rerun-pattern PR (#39740) proposing the search string 'Temporary failure resolving' is already open and pending maintainer review for this exact signature."
+}
