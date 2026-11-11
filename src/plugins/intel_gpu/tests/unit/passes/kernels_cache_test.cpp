@@ -333,7 +333,7 @@ TEST(nvidia_replace_reqd_sub_group_size, default_is_restored_between_entries) {
     // Entries are concatenated after the rewrite, as kernels_cache::build_batch() does.
     const std::string batch = nvidia_replace_reqd_sub_group_size(entry_a) + nvidia_replace_reqd_sub_group_size(entry_b);
     EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_a"), "(16)");
-    EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_b"), "_NV_DEFAULT_SUB_GROUP_SIZE");
+    EXPECT_EQ(nv_sub_group_size_at(batch, "kernel_b"), "(_NV_DEFAULT_SUB_GROUP_SIZE)");
 }
 
 TEST(nvidia_replace_reqd_sub_group_size, comments_are_skipped) {

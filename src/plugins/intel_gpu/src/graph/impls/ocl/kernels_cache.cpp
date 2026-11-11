@@ -259,16 +259,11 @@ std::string nvidia_replace_reqd_sub_group_size(const std::string& src) {
         return src;
     }
 
-    // Repeat the redefinition at the very top of the entry. An entry holds one kernel's jit + source + undefs, and the
-    // source commonly defines helper functions ahead of the kernel that use sub-group built-ins as well; those sit
-    // before the attribute and would otherwise compile against the previous entry's value. Macro bodies expand
-    // lazily, so naming a jit constant that is only defined further down (SUBGROUP_SIZE, SIMD, ...) is fine.
-    modified = redefine_directive(first_arg) + modified;
-
-    // Restore the default at the end of the entry so nothing leaks into the next kernel of the batch. It is restored by
-    // name: nvidia/compat_sg.cl alone holds its value.
-    modified += "\n#undef _NV_SUB_GROUP_SIZE\n#define _NV_SUB_GROUP_SIZE _NV_DEFAULT_SUB_GROUP_SIZE\n";
-    return modified;
+    // Repeat the first redefinition at the very top of the entry: helper functions ahead of the kernel use sub-group
+    // built-ins as well and would otherwise compile against the previous entry's value (macro bodies expand lazily, so
+    // naming a jit constant defined further down is fine). Restore the default, by name, at the end of the entry so
+    // nothing leaks into the next kernel of the batch.
+    return redefine_directive(first_arg) + modified + redefine_directive("_NV_DEFAULT_SUB_GROUP_SIZE");
 }
 
 void kernels_cache::get_program_source(const kernels_code& kernels_source_code, std::vector<kernels_cache::batch_program>* all_batches) const {
