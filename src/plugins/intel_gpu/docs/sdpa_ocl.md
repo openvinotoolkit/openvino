@@ -256,11 +256,13 @@ BY_CHANNEL), with the new tokens from the f16 K / V inputs (`PA_CUR_KV_F16`; `SD
 kernel). The key loop cuts the workgroup tile that crosses past_len there, so a tile reads the pages or Kc / Vc, never
 both, and the keys at/past the tile's end are masked as keys past k. KQ keeps the PREFILL operands: lane l of the B
 operand reads key l's page row (i8: 16 B per depth tile, u4: 8 B, byte j holding depths 2j and 2j + 1 in its low and
-high nibble, so the depth stays in order and Q_slm is the f16 one) and dequantizes it in half, (q - zp) * scale, with
-that key's scale and zp (BY_TOKEN, read once per tile) or the page's (scale, zp) dwords of the 16 depths (BY_CHANNEL,
-the same for every lane); a new key's row is Kc's, read as PREFILL reads K. S*V keeps A = V: a lane reads its key
-pair's two page rows (the bytes of its value columns; u4 the low or high nibble of the split row) and their zps and
-subtracts the zps; each key's V scale is folded into P where P is stored (rounded once; the row sum takes P unscaled).
+high nibble, so the depth stays in order and Q_slm is the f16 one; each nibble taken from a 16-bit word of the read as
+`U4_TO_HALF`) and dequantizes it in half, (q - zp) * scale, with that key's scale and zp (BY_TOKEN, read once per tile)
+or the page's (scale, zp) dwords of the 16 depths (BY_CHANNEL, the same for every lane); a new key's row is Kc's, read
+as PREFILL reads K. S*V keeps A = V: a lane reads its key pair's two page rows (the bytes of its value columns; u4 the
+low or high nibble of the split row, written as `U4_TO_HALF` straight to its slot of the interleaved operand) and their
+zps and subtracts the zps; each key's V scale is folded into P where P is stored (rounded once; the row sum takes P
+unscaled).
 New keys read Vc rows as PREFILL reads V. Rows are clamped to the tile's last key, so every read is of a written slot.
 Kc / Vc are read with dword loads and no fallback: the host admits them on `dword_token_matrix_ok()` rows and takes a
 dynamic padding on trust, as PREFILL's K / V, so a dynamic Kc / Vc padding 2 B off reads wrong values (the disabled
@@ -3019,6 +3021,57 @@ tilings. `SDPA_OCL_HPG_PA_TILE_QUERIES` joins the tiling overrides.
   more workgroups, so fewer subgroups per workgroup matter less), i8 at heads 96 / 256, the real models' output beyond
   the unit references.
 
+### u4 dequant of the compressed MIXED on xe_hpg (2026-11-11)
+
+The xe_hpg PA PREFILL kernel's u4 MIXED forms each cache value as `U4_TO_HALF`, `as_half(0x6400 | n) - 1024` on a 16-bit
+word of the read, as the Xe2 MIXED does ("Paged-attention MIXED tiling"): K (`hpg_kq_comp`) writes the four nibbles of
+a word to four depths of the B operand, V (`hpg_sv_comp`) writes the nibbles of a lane's two keys straight to their slots
+of the interleaved A operand, so the byte extraction, the byte conversion and V's `shuffle2` interleave are gone.
+`1024 + n` and the subtraction are exact: the operands are the old ones bit for bit, and `- zp`, `* scale` are unchanged.
+It serves the u4 MIXED at every head (16 x 32 subgroup tiles at heads 96 / 128 / 256, 16-query tiles at the others);
+the i8 branches, PREFILL and the f16 MIXED are untouched.
+
+- Why: the u4 dequant had been measured as most of a MIXED call ("Compressed MIXED in 32-query subgroup tiles on
+  xe_hpg"). In the head-128 u4 MIXED binary (llama-3.1-8b, iga64 of the dumped binary, static counts) the kernel goes
+  from 6,446 instructions, 2,569 of them moves, to 6,171 and 2,025.
+- Device time per MIXED call (llm_bench, cliloader, A770, Windows driver 32.0.101.9175, a 4K-token prompt in 256-token
+  chunks, the OFF build; the old and the new source injected into the same binary with `CLI_InjectProgramSource`, two
+  interleaved rounds each; then the product build of the new source):
+
+  | model (head, tiles) | old source | new source | ratio | product build | pip RC |
+  |---|---|---|---|---|---|
+  | llama-3.1-8b (128, 16 x 32) | 786.3-787.9 us | 733.9-734.1 | 0.93 | 736.0-736.6 | 921.7 |
+  | qwen3-8b (128, 16 x 32) | 830.8 / 830.8 | 798.8-801.6 | 0.96 | 804.3-804.7 | 897.7 |
+  | gemma-2-9b-it (256, 16 x 32) | 866.9-869.9 | 815.4-816.0 | 0.94 | 812.1-814.0 | 1,019.4 |
+  | phi-3.5-mini (96, 16 x 32) | 1,058.8-1,059.0 | 1,050.9-1,051.4 | 0.99 | 1,050.0-1,055.4 | 3,003.8 |
+  | llama-3.2-1b (64, 32 x 16) | 694.1-697.1 | 672.9-673.6 | 0.97 | 673.3-674.3 | 498.7 |
+
+  The two halves separately (llama-3.1-8b, injected, one run each): K alone 808.8 us (slower than the old 787), V alone
+  762.5, both 734. Building the operand dwords with integer ops instead (`0x6400 | n` pairs per dword, then `- 1024` in
+  half16, bit-identical) took 798.3 (K) / 779.4 (V) / 791.6 (both).
+- First token against the 2026.5 RC (pip), the ON install, the same prompts, 32 output tokens, two rounds: llama-3.1-8b
+  1,134.9 ms against 1,238.2 (0.92x; 0.94x before this change), qwen3-8b 1,182.2 / 1,263.4 (0.94x; 0.95x),
+  gemma-2-9b-it 1,560.2 / 1,744.8 (0.89x; 0.92x), phi-3.5-mini 1,114.3 / 2,094.6 (0.53x; 0.54x), llama-3.2-1b 340.6 /
+  306.7 (1.11x; 1.13x); the second token 0.97-1.00x. The first round was 3-4% slower than the second in every build, the
+  RC too (phi-3.5-mini not), so the ratios are of the same round: they differ by at most 0.011 between the rounds. The
+  OFF build took the same first token within 1.2%.
+- Not changed: the V lead (6). On the 16 x 32 tiles before this change (llama-3.1-8b, injected, one run each) leads 1 /
+  2 / 4 / 6 / 8 took 807.0 / 826.0 / 770.0 / 788.4 / 804.1 us, with spill at 4 / 6 / 8 only (31 / 53 / 56 scratch writes,
+  53 / 98 / 109 reads): spill is not what costs there, and lead 4 is a candidate, neither measured with this change
+  nor checked against the IGC hazard of "Head-512 V lead on xe_hpg". Not tried: taking scale and zp out of the
+  operands (the scale into Q or P, a correction after the product). The u4 K scale is per page and depth, so Q (32
+  queries per subgroup) would be rescaled for every 16-key page, more multiplies than the K tile's (16 keys); the V
+  correction needs, per query, the sum of P x scale x zp over the workgroup tile's keys, which the KQ subgroups hold
+  split between them (a cross-subgroup sum, or a pass over S_slm in every S*V subgroup).
+- Checks:
+  - the kit on all four lanes against the last baselines (`i1b`): identical in all 38 groups;
+  - `SDPA_OCL_NEG_SG8=15` and `19`-`29` fail the same cases by name as before the change, `25` / `26` (the other nibble
+    of K / V) 16 / 16;
+  - Xe2: the 1,192 sources of the comp / mixed / PREFILL-heads / `sdpa_hpg_rows` suites (`OV_GPU_ARCH_OVERRIDE=xe2`)
+    are identical before and after but in the `HPG_PA_PREFILL` block, which Xe2 does not compile.
+- Not checked: the B70 (xe_hpg-only code), the Linux driver, chunks other than 256 tokens, the i8 MIXED (its code did not
+  change), the real models' output beyond the unit references.
+
 ## Known issues
 
 Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
@@ -3139,7 +3192,8 @@ re-measures against the opt kernels.
     first token 1.09-1.16x.
     Since "Compressed MIXED in 32-query subgroup tiles on xe_hpg" (2026-11-11): 0.85x / 0.93x at head 128 (llama-3.1-8b
     788 against 922 us, qwen3-8b 832 / 898), first token 0.94x / 0.95x; llama-3.2-1b (head 64) unchanged, 1.40x (698 /
-    499), first token 1.13x.
+    499), first token 1.13x. Since "u4 dequant of the compressed MIXED on xe_hpg" (2026-11-11): 0.80x / 0.90x at head 128
+    (736 / 922, 804 / 898 us), first token 0.92x / 0.94x; llama-3.2-1b 1.35x (674 / 499), first token 1.11x.
   - Image generation (flux.1-schnell, its 32-token prompt, plain SDPA): 0.94x. The VAE's head-512 SDPA made the image
     black then (V lead 6); with the V lead of 1 of 2026-11-10 the image is right and the ratio the same (0.94x).
 
