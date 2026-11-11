@@ -21,6 +21,7 @@
 #include "openvino/op/interpolate.hpp"
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/op_conversions/interpolate_gather_utils.hpp"
 
 using ov::pass::pattern::Matcher;
 
@@ -29,51 +30,7 @@ namespace pass {
 namespace {
 
 using InterpolateBase = ov::op::util::InterpolateBase;
-using CoordinateTransformMode = InterpolateBase::CoordinateTransformMode;
-using NearestMode = InterpolateBase::NearestMode;
-
-// Mirrors ov::reference::InterpolateEvalHelper::get_input_coords_for_nearest_mode.
-float get_source_coordinate(CoordinateTransformMode mode, float x, float scale, int64_t out, int64_t in) {
-    switch (mode) {
-    case CoordinateTransformMode::PYTORCH_HALF_PIXEL:
-        return out > 1 ? (x + 0.5f) / scale - 0.5f : 0.0f;
-    case CoordinateTransformMode::ASYMMETRIC:
-        return x / scale;
-    case CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
-        return (x + 0.5f) / scale;
-    case CoordinateTransformMode::ALIGN_CORNERS:
-        return out == 1 ? 0.0f : x * static_cast<float>(in - 1) / static_cast<float>(out - 1);
-    case CoordinateTransformMode::HALF_PIXEL:
-    default:
-        return ((x + 0.5f) / scale) - 0.5f;
-    }
-}
-
-// Mirrors ov::reference::get_func(NearestMode).
-int64_t get_nearest_pixel(NearestMode mode, float x, bool is_downsample) {
-    switch (mode) {
-    case NearestMode::ROUND_PREFER_CEIL:
-        return static_cast<int64_t>(std::round(x));
-    case NearestMode::FLOOR:
-        return static_cast<int64_t>(std::floor(x));
-    case NearestMode::CEIL:
-        return static_cast<int64_t>(std::ceil(x));
-    case NearestMode::SIMPLE:
-        return is_downsample ? static_cast<int64_t>(std::ceil(x)) : static_cast<int64_t>(x);
-    case NearestMode::ROUND_PREFER_FLOOR:
-    default:
-        if (x == static_cast<int64_t>(x) + 0.5f) {
-            return static_cast<int64_t>(std::floor(x));
-        }
-        return static_cast<int64_t>(std::round(x));
-    }
-}
-
-bool has_non_zero_padding(const std::vector<size_t>& pads) {
-    return std::any_of(pads.begin(), pads.end(), [](size_t pad) {
-        return pad != 0;
-    });
-}
+using namespace ov::pass::interpolate_gather;
 
 // All conditions that make the decomposition applicable and cheap to precompute.
 bool is_nearest_static_interpolate(const ov::Output<ov::Node>& output) {
@@ -161,12 +118,12 @@ ConvertNearestInterpolateToGather::ConvertNearestInterpolateToGather() {
 
             std::vector<int64_t> indices(out);
             for (int64_t out_idx = 0; out_idx < static_cast<int64_t>(out); ++out_idx) {
-                const auto source = get_source_coordinate(attrs.coordinate_transformation_mode,
-                                                          static_cast<float>(out_idx),
-                                                          scale,
-                                                          static_cast<int64_t>(out),
-                                                          static_cast<int64_t>(in));
-                const auto nearest = get_nearest_pixel(attrs.nearest_mode, source, scale < 1.0f);
+                const auto source = source_coordinate(attrs.coordinate_transformation_mode,
+                                                      static_cast<float>(out_idx),
+                                                      scale,
+                                                      static_cast<int64_t>(out),
+                                                      static_cast<int64_t>(in));
+                const auto nearest = nearest_pixel(attrs.nearest_mode, source, scale < 1.0f);
                 indices[out_idx] = std::max(int64_t{0}, std::min(nearest, static_cast<int64_t>(in) - 1));
             }
 
