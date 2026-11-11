@@ -223,6 +223,13 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModel) {
     std::stringstream rawBlobStream, setPropertyBlobStream;
 
     auto model = ov::test::utils::make_conv_pool_relu();
+    // The blob embeds the names of the model and of its nodes. Auto-generated names come from global counters and
+    // differ between compilations, so explicit names are needed to get identical blobs from the two compilations
+    model->set_friendly_name("conv_pool_relu");
+    size_t opIndex = 0;
+    for (const auto& op : model->get_ops()) {
+        op->set_friendly_name("op_" + std::to_string(opIndex++));
+    }
 
     auto rawBlobConfig = configuration;
     rawBlobConfig.emplace(ov::intel_npu::export_raw_blob(true));
@@ -238,6 +245,30 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModel) {
 
     OV_ASSERT_NO_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(false)}));
     ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+}
+
+// Unlike SetExportRawBlobOnCompiledModel, this does not depend on two separate compilations producing identical blobs:
+// both exports come from the same compiled model, the raw one being the regular one without the metadata
+TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnCompiledModelIsRegularBlobWithoutMetadata) {
+    ov::Core core;
+    std::stringstream fullBlobStream, rawBlobStream;
+
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    auto compiledModel = core.compile_model(model, target_device, configuration);
+    ASSERT_FALSE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+    compiledModel.export_model(fullBlobStream);
+
+    OV_ASSERT_NO_THROW(compiledModel.set_property({ov::intel_npu::export_raw_blob(true)}));
+    ASSERT_TRUE(compiledModel.get_property(ov::intel_npu::export_raw_blob));
+    compiledModel.export_model(rawBlobStream);
+
+    const std::string fullBlob = fullBlobStream.str();
+    const std::string rawBlob = rawBlobStream.str();
+
+    ASSERT_NE(rawBlob.size(), 0u) << "Size of the raw blob should be different from 0";
+    ASSERT_GT(fullBlob.size(), rawBlob.size()) << "The regular export should also contain metadata";
+    ASSERT_EQ(rawBlob, fullBlob.substr(0, rawBlob.size()));
 }
 
 TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnNonELFCompiledModelThrows) {
@@ -284,10 +315,14 @@ TEST_P(OVCompiledGraphImportExportTestNPU, SetExportRawBlobOnPluginBatchedCompil
     ov::Core core;
 
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 2, 2, 2});
+    input->set_friendly_name("input");
+    input->get_output_tensor(0).set_names({"tensor_input"});
     input->set_layout("N...");
     auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
     auto add = std::make_shared<ov::op::v1::Add>(input, constant);
     auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("result");
+    result->get_output_tensor(0).set_names({"tensor_output"});
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
 
     auto config = configuration;
