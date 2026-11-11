@@ -1048,17 +1048,24 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
 // head 256 (256 x 32, sdpa_micro's: 1.13x at 1K tokens), where 32 value columns per S*V subgroup spilled 4.7-9.4 KB, and
 // 32 x 1 at head 512 (512 x 16: 0.90-0.91x sdpa_micro at 1K tokens in gemma-4-e2b, 0.94-0.96x in flux.1-schnell's VAE),
 // where 32 x 16 subgroup tiles of 16 x 1 with 32 value columns spilled 6 KB and were 2.2x.
+// A MIXED on a compressed cache (comp_mixed) takes 16 x 32 subgroup tiles, kq_sg_per_wg_keys x 1, at heads 96, 128 and 256
+// (96 x 32, 128 x 32, 256 x 32): with two query subgroups each K / V element of the tile was dequantized twice, and once
+// took 0.68-0.71x the device time per call at head 128, 0.78x at 96 and 0.73x at 256 (u4, 4K-token prompts in 256-token
+// chunks); at head 64 the 4 x 1 workgroup (64 x 32) took 1.23x, and 1.64x on an f16 cache, so head 64 keeps its tiling
+// ("xe_hpg PA PREFILL kernel" in the docs). SDPA_OCL_HPG_PA_COMP_Q32=0 keeps the 32 x 16 tiles.
 // Each S*V subgroup holds the queries of its KQ subgroup and head / kq_sg_per_wg_keys value columns.
-// SDPA_OCL_HPG_PA_TILE_KEYS / _PER_WG_KEYS / _PER_WG_QUERIES replace a value for A/B; a tiling the kernel is not written
-// for throws.
-sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size) {
+// SDPA_OCL_HPG_PA_TILE_KEYS / _TILE_QUERIES / _PER_WG_KEYS / _PER_WG_QUERIES replace a value for A/B; a tiling the kernel is
+// not written for throws.
+sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size, bool comp_mixed) {
     sdpa_ocl_config_t t;
     t.subgroup_size = static_cast<int>(get_subgroup_size(gpu_arch::xe_hpg));
-    t.kq_sg_tile_keys = head_size <= 128 ? 32 : 16;
-    t.kq_sg_tile_queries = 16;
+    const bool q32 = comp_mixed && (head_size == 96 || head_size == 128 || head_size == 256) && env_int("SDPA_OCL_HPG_PA_COMP_Q32", 1) != 0;
+    t.kq_sg_tile_keys = (head_size <= 128 && !q32) ? 32 : 16;
+    t.kq_sg_tile_queries = q32 ? 32 : 16;
     t.kq_sg_per_wg_keys = head_size == 64 ? 4 : head_size == 72 ? 5 : head_size == 96 ? 6 : head_size == 128 ? 8 : head_size == 512 ? 32 : 16;
-    t.kq_sg_per_wg_queries = head_size == 512 ? 1 : 2;
+    t.kq_sg_per_wg_queries = (head_size == 512 || q32) ? 1 : 2;
     t.kq_sg_tile_keys = env_int("SDPA_OCL_HPG_PA_TILE_KEYS", t.kq_sg_tile_keys);
+    t.kq_sg_tile_queries = env_int("SDPA_OCL_HPG_PA_TILE_QUERIES", t.kq_sg_tile_queries);
     t.kq_sg_per_wg_keys = env_int("SDPA_OCL_HPG_PA_PER_WG_KEYS", t.kq_sg_per_wg_keys);
     t.kq_sg_per_wg_queries = env_int("SDPA_OCL_HPG_PA_PER_WG_QUERIES", t.kq_sg_per_wg_queries);
     t.large_grf = true;
@@ -1066,13 +1073,16 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size) {
     t.hpg_pa_prefill = true;
     // The value columns round up to 16 (head 72: 80), the kernel's S*V subgroups' width.
     const bool split = (t.kq_sg_tile_keys == 16 || t.kq_sg_tile_keys == 32) && solve_sv_split(t, (head_size + 15) / 16 * 16);
-    OPENVINO_ASSERT(split && t.sv_sg_tile_scores == t.kq_sg_tile_queries && t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys &&
-                        (t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) && tiling_fits_device(gpu_arch::xe_hpg, head_size, t),
+    OPENVINO_ASSERT(split && (t.kq_sg_tile_queries == 16 || t.kq_sg_tile_queries == 32) && t.sv_sg_tile_scores == t.kq_sg_tile_queries &&
+                        t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys && (t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) &&
+                        tiling_fits_device(gpu_arch::xe_hpg, head_size, t),
                     "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling (",
                     t.kq_sg_tile_keys,
+                    " x ",
+                    t.kq_sg_tile_queries,
                     ", ",
                     t.kq_sg_per_wg_keys,
-                    ", ",
+                    " x ",
                     t.kq_sg_per_wg_queries,
                     ") at head ",
                     head_size,
@@ -1111,8 +1121,10 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill,
     }
     const bool hpg_fast =
         is_pa ? hpg_pa_prefill_ok(params, is_prefill, p.k_head_size, p.v_head_size) : is_prefill && hpg_plain_prefill_ok(params, p.k_head_size, p.v_head_size);
+    // hpg_pa_prefill_ok() admits a MIXED on a cache that is not f16 only when the cache is compressed (HPG_COMP).
+    const bool comp_mixed = is_pa && !is_prefill && params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type != data_types::f16;
     p.tiling =
-        hpg_fast ? hpg_pa_prefill_tiling(p.k_head_size)
+        hpg_fast ? hpg_pa_prefill_tiling(p.k_head_size, comp_mixed)
                  : choose_config(info.arch, p.d_max, p.vd_max, is_pa && is_prefill, is_pa && !is_prefill, few_heads, plain_prefill, plain_shape, plain_decode);
     return p;
 }
