@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "workflow run concluded failure while jobs remained queued and never picked up by self-hosted windows runner pool (aks-win exhausted or ptl gpu runner unavailable)|Infrastructure",
+  "signature_hash": "8ef5fd2f7f7515b9",
+  "title": "Windows VS2022 Release post-commit run fails with jobs stuck queued and never dispatched to self-hosted Windows runners",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-11T21:09:38Z",
+  "last_seen": "2026-11-11T21:09:38Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43084241427"
+  ],
+  "affected_commits": [
+    "74331408dd41701e01e14a5874a41e744f0a2f03"
+  ],
+  "recent_timestamps": [
+    "2026-11-11T21:09:38Z"
+  ]
+}

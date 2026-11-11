@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-21-09-38-000-43084241427",
+  "timestamp": "2026-11-11T21:09:38Z",
+  "run_id": "43084241427",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43084241427",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "commit_sha": "74331408dd41701e01e14a5874a41e744f0a2f03",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows VS2022 Release post-commit run fails with 23 jobs stuck queued and never dispatched to self-hosted Windows runners",
+  "signature": "workflow run concluded failure while jobs remained queued and never picked up by self-hosted windows runner pool (aks-win exhausted or ptl gpu runner unavailable)|Infrastructure",
+  "signature_hash": "8ef5fd2f7f7515b9",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {"name": "JS API (24)", "conclusion": "queued", "symptom": "Never left queued state on aks-win-4-cores-8gb runner label; no logs produced"},
+    {"name": "Samples", "conclusion": "queued", "symptom": "Never left queued state on aks-win-4-cores-8gb runner label"},
+    {"name": "Python unit tests", "conclusion": "queued", "symptom": "Never left queued state on aks-win-8-cores-16gb-test runner label"},
+    {"name": "CPU functional tests", "conclusion": "queued", "symptom": "Never left queued state on aks-win-8-cores-16gb-test runner label"},
+    {"name": "JS API (26)", "conclusion": "queued", "symptom": "Never left queued state on aks-win-4-cores-8gb runner label"},
+    {"name": "GPU unit tests", "conclusion": "queued", "symptom": "Never left queued state on self-hosted/Windows/ptl runner label"},
+    {"name": "JS API (22)", "conclusion": "queued", "symptom": "Never left queued state on aks-win-4-cores-8gb runner label"},
+    {"name": "OpenVINO Python API Tests (3.11/3.12/3.13/3.14/3.14t)", "conclusion": "queued", "symptom": "Never left queued state on aks-win-8-cores-16gb-test runner label"},
+    {"name": "Pytorch Layer Tests / PyTorch Layer Tests", "conclusion": "queued", "symptom": "Never left queued state on aks-win-8-cores-16gb-test runner label"},
+    {"name": "C++ unit tests / C++ unit tests", "conclusion": "queued", "symptom": "Never left queued state on aks-win-4-cores-8gb-test runner label"},
+    {"name": "JAX Layer Tests / JAX Layer Tests", "conclusion": "queued", "symptom": "Never left queued state on aks-win-8-cores-16gb-test runner label"},
+    {"name": "Pytorch FX Layer Tests / PyTorch FX Layer Tests", "conclusion": "queued", "symptom": "Never left queued state on aks-win-8-cores-16gb-test runner label"},
+    {"name": "NPU Models Tests / 3720, 4000, 5010, 5020, 6010", "conclusion": "queued", "symptom": "Never left queued state on aks-win-4-cores-8gb-test runner label"},
+    {"name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension", "conclusion": "queued", "symptom": "Never left queued state on aks-win-4-cores-8gb-build runner label"},
+    {"name": "ci/gha_overall_status_windows", "conclusion": "queued", "symptom": "Never left queued state; overall gate job never ran so the run was marked failure"}
+  ],
+  "key_errors": [
+    "workflow_run.status=completed, conclusion=failure, run_attempt=1",
+    "23 jobs remained status=\"queued\" with conclusion=null at run completion (created_at as late as 2026-11-11T20:19:04Z, never started_at)",
+    "Upstream jobs Smart_CI and Build / Build both completed with conclusion=success (Build took ~57 minutes, 19:21-20:18)"
+  ],
+  "root_cause": "The Windows (VS 2022, Python 3.11, Release) run's Build job succeeded, but every downstream test/packaging job targeting self-hosted Windows runner pools (labels aks-win-4-cores-8gb, aks-win-8-cores-16gb-test, aks-win-4-cores-8gb-test, aks-win-4-cores-8gb-build, and self-hosted/Windows/ptl for GPU) stayed in the queued state and were never picked up by a runner before the overall workflow run was marked as failed. This is consistent with the shared self-hosted Windows runner pool being exhausted or temporarily unavailable (e.g., autoscaler lag, runner registration failure, or an outage in the AKS-backed Windows runner fleet) rather than any code or test defect, since no job logs exist to analyze (jobs never started) and the only two jobs that did execute (Smart_CI on ubuntu-latest, Build on a presumably different/available pool) completed successfully.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a CI runner-infrastructure capacity/availability issue specific to the self-hosted Windows runner pools used by this workflow.",
+  "recommended_actions": [
+    "Check the self-hosted Windows runner fleet (AKS-backed aks-win-* pools and the dedicated GPU 'ptl' runner) health/capacity dashboards around 2026-11-11T19:21-21:00Z for scaling failures, registration errors, or outages.",
+    "Verify the GitHub Actions runner autoscaler/controller logs for the aks-win-* runner scale sets to confirm whether pods failed to register as available runners.",
+    "If capacity was simply insufficient, consider increasing the Windows runner pool size or adding queue-depth alerting so a stuck-queue condition is caught before the workflow times out as failure.",
+    "Confirm whether the workflow has/needs a job-level timeout-minutes for queued jobs so maintainers get a clearer 'runner unavailable' signal instead of a generic failure."
+  ],
+  "prevention_strategies": "Add monitoring/alerting on self-hosted runner pool queue depth and registration failures so a stuck-queue incident is caught and auto-remediated (e.g., restart the runner scale set) before it causes a hard failure on master. Consider a repository_dispatch or scheduled health-check that pings each self-hosted runner label periodically.",
+  "historical_context": "No prior pattern for 'jobs stuck in queued state / runner pool exhaustion' category was found in the post-commit pattern database; this is the first recorded occurrence of this specific signature. Related but distinct patterns exist for Windows runner extraction failures (locked tbb12.dll, count=10; missing oneDNN license file, count=1) and network-related failures (artifact upload ENOTFOUND, codeload.github.com timeouts), all of which involve jobs that did start but then failed, unlike this run where jobs never started at all."
+}
