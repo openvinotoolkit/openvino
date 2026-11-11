@@ -78,8 +78,10 @@
 // Dimension 0, the hardware y and z values and the work-group ids and counts are read from their special registers
 // directly: the layout never moves dimension 0, the hardware numbering is what the fold is built on, and the grid
 // axes are remapped by renaming %ctaid/%nctaid.
+static inline uint _nv_hw_tid_x(void)      { uint v; __asm__("mov.u32 %0, %%tid.x;"  : "=r"(v)); return v; }
 static inline uint _nv_hw_tid_y(void)      { uint v; __asm__("mov.u32 %0, %%tid.y;"  : "=r"(v)); return v; }
 static inline uint _nv_hw_tid_z(void)      { uint v; __asm__("mov.u32 %0, %%tid.z;"  : "=r"(v)); return v; }
+static inline uint _nv_hw_ntid_x(void)     { uint v; __asm__("mov.u32 %0, %%ntid.x;" : "=r"(v)); return v; }
 static inline uint _nv_hw_ntid_y(void)     { uint v; __asm__("mov.u32 %0, %%ntid.y;" : "=r"(v)); return v; }
 static inline uint _nv_hw_ntid_z(void)     { uint v; __asm__("mov.u32 %0, %%ntid.z;" : "=r"(v)); return v; }
 static inline uint _nv_local_id_1(void)    { uint v; __asm__("mov.b32 %0, %%envreg27;" : "=r"(v)); return v; }
@@ -87,9 +89,6 @@ static inline uint _nv_local_id_2(void)    { uint v; __asm__("mov.b32 %0, %%envr
 static inline uint _nv_local_size_1(void)  { uint v; __asm__("mov.b32 %0, %%envreg29;" : "=r"(v)); return v; }
 static inline uint _nv_local_size_2(void)  { uint v; __asm__("mov.b32 %0, %%envreg30;" : "=r"(v)); return v; }
 static inline uint _nv_relin_divisor(void) { uint v; __asm__("mov.b32 %0, %%envreg31;" : "=r"(v)); return v; }
-
-static inline uint _nv_hw_tid_x(void)  { uint v; __asm__("mov.u32 %0, %%tid.x;"  : "=r"(v)); return v; }
-static inline uint _nv_hw_ntid_x(void) { uint v; __asm__("mov.u32 %0, %%ntid.x;" : "=r"(v)); return v; }
 
 static inline uint _nv_group_id(uint dim) {
     uint v = 0;
