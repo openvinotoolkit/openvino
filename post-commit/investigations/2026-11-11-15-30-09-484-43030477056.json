@@ -1,0 +1,44 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-11-15-30-09-484-43030477056",
+    "timestamp": "2026-11-11T15:30:09Z",
+    "run_id": "43030477056",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43030477056",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "af765e25619268fff69cc94f084974d0680e1386",
+    "pr_number": null,
+    "pr_url": null,
+    "author": "jade-cho",
+    "category": "Network",
+    "title": "Debian Packages job fails apt-get update/install with DNS resolution errors on Ubuntu mirrors",
+    "signature": "apt-get update fails with DNS resolution errors: Temporary failure resolving 'archive.ubuntu.com'/'azure.archive.ubuntu.com'/'security.ubuntu.com'; package install fails: E: Package 'gnupg' has no installation candidate; Unable to locate package wget; E: Package 'ca-certificates' has no installation candidate|Network",
+    "signature_hash": "5af712f5b77c1b2d",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Debian Packages / Debian Packages",
+            "conclusion": "failure",
+            "symptom": "apt-get update repeatedly fails to resolve archive.ubuntu.com / azure.archive.ubuntu.com / security.ubuntu.com, causing the subsequent apt-get install (gnupg, wget, ca-certificates, lsb-release) to abort with missing installation candidates"
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Aggregate status job exits failure because the Debian Packages and iGPU Tests jobs failed"
+        }
+    ],
+    "key_errors": [
+        "Ign:1 http://azure.archive.ubuntu.com/ubuntu jammy InRelease\nIgn:2 http://archive.ubuntu.com/ubuntu jammy InRelease\n... (repeated Ign retries for ~3.5 minutes)\nErr:1 http://azure.archive.ubuntu.com/ubuntu jammy InRelease\n  Temporary failure resolving 'azure.archive.ubuntu.com'\nErr:2 http://archive.ubuntu.com/ubuntu jammy InRelease\n  Temporary failure resolving 'archive.ubuntu.com'\nErr:7 http://security.ubuntu.com/ubuntu jammy-security InRelease\n  Temporary failure resolving 'security.ubuntu.com'",
+        "W: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/jammy/InRelease  Temporary failure resolving 'archive.ubuntu.com'\nW: Some index files failed to download. They have been ignored, or old ones used instead.",
+        "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release\n##[error]Process completed with exit code 100."
+    ],
+    "root_cause": "The Debian Packages job's apt-get update step could not resolve any of the three Ubuntu APT mirror hostnames (archive.ubuntu.com, azure.archive.ubuntu.com, security.ubuntu.com) for over 3.5 minutes of retries before apt gave up and fell back to stale/empty index data. With no valid package index, apt-get install for gnupg/wget/ca-certificates/lsb-release failed with 'no installation candidate'. This is a transient DNS/network resolution failure on the self-hosted/hosted runner's resolver or proxy path to the Ubuntu mirror network, unrelated to the merged commit (#39638), which only touches GPU FakeQuantize scale/shift precompute code in intel_gpu/src/graph/graph_optimizer and has no bearing on package installation or DNS configuration.",
+    "reproduction_steps": "Not reproducible locally in a deterministic way; it depends on the runner's DNS resolver/proxy reachability to Ubuntu mirrors at run time. To approximate: run the Debian Packages job container and execute `apt-get update -y` against archive.ubuntu.com/azure.archive.ubuntu.com/security.ubuntu.com while simulating DNS resolution failures (e.g., via a broken /etc/resolv.conf or blocked outbound DNS) to confirm the same 'Temporary failure resolving' + missing installation candidate chain.",
+    "recommended_actions": [
+        "Re-run the failed 'Linux (Ubuntu 22.04, Python 3.11)' workflow (specifically the Debian Packages job) since this is a recurring DNS-resolution pattern against the same mirrors with no code involvement; a rerun is likely to succeed once mirror/DNS connectivity recovers.",
+        "Add retry-with-backoff around apt-get update in the Debian Packages job workflow step so transient DNS failures do not immediately fail the job (apt itself already retries for ~3.5 min; consider an outer retry loop with a longer total window).",
+        "Investigate whether a dedicated/pinned DNS resolver or a local apt mirror cache (e.g., apt-cacher-ng) would reduce dependency on live resolution of the public Ubuntu mirror hostnames on these runners.",
+        "Monitor whether this recurs across proxy-routed runners (this run used proxy-dmz.intel.com) vs hosted runners, to isolate whether the DNS issue is proxy-side or mirror-side."
+    ],
+    "prevention_strategies": "Wrap network-dependent apt-get update/install calls in CI with an explicit retry-with-backoff wrapper (not just apt's internal per-mirror retries) so a few minutes of transient DNS/mirror unavailability does not fail the whole job. Consider caching a known-good Packages index or falling back to a secondary/internal mirror when the primary Ubuntu mirrors are unreachable.",
+        "historical_context": "This is the 3rd distinct Network-category apt-get/Ubuntu-mirror failure signature recorded for the Debian Packages job (after 'File has unexpected size' on 2026-10-22 and 'Hash Sum mismatch' on 2026-10-22), and the exact same DNS-resolution signature was first seen earlier today (2026-11-11T14:37:01Z, run 43030477138, same commit af765e25619268fff69cc94f084974d0680e1386), confirming this is a recurring, environment-level connectivity issue rather than a one-off blip or code regression."
+}

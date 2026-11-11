@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-11-15-30-10-000-43030477056",
+    "timestamp": "2026-11-11T15:30:10Z",
+    "run_id": "43030477056",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43030477056",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "af765e25619268fff69cc94f084974d0680e1386",
+    "pr_number": null,
+    "pr_url": null,
+    "author": "jade-cho",
+    "category": "Infrastructure",
+    "title": "iGPU unit tests job exceeds 80-minute timeout and is cancelled mid-run",
+    "signature": "openvino gpu unit tests job exceeds 80 minute workflow timeout and is cancelled mid-run (context canceled; operation was canceled)|Infrastructure",
+    "signature_hash": "a9c74b1ea2c2e7f5",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "iGPU Tests (unit) / GPU",
+            "conclusion": "cancelled",
+            "symptom": "ov_gpu_unit_tests binary was still executing test 27440/29201 (smoke_sdpa_gpu_compressed_kv_per_channel) at ~80 minutes elapsed when the job step was cancelled with 'context canceled' / 'The operation was canceled.'"
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Aggregate status job exits failure because the Debian Packages and iGPU Tests jobs failed"
+        }
+    ],
+    "key_errors": [
+        "[27439/29201] smoke_sdpa_gpu_compressed_kv_per_channel/sdpa_gpu_compressed_kv_per_channel_test.compare_with_gpu_dequantized_reference/int8_asymmetric_mha_prefill_512x512 (1482 ms)\n[27440/29201] smoke_sdpa_gpu_compressed_kv_per_channel/sdpa_gpu_compressed_kv_per_channel_test.compare_with_gpu_dequantized_reference/int8_asymmetric_mha_decode_1x512 (1541 ms)\ncontext canceled\n##[error]The operation was canceled."
+    ],
+    "root_cause": "The iGPU unit test suite (ov_gpu_unit_tests, 29201 total cases) was still only ~94% complete (27440/29201) roughly 80 minutes after the job started (14:02:23 start, cancelled at 15:22:24), at which point the workflow/job timeout cancelled the step mid-test-run with 'context canceled' / 'The operation was canceled.' No test assertion failure or crash is present in the log; the job simply ran out of allotted time. This is independent of the merged commit's content: #39638 adds a new parameterized 5D-range test case to quantize_gpu_test.cpp (a handful of new test cases), which is a negligible addition to total suite runtime and does not explain an 80-minute overall runtime on its own, though incremental growth of the GPU unit test suite over time (now 29201 cases) is a contributing structural factor.",
+    "reproduction_steps": "Not reproducible as a deterministic failure; it is a duration/timeout issue. To investigate: run `ov_gpu_unit_tests` locally or in CI with `--gtest_list_tests`/timing instrumentation (e.g. via gtest_parallel.py, which this job already uses) to measure total wall-clock time on the iGPU runner hardware, and compare against the job/workflow timeout (approximately 80 minutes based on this run's start/cancel timestamps).",
+    "recommended_actions": [
+        "Re-run the failed 'Linux (Ubuntu 22.04, Python 3.11)' workflow's iGPU Tests (unit) / GPU job; since this is a recurring timeout rather than a deterministic failure, a rerun may complete within the time limit if the runner is less contended.",
+        "Increase the iGPU unit tests job's `timeout-minutes` in job_gpu_tests.yml (or the relevant job definition) to accommodate the current ~29201-case suite size, or raise the gtest_parallel worker/shard count to reduce wall-clock time.",
+        "Split the GPU unit test suite into multiple parallel shards/jobs so no single job needs to run the full ~29201 cases sequentially within one timeout window.",
+        "Profile the slowest test suites (e.g., smoke_sdpa_gpu_test, smoke_sdpa_gpu_compressed_kv_per_channel, concat_gpu) to identify candidates for consolidation or runtime optimization, since SDPA-related parameterized cases dominate the tail of the run."
+    ],
+    "prevention_strategies": "Track GPU unit test suite size and total wall-clock duration over time (e.g., via a CI timing dashboard) and proactively increase job timeout or add sharding before the suite organically grows past the current timeout headroom. Avoid adding large parameterized test matrices to already-long-running suites without re-evaluating the job's time budget.",
+    "historical_context": "Identical signature (iGPU unit tests job exceeding an ~80-minute timeout and being cancelled mid-run) was first recorded on 2026-10-30 (run 41072340950, commit 4964038cf75b6b4273b2bc57a60e95f5f2995b26), indicating this is a recurring, suite-growth-driven timeout rather than a one-off infrastructure blip."
+}

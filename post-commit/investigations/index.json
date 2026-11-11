@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 91,
+  "total": 93,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -921,6 +921,24 @@
       "title": "Debian Packages job fails apt-get update/install with DNS resolution errors on Ubuntu mirrors",
       "category": "Network",
       "signature_hash": "5af712f5b77c1b2d",
+      "commit_sha": "af765e25619268fff69cc94f084974d0680e1386"
+    },
+    {
+      "investigation_id": "2026-11-11-15-30-09-484-43030477056",
+      "run_id": "43030477056",
+      "timestamp": "2026-11-11T15:30:09Z",
+      "title": "Debian Packages job fails apt-get update/install with DNS resolution errors on Ubuntu mirrors",
+      "category": "Network",
+      "signature_hash": "5af712f5b77c1b2d",
+      "commit_sha": "af765e25619268fff69cc94f084974d0680e1386"
+    },
+    {
+      "investigation_id": "2026-11-11-15-30-10-000-43030477056",
+      "run_id": "43030477056",
+      "timestamp": "2026-11-11T15:30:10Z",
+      "title": "iGPU unit tests job exceeds 80-minute timeout and is cancelled mid-run",
+      "category": "Infrastructure",
+      "signature_hash": "a9c74b1ea2c2e7f5",
       "commit_sha": "af765e25619268fff69cc94f084974d0680e1386"
     }
   ]
