@@ -62,6 +62,10 @@ JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& pa
     if (params.quantization != QuantizationType::NONE) {
         accumulator_dt = Datatype::INT32;
         activation_dt = Datatype::F32;
+    } else if (params.inputs[0].GetDType() == Datatype::F16 && params.outputs[0].GetDType() == Datatype::F32) {
+        // Preserve F32 precision through accumulation and the activation stage.
+        accumulator_dt = Datatype::F32;
+        activation_dt = Datatype::F32;
     } else {
         accumulator_dt = GetAccumulatorType(params);
         activation_dt = GetActivationType(params);

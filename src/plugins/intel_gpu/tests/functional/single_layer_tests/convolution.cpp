@@ -8,6 +8,12 @@
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/runtime/core.hpp"
+#include "ov_ops/type_relaxed.hpp"
+
+#include <algorithm>
 
 namespace {
 using ov::test::InputShape;
@@ -135,3 +141,65 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_4D_tensor_ReduceSum,
                                             ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU)),
                          ConvolutionLayerGPUTest::getTestCaseName);
 }  // namespace
+
+namespace ov::test::intel_gpu {
+
+class ConvolutionDeclaredOutputTypeTest : public testing::Test {
+protected:
+    ov::AnyMap config() const {
+        return {ov::hint::inference_precision(ov::element::dynamic),
+                ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY),
+                ov::num_streams(1)};
+    }
+};
+
+TEST_F(ConvolutionDeclaredOutputTypeTest, F16InputsRetainExactF32Product) {
+    const ov::Shape shape{1, 1, 1, 1};
+    constexpr float operand = 1.0009765625f;
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape);
+    auto weights = ov::op::v0::Constant::create(ov::element::f16, shape, {operand});
+    auto base = std::make_shared<ov::op::v1::Convolution>(
+        input, weights, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0},
+        ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    auto convolution = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Convolution>>(
+        *base, ov::element::TypeVector{ov::element::f32, ov::element::f32},
+        ov::element::TypeVector{ov::element::f32});
+    convolution->set_friendly_name("conv");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{convolution->output(0)}, ov::ParameterVector{input});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "GPU", config());
+    auto request = compiled.create_infer_request();
+    request.get_input_tensor().data<ov::float16>()[0] = ov::float16(operand);
+    request.infer();
+    const auto output = request.get_output_tensor();
+    ASSERT_EQ(output.get_element_type(), ov::element::f32);
+    ASSERT_EQ(output.get_shape(), shape);
+    // Both operands are exactly representable in F16; rounding their product
+    // to F16 before the public F32 output would lose the final 2^-20 term.
+    ASSERT_EQ(output.data<const float>()[0], operand * operand);
+}
+
+TEST_F(ConvolutionDeclaredOutputTypeTest, I32FallbackRetainsPublicOutputType) {
+    const ov::Shape shape{1, 1, 2, 2};
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, shape);
+    auto weights = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1, 1, 1, 1}, {3});
+    auto convolution = std::make_shared<ov::op::v1::Convolution>(
+        input, weights, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0},
+        ov::CoordinateDiff{0, 0}, ov::Strides{1, 1});
+    convolution->set_friendly_name("conv");
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{convolution->output(0)}, ov::ParameterVector{input});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "GPU", config());
+    auto request = compiled.create_infer_request();
+    const std::vector<int32_t> values{2, -3, 4, -5};
+    std::copy(values.begin(), values.end(), request.get_input_tensor().data<int32_t>());
+    request.infer();
+    const auto output = request.get_output_tensor();
+    ASSERT_EQ(output.get_element_type(), ov::element::i32);
+    ASSERT_EQ(output.get_shape(), shape);
+    for (size_t idx = 0; idx < values.size(); ++idx) {
+        ASSERT_EQ(output.data<const int32_t>()[idx], values[idx] * 3) << "index " << idx;
+    }
+}
+
+}  // namespace ov::test::intel_gpu

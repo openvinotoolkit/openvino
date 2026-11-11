@@ -14,11 +14,55 @@
 
 #include <cmath>
 #include <algorithm>
+#include <optional>
 
 using namespace cldnn;
 using namespace ::tests;
 
 namespace shape_infer_tests {
+
+static void check_declared_output_type(std::optional<data_types> declared_type,
+                                      data_types expected_type,
+                                      bool fused = false) {
+    auto& engine = get_test_engine();
+    const layout input_layout{ov::PartialShape{1, 1, 1, 1}, data_types::f16, format::bfyx};
+    auto input = std::make_shared<cldnn::input_layout>("input", input_layout);
+    auto weights = std::make_shared<cldnn::input_layout>("weights", input_layout);
+    auto convolution = std::make_shared<cldnn::convolution>(
+        "conv", input_info("input"), "weights", "", 1, ov::Strides{1, 1}, ov::Strides{1, 1},
+        ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, false);
+    convolution->output_data_types = {declared_type};
+    cldnn::program program(engine);
+    auto& input_node = program.get_or_create(input);
+    auto& weights_node = program.get_or_create(weights);
+    auto& convolution_node = program.get_or_create(convolution);
+    program_wrapper::add_connection(program, input_node, convolution_node);
+    program_wrapper::add_connection(program, weights_node, convolution_node);
+    const layout expected{ov::PartialShape{1, 1, 1, 1}, expected_type, format::bfyx};
+    if (fused) {
+        auto activation = std::make_shared<cldnn::activation>("activation", input_info("conv"), activation_func::abs);
+        fused_primitive_desc fused_activation(activation);
+        fused_activation.output_layouts = {expected};
+        convolution_node.add_fused_primitive(fused_activation);
+    }
+    const auto params = convolution_node.get_kernel_impl_params();
+    const auto outputs = convolution_inst::calc_output_layouts<ov::PartialShape>(convolution_node, *params);
+    ASSERT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs[0], expected);
+    ASSERT_EQ(convolution_inst::calc_output_layout(convolution_node, *params), expected);
+}
+
+TEST(convolution_output_type, explicit_f32) {
+    check_declared_output_type(data_types::f32, data_types::f32);
+}
+
+TEST(convolution_output_type, unspecified_preserves_input_type) {
+    check_declared_output_type(std::nullopt, data_types::f16);
+}
+
+TEST(convolution_output_type, fused_output_takes_precedence) {
+    check_declared_output_type(data_types::f32, data_types::f16, true);
+}
 
 struct convolution_test_params {
     ov::PartialShape input_shape;
