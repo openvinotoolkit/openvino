@@ -52,7 +52,7 @@ public:
         size_t key_block_size = 4;       ///< r
         size_t block_topk = 0;           ///< K_max, required
         size_t num_selection_heads = 1;  ///< 1 or H_ik
-        size_t indexer_rotary_dim = 0;   ///< positive, even, <= indexer_head_dim
+        size_t indexer_rotary_dim = 0;   ///< <= indexer_head_dim, even
         size_t indexer_head_dim = 0;     ///< D_idx
         float epsilon = 1e-6f;           ///< RMSNorm epsilon
         float scale = 0.0f;  ///< positive score multiplier; 0 is resolved to 1 / sqrt(indexer_head_dim) by the op
