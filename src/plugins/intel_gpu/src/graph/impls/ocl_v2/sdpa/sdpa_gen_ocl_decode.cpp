@@ -18,14 +18,14 @@ namespace ov::intel_gpu::ocl {
 namespace {
 using namespace sdpa_ocl_utils;
 
-// The DPAS N dimension is the subgroup size: 16 on Xe2+ (sdpa_ocl_decode.cl), 8 on xe_hpg (sdpa_ocl_hpg_decode.cl, the
-// SG8 DPAS form). The f16 DPAS depth is 16 on both, and a key group / S*V chunk is one 16-token page: one SG16 DPAS
-// column set, two SG8 ones. The kernels #error if they disagree.
+// The DPAS N dimension is the subgroup size: 16 on xe_hpc and Xe2+ (sdpa_ocl_decode.cl), 8 on xe_hpg
+// (sdpa_ocl_hpg_decode.cl, the SG8 DPAS form). The f16 DPAS depth is 16 on both, and a key group / S*V chunk is one
+// 16-token page: one SG16 DPAS column set, two SG8 ones. The kernels #error if they disagree.
 constexpr size_t dpas_k = 16;
 constexpr size_t page_keys = 16;
 
 size_t decode_subgroup_size(const RuntimeParams& params) {
-    return params.get_device_info().arch >= gpu_arch::xe2 ? 16 : 8;
+    return params.get_device_info().arch == gpu_arch::xe_hpg ? 8 : 16;
 }
 
 // The cache as this kernel reads it, shared by get_q_per_wg(), the jit constants and the dispatch.
@@ -367,12 +367,12 @@ size_t SDPAOclDecodeGenerator::get_q_per_wg(const RuntimeParams& params) {
     return q_per_wg_for(params, c, sg_per_wg_for(params, c));
 }
 
-// An op refused here runs pa_single_token / pa_gqa_single_token, which read both K page layouts. The device/switch part
+// An op refused here runs pa_single_token / pa_gqa_single_token, which read both K page layouts. The device part
 // lives in paged_attention.hpp.
 bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     const auto& device_info = params.get_device_info();
-    // The device / switch part (paged_attention.hpp): Xe2+ XMX unless TEST_USE_SDPA_OCL_DECODE turns it off, xe_hpg XMX
-    // with TEST_USE_SDPA_OCL_DECODE=1 (the SG8 reader).
+    // The device part (paged_attention.hpp): xe_hpc and Xe2+ XMX. xe_hpg keeps the opt kernels, so the SG8 reader is not
+    // selected.
     if (!paged_attention::sdpa_ocl_decode_reader_available(device_info)) {
         return false;
     }

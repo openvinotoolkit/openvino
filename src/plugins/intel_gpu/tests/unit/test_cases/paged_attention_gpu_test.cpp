@@ -743,8 +743,7 @@ INSTANTIATE_TEST_SUITE_P(
 // Every reader of a PA stage reads the token-major K page, the opt kernels (paged_attention_opt.cl) included: the K page
 // is token-major on every device (paged_attention.hpp), so an op sdpa_ocl or sdpa_ocl_decode refuses lands on
 // paged_attention_opt.cl with it. Without a DPAS reader on this device or for this op (the BY_CHANNEL cases on a non-Xe2 device, or
-// OV_GPU_ENABLE_SDPA_MICRO=0 / TEST_USE_SDPA_OCL_DECODE=0) these run paged_attention_opt.cl; with one, sdpa_ocl /
-// sdpa_ocl_decode.
+// MIXED under OV_GPU_ENABLE_SDPA_MICRO=0) these run paged_attention_opt.cl; with one, sdpa_ocl / sdpa_ocl_decode.
 class paged_attention_by_channel_tm_any_reader_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_by_channel_tm_any_reader_test, matches_reference) {
@@ -2753,8 +2752,8 @@ INSTANTIATE_TEST_SUITE_P(
 #endif
 
 // GENERATE on the token-major K page of each kind (f16, i8 BY_TOKEN, i8 BY_CHANNEL, u4 BY_CHANNEL), wherever
-// sdpa_ocl_decode reads it: Xe2+ (SG16), and xe_hpg with TEST_USE_SDPA_OCL_DECODE=1 (the SG8 reader,
-// sdpa_ocl_hpg_decode.cl; without it xe_hpg runs GENERATE on the opt kernels and every case SKIPs). Every subsequence is
+// sdpa_ocl_decode reads it: Xe2+ (SG16). xe_hpg runs GENERATE on the opt kernels (its SG8 reader,
+// sdpa_ocl_hpg_decode.cl, is not selected: paged_attention.hpp), so every case SKIPs there. Every subsequence is
 // one new token, so GENERATE is the only stage that reads the cache (kv_cache_update writes the new token token-major
 // first). paged_attention_opt.cl reads a token-major page too, so the test asks which kernel ran rather than relying on a
 // refused op to fail. The cases cover M = 1 / 4 / 8 and a leftover row, page and partition edges, several partitions,

@@ -7,8 +7,6 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdlib>
-#include <string>
 #include <vector>
 
 #include "dpas_backend_test_helper.h"
@@ -29,8 +27,9 @@ const std::vector<gpu_arch> kArchs = {gpu_arch::unknown,
                                       gpu_arch::xe3p};
 const std::vector<bool> kBools = {false, true};
 
-bool xe2_plus(gpu_arch a) {
-    return a == gpu_arch::xe2 || a == gpu_arch::xe3 || a == gpu_arch::xe3p;  // spelled out, NOT '>='
+// The SG16 arms: xe_hpc and Xe2+. Not unknown or xe_hp, which have no SG16 DPAS / 2D block IO arch to stand on.
+bool sg16_arch(gpu_arch a) {
+    return a == gpu_arch::xe_hpc || a == gpu_arch::xe2 || a == gpu_arch::xe3 || a == gpu_arch::xe3p;  // spelled out, NOT '>='
 }
 cldnn::device_info make_info(gpu_arch a, bool immad) {
     cldnn::device_info i{};
@@ -44,21 +43,20 @@ constexpr bool kOneDnn =
 #else
     false;
 #endif
-
-std::string env_trace() {
-    const auto get = [](const char* n) {
-        const char* v = std::getenv(n);
-        return std::string(n) + "=" + (v ? v : "<unset>");
-    };
-    return get("TEST_USE_SDPA_OCL_DECODE");
-}
 }  // namespace
 
 TEST(SdpaOclPredicates, ArchOkTruthTable) {
     for (auto a : kArchs) {
         SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a));
-        const bool want = xe2_plus(a) || a == gpu_arch::xe_hpg;
+        const bool want = sg16_arch(a) || a == gpu_arch::xe_hpg;
         EXPECT_EQ(pa::sdpa_ocl_arch_ok(make_info(a, true)), want);
+    }
+}
+
+TEST(SdpaOclPredicates, PerChannelKvOkTruthTable) {
+    for (auto a : kArchs) {
+        SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a));
+        EXPECT_EQ(pa::sdpa_ocl_per_channel_kv_ok(make_info(a, true)), sg16_arch(a));
     }
 }
 
@@ -66,33 +64,19 @@ TEST(SdpaOclPredicates, SelectedTruthTable) {
     for (auto a : kArchs) {
         for (bool immad : kBools) {
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
-            const bool want = kOneDnn && immad && (xe2_plus(a) || a == gpu_arch::xe_hpg);
+            const bool want = kOneDnn && immad && (sg16_arch(a) || a == gpu_arch::xe_hpg);
             EXPECT_EQ(pa::sdpa_ocl_selected(make_info(a, immad)), want);
         }
     }
 }
 
 TEST(SdpaOclPredicates, DecodeReaderAvailableTruthTable) {
-    using sw = pa::decode_switch;
-    for (auto a : kArchs) {
-        for (bool immad : kBools) {
-            for (sw dec : {sw::unset, sw::on, sw::off}) {
-                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " decode=" << static_cast<int>(dec));
-                // Xe2+ (SG16) unless switched off, and xe_hpg (SG8) only when asked for; no oneDNN term.
-                const bool want = dec != sw::off && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && dec == sw::on));
-                EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(make_info(a, immad), dec), want);
-            }
-        }
-    }
-}
-
-TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
-    SCOPED_TRACE(env_trace());
     for (auto a : kArchs) {
         for (bool immad : kBools) {
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
-            const auto info = make_info(a, immad);
-            EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(info), pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_switch()));
+            // The SG16 arms only, not xe_hpg (SG8); no oneDNN term.
+            const bool want = immad && sg16_arch(a);
+            EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(make_info(a, immad)), want);
         }
     }
 }
@@ -103,7 +87,7 @@ TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     const auto oracle = [](gpu_arch a, bool immad) {
         if (!kOneDnn || !immad)
             return dpas_backend::none;
-        if (xe2_plus(a) || a == gpu_arch::xe_hpg)
+        if (sg16_arch(a) || a == gpu_arch::xe_hpg)
             return dpas_backend::ocl;
         return dpas_backend::none;
     };
@@ -121,7 +105,9 @@ TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     };
     EXPECT_EQ(fn(gpu_arch::xe_hpg), dpas_backend::ocl);          // DG2 (A770)
     EXPECT_EQ(fn(gpu_arch::xe_hpg, false), dpas_backend::none);  // xe_hpg without XMX
-    EXPECT_EQ(fn(gpu_arch::xe_hpc), dpas_backend::none);         // PVC
+    EXPECT_EQ(fn(gpu_arch::xe_hpc), dpas_backend::ocl);          // PVC
+    EXPECT_EQ(fn(gpu_arch::xe_hp), dpas_backend::none);          // XeHP SDV: SIMD8 DPAS, no 2D block IO
+    EXPECT_EQ(fn(gpu_arch::unknown), dpas_backend::none);        // arch not detected
     EXPECT_EQ(fn(gpu_arch::xe2), dpas_backend::ocl);             // B70
     EXPECT_EQ(fn(gpu_arch::xe3p), dpas_backend::ocl);            // xe3p
 }

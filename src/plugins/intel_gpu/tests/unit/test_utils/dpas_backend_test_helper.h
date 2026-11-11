@@ -11,7 +11,7 @@
 namespace tests {
 
 // The DPAS kernel plain SDPA and PA PREFILL/MIXED are expected to use on the test device: sdpa_ocl on the
-// sdpa_ocl_selected() lane (Xe2+ and xe_hpg XMX) with enable_sdpa_micro on, none (the opt kernels) otherwise.
+// sdpa_ocl_selected() lane (xe_hpc, Xe2+ and xe_hpg XMX) with enable_sdpa_micro on, none (the opt kernels) otherwise.
 // Per-op refusals (head sizes, page layout, token_type_ids, ...) are the caller's to apply. GENERATE does not
 // follow this: sdpa_ocl_decode ignores enable_sdpa_micro (paged_attention::sdpa_ocl_decode_reader_available()).
 enum class dpas_backend { none, ocl };

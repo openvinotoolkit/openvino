@@ -1737,7 +1737,7 @@ public:
             return false;
         }
 
-        // sdpa_ocl runs on its lane only (Xe2+ and xe_hpg XMX). Every other device runs the opt kernels; it needs no oneDNN
+        // sdpa_ocl runs on its lane only (xe_hpc, Xe2+ and xe_hpg XMX). Every other device runs the opt kernels; it needs no oneDNN
         // microkernel support.
         if (!cldnn::paged_attention::sdpa_ocl_selected(info)) {
             return false;

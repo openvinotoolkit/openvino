@@ -676,6 +676,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const float iscale = sqrt(convert_float(K_HEAD_SIZE));
     #endif
 #endif
+#if WITH_ATTN_MASK
+    const float mask_sat = SDPA_MASK_SAT_FOR(scale);  // the clamp of every mask term (sdpa_ocl_config.cl)
+#endif
 #ifdef HAS_SINK_INPUT
     const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * iscale;
 #endif
@@ -1026,8 +1029,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 #pragma unroll
                 for (int mb = 0; mb < kq_key_blocks; ++mb) {
 #if WITH_ATTN_MASK
-                    const float8 mask8 = FUNC_CALL(hpg_mask8)(OPTIONAL_SHAPE_INFO_TENSOR msk, query, key_base + mb * DPAS_ROWS,
-                                                              mask_dword_ok) * iscale;
+                    const float8 mask8 = SDPA_SAT_MASK(FUNC_CALL(hpg_mask8)(OPTIONAL_SHAPE_INFO_TENSOR msk, query,
+                                                                            key_base + mb * DPAS_ROWS, mask_dword_ok) * iscale,
+                                                       mask_sat);
 #endif
                     #pragma unroll
                     for (int mm = 0; mm < DPAS_ROWS; ++mm) {
