@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-18-56-14-980-43068573073",
+  "timestamp": "2026-11-11T18:56:14Z",
+  "run_id": "43068573073",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43068573073",
+  "workflow_name": "C++ unit tests / C++ unit tests",
+  "pr_number": "39573",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39573",
+  "author": "alvoron",
+  "category": "Flaky Test",
+  "title": "AutoDynamicDeviceSelectionTest.streams_are_not_forced_without_the_per_inference_selection fails intermittently",
+  "signature": "auto_dynamic_device_selection_test streams_are_not_forced_without_the_per_inference_selection expected equality recorder streams device got not recorded expected default sentinel|Flaky Test",
+  "signature_hash": "f610e1de3d61b811",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "AUTO plugin unit tests: AutoDynamicDeviceSelectionTest.streams_are_not_forced_without_the_per_inference_selection failed a single EXPECT_EQ assertion"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the C++ unit tests job failed (no independent error)"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/auto/tests/unit/dynamic_device_selection_test.cpp:1131: Failure\nExpected equality of these values:\n  recorder.streams(\"GPU.0\")\n    Which is: -200\n  -100",
+    "[  FAILED  ] AutoDynamicDeviceSelectionTest.streams_are_not_forced_without_the_per_inference_selection"
+  ],
+  "root_cause": "The test's StreamsRecorder.streams(\"GPU.0\") returned the not-recorded sentinel (-200) instead of the expected no-streams-passed sentinel (-100). That only happens if the mocked compile_model(GPU.0) callback registered by StreamsRecorder::attach never ran before the assertion, i.e. the AUTO plugin's dynamic-device-selection path did not invoke compile_model for GPU.0 synchronously as the test expects. The AUTO plugin schedules device compilation using std::promise/std::future and background async tasks (src/plugins/auto/src/auto_schedule.cpp), so a timing/ordering issue between the mocked ON_CALL lambda registration, OV_ASSERT_NO_THROW(plugin->compile_model(...)), and the subsequent EXPECT_EQ can read m_streams before the callback fires under certain scheduling conditions on this new test. This is the first time this specific unit test (added in the same commit stack as the current master HEAD 7fa4126f) has been exercised in the merge queue; no prior failures of this signature exist in the pattern database, and the PR under test only touches cmake/dependencies.cmake (oneTBB version bump), which is unrelated to AUTO plugin scheduling logic. This strongly suggests a pre-existing flakiness in the test itself (race in mock callback firing vs. assertion) rather than a regression caused by this PR.",
+  "reproduction_steps": "Run the AUTO plugin unit tests repeatedly under load to reproduce timing sensitivity: `cmake --build build --target ov_auto_unit_tests -j$(nproc) && for i in $(seq 1 50); do ./bin/intel64/Release/ov_auto_unit_tests --gtest_filter='AutoDynamicDeviceSelectionTest.streams_are_not_forced_without_the_per_inference_selection' || break; done`. Running with `--gtest_repeat=200 --gtest_shuffle` while under CPU pressure (e.g. `stress-ng --cpu $(nproc)`) is more likely to reproduce the race than a single run.",
+  "recommended_actions": [
+    "Re-run the failed C++ unit tests job for PR #39573 to confirm this is transient (unrelated to the oneTBB dependency change).",
+    "Inspect src/plugins/auto/tests/unit/dynamic_device_selection_test.cpp:1126-1133 and the StreamsRecorder::attach ON_CALL registration for a possible race with AUTO's async compile scheduling (src/plugins/auto/src/auto_schedule.cpp m_compile_context futures).",
+    "Consider having the test wait on compiled_model/infer readiness (e.g., via the plugin's m_firstload_future or an explicit synchronization point) before reading recorder.streams(\"GPU.0\"), rather than asserting immediately after compile_model() returns.",
+    "If the race is confirmed, add a short deterministic wait or query the AUTO plugin's compile-completion future/promise to the test before computing EXPECT_EQ."
+  ],
+  "prevention_strategies": "When writing unit tests for AUTO plugin's dynamic/async device selection, avoid asserting on mock-recorded state immediately after a plugin call returns, since AUTO schedules compile_model on background threads tracked by std::future. Add explicit synchronization (future.wait(), or AutoTest helper barriers) before reading mock-recorded values to eliminate race windows.",
+  "historical_context": "No prior investigation or pattern record for this signature exists in the CI Doctor MQ database (/tmp/gh-aw/repo-memory/default/mq/patterns and investigations) — this is the first recorded occurrence."
+}

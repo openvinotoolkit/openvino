@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "auto_dynamic_device_selection_test streams_are_not_forced_without_the_per_inference_selection expected equality recorder streams device got not recorded expected default sentinel|Flaky Test",
+  "signature_hash": "f610e1de3d61b811",
+  "title": "AutoDynamicDeviceSelectionTest.streams_are_not_forced_without_the_per_inference_selection fails intermittently",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-11T18:56:14Z",
+  "last_seen": "2026-11-11T18:56:14Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43068573073"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39573"
+  ],
+  "recent_timestamps": [
+    "2026-11-11T18:56:14Z"
+  ],
+  "rerun_search_string": null
+}
