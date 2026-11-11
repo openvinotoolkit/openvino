@@ -85,6 +85,7 @@ private:
         dnnl::memory::desc src_md;
         dnnl::memory::desc weights_md;
         dnnl::memory::desc dst_md;
+        bool packed = false;  // runs on the prepacked weights; false when it fell back to the plain graph weights
     };
     // The down/up/(inject) GEMMs for one M.
     struct TileGemms {

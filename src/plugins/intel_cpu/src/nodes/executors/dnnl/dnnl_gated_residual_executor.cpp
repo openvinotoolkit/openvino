@@ -212,6 +212,10 @@ dnnl::memory make_decompression_zero_point_memory(const MemoryPtr& mem,
 
 // Rounds a row count up to a bucket, bounding the number of distinct GEMM shapes (and so cached primitives
 // and JIT builds) a dynamic row count can produce -- the same rule GatherMatmul uses for its per-expert M.
+// Largest row tile, and the row count whose preferred weights layout every prepacked projection adopts (see
+// createTileGemms): fixing it makes the packed layout independent of the order in which row counts arrive.
+constexpr size_t kMaxTileRows = 512;
+
 size_t normalize_rows(size_t m) {
     const auto rnd_up = [](size_t v, size_t multiple) {
         return (v + multiple - 1) / multiple * multiple;
@@ -282,6 +286,32 @@ struct MatmulKey {
                epilogue == rhs.epilogue && scale == rhs.scale;
     }
 };
+
+// primitive_attr of one projection matmul: weights decompression (compressed weights) and the GEMM epilogue.
+dnnl::primitive_attr make_matmul_attr(const MatmulKey& k) {
+    dnnl::primitive_attr attr;
+    if (k.compressed) {
+        // weights_md is the logical (K, N) view; the decompression group dims/mask use the [N, K] shape.
+        const auto wei_dims = k.weights_md.get_dims();
+        const dnnl::memory::dims nk{wei_dims[1], wei_dims[0]};
+        attr = build_decompression_attr(nk, k.scale_dims, k.has_zero_points);
+    }
+    if (k.epilogue != MatmulEpilogue::None) {
+        dnnl::post_ops ops;
+        if (k.epilogue == MatmulEpilogue::ScaledSilu) {
+            ops.append_eltwise(dnnl::algorithm::eltwise_linear, k.scale, 0.0F);
+            ops.append_eltwise(dnnl::algorithm::eltwise_swish, 1.0F, 0.0F);  // x * sigmoid(x)
+        } else if (k.epilogue == MatmulEpilogue::WriteGate) {
+            ops.append_eltwise(dnnl::algorithm::eltwise_linear, k.scale, 0.0F);
+            ops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0F, 0.0F);
+            ops.append_eltwise(dnnl::algorithm::eltwise_linear, 2.0F, 0.0F);
+        } else {
+            ops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0F, 0.0F);
+        }
+        attr.set_post_ops(ops);
+    }
+    return attr;
+}
 
 struct WriteKernelKey {
     ov::element::Type precision;
@@ -562,7 +592,6 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
     // never stored.
     constexpr size_t kTileRowAlignment = 32;  // keeps every normalized remainder <= the tile
     constexpr size_t kMinTileRows = 32;
-    constexpr size_t kMaxTileRows = 512;
     constexpr size_t kScratchBudgetBytes = 64UL << 20;
     // Per-row footprint of every buffer reserved in update(): rbar and logit (f32), t (GEMM precision), the optional
     // write-gate output (data precision) and the optional low-precision copy of rbar for the GEMM.
@@ -682,7 +711,20 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
             if (m_packed[packed_idx].ready) {
                 return m_packed[packed_idx].md;
             }
-            return {{static_cast<int64_t>(k), static_cast<int64_t>(n)}, weights_dt, dnnl::memory::format_tag::any};
+            // First use: take oneDNN's preferred layout for a fixed reference M, not for whichever M arrives first.
+            const auto ref = make_projection_descs(normalize_rows(kMaxTileRows), k, n, src_dt, weights_dt, out_dt);
+            const MatmulKey ref_key{ref.src_md, ref.weights_md, ref.dst_md, {}, false, false, epilogue, scale};
+            const dnnl::memory::desc any_md({static_cast<int64_t>(k), static_cast<int64_t>(n)},
+                                            weights_dt,
+                                            dnnl::memory::format_tag::any);
+            const dnnl::matmul::primitive_desc ref_pd(m_context->getEngine(),
+                                                      ref.src_md,
+                                                      any_md,
+                                                      ref.dst_md,
+                                                      make_matmul_attr(ref_key));
+            m_packed[packed_idx].md = ref_pd.weights_desc();
+            m_packed[packed_idx].ready = true;
+            return m_packed[packed_idx].md;
         }();
         MatmulKey key{descs.src_md,
                       weights_key_md,
@@ -698,36 +740,29 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
             key.scale_dims = {port_dims[1], port_dims[0]};
         }
         const auto& engine = m_context->getEngine();
-        const auto result = m_context->getRuntimeCache()->getOrCreate(key, [&engine](const MatmulKey& k) {
-            dnnl::primitive_attr attr;
-            if (k.compressed) {
-                // weights_md is the logical (K, N) view; the decompression group dims/mask use the [N, K] shape.
-                const auto wei_dims = k.weights_md.get_dims();
-                const dnnl::memory::dims nk{wei_dims[1], wei_dims[0]};
-                attr = build_decompression_attr(nk, k.scale_dims, k.has_zero_points);
+        const auto create = [&engine, this](const MatmulKey& k) {
+            return m_context->getRuntimeCache()
+                ->getOrCreate(
+                    k,
+                    [&engine](const MatmulKey& key) {
+                        const auto attr = make_matmul_attr(key);
+                        const dnnl::matmul::primitive_desc pd(engine, key.src_md, key.weights_md, key.dst_md, attr);
+                        return std::make_shared<CachedMatmul>(CachedMatmul{dnnl::matmul(pd), pd.weights_desc()});
+                    })
+                .first;
+        };
+        // dnnl::matmul is a ref-counted handle, so the copy below stays valid even if the cache evicts the entry.
+        if (pack_weights) {
+            try {
+                const auto cached = create(key);
+                return ProjectionGemm{cached->prim, descs.src_md, cached->weights_md, descs.dst_md, true};
+            } catch (const dnnl::error&) {
+                // oneDNN does not accept the packed layout for this M: run this M on the plain graph weights.
+                key.weights_md = descs.weights_md;
             }
-            if (k.epilogue != MatmulEpilogue::None) {
-                dnnl::post_ops ops;
-                if (k.epilogue == MatmulEpilogue::ScaledSilu) {
-                    ops.append_eltwise(dnnl::algorithm::eltwise_linear, k.scale, 0.0F);
-                    ops.append_eltwise(dnnl::algorithm::eltwise_swish, 1.0F, 0.0F);  // x * sigmoid(x)
-                } else if (k.epilogue == MatmulEpilogue::WriteGate) {
-                    ops.append_eltwise(dnnl::algorithm::eltwise_linear, k.scale, 0.0F);
-                    ops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0F, 0.0F);
-                    ops.append_eltwise(dnnl::algorithm::eltwise_linear, 2.0F, 0.0F);
-                } else {
-                    ops.append_eltwise(dnnl::algorithm::eltwise_logistic, 1.0F, 0.0F);
-                }
-                attr.set_post_ops(ops);
-            }
-            const dnnl::matmul::primitive_desc pd(engine, k.src_md, k.weights_md, k.dst_md, attr);
-            return std::make_shared<CachedMatmul>(CachedMatmul{dnnl::matmul(pd), pd.weights_desc()});
-        });
-        // dnnl::matmul is a ref-counted handle, so this copy stays valid even if the cache evicts the entry.
-        return ProjectionGemm{result.first->prim,
-                              descs.src_md,
-                              pack_weights ? result.first->weights_md : descs.weights_md,
-                              descs.dst_md};
+        }
+        const auto cached = create(key);
+        return ProjectionGemm{cached->prim, descs.src_md, descs.weights_md, descs.dst_md, false};
     };
 
     TileGemms gemms;
@@ -755,14 +790,6 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
                              MatmulEpilogue::WriteGate,
                              1.0F / static_cast<float>(C),
                              kInject);
-    }
-    // Remember the layout each packed projection settled on; every other M builds on it.
-    const ProjectionGemm* projection_gemms[3] = {&gemms.down, &gemms.up, &gemms.inject};
-    for (size_t i = 0; i < 3; i++) {
-        if (m_packed[i].enabled && !m_packed[i].ready && projection_gemms[i]->prim) {
-            m_packed[i].md = projection_gemms[i]->weights_md;
-            m_packed[i].ready = true;
-        }
     }
     return gemms;
 }
@@ -834,6 +861,16 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
     const dnnl::memory& down_weights_mem = m_packed[kDown].enabled ? m_packed[kDown].view : down_plain_mem;
     const dnnl::memory& up_weights_mem = m_packed[kUp].enabled ? m_packed[kUp].view : up_plain_mem;
     const dnnl::memory& inject_weights_mem = m_packed[kInject].enabled ? m_packed[kInject].view : inject_plain_mem;
+    // A tile whose GEMM could not use the packed layout (see createTileGemms) reads the plain graph weights instead.
+    const auto weights_for = [&](size_t idx,
+                                 const ProjectionGemm& gemm,
+                                 const dnnl::memory& base,
+                                 const PlainTensor& plain) -> dnnl::memory {
+        if (m_packed[idx].enabled && !gemm.packed) {
+            return {gemm.weights_md, engine, plain.ptr_v(0)};
+        }
+        return base;
+    };
 
     // The decompression views need an f32 (scales) / s32 (zero-points) copy of each
     // scale/zero-point tensor. They are graph constants (enforced by the node), so that is done once.
@@ -905,9 +942,10 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
             void* src_ptr = gemm_lowp ? static_cast<void*>(m_rbar_gemm) : static_cast<void*>(m_rbar);
             dnnl::memory src_mem(g.down.src_md, engine, src_ptr);
             dnnl::memory dst_mem(g.down.dst_md, engine, m_t);
-            std::unordered_map<int, dnnl::memory> mem_ags{{DNNL_ARG_SRC, src_mem},
-                                                          {DNNL_ARG_WEIGHTS, down_weights_mem},
-                                                          {DNNL_ARG_DST, dst_mem}};
+            std::unordered_map<int, dnnl::memory> mem_ags{
+                {DNNL_ARG_SRC, src_mem},
+                {DNNL_ARG_WEIGHTS, weights_for(kDown, g.down, down_weights_mem, w_down)},
+                {DNNL_ARG_DST, dst_mem}};
             if (compressed) {
                 mem_ags.emplace(DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, m_down_scale_mem);
                 if (m_weights_have_zero_points) {
@@ -922,9 +960,10 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
             void* src_ptr = m_t;
             dnnl::memory src_mem(g.up.src_md, engine, src_ptr);
             dnnl::memory dst_mem(g.up.dst_md, engine, m_logit);
-            std::unordered_map<int, dnnl::memory> mem_ags{{DNNL_ARG_SRC, src_mem},
-                                                          {DNNL_ARG_WEIGHTS, up_weights_mem},
-                                                          {DNNL_ARG_DST, dst_mem}};
+            std::unordered_map<int, dnnl::memory> mem_ags{
+                {DNNL_ARG_SRC, src_mem},
+                {DNNL_ARG_WEIGHTS, weights_for(kUp, g.up, up_weights_mem, w_up)},
+                {DNNL_ARG_DST, dst_mem}};
             if (compressed) {
                 mem_ags.emplace(DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, m_up_scale_mem);
                 if (m_weights_have_zero_points) {
@@ -955,9 +994,10 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
             const bool wg_direct = cur_rows == gemm_rows;
             uint8_t* wg_dst = wg_direct ? write_gate_out + tile_start * C * wg_elem_size : m_wg_gate;
             dnnl::memory dst_mem(g.inject.dst_md, engine, wg_dst);
-            std::unordered_map<int, dnnl::memory> mem_ags{{DNNL_ARG_SRC, src_mem},
-                                                          {DNNL_ARG_WEIGHTS, inject_weights_mem},
-                                                          {DNNL_ARG_DST, dst_mem}};
+            std::unordered_map<int, dnnl::memory> mem_ags{
+                {DNNL_ARG_SRC, src_mem},
+                {DNNL_ARG_WEIGHTS, weights_for(kInject, g.inject, inject_weights_mem, w_inject)},
+                {DNNL_ARG_DST, dst_mem}};
             if (compressed) {
                 mem_ags.emplace(DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, m_inject_scale_mem);
                 if (m_weights_have_zero_points) {
