@@ -586,6 +586,8 @@ struct Moe3GemmTestParams {
     bool micro_gemm_prefill = false;  // true: prefill uses the micro-GEMM path (grouped GEMM off)
     size_t routed_experts = 0;        // > 0: tokens are routed only to the first routed_experts experts
     size_t executions = 1;            // > 1: execute() again on new inputs of the same shape
+    // DYNAMIC_QUANTIZATION_GROUP_SIZE, the default when negative
+    int dq_group_size = -1;
 };
 
 class moe_3gemm_compressed_gpu_random : public ::testing::TestWithParam<std::tuple<cldnn::MoERouterFused::RoutingType, Moe3GemmTestParams>> {};
@@ -1570,6 +1572,9 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    if (param.dq_group_size >= 0) {
+        net_config.set_user_property(ov::hint::dynamic_quantization_group_size(static_cast<uint64_t>(param.dq_group_size)));
+    }
     network network(engine, topology, net_config);
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
@@ -1585,8 +1590,11 @@ TEST_P(moe_3gemm_compressed_gpu_symmetric_random, moe_accuracy_test_symmetric) {
 
     const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.25f : 0.15f;
     const float tolerance = base_tolerance * std::max(1, static_cast<int>(config.hidden_size / 128));
+    // The prefill cases reach outputs of tens, where the f16 grouped GEMM alone is ~1% off the f32 reference
+    const float rel_tolerance = param.dq_group_size >= 0 ? 0.02f : 0.0f;
     for (size_t i = 0; i < ref_output.size(); ++i) {
-        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
+        const float ref_value = static_cast<float>(ref_output[i]);
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), ref_value, tolerance + rel_tolerance * std::abs(ref_value));
     }
 }
 
@@ -1604,7 +1612,15 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512, true},
                                                               // Sub-128 group_size for symmetric quantization.
                                                               Moe3GemmTestParams{1, true, 128, 256, 4, 2, 64, true},
-                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true})));
+                                                              Moe3GemmTestParams{1, false, 128, 256, 4, 2, 64, true},
+                                                              // Prefill (grouped GEMM) on dynamically quantized activations, and without
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 128},
+                                                              Moe3GemmTestParams{40, false, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 128},
+                                                              Moe3GemmTestParams{200, true, 256, 512, 4, 2, 128, true, 0, false, 0, 1, 128},
+                                                              Moe3GemmTestParams{200, false, 256, 512, 4, 2, 128, true, 0, false, 0, 1, 128},
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 64, true, 0, false, 0, 1, 64},
+                                                              Moe3GemmTestParams{40, true, 512, 512, 4, 2, 512, true, 0, false, 0, 1, 128},
+                                                              Moe3GemmTestParams{40, true, 128, 256, 4, 2, 128, true, 0, false, 0, 1, 0})));
 
 // Symmetric quantization test with shared expert
 class moe_3gemm_compressed_gpu_shared_symmetric_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
