@@ -26,7 +26,7 @@
 namespace cldnn {
 
 // Re-expresses the sub-group size a kernel source asks for - REQD_SUB_GROUP_SIZE(x) or the equivalent
-// __attribute__((intel_reqd_sub_group_size(x))) - as a redefinition of _NV_SUB_GROUP_SIZE, which is what the NVIDIA
+// __attribute__((intel_reqd_sub_group_size(x))) - as a redefinition of OV_NV_SUB_GROUP_SIZE, which is what the NVIDIA
 // compatibility headers key their sub-group emulation off. The redefinition is emitted both at the top of the entry
 // and at each occurrence, and the 32 default is restored at the end so nothing leaks into the next kernel of the
 // batch. Sources that ask for no particular sub-group size are returned unchanged.
