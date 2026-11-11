@@ -43,7 +43,7 @@ public:
     // because an added stage is compiled even for parameters it is never dispatched with.
     static bool supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size);
 
-    // Whether sdpa_ocl.cl compiles for these layouts: Xe2 or later, or xe_hpg (the SG8 arms), f16/bf16 Q and output,
+    // Whether sdpa_ocl.cl compiles for these layouts: xe_hpc, Xe2 or later, or xe_hpg (the SG8 arms), f16/bf16 Q and output,
     // K/V matching Q or an i8/u4 cache. An added stage is compiled even when it is never dispatched, so everything else
     // must be rejected here.
     static bool supported(const kernel_impl_params& params);

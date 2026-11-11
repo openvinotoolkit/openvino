@@ -209,6 +209,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 
     scale *= LOG2E;
+#if WITH_ATTN_MASK || defined(HAS_SCALAR_ATTN_MASK) || defined(STATIC_SCALAR_ATTN_MASK_VALUE)
+    const float mask_sat = SDPA_MASK_SAT_FOR(scale);  // the clamp of every mask term (sdpa_ocl_config.cl)
+#endif
 
 #ifdef HAS_SINK_INPUT
     // Attention sink: an extra per-head logit with a ZERO value vector, i.e. the online-softmax
@@ -886,12 +889,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         KMASK_FLOAT_T mask_tile_float = KMASK_TO_FLOAT(mask_tile);
         #pragma unroll
         for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii)
+#if WITH_ATTN_MASK
+            mask_tile_float[ii] = SDPA_SAT_MASK(mask_tile_float[ii] * iscale, mask_sat);
+#else
             mask_tile_float[ii] = mask_tile_float[ii] * iscale;
+#endif
 
         #if WITH_ATTN_MASK
             float16 mask_full[kq_query_blocks][kq_sg_tile_keys / MASK_VEC_KEYS];
             if (MASK_IS_FULL_2D)
-                FUNC_CALL(mask_tile_2d)(OPTIONAL_SHAPE_INFO_TENSOR mask_full, msk, iscale, wg_j0, sg_j0_kq, lane,
+                FUNC_CALL(mask_tile_2d)(OPTIONAL_SHAPE_INFO_TENSOR mask_full, msk, iscale, mask_sat, wg_j0, sg_j0_kq, lane,
                                         key_base);
         #endif
 
@@ -954,12 +961,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int key = key_base + key_rel;
                     float s = S_tile[mb][qb][mm] + sub_group_broadcast(k_mask[mask_idx], mask_lane);
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
-                    s += STATIC_SCALAR_ATTN_MASK_VALUE * iscale;
+                    s += SDPA_SAT_MASK(STATIC_SCALAR_ATTN_MASK_VALUE * iscale, mask_sat);
 #endif
 #ifdef HAS_SCALAR_ATTN_MASK
                     // Single-element runtime mask (rank-0 scalar / 1-element 1D): the value broadcasts
                     // to every logit, matching the const-scalar path above.
-                    s += MASK_TO_FLOAT(msk[0]) * iscale;
+                    s += SDPA_SAT_MASK(MASK_TO_FLOAT(msk[0]) * iscale, mask_sat);
 #endif
                     #if WITH_ATTN_MASK
                         if (MASK_IS_PER_KEY) {
@@ -976,7 +983,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         } else if (query < q && key < k) {
                             const int mask_query = (MSK_D2 == 1) ? 0 : query;
                             const int mask_key = (MSK_D3 == 1) ? 0 : key;
-                            s += MASK_TO_FLOAT(msk[MSK_OFF(0, 0, mask_query, mask_key)]) * iscale;
+                            s += SDPA_SAT_MASK(MASK_TO_FLOAT(msk[MSK_OFF(0, 0, mask_query, mask_key)]) * iscale, mask_sat);
                         }
                     #endif
 #if HAS_QQ_BIAS && IS_PA_MIXED
