@@ -161,6 +161,8 @@ elif [ "$os" == "centos8" ] || [ "$os" == "centos9" ] ||
 
     pkgs_gpu=()
     pkgs_python=()
+    # shellcheck disable=SC2034 
+    # pkgs_dev is consumed indirectly via "${!var}" below
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake3 sudo pkgconf-pkg-config)
 
     if [ "$os" == "fedora43" ] || [ "$os" == "fedora44" ] || [ "$os" == "fedora45" ] ||
