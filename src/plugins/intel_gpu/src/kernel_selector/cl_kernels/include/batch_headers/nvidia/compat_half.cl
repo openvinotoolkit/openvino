@@ -184,9 +184,23 @@ OV_NV_H_BINARY(maxmag)    OV_NV_H_BINARY(minmag)
 OV_NV_H_BINARY_IMPL(pow, ov_nv_pow_f) OV_NV_H_BINARY(powr) OV_NV_H_BINARY(remainder)
 OV_NV_H_BINARY(step)      OV_NV_H_BINARY(native_divide)
 OV_NV_H_TERNARY(mad)
-OV_NV_H_TERNARY(fma)
 OV_NV_H_TERNARY(clamp)
 OV_NV_H_TERNARY(mix)
+
+// fma rounds once, which going through float does not guarantee: rounding to float first can make the second
+// rounding pick the other half neighbour (fma(48, 64.0625, -2^-13) gives 3076 instead of 3074). fma.rn.f16 (sm_53
+// and later) rounds once; vectors apply it lane by lane.
+static inline half __attribute__((overloadable)) fma(half a, half b, half c) {
+    ushort r;
+    __asm__("fma.rn.f16 %0, %1, %2, %3;"
+            : "=h"(r) : "h"(__builtin_astype(a, ushort)), "h"(__builtin_astype(b, ushort)), "h"(__builtin_astype(c, ushort)));
+    return __builtin_astype(r, half);
+}
+static inline half2  __attribute__((overloadable)) fma(half2  a, half2  b, half2  c){return (half2)(fma(a.x, b.x, c.x), fma(a.y, b.y, c.y));}
+static inline half3  __attribute__((overloadable)) fma(half3  a, half3  b, half3  c){return (half3)(fma(a.xy, b.xy, c.xy), fma(a.z, b.z, c.z));}
+static inline half4  __attribute__((overloadable)) fma(half4  a, half4  b, half4  c){return (half4)(fma(a.lo, b.lo, c.lo), fma(a.hi, b.hi, c.hi));}
+static inline half8  __attribute__((overloadable)) fma(half8  a, half8  b, half8  c){return (half8)(fma(a.lo, b.lo, c.lo), fma(a.hi, b.hi, c.hi));}
+static inline half16 __attribute__((overloadable)) fma(half16 a, half16 b, half16 c){return (half16)(fma(a.lo, b.lo, c.lo), fma(a.hi, b.hi, c.hi));}
 
 #undef OV_NV_H_UNARY_VEC
 #undef OV_NV_H_UNARY
