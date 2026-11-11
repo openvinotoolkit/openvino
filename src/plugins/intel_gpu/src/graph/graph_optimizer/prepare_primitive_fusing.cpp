@@ -99,7 +99,6 @@ static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node
     return std::nullopt;
 }
 
-
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
@@ -841,6 +840,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
 
+            if (activation_func == cldnn::activation_func::swoosh) {
+                return;
+            }
+
             auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
@@ -1559,8 +1562,10 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
         // Add format reorder in case of onednn to avoid overhead during execution on weights memory allocation
         if (lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
-            auto* next_node = new_const_node.get_users().front();
-            bool can_be_fused = next_node->is_type<reorder>() &&
+            const auto& const_users = new_const_node.get_users();
+            auto* next_node = const_users.front();
+            bool can_be_fused = const_users.size() == 1 &&
+                                next_node->is_type<reorder>() &&
                                 next_node->as<reorder>().is_simple_reorder() &&
                                 next_node->get_users().size() == 1;
             if (can_be_fused) {
@@ -1576,7 +1581,11 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
                 auto new_reorder = std::make_shared<reorder>(new_const_node.id() + "_reorder_fmt", new_const_node.id(), reorder_layout);
                 auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
-                p.add_intermediate(new_reorder_node, *new_const_node.get_users().front(), new_const_node);
+                p.add_intermediate(new_reorder_node,
+                                   *next_node,
+                                   new_const_node,
+                                   /*connect_int_node_with_old_dep=*/true,
+                                   /*move_usrs_of_prev_to_node=*/true);
                 new_reorder_node.recalc_output_layout(false);
             }
         }

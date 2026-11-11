@@ -151,6 +151,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp"
 #include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
@@ -478,8 +479,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     // We need to fuse Transpose to MatMul to have a simpler callback for the next transformation
     CPU_REGISTER_PASS_X64(decompression_handling_manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_ARM(decompression_handling_manager, ov::pass::TransposeMatMul);
-    const auto& decompression_precisions =
-        ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(true);
+    const auto& decompression_precisions = ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes();
     CPU_REGISTER_PASS_COMMON(decompression_handling_manager,
                              ov::pass::MarkDequantization,
                              decompression_precisions,
@@ -1217,6 +1217,8 @@ void Transformations::PostLpt() {
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
+        // Must be before Snippets tokenization and ConvertToPowerStatic (CpuSpecificOpSet)
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::ClampBF16ScalarConstants);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by

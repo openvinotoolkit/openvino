@@ -2,19 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "impls/ocl_v2/utils/jitter.hpp"
+
 #include <gtest/gtest.h>
 #include <gtest/internal/gtest-param-util.h>
-#include "impls/ocl_v2/utils/jitter.hpp"
+
+#include <algorithm>
+#include <memory>
+
+#include "impls/ocl_v2/utils/fused_ops_jitter.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/op/swoosh.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#include "kernel_selector/jitter.h"
 #include "openvino/core/except.hpp"
 #include "primitive_inst.h"
-#include "test_utils.h"
-#include "registry/registry.hpp"
 #include "primitive_type_base.h"
-#include <memory>
+#include "registry/registry.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -22,6 +29,38 @@ using namespace ov::intel_gpu;
 using namespace ov::intel_gpu::ocl;
 
 namespace {
+
+TEST(SwooshJitterTest, PreservesSlopeLiteral) {
+    const auto slope_literal = std::to_string(ov::intel_gpu::op::swoosh_constants::slope);
+    EXPECT_EQ(std::stod(slope_literal), 0.08);
+
+    for (const auto data_type : {kernel_selector::Datatype::F16, kernel_selector::Datatype::F32}) {
+        for (const bool use_type_parameter : {false, true}) {
+            for (const bool disable_type_conversion : {false, true}) {
+                const auto definitions = kernel_selector::MakeActivationJitConstants(kernel_selector::ActivationFunction::SWOOSH,
+                                                                                     data_type,
+                                                                                     "",
+                                                                                     use_type_parameter,
+                                                                                     disable_type_conversion)
+                                             .GetDefinitions();
+                const auto activation = std::find_if(definitions.begin(), definitions.end(), [](const auto& definition) {
+                    return definition.first == "ACTIVATION_FUNC(input, m, n)" || definition.first == "ACTIVATION_FUNC(jit_type, input, m, n)";
+                });
+                ASSERT_NE(activation, definitions.end());
+                EXPECT_NE(activation->second.find(slope_literal), std::string::npos);
+            }
+        }
+    }
+
+    for (const auto data_type : {ov::element::Type_t::f16, ov::element::Type_t::f32}) {
+        const auto definitions = make_activation_jit_constants("", activation_func::swoosh, data_type, data_type);
+        const auto activation = std::find_if(definitions.begin(), definitions.end(), [](const auto& definition) {
+            return definition.name == "ACTIVATION_FUNC(input,m,n)";
+        });
+        ASSERT_NE(activation, definitions.end());
+        EXPECT_NE(activation->value.find(slope_literal), std::string::npos);
+    }
+}
 
 struct Params {
     layout l;

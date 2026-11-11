@@ -250,6 +250,20 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         auto order_k = op::SDPA::default_order(sdpa->get_input_partial_shape(1).size());
         auto order_v = op::SDPA::default_order(sdpa->get_input_partial_shape(2).size());
         auto order_output = op::SDPA::default_order(sdpa->get_output_partial_shape(0).size());
+        if (gpu_sdpa) {
+            if (!gpu_sdpa->get_input0_transpose_order().empty()) {
+                order_q = gpu_sdpa->get_input0_transpose_order();
+            }
+            if (!gpu_sdpa->get_input1_transpose_order().empty()) {
+                order_k = gpu_sdpa->get_input1_transpose_order();
+            }
+            if (!gpu_sdpa->get_input2_transpose_order().empty()) {
+                order_v = gpu_sdpa->get_input2_transpose_order();
+            }
+            if (!gpu_sdpa->get_output_transpose_order().empty()) {
+                order_output = gpu_sdpa->get_output_transpose_order();
+            }
+        }
         size_t input_q_output_idx = sdpa->get_input_source_output(0).get_index();
         size_t input_k_output_idx = sdpa->get_input_source_output(1).get_index();
         size_t input_v_output_idx = sdpa->get_input_source_output(2).get_index();
@@ -259,12 +273,26 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
                                     std::vector<int64_t>& order,
                                     size_t& output_idx) {
             auto transpose_order_const = ov::as_type_ptr<ov::op::v0::Constant>(transpose_order_const_node);
+            const auto transpose_order = transpose_order_const->cast_vector<int64_t>();
 
-            order = transpose_order_const->cast_vector<int64_t>();
             // Allow any transposes without head_size dim position change
-            if (order.back() != static_cast<int64_t>(order.size() - 1)) {
+            if (transpose_order.back() != static_cast<int64_t>(transpose_order.size() - 1)) {
                 return false;
             }
+
+            if (order.size() != transpose_order.size()) {
+                return false;
+            }
+
+            // composed[i] = transpose_order[order[i]]: keep the order already set on the SDPA
+            std::vector<int64_t> composed(order.size());
+            for (size_t i = 0; i < order.size(); ++i) {
+                if (order[i] < 0 || static_cast<size_t>(order[i]) >= transpose_order.size()) {
+                    return false;
+                }
+                composed[i] = transpose_order[static_cast<size_t>(order[i])];
+            }
+            order = composed;
 
             auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(transpose_node);
             output_idx = transpose->get_input_source_output(0).get_index();

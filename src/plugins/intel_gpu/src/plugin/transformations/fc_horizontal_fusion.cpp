@@ -173,6 +173,21 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
         auto concat_and_fold = [](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
+            const auto& reference_shape = outputs.front().get_partial_shape();
+            if (!reference_shape.is_static() || axis < 0 || axis >= reference_shape.rank().get_length()) {
+                return nullptr;
+            }
+            for (const auto& output : outputs) {
+                const auto& shape = output.get_partial_shape();
+                if (!shape.is_static() || shape.rank() != reference_shape.rank() || output.get_element_type() != outputs.front().get_element_type()) {
+                    return nullptr;
+                }
+                for (int64_t dim = 0; dim < shape.rank().get_length(); ++dim) {
+                    if (dim != axis && shape[dim] != reference_shape[dim]) {
+                        return nullptr;
+                    }
+                }
+            }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
             auto folded = ov::util::get_constant_from_source(concat);
             if (!folded) {

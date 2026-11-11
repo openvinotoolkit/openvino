@@ -173,9 +173,11 @@ Produce **one** consolidated comment summarizing every failed pipeline and post 
 
 **Report Formatting**: Use `###`/`####` headers. Prefer tilde fences (`~~~`) for log excerpts to avoid collisions with stray backticks in log output.
 
+Keep the title, analyzed-pipeline count, and overview table visible. Put each numbered per-pipeline section inside its own GitHub `<details>` block, collapsed by default (no `open` attribute). Use a short, plain-text `<summary>` containing the pipeline number and workflow name; HTML-escape dynamic summary text (`&`, `<`, `>`). Leave a blank line after `</summary>` and before `</details>` so GitHub renders the enclosed Markdown, including lists and log fences.
+
 Use this structure:
 
-~~~markdown
+~~~~markdown
 ## CI Doctor — Failure Summary for this PR
 
 Analyzed **<N>** failed pipeline(s) on commit `<short-sha>`.
@@ -187,6 +189,9 @@ Analyzed **<N>** failed pipeline(s) on commit `<short-sha>`.
 | [<workflow name>](<run_url>) | <category> | <High/Medium/Low> | <"known (seen N×)" or "new"> |
 
 ---
+
+<details>
+<summary>1. &lt;workflow name&gt;</summary>
 
 ### 1. <workflow name>
 
@@ -202,14 +207,16 @@ Analyzed **<N>** failed pipeline(s) on commit `<short-sha>`.
 
 **Key errors**
 
-```text
+~~~text
 <trimmed raw log excerpt, ≤ 30 lines, with file paths/line numbers verbatim>
-```
-
-**Root cause**: <2–6 sentences explaining why the failure occurred, referencing PR-changed files when relevant>
 ~~~
 
-Repeat the numbered per-pipeline section for every failed pipeline. Keep excerpts short and use separate fenced blocks for distinct errors. If a failure cannot be localized within the inspection limits, mark it **needs human triage** and include the log evidence collected so far.
+**Root cause**: <2–6 sentences explaining why the failure occurred, referencing PR-changed files when relevant>
+
+</details>
+~~~~
+
+Repeat the entire `<details>` block for every failed pipeline; do not put all pipelines in one collapsible block. Keep excerpts short and use separate fenced blocks for distinct errors. If a failure cannot be localized within the inspection limits, mark it **needs human triage** and include the log evidence collected so far inside that pipeline's block.
 
 ## Important Guidelines
 

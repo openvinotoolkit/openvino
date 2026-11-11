@@ -38,6 +38,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_base.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_gen_micro.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_gen_micro.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_int3_gemv.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_swiglu_opt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_3gemm_swiglu_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_gather.cpp
@@ -55,15 +57,28 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/moe_scatter_reduction_ref.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/msda_opt.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/msda_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d_ref.hpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_jit_utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/primitive_ocl_base.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_host_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/paged_qsa_indexer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/paged_qsa_indexer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_pa.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_sdpa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_sdpa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/rope_opt.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rope_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/scatter_nd_update.cpp
@@ -122,8 +137,10 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/lora_horizontal_fused.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_int3.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_swiglu_fuse.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_3gemm_swiglu_mlp.cl
+    ${CMAKE_CURRENT_LIST_DIR}/moe_gate_activation.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_gather_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_gemm.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_mask_gen.cl
@@ -131,6 +148,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/moe_scatter_reduction_row_lut.cl
+    ${CMAKE_CURRENT_LIST_DIR}/msda_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_adaptive_rkv_diversity_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_reorder_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_rotate_ref.cl
@@ -139,9 +157,17 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_short.cl
+    ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_type_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_jit_precompute.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_large_state.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm_opt.cl
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_prepare_dense.cl
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_prepare_paged.cl
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_score_dpas.cl
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_score_partition.cl
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer_topk.cl
     ${CMAKE_CURRENT_LIST_DIR}/rope_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/scatter_nd_update_copy.cl
     ${CMAKE_CURRENT_LIST_DIR}/scatter_nd_update_opt.cl
@@ -158,4 +184,10 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/selective_ssm_type_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/slice_scatter_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/slice_scatter_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_dpas.cl
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_gqa_dpas.cl
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_kv_write.cl
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_scalar.cl
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_split.cl
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_split_reduce.cl
 )

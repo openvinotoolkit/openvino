@@ -1,0 +1,36 @@
+ir_version: 7
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "prelu-1d-singleton-constant"
+  initializer {
+    name: "SLOPE"
+    data_type: 1
+    dims: 1
+    float_data: 0.5
+  }
+  node {
+    op_type: "PRelu"
+    input: "X"
+    input: "SLOPE"
+    output: "Y"
+  }
+  input {
+    name: "X"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape { dim { dim_value: 24 } }
+      }
+    }
+  }
+  output {
+    name: "Y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape { dim { dim_value: 24 } }
+      }
+    }
+  }
+}
+opset_import { domain: "" version: 12 }

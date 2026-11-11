@@ -15,6 +15,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/model_serializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/parser.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin_compiler_adapter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vcl_error_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vcl_profiling_decoder.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/vcl_version_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/weightless_graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/weightless_utils.hpp
@@ -32,6 +34,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/parser_factory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_compiler_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/precomp.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vcl_error_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/vcl_profiling_decoder.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/weightless_graph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/weightless_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/xml_serializer.cpp
@@ -53,6 +57,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
+        ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include
         $<TARGET_PROPERTY:openvino_npu_vm_utils,INTERFACE_INCLUDE_DIRECTORIES>
 )
 

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-typedef INPUT0_TYPE data_t;
-typedef INPUT1_TYPE grid_t;
-typedef OUTPUT_TYPE output_t;
+// Type aliases are macros, not typedefs: kernels are batch-compiled into one OpenCL program,
+// where a typedef would leak into the next kernel and cannot be undefined.
+#define data_t INPUT0_TYPE
+#define grid_t INPUT1_TYPE
+#define output_t OUTPUT_TYPE
 
-typedef INPUT0_TYPE data_et;
-typedef float grid_et;
-typedef OUTPUT_TYPE output_et;
+#define data_et INPUT0_TYPE
+#define grid_et float
+#define output_et OUTPUT_TYPE
 
 #if defined(ALIGN_CORNERS)
 #    define rescale_align FUNC(denormalize)
@@ -129,3 +131,9 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
 #undef INTERPOLATE
 #undef LOAD_INPUT
 #undef PRE_CALC_VALID_OFFSETS_FOR_INPUT_LOAD
+#undef output_et
+#undef grid_et
+#undef data_et
+#undef output_t
+#undef grid_t
+#undef data_t
