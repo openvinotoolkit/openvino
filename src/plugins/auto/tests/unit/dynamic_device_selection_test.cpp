@@ -1165,6 +1165,12 @@ public:
                 ++m_gpu0_compile_count;
                 return mockExeNetworkActual;
             });
+        // GPU.1 is only a warmup candidate, but warmup dereferences the compiled model it gets back
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _))
+            .WillByDefault(Return(mockExeNetworkActual));
         ON_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
