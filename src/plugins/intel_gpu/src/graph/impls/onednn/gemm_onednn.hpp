@@ -51,19 +51,23 @@ struct GemmImplementationManager : public ImplementationManager {
             format::bfwzyx,
         };
 
-        if (gemm_prim->alpha != 1.0f || gemm_prim->beta != 0.0f)
+        if (gemm_prim->alpha != 1.0f || gemm_prim->beta != 0.0f) {
             return false;
+        }
 
-        if (get_shape_type() == shape_types::dynamic_shape && !node.get_fused_primitives().empty())
+        if (get_shape_type() == shape_types::dynamic_shape && !node.get_fused_primitives().empty()) {
             return false;
+        }
 
-        if (out_layout.data_padding)
+        if (out_layout.data_padding) {
             return false;
+        }
 
         if (!is_supported_pad(in0_layout) || !is_supported_pad(in1_layout) ||
             (get_shape_type() == shape_types::dynamic_shape &&
-             (in0_layout.data_padding || in1_layout.data_padding)))
+             (in0_layout.data_padding || in1_layout.data_padding))) {
             return false;
+        }
 
         if (one_of(in0_dt, {data_types::f32, data_types::i64}) || one_of(in1_dt, {data_types::f32, data_types::i64})) {
             return false;
@@ -71,8 +75,9 @@ struct GemmImplementationManager : public ImplementationManager {
 
         if (!one_of(in0_layout.format.value, supported_formats) ||
             !one_of(in1_layout.format.value, supported_formats) ||
-            !one_of(out_layout.format.value, supported_formats))
+            !one_of(out_layout.format.value, supported_formats)) {
             return false;
+        }
 
         //format bxfy not on whitelist for fusable_output_order_onednn in gemm_inst.h what makes assert error later
         //skipped onednn implementation as ocl is faster
@@ -105,8 +110,9 @@ struct GemmImplementationManager : public ImplementationManager {
         std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
 
         for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-            if (node.get_dependency(idx).is_constant())
+            if (node.get_dependency(idx).is_constant()) {
                 continue;
+            }
 
             size_t out_rank = node.get_output_layout().get_rank();
             auto target_format = format::get_default_format(out_rank);

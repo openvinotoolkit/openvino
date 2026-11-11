@@ -40,7 +40,7 @@ protected:
         }
 
         if (is_dynamic) {
-            auto impl_params = instance.get_impl_params();
+            const auto* impl_params = instance.get_impl_params();
             OPENVINO_ASSERT(impl_params != nullptr, "[GPU] Missing impl params for dynamic oneDNN GEMM");
 
             dnnl::memory::data_type in0_dt;
@@ -131,9 +131,9 @@ protected:
     }
 
     void set_arguments_impl(gemm_inst& instance) override {
-        if (instance.can_be_optimized())
+        if (instance.can_be_optimized()) {
             return;
-
+        }
         if (instance.get_input_layout(0).count() == 0 ||
             instance.get_input_layout(1).count() == 0) {
             return;
@@ -209,8 +209,9 @@ protected:
 
         if (in1_l.data_padding) {
             in1_strides = onednn::get_strides(in1_l.get_padded_dims());
-            if (prim->transpose_input1)
+            if (prim->transpose_input1) {
                 std::swap(in1_strides[in1_strides.size() - 1], in1_strides[in1_strides.size() - 2]);
+            }
         }
 
         // Check whether transpose_order increase sequential or not.
@@ -233,11 +234,8 @@ protected:
                 }
             }
             size_t last_idx = transpose_order.size() - 1;
-            if (static_cast<size_t>(transpose_order[last_idx]) != last_idx - 1)
-                return false;
-            if (static_cast<size_t>(transpose_order[last_idx - 1]) != last_idx)
-                return false;
-            return true;
+            return static_cast<size_t>(transpose_order[last_idx]) == last_idx - 1 &&
+                   static_cast<size_t>(transpose_order[last_idx - 1]) == last_idx;
         };
 
         auto transpose_dims_and_format_tag = [](std::vector<int64_t> transpose_order,
@@ -249,8 +247,9 @@ protected:
                 size_t orders_to_add = dims.size() - order.size();
                 for (size_t i = 0; i < orders_to_add; ++i)
                     order.insert(order.begin(), i);
-                for (size_t i = orders_to_add; i < order.size(); ++i)
+                for (size_t i = orders_to_add; i < order.size(); ++i) {
                     order[i] = order[i] + orders_to_add;
+                }
             }
 
             bool ret = false;
@@ -376,14 +375,14 @@ protected:
                 bias_md,
                 out_md,
                 attr);
-        } else {
-            return std::make_shared<dnnl::matmul::primitive_desc>(
-                engine.get_onednn_engine(),
-                in0_md,
-                in1_md,
-                out_md,
-                attr);
         }
+
+        return std::make_shared<dnnl::matmul::primitive_desc>(
+            engine.get_onednn_engine(),
+            in0_md,
+            in1_md,
+            out_md,
+            attr);
     }
 
 public:
@@ -537,7 +536,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
 
         bool gemm_with_bias = arg.get_primitive()->dependencies().size() == 3;
