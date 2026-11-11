@@ -14,10 +14,10 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-// Stage 0 of the PagedAttention GENERATE path, on DPAS: SG16 with 2D block IO on Xe2+ (sdpa_ocl_decode.cl), SG8 with
-// per-lane reads on xe_hpg (sdpa_ocl_hpg_decode.cl). It replaces pa_single_token / pa_gqa_single_token and feeds the
-// unchanged finalization stage, so it must write the same per-partition intermediates (the contract is at the top of
-// sdpa_ocl_decode.cl).
+// Stage 0 of the PagedAttention GENERATE path, on DPAS: SG16 with 2D block IO on xe_hpc and Xe2+ (sdpa_ocl_decode.cl),
+// SG8 with per-lane reads on xe_hpg (sdpa_ocl_hpg_decode.cl, not selected: paged_attention.hpp). It replaces
+// pa_single_token / pa_gqa_single_token and feeds the unchanged finalization stage, so it must write the same
+// per-partition intermediates (the contract is at the top of sdpa_ocl_decode.cl).
 class SDPAOclDecodeGenerator : public KernelGenerator {
 public:
     SDPAOclDecodeGenerator() : KernelGenerator("sdpa_ocl_decode") {}

@@ -21,8 +21,10 @@ The end-to-end performance investigation, including the B70 Xe2 gap closure and 
 | PA GENERATE | `SDPAOclDecodeGenerator` | `sdpa_ocl_decode.cl` | `SDPAOclDecodeGenerator::supported()` |
 
 Whether the DPAS kernel serves plain SDPA and PA PREFILL/MIXED is decided per device,
-`paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ and xe_hpg XMX (xe_hpg since 2026-11-09, below), the
-opt kernels on every other device (xe_hpc, non-XMX). `sdpa_micro`, the oneDNN-derived DPAS kernel
+`paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on xe_hpc, Xe2+ and xe_hpg XMX (xe_hpg since 2026-11-09, below),
+the opt kernels on every other device (non-XMX, and an XMX device whose arch is unknown or xe_hp). Since 2026-11-11
+xe_hpc runs the SG16 arms as Xe2 does, `sdpa_ocl_decode` and Xe2's tuned tilings included (`xe2_tuned()`); nothing was
+measured on xe_hpc (no such device on the test PC). `sdpa_micro`, the oneDNN-derived DPAS kernel
 that served the other XMX parts, was removed on 2026-11-02 together with `TEST_USE_SDPA_OCL`, which selected it; what
 that changed off Xe2 is listed in "Change history". The `sdpa_ocl` lane needs XMX and a oneDNN build (the
 `ENABLE_ONEDNN_FOR_GPU` guards were kept, although the kernel no longer uses oneDNN), but not the oneDNN microkernel
@@ -33,10 +35,9 @@ loaded or cloned impl is default-constructed and only gets `_order` (indices int
 re-derive the kernel from the device or the environment. Which kernel serves each stage on which device is one table,
 the comment above the lane predicates in `include/intel_gpu/primitives/paged_attention.hpp`.
 
-`TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so GENERATE falls back to the
-`paged_attention_opt` single-token kernels. The K page layout does not follow it: since 2026-11-06 those kernels read
-the token-major page of every kind ("Paged-attention cache layouts"). On xe_hpg those kernels serve GENERATE by default
-too; `TEST_USE_SDPA_OCL_DECODE=1` asks for the SG8 reader there ("xe_hpg reader (SG8)").
+`SDPAOclDecodeGenerator` serves GENERATE on Xe2+ XMX only; everywhere else GENERATE runs the `paged_attention_opt`
+single-token kernels, which since 2026-11-06 read the token-major page of every kind ("Paged-attention cache layouts").
+On xe_hpg its SG8 reader is not selected ("xe_hpg reader (SG8)").
 `SDPAOclGenerator::supported()` requires Xe2 or later, or xe_hpg (the SG8 arms, below), and
 f16/bf16 Q and output. Plain SDPA
 additionally requires equal K and V head sizes (`SDPAOpt::dpas_sdpa_op_supported()`), paged
@@ -1484,8 +1485,8 @@ reads f16 and f32 with a per-lane `vload16` or, on Xe2 where the block2d pitch r
 page (`USE_2D_BLOCK_IO_K_TM`); i8 BY_TOKEN and BY_CHANNEL with `vload16` rows; u4 BY_CHANNEL K by row bytes, and the
 relaid-out u4 V page (split nibbles, trailing per-token comp). It serves what `sdpa_ocl` and `sdpa_ocl_decode` refuse: an
 op with alibi, a scores output (cache eviction) or adaptive R-KV, a head size either rejects, k != v without an `sdpa_ocl`
-tiling, non-f16 inference, every device without those kernels (no XMX, xe_hpg off its lane, xe_hpc), and every MIXED step
-under `OV_GPU_ENABLE_SDPA_MICRO=0` or GENERATE step under `TEST_USE_SDPA_OCL_DECODE=0`.
+tiling, non-f16 inference, every device without those kernels (no XMX, xe_hpg off its lane, unknown arch, xe_hp), every GENERATE
+step on xe_hpg, and every MIXED step under `OV_GPU_ENABLE_SDPA_MICRO=0`.
 `smoke_paged_attention_by_channel_tm_any_reader` and `smoke_paged_attention_tm_opt_reader_scores` run the opt kernels
 on BY_CHANNEL pages and on scores-output ops.
 
@@ -1764,6 +1765,23 @@ garbage, on SG8 and SG16 alike (upstream #38532 made the path reachable and fixe
   `CL_OUT_OF_RESOURCES` or a NaN mask value.
 - `HAS_SCALAR_ATTN_MASK` / `STATIC_SCALAR_ATTN_MASK_VALUE`: a single-element mask broadcast to
   every logit.
+- Every mask term enters the raw score as `SDPA_SAT_MASK(mask * iscale, mask_sat)` (`sdpa_ocl_config.cl`, since
+  2026-11-11). The clamp follows sdpa_micro's (#39148).
+  - The overflow it prevents: iscale is 16 at head 256. A fill near the float limit, such as PyTorch's `finfo.min`
+    (which a bf16 mask keeps), or -inf overflows to -inf.
+  - What changes: before the clamp, a query row whose keys are all masked had no finite score and came out 0. Now it
+    gets uniform weights, the mean of V. For a finite fill that is what the reference gives.
+  - The bound is not sdpa_micro's fixed 1e37. It is a power of two picked from the log2-domain scale
+    (`SDPA_MASK_SAT_FOR`): `mask_sat * scale` lies in [2^30, 2^31), and the bound is capped at 2^126.
+  - Why a power of two: the default softmax form `exp2(S * scale - m_log2)` is contracted to a mad. With 1e37 the
+    rounding of `m_log2` (about 1e28) entered every exponent of a fully masked row, and the output was inf / NaN
+    (measured on the B70). sdpa_micro subtracts before it scales, so it never had this problem. With an exact product
+    the exponents of such a row are exactly 0.
+  - What does not change: masks below 2^30 in the log2 domain (|mask| below about 7e8, which includes -1e4 and
+    -65504). A row with any unmasked key also keeps its bits, because exp2 of a clamped score is still exactly 0. PA has
+    no mask terms and is unaffected.
+  - A NaN mask is clamped to the lower bound.
+  - `smoke_sdpa_mask_fill` checks it: 16 of 16 pass on the B70.
 - `HAS_QQ_BIAS` (MIXED only): the speculative-decoding tree mask over the new keys.
 
 ### Bidirectional image groups
@@ -2042,8 +2060,9 @@ compressed tolerances (25e-3 for i8, 75e-3 for u4) hide some of them: 32 fails f
 only the two sharp head-512 cases, 33 only the sharp i8 BY_CHANNEL heads 64 / 128 / 512 (u4 reads its pairs with the
 same line), 34 the five sharp i8 BY_TOKEN cases.
 
-Since 2026-11-09 the reader serves GENERATE only with `TEST_USE_SDPA_OCL_DECODE=1`
-(`sdpa_ocl_decode_reader_available()`); by default xe_hpg runs GENERATE on the opt kernels (`pa_single_token` /
+Since 2026-11-09 the reader does not serve GENERATE by default, and since 2026-11-11 not at all: the switch that
+asked for it (`TEST_USE_SDPA_OCL_DECODE=1`) was removed, so `sdpa_ocl_decode_reader_available()` turns xe_hpg down and
+the reader's code is kept but never compiled. xe_hpg runs GENERATE on the opt kernels (`pa_single_token` /
 `pa_gqa_single_token`, the kernels the remote branch runs on DG2), on the same token-major page. Measured on the A770
 (Windows driver 32.0.101.9175, llm_bench on the daily 4-bit models, so a u4 BY_CHANNEL cache; cliloader device time
 per call of the decode kernel plus its finalization, 32 new tokens; the same build with `TEST_USE_SDPA_OCL_DECODE=0`
@@ -2054,9 +2073,9 @@ end that was 1.13-1.89x the second-token latency of the 2026.5 RC (daily prompts
 token the MoE dominates, 0.96-0.98) and 1.24-1.55x the opt kernels' at a 4K prompt with 512 new tokens; on the opt
 kernels the lane's second token is the RC's (0.98-1.03).
 The cause was not analysed: at 1K keys a call is a few hundred threads of the A770's 4096 (4 partitions x 8 KV heads x
-the head groups, 8 subgroups each), so the reader would need another work split, not a tuning knob. The kit runs its
-suite (`smoke_paged_attention_decode_tm`, DEC_hpg) and NEG 30-35 with `TEST_USE_SDPA_OCL_DECODE=1`; without it the
-suite skips on xe_hpg as it does on the default lane.
+the head groups, 8 subgroups each), so the reader would need another work split, not a tuning knob. Its suite
+(`smoke_paged_attention_decode_tm`, DEC_hpg) and NEG 30-35 now skip on xe_hpg: running the reader again needs the
+device gate in `sdpa_ocl_decode_reader_available()` changed.
 
 ## Debug and bisection switches
 
@@ -2064,7 +2083,6 @@ All are read on the host when the kernel is compiled.
 
 | Variable | Effect |
 |---|---|
-| `TEST_USE_SDPA_OCL_DECODE` | `0` selects the opt GENERATE path instead, on the same K page layout (until 2026-11-06 it also made the page d-major; `TEST_USE_SDPA_OCL`, which selected `sdpa_micro`, was retired with it; `OV_GPU_ENABLE_SDPA_MICRO=0` turns the DPAS kernel off); `1` also lets the SG8 reader serve GENERATE on xe_hpg's lane (unset: Xe2+ only, since 2026-11-09) |
 | `SDPA_OCL_KQ_TILE_KEYS`, `_TILE_QUERIES`, `_PER_WG_KEYS`, `_PER_WG_QUERIES` | Override the KQ tiling (`kq_sg_tile_keys` must be 16 or 32) |
 | `SDPA_OCL_TRACE_CONFIG`, `SDPA_OCL_TRACE_STAGE` | Print the chosen tiling / PA stage |
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg; `SDPA_OCL_256GRF=0` turns it off for the PA PREFILL tiling) |
@@ -2640,7 +2658,10 @@ result is quoted.
   logit loop); the plugin passes both (`ops/scaled_dot_product_attention.cpp`). A finite scalar shifts every logit
   alike and changes nothing. Measured on the B70 with the `sdpa_opt_key_leftover_test` shapes and a single-element
   runtime mask of -inf: `sdpa_ocl` outputs all zeros (no NaN), `sdpa_opt` (knob off) the right result; with 0 or 5
-  both are right. A full mask with causal is not measured. Found in the 2026-11-02 X4 work, not fixed.
+  both are right. A full mask with causal is not measured. Found in the 2026-11-02 X4 work, not fixed. The mask clamp
+  of 2026-11-11 ("Masks") changes the -inf result: the scalar is clamped and absorbs q.k, so the causal keys now get
+  uniform weights (the mean of their V) instead of 0. That is still wrong, and it comes from the code, not a new
+  measurement. A scalar beyond 2^30 in the log2 domain behaves the same way.
 - Compressed BY_CHANNEL with f32 or ACCURACY (dynamic) inference precision:
   `transformations_pipeline.cpp` sizes the per-channel comp by the inference precision (f32: i8
   page row 24, u4 16; dynamic has size 0: 16 and 8), while `graph/paged_attention.cpp` and
@@ -2648,11 +2669,26 @@ result is quoted.
   time on either layout. Master has the same code. From code reading only.
 - `pa_kv_cache_update_ref.cl` loads the new K / V tokens with `BLOCK_READN` (a subgroup block read, which needs a
   4 B aligned address), so a K / V input whose rows start 2 B off a dword (an odd f16 padding before the head, or
-  an odd row pitch) is written to the cache wrong, on every arch. `smoke_paged_attention_comp_tm` cases 31 / 32
-  pass because a compressed MIXED reads its new tokens from Kc / Vc, but fail with `SDPA_OCL_PA_CUR_F16=0`
+  an odd row pitch) is written to the cache wrong, on every arch. On xe_hpg `smoke_paged_attention_comp_tm` cases
+  31 / 32 pass because a compressed MIXED reads its new tokens from Kc / Vc, but fail with `SDPA_OCL_PA_CUR_F16=0`
   (0.044 / 0.055 against 0.025); a later step reading those tokens from the cache gets the wrong values. The two
   controls (the same case without the pads passes; the same padded case passes on Kc / Vc) put it in the writer,
-  the alignment cause is from code reading. Found in the xe_hpg port (P7e), not fixed.
+  the alignment cause is from code reading. Found in the xe_hpg port (P7e), not fixed. On Xe2 the two cases fail
+  (next entry).
+- On Xe2 `smoke_paged_attention_comp_tm` cases 31, 32, 47 and 49 fail (B70, 2026-11-11: 0.174 / 0.045 / 0.028 /
+  0.048 against 0.025). The cases came with the xe_hpg port (2026-11-06 / 07, checked on DG2, whose SG8 kernels read
+  Kc / Vc at any alignment). The last B70 run before it (2026-11-08) had no such suite, so this is not a regression.
+  From the code, not isolated by a run:
+  - SG16 reads Kc / Vc with 2D block IO only (`add_pa_current_token_jit()`). Cases 31 / 47 (static pads 1 / 7: the
+    first head starts 2 B in) and 32 (static pads 0 / 3: a 262 B token stride) pass neither block2d tier, so they read
+    their new tokens back from the cache. That goes through the writer issue above.
+  - The u4 case 47 also gets the u4 rounding there, which the test's f16 reference of the new tokens does not have.
+  - Case 32's 0.045 matches the xe_hpg `SDPA_OCL_PA_CUR_F16=0` figure; case 31's 0.174 does not (0.055 there). Cases
+    31 / 47 also pad Q 2 B off, so a second cause is not ruled out.
+  - Case 49 (dynamic pads 0 / 2, a 260 B token stride) takes the fixup tier, which assumes a dynamic padding keeps a
+    16 B multiple stride ("Block2d rules"), and reads wrong values.
+
+  Cases 48 and 50 (pads 2 / 6) pass. Recorded, not fixed: the four still fail on Xe2.
 - The PA unit-test harness (`paged_attention_gpu_test.h`) writes the past tokens' token-major u4 V rows v / 2 bytes
   apart, while the KV cache writer (`pa_kv_cache_update_ref.cl`'s `PACKED_V_HEAD_SIZE`) and the readers align the row to
   16 B. The two agree only for V heads that are multiples of 32, so the cache-based u4 reference

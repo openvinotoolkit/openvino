@@ -151,6 +151,13 @@ size_t get_subgroup_size(gpu_arch arch) {
     }
 }
 
+// The arches the tilings tuned on Xe2 (B580 / B70) serve: Xe2 and xe_hpc, which runs the same SG16 arms (DPAS, 2D
+// block IO, 256 GRF); the PA PREFILL tilings are sdpa_micro's xe_hpc workgroups. Not measured on xe_hpc. xe3 and later
+// keep the table tiling where a check names Xe2 alone.
+bool xe2_tuned(gpu_arch arch) {
+    return arch == gpu_arch::xe2 || arch == gpu_arch::xe_hpc;
+}
+
 inline size_t get_d_max(size_t head_size) {
     for (size_t i = 32; i <= 1024; i *= 2) {
         if (head_size <= i) {
@@ -176,10 +183,11 @@ size_t slm_bytes(const sdpa_ocl_config_t& t, size_t d_max) {
     return (q_slm + s_slm + s_sum + s_max + transpose) * sizeof(uint32_t);
 }
 
-// Per-arch limits the tiling must respect: the xe_hpg values are DG2's (64 KiB local memory, 1024 work-items), Xe2's the
-// B-series ones.
+// Per-arch limits the tiling must respect: the xe_hpg values are DG2's (64 KiB local memory, 1024 work-items), the SG16
+// ones (xe_hpc, Xe2+) the B-series' (128 KiB). xe_hpc's 128 KiB is its documented local memory size, not checked here on
+// the device.
 size_t max_slm_bytes_for(gpu_arch arch) {
-    return arch >= gpu_arch::xe2 ? 128 * 1024 : 64 * 1024;
+    return arch >= gpu_arch::xe_hpc ? 128 * 1024 : 64 * 1024;
 }
 size_t max_wg_size_for(gpu_arch) {
     return 1024;  // DG2 and the B-series alike
@@ -267,14 +275,14 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     return config;
 }
 
-// PA PREFILL on Xe2 at d_max 64, 128, 256 and 512: sdpa_micro's xehpc_h64 / xehpc_h128 / xehpc_h256 / xehpc_h512
+// PA PREFILL on Xe2 and xe_hpc (xe2_tuned()) at d_max 64, 128, 256 and 512: sdpa_micro's xehpc_h64 / xehpc_h128 / xehpc_h256 / xehpc_h512
 // workgroups (128 / 256 / 128 / 256 keys x 128 / 128 / 128 / 64 queries, 256 GRF) with the loop changes of
 // add_prefill_pipeline_jit(). The table tiles read K/V once per 64 / 32 / 32 / 32 queries, and were up to 1.08x / 1.40x /
 // 1.09x slower than sdpa_micro on llama-3.2-1b / qwen3-8b / gemma-2-9b; at d_max 512 the table tile spilled at 128 GRF
 // (3.8x sdpa_micro on gemma-4-e2b). xehpc_h512 needs 32-key subgroup tiles: 16-key ones would take 1024 work-items, which
 // a 256 GRF kernel cannot dispatch ("Paged-attention PREFILL tiling" in the docs). False: keep the table tiling.
 bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t& config) {
-    if (arch != gpu_arch::xe2) {
+    if (!xe2_tuned(arch)) {
         return false;
     }
     sdpa_ocl_config_t wide;
@@ -331,13 +339,13 @@ bool solve_pa_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_oc
     return true;
 }
 
-// PA MIXED on Xe2 at d_max 128 / 256 / 512: 16-key x 32-query subgroup tiles with 256 GRF, so each K / V cache tile
+// PA MIXED on Xe2 and xe_hpc (xe2_tuned()) at d_max 128 / 256 / 512: 16-key x 32-query subgroup tiles with 256 GRF, so each K / V cache tile
 // the subgroup dequantizes serves 32 queries instead of the table's 16, as sdpa_micro's xe2_h256_pa_mixed does at head
 // 256. The workgroup is 8 x 2 subgroups (128 keys x 64 queries); at d_max 512 it is 16 x 1 (256 x 32), the 8 x 2 tile
 // spills 14 KB there. With few heads (few_heads) d_max 256 also takes 16 x 1: twice the threads per query block, where
 // 8 x 2 leaves half of the device idle ("Paged-attention MIXED tiling" in the docs). False: keep the table tiling.
 bool solve_pa_mixed_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool few_heads, sdpa_ocl_config_t& config) {
-    if (arch != gpu_arch::xe2) {
+    if (!xe2_tuned(arch)) {
         return false;
     }
     sdpa_ocl_config_t mixed;
@@ -376,7 +384,7 @@ struct plain_prefill_shape {
     bool mask_input = false;  // an attention mask input (not a const scalar): the op's, so compile time and dispatch agree
 };
 
-// Plain (non-PA) SDPA PREFILL on Xe2+ at d_max 128: from ~2K keys the sdpa_micro xehpc_h128 workgroup
+// Plain (non-PA) SDPA PREFILL on xe_hpc and Xe2+ at d_max 128: from ~2K keys the sdpa_micro xehpc_h128 workgroup
 // (16 x 2 subgroups of 16 keys x 64 queries = 256 keys x 128 queries, 256 GRF) is what closes the gap to
 // sdpa_micro on the f16-KV chunked-prefill shapes PR-39316 optimizes (PTL-H B390: 3.2x faster than the
 // table tile at 8K keys). It takes the PA PREFILL loop changes (wide K reads, V prefetch, branchless
@@ -384,7 +392,7 @@ struct plain_prefill_shape {
 // takes it for at least one mirror query tile and 2K keys; below that the table tile wins. A shape-agnostic
 // stage keeps the table tile: SDPA_OCL_PLAIN_MIRROR=0/1 forces table/mirror on both for A/B.
 bool solve_plain_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
-    if (d_max != 128 || vd_max != 128 || arch < gpu_arch::xe2 || !shape.f16_qkv) {
+    if (d_max != 128 || vd_max != 128 || arch < gpu_arch::xe_hpc || !shape.f16_qkv) {
         return false;
     }
     const bool fixed_shape_mirror = !shape.shape_agnostic && shape.q_len >= 128 && shape.n_keys >= 2048;
@@ -411,7 +419,7 @@ bool solve_plain_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, cons
     return true;
 }
 
-// Plain (non-PA) SDPA PREFILL on Xe2 at d_max 64 with f16 Q / K / V. Without an attention mask input: 32-key x 32-query
+// Plain (non-PA) SDPA PREFILL on Xe2 and xe_hpc (xe2_tuned()) at d_max 64 with f16 Q / K / V. Without an attention mask input: 32-key x 32-query
 // subgroup tiles, 4 x 2 subgroups (128 keys x 64 queries), 256 GRF, with the PA PREFILL loop changes (V prefetch, the
 // wide K read, branchless softmax + split S-max barrier) and, on a non-causal stage, the KQ branch
 // (add_prefill_pipeline_jit()). With one: the table tile (128 GRF) with those loop changes. The bare table tile
@@ -425,7 +433,7 @@ bool solve_plain_prefill_tiling(gpu_arch arch, size_t d_max, size_t vd_max, cons
 // so the compiled stage and its dispatch (shape-agnostic or not) agree. SDPA_OCL_PLAIN_D64=0 keeps the bare table (A/B).
 // False: keep the bare table (bf16, compressed K / V, other devices: not measured).
 bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
-    if (d_max != 64 || vd_max != 64 || arch != gpu_arch::xe2 || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D64", 1) == 0) {
+    if (d_max != 64 || vd_max != 64 || !xe2_tuned(arch) || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D64", 1) == 0) {
         return false;
     }
     sdpa_ocl_config_t t;
@@ -453,7 +461,7 @@ bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, 
     return true;
 }
 
-// Plain (non-PA) SDPA PREFILL on Xe2 at d_max 512 with f16 Q / K / V, 256 GRF with the PA PREFILL d_max 512 loop changes
+// Plain (non-PA) SDPA PREFILL on Xe2 and xe_hpc (xe2_tuned()) at d_max 512 with f16 Q / K / V, 256 GRF with the PA PREFILL d_max 512 loop changes
 // (L3-only V prefetch, wide K / V / Q_slm reads, branchless softmax + split S-max barrier), no causal tile skip. Without an
 // attention mask input: the table tile (16 x 16 subgroup tiles, 8 x 2 subgroups, 128 keys x 32 queries); with one: the
 // PA PREFILL d_max 512 workgroup (32 x 16 subgroup tiles, 8 x 4 subgroups, 256 keys x 64 queries). The table tile at
@@ -465,7 +473,7 @@ bool solve_plain_prefill_d64_tiling(gpu_arch arch, size_t d_max, size_t vd_max, 
 // SDPA_OCL_PLAIN_D512=0 keeps the bare table (A/B). False: keep the bare table (bf16, compressed K / V, other devices:
 // not measured).
 bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max, const plain_prefill_shape& shape, sdpa_ocl_config_t& config) {
-    if (d_max != 512 || vd_max != 512 || arch != gpu_arch::xe2 || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D512", 1) == 0) {
+    if (d_max != 512 || vd_max != 512 || !xe2_tuned(arch) || !shape.f16_qkv || env_int("SDPA_OCL_PLAIN_D512", 1) == 0) {
         return false;
     }
     sdpa_ocl_config_t t;
@@ -492,7 +500,7 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
     return true;
 }
 
-// Plain (non-PA) SDPA decode on Xe2 with f16 Q / K / V: the single-token stage, which runs one query. The table tile
+// Plain (non-PA) SDPA decode on Xe2 and xe_hpc (xe2_tuned()) with f16 Q / K / V: the single-token stage, which runs one query. The table tile
 // (16 x 16 subgroup tiles, 8 x 2 subgroups = 128 keys x 32 queries, 64 at d_max 64; 128 GRF) leaves 31 of its 32 query
 // rows padding there, and its second row of subgroups (three of four at d_max 64) reads the same K and V tiles again for
 // padding rows: 1.04-1.43x sdpa_micro at d_max 128, up to 1.56x at 64 and 2.6x at 256 (B70). Here every subgroup takes
@@ -503,7 +511,7 @@ bool solve_plain_prefill_d512_tiling(gpu_arch arch, size_t d_max, size_t vd_max,
 // tiling reads no query or key count, so a shape-agnostic stage gets the same one at compile time and dispatch. False:
 // keep the table tile (d_max 32, bf16 or compressed K / V, other devices: not measured).
 bool solve_plain_decode_tiling(gpu_arch arch, size_t d_max, size_t vd_max, bool f16_qkv, sdpa_ocl_config_t& config) {
-    if (arch != gpu_arch::xe2 || !f16_qkv || env_int("SDPA_OCL_PLAIN_DECODE", 1) == 0) {
+    if (!xe2_tuned(arch) || !f16_qkv || env_int("SDPA_OCL_PLAIN_DECODE", 1) == 0) {
         return false;
     }
     sdpa_ocl_config_t dec;
@@ -569,7 +577,7 @@ bool solve_tiling(gpu_arch arch,
     config = choose_config_kq_only(arch, d_max);
     // A tuned table row has its S*V split filled in; the xe_hpg seed leaves it zero when it found none.
     const bool tuned_split = config.sv_sg_tile_values > 0;
-    if (plain_prefill && plain_shape.f16_qkv && d_max == 128 && arch >= gpu_arch::xe2 && env_int("SDPA_OCL_PLAIN_TABLE_FLAGS", 1) != 0) {
+    if (plain_prefill && plain_shape.f16_qkv && d_max == 128 && arch >= gpu_arch::xe_hpc && env_int("SDPA_OCL_PLAIN_TABLE_FLAGS", 1) != 0) {
         // The table tile below the mirror threshold still takes the PA PREFILL loop changes (wide K reads,
         // V prefetch, branchless softmax / split barrier); measured faster than the bare table at 0.5K-1.5K
         // key chunks, and the jit gates keep them off the decode/mixed stages which share this row.
@@ -1838,7 +1846,7 @@ size_t sdpa_ocl_max_wg_size(gpu_arch arch) {
 
 namespace {
 // Per-channel compressed K/V (the GQA decomposition's quantized cache): one scale, and with asymmetric quantization one
-// zero point, per head-dim channel of a KV head, as planar [B or 1, KV heads or 1, 1, head size] tensors. Read on Xe2+
+// zero point, per head-dim channel of a KV head, as planar [B or 1, KV heads or 1, 1, head size] tensors. Read on xe_hpc and Xe2+
 // (paged_attention::sdpa_ocl_per_channel_kv_ok(): the per-channel reads put one channel per lane of a 16-wide subgroup;
 // SG8 has none) for f16 queries, from an i8 cache or a 4-bit one (u4 or i4 nibbles, two per i8/u8 byte).
 // SDPAOpt::validate_impl() sends anything refused here to SDPARef, the only other reader.
@@ -1892,7 +1900,7 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
         return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
-    // Xe2+ (the 2D block IO kernels) and xe_hpg (the SG8 arms). Every caller already requires XMX.
+    // xe_hpc and Xe2+ (the 2D block IO kernels) and xe_hpg (the SG8 arms). Every caller already requires XMX.
     const auto arch = params.get_device_info().arch;
     if (!paged_attention::sdpa_ocl_arch_ok(params.get_device_info())) {
         return false;
@@ -1900,7 +1908,7 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     // xe_hpg serves plain SDPA on an i8 KV cache only (k_tile_dword_i8 / v_tile_gather). A plain int4 cache has no nibble
     // unpack in the kernel and is never dispatched to it (sdpa_opt.cpp !is_int4_kv), and i8 data without the planar
     // scale/zp tensors has no dequant, so neither gets a kernel that compiles but reads garbage.
-    if (arch < gpu_arch::xe2 && !params.is_type<paged_attention>()) {
+    if (arch == gpu_arch::xe_hpg && !params.is_type<paged_attention>()) {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         for (size_t i : {1, 2}) {
             const auto dt = params.input_layouts[i].data_type;

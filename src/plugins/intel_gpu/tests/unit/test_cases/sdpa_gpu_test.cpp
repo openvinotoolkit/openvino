@@ -1283,7 +1283,7 @@ protected:
         auto& engine = get_test_engine();
         const auto& device_info = engine.get_device_info();
         if (p.use_micro && (!device_info.supports_immad || device_info.arch < cldnn::gpu_arch::xe_hpg))
-            GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+            GTEST_SKIP() << "sdpa_ocl requires a device with systolic (immad) support";
 
         const size_t heads = 2, seq_q = 48, seq_kv = 64, head_size = 256;
         const size_t valid_q = 32;
@@ -1347,9 +1347,9 @@ protected:
         }
         ASSERT_FALSE(sdpa_info.empty());
         if (p.use_micro) {
-            ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos) << "sdpa_micro was not selected:\n" << sdpa_info;
+            ASSERT_NE(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected:\n" << sdpa_info;
         } else {
-            ASSERT_EQ(sdpa_info.find("sdpa_micro"), std::string::npos) << "sdpa_micro was selected:\n" << sdpa_info;
+            ASSERT_EQ(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was selected:\n" << sdpa_info;
         }
 
         cldnn::mem_lock<float, mem_lock_type::read> out(output, get_test_stream());
