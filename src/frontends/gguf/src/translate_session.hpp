@@ -24,12 +24,19 @@ public:
 
     std::shared_ptr<Model> get_converted_model();
     std::shared_ptr<Model> translate_graph(const frontend::InputModel::Ptr& input_model);
+    // MTP draft converted with the model, sharing its weight buffers; null without one.
+    const std::shared_ptr<Model>& get_mtp_draft_model() const {
+        return m_mtp_draft;
+    }
 
 private:
+    std::shared_ptr<Model> assemble_model(const std::shared_ptr<GgufDecoder>& decoder);
+    std::shared_ptr<Model> finalize_model(std::shared_ptr<Model> model, const GgufDecoder& decoder);
     std::shared_ptr<Model> apply_transformations(std::shared_ptr<Model> model);
     const frontend::InputModel::Ptr m_input_model;
     const std::unordered_map<std::string, CreatorFunction>& m_translator_map;
     std::shared_ptr<Model> m_ov_model;
+    std::shared_ptr<Model> m_mtp_draft;
     std::vector<DecoderTransformationExtension::Ptr> m_transformation_extensions;
 };
 

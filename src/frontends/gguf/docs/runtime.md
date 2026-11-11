@@ -104,60 +104,45 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.
 
-### Embedded Qwen3.5 MTP
+### Multi-token prediction (MTP)
 
-A `qwen35` GGUF with `qwen35.nextn_predict_layers=1` can supply both a target
-decoder and its single NextN draft block. Ordinary conversion excludes the
-NextN block and returns logits only. Select `"mtp_target"` to export the hidden
-states needed by speculative decoding, and `"mtp"` to convert only the draft:
+Some checkpoints store NextN draft blocks after the target layers
+(`<arch>.nextn_predict_layers`). Ordinary conversion excludes these blocks and returns
+logits only. Select the `"mtp"` component to convert the target and its draft in one call:
 
 ```cpp
-auto target_frontend = manager.load_by_framework("gguf");
-auto target_extension = std::make_shared<GenAIExtension>(
-    GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp_target");
-target_frontend->add_extension(target_extension);
-auto target = target_frontend->convert(target_frontend->load("model-with-mtp.gguf"));
-auto text_embeddings = target_extension->get_embedding_model();
-
-auto draft_frontend = manager.load_by_framework("gguf");
-auto draft_extension = std::make_shared<GenAIExtension>(
+auto extension = std::make_shared<GenAIExtension>(
     GenAIExtension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
-draft_frontend->add_extension(draft_extension);
-auto draft = draft_frontend->convert(draft_frontend->load("model-with-mtp.gguf"));
+frontend->add_extension(extension);
+auto target = frontend->convert(frontend->load("model-with-mtp.gguf"));
+auto text_embeddings = extension->get_embedding_model();
+auto draft = extension->get_mtp_draft_model();  // null when the file has no NextN block
 ```
 
-Use separate frontend/extension instances for the target and draft. The component
-is read when `convert()` runs, so the extension may be registered before or after
-`load()`. The `"mtp_target"` component also works for a compatible target without an
-embedded NextN block when the draft is supplied separately. Both selected graphs return
-`last_hidden_state [B,T,D]` for every token after final
-normalization, before any output-head Hadamard transform. The draft also takes
-`hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of
-token `t+1`. The draft owns the embedding, hidden-state normalization, EH projection,
-full-attention block and output head. Its head is the checkpoint's NextN head when
-present, otherwise the target `output.weight` or, for a tied checkpoint, the latent
-`token_embd.weight` with its forward Hadamard transform. Target and draft caches are
-independent. Missing NextN metadata for the draft, a separate `nextn.embed_tokens.weight`
-table or an unsupported component fails conversion.
+The component is read when `convert()` runs, so the extension may be registered before or
+after `load()`. Both models return `last_hidden_state [B,T,D]` for every token, after final
+normalization and before any output-head Hadamard transform. The draft also takes
+`hidden_states [B,T,D]`; pair the target hidden state at token `t` with the embedding of token
+`t+1`. In the embeddings modes the draft takes the same text embeddings as the target, so
+`text_embeddings` serves both. A file without NextN blocks still converts as a target that
+exports hidden states, for a draft supplied from another file.
 
-Per-layer KV-head, recurrent and sliding-window metadata may describe the target
-layers or all stored layers. When the draft KV-head count is omitted, it is inferred
-from the NextN key projection.
+The draft owns the hidden-state normalization, EH projection, NextN block and output head.
+Its head is the NextN head when present, otherwise the target `output.weight` or, for a tied
+checkpoint, `token_embd.weight`. Target and draft caches are independent. The draft reuses
+the target's weight nodes, so tensors read by both models, such as the token embedding or a
+shared output head, are unpacked once and share host buffers. Per-layer KV-head, recurrent
+and sliding-window metadata may describe the target layers or all stored layers; when the
+draft KV-head count is omitted, it is inferred from the NextN key projection.
 
-The frontend supplies graphs, not an MTP sampler. OpenVINO GenAI's
-`speculative_type="mtp"` option (llama.cpp `--spec-type draft-mtp`) converts both
-components from the same file and connects them to its existing greedy MTP strategy.
-PrismML's `Ternary-Bonsai-2-4B-PQ2_0-MTP-Q8_0.gguf` (tied, Hadamard v2) and
-`Ternary-Bonsai-2-9B-PQ2_0-MTP-Q8_0.gguf` (untied, Hadamard v1) follow this layout: PQ2_0
-target weights plus a Q8_0 NextN block. A plain Bonsai GGUF without the embedded NextN
-weights cannot be used as an MTP draft.
+The frontend supplies graphs, not a sampler. OpenVINO GenAI's `speculative_type="mtp"`
+option (llama.cpp `--spec-type draft-mtp`) connects both models to its greedy MTP strategy.
 
-Other llama.cpp NextN families use the same draft prologue and head fallbacks, and
-the target conversion already excludes their NextN blocks. The draft is limited to
-the families accepted by `has_mtp_draft()` in `decoder_builder.cpp`. Before adding a
-family, check that its NextN block builds as a regular layer of that family and compare
-the draft with the ggml MTP graph. A separate `nextn.embed_tokens.weight` table
-(GLM-4.5) and chained multi-block drafts (`step35`) are not supported yet.
+Drafts are built only for the families accepted by `has_mtp_draft()` in
+`decoder_builder.cpp`, currently `qwen35`; other families reject the `"mtp"` component. To add
+a family, check that its NextN block builds as a regular layer of that family and compare the
+draft with the ggml MTP graph. A separate `nextn.embed_tokens.weight` table (GLM-4.5) and
+chained multi-block drafts (`step35`) are not supported yet.
 
 `GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
 for consumers that keep GGUF IO. The llama.cpp backend uses its own stateful lowering for its

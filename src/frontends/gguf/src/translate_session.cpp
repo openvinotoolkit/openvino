@@ -175,13 +175,34 @@ std::shared_ptr<Model> TranslateSession::get_converted_model() {
 }
 
 std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputModel::Ptr& input_model) {
+    const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
+    const auto& decoder = gguf_model->get_model_decoder();
+    auto model = assemble_model(decoder);
+    const auto builder = std::dynamic_pointer_cast<GgufBuilderDecoder>(decoder);
+    if (!builder)
+        return finalize_model(model, *decoder);
+    if (const auto& draft_graph = builder->mtp_draft()) {
+        const auto draft_decoder = std::make_shared<GgufBuilderDecoder>(draft_graph);
+        auto draft = assemble_model(draft_decoder);
+        // The draft reuses the target's weight leaves; materializing both graphs in one pass makes
+        // each shared leaf one Constant, and cloning each model below keeps its buffer shared.
+        auto results = model->get_results();
+        auto params = model->get_parameters();
+        const auto& draft_results = draft->get_results();
+        const auto& draft_params = draft->get_parameters();
+        results.insert(results.end(), draft_results.begin(), draft_results.end());
+        params.insert(params.end(), draft_params.begin(), draft_params.end());
+        pass::MaterializeGGUFWeights().run_on_model(std::make_shared<Model>(results, params));
+        m_mtp_draft = finalize_model(draft->clone(), *draft_decoder);
+    }
+    return finalize_model(model->clone(), *decoder);
+}
+
+std::shared_ptr<Model> TranslateSession::assemble_model(const std::shared_ptr<GgufDecoder>& gguf_model_decoder) {
     ov::ParameterVector params;
     ov::ResultVector results;
     auto tensor_map = std::make_shared<TensorMap>();
     std::shared_ptr<Model> resulting_model;
-
-    const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
-    const auto& gguf_model_decoder = gguf_model->get_model_decoder();
 
     // Auxiliary input Parameters may only get a consumer from a later normalization pass, after
     // the unused-Parameter pruning below. Track them so pruning never drops one for lack of a
@@ -312,10 +333,11 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
         }
         OPENVINO_ASSERT(found, "[GGUF] model adapter has no output ", output);
     }
+    return resulting_model;
+}
 
-    if (builder) {
-        resulting_model = resulting_model->clone();
-    }
+std::shared_ptr<Model> TranslateSession::finalize_model(std::shared_ptr<Model> resulting_model,
+                                                        const GgufDecoder& gguf_model_decoder) {
     resulting_model = apply_transformations(resulting_model);
 
     // Auxiliary Parameters are kept through normalization in case a transformation extension
@@ -335,7 +357,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // Attach GGUF tokenizer metadata (the file's tokenizer.* keys) to the model's rt_info as a
     // non-serializable attribute, so a downstream consumer (OpenVINO GenAI) can build the
     // tokenizer without reopening the .gguf. Empty when the decoder carries no tokenizer config.
-    const auto& tok_cfg = gguf_model_decoder->get_tokenizer_config();
+    const auto& tok_cfg = gguf_model_decoder.get_tokenizer_config();
     if (!tok_cfg.empty()) {
         resulting_model->get_rt_info()[gguf_tokenizer_metadata_key()] =
             std::make_shared<GGUFTokenizerMetadata>(tok_cfg);

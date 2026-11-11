@@ -105,6 +105,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto gguf_model = std::dynamic_pointer_cast<gguf::InputModel>(model);
     FRONT_END_GENERAL_CHECK(gguf_model, "Invalid input model");
     std::shared_ptr<Model> converted_model;
+    std::shared_ptr<Model> mtp_draft;
     {
         auto ops = merged_ops(m_impl->op_extension_translators);
         auto conversion_input = gguf_model;
@@ -125,6 +126,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
         }
         TranslateSession translate_session(conversion_input, ops, transformations);
         converted_model = translate_session.get_converted_model();
+        mtp_draft = translate_session.get_mtp_draft_model();
     }
     if (m_impl->genai_extension) {
         pass::AdaptToGenAI adapter(m_impl->genai_extension->m_mode);
@@ -132,6 +134,11 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
                                 "GenAIExtension requires a GGUF decoder with adaptable inputs");
         m_impl->genai_extension->m_embedding_model = adapter.get_embedding_model();
         m_impl->genai_extension->m_per_layer_embedding_model = adapter.get_per_layer_embedding_model();
+        // The draft takes the target's embeddings, so its own lookup model is not needed.
+        if (mtp_draft)
+            FRONT_END_GENERAL_CHECK(pass::AdaptToGenAI(m_impl->genai_extension->m_mode).run_on_model(mtp_draft),
+                                    "GenAIExtension requires an adaptable MTP draft");
+        m_impl->genai_extension->m_mtp_draft_model = mtp_draft;
     }
     return converted_model;
 }

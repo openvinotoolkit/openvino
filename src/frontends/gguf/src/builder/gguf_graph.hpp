@@ -82,6 +82,10 @@ struct GgufGraph {
     ov::AnyMap tokenizer_config;
     // Serializable strings containing the full clip.* keys and resolved graph contracts.
     ov::AnyMap mmproj_config;
+
+    // MTP draft built with this graph. It reuses this graph's weight leaves, which
+    // TranslateSession materializes once for both models.
+    std::shared_ptr<GgufGraph> mtp_draft;
 };
 
 }  // namespace ov::frontend::gguf

@@ -69,24 +69,20 @@ bool hadamard_tied_output(const MetadataMap& metadata) {
     return *tensor->template data<const char>() != 0;
 }
 
-DecoderParameters component_parameters(const BuildContext& context, DecoderParameters parameters) {
-    OPENVINO_ASSERT(context.component.empty() || context.component == "mtp" || context.component == "mtp_target",
+DecoderParameters component_parameters(const BuildContext& context, DecoderParameters parameters, bool draft) {
+    OPENVINO_ASSERT(context.component.empty() || context.component == "mtp",
                     "[GGUF] unknown decoder component: ",
                     context.component);
     if (context.component.empty())
         return parameters;
-    if (context.component == "mtp_target") {
-        OPENVINO_ASSERT(has_mtp_draft(parameters.architecture),
-                        "[GGUF] MTP is not supported for architecture: ",
-                        parameters.architecture);
-        OPENVINO_ASSERT(!parameters.embedding_model, "[GGUF] MTP requires a generative decoder");
-        return parameters;
-    }
-    OPENVINO_ASSERT(parameters.hybrid.nextn_layers == 1 && parameters.dimensions.layers > 1,
-                    "[GGUF] MTP requires exactly one NextN block and at least one target layer");
     OPENVINO_ASSERT(has_mtp_draft(parameters.architecture),
                     "[GGUF] MTP is not supported for architecture: ",
                     parameters.architecture);
+    OPENVINO_ASSERT(!parameters.embedding_model, "[GGUF] MTP requires a generative decoder");
+    if (!draft)
+        return parameters;
+    OPENVINO_ASSERT(parameters.hybrid.nextn_layers == 1 && parameters.dimensions.layers > 1,
+                    "[GGUF] MTP requires exactly one NextN block and at least one target layer");
     const auto layer = nextn_layer(parameters);
     OPENVINO_ASSERT(!context.weights->weights.count(nextn_tensor(layer, "embed_tokens")),
                     "[GGUF] MTP requires shared token embeddings; a separate NextN embedding table is not supported");
@@ -131,16 +127,32 @@ DecoderParameters component_parameters(const BuildContext& context, DecoderParam
 }  // namespace
 
 DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
-    : m_cfg(component_parameters(context, parameters), context.weights->weights),
+    : DecoderBuilder(context, parameters, nullptr) {}
+
+DecoderBuilder::DecoderBuilder(const BuildContext& context,
+                               const DecoderParameters& parameters,
+                               const GraphEmitter* target)
+    : m_context(context),
+      m_parameters(parameters),
+      m_cfg(component_parameters(context, parameters, target != nullptr), context.weights->weights),
       m_emit(context.weights->weights, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)),
-      m_mtp(context.component == "mtp"),
-      m_nextn_layer(m_mtp ? nextn_layer(parameters) : -1),
-      m_export_hidden(m_mtp || context.component == "mtp_target") {
-    if (m_mtp) {
-        // Keep Hadamard names for weights the draft uses: shared embeddings, its head and the NextN block.
+      m_draft(target != nullptr),
+      m_nextn_layer(m_draft ? nextn_layer(parameters) : -1),
+      m_export_hidden(!context.component.empty()) {
+    if (m_draft)
+        m_emit.share_weights_from(*target);
+    if (m_draft || parameters.hybrid.nextn_layers > 0) {
+        // NextN weights belong to the draft: it keeps their Hadamard names plus its shared
+        // embeddings and head, and the target keeps every other name.
         auto metadata = detail::MetadataAccess::get(context.metadata).map;
-        const auto prefix = "blk." + std::to_string(m_nextn_layer) + ".";
+        const auto first_nextn = nextn_layer(parameters);
+        const auto in_nextn = [&](const std::string& name) {
+            for (int layer = first_nextn; layer < parameters.dimensions.layers; ++layer)
+                if (name.rfind("blk." + std::to_string(layer) + ".", 0) == 0)
+                    return true;
+            return false;
+        };
         const auto head = lm_head_weight();
         bool rotated = false;
         for (const auto& key : {"prism.hadamard.weight_names", "prism.hadamard.inverse_weight_names"}) {
@@ -149,20 +161,21 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
                 names.erase(std::remove_if(names.begin(),
                                            names.end(),
                                            [&](const auto& name) {
-                                               return name != "token_embd.weight" && name != head &&
-                                                      name.rfind(prefix, 0) != 0;
+                                               return m_draft ? name != "token_embd.weight" && name != head &&
+                                                                    !in_nextn(name)
+                                                              : in_nextn(name);
                                            }),
                             names.end());
                 rotated = rotated || !names.empty();
             }
         }
-        // An untied draft that uses no rotated weight has no Hadamard transform.
+        // An untied model that uses no rotated weight has no Hadamard transform.
         if (!rotated && !hadamard_tied_output(metadata)) {
             for (auto it = metadata.begin(); it != metadata.end();)
                 it = it->first.rfind("prism.hadamard.", 0) == 0 ? metadata.erase(it) : std::next(it);
         }
         const detail::MetadataStore store{metadata};
-        m_cfg.configure_graph(m_emit, GgufMetadata(store), true);
+        m_cfg.configure_graph(m_emit, GgufMetadata(store), m_draft);
     } else {
         m_cfg.configure_graph(m_emit, context.metadata);
     }
@@ -447,7 +460,7 @@ std::string DecoderBuilder::nextn_weight(const std::string& name) const {
 }
 
 std::string DecoderBuilder::lm_head_weight() const {
-    if (m_mtp && m_emit.has_weight(nextn_weight("shared_head_head")))
+    if (m_draft && m_emit.has_weight(nextn_weight("shared_head_head")))
         return nextn_weight("shared_head_head");
     return m_emit.has_weight("output.weight") ? "output.weight" : "token_embd.weight";
 }
@@ -455,7 +468,7 @@ std::string DecoderBuilder::lm_head_weight() const {
 std::string DecoderBuilder::build_head(const std::string& in) {
     // final norm + lm_head
     const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
-    const auto norm_weight = m_mtp && m_emit.has_weight(nextn_weight("shared_head_norm"))
+    const auto norm_weight = m_draft && m_emit.has_weight(nextn_weight("shared_head_norm"))
                                  ? nextn_weight("shared_head_norm")
                                  : std::string("output_norm.weight");
     std::string cur = norm(m_emit, in, norm_weight, "result_norm", m_cfg.rms_eps);
@@ -521,7 +534,7 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         build_per_layer_embeddings(cur);
     }
 
-    if (m_mtp) {
+    if (m_draft) {
         auto hidden = m_emit.add_input("hidden_states", f32, ps({D, D, m_cfg.n_embd}));
         auto lifted = std::make_shared<ov::op::v0::Unsqueeze>(hidden, ov::op::v0::Constant::create(i64, {1}, {1}));
         (*m_emit.graph()->values)["mtp_hidden"] = lifted;
@@ -531,8 +544,8 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         m_emit.add_weight(nextn_weight("eh_proj"));
         cur = m_emit.add_op("GGML_OP_MUL_MAT", "mtp_eh_proj", {nextn_weight("eh_proj"), cur});
     }
-    const int first_layer = m_mtp ? m_nextn_layer : 0;
-    const int end_layer = m_mtp ? m_nextn_layer + 1 : m_cfg.n_layer;
+    const int first_layer = m_draft ? m_nextn_layer : 0;
+    const int end_layer = m_draft ? m_nextn_layer + 1 : m_cfg.n_layer;
     for (int il = first_layer; il < end_layer; ++il) {
         cur = build_layer(il, cur);
     }
@@ -544,6 +557,8 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     // become Assign sinks via MakeStateful.
     auto graph = m_emit.graph();
     graph->model_output_names.insert(graph->model_output_names.begin(), logits);
+    if (!m_draft && m_export_hidden && m_parameters.hybrid.nextn_layers > 0)
+        graph->mtp_draft = DecoderBuilder(m_context, m_parameters, &m_emit).build();
     return graph;
 }
 

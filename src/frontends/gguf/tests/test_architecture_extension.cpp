@@ -295,8 +295,8 @@ TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
     // Target-only arrays must match the explicit full-layer reference; the second case infers
     // two NextN KV heads from a projection using the smaller sliding-window head size.
     const std::vector<std::pair<MtpFixture, MtpFixture>> cases{
-        {MtpFixture{{0}, {1}, {0}}, MtpFixture{{0, 1}, {1, 0}, {0, 0}}},
-        {MtpFixture{{0}, {1}, {0, 1}, 2, 2}, MtpFixture{{0, 2}, {1, 0}, {0, 1}, 2, 2}},
+        {MtpFixture{{1}, {0}, {0}}, MtpFixture{{1, 1}, {0, 1}, {0, 0}}},
+        {MtpFixture{{1}, {0}, {0, 1}, 2, 2}, MtpFixture{{1, 2}, {0, 1}, {0, 1}, 2, 2}},
     };
     for (const auto& [target_only, all_layers] : cases) {
         SCOPED_TRACE(target_only.nextn_swa_head_size);
@@ -305,7 +305,8 @@ TEST(GGUFGenAIExtension, MtpDraftAcceptsTargetOnlyLayerMetadata) {
         const auto load = [&](const std::string& dir, const MtpFixture& fixture) {
             const auto path = write_decoder_gguf(dir, "qwen35", 2, false, fixture);
             auto extension = std::make_shared<Extension>(Extension::InputMode::IDS_TO_LOGITS, "mtp");
-            return convert_with(path, {extension});
+            convert_with(path, {extension});
+            return extension->get_mtp_draft_model();
         };
         const auto target_only_model = load(target_only_dir.path(), target_only);
         const auto all_layers_model = load(all_layers_dir.path(), all_layers);
@@ -383,10 +384,14 @@ TEST(GGUFGenAIExtension, MtpComponentIsResolvedAtConvertAndFiltersUnusedHadamard
         const auto path = write_decoder_gguf(scratch.path(), "qwen35", 2, false, fixture);
         ov::frontend::gguf::FrontEnd frontend;
         const auto input = frontend.load(path);
-        frontend.add_extension(std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp"));
+        const auto extension = std::make_shared<Extension>(Extension::InputMode::EMBEDS_TO_LOGITS_TEXT, "mtp");
+        frontend.add_extension(extension);
         const auto model = frontend.convert(input);
-        EXPECT_EQ(model->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
-        EXPECT_EQ(model->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
+        EXPECT_NO_THROW(model->output("last_hidden_state"));
+        const auto draft = extension->get_mtp_draft_model();
+        ASSERT_TRUE(draft);
+        EXPECT_EQ(draft->input("hidden_states").get_partial_shape(), (ov::PartialShape{-1, -1, 8}));
+        EXPECT_EQ(draft->output("logits").get_partial_shape(), (ov::PartialShape{-1, -1, 16}));
     }
 }
 
@@ -403,10 +408,10 @@ TEST(GGUFGenAIExtension, MtpComponentsRejectUnsupportedInputs) {
     };
     const std::string per_layer = "per-layer settings must describe every decoder layer";
     const std::vector<Case> cases{
-        {"qwen3", 2, std::nullopt, "mtp", "exactly one NextN block"},
-        {"qwen3", 2, std::nullopt, "mtp_target", "MTP is not supported for architecture"},
+        {"qwen3", 2, std::nullopt, "mtp", "MTP is not supported for architecture"},
+        {"qwen3", 2, std::nullopt, "mtp_target", "unknown decoder component"},
         {"qwen35", 0, MtpFixture{}, "mtp", "qwen35.block_count"},
-        {"qwen35", 1, MtpFixture{}, "mtp", "at least one target layer"},
+        {"qwen35", 1, MtpFixture{}, "mtp", "invalid number of NextN blocks"},
         {"qwen35", 2, separate_embedding, "mtp", "shared token embeddings"},
         {"qwen35", 2, MtpFixture{{0, 1, 1}}, "mtp", per_layer},
         {"qwen35", 2, MtpFixture{{}, {1, 0, 0}}, "mtp", per_layer},

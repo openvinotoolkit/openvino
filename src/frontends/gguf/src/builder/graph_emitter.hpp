@@ -75,6 +75,10 @@ public:
     void add_extra_input_node(const std::string& name, const std::shared_ptr<ov::Node>& node);
 
     void add_weight(const std::string& ggml_name);
+    // Reuse the weight leaves `source` has emitted; `source` must outlive this emitter's build.
+    void share_weights_from(const GraphEmitter& source) {
+        m_weight_source = &source;
+    }
     void add_weight_from(const std::string& node_name, const std::string& src_base);
     // Emit weight `name` computed by `op_type` from weights `sources`. It takes the first source's
     // qtype and Hadamard rotation; all sources must agree on the rotation.
@@ -116,6 +120,7 @@ private:
     // Names of weights already emitted as GGML_OP_NONE leaves, so a weight referenced by several
     // ops (or tied, e.g. MQA tie-V) is emitted once.
     std::set<std::string> m_emitted_weights;
+    const GraphEmitter* m_weight_source = nullptr;
     int64_t m_hadamard_block = 0;
     int64_t m_hadamard_v_heads = 0;
     int64_t m_hadamard_k_heads = 0;

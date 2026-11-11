@@ -94,6 +94,8 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
                         "'");
         graph->tokenizer_config = extract_tokenizer_config(metadata);
         graph->architecture = meta_view.architecture();
+        if (graph->mtp_draft)
+            graph->mtp_draft->architecture = graph->architecture;
         return graph;
     };
 }
