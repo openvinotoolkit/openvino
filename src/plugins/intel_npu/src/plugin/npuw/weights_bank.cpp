@@ -87,7 +87,12 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     std::unique_lock guard(m_mutex);
 
     auto iter_bank = m_device_banks.find(device_for_alloc);
-    NPUW_ASSERT(iter_bank != m_device_banks.end() && "Device not found within list of devices from weights bank");
+    OPENVINO_ASSERT(iter_bank != m_device_banks.end(),
+                    "NPUW: weights bank '",
+                    m_bank_name,
+                    "' has no storage for device '",
+                    device_for_alloc,
+                    "'");
     auto& device_bank = iter_bank->second;
     auto iter_device = device_bank.storage.find(uid);
 
