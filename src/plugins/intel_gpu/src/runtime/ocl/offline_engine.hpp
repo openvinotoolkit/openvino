@@ -9,6 +9,7 @@
 #include "offline_stream.hpp"
 #include "offline_kernel_builder.hpp"
 #include "offline_memory.hpp"
+#include "ocloc_offline_compiler.hpp"
 #include "openvino/core/except.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -88,11 +89,15 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // HW-free: oneDNN builds its engine from the device data captured during enumeration, so no
-    // driver call is made. Such an engine serves primitive descriptor creation only; the primitives
-    // themselves are JIT-compiled at import time, when a real device is available.
+    // driver call is made.
     void create_onednn_engine(const ExecutionConfig& /*config*/) override {
         if (_onednn_engine)
             return;
+
+        // oneDNN looks ocloc up by library name to build OpenCL C kernels; loading the plugin's ocloc
+        // first makes that lookup resolve to the same module.
+        const auto& ocloc = ocloc_poc::load_ocloc();
+        OPENVINO_ASSERT(ocloc.ok(), "[GPU offline] ocloc library not loaded");
 
         const auto& onednn_device_info = static_cast<offline_device*>(_device.get())->onednn_device_info();
         OPENVINO_ASSERT(!onednn_device_info.empty(),

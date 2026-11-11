@@ -62,13 +62,13 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 }
             }
 
-            // On the HW-free engine nGEN kernels are generated on the host; save() stores them as a cache blob.
-            // OpenCL C kernels cannot be built there, so load() still builds those primitives from _pd.
+            // On the HW-free engine kernels come from nGEN (host) or ocloc (OpenCL C); save() stores them as a cache blob.
             try {
                 build_primitive(config);
-            } catch (const dnnl::error&) {
-                if (!engine.is_hw_free())
-                    throw;
+            } catch (const dnnl::error& e) {
+                if (engine.is_hw_free())
+                    OPENVINO_THROW("[GPU offline] oneDNN primitive ", _pd.impl_info_str(), " could not be built: ", e.what());
+                throw;
             }
         }
 
@@ -403,21 +403,27 @@ protected:
         return blob;
     }
 
-    // Returns an empty blob if the primitive does not support cache blob serialization.
+    // Decided by this process's oneDNN from the pd, never by blob contents.
+    bool has_no_kernels() const {
+        return _pd.impl_info_str() == "gpu:direct_copy";
+    }
+
+    // Returns an empty blob if the primitive was not built or does not support cache blob serialization.
     std::vector<uint8_t> get_cache_blob() const {
         std::vector<uint8_t> cache;
-        // Offline compile never built the primitive; load() falls back to building it from _pd.
-        if (!_prim)
-            return cache;
-        try {
-            cache = _prim.get_cache_blob();
-            if (cache.empty())
-                cache = no_kernel_blob();
-        } catch (const dnnl::error& e) {
-            if (e.status != dnnl_unimplemented) {
-                throw;
+        if (_prim) {
+            try {
+                cache = _prim.get_cache_blob();
+                if (cache.empty() && has_no_kernels())
+                    cache = no_kernel_blob();
+            } catch (const dnnl::error& e) {
+                if (e.status != dnnl_unimplemented) {
+                    throw;
+                }
             }
         }
+        OPENVINO_ASSERT(!cache.empty() || !_engine->is_hw_free(),
+                        "[GPU offline] oneDNN primitive ", _pd.impl_info_str(), " has no cache blob; import would need runtime compilation");
         return cache;
     }
 
@@ -427,13 +433,13 @@ protected:
         return PrimType(_pd);
     }
 
-    // Falls back to constructing the primitive from _pd alone when the blob is empty.
+    // A blob may be crafted, so the no-kernel sentinel skips the runtime compilation check only for a kernel-less pd.
     PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob, const ExecutionConfig& config) const {
-        if (cache_blob.empty()) {
-            return jit_primitive(config);
-        }
-        if (cache_blob == no_kernel_blob()) {
+        if (cache_blob == no_kernel_blob() && has_no_kernels()) {
             return PrimType(_pd);
+        }
+        if (cache_blob.empty() || cache_blob == no_kernel_blob()) {
+            return jit_primitive(config);
         }
         return PrimType(_pd, cache_blob);
     }
