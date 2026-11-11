@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-11T14:34:10Z",
+  "last_seen": "2026-11-11T14:34:10Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43030484756"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39693"
+  ],
+  "recent_timestamps": [
+    "2026-11-11T14:34:10Z"
+  ],
+  "rerun_search_string": "Temporary failure resolving"
+}
