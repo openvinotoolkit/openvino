@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 377,
+  "total": 378,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3676,6 +3676,15 @@
       "category": "Network",
       "signature_hash": "d734e6d0da3ffc69",
       "pr_number": "39262"
+    },
+    {
+      "investigation_id": "2026-11-11-17-39-56-000-43056188729",
+      "run_id": "43056188729",
+      "timestamp": "2026-11-11T17:39:56Z",
+      "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+      "category": "Network",
+      "signature_hash": "d734e6d0da3ffc69",
+      "pr_number": "39532"
     }
   ]
 }

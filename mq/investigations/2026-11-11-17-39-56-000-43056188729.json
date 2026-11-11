@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-17-39-56-000-43056188729",
+  "timestamp": "2026-11-11T17:39:56Z",
+  "run_id": "43056188729",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43056188729",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39532",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39532",
+  "author": "StefaniaHergane",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get update fails with 'Temporary failure resolving' for all Ubuntu/Azure mirrors, causing gnupg/wget/ca-certificates/lsb-release to have no installation candidate"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the Debian Packages job failed"
+    }
+  ],
+  "key_errors": [
+    "Err:1 http://archive.ubuntu.com/ubuntu jammy InRelease\n  Temporary failure resolving 'archive.ubuntu.com'",
+    "Err:3 http://azure.archive.ubuntu.com/ubuntu jammy InRelease\n  Temporary failure resolving 'azure.archive.ubuntu.com'",
+    "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release",
+    "##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The runner lost DNS resolution for all configured Ubuntu/Azure apt mirrors (archive.ubuntu.com, security.ubuntu.com, azure.archive.ubuntu.com) during the 'Install debian packages & check conflicts' step. apt-get update retried for ~1 minute (per the configured Acquire::Retries) and ultimately failed with 'Temporary failure resolving', leaving the local package index empty/stale, so the subsequent apt-get install for gnupg, wget, ca-certificates, and lsb-release reported 'no installation candidate'/'Unable to locate package'. This is a transient runner/network infrastructure issue unrelated to the PR's NPU compiler-adapter code changes.",
+  "reproduction_steps": "N/A - not reproducible outside CI; depends on transient DNS resolution failure for Ubuntu apt mirrors from the GitHub Actions runner's network.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job; this is a transient DNS/network failure unrelated to the PR's source changes",
+    "If recurrence continues, consider adding retries with longer backoff around apt-get update/install in job_debian_packages.yml, or pin/cache a known-good apt mirror",
+    "Monitor whether the runner pool (aks-linux-4-cores-16gb) has a broader networking/DNS issue given the recurring pattern across many merge-queue runs"
+  ],
+  "prevention_strategies": "Add resilience to the Debian Packages install step: increase Acquire::Retries, add a short sleep+retry wrapper around 'apt-get update', and/or fall back to an alternate mirror if DNS resolution fails repeatedly. Track mirror outage frequency to decide if self-hosted/cached mirrors are warranted.",
+  "historical_context": "This exact signature (DNS resolution failure for Ubuntu/Azure apt mirrors during the Debian Packages job) has now been seen 7 times in repo-memory, 6 of them within the last ~3 hours (2026-11-11T14:34 - 17:15 UTC), affecting PR #39262, #39532, and #39693. Several related but distinct Network/Infrastructure signatures for the same job (connection timeout/refused, OOM, 404s) are also tracked separately."
+}
