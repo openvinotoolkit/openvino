@@ -44,9 +44,9 @@
 // scale, rounded once; lsum takes P). New keys read Vc rows as PREFILL reads V. Rows are clamped to lim - 1, so every read
 // is of a written slot.
 
-// The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup, 32 for a compressed MIXED at heads 96 / 128 / 256
-// (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score tile is the KQ query tile), and each holds 16 or 32 value columns of
-// the head (hpg_pa_prefill_tiling()). The head need not
+// The S*V subgroup of sg_ij owns the 16 queries of its KQ subgroup, 32 for a compressed MIXED at heads 64 / 96 / 128 /
+// 256 (sv_sg_per_wg_values == kq_sg_per_wg_keys, the score tile is the KQ query tile), and each holds 16 or 32 value
+// columns of the head, 8 in that MIXED at head 64 (hpg_pa_prefill_tiling()). The head need not
 // be a power of two (96) nor a multiple of 16: plain SDPA at head 72 (HPG_TAIL = 8) has a last depth tile of 8 depths (K and
 // Q read 16 B there and the rest is zero) and a last value subgroup of 8 columns, which reads the 16 columns that end the
 // head and stores its upper 8 (sv_col below), so no load leaves the head.
@@ -54,7 +54,8 @@
 #if !(SG8 && (IS_PREFILL || IS_PA_MIXED) && K_HEAD_SIZE == V_HEAD_SIZE && (HPG_TAIL == 0 || HPG_TAIL == DPAS_K / 2) && \
       (kq_sg_tile_queries == 16 || kq_sg_tile_queries == 32) && sv_sg_tile_scores == kq_sg_tile_queries && \
       sv_sg_per_wg_scores == kq_sg_per_wg_queries && \
-      sv_sg_per_wg_values == kq_sg_per_wg_keys && (sv_sg_tile_values == 16 || sv_sg_tile_values == 32) && \
+      sv_sg_per_wg_values == kq_sg_per_wg_keys && \
+      (sv_sg_tile_values == 8 || sv_sg_tile_values == 16 || sv_sg_tile_values == 32) && \
       sv_sg_tile_values * sv_sg_per_wg_values == V_HEAD_SIZE + HPG_TAIL)
 #  error "sdpa_ocl_hpg_pa_prefill.cl: the host gate (hpg_pa_prefill_ok()) and this kernel disagree on the shape or the tiling"
 #endif
@@ -89,7 +90,10 @@
 #endif
 
 // One lane's slice of a V row: the sv_sg_tile_values value columns of its S*V subgroup, as dwords.
-#if sv_sg_tile_values == 16
+#if sv_sg_tile_values == 8
+#  define HPG_V_T       uint4
+#  define HPG_V_LOAD(p) vload4(0, p)
+#elif sv_sg_tile_values == 16
 #  define HPG_V_T       uint8
 #  define HPG_V_LOAD(p) vload8(0, p)
 #else
@@ -483,8 +487,11 @@ SDPA_OCL_INLINE void FUNC(hpg_sv_vc)(__private float8 (*acc)[sv_value_blocks], c
 
 // A compressed page row slice of this S*V subgroup: sv_sg_tile_values values, one byte each (i8 the value; u4 the byte of
 // the split row whose low or high nibble holds it, PA_V_U4_COL() / PA_V_U4_HI(): a slice never straddles the split, as
-// PA_V_ROW_ELEMS is a multiple of 16 and so is col).
-#  if sv_sg_tile_values == 16
+// PA_V_ROW_ELEMS and col are multiples of the slice width: 32 and 8 at head 64).
+#  if sv_sg_tile_values == 8
+#    define HPG_VQ_T       uint2
+#    define HPG_VQ_LOAD(p) vload2(0, (const __global uint *)(p))
+#  elif sv_sg_tile_values == 16
 #    define HPG_VQ_T       uint4
 #    define HPG_VQ_LOAD(p) vload4(0, (const __global uint *)(p))
 #  else

@@ -1048,21 +1048,23 @@ bool hpg_plain_prefill_ok(const kernel_impl_params& params, size_t k_head_size, 
 // head 256 (256 x 32, sdpa_micro's: 1.13x at 1K tokens), where 32 value columns per S*V subgroup spilled 4.7-9.4 KB, and
 // 32 x 1 at head 512 (512 x 16: 0.90-0.91x sdpa_micro at 1K tokens in gemma-4-e2b, 0.94-0.96x in flux.1-schnell's VAE),
 // where 32 x 16 subgroup tiles of 16 x 1 with 32 value columns spilled 6 KB and were 2.2x.
-// A MIXED on a compressed cache (comp_mixed) takes 16 x 32 subgroup tiles, kq_sg_per_wg_keys x 1, at heads 96, 128 and 256
-// (96 x 32, 128 x 32, 256 x 32): with two query subgroups each K / V element of the tile was dequantized twice, and once
-// took 0.68-0.71x the device time per call at head 128, 0.78x at 96 and 0.73x at 256 (u4, 4K-token prompts in 256-token
-// chunks); at head 64 the 4 x 1 workgroup (64 x 32) took 1.23x, and 1.64x on an f16 cache, so head 64 keeps its tiling
-// ("xe_hpg PA PREFILL kernel" in the docs). SDPA_OCL_HPG_PA_COMP_Q32=0 keeps the 32 x 16 tiles.
+// A MIXED on a compressed cache (comp_mixed) takes 16 x 32 subgroup tiles, kq_sg_per_wg_keys x 1, at heads 64, 96, 128 and
+// 256 (128 x 32 with 8 x 1 at head 64, 8 value columns per S*V subgroup; 96 x 32, 128 x 32, 256 x 32): with two query
+// subgroups each K / V element of the tile was dequantized twice, and once took 0.68-0.71x the device time per call at
+// head 128, 0.78x at 96, 0.73x at 256 and 0.85x at 64 (u4, 4K-token prompts in 256-token chunks; i8 0.73x / 0.77x at 128 /
+// 64). The f16 MIXED keeps its tiling: the 8 x 1 shape alone took 1.24x there at head 64, and 4 x 1 (64 x 32, half the
+// threads) 1.64x ("xe_hpg PA PREFILL kernel" in the docs). SDPA_OCL_HPG_PA_COMP_Q32=0 keeps the 32 x 16 tiles.
 // Each S*V subgroup holds the queries of its KQ subgroup and head / kq_sg_per_wg_keys value columns.
 // SDPA_OCL_HPG_PA_TILE_KEYS / _TILE_QUERIES / _PER_WG_KEYS / _PER_WG_QUERIES replace a value for A/B; a tiling the kernel is
 // not written for throws.
 sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size, bool comp_mixed) {
     sdpa_ocl_config_t t;
     t.subgroup_size = static_cast<int>(get_subgroup_size(gpu_arch::xe_hpg));
-    const bool q32 = comp_mixed && (head_size == 96 || head_size == 128 || head_size == 256) && env_int("SDPA_OCL_HPG_PA_COMP_Q32", 1) != 0;
+    const bool q32 = comp_mixed && (head_size == 64 || head_size == 96 || head_size == 128 || head_size == 256) &&
+                     env_int("SDPA_OCL_HPG_PA_COMP_Q32", 1) != 0;
     t.kq_sg_tile_keys = (head_size <= 128 && !q32) ? 32 : 16;
     t.kq_sg_tile_queries = q32 ? 32 : 16;
-    t.kq_sg_per_wg_keys = head_size == 64 ? 4 : head_size == 72 ? 5 : head_size == 96 ? 6 : head_size == 128 ? 8 : head_size == 512 ? 32 : 16;
+    t.kq_sg_per_wg_keys = head_size == 64 ? (q32 ? 8 : 4) : head_size == 72 ? 5 : head_size == 96 ? 6 : head_size == 128 ? 8 : head_size == 512 ? 32 : 16;
     t.kq_sg_per_wg_queries = (head_size == 512 || q32) ? 1 : 2;
     t.kq_sg_tile_keys = env_int("SDPA_OCL_HPG_PA_TILE_KEYS", t.kq_sg_tile_keys);
     t.kq_sg_tile_queries = env_int("SDPA_OCL_HPG_PA_TILE_QUERIES", t.kq_sg_tile_queries);
@@ -1071,10 +1073,11 @@ sdpa_ocl_config_t hpg_pa_prefill_tiling(size_t head_size, bool comp_mixed) {
     t.large_grf = true;
     t.micro_math = false;  // the kernel has one softmax rounding, sdpa_ocl's default
     t.hpg_pa_prefill = true;
-    // The value columns round up to 16 (head 72: 80), the kernel's S*V subgroups' width.
+    // The value columns round up to 16 (head 72: 80), a whole S*V subgroup width.
     const bool split = (t.kq_sg_tile_keys == 16 || t.kq_sg_tile_keys == 32) && solve_sv_split(t, (head_size + 15) / 16 * 16);
     OPENVINO_ASSERT(split && (t.kq_sg_tile_queries == 16 || t.kq_sg_tile_queries == 32) && t.sv_sg_tile_scores == t.kq_sg_tile_queries &&
-                        t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys && (t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) &&
+                        t.sv_sg_per_wg_values == t.kq_sg_per_wg_keys &&
+                        (t.sv_sg_tile_values == 8 || t.sv_sg_tile_values == 16 || t.sv_sg_tile_values == 32) &&
                         tiling_fits_device(gpu_arch::xe_hpg, head_size, t),
                     "[GPU] sdpa_ocl: the xe_hpg PA PREFILL tiling (",
                     t.kq_sg_tile_keys,
@@ -1366,7 +1369,7 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     // every depth tile ahead (SDPA_OCL_HPG_PA_KQ_UNROLL, 0 = whole).
     if (t.hpg_pa_prefill) {
         jit.make("HPG_PA_PREFILL", 1);
-        const int v_lead = p.k_head_size == 512 ? 1 : std::min(t.sv_sg_tile_values == 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
+        const int v_lead = p.k_head_size == 512 ? 1 : std::min(t.sv_sg_tile_values <= 16 ? 6 : 3, t.kq_wg_tile_keys() / 16);
         jit.make("HPG_PA_V_LEAD", env_int("SDPA_OCL_HPG_PA_V_LEAD", v_lead));
         if (const int kq = env_int("SDPA_OCL_HPG_PA_KQ_UNROLL", p.d_max > 128 ? 2 : 0); kq > 0)
             jit.make("HPG_PA_KQ_UNROLL", kq);
