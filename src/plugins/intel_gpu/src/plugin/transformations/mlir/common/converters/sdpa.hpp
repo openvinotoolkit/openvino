@@ -6,8 +6,6 @@
 
 #include <cmath>
 #include <iostream>
-#include <openvino/op/constant.hpp>
-#include <openvino/op/scaled_dot_product_attention.hpp>
 
 #include "../convert_common.hpp"
 #include "gc/Dialect/Linalgx/LinalgxDialect.h"
@@ -17,6 +15,8 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/AffineExpr.h"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
