@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "remove item cannot find path because it does not exist pathnotfound removeitemcommand expand archive force|Infrastructure",
+  "signature_hash": "e71a74b26eea9146",
+  "title": "GPU unit tests fail to extract OpenVINO package - stale onednn_third-party-programs.txt blocks Expand-Archive -Force cleanup",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-11T13:06:31Z",
+  "last_seen": "2026-11-11T13:06:31Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43009490565"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39681"
+  ],
+  "recent_timestamps": [
+    "2026-11-11T13:06:31Z"
+  ],
+  "rerun_search_string": "PathNotFound,Microsoft.PowerShell.Commands.RemoveItemCommand"
+}
