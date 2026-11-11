@@ -24,7 +24,7 @@
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "openvino/core/except.hpp"
-#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+#include "transformations/cpu_opset/common/op/qsa_indexer.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 

@@ -14,7 +14,7 @@
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
-#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+#include "transformations/cpu_opset/common/op/qsa_indexer.hpp"
 
 namespace ov::intel_cpu::node::qsa {
 class QsaBrgemm;  // x64 only, see kernels/sparse_attn/qsa_brgemm.hpp

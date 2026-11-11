@@ -16,7 +16,7 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+#include "transformations/cpu_opset/common/op/qsa_indexer.hpp"
 
 namespace ov {
 namespace test {
