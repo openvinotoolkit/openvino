@@ -1080,7 +1080,7 @@ This capability currently supports a limited set of topologies, including SmolLM
 There is also an experimental mode using the new GGUF frontend (``GGUF_READER="FRONTEND"``) that supports a wider range of architectures,
 including Qwen3/3.5 and LFM2/3, as well as additional GGUF precisions. Support for these architectures also enables models that are only available in the GGUF format,
 such as Bonsai and Bonsai 2.
-For more details on GGUF support, see the `GenAI documentation <https://openvinotoolkit.github.io/openvino.genai/docs/guides/gguf/>`_.
+For more details on GGUF support, see the `GenAI documentation <https://openvinotoolkit.github.io/openvino.genai/docs/guides/gguf/>`__.
 
 For other models and architectures, we still recommend converting the model to the IR format,
 using the `optimum-intel` tool.
