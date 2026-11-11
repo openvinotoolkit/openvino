@@ -48,7 +48,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
         const bool has_transpose_before_reshape = pattern_map.count(transpose_before_reshape_m) != 0u;
         const bool has_transpose = pattern_map.count(transpose_m) != 0u;
-        const auto scale_output = pattern_map.at(mul_const_m);
+        // An optional Convert absorbed by mul_const_convert_m carries the precision the graph used for the
+        // scale (e.g. f32 -> f16 inserted by ConvertPrecision). Keep it for runtime scales: stripping it would
+        // leak the source precision into the FC scale input. Constants need no Convert because Convert(Constant)
+        // is constant-folded long before this pass.
+        const bool scale_convert_absorbed = pattern_map.count(mul_const_convert_m) > 0 &&
+                                            !ov::is_type<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node());
+        const ov::Output<Node> scale_output = scale_convert_absorbed ? pattern_map.at(mul_const_convert_m)
+                                                                     : pattern_map.at(mul_const_m);
         auto scale_shape = scale_output.get_shape();
         const bool with_zero_point = pattern_map.count(subtract_m) > 0;
         bool sub_with_convert = pattern_map.count(sub_convert_const_m) > 0;
@@ -60,12 +67,22 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) {
                                  return d > 1;
                              }) == 3);
-        bool grouped = scale_shape.size() == weight_shape.size() + 1;
-
         bool weight_u8 = false;
         const std::shared_ptr<ov::Node> weights_key = pattern_map.count(weights_m) ? weights_m : std::shared_ptr<ov::Node>(weights_param_m);
         const auto weight_ptr = pattern_map.at(weights_key).get_node_shared_ptr();
         const bool weights_are_constant = ov::is_type<ov::op::v0::Constant>(weight_ptr);
+        // A scale/zp rank above the squeezed weights is grouped per the rank convention ([G, N] style) —
+        // unless the dequantized output carried an extra leading unit batch dim that the final Reshape
+        // squeezed away (weights [1, N, K] or [N, K] broadcast by [1, N, 1] scale, flattened to [N, K]):
+        // then the extra parameter dim is a batch, not a group axis. MoveFCReshapeToWeights normalizes such
+        // graphs upstream for Constants, but runtime scale/zp Parameters reach this pass with the 3D shapes
+        // intact. Read the pre-squeeze Multiply shape (never the weights node: weights_param_m may be dynamic).
+        const auto dequantized_pshape = pattern_map.at(mul_m).get_partial_shape();
+        const bool weights_batch_squeezed = dequantized_pshape.is_static() && dequantized_pshape.size() == weight_shape.size() + 1 &&
+                                            dequantized_pshape[0] == 1 &&
+                                            std::equal(weight_shape.begin(), weight_shape.end(), dequantized_pshape.to_shape().begin() + 1);
+        bool grouped = scale_shape.size() == weight_shape.size() + 1 &&
+                       !(weights_batch_squeezed && scale_shape.back() == 1);
         if (has_transpose_before_reshape) {
             if (weight_ptr->get_element_type() != ov::element::u2) {
                 return false;
@@ -159,14 +176,40 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
         const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
         const auto& scale = has_transpose_before_reshape
-                                ? pattern_map.at(mul_const_m).get_node_shared_ptr()
-                                : reshape_input(pattern_map.at(mul_const_m).get_node_shared_ptr());
+                                ? scale_output.get_node_shared_ptr()
+                                : reshape_input(scale_output.get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
         if (with_zero_point) {
+            // A Reshape over a precision-Convert of an integer zero point carries the converted precision
+            // (e.g. f16), while FullyConnectedCompressed requires the integer value: rebuild the Reshape
+            // directly over the integer source, the way the weights path drops its Convert.
+            auto normalize_zp_precision = [&result_nodes, &sub_with_convert](std::shared_ptr<ov::Node> node) -> std::shared_ptr<ov::Node> {
+                const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node);
+                if (!reshape) {
+                    return node;
+                }
+                const auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(reshape->get_input_node_shared_ptr(0));
+                if (!zp_convert) {
+                    return node;
+                }
+                const auto zp_src = zp_convert->input_value(0);
+                if (zp_src.get_element_type().is_real()) {
+                    // Nothing to recover: the source precision is already floating point.
+                    return node;
+                }
+                // The graph did carry a precision Convert for this ZP; keep signalling it to convert_zp_const.
+                sub_with_convert = true;
+                auto reshaped_zp = std::make_shared<ov::op::v1::Reshape>(zp_src, reshape->input_value(1), reshape->get_special_zero());
+                reshaped_zp->set_friendly_name(node->get_friendly_name() + "_int_zp");
+                ov::copy_runtime_info({node, zp_convert}, reshaped_zp);
+                result_nodes.push_back(reshaped_zp);
+                return reshaped_zp;
+            };
+            const auto zp_value = normalize_zp_precision(pattern_map.at(sub_const_m).get_node_shared_ptr());
             const auto zero_point = has_transpose_before_reshape
-                                        ? pattern_map.at(sub_const_m).get_node_shared_ptr()
-                                        : reshape_input(pattern_map.at(sub_const_m).get_node_shared_ptr());
+                                        ? zp_value
+                                        : reshape_input(zp_value);
             optional_zero_point = convert_zp_const(zero_point);
         }
 

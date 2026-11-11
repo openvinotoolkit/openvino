@@ -5,7 +5,6 @@
 #include "fully_connected_inst.h"
 #include "impls/onednn/utils.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
