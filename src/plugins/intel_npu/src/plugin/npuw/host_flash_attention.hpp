@@ -573,9 +573,7 @@ class ExplicitHistory final : public Selector {
     int64_t context_length() const override;
 
 public:
-    static Selector::Ptr find(std::size_t query_size,
-                              const std::string& input_name,
-                              const ov::ISyncInferRequest& rq);
+    static Selector::Ptr find(std::size_t query_size, const std::string& input_name, const ov::ISyncInferRequest& rq);
 };
 
 }  // namespace host_flash_attention

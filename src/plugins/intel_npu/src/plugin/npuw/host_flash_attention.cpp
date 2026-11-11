@@ -801,7 +801,7 @@ static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::No
 
 // Skips Convert nodes and a [B,S,H,D]->[B,H,S,D] Transpose in front of a past-KV Concat input.
 static std::shared_ptr<ov::Node> skip_past_kv_layout_nodes(const std::shared_ptr<ov::Node>& node,
-                                                          bool* is_bshd = nullptr) {
+                                                           bool* is_bshd = nullptr) {
     auto current = skip_convert_nodes(node);
     bool bshd = false;
     if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(current)) {
@@ -1210,10 +1210,10 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // Final tile: state still uses block_kv_dtype (f16) for zero-copy with regular
     //   tile outputs; KV-tile uses present_kv_dtype (f32) matching the upstream graph.
     //   past_acc/max/d: f16   k_tile/v_tile: f32  (present-KV from upstream)
-    LOG_INFO("Creating HFA tile models: past_tile_size="
-             << past_tile_size << ", final_tile_size=" << final_tile_size << ", v_transposed=" << v_transposed
-             << ", past_kv_bshd=" << past_k_bshd << ", block_kv=" << block_kv_dtype
-             << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
+    LOG_INFO("Creating HFA tile models: past_tile_size=" << past_tile_size << ", final_tile_size=" << final_tile_size
+                                                         << ", v_transposed=" << v_transposed << ", past_kv_bshd="
+                                                         << past_k_bshd << ", block_kv=" << block_kv_dtype
+                                                         << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
     // Per-SDPA mask-skipping decision
     // DetectAttentionMask (run earlier on the original SDPA node) may have annotated
@@ -1352,8 +1352,10 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Copy query size, context size, and K/V sequence dimensions from function HFA
     _sdpa_attention_info._query_size = func_hfa._query_size;
     _sdpa_attention_info._context_size = func_hfa._context_size;
-    _sdpa_attention_info._k_seq_dim = HostFlashAttentionInfo::pack_seq_dim(func_hfa._k_seq_dim, func_hfa._past_k_seq_dim);
-    _sdpa_attention_info._v_seq_dim = HostFlashAttentionInfo::pack_seq_dim(func_hfa._v_seq_dim, func_hfa._past_v_seq_dim);
+    _sdpa_attention_info._k_seq_dim =
+        HostFlashAttentionInfo::pack_seq_dim(func_hfa._k_seq_dim, func_hfa._past_k_seq_dim);
+    _sdpa_attention_info._v_seq_dim =
+        HostFlashAttentionInfo::pack_seq_dim(func_hfa._v_seq_dim, func_hfa._past_v_seq_dim);
 
     // Pre-cache all indices from function HFA maps
     LOG_INFO("Pre-caching SDPA and tile indices...");
@@ -1574,9 +1576,7 @@ Selector::Ptr HistorySize::find(std::size_t original_query_length, const ov::ISy
     return Selector::Ptr{};
 }
 
-ExplicitHistory::ExplicitHistory(std::size_t param_idx,
-                                 std::size_t query_size,
-                                 const ov::ISyncInferRequest& rq)
+ExplicitHistory::ExplicitHistory(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq)
     : _history_idx(param_idx),
       _query_size(query_size),
       _rq(rq) {

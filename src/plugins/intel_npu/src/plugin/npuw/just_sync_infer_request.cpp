@@ -716,8 +716,7 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
         const auto model_inputs = m_npuw_model->inputs();
         const auto history_port = std::find_if(model_inputs.begin(), model_inputs.end(), [&](const auto& input) {
             const auto& names = input.get_names();
-            return names.count(history_input_name) != 0 ||
-                   input.get_node()->get_friendly_name() == history_input_name;
+            return names.count(history_input_name) != 0 || input.get_node()->get_friendly_name() == history_input_name;
         });
         OPENVINO_ASSERT(history_port != model_inputs.end(),
                         "NPUW attention history input '",

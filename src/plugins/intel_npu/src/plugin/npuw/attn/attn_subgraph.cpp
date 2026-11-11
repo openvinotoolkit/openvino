@@ -189,8 +189,10 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
 
     auto& request = get_request(ctx);
     const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
-    state.hfa_selector = runtime::host_flash_attention::ExplicitHistory::find(
-        original_query_length, ctx.compiled_model.attention_history_size_input(), request);
+    state.hfa_selector =
+        runtime::host_flash_attention::ExplicitHistory::find(original_query_length,
+                                                             ctx.compiled_model.attention_history_size_input(),
+                                                             request);
     if (!state.hfa_selector) {
         state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
     }
@@ -998,8 +1000,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         using HFAInfo = ov::npuw::compiled::HostFlashAttentionInfo;
                         const uint32_t K_SEQ_DIM = static_cast<uint32_t>(HFAInfo::concat_seq_dim(sdpa_info._k_seq_dim));
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(HFAInfo::concat_seq_dim(sdpa_info._v_seq_dim));
-                        const uint32_t PAST_K_SEQ_DIM = static_cast<uint32_t>(HFAInfo::past_seq_dim(sdpa_info._k_seq_dim));
-                        const uint32_t PAST_V_SEQ_DIM = static_cast<uint32_t>(HFAInfo::past_seq_dim(sdpa_info._v_seq_dim));
+                        const uint32_t PAST_K_SEQ_DIM =
+                            static_cast<uint32_t>(HFAInfo::past_seq_dim(sdpa_info._k_seq_dim));
+                        const uint32_t PAST_V_SEQ_DIM =
+                            static_cast<uint32_t>(HFAInfo::past_seq_dim(sdpa_info._v_seq_dim));
                         OPENVINO_ASSERT(K_SEQ_DIM < present_key_tensor->get_shape().size(),
                                         "HFA: K sequence dimension is out of range for the present key tensor");
                         for (const auto& k_block : past_key_blocks) {
