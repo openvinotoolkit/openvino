@@ -521,6 +521,42 @@ TEST(gated_residual_fusion, gated_residual_write_op_rejects_mismatched_rows) {
                  ov::NodeValidationFailure);
 }
 
+TEST(gated_residual_fusion, gated_residual_write_rejects_static_one_against_dynamic_rows) {
+    // [1, 1, D] against a dynamic [?, ?, C*D] residual is a broadcast the row-wise kernel would read out of bounds.
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C * D});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, D});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C});
+
+    auto s4 = std::make_shared<ov::op::v0::Unsqueeze>(s, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
+    auto y4 = std::make_shared<ov::op::v0::Unsqueeze>(y, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(s4, y4);
+    auto added = std::make_shared<ov::op::v1::Add>(zero_split(residual, {C, D}), scaled);
+    auto out = zero_split(added, {C * D});
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{residual, y, s});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualWriteFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 0u);
+}
+
+TEST(gated_residual_fusion, gated_residual_write_op_rejects_static_one_against_dynamic_rows) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C * D});
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, D});
+    auto s = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, -1, C});
+    EXPECT_THROW(static_cast<void>(std::make_shared<op::GatedResidual>(ov::OutputVector{residual, y, s},
+                                                                       op::GatedResidual::Mode::WRITE,
+                                                                       static_cast<size_t>(C),
+                                                                       static_cast<size_t>(D),
+                                                                       0,
+                                                                       EPS,
+                                                                       false,
+                                                                       false)),
+                 ov::NodeValidationFailure);
+}
+
 TEST(gated_residual_fusion, gated_residual_write_decomposed_form_is_fused) {
     // Mirrors the real export: the gate/y are broadcast to 3D via Unsqueeze (not
     // Reshape), and the Add happens in the flat [*, C*D] domain against an

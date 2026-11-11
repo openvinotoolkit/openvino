@@ -19,8 +19,9 @@ bool matrix_matches(const ov::PartialShape& ps, size_t rows, size_t cols) {
            (ps.rank().get_length() == 2 && ps[0].compatible(static_cast<int64_t>(rows)) && ps[1].compatible(static_cast<int64_t>(cols)));
 }
 
-/// Same rank as `ref` and compatible leading (all but the last) dimensions.
-bool leading_dims_match(const ov::PartialShape& ps, const ov::PartialShape& ref) {
+}  // namespace
+
+bool GatedResidual::shares_leading_dims(const ov::PartialShape& ps, const ov::PartialShape& ref) {
     if (ps.rank().is_dynamic() || ref.rank().is_dynamic()) {
         return true;
     }
@@ -28,14 +29,13 @@ bool leading_dims_match(const ov::PartialShape& ps, const ov::PartialShape& ref)
         return false;
     }
     for (size_t i = 0; i + 1 < ps.size(); ++i) {
-        if (!ps[i].compatible(ref[i])) {
+        const bool both_static = ps[i].is_static() && ref[i].is_static();
+        if (both_static ? ps[i] != ref[i] : (ps[i].is_static() || ref[i].is_static())) {
             return false;
         }
     }
     return true;
 }
-
-}  // namespace
 
 GatedResidual::GatedResidual(const ov::OutputVector& args,
                              Mode mode,
@@ -100,13 +100,13 @@ void GatedResidual::validate_and_infer_types() {
                               m_hc_count);
         // The kernel walks the residual's rows only.
         NODE_VALIDATION_CHECK(this,
-                              leading_dims_match(get_input_partial_shape(WriteInputIdx::SUBLAYER_Y), residual_ps),
+                              shares_leading_dims(get_input_partial_shape(WriteInputIdx::SUBLAYER_Y), residual_ps),
                               "GatedResidual (WRITE) sub-layer output must have the residual's rank and leading dimensions, got ",
                               get_input_partial_shape(WriteInputIdx::SUBLAYER_Y),
                               " for residual ",
                               residual_ps);
         NODE_VALIDATION_CHECK(this,
-                              leading_dims_match(get_input_partial_shape(WriteInputIdx::WRITE_GATE), residual_ps),
+                              shares_leading_dims(get_input_partial_shape(WriteInputIdx::WRITE_GATE), residual_ps),
                               "GatedResidual (WRITE) write gate must have the residual's rank and leading dimensions, got ",
                               get_input_partial_shape(WriteInputIdx::WRITE_GATE),
                               " for residual ",

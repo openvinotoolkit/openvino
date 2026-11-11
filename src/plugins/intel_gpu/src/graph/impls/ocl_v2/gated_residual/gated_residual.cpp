@@ -648,6 +648,10 @@ protected:
             }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = rows_of(params, *desc);
+            // Dynamic dims cannot be proven equal at compile time; the kernel indexes Y and the gate by the residual's row.
+            OPENVINO_ASSERT(params.get_input_layout(GrOp::WriteInputIdx::SUBLAYER_Y).count() == num_rows * desc->hidden_size &&
+                                params.get_input_layout(GrOp::WriteInputIdx::WRITE_GATE).count() == num_rows * desc->hc_count,
+                            "[GPU][OCL] gated_residual (WRITE): sub-layer output and write gate must have one row per residual row");
             const size_t tile = gr_best_tile(desc->hidden_size);
             auto& wgs = kd.params.workGroups;
             wgs.global = {gr_div_up(desc->hidden_size, tile) * gr_sg, num_rows, 1};

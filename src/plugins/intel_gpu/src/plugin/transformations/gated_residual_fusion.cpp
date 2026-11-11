@@ -806,18 +806,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
         }
 
         // The kernel walks the residual's rows, so Y and the gate must share its leading dimensions.
-        const auto shares_rows = [&residual_ps](const ov::PartialShape& ps) {
-            if (ps.size() != residual_ps.size()) {
-                return false;
-            }
-            for (size_t i = 0; i + 1 < ps.size(); ++i) {
-                if (!ps[i].compatible(residual_ps[i])) {
-                    return false;
-                }
-            }
-            return true;
-        };
-        if (!shares_rows(y_src_ps) || !shares_rows(gate_src_ps)) {
+        if (!op::GatedResidual::shares_leading_dims(y_src_ps, residual_ps) || !op::GatedResidual::shares_leading_dims(gate_src_ps, residual_ps)) {
             return false;
         }
 
