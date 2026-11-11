@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-11-16-19-57-000-43046960596",
+  "timestamp": "2026-11-11T16:19:57Z",
+  "run_id": "43046960596",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43046960596",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39262",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39262",
+  "author": "yasharth-0910",
+  "category": "Network",
+  "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
+  "signature": "temporary failure resolving ubuntu archive mirror hosts during apt get update package has no installation candidate|Network",
+  "signature_hash": "d734e6d0da3ffc69",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Debian Packages / Debian Packages",
+      "conclusion": "failure",
+      "symptom": "apt-get install fails after repeated 'Temporary failure resolving' DNS errors for archive.ubuntu.com, azure.archive.ubuntu.com, security.ubuntu.com"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the Debian Packages job failed"
+    }
+  ],
+  "key_errors": [
+    "Err:2 http://archive.ubuntu.com/ubuntu noble InRelease\n  Temporary failure resolving 'archive.ubuntu.com'",
+    "W: Failed to fetch http://azure.archive.ubuntu.com/ubuntu/dists/noble/InRelease  Temporary failure resolving 'azure.archive.ubuntu.com'",
+    "E: Package 'gnupg' has no installation candidate\nE: Unable to locate package wget\nE: Package 'ca-certificates' has no installation candidate\nE: Unable to locate package lsb-release\n##[error]Process completed with exit code 100."
+  ],
+  "root_cause": "The Debian Packages job's apt-get install step inside the Docker container lost outbound DNS resolution partway through 'apt-get update', failing to resolve archive.ubuntu.com, azure.archive.ubuntu.com, and security.ubuntu.com repeatedly over roughly 3.5 minutes before apt gave up and used stale/no index data, causing 'wget', 'lsb-release', 'gnupg' and 'ca-certificates' to be unavailable. This is a transient DNS/networking failure in the container's network namespace or the Azure-hosted mirror infrastructure, not a problem with the PR's code changes (which only touch CPU/ARM softmax kernel source and tests, unrelated to packaging).",
+  "reproduction_steps": "N/A - transient CI network/DNS failure inside the Debian Packages Docker container; not reproducible deterministically. Re-running the job typically succeeds.",
+  "recommended_actions": [
+    "Re-run the failed 'Debian Packages' job; this is the 4th occurrence of the same DNS resolution failure signature in the last ~2 days.",
+    "Consider adding retry/backoff logic around apt-get update in job_debian_packages.yml to tolerate transient DNS failures.",
+    "If this recurs frequently, investigate whether the self-hosted runner's Docker network configuration or DNS resolver (e.g., /etc/resolv.conf injection) is flaky for the ubuntu24 container image."
+  ],
+  "prevention_strategies": "Add a retry wrapper (e.g., 3 attempts with backoff) around 'apt-get update' and 'apt-get install' in the Debian Packages job definition to absorb transient DNS blips without failing the whole merge-queue run. Consider pinning to a local/cached apt mirror to reduce dependency on external DNS during CI.",
+  "historical_context": "This exact signature (DNS resolution failures for Ubuntu archive mirrors during the Debian Packages job) has now been recorded 4 times: 2026-11-11T14:34:10Z (run 43030484756), 2026-11-11T15:36:49Z (run 43040586616), 2026-11-11T16:05:55Z (run 43040586954), and this run. A related but distinct connection-timeout variant (pattern 7d2e2ff59d37c6b4) has recurred 9 times separately. This is a known, recurring transient infrastructure/network issue affecting the merge queue."
+}
