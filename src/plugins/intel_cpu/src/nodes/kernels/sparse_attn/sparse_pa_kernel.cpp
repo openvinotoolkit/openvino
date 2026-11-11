@@ -392,11 +392,6 @@ void attention_over_run(PackWork& w, int64_t kpos0, int64_t n) {
     }
 }
 
-// Attention over the key_block_size-wide block starting at `block_start`.
-void attention_over_block(PackWork& w, int64_t block_start) {
-    attention_over_run(w, block_start, w.key_block_size);
-}
-
 // Attention over the selected complete blocks: adjacent blocks of the same physical page form one run (up to
 // max_run_rows rows), so the block kernels see as many rows per call as possible.
 void attention_selected_blocks_simd(PackWork& w, const int32_t* block_ids, size_t nblocks) {

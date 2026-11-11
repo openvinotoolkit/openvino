@@ -147,7 +147,6 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (const auto kv_op = ov::as_type_ptr<const SparseAttentionKVOp>(op)) {
         m_fuse_concat = true;
         m_base_inputs = op->get_input_size() - 3;
-        m_cache_prec = op->get_input_element_type(InputIdx::QUERY);
         // a side is compressed when the hint asks for u8 / u4 and the head size is static; the keys are quantized
         // by channel when that mode is requested (u8 only). Everything else (by-channel u4, TurboQuant, f16 / i8
         // hints) leaves the side a plain cache
@@ -160,7 +159,7 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
             ov::Extensions::Cpu::CacheSpec spec;
             spec.alg = ov::internal::CacheQuantAlgorithm::SCALAR;
             spec.by_channel = false;
-            spec.precision = m_cache_prec;
+            spec.precision = ov::element::dynamic;  // plain cache: set in initSupportedPrimitiveDescriptors
             spec.group_size = head_dim.is_static() ? static_cast<size_t>(head_dim.get_length()) : 0;
             if (none_of(hint, ov::element::u8, ov::element::u4) || spec.group_size == 0 ||
                 alg == ov::internal::CacheQuantAlgorithm::TURBO) {
@@ -246,6 +245,16 @@ void SparseSDPA::createPrimitive() {
 void SparseSDPA::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
+    if (m_fuse_concat) {
+        // The plain cache and the current-step K / V follow the query precision, final only now (after
+        // EnforceInferencePrecision); a compressed side keeps u8 / u4.
+        m_cache_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+        for (auto* spec : {&m_key_spec, &m_value_spec}) {
+            if (!isQuantizedCache(*spec)) {
+                spec->precision = m_cache_prec;
+            }
+        }
     }
     // QUERY / KEY / VALUE are echoed at whatever precision (f32/f16/bf16) was negotiated
     // upstream -- the reference kernel reads them through load_row_f32() rather than hardcoding

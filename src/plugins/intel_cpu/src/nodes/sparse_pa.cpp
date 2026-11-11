@@ -56,9 +56,6 @@ SparsePA::SparsePA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     if (!deriveConfig(*sparse_pa, m_config, errorMessage)) {
         OPENVINO_THROW(errorMessage);
     }
-    if (!deriveQuant(errorMessage)) {
-        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
-    }
 }
 
 bool SparsePA::deriveQuant(std::string& reason) {
@@ -303,13 +300,14 @@ void SparsePA::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
     }
-    // QUERY / KEY / VALUE / KEY_CACHE / VALUE_CACHE are echoed at whatever precision (f32/f16/
-    // bf16) was negotiated upstream -- the kernel reads/writes all of them through precision
-    // conversion in sparse_pa_compute() rather than hardcoding f32, since the paged caches grow
-    // every step and forcing a whole-tensor Reorder on every call would redo that conversion for
-    // the entire history each time. The page-table and selection-plan inputs stay i32; SCALE keeps its own precision
-    // (the op requires it to match query/key/value, which dynamic-shape inference re-validates) and is read as f32.
-    // Plain caches: the query type, or f16 next to f32 data like PagedAttention.
+    // The cache layout depends on the cache precisions, which are final only now (after EnforceInferencePrecision).
+    std::string errorMessage;
+    if (!deriveQuant(errorMessage)) {
+        OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
+    }
+    // Float ports keep the precision settled upstream: the caches grow every step, so a Reorder would convert the
+    // whole history each call. The page table and selection inputs are i32; SCALE keeps its own precision and is read
+    // as f32. Plain caches: the query type, or f16 next to f32 data like PagedAttention.
     if (!m_quant.enabled()) {
         const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
         const auto cache_prec = getOriginalInputPrecisionAtPort(InputIdx::KEY_CACHE);
