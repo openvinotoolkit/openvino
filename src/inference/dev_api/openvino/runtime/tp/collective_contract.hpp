@@ -184,16 +184,16 @@ namespace internal {
 // ---- create_context() parameters ----
 
 /// Devices of the TP group, e.g. {"GPU.0", ..., "GPU.N-1"}.
-static constexpr ov::Property<std::vector<std::string>> device_group{"ov_internal_tp_device_group"};
+static constexpr ov::Property<std::vector<std::string>> device_group{"TP_DEVICE_GROUP"};
 
 /// group_id -> this rank's configuration of that group. Never serialized.
-static constexpr ov::Property<std::map<int, CollectiveGroup>> groups{"ov_internal_tp_groups"};
+static constexpr ov::Property<std::map<int, CollectiveGroup>> groups{"TP_GROUPS"};
 
 /// Number of channels of the communicator (default 1): one per stream of the models bound to the context.
-static constexpr ov::Property<uint32_t> channels{"ov_internal_tp_channels"};
+static constexpr ov::Property<uint32_t> channels{"TP_CHANNELS"};
 
 /// Optional fixed size of the per-channel collective buffers; larger messages are chunked.
-static constexpr ov::Property<size_t> comm_buffer_size{"ov_internal_tp_comm_buffer_size"};
+static constexpr ov::Property<size_t> comm_buffer_size{"TP_COMM_BUFFER_SIZE"};
 
 /// Timeout of the setup rendezvous, the per-call rendezvous, and of collectives that do not complete.
 static constexpr ov::Property<int> communication_timeout_ms{"COMMUNICATION_TIMEOUT_MS"};
@@ -201,21 +201,21 @@ static constexpr ov::Property<int> communication_timeout_ms{"COMMUNICATION_TIMEO
 // ---- compile_model() / import_model() config ----
 
 /// Optional, default 0: stream s of the compiled model uses channel channel_base + s.
-static constexpr ov::Property<uint32_t> channel_base{"ov_internal_tp_channel_base"};
+static constexpr ov::Property<uint32_t> channel_base{"TP_CHANNEL_BASE"};
 
 // ---- Queries, arguments: device_group[, collective_backend] ----
 
 /// Backend names the device plugin supports for the device group, in the order "AUTO" prefers them.
 static constexpr ov::Property<std::vector<std::string>, ov::PropertyMutability::RO> collective_backends{
-    "ov_internal_tp_collective_backends"};
+    "TP_COLLECTIVE_BACKENDS"};
 
 /// Empty if the device group is supported with the backend, otherwise the reason. Does not throw for an
 /// unsupported group.
 static constexpr ov::Property<std::string, ov::PropertyMutability::RO> collective_support{
-    "ov_internal_tp_collective_support"};
+    "TP_COLLECTIVE_SUPPORT"};
 
 /// Argument of the support query (default "AUTO").
-static constexpr ov::Property<std::string> collective_backend{"ov_internal_tp_collective_backend"};
+static constexpr ov::Property<std::string> collective_backend{"TP_COLLECTIVE_BACKEND"};
 
 /// Memory of one device, in bytes.
 struct DeviceMemory {
@@ -226,7 +226,7 @@ struct DeviceMemory {
 
 /// Memory of the device named by the argument ov::device::id (D11): what the TP plugin sizes the caches it
 /// manages against.
-static constexpr ov::Property<DeviceMemory, ov::PropertyMutability::RO> device_memory{"ov_internal_tp_device_memory"};
+static constexpr ov::Property<DeviceMemory, ov::PropertyMutability::RO> device_memory{"TP_DEVICE_MEMORY"};
 
 }  // namespace internal
 }  // namespace tp

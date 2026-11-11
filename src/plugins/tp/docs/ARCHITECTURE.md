@@ -34,7 +34,7 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │       block; TPShardingVerifier proves the annotations or    │
 │       fails the compilation naming the node. Each rank's     │
 │       weights, read off the annotations, are compared with   │
-│       its device's free memory (ov_internal_tp_device_memory)│
+│       its device's free memory (TP_DEVICE_MEMORY)            │
 │       and the compilation stops if they do not fit, naming   │
 │       the fewest devices that would do.                      │
 │    3. Create one remote context per rank with the TP         │
@@ -464,7 +464,7 @@ the id change in their signature. Prefill makes this large: hidden size x prompt
 element size on every rank, allocated during the first long prompt, after the KV cache took its
 share.
 
-With `ov_internal_tp_comm_buffer_size` the staging has that size, rounded down
+With `TP_COMM_BUFFER_SIZE` the staging has that size, rounded down
 to 512 bytes, and is allocated once by `create_context()`, before any model is
 compiled; the ranks check at the first bind that they agree on it. A payload
 whose staging does not fit a half is split into chunks of equal size (the last
@@ -630,13 +630,13 @@ the context of one rank:
   per device list and shared by every rank's context in the process;
 - a remote context whose device and engine sit on that shared context;
 - this rank's `RankCommunicator`, which allocates the rank's fixed staging if
-  `ov_internal_tp_comm_buffer_size` is set, publishes its setup payload
+  `TP_COMM_BUFFER_SIZE` is set, publishes its setup payload
   (header, process id, a process-unique communicator id, the staging size)
   and returns without waiting.
 
-Other accepted parameters: `ov_internal_tp_comm_buffer_size`,
+Other accepted parameters: `TP_COMM_BUFFER_SIZE`,
 `COMMUNICATION_TIMEOUT_MS`, `DEVICE_ID` and the `GPU_TP_*` options.
-`ov_internal_tp_channels` other than 1 is refused until it is implemented;
+`TP_CHANNELS` other than 1 is refused until it is implemented;
 any other parameter is an error.
 
 ### Collective backends
@@ -645,12 +645,12 @@ A backend is a name the GPU plugin owns; today there is one, `L0_P2P` (peer
 copies between the devices of one Level Zero context). It serves a device
 group if every device appears once, all share a Level Zero driver, and
 `zeDeviceCanAccessPeer` holds for every ordered pair. Two queries answer for a
-device group (argument `ov_internal_tp_device_group`) without throwing:
+device group (argument `TP_DEVICE_GROUP`) without throwing:
 
-- `ov_internal_tp_collective_backends`: the names that serve the group, in the
+- `TP_COLLECTIVE_BACKENDS`: the names that serve the group, in the
   order `AUTO` prefers them; empty if none does.
-- `ov_internal_tp_collective_support` (optional argument
-  `ov_internal_tp_collective_backend`, default `AUTO`): empty if the backend
+- `TP_COLLECTIVE_SUPPORT` (optional argument
+  `TP_COLLECTIVE_BACKEND`, default `AUTO`): empty if the backend
   serves the group, otherwise why not -- a device pair without peer access, a
   device listed twice, an unknown device, or for an unknown name the names
   that would work (`Unknown collective backend "L0"; supported for GPU.0,GPU.1:
@@ -702,7 +702,7 @@ silently degrading.
 
 ### Device memory
 
-`ov_internal_tp_device_memory` (RO, argument `DEVICE_ID`) answers
+`TP_DEVICE_MEMORY` (RO, argument `DEVICE_ID`) answers
 `ov::tp::internal::DeviceMemory{total, used, max_allocation}` for one device:
 `max_global_mem_size`, the device's memory in use by every engine of the
 process (`usm_device` + `cl_mem`, plus `usm_host` on an integrated GPU) and
@@ -835,15 +835,15 @@ other slice, which then stays in the blob. On import the core passes
 
 Every knob is a plugin option declared in one table `include/tp/options.inl`,
 where an X-macro gives each entry a typed getter, a default, validation,
-and support for both the environment and a JSON config file.
+and support for the environment.
 
 The table has three tiers:
 
-| Tier             | Reachable through                    | Exists in                            |
-|------------------|--------------------------------------|--------------------------------------|
-| release          | public API, environment, config file | every build                          |
-| release-internal | environment, config file             | every build                          |
-| debug            | environment, config file             | only `-DENABLE_TP_DEBUG_CAPS=ON` |
+| Tier             | Reachable through       | Exists in                        |
+|------------------|-------------------------|----------------------------------|
+| release          | public API, environment | every build                      |
+| release-internal | environment             | every build                      |
+| debug            | environment             | only `-DENABLE_TP_DEBUG_CAPS=ON` |
 
 The debug tier is compiled out rather than ignored: without the flag those
 options have no getters, so the code they guard folds away instead of costing a

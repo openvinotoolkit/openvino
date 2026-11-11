@@ -77,7 +77,7 @@ private:
 
     /// Builds the configuration of one call: what the plugin was configured
     /// with, overridden by what the call passed, finalized so the environment
-    /// and the config file get their say. Everything that is not supported by TP lands
+    /// gets its say. Everything that is not supported by TP lands
     /// in `forwarded`, ready for the rank compilations.
     void build_call_config(const ov::AnyMap& properties, TPConfig& config, ov::AnyMap& forwarded) const;
 
@@ -96,8 +96,8 @@ private:
     /// The UUIDs of the devices, which identify a device across its names.
     std::vector<std::string> device_uuids(const std::vector<std::string>& device_names) const;
 
-    /// Only ever holds what was explicitly set -- defaults, environment and
-    /// config file are resolved per call.
+    /// Only ever holds what was explicitly set -- defaults and the environment
+    /// are resolved per call.
     TPConfig m_config;
 
     /// Everything else set on the plugin, forwarded verbatim to the rank

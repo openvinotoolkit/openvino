@@ -133,7 +133,7 @@ TEST_F(TPOptionsOnDevicesTest, RejectsAStagingLargerThanADeviceAllocates) {
                                        tp_device(world_size),
                                        {{ov::tp::internal::comm_buffer_size.name(), size_t{1} << 60}}),
                     ov::Exception,
-                    HasSubstr("ov_internal_tp_comm_buffer_size of 1152921504606846976 bytes is more than"));
+                    HasSubstr("TP_COMM_BUFFER_SIZE of 1152921504606846976 bytes is more than"));
 }
 
 // Inputs copied through plugin-owned host memory or handed over as they are: the same result.

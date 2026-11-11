@@ -6,7 +6,7 @@
 //      Options exposed via the public API in all build types.
 // OV_CONFIG_RELEASE_INTERNAL_OPTION:
 //      Available in all build types, but not settable via the public API.
-//      Reachable through the environment and the config file only.
+//      Reachable through the environment only.
 // OV_CONFIG_TP_DEBUG_OPTION / OV_CONFIG_TP_DEBUG_GLOBAL_OPTION:
 //      Only present when the plugin is built with ENABLE_TP_DEBUG_CAPS.
 //      These are TP wrappers rather than the OV_CONFIG_DEBUG_* macros: the

@@ -19,13 +19,13 @@ namespace tp {
 
 namespace internal {
 /// Number of ranks of a TP compiled model.
-static constexpr Property<int, PropertyMutability::RO> world_size{"ov_internal_tp_world_size"};
+static constexpr Property<int, PropertyMutability::RO> world_size{"TP_WORLD_SIZE"};
 }  // namespace internal
 
 // -----------------------------------------------------------------------------
 // Tuning knobs. Available in every build type but not settable through the
 // public API: they trade one performance profile for another. Reachable through
-// the environment (OV_ + the key below) and through the plugin config file.
+// the environment only (OV_ + the key below).
 //
 // The collectives are tuned in the GPU plugin, which runs them: GPU_TP_* options,
 // e.g. OV_GPU_TP_ENABLE_HALVING.

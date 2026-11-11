@@ -427,7 +427,7 @@ void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, o
     forwarded[ov::cache_dir.name()] = std::string{};
     force_one_stream(forwarded);
 
-    // Reads the environment and the config file, then locks the values down.
+    // Reads the environment, then locks the values down.
     config.finalize(nullptr, nullptr);
 }
 
@@ -699,7 +699,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         const auto it = m_device_config.find(name);
         return it != m_device_config.end() ? it->second : ov::Any{std::string{}};
     } else if (name == ov::tp::disable_lm_head_sharding.name()) {
-        // Set through the environment or the config file only: the cache key needs the value in effect.
+        // Set through the environment only: the cache key needs the value in effect.
         TPConfig cfg;
         ov::AnyMap forwarded;
         build_call_config(arguments, cfg, forwarded);

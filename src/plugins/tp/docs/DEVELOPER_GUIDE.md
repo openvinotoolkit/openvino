@@ -30,7 +30,7 @@ registers `TP` in `plugins.xml`.
 The TP plugin's debug option tier needs `-DENABLE_TP_DEBUG_CAPS=ON` (implied by
 `-DENABLE_DEBUG_CAPS=ON`). Without it the debug options do not exist at all,
 and the code they guard folds away. They are read from the environment
-(`OV_` + the key) or a config file only, never as properties. The collectives' debug
+(`OV_` + the key) only, never as properties. The collectives' debug
 options (`GPU_TP_*`) follow the GPU plugin's own switch,
 `ENABLE_GPU_DEBUG_CAPS`.
 
@@ -72,13 +72,13 @@ for the current file layout. Key entry points:
 
 They are plugin options, not bare environment reads: the table lives in
 `include/tp/options.inl` and the X-macro there gives each entry a typed
-getter, a default, validation, and environment and config-file support. An
+getter, a default, validation, and environment support. An
 option's environment variable is `OV_` plus its property key.
 
 The device list (`"TP:GPU.0,GPU.1"`), `COMMUNICATION_TIMEOUT_MS` and
-`ov_internal_tp_comm_buffer_size` are
+`TP_COMM_BUFFER_SIZE` are
 documented in [USER_GUIDE.md § Configuration Properties](USER_GUIDE.md#configuration-properties).
-Everything below is reachable through the environment or a config file only.
+Everything below is reachable through the environment only.
 
 The collectives are tuned in intel_gpu, which runs them: the `GPU_TP_*`
 options, environment `OV_GPU_TP_*`. They are read when a rank context is
@@ -233,7 +233,7 @@ Field semantics:
 - **rebuilds / grows** — staging growths since process start (`grows` is the
   maximum over ranks, `allocations` the sum; `payload_capacity` the minimum).
   After the first prefill of a given max-shape this should stop moving. With
-  `fixed` non-zero (`ov_internal_tp_comm_buffer_size`) the staging never grows.
+  `fixed` non-zero (`TP_COMM_BUFFER_SIZE`) the staging never grows.
 - **chunked** — allreduces split because the fixed staging could not hold
   them, on rank 0; only printed when there were any. Chunks run one after the
   other on the devices, so many chunks per call show up as prefill time.

@@ -116,7 +116,7 @@ What the list is checked for, before anything is compiled:
 | weights (and a fixed staging) that do not fit a device | see [Troubleshooting](#tp-the-model-does-not-fit-even-split-over-n-devices) |
 
 Entries are trimmed of spaces; names are case-sensitive, like every OpenVINO
-device name. `ov_internal_tp_comm_buffer_size` larger than a device allocates
+device name. `TP_COMM_BUFFER_SIZE` larger than a device allocates
 at once is refused by name; below 512 bytes the GPU refuses it as too small.
 
 | Property                   | Type       | Default | Description                                                                              |
@@ -124,7 +124,7 @@ at once is refused by name; below 512 bytes the GPU refuses it as too small.
 | `TP_STRATEGY`              | string     | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
 | `COLLECTIVE_BACKEND`       | string     | `AUTO`  | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
 | `COMMUNICATION_TIMEOUT_MS` | `int`      | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever; a negative value is rejected at `compile_model`. |
-| `ov_internal_tp_comm_buffer_size` | `size_t` | `0` | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
+| `TP_COMM_BUFFER_SIZE`      | `size_t`   | `0`     | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
 
 A collective needs all ranks to participate. If one rank never arrives or its
 device work never completes, `COMMUNICATION_TIMEOUT_MS` is what turns that into
@@ -137,7 +137,7 @@ Raise the value for very large payloads on slow interconnects; lower it if you
 want a stuck rank reported sooner.
 
 The collectives pass every message through a staging buffer on each rank.
-Without `ov_internal_tp_comm_buffer_size` it grows to the largest message seen:
+Without `TP_COMM_BUFFER_SIZE` it grows to the largest message seen:
 a prompt's prefill, which is the hidden size times the prompt length, allocated when that prompt
 first arrives. Setting it reserves the memory up front, before the KV cache is
 sized, and caps it; a message that does not fit is sent in chunks. Every chunk
@@ -163,7 +163,7 @@ is rejected.
 The compiled model's context (`compiled.get_context()`) gives out host tensors
 (`create_host_tensor()`, readable by every rank device); `create_tensor()` is
 rejected, because a TP model has no single device. The compiled model reports
-the rank count as `ov_internal_tp_world_size`.
+the rank count as `TP_WORLD_SIZE`.
 
 ## Profiling
 
@@ -321,7 +321,7 @@ both sides and compares at `1e-2` for f16 and `1e-5` for f32.
 ### The first inference is much slower than the rest
 
 Expected. Each collective records its command lists on first use and, unless
-`ov_internal_tp_comm_buffer_size` fixes it, the staging arena grows to fit the
+`TP_COMM_BUFFER_SIZE` fixes it, the staging arena grows to fit the
 payload; both are one-time costs per shape.
 A shorter sequence afterwards reuses what is already there, a longer one pays
 again.
