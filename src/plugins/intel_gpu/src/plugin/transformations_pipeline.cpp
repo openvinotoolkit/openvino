@@ -117,6 +117,7 @@
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
+#include "plugin/transformations/weightless_cache_attributes.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
@@ -245,8 +246,6 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/moe.hpp"
 #include "openvino/op/reverse_sequence.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/weight_sharing_util.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "openvino/op/roll.hpp"
@@ -733,41 +732,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "TransformationsPipeline::apply");
     using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-    // OTD: Stamp a plain "otd_bin_offset" rt_info entry on each constant that has
-    // WeightlessCacheAttribute. Unlike WCA (is_copyable()=false), plain ov::Any values
-    // are automatically propagated by copy_runtime_info through all transformations.
-    // This allows moe.cpp to find bin offsets even when WCA is lost.
-    if (config.get_offload_ratio() > 0 && config.get_offload_ratio() <= 100) {
-        // First stamp WCA on constants with mmap descriptors but no WCA yet
-        for (const auto& op : func->get_ops()) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node)
-                continue;
-            if (const_node->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) != 0u)
-                continue;
-            auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_node);
-            if (source_buf) {
-                size_t bin_offset = ov::weight_sharing::Extension::get_constant_id(*const_node);
-                size_t byte_size = const_node->get_byte_size();
-                auto dtype = const_node->get_element_type();
-                const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
-                    ov::WeightlessCacheAttribute(byte_size, bin_offset, dtype);
-            }
-        }
-
-        // Stamp "otd_bin_offset" as a plain int64_t on every constant with WCA.
-        // Plain ov::Any entries survive copy_runtime_info automatically.
-        for (const auto& op : func->get_ops()) {
-            auto const_node = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!const_node)
-                continue;
-            const auto& rt = const_node->get_rt_info();
-            auto it = rt.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (it != rt.end()) {
-                const auto& wca = it->second.as<ov::WeightlessCacheAttribute>();
-                const_node->get_rt_info()["otd_bin_offset"] = static_cast<int64_t>(wca.bin_offset);
-            }
-        }
+    const bool otd_enabled = config.get_offload_ratio() > 0 && config.get_offload_ratio() <= 100;
+    std::shared_ptr<WeightlessConstantMap> original_constants;
+    if (otd_enabled) {
+        original_constants = std::make_shared<WeightlessConstantMap>();
+        ov::pass::Manager manager("GPU:MarkWeightlessCacheAttributes");
+        manager.set_per_pass_validation(false);
+        manager.register_pass<MarkWeightlessCacheAttributes>(original_constants);
+        manager.run_passes(func);
     }
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
@@ -900,7 +872,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 // queue stays out-of-order and the oneDNN stream creation may assert.
                 manager.register_pass<ov::intel_gpu::NormalizeMoEOutputReshape>();
                 manager.register_pass<ov::pass::MoeOpFusion>();
-                manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
+                // OTD reloads routed constants from their original backing source on an LRU miss.
+                // Supporting this fusion requires persisting the transformed down-scale as that source.
+                if (!otd_enabled) {
+                    manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
+                }
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
         }
@@ -2176,5 +2152,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
     }
 #endif
+
+    if (otd_enabled) {
+        ov::pass::Manager manager("GPU:RestoreWeightlessCacheAttributes");
+        manager.set_per_pass_validation(false);
+        manager.register_pass<RestoreWeightlessCacheAttributes>(original_constants);
+        manager.run_passes(func);
+    }
 }
 }  // namespace ov::intel_gpu

@@ -211,7 +211,7 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
         target_link_options(${MODULE_NAME} PRIVATE "LINKER:-z,nodelete")
     endif()
 
-    target_link_libraries(${MODULE_NAME} PRIVATE openvino_intel_gpu_graph${SUFFIX} openvino::pugixml)
+    target_link_libraries(${MODULE_NAME} PRIVATE openvino_intel_gpu_graph${SUFFIX} openvino::pugixml openvino::conditional_compilation)
 
     if(ENABLE_MLIR_FOR_GPU)
         target_link_libraries(${MODULE_NAME} PRIVATE GraphCompiler)
