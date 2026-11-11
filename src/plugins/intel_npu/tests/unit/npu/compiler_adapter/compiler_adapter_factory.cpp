@@ -116,8 +116,7 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformWithWork
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlineDriverOnlyPlatformDoesNotInvokeProvider) {
-    const CompilerAdapterFactory factory(
-        vcl_provider::forbidden("Driver only online compilation must not probe the compiler-in-plugin"));
+    const CompilerAdapterFactory factory(VCLFunctionTableProvider{});
     auto type = CompilerType::PREFER_PLUGIN;
 
     factory.decideCompilerType(type, deviceOf(kDriverOnlyPlatform), kDriverOnlyPlatform);
@@ -193,8 +192,7 @@ TEST(CompilerAdapterFactoryTests, GetCompilerExplicitPluginWithFailingCompilerCr
 }
 
 TEST(CompilerAdapterFactoryTests, GetCompilerDriverTypeThrowsWithoutInvokingProvider) {
-    const CompilerAdapterFactory factory(
-        vcl_provider::forbidden("Driver compilation must not request VCL entry points"));
+    const CompilerAdapterFactory factory(VCLFunctionTableProvider{});
     auto type = CompilerType::DRIVER;
     OV_EXPECT_THROW_HAS_SUBSTRING(factory.getCompiler({}, type, kPluginPlatform),
                                   ov::Exception,
@@ -208,7 +206,8 @@ TEST(CompilerAdapterFactoryTests, GetCompilerDriverTypeForAnotherPlatformThanThe
         std::make_shared<FakeEngineBackend>(std::vector<std::string>{std::string(kDriverOnlyPlatform)});
     auto type = CompilerType::DRIVER;
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(factory.getCompiler(ov::SoPtr<IEngineBackend>(backend), type, kPluginPlatform),
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        factory.getCompiler(ov::SoPtr<IEngineBackend>(backend), type, kPluginPlatform),
                                   ov::Exception,
                                   "Could not find a valid NPU device");
 }

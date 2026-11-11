@@ -26,21 +26,17 @@ namespace intel_npu {
  * has one VCL loader holder, which loads the library at most once and holds one set of entry points, and one factory.
  * Entry points from another provider need another factory.
  *
- * The factory therefore remembers, for its provider, whether a compiler-in-plugin can be created (see
- * decideCompilerType()). It is not copyable: share one instance, for example through a
+ * The factory is not copyable: share one instance, for example through a
  * `std::shared_ptr<const CompilerAdapterFactory>`, among everything that works with the same provider, so that all of
  * it sees the same outcome and a failed attempt is not repeated. Never share an instance across providers.
  */
 class CompilerAdapterFactory final {
 public:
     /**
-     * @brief Creates a factory that obtains the VCL entry points from the given provider.
+     * @brief Creates a factory that obtains VCL entry points from the given provider.
      *
-     * The factory calls the provider only to create a compiler-in-plugin, including the probe that resolves
-     * PREFER_PLUGIN. Driver compilation never calls it.
-     *
-     * @param vclFunctionsProvider Supplies the VCL entry points. Must not be empty.
-     * @throws ov::Exception if the provider is empty.
+     * Driver-only operations do not require a provider; a missing provider is rejected only if a VCL compiler is
+     * actually needed.
      */
     explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctionsProvider);
 
@@ -113,7 +109,6 @@ private:
     // Outcome of the compiler-in-plugin probe for this factory's provider. The factory is not copyable, so everything
     // sharing one instance sees the same outcome, and a factory for another provider probes on its own.
     mutable std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
-
     VCLFunctionTableProvider _vclFunctionsProvider;
 };
 

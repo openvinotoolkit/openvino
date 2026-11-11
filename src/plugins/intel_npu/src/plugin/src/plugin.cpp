@@ -171,7 +171,7 @@ namespace intel_npu {
 
 Plugin::Plugin()
     : _vclLoaderHolder(std::make_shared<const VCLLoaderHolder>()),
-      _compilerAdapterFactory(std::make_shared<const CompilerAdapterFactory>(vcl_functions())),
+    _compilerAdapterFactory(std::make_shared<const CompilerAdapterFactory>(vcl_functions())),
       _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
