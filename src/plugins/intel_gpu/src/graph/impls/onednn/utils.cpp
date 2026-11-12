@@ -6,6 +6,7 @@
 
 #include <oneapi/dnnl/dnnl_debug.h>
 
+#include <algorithm>
 #include <numeric>
 
 namespace cldnn {
@@ -119,6 +120,37 @@ dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     }
 }
 
+int64_t get_compressed_weights_rank(const layout& weights_layout) {
+    const auto& shape = weights_layout.get_partial_shape();
+    const auto rank = std::count_if(shape.begin(), shape.end(), [](const ov::Dimension& d) {
+        return d.get_length() > 1;
+    });
+    return std::max<int64_t>(2, rank);
+}
+
+int64_t get_ngroups(const layout& weights_layout, const layout& compressed_layout, bool weights_transposed) {
+    const auto weights_rank = get_compressed_weights_rank(weights_layout);
+    const auto ifm_dim_idx = weights_transposed ? (weights_rank - 1) : (weights_rank - 2);
+    const auto oc_dim_idx = weights_transposed ? (weights_rank - 2) : (weights_rank - 1);
+    const auto ifm = std::max<int64_t>(1, weights_layout.get_dim(ifm_dim_idx));
+    const auto oc = std::max<int64_t>(1, weights_layout.get_dim(oc_dim_idx));
+    const auto batch = std::max<int64_t>(1, static_cast<int64_t>(weights_layout.count()) / (ifm * oc));
+    return std::max<int64_t>(1, static_cast<int64_t>(compressed_layout.count()) / (oc * batch));
+}
+
+std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
+                                             const layout& scale_layout,
+                                             bool weights_transposed) {
+    const auto weights_rank = get_compressed_weights_rank(weights_layout);
+    const int64_t ifm = weights_layout.get_dim(weights_transposed ? weights_rank - 1 : weights_rank - 2);
+    const int64_t ngroups = get_ngroups(weights_layout, scale_layout, weights_transposed);
+    return {ngroups, ifm / ngroups};
+}
+
+bool is_supported_scale_group(int64_t ngroups, int64_t group_size) {
+    return group_size == 1 || ngroups == 1 || group_size % 16 == 0;
+}
+
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
     if (dims.size() == target.dimension()) {
         auto tag = convert_data_format(target);
@@ -164,32 +196,21 @@ dnnl::memory::dims get_strides(dnnl::memory::dims dims) {
 
 dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
     switch (dt) {
-    case cldnn::data_types::f32:
-        return dnnl::memory::data_type::f32;
-    case cldnn::data_types::f16:
-        return dnnl::memory::data_type::f16;
-    case cldnn::data_types::i8:
-        return dnnl::memory::data_type::s8;
-    case cldnn::data_types::u8:
-        return dnnl::memory::data_type::u8;
-    case cldnn::data_types::i32:
-        return dnnl::memory::data_type::s32;
-    case cldnn::data_types::i4:
-        return dnnl::memory::data_type::s4;
-    case cldnn::data_types::u4:
-        return dnnl::memory::data_type::u4;
-    case cldnn::data_types::f4e2m1:
-        return dnnl::memory::data_type::f4_e2m1;
-    case cldnn::data_types::f8e4m3:
-        return dnnl::memory::data_type::f8_e4m3;
-    case cldnn::data_types::f8e5m2:
-        return dnnl::memory::data_type::f8_e5m2;
-    case cldnn::data_types::f8e8m0:
-        return dnnl::memory::data_type::e8m0;
-    case cldnn::data_types::bf16:
-        return dnnl::memory::data_type::bf16;
-    default:
-        throw std::invalid_argument("[clDNN] Unsupported conversion from cldnn to onednn type");
+        case cldnn::data_types::f32: return dnnl::memory::data_type::f32;
+        case cldnn::data_types::f16: return dnnl::memory::data_type::f16;
+        case cldnn::data_types::i8: return dnnl::memory::data_type::s8;
+        case cldnn::data_types::u8: return dnnl::memory::data_type::u8;
+        case cldnn::data_types::i32: return dnnl::memory::data_type::s32;
+        case cldnn::data_types::i4: return dnnl::memory::data_type::s4;
+        case cldnn::data_types::u4: return dnnl::memory::data_type::u4;
+        case cldnn::data_types::u3: return dnnl::memory::data_type::u3;
+        case cldnn::data_types::u2: return dnnl::memory::data_type::u2;
+        case cldnn::data_types::f4e2m1: return dnnl::memory::data_type::f4_e2m1;
+        case cldnn::data_types::f8e4m3: return dnnl::memory::data_type::f8_e4m3;
+        case cldnn::data_types::f8e5m2: return dnnl::memory::data_type::f8_e5m2;
+        case cldnn::data_types::f8e8m0: return dnnl::memory::data_type::e8m0;
+        case cldnn::data_types::bf16: return dnnl::memory::data_type::bf16;
+        default: OPENVINO_THROW("[GPU] Unsupported conversion from cldnn to onednn type");
     }
 }
 
@@ -300,24 +321,29 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     }
 
     switch (desc.get_data_type()) {
-    case dnnl::memory::data_type::s4:
-    case dnnl::memory::data_type::u4:
-    case dnnl::memory::data_type::f4_e2m1:
-        return offset / 2;
-    case dnnl::memory::data_type::s8:
-    case dnnl::memory::data_type::u8:
-    case dnnl::memory::data_type::f8_e4m3:
-    case dnnl::memory::data_type::f8_e5m2:
-    case dnnl::memory::data_type::e8m0:
-        return offset;
-    case dnnl::memory::data_type::f16:
-    case dnnl::memory::data_type::bf16:
-        return (offset * 2);
-    case dnnl::memory::data_type::f32:
-    case dnnl::memory::data_type::s32:
-        return (offset * 4);
-    default:
-        throw std::runtime_error(std::string("Unsupported offset for dnnl_data_type_t ") + dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
+        case dnnl::memory::data_type::u2:
+            return offset / 4;
+        case dnnl::memory::data_type::u3:
+            OPENVINO_ASSERT(offset % 8 == 0, "[GPU] u3 memory offset must be byte aligned, but got element offset ", offset);
+            return offset * 3 / 8;
+        case dnnl::memory::data_type::s4:
+        case dnnl::memory::data_type::u4:
+        case dnnl::memory::data_type::f4_e2m1:
+            return offset / 2;
+        case dnnl::memory::data_type::s8:
+        case dnnl::memory::data_type::u8:
+        case dnnl::memory::data_type::f8_e4m3:
+        case dnnl::memory::data_type::f8_e5m2:
+        case dnnl::memory::data_type::e8m0:
+            return offset;
+        case dnnl::memory::data_type::f16:
+        case dnnl::memory::data_type::bf16:
+            return (offset * 2);
+        case dnnl::memory::data_type::f32:
+        case dnnl::memory::data_type::s32:
+            return (offset * 4);
+        default:
+            OPENVINO_THROW("[GPU] Unsupported offset for dnnl_data_type_t ", dnnl_dt2str(static_cast<dnnl_data_type_t>(desc.get_data_type())));
     }
 }
 

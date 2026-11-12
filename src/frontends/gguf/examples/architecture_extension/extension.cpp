@@ -4,5 +4,14 @@
 
 #include "projector.hpp"
 
-OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>{
-    std::make_shared<ov::frontend::gguf::ArchitectureExtension>(example::projector_architecture())});
+namespace {
+std::vector<ov::Extension::Ptr> make_projector_extensions() {
+    const auto architecture =
+        std::make_shared<ov::frontend::gguf::ArchitectureExtension>(example::projector_architecture());
+    const auto projector =
+        std::make_shared<ov::frontend::gguf::ProjectorExtension>(example::vision_projector_component());
+    return {architecture, projector};
+}
+}  // namespace
+
+OPENVINO_CREATE_EXTENSIONS(make_projector_extensions());

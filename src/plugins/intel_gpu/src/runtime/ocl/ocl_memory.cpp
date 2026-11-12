@@ -84,7 +84,9 @@ void gpu_buffer::unlock(const stream& stream) {
     _lock_count--;
     if (0 == _lock_count) {
         try {
-            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+            cl::Event ev;
+            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr, nullptr, &ev);
+            ev.wait();
         } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
@@ -367,7 +369,9 @@ void gpu_image2d::unlock(const stream& stream) {
     _lock_count--;
     if (0 == _lock_count) {
         try {
-            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr);
+            cl::Event ev;
+            cl_stream.get_cl_queue().enqueueUnmapMemObject(_buffer, _mapped_ptr, nullptr, &ev);
+            ev.wait();
         } catch (cl::Error const& err) {
             OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
         }
@@ -588,13 +592,14 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vecto
     auto& ev_ocl = downcast<ocl_event>(ev.get())->get();
     auto dep_ev_ocl = utils::get_cl_events(dep_events);
     try {
-        cl_stream.get_usm_helper().enqueue_fill_mem(cl_stream.get_cl_queue(),
-                                                    _buffer.get(),
-                                                    static_cast<const void*>(&pattern),
-                                                    sizeof(unsigned char),
-                                                    _bytes_count,
-                                                    dep_ev_ocl.empty() ? nullptr : &dep_ev_ocl,
-                                                    &ev_ocl);
+        cl_int err = cl_stream.get_usm_helper().enqueue_fill_mem(cl_stream.get_cl_queue(),
+                                                                 _buffer.get(),
+                                                                 static_cast<const void*>(&pattern),
+                                                                 sizeof(unsigned char),
+                                                                 _bytes_count,
+                                                                 dep_ev_ocl.empty() ? nullptr : &dep_ev_ocl,
+                                                                 &ev_ocl);
+        OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] clEnqueueMemFillINTEL failed with error code: ", err);
         if (blocking) {
             ev_ocl.wait();
         }

@@ -15,6 +15,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/transpose.hpp"
+#include "pass/materialize_weights.hpp"
 #include "utils.hpp"
 
 namespace {
@@ -206,12 +207,20 @@ TEST(GGUFHadamardSharing, InverseRotationUsesSupportedMatrix) {
     ASSERT_EQ(y.get_node()->get_type_name(), std::string("Reshape"));
     EXPECT_EQ(y.get_node()->get_input_node_shared_ptr(0)->get_type_name(), std::string("MatMul"));
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x});
-    ov::Tensor input(ov::element::f32, {2, 1, block});
-    std::fill_n(input.data<float>(), input.get_size(), 1.f);
-    ov::TensorVector output{ov::Tensor(ov::element::f32, {2, 1, block})};
-    ASSERT_TRUE(model->evaluate(output, {input}));
-    for (size_t i = 0; i < input.get_size(); ++i)
-        EXPECT_FLOAT_EQ(output[0].data<float>()[i], i % block == 0 ? 16.f : 0.f);
+    for (const bool decomposed : {false, true}) {
+        if (decomposed) {
+            decompose_hadamard(y);
+            model->validate_nodes_and_infer_types();
+        }
+        for (const size_t tokens : {1, 3}) {
+            ov::Tensor input(ov::element::f32, {2, tokens, block});
+            std::fill_n(input.data<float>(), input.get_size(), 1.f);
+            ov::TensorVector output{ov::Tensor(ov::element::f32, {2, tokens, block})};
+            ASSERT_TRUE(model->evaluate(output, {input}));
+            for (size_t i = 0; i < input.get_size(); ++i)
+                EXPECT_FLOAT_EQ(output[0].data<float>()[i], i % block == 0 ? 16.f : 0.f);
+        }
+    }
 }
 
 TEST(GGUFHadamardSharing, DistinguishesSignsDirectionLayoutAndConversionScope) {
@@ -250,19 +259,19 @@ TEST(GGUFHadamardSharing, DistinguishesSignsDirectionLayoutAndConversionScope) {
 TEST(GGUFSharedLinearInputs, JointInterleavedProjectionPreservesHeadsBatchesAndTokens) {
     using namespace ov::frontend::gguf;
     for (const auto& shape : {ov::PartialShape{2, -1, 8}, ov::PartialShape{2, 1, -1, 8}}) {
-        std::unordered_map<std::string, ov::Tensor> weights;
-        std::unordered_map<std::string, GgufTensorType> qtypes;
-        GraphEmitter emitter(weights, qtypes, "test");
+        GgufWeightTable weights;
+        GraphEmitter emitter(weights, "test");
         const auto x = emitter.add_input("x", ov::element::f32, shape);
         weights["joint.weight"] = ov::Tensor(ov::element::f32, {12, 8});
         for (size_t i = 0; i < 96; ++i)
-            weights["joint.weight"].data<float>()[i] = (static_cast<int>(i % 13) - 6) / 8.f;
+            weights["joint.weight"].data.data<float>()[i] = (static_cast<int>(i % 13) - 6) / 8.f;
         emitter.add_weight("joint.weight");
         const auto joint = emitter.add_op("GGML_OP_MUL_MAT", "joint", {"joint.weight", "x"});
         const auto parts = blocks::split_interleaved_projection(emitter, joint, {"q", "gate"}, 3, 2);
         const auto model =
             std::make_shared<ov::Model>(ov::OutputVector{emitter.value(parts[0]), emitter.value(parts[1])},
                                         ov::ParameterVector{x});
+        ASSERT_TRUE(pass::MaterializeGGUFWeights().run_on_model(model));
         for (const size_t tokens : {1, 3}) {
             auto input_shape = shape.get_max_shape();
             input_shape[input_shape.size() - 2] = tokens;
@@ -282,7 +291,7 @@ TEST(GGUFSharedLinearInputs, JointInterleavedProjectionPreservesHeadsBatchesAndT
                         float expected = 0;
                         for (size_t k = 0; k < 8; ++k)
                             expected += input.data<float>()[row * 8 + k] *
-                                        weights["joint.weight"].data<float>()[weight_row * 8 + k];
+                                        weights["joint.weight"].data.data<float>()[weight_row * 8 + k];
                         EXPECT_FLOAT_EQ(outputs[part].data<float>()[row * 6 + n], expected);
                     }
                 }
@@ -293,14 +302,13 @@ TEST(GGUFSharedLinearInputs, JointInterleavedProjectionPreservesHeadsBatchesAndT
 
 TEST(GGUFSharedLinearInputs, GateUpProjectionKeepsGLUBranchesRank3) {
     using namespace ov::frontend::gguf;
-    std::unordered_map<std::string, ov::Tensor> weights;
-    std::unordered_map<std::string, GgufTensorType> qtypes;
-    GraphEmitter emitter(weights, qtypes, "test");
+    GgufWeightTable weights;
+    GraphEmitter emitter(weights, "test");
     const auto x = emitter.add_input("x", ov::element::f32, {2, 1, -1, 8});
     for (const auto* name : {"ffn_gate.weight", "ffn_up.weight"}) {
         weights[name] = ov::Tensor(ov::element::f32, {3, 8});
         for (size_t i = 0; i < 24; ++i)
-            weights[name].data<float>()[i] = (static_cast<int>(i % 7) - 3) / 8.f;
+            weights[name].data.data<float>()[i] = (static_cast<int>(i % 7) - 3) / 8.f;
     }
     const auto output = blocks::swiglu_gate_up(emitter,
                                                "ffn_gate.weight",
@@ -315,6 +323,7 @@ TEST(GGUFSharedLinearInputs, GateUpProjectionKeepsGLUBranchesRank3) {
     EXPECT_EQ(emitter.value("ffn_swiglu").get_partial_shape(), (ov::PartialShape{2, -1, 3}));
     EXPECT_EQ(emitter.value(output).get_partial_shape(), (ov::PartialShape{2, 1, -1, 3}));
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{emitter.value(output)}, ov::ParameterVector{x});
+    ASSERT_TRUE(pass::MaterializeGGUFWeights().run_on_model(model));
     for (const size_t tokens : {1, 3}) {
         ov::Tensor input(ov::element::f32, {2, 1, tokens, 8});
         for (size_t i = 0; i < input.get_size(); ++i)
@@ -326,7 +335,7 @@ TEST(GGUFSharedLinearInputs, GateUpProjectionKeepsGLUBranchesRank3) {
                 float projection = 0;
                 for (size_t k = 0; k < 8; ++k)
                     projection +=
-                        input.data<float>()[row * 8 + k] * weights["ffn_gate.weight"].data<float>()[n * 8 + k];
+                        input.data<float>()[row * 8 + k] * weights["ffn_gate.weight"].data.data<float>()[n * 8 + k];
                 EXPECT_NEAR(outputs[0].data<float>()[row * 3 + n],
                             projection * projection / (1 + std::exp(-projection)),
                             1e-6f);

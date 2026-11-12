@@ -345,7 +345,7 @@ public:
         const bool dump = is_debug();
         if (dump) {
             OPENVINO_MLIR_DEBUG_PRINT("-------------- Source MLIR --------------");
-            module->dump();
+            module->print(llvm::errs());
             OPENVINO_MLIR_DEBUG_PRINT("-----------------------------------------");
         }
 

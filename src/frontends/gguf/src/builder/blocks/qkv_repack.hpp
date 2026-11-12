@@ -15,6 +15,6 @@ namespace ov::frontend::gguf::blocks {
 void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il);
 
 // Preserve the interleaved Q/gate weight for a joint projection.
-void register_qwen35_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il);
+void register_interleaved_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il);
 
 }  // namespace ov::frontend::gguf::blocks
