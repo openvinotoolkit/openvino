@@ -9,6 +9,7 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -79,8 +80,8 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
     }
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     // Uncompressed weights feed the GEMM at the port precision (no upconvert path), so a bf16/f16 port needs native
-    // bf16/f16 matmul support; otherwise run the whole node in f32 (inference_precision=bf16/f16 is also accepted on
-    // ISAs without it). Compressed weights are decompressed by oneDNN and may run the GEMM in f32 on their own.
+    // bf16/f16 support; otherwise the whole node runs in f32 (inference_precision=bf16/f16 is also accepted on ISAs
+    // without it). Compressed weights are decompressed by oneDNN and may run the GEMM in f32 on their own.
     if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && !m_attrs.read_layout.compressed) {
         using dnnl::impl::cpu::x64::cpu_isa_t;
         using dnnl::impl::cpu::x64::mayiuse;
@@ -92,10 +93,8 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
 #endif
 
     // Compressed weight ports (u8/i8/u4/i4), their floating-point scale ports and their zero-point ports (the weights'
-    // type) must keep their own native element type here. Forcing them to the data `precision` would make the graph
-    // insert an implicit value-converting Reorder on that edge -- e.g. turning a u8 weight buffer into f32, where each
-    // raw byte value v becomes the 4-byte encoding of v.0f -- silently corrupting the data the executor reads back as
-    // raw bytes.
+    // type) must keep their own native element type here: forcing the data `precision` on them makes the graph insert
+    // a value-converting Reorder (e.g. a u8 weight buffer becomes f32), corrupting the raw bytes the executor reads.
     const auto& layout = m_attrs.read_layout;
     std::set<size_t> native_precision_ports;
     if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && layout.compressed) {
@@ -127,6 +126,13 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
             creatorsMap.at(LayoutType::ncsp)->createSharedDesc(precision, getOutputShapeAtPort(i));
     }
 
+    for (auto& projection_context : m_attrs.projection_contexts) {
+        projection_context =
+            std::make_shared<ExecutorContext>(context,
+                                              getImplPriority(),
+                                              std::make_shared<std::unordered_map<std::string, MemoryPtr>>());
+    }
+
     auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
     m_factory = std::make_shared<ExecutorFactory<GatedResidualAttrs>>(m_attrs, executionContext, descs);
 
@@ -142,6 +148,29 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
         }
         supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
     }
+}
+
+const std::vector<impl_desc_type>& GatedResidual::getDefaultImplPriority() {
+    // The projections run through the FullyConnected executor, so the implementation is chosen the way the
+    // FullyConnected node chooses it: brgemm first. The generic list has no brgemm entries and would pick a generic
+    // gemm for plain weights. `undef` is the type of this node's own descriptors.
+    static const std::vector<impl_desc_type> priorities = {
+        impl_desc_type::unknown,
+        impl_desc_type::undef,
+        impl_desc_type::brgemm_avx512_amx,
+        impl_desc_type::brgemm_avx512,
+        impl_desc_type::brgemm_avx2,
+        impl_desc_type::gemm_blas,
+        impl_desc_type::gemm_avx512,
+        impl_desc_type::gemm_avx2,
+        impl_desc_type::gemm_avx,
+        impl_desc_type::gemm_any,
+        impl_desc_type::gemm,
+        impl_desc_type::jit_gemm,
+        impl_desc_type::ref,
+    };
+
+    return priorities;
 }
 
 void GatedResidual::updateMemoryArgs() {
@@ -230,8 +259,8 @@ bool GatedResidual::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             }
         }
 
-        // The projection weights, decompression scales and zero-points are fused into the GEMMs and prepared once by
-        // the executor (prepacked weights, converted decompression views), so they must be graph constants.
+        // The projection weights, decompression scales and zero-points are prepared once by the executor, so they must
+        // be graph constants.
         const auto is_constant_input = [&](size_t i) {
             auto node = op->get_input_node_shared_ptr(i);
             if (ov::is_type<ov::op::v0::Convert>(node)) {

@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include <array>
 #include <cstddef>
 
 #include "executor_config.hpp"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/op/gated_residual.hpp"
 
@@ -24,6 +26,9 @@ struct GatedResidualAttrs {
     // with floating-point [G, N] scale ports and optional zero-point ports of the weight type; the group size
     // along K is K / G. See ov::op::internal::GatedResidual::ReadLayout for the port layout.
     ov::op::internal::GatedResidual::ReadLayout read_layout{};
+    // Executor contexts of the down, up and inject projections (READ / FINAL_MIX), each with its own private weight
+    // cache: that cache is keyed by the packed layout only, so projections with different weights must not share one.
+    std::array<ExecutorContext::CPtr, 3> projection_contexts{};
 };
 
 using GatedResidualConfig = executor::Config<GatedResidualAttrs>;

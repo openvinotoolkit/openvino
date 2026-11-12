@@ -7,6 +7,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -15,6 +16,7 @@
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/gated_residual_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 #include "openvino/op/gated_residual.hpp"
 
@@ -39,6 +41,7 @@ public:
     void createPrimitive() override;
     void prepareParams() override;
     void execute(const dnnl::stream& strm) override;
+    const std::vector<impl_desc_type>& getDefaultImplPriority() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:

@@ -313,20 +313,14 @@ void GatedResidualLayerCPUTest::SetUp() {
         ov::OutputVector args{residual, norm_weight};
         params = {residual, norm_weight};
 
-        // Compressed weights are baked in as frozen Constants holding real quantized data (matching
-        // how deployed quantized models represent them: a
-        // Const(i8)->Convert->Multiply decompression subgraph), rather than runtime Parameters.
-        // disable_constant_folding + enable_keep_const_precision protect their native i4/u4/i8/u8
-        // element type from the CPU plugin's blanket ConvertPrecision pass, which otherwise silently
-        // promotes i4->i8/u4->u8 for any Constant not marked this way. The matching scale/zero-point
-        // tensors are graph Constants too, with the exact values generated here so the dequantization math
-        // matches what the CPU node will compute.
+        // The projection weights and, when compressed, their scales and zero-points are graph Constants (as in deployed
+        // models), not Parameters, so residual and norm_weight are the only model inputs. Compressed weights hold real
+        // quantized data; disable_constant_folding + enable_keep_const_precision keep their native i4/u4/i8/u8 type
+        // through the CPU plugin's ConvertPrecision pass, which would otherwise promote it (i4->i8, u4->u8).
         std::mt19937 rng(12345);
         ov::Output<ov::Node> w_down;
         ov::Output<ov::Node> w_up;
         ov::Output<ov::Node> w_inject;
-        // Decompression scales/zero-points are graph Constants too (they are the decompression constants of the
-        // constant weights), so the executor prepares their oneDNN views once.
         ov::Tensor down_scale_tensor;
         ov::Tensor down_zp_tensor;
         ov::Tensor up_scale_tensor;
@@ -334,8 +328,7 @@ void GatedResidualLayerCPUTest::SetUp() {
         ov::Tensor inject_scale_tensor;
         ov::Tensor inject_zp_tensor;
 
-        // Projection weights are graph Constants in every case, as in deployed models (they are the fused GEMM
-        // weights), so the executor may prepack them once. Their f32 values are kept for the reference.
+        // The f32 values of the weights are kept for the reference.
         int weight_seed = 100;
         const auto make_weight = [&](const ov::Shape& shape, std::vector<float>& f32_values) {
             const auto tensor =
@@ -374,9 +367,8 @@ void GatedResidualLayerCPUTest::SetUp() {
         args.push_back(w_up);
 
         // Compressed form: scales (then zero points, when present) of w_down and w_up follow the weights, and the
-        // write-gate inputs (w_inject, its scale and zero point) come last; see GatedResidual::ReadLayout. Scale
-        // and zero-point Constants are graph constants too; zero points have the weights' type, which must survive
-        // the CPU plugin's precision conversion like the weights do.
+        // write-gate inputs (w_inject, its scale and zero point) come last; see GatedResidual::ReadLayout. Zero points
+        // have the weights' type, which has to survive the precision conversion like the weights.
         const auto add_decompression_input = [&](const ov::Tensor& tensor) {
             auto node = std::make_shared<Constant>(tensor);
             if (tensor.get_element_type() == compression.weights_precision) {
@@ -473,18 +465,15 @@ void GatedResidualLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& ta
         return;
     }
 
-    // RESIDUAL/NORM_WEIGHT are always the first two model parameters -- compressed weight Constants
-    // (when present) aren't model inputs, see SetUp().
+    // RESIDUAL/NORM_WEIGHT are always the first two model parameters (weights and decompression constants are not
+    // model inputs, see SetUp()).
     fill(params[ReadInputIdx::RESIDUAL], targetInputStaticShapes[ReadInputIdx::RESIDUAL], -1.0F, 1.0F);
     fill(params[ReadInputIdx::NORM_WEIGHT], targetInputStaticShapes[ReadInputIdx::NORM_WEIGHT], -0.1F, 0.1F);
 
     if (!m_compression.compressed) {
-        // The projection weights are graph Constants (see SetUp()): residual and norm_weight are the only inputs.
+        // Weights and decompression constants are graph Constants (see SetUp()): nothing else to fill.
         return;
     }
-
-    // Compressed weights and their decompression scales/zero-points are graph Constants (see SetUp()):
-    // residual and norm_weight are the only inputs.
 }
 
 std::vector<ov::Tensor> GatedResidualLayerCPUTest::calculate_refs() {

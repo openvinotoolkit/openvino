@@ -14,9 +14,8 @@ namespace ov::op::internal {
 
 /// \brief Gated Residual (Hyper Connection) operation.
 ///
-/// The op models the two halves of the gated-residual mechanism used by
-/// Qwen4-Exp / Qwen3.8-Flash-Next style models, where the residual stream is widened
-/// from [B,T,D] to [B,T,C,D] (physically stored as [B,T,C*D]).
+/// The op models the two halves of the gated-residual (hyper connection) mechanism, where the residual stream is
+/// widened from [B,T,D] to [B,T,C,D] (physically stored as [B,T,C*D]).
 ///
 /// READ / FINAL_MIX (branch merge, executed *before* a sub-layer):
 ///   Rbar_c = rms_norm(R_c) * gain_c                (branch-wise grouped RMSNorm, group width D)

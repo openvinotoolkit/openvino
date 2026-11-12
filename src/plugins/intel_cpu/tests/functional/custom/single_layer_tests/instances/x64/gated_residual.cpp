@@ -17,7 +17,7 @@ using Mode = ov::op::internal::GatedResidual::Mode;
 
 const GatedResidualWeightCompression kNoCompression{};
 
-// Every case runs with a dynamic input shape: rank-2 [rows, C*D] as in the real IR, so C*D is fixed per case and only
+// Every case runs with a dynamic input shape: rank-2 [rows, C*D], so C*D is fixed per case and only
 // the row count changes. `second` lists the row counts of the successive inferences through the one compiled model,
 // and one sequence covers everything the executor does with a changing M:
 //   - small M buckets (2, 4, 8, 16) and their boundaries (1/2, 3/4, 5/8, 9/16, 17), where the bucketed GEMMs and
@@ -38,7 +38,7 @@ const std::vector<GatedResidualShapeParams> batch_seq_shapes{
 };
 
 // The op accepts any number of leading batch dims; this is the only place with rank 3 [B, T, C*D], to keep the
-// flattening of leading dims covered (rank-2 is what the real IR feeds).
+// flattening of leading dims covered (rank-2 is the usual form).
 const ov::test::InputShape kDynBatchSeq{{-1, -1}, {{2, 3}, {4, 1}, {3, 7}, {2, 100}, {1, 1}}};
 
 // Large-model shape: hc_count=4, hidden_size=2560 (so C*D = 10240), lowrank=320.
@@ -85,11 +85,7 @@ const Compression u4_grouped_zp_gs16{true, ov::element::u4, true, 16, ov::elemen
 const Compression u8_grouped_zp_gs32{true, ov::element::u8, true, 32, ov::element::f16};
 const Compression u8_grouped_zp_gs64{true, ov::element::u8, true, 64, ov::element::f16};
 const Compression u8_grouped_zp_gs128{true, ov::element::u8, true, 128, ov::element::f16};
-const Compression u4_grouped_zp_gs128{true,
-                                      ov::element::u4,
-                                      true,
-                                      128,
-                                      ov::element::f16};  // the real model's group size
+const Compression u4_grouped_zp_gs128{true, ov::element::u4, true, 128, ov::element::f16};  // group size 128
 
 // All compressed shapes except i4_per_channel, instantiated with produce_write_gate=true to also
 // exercise the inject projection.
@@ -209,13 +205,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualQwenFinalMix,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          GatedResidualLayerCPUTest::getTestCaseName);
 
-// WRITE is excluded from all three compressed suites below: it has no weight projections at all (its three inputs
-// are residual, sub-layer output and write gate). Splitting READ and
-// FINAL_MIX into separate Combine instantiations (rather than combining Mode freely against
-// produce_write_gate) avoids generating the invalid Mode::FINAL_MIX + produce_write_gate=true
-// combination the op also rejects -- execute_read_or_final_mix() never branches on mode, but
-// covering both here means a future mode-dispatch regression can't hide behind "only READ was
-// tested".
+// WRITE is excluded from the compressed suites below: it has no weight projections. READ and FINAL_MIX are separate
+// instantiations (instead of combining Mode freely with produce_write_gate) to avoid the invalid FINAL_MIX +
+// produce_write_gate=true combination the op rejects; both are covered so a mode-dispatch regression can't hide
+// behind "only READ was tested".
 INSTANTIATE_TEST_SUITE_P(smoke_GatedResidualCompressed,
                          GatedResidualLayerCPUTest,
                          ::testing::Combine(::testing::Values(Mode::READ),

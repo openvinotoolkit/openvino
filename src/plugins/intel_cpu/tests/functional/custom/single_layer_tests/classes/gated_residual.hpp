@@ -28,12 +28,10 @@ struct GatedResidualWeightCompression {
     ov::element::Type scale_precision = ov::element::f16;
 };
 
-// Bundles the shape dimensions with precision/compression because they aren't freely combinable:
-// a compressed weight's group size must evenly divide hc_count*hidden_size and lowrank (see
-// isSupportedOperation()'s group-size check in gated_residual.cpp), and each compression spec below
-// is deliberately paired with one precision for coverage diversity rather than tested against all of
-// them. Keeping them together lets instance files describe a test case as a single ValuesIn axis
-// instead of a ::testing::Combine that would otherwise generate invalid combinations.
+// Bundles the shape dimensions with precision and compression because they aren't freely combinable: a compressed
+// weight's group size must divide hc_count*hidden_size and lowrank, and each compression spec is paired with one
+// precision for coverage diversity rather than tested against all of them. A test case is then a single ValuesIn axis
+// instead of a ::testing::Combine that would generate invalid combinations.
 struct GatedResidualShapeParams {
     size_t hc_count;     // C
     size_t hidden_size;  // D
@@ -75,10 +73,8 @@ private:
     ov::element::Type m_precision = ov::element::f32;
     GatedResidualWeightCompression m_compression{};
 
-    // Dequantized (for the compressed case) or precision-upconverted (for the uncompressed case)
-    // float weight matrices, cached at generate_inputs() time (compressed: already cached by SetUp(),
-    // see below) so calculate_refs() never needs to re-read/unpack the actual graph input tensors
-    // (which may be packed sub-byte storage).
+    // Dequantized (compressed) or upconverted (uncompressed) f32 weight matrices, cached by SetUp() so calculate_refs()
+    // never has to unpack the graph's (possibly sub-byte) constants.
     std::vector<float> m_down_weight_f32;    // [L, CD]
     std::vector<float> m_up_weight_f32;      // [CD, L]
     std::vector<float> m_inject_weight_f32;  // [C, CD], only when m_produce_write_gate
