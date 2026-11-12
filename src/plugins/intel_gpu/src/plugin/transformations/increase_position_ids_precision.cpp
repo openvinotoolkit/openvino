@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <deque>
 #include <map>
 #include <set>
 #include <utility>
@@ -22,6 +23,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/gelu.hpp"
@@ -59,19 +61,54 @@ CollectSinCosConstantsForPrecisionPreservation::CollectSinCosConstantsForPrecisi
     OPENVINO_ASSERT(m_constants, "CollectSinCosConstantsForPrecisionPreservation requires a shared Constant set");
 }
 
+namespace {
+
+// FakeQuantize and weight decompression (Convert(int8 / uint8 / int4 ... weights) -> [Subtract] -> Multiply(scale)) carry quantization
+// parameters. Keeping their f32 constants unfolded hides the quantization from low precision transformations and from the weight
+// compression patterns, so these constants are never preserved.
+// Convert(integer Constant) optionally wrapped into Subtract(zero point)
+bool is_integer_weights(const ov::Output<ov::Node>& output) {
+    auto node = output.get_node_shared_ptr();
+    if (ov::is_type<ov::op::v1::Subtract>(node)) {
+        node = node->input_value(0).get_node_shared_ptr();
+    }
+    if (ov::is_type<ov::op::v0::Convert>(node)) {
+        node = node->input_value(0).get_node_shared_ptr();
+    }
+    return ov::is_type<ov::op::v0::Constant>(node) && node->get_output_element_type(0).is_integral_number();
+}
+
+bool is_quantization_boundary(const std::shared_ptr<ov::Node>& node) {
+    if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+        return true;
+    }
+    if (!ov::is_type_any_of<ov::op::v1::Multiply, ov::op::v1::Subtract>(node)) {
+        return false;
+    }
+    const auto inputs = node->input_values();
+    return std::any_of(inputs.begin(), inputs.end(), is_integer_weights);
+}
+
+}  // namespace
+
 bool CollectSinCosConstantsForPrecisionPreservation::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    // A position angle (e.g. RoPE: position_ids -> Convert -> MatMul(inv_freq) -> Concat -> Sin / Cos) is computed within a few ops of
+    // the model inputs. In DETR-style models the Sin / Cos input is a positional embedding of predicted boxes and therefore depends on
+    // most of the network; an unbounded walk would mark every f32 constant of the network (weights, biases, quantization scales) as
+    // "keep in f32". Limit the walk to the neighbourhood of the Sin / Cos and stop at quantization parameters.
+    constexpr size_t max_depth = 8;
     m_constants->clear();
     std::unordered_set<const ov::Node*> visited;
-    ov::OutputVector pending;
+    std::deque<std::pair<ov::Output<ov::Node>, size_t>> pending;
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::is_type_any_of<ov::op::v0::Sin, ov::op::v0::Cos>(node)) {
-            pending.push_back(node->input_value(0));
+            pending.emplace_back(node->input_value(0), 1);
         }
     }
 
     while (!pending.empty()) {
-        const auto output = pending.back();
-        pending.pop_back();
+        const auto [output, depth] = pending.front();
+        pending.pop_front();
         if (!output.get_element_type().is_real()) {
             continue;
         }
@@ -85,13 +122,17 @@ bool CollectSinCosConstantsForPrecisionPreservation::run_on_model(const std::sha
             }
             continue;
         }
+        if (depth >= max_depth || is_quantization_boundary(node)) {
+            continue;
+        }
 
         // Follow floating-point dependencies without an op allowlist, including through MatMul.
         // Integer/bool inputs (e.g. shapes, axes and indices) end the path even if derived from floats.
         // Only outer-graph input edges are followed; subgraph bodies are not traversed.
+        // Breadth-first, so every node is first reached through its shortest path to a Sin / Cos.
         for (const auto& input : node->input_values()) {
             if (input.get_element_type().is_real()) {
-                pending.push_back(input);
+                pending.emplace_back(input, depth + 1);
             }
         }
     }

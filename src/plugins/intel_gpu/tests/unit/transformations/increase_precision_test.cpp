@@ -29,8 +29,11 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -1148,6 +1151,80 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, CollectsAndPreservesOriginalConsta
         EXPECT_NE(rounded->cast_vector<float>()[0], coefficient_values[0]);
         EXPECT_NO_THROW(graph.model->validate_nodes_and_infer_types());
     }
+}
+
+// DETR-style models feed Sin / Cos with a positional embedding of predicted boxes, i.e. with a value that depends on the whole network.
+// Only the constants next to the angle computation may be preserved, never the weights, scales or quantization ranges of the network.
+TEST(IncreasePositionIdsLTXVideoCallbackTest, DoesNotCollectConstantsFarFromSinCos) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 16});
+    ov::Output<ov::Node> hidden = input;
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> weights;
+    for (size_t i = 0; i < 12; ++i) {
+        auto weight = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 16}, {0.01f});
+        weights.push_back(weight);
+        hidden = std::make_shared<ov::op::v0::MatMul>(hidden, weight, false, true);
+    }
+    auto coefficient = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16}, {6.2831855f});
+    auto angle = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(hidden), coefficient);
+    auto sin = std::make_shared<ov::op::v0::Sin>(angle);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
+
+    auto constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+    ov::pass::Manager manager;
+    manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(constants);
+    manager.run_passes(model);
+
+    EXPECT_EQ(constants->count(coefficient.get()), 1);
+    EXPECT_EQ(constants->count(weights.back().get()), 1);
+    EXPECT_EQ(constants->count(weights.front().get()), 0);
+}
+
+TEST(IncreasePositionIdsLTXVideoCallbackTest, DoesNotCollectQuantizationConstants) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 16});
+    // weight decompression: Convert(i8) * scale
+    auto int_weight = ov::op::v0::Constant::create(ov::element::i8, ov::Shape{16, 16}, {3});
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 1}, {0.02f});
+    auto dequantized = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Convert>(int_weight, ov::element::f32), scale);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, dequantized, false, true);
+    // activation FakeQuantize
+    auto low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.f});
+    auto high = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+    auto fake_quantize = std::make_shared<ov::op::v0::FakeQuantize>(matmul, low, high, low, high, 256);
+    auto coefficient = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16}, {6.2831855f});
+    auto angle = std::make_shared<ov::op::v1::Multiply>(fake_quantize, coefficient);
+    auto sin = std::make_shared<ov::op::v0::Sin>(angle);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
+
+    auto constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+    ov::pass::Manager manager;
+    manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(constants);
+    manager.run_passes(model);
+
+    EXPECT_EQ(constants->count(coefficient.get()), 1);
+    EXPECT_EQ(constants->count(scale.get()), 0);
+    EXPECT_EQ(constants->count(low.get()), 0);
+    EXPECT_EQ(constants->count(high.get()), 0);
+}
+
+// The same quantization pattern below the Sin / Cos but behind a short chain must not be collected either.
+TEST(IncreasePositionIdsLTXVideoCallbackTest, DoesNotCollectDecompressionScaleNextToSinCos) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4, 16});
+    auto int_weight = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{16, 16}, {7});
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{16, 1}, {128});
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{16, 1}, {0.02f});
+    auto shifted = std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v0::Convert>(int_weight, ov::element::f32),
+                                                          std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f32));
+    auto dequantized = std::make_shared<ov::op::v1::Multiply>(shifted, scale);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, dequantized, false, true);
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sin}, ov::ParameterVector{input});
+
+    auto constants = std::make_shared<CollectSinCosConstantsForPrecisionPreservation::ConstantSet>();
+    ov::pass::Manager manager;
+    manager.register_pass<CollectSinCosConstantsForPrecisionPreservation>(constants);
+    manager.run_passes(model);
+
+    EXPECT_EQ(constants->count(scale.get()), 0);
 }
 
 TEST(IncreasePositionIdsLTXVideoCallbackTest, RestoresOriginalFP32Angles) {
