@@ -14,7 +14,7 @@ namespace tp {
 
 /// The weights of the rank models, read off the analyzed model before any of them is built.
 ///
-/// A lower bound of what a device holds: a constant cut at compile time or behind a runtime Slice
+/// A lower bound of what a device holds: a constant cut at compile time
 /// counts its rank's share, and an f32 / f64 constant counts two bytes per element, since a device
 /// may keep it in half precision.
 struct RankWeights {

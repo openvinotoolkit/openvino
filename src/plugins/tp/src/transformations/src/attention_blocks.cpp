@@ -149,8 +149,7 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
                        ShardStrategy strategy,
                        const std::vector<Segment>& segments,
                        Collective collective) {
-        if (!annotate_projection(matmul, strategy, segments, collective, config.world_size, block))
-            report.runtime_slices.push_back(matmul->get_friendly_name());
+        annotate_projection(matmul, strategy, segments, collective, config.world_size, block);
     };
     project(out, ShardStrategy::ROW_PARALLEL, q_features_split, Collective::ALL_REDUCE);
     if (fused) {
@@ -285,8 +284,8 @@ void annotate_group_expansion(const ov::pass::pattern::PatternValueMap& map,
     // Multiply by a tensor of ones shaped [.., group, ..]: every rank keeps its share of it.
     const auto& ones = mul->get_input_partial_shape(1);
     const auto axis = expanded_axis(mul, group) - static_cast<int64_t>(mul->get_output_partial_shape(0).size() - ones.size());
-    OPENVINO_ASSERT(axis >= 0 && annotate_chain(mul->input(1), axis, share, ShardStrategy::COLUMN_PARALLEL, config.world_size, block),
-                    "[TP] Could not give every rank its share of the GQA expansion '", mul->get_friendly_name(), "'");
+    OPENVINO_ASSERT(axis >= 0, "[TP] Could not give every rank its share of the GQA expansion '", mul->get_friendly_name(), "'");
+    annotate_chain(mul->input(1), axis, share, ShardStrategy::COLUMN_PARALLEL, config.world_size, block);
 }
 
 }  // namespace

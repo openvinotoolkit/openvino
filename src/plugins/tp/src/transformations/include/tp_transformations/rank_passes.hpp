@@ -17,12 +17,11 @@ struct TPShardingStats {
     size_t views = 0;  ///< contiguous slices pointing into the original buffer
     size_t copies = 0;
     size_t copied_bytes = 0;
-    size_t runtime_slices = 0;
 };
 
 /// Pass 2, per rank on a clone of the analyzed model: every tp_shard node gets the rank's cut --
 /// constants point at the rank's slice (a view when it is contiguous), shape constants and rt_info
-/// entries get the rank's sizes, variables the rank's shape, runtime slices are inserted.
+/// entries get the rank's sizes, variables the rank's shape.
 class TPWeightShardingPass : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("TPWeightShardingPass");

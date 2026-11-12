@@ -108,7 +108,7 @@ so the guarded code folds away instead of costing a branch.
 
 | Environment variable          | Effect                                                                                                                                                      | When to enable                                       |
 |-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| `OV_TP_VERBOSE=LOG_INFO`      | One-line summaries per compile: the analysis (blocks, geometry, collectives), rank contexts, and per rank its op count, MiB of constants and how its weights were cut (views into the original, copies and MiB copied, runtime slices). | First thing to reach for when something looks wrong. |
+| `OV_TP_VERBOSE=LOG_INFO`      | One-line summaries per compile: the analysis (blocks, geometry, collectives), rank contexts, and per rank its op count, MiB of constants and how its weights were cut (views into the original, copies and MiB copied). | First thing to reach for when something looks wrong. |
 | `OV_GPU_TP_VERBOSE=LOG_INFO`  | The collectives: group set-up, scratch growth, which queue the collective rides.                                                                            | Together with the above.                             |
 | `OV_GPU_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing.                                                                                                                   | Only when chasing a hang or a correctness crash.     |
 | `OV_GPU_TP_PROFILING=HOST`    | Host-side measurement of the collectives: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena, run-ahead depth.                    | The default choice when measuring.                   |
@@ -262,7 +262,7 @@ own suites in intel_gpu.
 | `TPAnalyzerTest`                          | The analysis of the synthetic blocks: roles, geometry, bias, LM head, KV-cache variables, refusals, tied embeddings                     | no         |
 | `TPShardingVerifierTest`                  | The verifier's rules on hand-annotated graphs and its refusals, each with the error text                                               | no         |
 | `TPRankPasses/*`                          | Rank models on 2/3/4 ranks: weights, collectives, KV-cache variables, PagedAttention head counts, fewer KV heads than ranks, fused projections | no |
-| `TPRankWeightsTest`                       | The rank weights read off the analyzed model against the built rank models, a runtime-sliced weight, the fewest devices that fit        | no         |
+| `TPRankWeightsTest`                       | The rank weights read off the analyzed model against the built rank models, the fewest devices that fit                                 | no         |
 | `TPAnalyzerModels`                        | Real IRs listed in `OV_TP_TEST_MODELS` (paths separated by `:`): every rank model on 2 and 4 ranks; skipped without the variable      | no         |
 
 ### `ov_tp_func_tests`

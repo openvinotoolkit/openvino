@@ -247,10 +247,8 @@ cache.allocate(0, blocks, /*zero_initialize=*/false);  // bound to every infer r
 - **Quantized weights.** Weights of 8 bits and more (f32, f16, bf16, f8e4m3,
   f8e5m2, i8, u8) and 4-bit ones (u4, i4, nf4, f4e2m1) are split; a model with
   weights of 1, 2, 3 or 6 bits is rejected, naming the weight. A quantized
-  weight is cut on quantization-group boundaries. When the split does not line
-  up with them, the weight is cut at
-  run time instead; the plugin warns and names the weight, and the device keeps
-  it decompressed (see the warning below).
+  weight is cut on quantization-group boundaries; when the split does not line
+  up with them, the compilation fails, naming the weight (see below).
 - **Single-process.** All ranks execute in the same process on plugin-owned
   threads. Multi-process / multi-host configurations are out of scope.
 - **One TP request at a time per device.** TP requests of every TP model in
@@ -328,17 +326,15 @@ payload; both are one-time costs per shape.
 A shorter sequence afterwards reuses what is already there, a longer one pays
 again.
 
-### `[TP] Warning: N weights cannot be cut at the rank boundaries at compile time`
+### `[TP] '<weight>' (<block>) cannot be split over N ranks: ...`
 
-Not an error: the model runs correctly. A rank's boundary falls inside a quantization group of
-the named weight, usually the attention output projection: a rank's query heads x `head_dim` is
-not a whole number of groups (e.g. a `head_dim` of 64, an odd number of query heads per rank and
-groups of 128). Such a weight is cut after
-decompression, so the device keeps it in f16: about four times the memory of an int4 weight and
-a markedly slower prefill for that layer.
-
-Choose a number of devices that gives every rank whole groups, or compress the model with a
-group size that divides a rank's share of the heads.
+Every weight is cut at compile time, at the rank boundaries. The message says why this one
+cannot be. Usually a rank's boundary falls inside a quantization group of the attention output
+projection: a rank's query heads x `head_dim` is not a whole number of groups (e.g. a `head_dim`
+of 64, an odd number of query heads per rank and groups of 128). Choose a number of devices that
+gives every rank whole groups, or a model compressed with a group size that divides a rank's
+share; the message gives that share. A weight chain with an operation the plugin does not know
+how to cut is named the same way; such a model is not supported as it is.
 
 ### `[TP] '<down projection>' (<block>): world size N does not divide the MLP's intermediate size ...`
 

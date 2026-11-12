@@ -110,7 +110,6 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("elements", element_list);
     visitor.on_attribute("element_mode", mode);
     visitor.on_attribute("rt_keys", rt_keys);
-    visitor.on_attribute("input", input);
     visitor.on_attribute("block", block);
 
     strategy = from_string(strategy_name);
@@ -155,17 +154,13 @@ std::string ShardAnnotation::to_string() const {
     for (const auto& key : rt_keys) {
         out << " rt_info '" << key << "'";
     }
-    if (input >= 0) {
-        out << " runtime slice of input " << input;
-    }
     out << " by " << block;
     return out.str();
 }
 
 bool ShardAnnotation::operator==(const ShardAnnotation& other) const {
     return strategy == other.strategy && axis == other.axis && segments == other.segments &&
-           elements == other.elements && element_mode == other.element_mode && rt_keys == other.rt_keys &&
-           input == other.input;
+           elements == other.elements && element_mode == other.element_mode && rt_keys == other.rt_keys;
 }
 
 bool ProjectionRole::visit_attributes(ov::AttributeVisitor& visitor) {

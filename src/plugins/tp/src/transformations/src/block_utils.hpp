@@ -57,10 +57,17 @@ bool read_head_layout(const ov::Output<ov::Node>& projection, int64_t& heads, in
 /// (quantization groups), or 0 when the chain cannot be cut at all.
 int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int64_t full_size);
 
+/// Why the chain feeding `input` cannot be cut at every rank's boundary along `axis` at compile
+/// time; empty when it can.
+std::string chain_cut_problem(ov::Input<ov::Node> input,
+                              int64_t axis,
+                              const std::vector<Segment>& segments,
+                              size_t world_size);
+
 /// Annotates the constants of the chain feeding `input` for a split of its `axis` (`full_size`
-/// elements) into `segments`. When the chain cannot be cut at every rank's boundaries, annotates
-/// a runtime Slice of that input instead and returns false. Throws on a weight of 1, 2, 3 or 6 bits.
-bool annotate_chain(ov::Input<ov::Node> input,
+/// elements) into `segments`. Throws, saying why, when the chain cannot be cut at every rank's
+/// boundary, and on a weight of 1, 2, 3 or 6 bits.
+void annotate_chain(ov::Input<ov::Node> input,
                     int64_t axis,
                     const std::vector<Segment>& segments,
                     ShardStrategy strategy,
@@ -68,8 +75,7 @@ bool annotate_chain(ov::Input<ov::Node> input,
                     const std::string& block);
 
 /// Annotates the role of a projection, its weight chain and, column-parallel, its bias.
-/// Returns false when the weight falls back to a runtime Slice.
-bool annotate_projection(const std::shared_ptr<ov::Node>& matmul,
+void annotate_projection(const std::shared_ptr<ov::Node>& matmul,
                          ShardStrategy strategy,
                          const std::vector<Segment>& segments,
                          Collective collective,

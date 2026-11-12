@@ -223,23 +223,11 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceAfterKvCacheTrim) {
 }
 
 // Three groups of 64 per rank in the MLP: the packed u4 zero points of the down projection are cut
-// inside a byte on every world size (TPRankPassesNibbleTest).
+// inside a byte on every world size.
 TEST_P(TPAccuracyTest, MatchesSingleDeviceOnZeroPointsCutInsideAByte) {
     BlockConfig config;
     config.group_size = 64;
     config.intermediate = 3 * 64 * world_size();
-    auto model = make_transformer_block(config);
-
-    auto [reference, parallel] = run_both(model, make_input(config));
-    expect_close(reference, parallel);
-}
-
-// On four ranks a boundary of the O projection falls inside a quantization group, so its weight is
-// cut by a Slice at run time (TPRankPassesRuntimeSliceTest); two and three ranks cut it whole.
-TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAWeightSlicedAtRunTime) {
-    BlockConfig config;
-    config.group_size = 128;
-    config.intermediate = 1536;
     auto model = make_transformer_block(config);
 
     auto [reference, parallel] = run_both(model, make_input(config));

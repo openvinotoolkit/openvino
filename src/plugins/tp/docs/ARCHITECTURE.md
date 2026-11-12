@@ -204,17 +204,13 @@ that depends on OpenVINO core and the collective ops only. It runs in three stag
    and its size. Weights are split only when every constant of their chain is of 8 bits and
    more or a 4-bit type; 1, 2, 3 or 6-bit constants fail the compilation, naming the weight.
    Packed 4-bit constants (weights, zero points) are cut at any element, copying
-   element by element where a rank's range starts or ends inside a byte. A weight whose
-   decompression chain cannot be cut at the rank boundaries (a boundary inside a quantization
-   group, an op in the chain the walk does not know)
-   is cut by a `Slice` at run time, with a warning. The device plugin folds that `Slice` together
-   with the decompression chain above it, so the rank keeps the weight decompressed: on GPU an
-   int4 weight becomes an f16 one (about four times its memory, which the ERR-7 estimate does
-   not count) and the layer loses the compressed `FullyConnected` path (slower prefill). In
-   practice this happens only to the O projection, whose
-   cut follows the query heads, when a rank's query heads x `head_dim` is not a whole number of
-   groups (e.g. a `head_dim` of 64, an odd number of query heads per rank and groups of 128).
-   The MLP cuts in whole groups and is not affected.
+   element by element where a rank's range starts or ends inside a byte. Every weight is cut at
+   compile time: one whose decompression chain cannot be cut at the rank boundaries (a boundary
+   inside a quantization group, an op in the chain the walk does not know) fails the compilation,
+   naming the weight and the reason; an LM head in that case stays whole instead. A boundary
+   falls inside a group only for the O projection, whose cut follows the query heads, when a
+   rank's query heads x `head_dim` is not a whole number of groups (e.g. a `head_dim` of 64, an
+   odd number of query heads per rank and groups of 128). The MLP cuts in whole groups.
 2. **`TPShardingVerifier`**, the last pass of the analysis, propagates a state through every
    tensor: Replicated, Split (per-rank ranges along one or more axes), Partial (the sum over
    ranks is the value) or rank-dependent sizes (a shape vector from `ShapeOf` of a split tensor
@@ -226,9 +222,9 @@ that depends on OpenVINO core and the collective ops only. It runs in three stag
    with fewer units (whole heads, quantization groups) than ranks fails too, naming the largest
    number of devices that works.
 3. **Per rank**, on a clone of the analyzed model: `TPWeightShardingPass(rank, N)` cuts the
-   annotated constants (a zero-copy view of a single contiguous range, a copy otherwise), gives
-   the annotated shape elements, variable shapes and `rt_info` head counts the rank's values, and
-   inserts the runtime `Slice`s; `TPInsertCollectives(rank, N)` inserts the collectives the roles
+   annotated constants (a zero-copy view of a single contiguous range, a copy otherwise) and gives
+   the annotated shape elements, variable shapes and `rt_info` head counts the rank's values;
+   `TPInsertCollectives(rank, N)` inserts the collectives the roles
    name. The annotations are then stripped.
 
 The analysis also reports what the plugin logs and keeps: the block counts, the geometry, the

@@ -21,23 +21,6 @@ size_t device_bytes(const ov::op::v0::Constant& constant) {
     return constant.get_byte_size();
 }
 
-/// Every constant `output` is computed from.
-void collect_constants(const ov::Output<ov::Node>& output,
-                       const ShardAnnotation* annotation,
-                       std::unordered_map<const ov::Node*, const ShardAnnotation*>& split) {
-    std::vector<ov::Node*> stack{output.get_node()};
-    while (!stack.empty()) {
-        auto* node = stack.back();
-        stack.pop_back();
-        if (ov::is_type<ov::op::v0::Constant>(node)) {
-            split.emplace(node, annotation);
-            continue;
-        }
-        for (const auto& input : node->input_values())
-            stack.push_back(input.get_node());
-    }
-}
-
 }  // namespace
 
 RankWeights rank_weights(const ov::Model& analyzed, size_t world_size) {
@@ -45,11 +28,7 @@ RankWeights rank_weights(const ov::Model& analyzed, size_t world_size) {
     std::unordered_map<const ov::Node*, const ShardAnnotation*> split;
     for (const auto& node : analyzed.get_ops()) {
         const auto* annotation = get_shard(*node);
-        if (!annotation || !annotation->elements.empty())
-            continue;
-        if (annotation->input >= 0)
-            collect_constants(node->input_value(static_cast<size_t>(annotation->input)), annotation, split);
-        else if (ov::is_type<ov::op::v0::Constant>(node))
+        if (annotation && annotation->elements.empty() && ov::is_type<ov::op::v0::Constant>(node))
             split.emplace(node.get(), annotation);
     }
 

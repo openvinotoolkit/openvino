@@ -47,7 +47,6 @@ std::shared_ptr<ov::Node> paged_attention(const std::shared_ptr<ov::Model>& mode
 
 const auto& all_reduce = ov::op::internal::TPAllReduce::get_type_info_static();
 const auto& gather = ov::op::internal::TPGather::get_type_info_static();
-const auto& slice = ov::op::v8::Slice::get_type_info_static();
 
 }  // namespace
 
@@ -59,8 +58,6 @@ TEST_P(TPRankPassesTest, GivesEveryRankOneBandOfTheVocabulary) {
     for (const auto& model : rank_models(make_block_with_lm_head(BlockConfig{}, vocab), world_size)) {
         EXPECT_EQ(lm_head_rows(model), static_cast<int64_t>(vocab / world_size));
         EXPECT_EQ(count_ops_of_type(model, gather), 1u);
-        // The band is cut out of the stored weight: a Slice left in the graph is folded at every compile.
-        EXPECT_EQ(count_ops_of_type(model, slice), 0u);
     }
 }
 
@@ -89,14 +86,6 @@ TEST_P(TPRankPassesTest, InsertsNoGatherWithoutAVocabularyProjection) {
         EXPECT_EQ(count_ops_of_type(model, gather), 0u);
 }
 
-TEST_P(TPRankPassesTest, CutsEveryWeightAtCompileTime) {
-    // Every rank boundary of the block falls on whole quantization groups.
-    auto model = make_transformer_block(BlockConfig{});
-    ASSERT_EQ(count_ops_of_type(model, slice), 0u);
-    for (const auto& rank_model : rank_models(model, GetParam()))
-        EXPECT_EQ(count_ops_of_type(rank_model, slice), 0u);
-}
-
 TEST_P(TPRankPassesTest, CountsHowItCutTheWeights) {
     auto analyzed = make_transformer_block(BlockConfig{});
     analyze(analyzed, GetParam());
@@ -107,7 +96,6 @@ TEST_P(TPRankPassesTest, CountsHowItCutTheWeights) {
     EXPECT_GT(stats->views, 0u);
     EXPECT_GT(stats->copies, 0u);
     EXPECT_GT(stats->copied_bytes, 0u);
-    EXPECT_EQ(stats->runtime_slices, 0u);
 }
 
 TEST_P(TPRankPassesTest, InsertsOneAllReducePerRowParallelProjection) {
@@ -255,58 +243,6 @@ TEST(TPRankPassesNibbleTest, CutsPacked4BitElementsInsideAByte) {
     }
 }
 
-// Groups of 64 and three of them per rank in the MLP: every rank boundary of the down projection's
-// packed u4 zero points falls inside a byte, on every world size; every weight is still cut at
-// compile time.
-TEST(TPRankPassesNibbleTest, CutsZeroPointsInsideAByteAtCompileTime) {
-    BlockConfig config;
-    config.group_size = 64;
-    for (const size_t world_size : {2u, 3u, 4u}) {
-        SCOPED_TRACE("world " + std::to_string(world_size));
-        config.intermediate = 3 * 64 * world_size;
-        auto analyzed = make_transformer_block(config);
-        const auto report = analyze(analyzed, world_size);
-        EXPECT_TRUE(report->runtime_slices.empty()) << report->runtime_slices.front();
-        for (size_t rank = 0; rank < world_size; ++rank)
-            EXPECT_EQ(count_ops_of_type(rank_model(analyzed, rank, world_size), slice), 0u) << "rank " << rank;
-    }
-}
-
-// Units of two query heads (64 features) and groups of 128: two and three ranks (12 and 8 heads)
-// end on a group boundary, four (6 heads each) end at 192, inside a group of the O projection,
-// which only a runtime Slice can cut.
-TEST(TPRankPassesRuntimeSliceTest, SlicesOnlyTheOProjectionWhenARankEndsInsideAGroup) {
-    BlockConfig config;
-    config.group_size = 128;
-    config.intermediate = 1536;
-    for (const size_t world_size : {2u, 3u, 4u}) {
-        SCOPED_TRACE("world " + std::to_string(world_size));
-        const size_t expected = world_size == 4 ? 1u : 0u;
-        auto analyzed = make_transformer_block(config);
-        const auto report = analyze(analyzed, world_size);
-        EXPECT_EQ(report->runtime_slices.size(), expected);
-        for (size_t rank = 0; rank < world_size; ++rank) {
-            const auto model = rank_model(analyzed, rank, world_size);
-            size_t sliced = 0;
-            for (const auto& op : model->get_ordered_ops()) {
-                if (!ov::is_type<ov::op::v8::Slice>(op))
-                    continue;
-                ++sliced;
-                const auto consumer = op->output(0).get_target_inputs().begin()->get_node();
-                ASSERT_TRUE(ov::is_type<ov::op::v0::MatMul>(consumer));
-                // The O projection takes the attention output, not the MLP's gated product.
-                EXPECT_FALSE(ov::is_type<ov::op::v1::Multiply>(consumer->get_input_node_ptr(0)));
-                const auto& in = consumer->get_input_partial_shape(0);
-                EXPECT_EQ(in[in.size() - 1].get_length(),
-                          static_cast<int64_t>(rank_length({{config.num_heads * config.head_dim, 2 * config.head_dim}},
-                                                           rank,
-                                                           world_size)));
-            }
-            EXPECT_EQ(sliced, expected) << "rank " << rank;
-        }
-    }
-}
-
 // Fewer KV heads than ranks: every rank keeps the one KV head its query heads use.
 struct FewKvHeads {
     size_t kv_heads;
@@ -416,7 +352,6 @@ TEST_P(TPRankPassesFusedTest, GivesEveryRankItsShareOfEveryPart) {
     const auto report = analyze(analyzed, world_size);
     EXPECT_EQ(report->attention_blocks, 1u);
     EXPECT_EQ(report->mlp_blocks, 1u);
-    EXPECT_TRUE(report->runtime_slices.empty()) << report->runtime_slices.front();
     EXPECT_EQ(roles(analyzed).size(), c.gate_up != Fused::NONE ? 4u : 5u);  // qkv, o, gate_up or gate + up, down
 
     const auto replicas = world_size > c.num_kv_heads ? world_size / c.num_kv_heads : 1;

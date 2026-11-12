@@ -103,12 +103,9 @@ void annotate_mlp(const std::vector<std::shared_ptr<ov::Node>>& columns,
     fold(down, weight_axes(down).in_features);
 
     const std::vector<Segment> segments{intermediate_split(size, unit, down, config.world_size, block)};
-    for (const auto& column : columns) {
-        if (!annotate_projection(column, ShardStrategy::COLUMN_PARALLEL, segments, Collective::NONE, config.world_size, block))
-            report.runtime_slices.push_back(column->get_friendly_name());
-    }
-    if (!annotate_projection(down, ShardStrategy::ROW_PARALLEL, segments, Collective::ALL_REDUCE, config.world_size, block))
-        report.runtime_slices.push_back(down->get_friendly_name());
+    for (const auto& column : columns)
+        annotate_projection(column, ShardStrategy::COLUMN_PARALLEL, segments, Collective::NONE, config.world_size, block);
+    annotate_projection(down, ShardStrategy::ROW_PARALLEL, segments, Collective::ALL_REDUCE, config.world_size, block);
 
     ++report.mlp_blocks;
     if (report.intermediate_size == 0)
@@ -185,11 +182,9 @@ TPFusedGateUpMLPBlock::TPFusedGateUpMLPBlock(const TPAnalyzerConfig& config, TPA
         }
         const std::string block = "TPFusedGateUpMLPBlock";
         const Segment segment = intermediate_split(size, unit, d, config.world_size, block);
-        if (!annotate_projection(gate_up, ShardStrategy::COLUMN_PARALLEL, {segment, segment}, Collective::NONE, config.world_size, block))
-            report->runtime_slices.push_back(gate_up->get_friendly_name());
+        annotate_projection(gate_up, ShardStrategy::COLUMN_PARALLEL, {segment, segment}, Collective::NONE, config.world_size, block);
         annotate_feature_parts(fused_output, {segment, segment}, block);
-        if (!annotate_projection(d, ShardStrategy::ROW_PARALLEL, {segment}, Collective::ALL_REDUCE, config.world_size, block))
-            report->runtime_slices.push_back(d->get_friendly_name());
+        annotate_projection(d, ShardStrategy::ROW_PARALLEL, {segment}, Collective::ALL_REDUCE, config.world_size, block);
         ++report->mlp_blocks;
         if (report->intermediate_size == 0)
             report->intermediate_size = size;
@@ -226,15 +221,13 @@ TPVocabParallelBlock::TPVocabParallelBlock(const TPAnalyzerConfig& config, TPAna
         // The gather assumes equal slices.
         if (vocab <= 0 || vocab % static_cast<int64_t>(config.world_size) != 0)
             return false;
+        const std::vector<Segment> bands{{static_cast<size_t>(vocab), 1}};
+        // A weight that cannot be cut at compile time leaves it whole as well.
+        if (!chain_cut_problem(lm_head->input(1), weight_axes(lm_head).out_features, bands, config.world_size).empty())
+            return false;
         // Read before the split gives the LM head a copy of the chain to cut.
         report->lm_head_copy_bytes = shared_weight_bytes(lm_head) / config.world_size;
-        if (!annotate_projection(lm_head,
-                                 ShardStrategy::COLUMN_PARALLEL,
-                                 {{static_cast<size_t>(vocab), 1}},
-                                 Collective::GATHER,
-                                 config.world_size,
-                                 "TPVocabParallelBlock"))
-            report->runtime_slices.push_back(lm_head->get_friendly_name());
+        annotate_projection(lm_head, ShardStrategy::COLUMN_PARALLEL, bands, Collective::GATHER, config.world_size, "TPVocabParallelBlock");
         report->lm_head = true;
         return false;
     });

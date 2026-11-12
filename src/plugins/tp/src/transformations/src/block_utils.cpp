@@ -239,13 +239,14 @@ void privatize(ov::Input<ov::Node> input) {
 }
 
 /// Walks the chain like the rank slicing will; with `annotate` false only checks it can be cut.
-bool walk_chain(ov::Input<ov::Node> input,
-                int64_t axis,
-                const std::vector<Segment>& segments,
-                ShardStrategy strategy,
-                size_t world_size,
-                const std::string& block,
-                bool annotate) {
+/// Returns why it cannot be cut at every rank's boundary, empty when it can.
+std::string walk_chain(ov::Input<ov::Node> input,
+                       int64_t axis,
+                       const std::vector<Segment>& segments,
+                       ShardStrategy strategy,
+                       size_t world_size,
+                       const std::string& block,
+                       bool annotate) {
     if (annotate)
         privatize(input);
     const auto node = input.get_source_output().get_node_shared_ptr();
@@ -255,29 +256,38 @@ bool walk_chain(ov::Input<ov::Node> input,
         const auto& shape = constant->get_shape();
         // Constants that do not carry the axis (a per-tensor scale) are left whole.
         if (axis < 0 || axis >= static_cast<int64_t>(shape.size()) || static_cast<int64_t>(shape[axis]) != full_size)
-            return true;
+            return {};
         if (annotate)
             set_shard(constant, ShardAnnotation(strategy, axis, segments, block));
-        return true;
+        return {};
     }
 
     if (ov::is_type<ov::op::v0::Convert>(node))
         return walk_chain(node->input(0), axis, segments, strategy, world_size, block, annotate);
 
     if (ov::is_type_any_of<ov::op::v1::Subtract, ov::op::v1::Multiply, ov::op::v1::Add>(node)) {
-        return walk_chain(node->input(0), axis, segments, strategy, world_size, block, annotate) &&
-               walk_chain(node->input(1), axis, segments, strategy, world_size, block, annotate);
+        const auto problem = walk_chain(node->input(0), axis, segments, strategy, world_size, block, annotate);
+        return problem.empty() ? walk_chain(node->input(1), axis, segments, strategy, world_size, block, annotate)
+                               : problem;
     }
 
     if (ov::is_type<ov::op::v1::Reshape>(node)) {
         const auto span = map_reshape_axis_span(node, axis, full_size);
         if (span.axis < 0)
-            return false;
+            return "its weight chain has a Reshape, '" + node->get_friendly_name() +
+                   "', that does not keep the split axis apart";
         const auto inner = span.trailing == 1 ? segments : coarsen(segments, span.trailing, world_size);
-        if (inner.empty())
-            return false;
-        if (!walk_chain(node->input(0), span.axis, inner, strategy, world_size, block, annotate))
-            return false;
+        if (inner.empty()) {
+            const auto share = std::to_string(rank_length(segments, 0, world_size));
+            return "a rank takes " + share + " of its " + std::to_string(full_size) +
+                   " features, which is not a whole number of the groups of " + std::to_string(span.trailing) +
+                   " (quantization groups) that '" + node->get_friendly_name() +
+                   "' forms. Use a number of devices that gives every rank whole groups, or a model compressed "
+                   "with a group size that divides " + share;
+        }
+        if (auto problem = walk_chain(node->input(0), span.axis, inner, strategy, world_size, block, annotate);
+            !problem.empty())
+            return problem;
         if (annotate) {
             // The target shape holds the split size either at the output axis or, when the
             // output axis spans several input axes, at the outermost of those.
@@ -292,9 +302,10 @@ bool walk_chain(ov::Input<ov::Node> input,
                 }
             }
         }
-        return true;
+        return {};
     }
-    return false;
+    return std::string("its weight chain passes through ") + node->get_type_name() + " '" +
+           node->get_friendly_name() + "', which the plugin does not know how to cut";
 }
 
 /// Fails on a weight of a packing TP cannot cut: anything below a byte but 4-bit elements.
@@ -354,24 +365,35 @@ int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int6
     return 0;
 }
 
-bool annotate_chain(ov::Input<ov::Node> input,
+std::string chain_cut_problem(ov::Input<ov::Node> input,
+                              int64_t axis,
+                              const std::vector<Segment>& segments,
+                              size_t world_size) {
+    return walk_chain(input, axis, segments, ShardStrategy::REPLICATED, world_size, {}, false);
+}
+
+void annotate_chain(ov::Input<ov::Node> input,
                     int64_t axis,
                     const std::vector<Segment>& segments,
                     ShardStrategy strategy,
                     size_t world_size,
                     const std::string& block) {
     check_weight_types(input);
-    if (walk_chain(input, axis, segments, strategy, world_size, block, false)) {
-        walk_chain(input, axis, segments, strategy, world_size, block, true);
-        return true;
-    }
-    ShardAnnotation slice(strategy, axis, segments, block);
-    slice.input = static_cast<int64_t>(input.get_index());
-    set_shard(input.get_node()->shared_from_this(), slice);
-    return false;
+    const auto problem = chain_cut_problem(input, axis, segments, world_size);
+    OPENVINO_ASSERT(problem.empty(),
+                    "[TP] '",
+                    input.get_node()->get_friendly_name(),
+                    "' (",
+                    block,
+                    ") cannot be split over ",
+                    world_size,
+                    " ranks: ",
+                    problem,
+                    ".");
+    walk_chain(input, axis, segments, strategy, world_size, block, true);
 }
 
-bool annotate_projection(const std::shared_ptr<ov::Node>& matmul,
+void annotate_projection(const std::shared_ptr<ov::Node>& matmul,
                          ShardStrategy strategy,
                          const std::vector<Segment>& segments,
                          Collective collective,
@@ -395,7 +417,7 @@ bool annotate_projection(const std::shared_ptr<ov::Node>& matmul,
                     total_length(segments));
 
     set_role(matmul, ProjectionRole(strategy, collective, collective == Collective::NONE ? -1 : 0, block));
-    const bool pre_sliced = annotate_chain(matmul->input(1), axis, segments, strategy, world_size, block);
+    annotate_chain(matmul->input(1), axis, segments, strategy, world_size, block);
 
     // A row-parallel bias stays whole: its Add runs after the collective.
     if (strategy == ShardStrategy::COLUMN_PARALLEL) {
@@ -409,7 +431,6 @@ bool annotate_projection(const std::shared_ptr<ov::Node>& matmul,
             }
         }
     }
-    return pre_sliced;
 }
 
 bool annotate_shape_input(const std::shared_ptr<ov::Node>& node,

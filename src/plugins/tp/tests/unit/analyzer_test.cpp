@@ -35,6 +35,13 @@ size_t row_parallel(const std::map<std::string, ProjectionRole>& claimed) {
     return count;
 }
 
+/// Routes `matmul`'s weight through two Transposes, which the analysis does not cut through.
+void transpose_twice(const std::shared_ptr<ov::Node>& matmul) {
+    auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+    auto once = std::make_shared<ov::op::v1::Transpose>(matmul->input_value(1), order);
+    matmul->input(1).replace_source_output(std::make_shared<ov::op::v1::Transpose>(once, order));
+}
+
 }  // namespace
 
 TEST(TPAnalyzerTest, FindsTheProjectionsAndTheGeometry) {
@@ -50,7 +57,6 @@ TEST(TPAnalyzerTest, FindsTheProjectionsAndTheGeometry) {
     EXPECT_EQ(report->intermediate_size, static_cast<int64_t>(config.intermediate));
     EXPECT_FALSE(report->lm_head);
     EXPECT_TRUE(report->unclaimed.empty());
-    EXPECT_TRUE(report->runtime_slices.empty());
     EXPECT_TRUE(report->sharded_variables.empty());
 
     // q, k, v, gate, up column-parallel; o and down row-parallel.
@@ -170,6 +176,29 @@ TEST(TPAnalyzerTest, RejectsAnMlpTheRanksDoNotDivide) {
     }
 }
 
+// Every weight is cut at compile time: a rank boundary inside a quantization group of the O
+// projection (six query heads of 32 per rank on four ranks, groups of 128), or a weight chain
+// through an op the analysis does not cut, fails the compilation, saying why.
+TEST(TPAnalyzerTest, RejectsAWeightItCannotCutAtCompileTime) {
+    BlockConfig config;
+    config.group_size = 128;
+    config.intermediate = 1536;
+    EXPECT_NO_THROW(analyze(make_transformer_block(config), 3));
+    OV_EXPECT_THROW(analyze(make_transformer_block(config), 4),
+                    ov::Exception,
+                    HasSubstr("cannot be split over 4 ranks: a rank takes 192 of its 768 features, which is not a "
+                              "whole number of the groups of 128"));
+
+    auto model = make_transformer_block(BlockConfig{});
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v0::MatMul>(node) && ov::is_type<ov::op::v1::Reshape>(node->get_input_node_ptr(0))) {
+            transpose_twice(node);
+            break;
+        }
+    }
+    OV_EXPECT_THROW(analyze(model, 2), ov::Exception, HasSubstr("its weight chain passes through Transpose"));
+}
+
 // Weights of whole bytes and 4-bit ones are split; other packings are rejected, naming the weight.
 TEST(TPAnalyzerTest, SplitsOnlyWeightsOfWholeBytesOrFourBits) {
     auto with_weight_type = [](ov::element::Type type) {
@@ -218,6 +247,18 @@ TEST(TPAnalyzerTest, LeavesAVocabularyThatDoesNotDivideWhole) {
     EXPECT_FALSE(report->lm_head);
     EXPECT_EQ(report->unclaimed, std::vector<std::string>{"lm_head"});
     EXPECT_EQ(roles(four).count("lm_head"), 0u);
+}
+
+// A vocabulary projection whose weight cannot be cut at compile time stays whole.
+TEST(TPAnalyzerTest, LeavesAVocabularyProjectionItCannotCutWhole) {
+    auto model = make_block_with_lm_head(BlockConfig{}, 1024);
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "lm_head")
+            transpose_twice(node);
+    }
+    const auto report = analyze(model, 2);
+    EXPECT_FALSE(report->lm_head);
+    EXPECT_EQ(report->unclaimed, std::vector<std::string>{"lm_head"});
 }
 
 TEST(TPAnalyzerTest, LeavesTheVocabularyProjectionWholeOnRequest) {

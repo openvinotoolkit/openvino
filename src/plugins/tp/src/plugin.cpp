@@ -216,15 +216,7 @@ void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
                     << "=YES to keep it whole: less device memory, a slower decode step." << std::endl;
     }
 
-    // Neither is an error, but both cost: whoever hits them needs to know without having
-    // been told to look.
-    if (!report.runtime_slices.empty()) {
-        TP_WARN_ALWAYS << "[TP] Warning: " << report.runtime_slices.size()
-                       << " weights cannot be cut at the rank boundaries at compile time and are sliced at run "
-                          "time, which keeps them decompressed on the device (more memory, slower prefill); the "
-                          "first is '"
-                       << report.runtime_slices.front() << "'";
-    }
+    // Not an error, but it costs: whoever hits it needs to know without having been told to look.
     if (!report.unclaimed.empty()) {
         TP_WARN_ALWAYS << "[TP] Warning: " << report.unclaimed.size()
                        << " linear layers are not part of a recognized block and stay whole on every rank ("
@@ -562,8 +554,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         TP_LOG_INFO << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
                     << num_collectives << " collectives, " << mib(constant_bytes(*rank_model))
                     << " MiB of constants; weights cut: " << stats->views << " views, " << stats->copies
-                    << " copies (" << mib(stats->copied_bytes) << " MiB copied), " << stats->runtime_slices
-                    << " runtime slices" << std::endl;
+                    << " copies (" << mib(stats->copied_bytes) << " MiB copied)" << std::endl;
 
         if (shard_only) {
             strip_collectives(rank_model);

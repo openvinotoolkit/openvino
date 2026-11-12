@@ -12,10 +12,8 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/read_value.hpp"
-#include "openvino/op/slice.hpp"
 #include "ov_ops/tp_collective.hpp"
 #include "tp_transformations/annotations.hpp"
 
@@ -132,19 +130,6 @@ std::shared_ptr<ov::op::v0::Constant> slice_constant(const std::shared_ptr<ov::o
     return sliced;
 }
 
-/// A Slice (or a Concat of Slices) of `source` to the rank's ranges along `axis`.
-ov::Output<ov::Node> runtime_slice(const ov::Output<ov::Node>& source, int64_t axis, const std::vector<Range>& ranges) {
-    ov::OutputVector parts;
-    for (const auto& range : ranges) {
-        auto start = ov::op::v0::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(range.offset)});
-        auto stop = ov::op::v0::Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(range.offset + range.length)});
-        auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto axes = ov::op::v0::Constant::create(ov::element::i64, {1}, {axis});
-        parts.push_back(std::make_shared<ov::op::v8::Slice>(source, start, stop, step, axes)->output(0));
-    }
-    return parts.size() == 1 ? parts.front() : std::make_shared<ov::op::v0::Concat>(parts, axis)->output(0);
-}
-
 }  // namespace
 
 bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -155,14 +140,6 @@ bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model)
         if (!annotation)
             continue;
         const auto local = static_cast<int64_t>(rank_length(annotation->segments, m_rank, m_world_size));
-
-        if (annotation->input >= 0) {
-            auto input = node->input(static_cast<size_t>(annotation->input));
-            input.replace_source_output(runtime_slice(input.get_source_output(),
-                                                      annotation->axis,
-                                                      rank_ranges(annotation->segments, m_rank, m_world_size)));
-            ++stats.runtime_slices;
-        }
 
         for (const auto& key : annotation->rt_keys) {
             auto& rt_info = node->get_rt_info();
@@ -179,7 +156,7 @@ bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model)
         }
 
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-        if (!constant || annotation->input >= 0)
+        if (!constant)
             continue;
         std::shared_ptr<ov::op::v0::Constant> replacement;
         if (!annotation->elements.empty()) {

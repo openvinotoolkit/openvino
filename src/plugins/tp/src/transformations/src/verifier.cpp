@@ -358,13 +358,6 @@ private:
     }
 
     State input(const ov::Node& node, size_t port) const {
-        // A weight cut by a Slice at run time is the rank's slice from that input on.
-        if (const auto* shard = get_shard(node)) {
-            if (shard->input == static_cast<int64_t>(port))
-                return State::split(shard->axis,
-                                    layout(shard->segments),
-                                    "a runtime Slice of input " + std::to_string(port) + " of " + node_name(node));
-        }
         const auto source = node.input_value(port);
         return m_states.at(source.get_node()).at(source.get_index());
     }
@@ -384,7 +377,7 @@ private:
 
     State source_state(const ov::Node& node) const {
         const auto* shard = get_shard(node);
-        if (!shard || shard->input >= 0 || !shard->rt_keys.empty())
+        if (!shard || !shard->rt_keys.empty())
             return {};
         if (!shard->elements.empty()) {
             std::map<int64_t, Layout> elements;

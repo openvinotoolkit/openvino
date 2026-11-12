@@ -44,8 +44,6 @@ enum class Collective { NONE, ALL_REDUCE, GATHER };
 /// On a Constant with `elements`: a shape constant whose listed elements get rank values, as
 /// `element_mode` says.
 /// On a ReadValue: its variable's shape is cut along `axis`.
-/// On any node with `input` >= 0: that input is sliced along `axis` at run time
-/// (a weight chain that cannot be cut at compile time).
 /// On any node with `rt_keys`: those rt_info entries hold the global size and
 /// get the rank's size.
 class ShardAnnotation : public ov::RuntimeAttribute {
@@ -73,7 +71,6 @@ public:
     std::vector<size_t> elements;
     Elements element_mode = Elements::SIZE;
     std::vector<std::string> rt_keys;
-    int64_t input = -1;
 
     bool is_copyable() const override {
         return true;
