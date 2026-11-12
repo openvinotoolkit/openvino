@@ -90,8 +90,15 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
         out[out_i] = UNIT_VAL_ZERO;
     }
 
-    uint input_offset = oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X;
-    input_offset += (or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y) * INPUT0_SIZE_X_WITH_PADDING;
+    const uint in_x_start = oc * STRIDE_SIZE_X + INPUT0_PADDING_OFFSET_SIZE_X;
+    const uint in_y_start = or * STRIDE_SIZE_Y + INPUT0_PADDING_OFFSET_SIZE_Y;
+    // The input block is rounded up to the sub-group size, so in the last x/y block it can run past the padded
+    // row/plane, and past the buffer end on the last row of the last feature.
+    const bool full_input_block = in_x_start + INPUT_BLOCK_WIDTH <= INPUT0_SIZE_X_WITH_PADDING &&
+                                  in_y_start + INPUT_BLOCK_HEIGHT <= INPUT0_SIZE_Y_WITH_PADDING;
+
+    uint input_offset = in_x_start;
+    input_offset += in_y_start * INPUT0_SIZE_X_WITH_PADDING;
     input_offset += INPUT0_PAD_BEFORE_FEATURE_NUM * INPUT0_FEATURE_PITCH;
     input_offset += (b + INPUT0_PAD_BEFORE_BATCH_NUM) * INPUT0_BATCH_PITCH;
 
@@ -105,36 +112,43 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
         // Load input:
         unroll_for (uint in_y = 0; in_y < INPUT_BLOCK_HEIGHT; ++in_y)
         {
-            uint in_x = 0;
-
 #if CAN_USE_BLOCK_READ
-            unroll_for (; in_x + 4 <= INPUT_BLOCK_WIDTH_EL_CNT; in_x += 4)
+            if (full_input_block)
             {
-                UNIT_TYPE4 tmp_read = UNIT_BLOCK_READ4(input, tmp_input_offset + in_x * SUB_GROUP_SIZE);
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 0] = tmp_read.s0;
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 1] = tmp_read.s1;
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 2] = tmp_read.s2;
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 3] = tmp_read.s3;
+                uint in_x = 0;
+                unroll_for (; in_x + 4 <= INPUT_BLOCK_WIDTH_EL_CNT; in_x += 4)
+                {
+                    UNIT_TYPE4 tmp_read = UNIT_BLOCK_READ4(input, tmp_input_offset + in_x * SUB_GROUP_SIZE);
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 0] = tmp_read.s0;
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 1] = tmp_read.s1;
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 2] = tmp_read.s2;
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 3] = tmp_read.s3;
+                }
+                unroll_for (; in_x + 2 <= INPUT_BLOCK_WIDTH_EL_CNT; in_x += 2)
+                {
+                    UNIT_TYPE2 tmp_read = UNIT_BLOCK_READ2(input, tmp_input_offset + in_x * SUB_GROUP_SIZE);
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 0] = tmp_read.s0;
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 1] = tmp_read.s1;
+                }
+                unroll_for (; in_x + 1 <= INPUT_BLOCK_WIDTH_EL_CNT; in_x += 1)
+                {
+                    UNIT_TYPE tmp_read = UNIT_BLOCK_READ(input, tmp_input_offset + in_x * SUB_GROUP_SIZE);
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 0] = tmp_read;
+                }
             }
-            unroll_for (; in_x + 2 <= INPUT_BLOCK_WIDTH_EL_CNT; in_x += 2)
-            {
-                UNIT_TYPE2 tmp_read = UNIT_BLOCK_READ2(input, tmp_input_offset + in_x * SUB_GROUP_SIZE);
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 0] = tmp_read.s0;
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 1] = tmp_read.s1;
-            }
-            unroll_for (; in_x + 1 <= INPUT_BLOCK_WIDTH_EL_CNT; in_x += 1)
-            {
-                UNIT_TYPE tmp_read = UNIT_BLOCK_READ(input, tmp_input_offset + in_x * SUB_GROUP_SIZE);
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 0] = tmp_read;
-            }
-#else // CAN_USE_BLOCK_READ
-            // TODO Optimize this path by using vload's
-            unroll_for (; in_x + 1 <= INPUT_BLOCK_WIDTH_EL_CNT; in_x += 1)
-            {
-                UNIT_TYPE tmp_read = input[tmp_input_offset + in_x * SUB_GROUP_SIZE + sglid];
-                in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x + 0] = tmp_read;
-            }
+            else
 #endif // CAN_USE_BLOCK_READ
+            {
+                // TODO Optimize this path by using vload's
+                const bool row_in_bounds = in_y_start + in_y < INPUT0_SIZE_Y_WITH_PADDING;
+                unroll_for (uint in_x = 0; in_x < INPUT_BLOCK_WIDTH_EL_CNT; ++in_x)
+                {
+                    const bool in_bounds = row_in_bounds && in_x_start + in_x * SUB_GROUP_SIZE + sglid < INPUT0_SIZE_X_WITH_PADDING;
+                    // Out-of-bounds lanes load the block origin, which is always inside the input, and use zero.
+                    const UNIT_TYPE tmp_read = input[in_bounds ? tmp_input_offset + in_x * SUB_GROUP_SIZE + sglid : input_offset];
+                    in[in_y * INPUT_BLOCK_WIDTH_EL_CNT + in_x] = in_bounds ? tmp_read : UNIT_VAL_ZERO;
+                }
+            }
 
             // Move temporary input offset to next row
             tmp_input_offset += INPUT0_SIZE_X_WITH_PADDING;
@@ -198,15 +212,32 @@ KERNEL(convolution_gpu_bfyx_to_fs_byx_fsv32)(
             // TODO Change bias format to use block reads
             unroll_for (uint out_f = 0; out_f < FSV_PER_THREAD; ++out_f)
             {
-                const uint bias_index = (fs * FSV + out_f * SUB_GROUP_SIZE + sglid) * OUTPUT_SIZE_X * OUTPUT_SIZE_Y +
-                                        (or + out_y) * OUTPUT_SIZE_X +
-                                        (oc + out_x);
-                out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + out_f]
-                    += biases[bias_index];
+                const uint bias_f = fs * FSV + out_f * SUB_GROUP_SIZE + sglid;
+                if (bias_f < OUTPUT_FEATURE_NUM && or + out_y < OUTPUT_SIZE_Y && oc + out_x < OUTPUT_SIZE_X)
+                {
+                    const uint bias_index = bias_f * OUTPUT_SIZE_X * OUTPUT_SIZE_Y +
+                                            (or + out_y) * OUTPUT_SIZE_X +
+                                            (oc + out_x);
+                    out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + out_f]
+                        += biases[bias_index];
+                }
             }
 #   else
             const uint bias_index = fs * FSV;
-            UNIT_TYPE2 bias_read = UNIT_BLOCK_READ2(biases, bias_index);
+            UNIT_TYPE2 bias_read;
+            if (OUTPUT_FEATURE_NUM % FSV == 0 || bias_index + FSV <= OUTPUT_FEATURE_NUM)
+            {
+                bias_read = UNIT_BLOCK_READ2(biases, bias_index);
+            }
+            else
+            {
+                // The bias buffer holds OUTPUT_FEATURE_NUM values, so the last feature slice is read per lane.
+                unroll_for (uint out_f = 0; out_f < FSV_PER_THREAD; ++out_f)
+                {
+                    const uint bias_f = bias_index + out_f * SUB_GROUP_SIZE + sglid;
+                    bias_read[out_f] = bias_f < OUTPUT_FEATURE_NUM ? biases[bias_f] : UNIT_VAL_ZERO;
+                }
+            }
             out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + 0] += bias_read.s0;
             out[out_y * OUTPUT_BLOCK_WIDTH * FSV_PER_THREAD + out_x * FSV_PER_THREAD + 1] += bias_read.s1;
 #   endif

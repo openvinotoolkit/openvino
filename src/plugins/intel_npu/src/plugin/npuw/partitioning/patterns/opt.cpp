@@ -26,7 +26,48 @@ bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
     return subtract != nullptr && subtract->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
 }
 
+std::shared_ptr<ov::op::v0::Parameter> find_matched_param(const ov::pass::pattern::PatternValueMap& matched,
+                                                          const std::shared_ptr<ov::Node>& pattern) {
+    const auto it = matched.find(pattern);
+    return it == matched.end() ? nullptr
+                               : std::static_pointer_cast<ov::op::v0::Parameter>(it->second.get_node_shared_ptr());
+}
+
+// Group-wise weights are i4 without a zero point, or u2 with a zero point of the same type and the scale
+// shape. The split-by-groups (full) mode has no zero point support.
+bool is_group_quantized_weight(const std::shared_ptr<ov::op::v0::Parameter>& weight,
+                               const std::shared_ptr<ov::op::v0::Parameter>& zerop,
+                               const ov::Shape& coeff_shape,
+                               const bool mm_dq_full) {
+    if (!zerop) {
+        return weight->get_element_type() == ov::element::i4;
+    }
+    return !mm_dq_full && weight->get_element_type() == ov::element::u2 &&
+           zerop->get_element_type() == ov::element::u2 && zerop->get_shape() == coeff_shape;
+}
+
+// Only the split-by-groups (full) mode reshapes the activation and requires rank 3. The permute-only mode
+// does not depend on the activation, so the rank-4 layout of GGUF frontend models is accepted there.
+bool is_supported_act_rank(const ov::Shape& act_shape, const bool mm_dq_full) {
+    return act_shape.size() == 3 || (act_shape.size() == 4 && !mm_dq_full);
+}
+
 }  // namespace
+
+Context::Context(std::shared_ptr<const ov::Model> model, std::size_t param_base_idx)
+    : model(std::move(model)),
+      param_base_idx(param_base_idx) {
+    NPUW_ASSERT(this->model);
+    NPUW_ASSERT(param_base_idx <= this->model->get_parameters().size());
+}
+
+bool Context::is_closure(const PPtr& param) const {
+    if (param_base_idx == 0) {
+        return true;
+    }
+    const auto idx = model->get_parameter_index(param);
+    return idx < 0 || static_cast<std::size_t>(idx) >= param_base_idx;
+}
 
 void Context::permute(const PPtr& orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
@@ -526,9 +567,12 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
 
 DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsubt = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), qcvtz->output(0)});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubt, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
@@ -559,15 +603,20 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
         auto act_shape = matched_out_mmi.get_shape();
         auto out_shape = matched_node_matmul->output(0).get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
-            ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[0] == 1 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] &&
-            qcoeff_shape[2] == 1 && qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
+        if (const auto matched_qzerop = find_matched_param(node_to_output, qzerop);
+            is_group_quantized_weight(matched_qweight, matched_qzerop, qcoeff_shape, ctx.get().mm_dq_full) &&
+            qweight_shape.size() == 3 && ov::element::f16 == matched_qcoeff->get_element_type() &&
+            qcoeff_shape.size() == 3 && is_supported_act_rank(act_shape, ctx.get().mm_dq_full) && act_shape[0] == 1 &&
+            act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[2] == 1 &&
+            qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
             matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
                 ctx.get().permute(matched_qweight, {1, 0, 2});
                 ctx.get().permute(matched_qcoeff, {1, 0, 2});
+                if (matched_qzerop) {
+                    ctx.get().permute(matched_qzerop, {1, 0, 2});
+                }
 
                 // Add Transpose and insert it
                 std::vector<std::size_t> new_transpose_order = {1, 0, 2};
@@ -811,9 +860,12 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
 //     S* : [32,    1,11008]
 DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsubt = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), qcvtz->output(0)});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubt, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
@@ -847,15 +899,20 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             return (a == 1 && b > 1) || (a > 1 && b == 1);
         };
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
-            ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && just_one(act_shape[0], act_shape[1]) &&  // multi-token case
+        if (const auto matched_qzerop = find_matched_param(node_to_output, qzerop);
+            is_group_quantized_weight(matched_qweight, matched_qzerop, qcoeff_shape, ctx.get().mm_dq_full) &&
+            qweight_shape.size() == 3 && ov::element::f16 == matched_qcoeff->get_element_type() &&
+            qcoeff_shape.size() == 3 && act_shape.size() == 3 &&
+            just_one(act_shape[0], act_shape[1]) &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] && qcoeff_shape[2] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
                 ctx.get().permute(matched_qweight, {1, 0, 2});
                 ctx.get().permute(matched_qcoeff, {1, 0, 2});
+                if (matched_qzerop) {
+                    ctx.get().permute(matched_qzerop, {1, 0, 2});
+                }
 
                 // Add Transpose and insert it
                 std::vector<std::size_t> new_transpose_order = {1, 0, 2};
@@ -975,6 +1032,11 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
 
         if (qmmi_shape.size() != 3 || qmmi_shape[0] != 1) {
             // Not handling such cases
+            return false;
+        }
+
+        if (!ctx.get().is_closure(w_param) || !ctx.get().is_closure(s_param)) {
+            // Only closures can be concatenated. Function inputs stay unchanged.
             return false;
         }
 
@@ -1688,6 +1750,8 @@ HostGather::HostGather(Context::Ref ctx) {
         auto out_shape = node_to_output.at(qgthrw).get_shape();
         auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
+        auto matched_qweight =
+            std::static_pointer_cast<ov::op::v0::Parameter>(matched_out_qweight.get_node_shared_ptr());
 
         const auto& matched_out_gather = node_to_output.at(qgthrw);
 
@@ -1701,13 +1765,14 @@ HostGather::HostGather(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
+        // NB: Only a closure can be the vocab. A function input (an output of
+        // another subgraph) is not a weight and stays unchanged.
         if (out_shape.back() >= 2048 && (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
+            ctx.get().is_closure(matched_qweight) &&
             (matched_out_gather.get_target_inputs().size() > 1 ||
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
-            auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             const auto& matched_out_gthr = node_to_output.at(qgthrw);
-            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
             if (qweight_type == ov::element::f32) {
@@ -2039,7 +2104,8 @@ DQUnpackDictMatMulGQi::DQUnpackDictMatMulGQi(Context::Ref ctx) {
 // TO:
 //     Param(W):f16 -------->
 //     ???(Act) -> to(f16) -> MatMul -> to(f32) -> Result
-// NB: This pass only worsens the performance so is disabled
+// NB: Only closure weights are compressed. A Parameter that is a function
+// input (an output of another subgraph) is not a weight and stays unchanged.
 CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
     auto weight = opp::wrap_type<ov::op::v0::Parameter>();
     auto mmi = opp::any_input();
@@ -2059,7 +2125,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
         auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
 
-        if (ov::element::f32 == matched_weight->get_element_type() &&
+        if (ov::element::f32 == matched_weight->get_element_type() && ctx.get().is_closure(matched_weight) &&
             matched_matmul->output(0).get_target_inputs().size() == 1) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
@@ -2468,6 +2534,38 @@ void untangleConst(std::shared_ptr<ov::Model> model) {
                 new_const->set_friendly_name(util::Unique<Untangled_Const>::name());
                 it->replace_source_output(new_const);
             }
+        }
+    }
+}
+
+void untangleWeightConverts(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::v0::Convert>(node) ||
+            !ov::op::util::is_constant(node->input_value(0).get_node_shared_ptr())) {
+            continue;
+        }
+        const auto targets = node->output(0).get_target_inputs();
+        if (targets.size() <= 1) {
+            continue;
+        }
+        std::vector<std::pair<ov::Node*, std::size_t>> readers;
+        for (const auto& target : targets) {
+            readers.emplace_back(target.get_node(), target.get_index());
+        }
+        std::sort(readers.begin(), readers.end(), [](const auto& lhs, const auto& rhs) {
+            return std::make_pair(lhs.first->get_friendly_name(), lhs.second) <
+                   std::make_pair(rhs.first->get_friendly_name(), rhs.second);
+        });
+        // Function creation replaces the Constant input with a closure Parameter.
+        // Keep these mutable Converts private to their readers, not shared across submodels.
+        // Stable names also allow a dumped partitioning plan to be reused.
+        auto reader = readers.begin();
+        while (++reader != readers.end()) {
+            auto copy = node->clone_with_new_inputs(node->input_values());
+            copy->set_friendly_name(node->get_friendly_name() + "_npuw_reader_" + reader->first->get_friendly_name() +
+                                    "_" + std::to_string(reader->second));
+            ov::copy_runtime_info(node, copy);
+            reader->first->input(reader->second).replace_source_output(copy);
         }
     }
 }

@@ -70,34 +70,39 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
             auto weight_zp_shape = m_fc->get_input_partial_shape(4);
             auto weight_scale_shape = m_fc->get_input_partial_shape(3);
             const bool is_zp_scalar = has_static_wzp && ov::shape_size(m_fc->get_input_shape(4)) == 1;
-            const size_t wei_zp_group_size = is_zp_scalar ? innermost_size : innermost_size / weight_zp_shape[k_axis].get_length();
-            const size_t wei_scale_group_size = innermost_size / weight_scale_shape[k_axis].get_length();
+            const size_t zp_k_axis = weight_zp_shape.size() - (m_fc->get_transpose_b_zp() ? 1 : 2);
+            const size_t scale_k_axis = weight_scale_shape.size() - (m_fc->get_transpose_b_scale() ? 1 : 2);
+            const size_t zp_group_count = is_zp_scalar ? 1 : weight_zp_shape[zp_k_axis].get_length();
+            const size_t scale_group_count = weight_scale_shape[scale_k_axis].get_length();
+            const size_t wei_zp_group_size = zp_group_count == 0 ? 0 : innermost_size / zp_group_count;
+            const size_t wei_scale_group_size = scale_group_count == 0 ? 0 : innermost_size / scale_group_count;
             const size_t required_group_size = std::min(wei_zp_group_size, wei_scale_group_size);
             if (adj_group_size > required_group_size) {
-                GPU_DEBUG_LOG << "Dynamic quantization: adjusting group_size " << adj_group_size
-                               << " to wei_zp_group_size " << wei_zp_group_size << " and wei_scale_group_size " << wei_scale_group_size << std::endl;
+                GPU_DEBUG_TAGGED(LOG, "dynquan") << m_fc->get_friendly_name() << " adjusting group_size " << adj_group_size << " to wei_zp_group_size "
+                                                 << wei_zp_group_size << " and wei_scale_group_size " << wei_scale_group_size << std::endl;
                 adj_group_size = required_group_size;
             }
             const bool is_per_token = adj_group_size == innermost_size;
-            if (required_group_size % adj_group_size == 0 && !is_per_token) {
+            if (adj_group_size > 0 && required_group_size % adj_group_size == 0 && !is_per_token) {
                 config.precomputed_reduction_dt = element::i32; // it supports i32 only now
                 config.precomputed_reduction = true;
             } else {
-                GPU_DEBUG_LOG << "Dynamic quantization: precompute is turned off because group_size " << adj_group_size
-                               << " is not aligned with required_group_size " << required_group_size << std::endl;
+                GPU_DEBUG_TAGGED(LOG, "dynquan") << m_fc->get_friendly_name() << " precomputed_reduction is turned off: group_size " << adj_group_size
+                                                 << " is not aligned with required_group_size " << required_group_size << std::endl;
             }
         }
 
         if (adj_group_size != UINT64_MAX &&
             (adj_group_size == 0 || (innermost_size % adj_group_size != 0 && innermost_size > adj_group_size))) {
-            GPU_DEBUG_TRACE << "Dynamic quantization: shape is not aligned with group size " << innermost_size << " / " << adj_group_size << std::endl;
+            GPU_DEBUG_TAGGED(TRACE, "dynquan") << m_fc->get_friendly_name() << " turned off: K " << innermost_size << " is not aligned with group_size "
+                                               << adj_group_size << std::endl;
             return false;
         }
 
         const auto rank = m_fc->get_input_partial_shape(0).size();
         if (adj_group_size < 32) {
-            GPU_DEBUG_LOG << "Dynamic quantization: quantized activation by group size " << adj_group_size
-                            << " is not supported by onednn matmul if it is less than 32" << std::endl;
+            GPU_DEBUG_TAGGED(LOG, "dynquan") << m_fc->get_friendly_name() << " turned off: group_size " << adj_group_size
+                                             << " < 32 is not supported by oneDNN matmul" << std::endl;
             return false;
         }
 
@@ -147,7 +152,14 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                                      optional_a_zp,
                                                                      optional_precomputed_reduction,
                                                                      output_type,
-                                                                     m_fc->get_transpose_b());
+                                                                     m_fc->get_transpose_b(),
+                                                                     m_fc->get_transpose_b_scale(),
+                                                                     m_fc->get_transpose_b_zp());
+
+        GPU_DEBUG_TAGGED(TRACE, "dynquan") << m_fc->get_friendly_name() << " applied: group_size "
+                                           << (adj_group_size == UINT64_MAX ? std::string("per-token") : std::to_string(adj_group_size)) << ", dt "
+                                           << config.quantization_dt << (config.quantization_type == QuantizationType::Asymmetric ? ", asym" : ", sym")
+                                           << (config.precomputed_reduction ? ", precomputed_reduction" : "") << std::endl;
 
         ov::replace_node(m_fc, new_fc);
 

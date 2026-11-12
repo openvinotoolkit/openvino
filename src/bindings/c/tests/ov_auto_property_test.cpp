@@ -46,6 +46,9 @@ const std::vector<test_params> test_property_config = {
     test_params{"AUTO", ov_property_key_intel_auto_enable_runtime_fallback, "YES", false},
     test_params{"AUTO", ov_property_key_intel_auto_enable_runtime_fallback, "NO", false},
     test_params{"AUTO", ov_property_key_intel_auto_enable_runtime_fallback, "TEST", true},
+    test_params{"AUTO", ov_property_key_intel_auto_compile_for_all, "YES", false},
+    test_params{"AUTO", ov_property_key_intel_auto_compile_for_all, "NO", false},
+    test_params{"AUTO", ov_property_key_intel_auto_compile_for_all, "TEST", true},
 };
 
 INSTANTIATE_TEST_SUITE_P(ov_auto_plugin_test_properties,

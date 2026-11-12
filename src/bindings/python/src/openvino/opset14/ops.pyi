@@ -1,6 +1,5 @@
 # type: ignore
 from __future__ import annotations
-from builtins import list as TensorShape
 from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import Type
@@ -10,6 +9,7 @@ from openvino.utils.types import as_node
 from openvino.utils.types import as_nodes
 import functools
 import openvino._pyopenvino
+import types
 import typing
 """
 Factory functions for ops added to openvino opset14.
@@ -88,4 +88,5 @@ def max_pool(*args, **kwargs) -> openvino._pyopenvino.Node:
         
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
+TensorShape: types.GenericAlias  # value = list[int]
 _get_node_factory_opset14: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset14')

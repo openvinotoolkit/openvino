@@ -10,6 +10,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -67,10 +68,6 @@ OutputVector translate_interpolate_op(const NodeContext& node) {
         interpolate_attrs.coordinate_transformation_mode = v11::Interpolate::CoordinateTransformMode::ASYMMETRIC;
     }
 
-    // since Interpolate is layout agnostic
-    // we can avoid Transpose operation by specifying axes = {1, 2} for original NHWC layout
-    auto axes = make_shared<v0::Constant>(element::i32, Shape{2}, std::vector<int>({1, 2}));
-
     // according to the specification of ResizeBilinear,
     // it always returns FP32 output type so we immediately align input type for it
     if (op_type == "ResizeBilinear" || op_type == "RESIZE_BILINEAR") {
@@ -81,7 +78,23 @@ OutputVector translate_interpolate_op(const NodeContext& node) {
         images = make_shared<v0::Convert>(images, element::i32);
     }
 
+    // Interpolate is layout agnostic, so we normally avoid a Transpose by specifying
+    // axes = {1, 2} for the original NHWC layout. The LINEAR_ONNX kernel (used above for
+    // 4D ResizeBilinear) only supports axes being either all axes or the trailing rank-2
+    // ones, so for that one case we transpose to NCHW, use axes = {2, 3}, and transpose back.
+    bool needs_nchw_layout = interpolate_attrs.mode == v11::Interpolate::InterpolateMode::LINEAR_ONNX;
+    std::vector<int> axes_values{1, 2};
+    if (needs_nchw_layout) {
+        axes_values = {2, 3};
+        convert_nhwc_to_nchw(true, images, Rank(4));
+    }
+    auto axes = make_shared<v0::Constant>(element::i32, Shape{2}, axes_values);
+
     Output<Node> interpolate = make_shared<v11::Interpolate>(images, size, axes, interpolate_attrs);
+
+    if (needs_nchw_layout) {
+        convert_nchw_to_nhwc(true, interpolate, Rank(4));
+    }
 
     // it needs to return original i16 and u16 input_type due to temporal adjustment before
     // this is not required for ResizeBilinear case since it always returns f32 by specification

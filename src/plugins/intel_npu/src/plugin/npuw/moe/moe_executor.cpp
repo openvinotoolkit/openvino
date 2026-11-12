@@ -742,9 +742,7 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
 
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
 
-        // Check if this weight needs slicing (has num_experts in first dimension)
-        auto closure_shape = closure.get_shape();
-        bool needs_slicing = !closure_shape.empty() && closure_shape[0] == num_experts;
+        const bool needs_slicing = ov::npuw::moe::requires_expert_slice(closure, iport.get_shape(), num_experts);
 
         if (needs_slicing) {
             // Slice expert weight using view (no copy) - returns ov::Tensor object
@@ -830,26 +828,21 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
         const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
 
         auto& batched_closure = desc_closure[closure_idx];
-        const auto& closure_shape = batched_closure.get_shape();
 
         // Check if this parameter has unrolled variants (is in param_mapping)
         auto mapping_it = param_mapping.find(original_param_idx);
-        if (mapping_it == param_mapping.end()) {
-            // If the closure is batched [num_experts,...] but has no param_mapping entry, the
-            // expert-dimension unrolling (UnrollMoEMatMul) failed to fire for this weight.
-            // This is a transformation bug — assert to surface it early.
-            const bool is_batched_nounroll = !closure_shape.empty() && closure_shape[0] == num_experts;
-            NPUW_ASSERT(!is_batched_nounroll &&
-                        "Batched closure has no param_mapping entry — UnrollMoEMatMul did not fire");
-            continue;  // Non-batched shared param not in mapping — skip silently
-        }
+        OPENVINO_ASSERT(mapping_it != param_mapping.end(),
+                        "MoE: closure parameter is missing from the transformed input mapping: ",
+                        original_param_idx);
 
         const auto& unrolled_indices = mapping_it->second;
         NPUW_ASSERT(unrolled_indices.size() == K);
 
-        // Verify this is a batched parameter [num_experts, ...]
-        const bool is_batched = !closure_shape.empty() && closure_shape[0] == num_experts;
-        if (!is_batched) {
+        const bool needs_slicing =
+            ov::npuw::moe::requires_expert_slice(batched_closure,
+                                                 compiled_inputs.at(unrolled_indices.front()).get_shape(),
+                                                 num_experts);
+        if (!needs_slicing) {
             // Shared parameter path - all K unrolled parameters share same weight
             const bool do_copy = m_accessor.needs_copy_closure(idx, closure_idx);
             auto batched_impl = ov::get_tensor_impl(batched_closure);

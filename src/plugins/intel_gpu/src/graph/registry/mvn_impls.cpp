@@ -39,8 +39,11 @@ struct MvnImplementationManager : public ImplementationManagerLegacy<mvn> {
             return false;
 
         const auto& input_pshape = input_layout.get_partial_shape();
-        if (input_pshape.is_dynamic())
-            return true;
+        // reorder_inputs always reorders an aligned dynamic MVN to planar, so offering a blocked layout
+        // here only makes format propagation surround it with a reorder pair.
+        if (input_pshape.is_dynamic()) {
+            return input_pshape.rank().is_dynamic() || !prim->requires_alignment(input_pshape);
+        }
 
         if (!prim->requires_alignment(input_pshape))
             return true;

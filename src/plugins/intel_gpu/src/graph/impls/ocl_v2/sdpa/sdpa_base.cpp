@@ -87,34 +87,49 @@ bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
     return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
-// Returns {k_head_size, v_head_size} as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
-// and PagedAttentionOpt share this via SDPABase). For PagedAttention these are simply the descriptor
-// fields; for SDPA they are derived from the K/V input layouts (honoring transpose orders), with the
-// int4 KV-cache override (physical K/V layouts are packed to half size; use the logical, un-halved
+// Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+// and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
+// field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
+// int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved
 // head size taken from the query layout instead).
-std::pair<int64_t, int64_t> SDPABase::get_effective_head_sizes(const kernel_impl_params& params) {
+int64_t SDPABase::get_effective_k_head_size(const kernel_impl_params& params) {
     if (params.is_type<paged_attention>()) {
         const auto desc = params.typed_desc<paged_attention>();
-        return {static_cast<int64_t>(desc->k_head_size), static_cast<int64_t>(desc->v_head_size)};
+        return static_cast<int64_t>(desc->k_head_size);
     }
 
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
-    auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-    auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
 
-    int64_t k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
-    int64_t v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
-
-    // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
-    // Override with logical head size from query (which is not packed).
+    // 4-bit KV-cache: K layout has head_size/2 due to u4→i8 packing.
+    // Use logical head size from query (which is not packed) instead.
     if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
         auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-        const int64_t q_head_size = get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
-        k_head_size = q_head_size;
-        v_head_size = q_head_size;
+        return get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
     }
 
-    return {k_head_size, v_head_size};
+    auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+    return get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+}
+
+// Returns the effective V head size. See get_effective_k_head_size() for details; the only
+// difference is that this is derived from the V input layout / v_head_size descriptor field.
+int64_t SDPABase::get_effective_v_head_size(const kernel_impl_params& params) {
+    if (params.is_type<paged_attention>()) {
+        const auto desc = params.typed_desc<paged_attention>();
+        return static_cast<int64_t>(desc->v_head_size);
+    }
+
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+
+    // 4-bit KV-cache: V layout has head_size/2 due to u4→i8 packing.
+    // Use logical head size from query (which is not packed) instead.
+    if (desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params)) {
+        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+        return get_head_size(params.get_input_layout(0), extended_input_q_transpose_order);
+    }
+
+    auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+    return get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
 }
 
 std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
@@ -242,6 +257,8 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     // figure out sdpa input number: QKV + attention_mask + scale, exclude: beam table, key compression scale/zp, value compression scale/zp
     config.input_num = get_data_inputs_num(*desc);
 
+    config.sliding_window = desc->sliding_window;
+
     return config;
 }
 
@@ -264,6 +281,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
 
         jit.make("IS_CAUSAL", desc->is_causal);
         jit.make("CAUSAL_MASK_LOWER_RIGHT", desc->causal_lower_right);
+        jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
         if (desc->has_sink_input) {
             jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
             jit.make("HAS_SINK_INPUT", 1);

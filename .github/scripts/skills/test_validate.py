@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
-import subprocess
+import subprocess  # nosec B404
 import sys
 import tempfile
 import unittest
