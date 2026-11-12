@@ -40,6 +40,7 @@ void check_ze_call(ze_result_t result, std::string_view fn_call) {
     }
 }
 
+// Only the OpenVINO Level Zero backend initializes the driver itself; this sample also uses Level Zero directly.
 void initialize_level_zero() {
     ze_init_driver_type_desc_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
