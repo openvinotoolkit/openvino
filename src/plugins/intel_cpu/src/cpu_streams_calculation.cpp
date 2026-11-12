@@ -249,8 +249,7 @@ bool is_static_partitioner_light_gemm_dominant_profile(const ov::MemBandwidthPre
            tolerance.ratio_mem_limited_convs == 0.0F && tolerance.ratio_mem_limited_gemms == 0.0F &&
            tolerance.ratio_mem_limited_adds < ADD_RATIO_STATIC_LOW_PRESSURE &&
            tolerance.max_mem_tolerance >= MEM_TOLERANCE_HIGH && tolerance.total_heavy_convs == 0 &&
-           tolerance.total_light_gemms == tolerance.total_gemms &&
-           tolerance.total_light_gemms >= tolerance.total_convs;
+           tolerance.total_light_gemms == tolerance.total_gemms && tolerance.total_light_gemms >= tolerance.total_convs;
 }
 
 bool is_all_core_auto_case(const ov::MemBandwidthPressure& tolerance) {
