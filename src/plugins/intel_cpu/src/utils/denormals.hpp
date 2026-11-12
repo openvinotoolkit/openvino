@@ -14,12 +14,12 @@ namespace ov::intel_cpu {
 static constexpr unsigned int FTZ_FLAG = 0x8000;
 static constexpr unsigned int DAZ_FLAG = 0x0040;
 
-bool flush_to_zero(bool on);
-bool denormals_as_zero(bool on);
+inline bool flush_to_zero(bool on);
+inline bool denormals_as_zero(bool on);
 
 #ifdef OPENVINO_ARCH_X86_64
 
-bool flush_to_zero(bool on) {
+inline bool flush_to_zero(bool on) {
     unsigned int mxcsr = _mm_getcsr();
     if (on) {
         mxcsr |= FTZ_FLAG;
@@ -30,7 +30,7 @@ bool flush_to_zero(bool on) {
     return true;
 }
 
-bool denormals_as_zero(bool on) {
+inline bool denormals_as_zero(bool on) {
     unsigned int mxcsr = _mm_getcsr();
     if (on) {
         mxcsr |= DAZ_FLAG;
@@ -42,7 +42,7 @@ bool denormals_as_zero(bool on) {
 }
 #else  // OPENVINO_ARCH_X86_64
 #    if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
-bool flush_to_zero(bool on) {
+inline bool flush_to_zero(bool on) {
     unsigned int mxcsr = _mm_getcsr();
     if (on) {
         mxcsr |= FTZ_FLAG;
@@ -53,7 +53,7 @@ bool flush_to_zero(bool on) {
     return true;
 }
 
-bool denormals_as_zero(bool on) {
+inline bool denormals_as_zero(bool on) {
     // for some processor, DAZ flag is a reserved bit even SSE is available. Set 1 to this flag will generate #GP
     // exception.
     struct {
@@ -112,10 +112,10 @@ bool denormals_as_zero(bool on) {
     }
 }
 #    else
-bool flush_to_zero(bool on) {
+inline bool flush_to_zero(bool on) {
     return false;
 }
-bool denormals_as_zero(bool on) {
+inline bool denormals_as_zero(bool on) {
     return false;
 }
 #    endif

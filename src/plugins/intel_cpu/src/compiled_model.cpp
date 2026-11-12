@@ -292,7 +292,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
                                             get_task_executor(),
                                             get_callback_executor(),
                                             m_optimized_single_stream,
-                                            m_run_sync_in_caller_thread);
+                                            m_run_sync_in_caller_thread,
+                                            m_cfg.denormalsOptMode);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());

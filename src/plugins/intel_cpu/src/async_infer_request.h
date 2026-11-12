@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "config.h"
 #include "infer_request.h"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
@@ -20,7 +21,8 @@ public:
                       const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
                       bool is_optimized_single_stream = false,
-                      bool run_sync_in_caller_thread = false);
+                      bool run_sync_in_caller_thread = false,
+                      Config::DenormalsOptMode denormals_opt_mode = Config::DenormalsOptMode::DO_Keep);
     ~AsyncInferRequest() override;
 
     void setSubInferRequest(const std::vector<std::shared_ptr<IAsyncInferRequest>>& requests);
