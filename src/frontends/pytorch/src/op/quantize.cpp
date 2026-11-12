@@ -38,14 +38,7 @@ OutputVector translate_quantize_per_tensor_fx(const NodeContext& context) {
     auto low = context.const_input<int64_t>(3);
     auto high = context.const_input<int64_t>(4);
     const auto dtype = convert_dtype(context.const_input<int64_t>(5));
-    return {quantize_fx(context,
-                        input,
-                        scale,
-                        zero_point,
-                        low,
-                        high,
-                        dtype,
-                        QuantizedPtNodeType::QUANTIZE_PER_TENSOR)};
+    return {quantize_fx(context, input, scale, zero_point, low, high, dtype, QuantizedPtNodeType::QUANTIZE_PER_TENSOR)};
 }
 
 OutputVector translate_quantize_per_channel_fx(const NodeContext& context) {
