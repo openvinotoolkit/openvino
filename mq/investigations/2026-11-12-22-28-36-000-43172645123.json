@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-22-28-36-000-43172645123",
+  "timestamp": "2026-11-12T22:28:36Z",
+  "run_id": "43172645123",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43172645123",
+  "workflow_name": "C++ unit tests",
+  "pr_number": "39441",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39441",
+  "author": "cwzrad",
+  "category": "Code Issue",
+  "title": "GGUFOps.GetRowsMoeWeights crashes Windows C++ unit tests with no further gtest output",
+  "signature": "test gguf ops get rows moe weights crashes with no gtest output process exit code 1 windows cpu unit tests|Code Issue",
+  "signature_hash": "563208c7fd43433e",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "Windows GGUF frontend tests step aborts mid-run with no gtest teardown output right after GGUFOps.GetRowsMoeWeights starts"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Downstream aggregate status check fails because the C++ unit tests job failed"
+    }
+  ],
+  "key_errors": [
+    "2026-11-12T08:02:20.5780723Z [ RUN      ] GGUFOps.GetRowsMoeWeights\n2026-11-12T08:02:20.8376135Z ##[error]Process completed with exit code 1.",
+    "No [OK]/[FAILED]/[  SKIPPED  ] line is ever printed for GetRowsMoeWeights; the test binary terminates abruptly right after [ RUN ], consistent with an unhandled exception/crash rather than a normal assertion failure."
+  ],
+  "root_cause": "GGUFOps.GetRowsMoeWeights (added together with the rest of src/frontends/gguf/tests/test_ops.cpp in commit 23469445/#39569) exercises translate_get_rows's default (non-op_case) path for a 4D GET_ROWS with data [1,n_tok,n_expert,1] and per-token indices [1,1,n_tok,n_used]. That path squeezes the indices to [n_tok,n_used], squeezes data to [n_tok,n_expert,1] and calls Gather(data, indices, axis=1, batch_dims=1). The test binary aborts with no gtest teardown output immediately after entering this test on the Windows runner, which is the classic signature of an unhandled C++ exception / access violation rather than a value-mismatch assertion (those always print [FAILED] before the process continues). The PR under investigation (#39441) only touches NPU/NPUW broadcast_u2_zero_point sources and is unrelated to the GGUF frontend; the crash most likely stems from the recently-merged GGUF op test suite itself (commit 23469445) hitting a real bug in the Gather(batch_dims=1) code path of translate_get_rows (src/frontends/gguf/src/op/get_rows.cpp) under this specific shape/platform combination, which happened to surface while #39441 was sitting in the merge queue.",
+  "reproduction_steps": "Build the CPU plugin + GGUF frontend tests target in Release (Windows, matching CI) and run: ov_gguf_tests --gtest_filter=GGUFOps.GetRowsMoeWeights (or run the whole GGUFOps suite, since it crashes the process rather than failing a single case). Compare with running on Linux to confirm the crash is Windows-specific.",
+  "recommended_actions": [
+    "Reproduce GGUFOps.GetRowsMoeWeights locally on Windows under a debugger to capture the actual exception/access-violation (src/frontends/gguf/src/op/get_rows.cpp, default branch using ov::op::v8::Gather with axis=1, batch_dims=1).",
+    "Check whether ov::op::v8::Gather with batch_dims=1 on a squeezed [n_tok, n_expert, 1] / [n_tok, n_used] input pair is actually supported by the CPU plugin on Windows, or whether the test's shape assumptions (data rank 4 with dim[1]==n_tok rather than 1) are not handled by the 'Work-around for a bug in ov cpu plugin for test-backend-ops' branch above it.",
+    "If a genuine translation bug is confirmed, fix translate_get_rows's default 4D branch (or add the missing op_case dispatch) and re-add the test; otherwise, if GGUFOps.GetRowsMoeWeights itself has an out-of-bounds/shape bug, correct the test.",
+    "Re-run the C++ unit tests job (Windows) after the fix to confirm the whole GGUFOps suite completes without aborting."
+  ],
+  "prevention_strategies": "Run the full GGUF op-test suite (not just newly-added cases) on both Linux and Windows CI before merging large new test files like test_ops.cpp (commit 23469445 added it wholesale with 4351 lines). Add CI coverage that fails fast and reports the specific crashing test name (e.g., via --gtest_catch_exceptions=1 or a crash handler) so a hard process crash does not silently abort the whole job without attributing it to a test.",
+  "historical_context": "A different GGUF frontend build failure (test_parser.cpp char8_t/std::string C++20 mismatch, pattern 60c87e1ef4d6a044, 4 occurrences) was seen repeatedly between 2026-11-05 and 2026-11-10, but that was a compile-time error, unrelated to this runtime crash in GetRowsMoeWeights. No prior investigation records reference GetRowsMoeWeights or this crash signature; this is the first occurrence."
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "test gguf ops get rows moe weights crashes with no gtest output process exit code 1 windows cpu unit tests|Code Issue",
+  "signature_hash": "563208c7fd43433e",
+  "title": "GGUFOps.GetRowsMoeWeights crashes Windows C++ unit tests with no further gtest output",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-11-12T22:28:36Z",
+  "last_seen": "2026-11-12T22:28:36Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43172645123"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39441"
+  ],
+  "recent_timestamps": [
+    "2026-11-12T22:28:36Z"
+  ],
+  "rerun_search_string": null
+}
