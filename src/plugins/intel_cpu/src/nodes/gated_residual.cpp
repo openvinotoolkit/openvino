@@ -15,6 +15,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
+#include "cpu_memory.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"

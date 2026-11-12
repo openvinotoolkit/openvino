@@ -7,14 +7,14 @@
 #if defined(OPENVINO_ARCH_X86_64)
 
 #    include <algorithm>
-#    include <common/primitive_hashing.hpp>
+#    include <common/utils.hpp>
 #    include <cstddef>
 #    include <cstdint>
 #    include <cstring>
 #    include <functional>
 #    include <memory>
-#    include <oneapi/dnnl/dnnl.hpp>
 #    include <oneapi/dnnl/dnnl_common.hpp>
+#    include <utility>
 #    include <vector>
 
 #    include "cpu/x64/cpu_isa_traits.hpp"
@@ -102,7 +102,6 @@ struct WriteKernelKey {
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
-        using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = 0;
         seed = hash_combine(seed, precision.hash());
@@ -124,7 +123,6 @@ struct MixKernelKey {
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
-        using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = 0;
         seed = hash_combine(seed, precision.hash());
@@ -150,7 +148,6 @@ struct RmsKernelKey {
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
-        using namespace dnnl::impl::primitive_hashing;
 
         size_t seed = 0;
         seed = hash_combine(seed, precision.hash());
@@ -181,16 +178,13 @@ bool GatedResidualDnnlExecutor::supports(const GatedResidualConfig& config) {
     using dnnl::impl::cpu::x64::cpu_isa_t;
     using dnnl::impl::cpu::x64::mayiuse;
     // Every mode runs JIT kernels (RMSNorm / mix / write) that are instantiated for avx512_core and avx2 only.
-    if (!mayiuse(cpu_isa_t::avx2)) {
-        return false;
-    }
-    return true;
+    return mayiuse(cpu_isa_t::avx2);
 }
 
 GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& attrs,
                                                      const MemoryArgs& memory,
-                                                     const ExecutorContext::CPtr& context)
-    : m_context(context),
+                                                     ExecutorContext::CPtr context)
+    : m_context(std::move(context)),
       m_mode(attrs.mode),
       m_hc_count(attrs.hc_count),
       m_hidden_size(attrs.hidden_size),

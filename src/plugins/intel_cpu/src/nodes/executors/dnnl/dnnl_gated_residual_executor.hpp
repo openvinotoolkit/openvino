@@ -33,9 +33,7 @@ class GatedResidualDnnlExecutor : public Executor {
 public:
     static bool supports(const GatedResidualConfig& config);
 
-    GatedResidualDnnlExecutor(const GatedResidualAttrs& attrs,
-                              const MemoryArgs& memory,
-                              const ExecutorContext::CPtr& context);
+    GatedResidualDnnlExecutor(const GatedResidualAttrs& attrs, const MemoryArgs& memory, ExecutorContext::CPtr context);
 
     bool update(const MemoryArgs& memory) override;
     void execute(const MemoryArgs& memory) override;
