@@ -151,6 +151,8 @@ static constexpr Property<bool, PropertyMutability::RW> offline_compile{"GPU_OFF
 static constexpr Property<std::string, PropertyMutability::RW> offline_compile_device{"GPU_OFFLINE_COMPILE_DEVICE"};
 // Fails loudly on any runtime kernel compilation, e.g. when importing a HW-free blob.
 static constexpr Property<bool, PropertyMutability::RW> disallow_runtime_compilation{"GPU_DISALLOW_RUNTIME_COMPILATION"};
+// Fails loudly if a primitive would run on a CPU implementation, e.g. when importing a HW-free blob.
+static constexpr Property<bool, PropertyMutability::RW> disallow_cpu_impl{"GPU_DISALLOW_CPU_IMPL"};
 // Enumeration-phase export of the device metadata an offline (HW-free) compile needs.
 static constexpr Property<std::string, PropertyMutability::RO> device_descriptor{"GPU_DEVICE_DESCRIPTOR"};
 static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};

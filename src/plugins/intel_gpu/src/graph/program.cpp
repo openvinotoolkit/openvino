@@ -123,6 +123,14 @@
 using namespace cldnn;
 using namespace ov::intel_gpu;
 
+// input_layout and data only wait for events on the host; they compute nothing.
+static void assert_no_cpu_impl(const program_node& node) {
+    const auto* impl = node.get_selected_impl();
+    OPENVINO_ASSERT(!impl || !impl->is_cpu() || node.is_type<input_layout>() || node.is_type<data>(),
+                    "[GPU] CPU implementation is disallowed: ", node.id(), " (", node.get_primitive()->type_string(), " ",
+                    impl->get_kernel_name(), ")");
+}
+
 static ov::threading::IStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags, int num_streams = 0) {
     int streams = (num_streams > 0) ? num_streams : config.get_compilation_num_threads();
     auto priority = config.get_host_task_priority();
@@ -519,6 +527,10 @@ void program::build_program(bool is_internal) {
 #endif
         prepare_memory_dependencies();
         apply_opt_pass<build_implementations>();
+        if (_config.get_disallow_cpu_impl()) {
+            for (const auto& node : processing_order)
+                assert_no_cpu_impl(*node);
+        }
     }
 
     if (!is_internal) {
@@ -2244,6 +2256,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             ib >> p_node.selected_impl;
 
             p_node.selected_impl->m_manager = impl_manager.get();
+            if (_config.get_disallow_cpu_impl())
+                assert_no_cpu_impl(p_node);
 
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
