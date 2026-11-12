@@ -17,7 +17,7 @@ using CompilerType = ov::intel_npu::CompilerType;
 std::shared_ptr<const ::intel_npu::CompilerAdapterFactory> factoryWithoutVclProvider(
     const ov::SoPtr<::intel_npu::IEngineBackend>& backend = ov::SoPtr<::intel_npu::IEngineBackend>{nullptr}) {
     return std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
-                                                                      ::intel_npu::VCLFunctionTableProvider{});
+                                                                       ::intel_npu::VCLFunctionTableProvider{});
 }
 
 // Minimal IEngineBackend double: exercises the real CompilerAdapterFactory::getCompiler() logic

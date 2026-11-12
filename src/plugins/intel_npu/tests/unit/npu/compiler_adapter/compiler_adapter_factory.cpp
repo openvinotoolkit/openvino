@@ -73,7 +73,8 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeDoesNotCreateCompiler) {
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeExplicitCompilerTypeDoesNotInvokeProvider) {
     const CompilerAdapterFactory factory(
-        {}, vcl_provider::forbidden("An explicit compiler type must not be resolved through the provider"));
+        {},
+        vcl_provider::forbidden("An explicit compiler type must not be resolved through the provider"));
     for (const auto explicitType : {CompilerType::DRIVER, CompilerType::PLUGIN}) {
         auto type = explicitType;
         factory.decideCompilerType(type, nullptr, kPluginPlatform);

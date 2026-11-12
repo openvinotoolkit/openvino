@@ -67,8 +67,9 @@ TEST_F(ParserFactoryFunctionalTests, GetParserProfilingEnabledWithAvailableProvi
 }
 
 TEST_F(ParserFactoryFunctionalTests, GetParserWithoutInitStructsThrowsBeforeInvokingProvider) {
-    EXPECT_THROW(factory.getParser(nullptr, vcl_provider::forbidden("The Level Zero structures are validated first"), true),
-                 ov::Exception);
+    EXPECT_THROW(
+        factory.getParser(nullptr, vcl_provider::forbidden("The Level Zero structures are validated first"), true),
+        ov::Exception);
 }
 
 }  // namespace

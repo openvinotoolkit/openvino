@@ -19,26 +19,10 @@
 #include "vcl_profiling_decoder.hpp"
 
 namespace intel_npu {
-namespace {
-
-std::shared_ptr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<const VCLFunctionTable>& functions,
-                                                 const std::shared_ptr<IDevice>& device,
-                                                 std::string_view platform,
-                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    const bool onlineCompilation = device && (platform.empty() || device->getName() == platform);
-    return std::make_shared<VCLCompilerImpl>(
-        functions,
-        onlineCompilation ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
-        ScopedOptionSupportCache{optionSupportCache,
-                                 static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
-}
-
-}  // namespace
-
 CompilerAdapterFactory::CompilerAdapterFactory(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                                                                             const VCLFunctionTableProvider& vclFunctionsProvider)
-        : _engineBackend(engineBackend),
-            _vclFunctionsProvider(vclFunctionsProvider) {}
+                                               const VCLFunctionTableProvider& vclFunctionsProvider)
+    : _engineBackend(engineBackend),
+      _vclFunctionsProvider(vclFunctionsProvider) {}
 
 std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     ov::intel_npu::CompilerType& compilerType,
@@ -57,7 +41,14 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
             OPENVINO_ASSERT(_vclFunctionsProvider != nullptr,
                             "CompilerAdapterFactory requires a way to obtain the VCL entry points");
             functions = _vclFunctionsProvider();
-            compiler = makePluginCompiler(functions, device, platform, optionSupportCache);
+            const bool onlineCompilation = device && (platform.empty() || device->getName() == platform);
+            compiler = std::make_shared<VCLCompilerImpl>(
+                functions,
+                onlineCompilation ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()}
+                                  : std::nullopt,
+                ScopedOptionSupportCache{
+                    optionSupportCache,
+                    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
         } catch (const std::exception& vclException) {
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
         }
