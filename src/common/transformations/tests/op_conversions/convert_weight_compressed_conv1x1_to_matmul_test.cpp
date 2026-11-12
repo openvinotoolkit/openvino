@@ -18,6 +18,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
@@ -411,6 +412,51 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv1x1_non_constant_
                                                           ov::op::PadType::EXPLICIT);
     auto output = std::make_shared<ov::opset1::Transpose>(conv, to_nhwc);
     model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input, scale});
+}
+
+// Scale and zero point may be a non-zero output of a constant subgraph. The matched output must be folded, not output 0
+// of its producer: every half of the split constants holds different values.
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv1x1_scale_and_zp_from_split_output_1) {
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    const auto halves = [](ov::element::Type type, float first, float second) {
+        std::vector<float> values(30, first);
+        std::fill(values.begin() + 15, values.end(), second);
+        auto constant = ov::opset1::Constant::create(type, ov::Shape{30, 1, 1, 1}, values);
+        auto axis = ov::opset1::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        return std::make_shared<ov::op::v1::Split>(constant, axis, 2);
+    };
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, 10});
+        auto to_nchw = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+        auto to_nhwc = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{15, 10, 1, 1}, {3});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zp_convert =
+            std::make_shared<ov::op::v0::Convert>(halves(ov::element::u8, 0, 1)->output(1), ov::element::f16);
+        auto subtract = std::make_shared<ov::opset1::Subtract>(weights_convert, zp_convert);
+        auto mul = std::make_shared<ov::opset1::Multiply>(subtract, halves(ov::element::f16, 1, 2)->output(1));
+        auto conv = std::make_shared<ov::opset1::Convolution>(std::make_shared<ov::opset1::Transpose>(input, to_nchw),
+                                                              mul,
+                                                              ov::Strides{1, 1},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::CoordinateDiff{0, 0},
+                                                              ov::Strides{1, 1},
+                                                              ov::op::PadType::EXPLICIT);
+        auto output = std::make_shared<ov::opset1::Transpose>(conv, to_nhwc);
+        model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, 10});
+        auto weights = ov::opset1::Constant::create(ov::element::u8, ov::Shape{15, 10}, {3});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zp = ov::opset1::Constant::create(ov::element::u8, ov::Shape{15, 1}, {1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16);
+        auto subtract = std::make_shared<ov::opset1::Subtract>(weights_convert, zp_convert);
+        auto scale = ov::opset1::Constant::create(ov::element::f16, ov::Shape{15, 1}, {2});
+        auto mul = std::make_shared<ov::opset1::Multiply>(subtract, scale);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, mul, false, true);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+    }
 }
 
 // Regression test for the NCHW/NHWC layout mismatch when the Convolution output is consumed by a
