@@ -42,9 +42,7 @@ inline ulong FUNC(raise_key)(uint2 key_lr) {
     return FUNC_CALL(unite_high_low)(key_lr[1], key_lr[0]);
 }
 
-inline uint4 FUNC(run_philox)(ulong n) {
-    ulong key = GLOBAL_SEED;
-    ulong counter = OP_SEED;
+inline uint4 FUNC(run_philox)(ulong key, ulong counter, ulong n) {
     ulong2 counter_n = {counter, n};
     for (size_t i = 0; i < N_ROUNDS; i++) {
         counter_n = FUNC_CALL(calculate_round)(key, counter_n);
@@ -151,9 +149,14 @@ inline void FUNC(fill_bf16)(const uint4 res,
 
 KERNEL(random_uniform_ref)(OPTIONAL_SHAPE_INFO_ARG
                             const __global INPUT0_TYPE* shape, const __global INPUT1_TYPE *min_val,
-                            const __global INPUT2_TYPE* max_val, __global OUTPUT_TYPE *output) {
+                            const __global INPUT2_TYPE* max_val, __global OUTPUT_TYPE *output,
+                            const ulong global_seed, const ulong n_state, const ulong counter_state) {
     const uint plain_index = get_global_id(0);
-    uint4 result = FUNC_CALL(run_philox)(plain_index);
+    // Philox state is passed at runtime and advanced by the host after every execution,
+    // so that each inference produces a new sequence (same scheme as the CPU plugin).
+    const ulong n = n_state + plain_index;
+    const ulong counter = counter_state + (n < n_state ? 1 : 0);
+    uint4 result = FUNC_CALL(run_philox)(global_seed, counter, n);
     FILL_FUNC(FUNC_NAME(OUTPUT_TYPE_NAME), result, DECODE_INPUT1_COMPUTE_TYPE(*min_val), DECODE_INPUT2_COMPUTE_TYPE(*max_val), output, plain_index * OUTPUT_STEP, OUTPUT_LENGTH);
 }
 
