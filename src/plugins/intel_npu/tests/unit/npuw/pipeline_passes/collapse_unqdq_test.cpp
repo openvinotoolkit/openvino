@@ -315,6 +315,7 @@ struct MlpOptions {
     float down_range = kOverflowRange;
     bool decomposed_l2 = false;
     bool residual_add = false;
+    bool reshape_before_norm = false;
     bool swapped_multiply = false;
     ov::element::Type type = ov::element::f32;
     // Reference graph state
@@ -346,6 +347,11 @@ std::shared_ptr<ov::Model> build_overflow_mlp_model(const MlpOptions& o) {
         auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
         params.push_back(residual);
         x = std::make_shared<ov::op::v1::Add>(x, residual);
+    }
+    if (o.reshape_before_norm) {
+        x = std::make_shared<ov::op::v1::Reshape>(x,
+                                                  ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 4}),
+                                                  false);
     }
     return std::make_shared<ov::Model>(
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(add_l2_normalize(x, o.decomposed_l2, o.k))},
@@ -426,6 +432,24 @@ TEST_F(RescaleFP16OverflowQDQTest, KeepsRegionWithResidualAdd) {
     model = build_mlp([](MlpOptions& o) {
         o.residual_add = true;
     });
+    manager.register_pass<ov::npuw::RescaleFP16OverflowQDQ>();
+}
+
+TEST_F(RescaleFP16OverflowQDQTest, KeepsRegionWithReshapeBeforeNorm) {
+    model = build_mlp([](MlpOptions& o) {
+        o.reshape_before_norm = true;
+    });
+    manager.register_pass<ov::npuw::RescaleFP16OverflowQDQ>();
+}
+
+TEST_F(RescaleFP16OverflowQDQTest, KeepsRegionWithoutMatMul) {
+    auto up = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto gate = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    auto mul = std::make_shared<ov::op::v1::Multiply>(up, gate);
+    auto norm = add_l2_normalize(add_unqdq(mul, kOverflowRange), false, 0);
+    model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(norm)},
+                                        ov::ParameterVector{up, gate},
+                                        "no_matmul_model");
     manager.register_pass<ov::npuw::RescaleFP16OverflowQDQ>();
 }
 

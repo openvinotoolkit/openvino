@@ -7,10 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <optional>
 #include <string>
-#include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "../logging.hpp"
@@ -28,14 +25,11 @@
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace opp = ov::pass::pattern;
@@ -70,9 +64,9 @@ struct UNQDQPattern {
     std::shared_ptr<ov::Node> multiply;
 };
 
-UNQDQPattern make_unqdq_pattern() {
+UNQDQPattern make_unqdq_pattern(const std::shared_ptr<ov::Node>& input = opp::any_input()) {
     UNQDQPattern p;
-    p.input = opp::any_input();
+    p.input = input;
     p.fake_q = opp::wrap_type<ov::op::v0::FakeQuantize>(
         {p.input, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
     auto cvt_q = opp::wrap_type<ov::op::v0::Convert>({p.fake_q});
@@ -131,122 +125,63 @@ float fq_range(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq) {
     return range;
 }
 
-// Matches Divide(x, Sqrt(Add|Maximum(ReduceSum(Power(x, 2)), eps))), the ONNX LpNormalization
-// (p = 2) decomposition. Like NormalizeL2, it is invariant to a factor s on x once eps is scaled by s^2.
-bool is_l2_normalize(const std::shared_ptr<ov::Node>& divide) {
-    if (!ov::is_type<ov::op::v1::Divide>(divide)) {
-        return false;
-    }
-    const auto sqrt = divide->get_input_node_shared_ptr(1);
-    if (!ov::is_type<ov::op::v0::Sqrt>(sqrt)) {
-        return false;
-    }
-    const auto eps = sqrt->get_input_node_shared_ptr(0);
-    if (!ov::is_type<ov::op::v1::Add>(eps) && !ov::is_type<ov::op::v1::Maximum>(eps)) {
-        return false;
-    }
-    const auto sum = eps->get_input_node_shared_ptr(0);
-    if (!ov::is_type<ov::op::v1::ReduceSum>(sum) || !ov::util::get_constant_from_source(eps->input_value(1))) {
-        return false;
-    }
-    const auto power = sum->get_input_node_shared_ptr(0);
-    if (!ov::is_type<ov::op::v1::Power>(power) || power->input_value(0) != divide->input_value(0)) {
-        return false;
-    }
-    const auto exponent = ov::util::get_constant_from_source(power->input_value(1));
-    return exponent && exponent->cast_vector<float>() == std::vector<float>{2.f};
-}
-
-// Returns the eps Add/Maximum if `power` is the sum-of-squares branch of L2 normalizations of its
-// input and nothing else, or nullptr otherwise.
-std::shared_ptr<ov::Node> l2_normalize_eps(const std::shared_ptr<ov::Node>& power) {
-    const auto eps = single_consumer(single_consumer(power));
-    const auto sqrt = single_consumer(eps);
-    if (!ov::is_type<ov::op::v0::Sqrt>(sqrt)) {
-        return nullptr;
-    }
-    for (auto&& target : sqrt->output(0).get_target_inputs()) {
-        const auto divide = target.get_node()->shared_from_this();
-        if (!is_l2_normalize(divide) || divide->input_value(0) != power->input_value(0)) {
-            return nullptr;
-        }
-    }
-    return eps;
-}
-
-struct ScaledRegion {
-    std::vector<std::shared_ptr<ov::op::v0::FakeQuantize>> fqs;
-    std::vector<std::shared_ptr<ov::op::v0::NormalizeL2>> norms;
-    std::vector<std::shared_ptr<ov::Node>> eps_nodes;
+// The region this pass rescales: UNQDQ -> MatMul -> UNQDQ -> L2 normalization, where the
+// normalization is NormalizeL2 or the ONNX LpNormalization (p = 2) decomposition
+// Divide(x, Sqrt(Add|Maximum(ReduceSum(Power(x, 2)), eps))). Both are invariant to a factor s on x
+// once eps is scaled by s^2.
+struct OverflowPattern {
+    UNQDQPattern in;
+    std::shared_ptr<ov::Node> matmul;
+    UNQDQPattern out;
+    std::shared_ptr<ov::Node> norm;
+    std::shared_ptr<ov::Node> power;
+    std::shared_ptr<ov::Node> eps;
+    std::shared_ptr<ov::Node> divide;
+    std::shared_ptr<ov::Node> root;
 };
 
-// Walks every path from `start`, collecting the FQs it passes through and the L2 normalizations it
-// ends in. Succeeds only if each path is linear in `start` and ends in an L2 normalization, so a
-// factor on `start` cancels there.
-bool collect_scaled_region(const ov::Output<ov::Node>& start, const UNQDQPattern& pattern, ScaledRegion& region) {
-    std::unordered_set<ov::Node*> scaled{start.get_node()};
-    std::vector<ov::Output<ov::Node>> queue{start};
-    std::vector<std::shared_ptr<ov::Node>> add_subs;
-    std::vector<std::shared_ptr<ov::Node>> products;
-    while (!queue.empty()) {
-        const auto value = queue.back();
-        queue.pop_back();
-        for (auto&& target : value.get_target_inputs()) {
-            const auto node = target.get_node()->shared_from_this();
-            auto output = node;
-            if (const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
-                // The chain collapses to identity, so the factor passes through it
-                output = target.get_index() == 0 ? unqdq_chain_end(fq, pattern) : nullptr;
-                if (!output) {
-                    return false;
-                }
-                region.fqs.push_back(fq);
-            } else if (const auto norm = ov::as_type_ptr<ov::op::v0::NormalizeL2>(node)) {
-                if (target.get_index() != 0) {
-                    return false;
-                }
-                region.norms.push_back(norm);
-                continue;
-            } else if (is_l2_normalize(node) && target.get_index() == 0) {
-                // Its eps is collected through the Power branch, which always reads the same value
-                continue;
-            } else if (ov::is_type<ov::op::v1::Power>(node)) {
-                const auto eps = target.get_index() == 0 ? l2_normalize_eps(node) : nullptr;
-                if (!eps) {
-                    return false;
-                }
-                region.eps_nodes.push_back(eps);
-                continue;
-            } else if (ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Subtract>(node)) {
-                add_subs.push_back(node);
-            } else if (ov::is_type<ov::op::v1::Multiply>(node) || ov::is_type<ov::op::v0::MatMul>(node)) {
-                products.push_back(node);
-            } else if (target.get_index() != 0 || !node->get_output_element_type(0).is_real() ||
-                       !(ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Reshape>(node) ||
-                         ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node) ||
-                         ov::is_type<ov::op::v1::Transpose>(node) || ov::is_type<ov::op::v1::ReduceSum>(node))) {
-                LOG_DEBUG("RescaleFP16OverflowQDQ: path from " << start.get_node()->get_friendly_name()
-                                                               << " reaches unsupported " << node->get_type_name()
-                                                               << " " << node->get_friendly_name());
-                return false;
-            }
-            if (scaled.insert(output.get()).second) {
-                queue.push_back(output->output(0));
-            }
-        }
-    }
-    const auto is_scaled = [&](const std::shared_ptr<ov::Node>& node, std::size_t idx) {
-        return scaled.count(node->get_input_node_ptr(idx)) > 0;
+OverflowPattern make_overflow_pattern() {
+    OverflowPattern p;
+    p.in = make_unqdq_pattern();
+    p.matmul = opp::wrap_type<ov::op::v0::MatMul>({p.in.multiply, opp::any_input()});
+    p.out = make_unqdq_pattern(p.matmul);
+    p.norm = opp::wrap_type<ov::op::v0::NormalizeL2>({p.out.multiply, opp::any_input()});
+    p.power = opp::wrap_type<ov::op::v1::Power>({p.out.multiply, opp::wrap_type<ov::op::v0::Constant>()});
+    const auto sum = opp::wrap_type<ov::op::v1::ReduceSum>({p.power, opp::any_input()});
+    p.eps = opp::wrap_type<ov::op::v1::Add, ov::op::v1::Maximum>({sum, opp::wrap_type<ov::op::v0::Constant>()});
+    const auto sqrt = opp::wrap_type<ov::op::v0::Sqrt>({p.eps});
+    p.divide = opp::wrap_type<ov::op::v1::Divide>({p.out.multiply, sqrt});
+    p.root = std::make_shared<opp::op::Or>(ov::OutputVector{p.norm, p.divide});
+    return p;
+}
+
+bool has_single_consumer(const std::shared_ptr<ov::Node>& node) {
+    return node->output(0).get_target_inputs().size() == 1;
+}
+
+// The matched values must feed nothing else, or the factor would leak past the normalization
+bool is_isolated(const OverflowPattern& p, const ov::pass::pattern::PatternValueMap& map) {
+    const auto node = [&](const std::shared_ptr<ov::Node>& pattern) {
+        return map.at(pattern).get_node_shared_ptr();
     };
-    // A sum stays linear only if both terms carry the factor; a product only if exactly one does
-    return std::all_of(add_subs.begin(),
-                       add_subs.end(),
-                       [&](const std::shared_ptr<ov::Node>& node) {
-                           return is_scaled(node, 0) && is_scaled(node, 1);
-                       }) &&
-           std::all_of(products.begin(), products.end(), [&](const std::shared_ptr<ov::Node>& node) {
-               return is_scaled(node, 0) != is_scaled(node, 1);
-           });
+    const auto in_end = node(p.in.multiply);
+    const auto out_end = node(p.out.multiply);
+    if (unqdq_chain_end(node(p.in.fake_q), p.in) != in_end || !has_single_consumer(in_end) ||
+        !has_single_consumer(node(p.matmul)) || unqdq_chain_end(node(p.out.fake_q), p.out) != out_end) {
+        return false;
+    }
+    if (map.count(p.norm)) {
+        return has_single_consumer(out_end);
+    }
+    // Decomposed form: x feeds only the Divide and the Power, and each step in between has one consumer
+    const auto power = node(p.power);
+    const auto exponent = ov::as_type_ptr<ov::op::v0::Constant>(power->get_input_node_shared_ptr(1));
+    return out_end->output(0).get_target_inputs().size() == 2 &&
+           node(p.divide)->input_value(0) == power->input_value(0) && has_single_consumer(power) &&
+           has_single_consumer(power->get_output_target_inputs(0).begin()->get_node()->shared_from_this()) &&
+           has_single_consumer(node(p.eps)) &&
+           has_single_consumer(node(p.eps)->get_output_target_inputs(0).begin()->get_node()->shared_from_this()) &&
+           exponent->cast_vector<float>() == std::vector<float>{2.f};
 }
 
 // Returns eps * eps_scale as a Constant of the same type and shape, or nullptr if any value is not
@@ -297,37 +232,43 @@ ov::npuw::CollapseUNQDQ::CollapseUNQDQ() {
 }
 
 bool ov::npuw::RescaleFP16OverflowQDQ::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    const auto pattern = make_unqdq_pattern();
+    const auto p = make_overflow_pattern();
     bool changed = false;
     for (auto&& node : model->get_ordered_ops()) {
-        const auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
-        if (!fq || fq->get_rt_info().count(kRescaledKey) || !(fq_range(fq) > kF16Max)) {
+        opp::Matcher matcher(p.root);
+        if (!matcher.match(node->output(0))) {
             continue;
         }
-        // The producer overflows before the FQ sees its output, so the factor goes on its input.
-        // Weights sit on MatMul input 1, so only input 0 is scaled.
-        const auto producer = fq->get_input_node_shared_ptr(0);
-        if (!(ov::is_type<ov::op::v1::Multiply>(producer) && !is_dequantize_multiply(producer, pattern)) &&
-            !ov::is_type<ov::op::v0::MatMul>(producer)) {
+        const auto& map = matcher.get_pattern_value_map();
+        if (!is_isolated(p, map)) {
+            continue;
+        }
+        const auto fq_in = ov::as_type_ptr<ov::op::v0::FakeQuantize>(map.at(p.in.fake_q).get_node_shared_ptr());
+        const auto fq_out = ov::as_type_ptr<ov::op::v0::FakeQuantize>(map.at(p.out.fake_q).get_node_shared_ptr());
+        if (fq_in->get_rt_info().count(kRescaledKey) || fq_out->get_rt_info().count(kRescaledKey)) {
+            continue;
+        }
+        const float range_in = fq_range(fq_in);
+        const float range_out = fq_range(fq_out);
+        if (!std::isfinite(range_in) || !std::isfinite(range_out) || !(std::max(range_in, range_out) > kF16Max)) {
+            continue;
+        }
+
+        // If the first chain overflows, its producer already does, so the factor goes on the
+        // producer's input; otherwise on the MatMul input. Weights sit on MatMul input 1.
+        const bool scale_producer = range_in > kF16Max;
+        const auto matmul = map.at(p.matmul).get_node_shared_ptr();
+        const auto producer = scale_producer ? fq_in->get_input_node_shared_ptr(0) : matmul;
+        if (scale_producer && (!has_single_consumer(producer) || !((ov::is_type<ov::op::v1::Multiply>(producer) &&
+                                                                    !is_dequantize_multiply(producer, p.in)) ||
+                                                                   ov::is_type<ov::op::v0::MatMul>(producer)))) {
             continue;
         }
         auto input = producer->input(0);
-        if (!input.get_element_type().is_real() || is_dequantize_subtract(input.get_source_output(), pattern)) {
+        if (!input.get_element_type().is_real() || is_dequantize_subtract(input.get_source_output(), p.in)) {
             continue;
         }
-        ScaledRegion region;
-        if (!collect_scaled_region(producer->output(0), pattern, region)) {
-            continue;
-        }
-        float range = 0.f;
-        bool rescaled = false;
-        for (auto&& region_fq : region.fqs) {
-            range = std::max(range, fq_range(region_fq));
-            rescaled = rescaled || region_fq->get_rt_info().count(kRescaledKey) > 0;
-        }
-        if (rescaled || !std::isfinite(range)) {
-            continue;
-        }
+        const float range = scale_producer ? std::max(range_in, range_out) : range_out;
 
         // Validate every new value before touching the graph
         const int k = static_cast<int>(std::ceil(std::log2(range / kRescaleTarget)));
@@ -338,40 +279,31 @@ bool ov::npuw::RescaleFP16OverflowQDQ::run_on_model(const std::shared_ptr<ov::Mo
             continue;
         }
         const double eps_scale = scale * scale;
-        std::vector<std::shared_ptr<ov::op::v0::Constant>> scaled_eps;
-        bool representable = true;
-        for (auto&& eps_node : region.eps_nodes) {
-            scaled_eps.push_back(scale_eps(eps_node->input_value(1), eps_scale));
-            representable = representable && scaled_eps.back();
-        }
-        std::vector<float> norm_eps;
-        for (auto&& norm : region.norms) {
-            const double eps = norm->get_eps() * eps_scale;
-            norm_eps.push_back(static_cast<float>(eps));
-            representable = representable && static_cast<double>(norm_eps.back()) == eps;
-        }
-        if (!representable) {
-            LOG_DEBUG("RescaleFP16OverflowQDQ: eps of " << producer->get_friendly_name()
-                                                        << " region is not representable after scaling");
+        const auto norm = map.count(p.norm)
+                              ? ov::as_type_ptr<ov::op::v0::NormalizeL2>(map.at(p.norm).get_node_shared_ptr())
+                              : nullptr;
+        const auto eps_node = norm ? nullptr : map.at(p.eps).get_node_shared_ptr();
+        const auto scaled_eps = norm ? nullptr : scale_eps(eps_node->input_value(1), eps_scale);
+        const double norm_eps = norm ? norm->get_eps() * eps_scale : 0.0;
+        if (norm ? static_cast<double>(static_cast<float>(norm_eps)) != norm_eps : !scaled_eps) {
+            LOG_DEBUG("RescaleFP16OverflowQDQ: eps after " << producer->get_friendly_name()
+                                                           << " is not representable after scaling");
             continue;
         }
 
-        // Scale eps by s^2 so the normalizations stay exact for small activations too
-        for (std::size_t i = 0; i < region.eps_nodes.size(); ++i) {
-            const auto& eps_node = region.eps_nodes[i];
-            scaled_eps[i]->set_friendly_name(eps_node->get_friendly_name() + "/fp16_rescaled_eps");
-            ov::copy_runtime_info(eps_node->get_input_node_shared_ptr(1), scaled_eps[i]);
-            eps_node->input(1).replace_source_output(scaled_eps[i]);
-        }
-        for (std::size_t i = 0; i < region.norms.size(); ++i) {
-            const auto& norm = region.norms[i];
+        // Scale eps by s^2 so the normalization stays exact for small activations too
+        if (norm) {
             const auto scaled_norm = std::make_shared<ov::op::v0::NormalizeL2>(norm->input_value(0),
                                                                                norm->input_value(1),
-                                                                               norm_eps[i],
+                                                                               static_cast<float>(norm_eps),
                                                                                norm->get_eps_mode());
             scaled_norm->set_friendly_name(norm->get_friendly_name());
             ov::copy_runtime_info(norm, scaled_norm);
             ov::replace_node(norm, scaled_norm);
+        } else {
+            scaled_eps->set_friendly_name(eps_node->get_friendly_name() + "/fp16_rescaled_eps");
+            ov::copy_runtime_info(eps_node->get_input_node_shared_ptr(1), scaled_eps);
+            eps_node->input(1).replace_source_output(scaled_eps);
         }
 
         factor->set_friendly_name(producer->get_friendly_name() + "/fp16_rescale_factor");
@@ -379,10 +311,11 @@ bool ov::npuw::RescaleFP16OverflowQDQ::run_on_model(const std::shared_ptr<ov::Mo
         multiply->set_friendly_name(producer->get_friendly_name() + "/fp16_rescale");
         ov::copy_runtime_info(producer, {factor, multiply});
         input.replace_source_output(multiply);
-        // FQ bounds stay as calibrated, so mark the region to keep a second run from scaling it again
-        for (auto&& region_fq : region.fqs) {
-            region_fq->get_rt_info()[kRescaledKey] = true;
+        // FQ bounds stay as calibrated, so mark the scaled chains to keep a second run from scaling them again
+        if (scale_producer) {
+            fq_in->get_rt_info()[kRescaledKey] = true;
         }
+        fq_out->get_rt_info()[kRescaledKey] = true;
         LOG_INFO("RescaleFP16OverflowQDQ: scaled " << producer->get_friendly_name() << " by 2^-" << k << " for range "
                                                    << range);
         changed = true;
