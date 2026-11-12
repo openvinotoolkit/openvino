@@ -640,7 +640,7 @@ TEST_F(GGUFParser, CmFusedSwishPreservesBeta) {
         })) {
         GTEST_SKIP() << "GPU device unavailable";
     }
-    GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", "1");
+    GgufScopedEnvironment cm("OV_GPU_GGUF_PREFILL_GEMM", "cm");
     GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "1");
     GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
     constexpr size_t rows = 33;
@@ -671,9 +671,11 @@ TEST_F(GGUFParser, CmFusedSwishPreservesBeta) {
         std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
         request.set_input_tensor(input);
         request.infer();
-        const auto profile = request.get_profiling_info();
-        const bool used_cm = std::any_of(profile.begin(), profile.end(), [](const ov::ProfilingInfo& entry) {
-            return entry.exec_type.find("cm::fc_gguf_cm") != std::string::npos;
+        const auto runtime_operations = compiled.get_runtime_model()->get_ordered_ops();
+        const bool used_cm = std::any_of(runtime_operations.begin(), runtime_operations.end(), [](const auto& operation) {
+            const auto& info = operation->get_rt_info();
+            const auto kernels = info.find("gguf_last_executed_kernels");
+            return kernels != info.end() && kernels->second.template as<std::string>().find("gemm_q40_full") != std::string::npos;
         });
         ASSERT_TRUE(used_cm) << "Requires CM GGUF FC execution";
         const auto output = request.get_output_tensor();
