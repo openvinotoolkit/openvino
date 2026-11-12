@@ -511,6 +511,9 @@ bool crop_in_place_optimization::match(const program_node& node,
     // unless debug flag is set
     if (node.is_output() || crop_params.has_fused_primitives() || node.is_in_shape_of_subgraph())
         return false;
+    if (!node.get_dependencies().empty() &&
+        (node.get_dependency(0).is_type<loop>() || node.get_dependency(0).is_type<condition>()))
+        return false;
 
     // Treat crop as dynamic if its predecessor is dynamic, so that the
     // dyn-only guards below match the runtime path. Skipped at runtime
@@ -528,7 +531,7 @@ bool crop_in_place_optimization::match(const program_node& node,
         // do not optimize when next node is concatenation which is not output
         if (user->is_type<concatenation>() && !user->is_output())
             return false;
-        if (user->is_type<loop>() || user->is_type<non_max_suppression>())
+        if (user->is_type<loop>() || user->is_type<condition>() || user->is_type<non_max_suppression>())
             return false;
         // Read_value and assign don't handle data paddings internally, thus disable
         // crop optimization for now

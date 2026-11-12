@@ -1045,3 +1045,79 @@ TEST(condition_gpu, set_empty_tensor) {
     OV_ASSERT_NO_THROW(outputs = net.execute());
     OV_ASSERT_NO_THROW(outputs.at(cond_id).get_memory());
 }
+
+TEST(condition_gpu, skip_subgraph_multiple_outputs_and_swapped_ports) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    const ov::PartialShape in_pshape = {1, 4, 1};
+    const ov::PartialShape out_concat_pshape = {1, 4, 2};
+    auto in0_mem = engine.allocate_memory({in_pshape, data_types::f32, format::bfyx});
+    auto in1_mem = engine.allocate_memory({in_pshape, data_types::f32, format::bfyx});
+    auto pred_mem = engine.allocate_memory({{1}, data_types::u8, format::bfyx});
+
+    set_values<float>(in0_mem, {1.f, 2.f, 3.f, 4.f});
+    set_values<float>(in1_mem, {10.f, 20.f, 30.f, 40.f});
+
+    condition::branch branch_true;
+    {
+        topology branch_true_topology;
+        branch_true_topology.add(
+            input_layout("true_in0", {in_pshape, data_types::f32, format::bfyx}),
+            input_layout("true_in1", {in_pshape, data_types::f32, format::bfyx}),
+            reorder("true_out0", input_info("true_in0"), format::bfyx, data_types::f32),
+            reorder("true_out1", input_info("true_in1"), format::bfyx, data_types::f32)
+        );
+        branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
+        branch_true.input_map.insert({"in0", "true_in0"});
+        branch_true.input_map.insert({"in1", "true_in1"});
+        branch_true.output_map.insert({0, "true_out0"});
+        branch_true.output_map.insert({1, "true_out1"});
+    }
+
+    condition::branch branch_false;
+    {
+        topology branch_false_topology;
+        branch_false_topology.add(
+            input_layout("false_in0", {in_pshape, data_types::f32, format::bfyx}),
+            input_layout("false_in1", {in_pshape, data_types::f32, format::bfyx}),
+            reorder("z_false_out_for_port0", input_info("false_in1"), format::bfyx, data_types::f32),
+            reorder("a_false_out_for_port1", input_info("false_in0"), format::bfyx, data_types::f32)
+        );
+        branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
+        branch_false.input_map.insert({"in0", "false_in0"});
+        branch_false.input_map.insert({"in1", "false_in1"});
+        branch_false.output_map.insert({0, "z_false_out_for_port0"});
+        branch_false.output_map.insert({1, "a_false_out_for_port1"});
+    }
+
+    topology topo;
+    topo.add(
+        input_layout("pred", pred_mem->get_layout()),
+        input_layout("in0", in0_mem->get_layout()),
+        input_layout("in1", in1_mem->get_layout()),
+        condition("cond", {input_info("pred"), input_info("in0"), input_info("in1")}, branch_true, branch_false, 2),
+        concatenation("concat", {input_info("cond", 0), input_info("cond", 1)}, 2),
+        reorder("out", input_info("concat"), {out_concat_pshape, data_types::f32, format::bfyx})
+    );
+
+    network net(engine, topo, config);
+    ASSERT_TRUE(net.get_primitive("cond")->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+    ASSERT_TRUE(net.get_primitive("cond")->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+
+    net.set_input_data("in0", in0_mem);
+    net.set_input_data("in1", in1_mem);
+
+    set_values<uint8_t>(pred_mem, {1});
+    net.set_input_data("pred", pred_mem);
+    auto outputs_true = net.execute();
+    ASSERT_TRUE(is_output_equal(outputs_true.at("out").get_memory(), std::vector<float>{1.f, 10.f, 2.f, 20.f, 3.f, 30.f, 4.f, 40.f}));
+
+    set_values<uint8_t>(pred_mem, {0});
+    net.set_input_data("pred", pred_mem);
+    auto outputs_false = net.execute();
+    ASSERT_TRUE(is_output_equal(outputs_false.at("out").get_memory(), std::vector<float>{10.f, 1.f, 20.f, 2.f, 30.f, 3.f, 40.f, 4.f}));
+}
+
