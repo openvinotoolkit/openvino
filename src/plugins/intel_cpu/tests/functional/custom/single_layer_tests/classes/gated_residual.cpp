@@ -605,6 +605,10 @@ void GatedResidualLayerCPUTest::compare(const std::vector<ov::Tensor>& expected,
 
 TEST_P(GatedResidualLayerCPUTest, Inference) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // bf16 cases only run where the hardware supports bf16 natively.
+    if (std::get<1>(GetParam()).precision == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
+        GTEST_SKIP() << "bf16 requires native hardware support";
+    }
     run();
     const auto runtime_model = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(runtime_model, {"GatedResidual"}, 1);

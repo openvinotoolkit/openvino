@@ -59,7 +59,6 @@ private:
     bool m_produce_write_gate = false;
 
     ov::element::Type m_precision = ov::element::f32;
-    ov::element::Type m_gemm_precision = ov::element::f32;
 
     bool m_weights_compressed = false;
     bool m_weights_have_zero_points = false;
@@ -77,7 +76,7 @@ private:
     std::shared_ptr<kernel::JitKernelBase> m_write_kernel;
     // Mix over branches with the multiply-accumulate, 1/C scale and output conversion fused.
     std::shared_ptr<kernel::JitKernelBase> m_mix_kernel;
-    // Same normalization with the GEMM-precision (bf16/f16) destination; only set for a bf16/f16 GEMM.
+    // Same normalization with the port-precision (bf16/f16) destination, the GEMM source; only set for bf16/f16.
     std::shared_ptr<kernel::JitKernelBase> m_rms_kernel_gemm;
 
     enum ProjectionIdx : uint8_t { kDown = 0, kUp = 1, kInject = 2 };
@@ -113,7 +112,7 @@ private:
     // node's buffers start after this many bytes.
     size_t m_fc_scratch_bytes = 0;
 
-    // Per-tile scratch (f32 Rbar and Logit, T, the write gate and, for a bf16/f16 GEMM, a copy of Rbar) is one block of
+    // Per-tile scratch (f32 Rbar and Logit, T, the write gate and, for bf16/f16 ports, a copy of Rbar) is one block of
     // the stream's shared scratchpad: nodes execute sequentially, so one buffer serves every GatedResidual layer.
     // Other nodes share and may reallocate that block, so the pointers below are re-derived from m_scratch on every
     // execute and the contents never survive between calls.
@@ -125,7 +124,7 @@ private:
     size_t m_off_rbar_gemm = 0;
     float* m_rbar = nullptr;
     float* m_logit = nullptr;
-    uint8_t* m_t = nullptr;        // T = silu(down(Rbar)/C) at the GEMM precision
+    uint8_t* m_t = nullptr;        // T = silu(down(Rbar)/C) at the port precision
     uint8_t* m_wg_gate = nullptr;  // write gate at the port precision, one row per tile row
     uint16_t* m_rbar_gemm = nullptr;
 };

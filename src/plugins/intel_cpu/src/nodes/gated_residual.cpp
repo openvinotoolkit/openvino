@@ -72,25 +72,13 @@ void GatedResidual::initSupportedPrimitiveDescriptors() {
     }
     // Negotiate a single data precision for this node instance from the main data input (RESIDUAL
     // is port 0 in both ReadInputIdx and WriteInputIdx) and apply it uniformly to every data-path
-    // port, falling back to f32 for anything else the graph might otherwise propose. Internal
-    // accumulation always happens in f32 regardless.
+    // port, falling back to f32 for anything else the graph might otherwise propose. bf16/f16 only reach the node
+    // where the plugin supports them (the inference precision hint and ConvertPrecision are gated by
+    // hasHardwareSupport()), and the GEMMs run at this precision. Internal accumulation always happens in f32.
     auto precision = getOriginalInputPrecisionAtPort(0);
     if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-    // Uncompressed weights feed the GEMM at the port precision (no upconvert path), so a bf16/f16 port needs native
-    // bf16/f16 support; otherwise the whole node runs in f32 (inference_precision=bf16/f16 is also accepted on ISAs
-    // without it). Compressed weights are decompressed by oneDNN and may run the GEMM in f32 on their own.
-    if (m_attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && !m_attrs.read_layout.compressed) {
-        using dnnl::impl::cpu::x64::cpu_isa_t;
-        using dnnl::impl::cpu::x64::mayiuse;
-        if ((precision == ov::element::bf16 && !mayiuse(cpu_isa_t::avx512_core_bf16)) ||
-            (precision == ov::element::f16 && !mayiuse(cpu_isa_t::avx512_core_fp16))) {
-            precision = ov::element::f32;
-        }
-    }
-#endif
 
     // Compressed weight ports (u8/i8/u4/i4), their floating-point scale ports and their zero-point ports (the weights'
     // type) must keep their own native element type here: forcing the data `precision` on them makes the graph insert

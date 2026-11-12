@@ -184,15 +184,6 @@ bool GatedResidualDnnlExecutor::supports(const GatedResidualConfig& config) {
     if (!mayiuse(cpu_isa_t::avx2)) {
         return false;
     }
-    // Uncompressed weights are fed to the GEMM at the port precision (no upconvert path), so a bf16/f16 port needs
-    // native bf16/f16 support. Compressed weights are decompressed by oneDNN and may still run the GEMM in f32.
-    const auto prc = it->second->getPrecision();
-    if (config.attrs.mode != ov::op::internal::GatedResidual::Mode::WRITE && !config.attrs.read_layout.compressed) {
-        if ((prc == ov::element::bf16 && !mayiuse(cpu_isa_t::avx512_core_bf16)) ||
-            (prc == ov::element::f16 && !mayiuse(cpu_isa_t::avx512_core_fp16))) {
-            return false;
-        }
-    }
     return true;
 }
 
@@ -212,15 +203,6 @@ GatedResidualDnnlExecutor::GatedResidualDnnlExecutor(const GatedResidualAttrs& a
       m_layout(attrs.read_layout) {
     m_precision = memory.at(gatedResidualSrcArg(ReadInputIdx::RESIDUAL))->getPrecision();
 
-    // The GEMM runs at bf16/f16 (src and weights; accumulation stays f32) only when the port precision is bf16/f16
-    // and the CPU ISA accelerates it at that precision; otherwise it runs at f32.
-    using dnnl::impl::cpu::x64::cpu_isa_t;
-    using dnnl::impl::cpu::x64::mayiuse;
-    if (m_precision == ov::element::bf16 && mayiuse(cpu_isa_t::avx512_core_bf16)) {
-        m_gemm_precision = ov::element::bf16;
-    } else if (m_precision == ov::element::f16 && mayiuse(cpu_isa_t::avx512_core_fp16)) {
-        m_gemm_precision = ov::element::f16;
-    }
     // The executors are built here, at compile time, and repack the constant weights into the layout oneDNN picks.
     createProjections(attrs, memory);
 }
@@ -234,11 +216,11 @@ size_t GatedResidualDnnlExecutor::maxTileRows() const {
     constexpr size_t kScratchBudgetBytes = 128UL << 20;
     const size_t C = m_hc_count;
     const size_t CD = C * m_hidden_size;
-    // Per-row footprint of every buffer reserved in update(): rbar and logit (f32), t (GEMM precision), the optional
+    // Per-row footprint of every buffer reserved in update(): rbar and logit (f32), t (port precision), the optional
     // write-gate output (data precision) and the optional low-precision copy of rbar for the GEMM.
-    const size_t bytes_per_row = (2 * CD) * sizeof(float) + m_lowrank * m_gemm_precision.size() +
+    const size_t bytes_per_row = (2 * CD) * sizeof(float) + m_lowrank * m_precision.size() +
                                  (m_produce_write_gate ? C * m_precision.size() : 0) +
-                                 (m_gemm_precision != ov::element::f32 ? CD * sizeof(uint16_t) : 0);
+                                 (m_precision != ov::element::f32 ? CD * sizeof(uint16_t) : 0);
     const size_t tile = std::clamp(kScratchBudgetBytes / bytes_per_row, kMinTileRows, kMaxTileRows);
     // A small budget falls back to a 32-row granularity (every normalized remainder stays <= the tile).
     const size_t alignment = tile >= kBrgemmRowBlock ? kBrgemmRowBlock : kMinTileRows;
@@ -270,14 +252,14 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
         PostOps post_ops;
     };
     std::vector<Spec> specs;
-    // The down GEMM produces T = silu(down(Rbar) / C), stored at the GEMM precision so the up GEMM reads it as-is.
+    // The down GEMM produces T = silu(down(Rbar) / C), stored at the port precision so the up GEMM reads it as-is.
     specs.push_back({kDown,
                      CD,
                      L,
                      ReadInputIdx::W_DOWN,
                      ReadInputIdx::SCALE_DOWN,
                      ReadInputIdx::ZP_DOWN,
-                     m_gemm_precision,
+                     m_precision,
                      {act(Type::linear, inv_c), act(Type::swish, 1.0F)}});
     // The up GEMM produces the gates directly: logit -> sigmoid in the epilogue.
     specs.push_back({kUp,
@@ -311,7 +293,7 @@ void GatedResidualDnnlExecutor::createProjections(const GatedResidualAttrs& attr
         OPENVINO_ASSERT(p.context, "GatedResidual: missing projection executor context");
         p.k = spec.k;
         p.n = spec.n;
-        p.src_prc = m_gemm_precision;
+        p.src_prc = m_precision;
         p.dst_prc = spec.dst_prc;
         p.attrs.postOps = spec.post_ops;
 
@@ -440,8 +422,8 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
 
     if (!m_rms_kernel) {
         // The kernels only depend on (precision, dst precision, D, eps, ISA), so every GatedResidual layer with the
-        // same hidden size shares them through the stream's runtime cache. For a bf16/f16 GEMM two instances run per
-        // branch: one writes the f32 Rbar (the mix reads it), the other the GEMM's bf16/f16 source directly, from the
+        // same hidden size shares them through the stream's runtime cache. For bf16/f16 ports two instances run per
+        // branch: one writes the f32 Rbar (the mix reads it), the other the GEMMs' bf16/f16 source directly, from the
         // same f32 computation.
         const bool avx512 = ov::with_cpu_x86_avx512_core();
         const auto get_kernel = [&](ov::element::Type dst_prc) {
@@ -473,8 +455,8 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
                 .first;
         };
         m_rms_kernel = get_kernel(ov::element::f32);
-        if (m_gemm_precision != ov::element::f32) {
-            m_rms_kernel_gemm = get_kernel(m_gemm_precision);
+        if (m_precision != ov::element::f32) {
+            m_rms_kernel_gemm = get_kernel(m_precision);
         }
 
         // Mix: out = (1/C) * sum_c gate_c * rbar_c, converted to the output precision, in one pass.
@@ -526,7 +508,7 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
 
     if (main_m != m_main_m || fc_scratch != m_fc_scratch_bytes) {
         // One scratchpad block holding every per-tile buffer (sized for the main M), each region 64-byte aligned.
-        const bool gemm_lowp = m_gemm_precision != ov::element::f32;
+        const bool gemm_lowp = m_precision != ov::element::f32;
         m_fc_scratch_bytes = fc_scratch;
         size_t scratch_size = fc_scratch;
         const auto reserve = [&scratch_size](size_t bytes) {
@@ -536,7 +518,7 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
         };
         m_off_rbar = reserve(main_m * CD * sizeof(float));
         m_off_logit = reserve(main_m * CD * sizeof(float));
-        m_off_t = reserve(main_m * L * m_gemm_precision.size());
+        m_off_t = reserve(main_m * L * m_precision.size());
         m_off_wg_gate = m_produce_write_gate ? reserve(main_m * C * m_precision.size()) : 0;
         m_off_rbar_gemm = gemm_lowp ? reserve(main_m * CD * sizeof(uint16_t)) : 0;
         const auto scratch_desc = BlockedDescCreator::getCommonCreators()
@@ -544,11 +526,6 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
                                       ->createSharedDesc(ov::element::u8, Shape({scratch_size}));
         m_scratch = m_context->getScratchPad()->createScratchPadMem(scratch_desc);
     }
-
-    // Uncompressed weights are consumed at the port precision, so the GEMM must run at exactly that precision;
-    // supports() rejects configurations where the ISA can't (no upconvert path).
-    OPENVINO_ASSERT(m_weights_compressed || m_precision == m_gemm_precision,
-                    "GatedResidual uncompressed weights require the GEMM precision to match the port precision");
 
     m_main_m = main_m;
     m_rem_m = rem_m;
@@ -572,8 +549,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
     m_logit = reinterpret_cast<float*>(scratch + m_off_logit);
     m_t = scratch + m_off_t;
     m_wg_gate = m_produce_write_gate ? scratch + m_off_wg_gate : nullptr;
-    m_rbar_gemm =
-        m_gemm_precision != ov::element::f32 ? reinterpret_cast<uint16_t*>(scratch + m_off_rbar_gemm) : nullptr;
+    m_rbar_gemm = m_precision != ov::element::f32 ? reinterpret_cast<uint16_t*>(scratch + m_off_rbar_gemm) : nullptr;
 
     // Inputs/outputs may carry any number of leading batch dims (e.g. [B,T,CD]); all row-indexed access below
     // assumes a flat [rows, *] layout, so they are collapsed into `rows`.
@@ -591,7 +567,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
         write_gate_out = memory.at(gatedResidualDstArg(1))->getDataAs<uint8_t>();
     }
 
-    const bool gemm_lowp = m_gemm_precision != ov::element::f32;
+    const bool gemm_lowp = m_precision != ov::element::f32;
     const size_t tile_rows = m_tile_rows;
 
     // Process rows in tiles: full tiles run m_main_m rows through the GEMMs, the last partial tile m_rem_m. `cur_rows`
@@ -602,7 +578,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
         const size_t gemm_rows = cur_rows == tile_rows ? m_main_m : m_rem_m;
 
         // Step 1: per-row RMS-norm through the shared JIT kernel, writing m_rbar (f32, the source for the later mix)
-        // and, for a bf16/f16 GEMM, a copy at the GEMM precision into m_rbar_gemm. `row` indexes within the tile; the
+        // and, for bf16/f16 ports, a copy at the port precision into m_rbar_gemm. `row` indexes within the tile; the
         // residual input is read at the global row `tile_start + row`.
         m_context->getCpuParallel()->parallel_for(cur_rows, [&](size_t row) {
             float* rbar_row = m_rbar + row * CD;
@@ -615,7 +591,7 @@ void GatedResidualDnnlExecutor::execute_read_or_final_mix(const MemoryArgs& memo
                                                reinterpret_cast<uint8_t*>(rbar_row + c * D)};
                 (*m_rms_kernel)(&args);
                 if (gemm_lowp) {
-                    // Same normalization again, stored straight as the GEMM's bf16/f16 source.
+                    // Same normalization again, stored straight as the GEMMs' bf16/f16 source.
                     args.dst = reinterpret_cast<uint8_t*>(m_rbar_gemm + row * CD + c * D);
                     (*m_rms_kernel_gemm)(&args);
                 }
