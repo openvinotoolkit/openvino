@@ -197,7 +197,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         // observer would pin the calling application thread to a vacant core on entry and restore it
         // only to the broader process-wide mask on exit (not to the application's own original affinity),
         // silently and permanently altering affinity the application never asked to have changed.
-        OPENVINO_ASSERT(!(m_run_sync_in_caller_thread && executor_config.get_cpu_pinning()),
+        OPENVINO_ASSERT(!m_run_sync_in_caller_thread || !executor_config.get_cpu_pinning(),
                         "ov::intel_cpu::multi_app_thread_sync_execution(true) cannot be used together with CPU "
                         "pinning (ov::hint::enable_cpu_pinning resolved to true). Running inference on the "
                         "calling application thread while CPU pinning is enabled silently changes that thread's "

@@ -5,6 +5,7 @@
 #include "async_infer_request.h"
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "config.h"
@@ -15,15 +16,19 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
-#include "utils/denormals.hpp"
 
 // _mm_getcsr()/_mm_setcsr() (and <immintrin.h>) are only actually available where SSE is present.
 // OPENVINO_ARCH_X86 is intentionally also defined for 32-bit/ILP32 targets like __wasm32__ (see
 // visibility.hpp), which do NOT have these intrinsics, so that macro alone is not a safe guard here.
 // Mirror the precise condition denormals.hpp itself uses to decide whether MXCSR intrinsics are usable.
+// utils/denormals.hpp is only included when actually needed: on targets where this evaluates false
+// (e.g. RISC-V), nothing in this file calls flush_to_zero()/denormals_as_zero(), so including it
+// unconditionally would itself be flagged as an unused include.
 #if defined(OPENVINO_ARCH_X86_64) || defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
 #    define OV_CPU_HAS_MXCSR_INTRINSICS 1
 #    include <immintrin.h>
+
+#    include "utils/denormals.hpp"
 #else
 #    define OV_CPU_HAS_MXCSR_INTRINSICS 0
 #endif

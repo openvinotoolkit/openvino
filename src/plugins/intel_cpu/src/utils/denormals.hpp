@@ -113,9 +113,11 @@ inline bool denormals_as_zero(bool on) {
 }
 #    else
 inline bool flush_to_zero(bool on) {
+    (void)on;
     return false;
 }
 inline bool denormals_as_zero(bool on) {
+    (void)on;
     return false;
 }
 #    endif
