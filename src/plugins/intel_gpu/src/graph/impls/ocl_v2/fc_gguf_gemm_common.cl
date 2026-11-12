@@ -64,11 +64,11 @@ inline void FUNC(gg_load_a)(const __global INPUT0_TYPE* A, uint K, uint M, int x
 #if defined(cl_intel_subgroup_local_block_io) && !defined(GG_SLM_NO_BLOCK)
 #define GG_SLM_BLOCK_IO 1
 inline int8 FUNC(gg_slm_rd8)(const __local uint* p, uint lane) {
-    return as_int8(intel_sub_group_block_read8(p));
+    return BLOCK_READN_SLM(int, 8, p, 0);
 }
 
 inline void FUNC(gg_slm_wr8)(__local uint* p, uint lane, uint8 v) {
-    intel_sub_group_block_write8(p, v);
+    BLOCK_WRITEN_SLM(uint, 8, p, 0, v);
 }
 #else
 inline int8 FUNC(gg_slm_rd8)(const __local uint* p, uint lane) {

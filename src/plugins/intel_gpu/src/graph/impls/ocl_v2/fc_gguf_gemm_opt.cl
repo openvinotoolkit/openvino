@@ -10,6 +10,8 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "fc_gguf_gemm_common.cl"
 
 #if GG_FMT_Q4_0
@@ -19,8 +21,8 @@
 #define GG_RAW_T uint8
 
 inline uint8 FUNC(gg_fetch)(const __global uchar* W, uint num_blocks, uint blk, uint j) {
-    const uint4 q = intel_sub_group_block_read4((const __global uint*)(W + (ulong)blk * 2048 + j * 256));
-    const uint d = intel_sub_group_block_read_us((const __global ushort*)(W + (ulong)num_blocks * 128 + (ulong)blk * 256 + j * 32));
+    const uint4 q = BLOCK_READN(uint, 4, (W + (ulong)blk * 2048 + j * 256), 0);
+    const uint d = BLOCK_READN(ushort, 1, (W + (ulong)num_blocks * 128 + (ulong)blk * 256 + j * 32), 0);
     return (uint8)(q, d, 0, 0, 0);
 }
 
@@ -36,10 +38,10 @@ inline void FUNC(gg_decode)(uint8 r, uint j, uint8* blo, uint8* bhi) {
 #define GG_RAW_T uint8
 
 inline uint8 FUNC(gg_fetch)(const __global uchar* W, uint num_blocks, uint blk, uint j) {
-    const uint4 q = intel_sub_group_block_read4((const __global uint*)(W + (ulong)blk * 2048 + j * 256));
+    const uint4 q = BLOCK_READN(uint, 4, (W + (ulong)blk * 2048 + j * 256), 0);
     const ulong meta = (ulong)blk * 256 + j * 32;
-    const uint d = intel_sub_group_block_read_us((const __global ushort*)(W + (ulong)num_blocks * 128 + meta));
-    const uint m = intel_sub_group_block_read_us((const __global ushort*)(W + (ulong)num_blocks * 144 + meta));
+    const uint d = BLOCK_READN(ushort, 1, (W + (ulong)num_blocks * 128 + meta), 0);
+    const uint m = BLOCK_READN(ushort, 1, (W + (ulong)num_blocks * 144 + meta), 0);
     return (uint8)(q, d, m, 0, 0);
 }
 
@@ -57,10 +59,10 @@ inline void FUNC(gg_decode)(uint8 r, uint j, uint8* blo, uint8* bhi) {
 
 // Raw tile: q(4) | sl | ml | sh,mh | d,dmin.
 inline uint8 FUNC(gg_fetch)(const __global uchar* W, uint num_blocks, uint blk, uint j) {
-    const uint4 q = intel_sub_group_block_read4((const __global uint*)(W + (ulong)blk * 2048 + j * 256));
+    const uint4 q = BLOCK_READN(uint, 4, (W + (ulong)blk * 2048 + j * 256), 0);
     const __global uchar* psl = W + (ulong)num_blocks * 128 + (ulong)blk * 256;
-    const uint2 slml = intel_sub_group_block_read2((const __global uint*)psl);
-    const uint2 meta = as_uint2(intel_sub_group_block_read_us4((const __global ushort*)(psl + 128)));
+    const uint2 slml = BLOCK_READN(uint, 2, psl, 0);
+    const uint2 meta = as_uint2(BLOCK_READN(ushort, 4, (psl + 128), 0));
     return (uint8)(q, slml, meta);
 }
 
@@ -82,11 +84,11 @@ inline void FUNC(gg_decode)(uint8 r, uint j, uint8* blo, uint8* bhi) {
 
 // Raw tile: q(4) | H | sl | ml | sh,mh | d,dmin.
 inline uint16 FUNC(gg_fetch)(const __global uchar* W, uint num_blocks, uint blk, uint j) {
-    const uint4 q = intel_sub_group_block_read4((const __global uint*)(W + (ulong)blk * 2048 + j * 256));
-    const uint H = intel_sub_group_block_read((const __global uint*)(W + (ulong)num_blocks * 128 + (ulong)blk * 512 + j * 64));
+    const uint4 q = BLOCK_READN(uint, 4, (W + (ulong)blk * 2048 + j * 256), 0);
+    const uint H = BLOCK_READN(uint, 1, (W + (ulong)num_blocks * 128 + (ulong)blk * 512 + j * 64), 0);
     const __global uchar* psl = W + (ulong)num_blocks * 160 + (ulong)blk * 256;
-    const uint2 slml = intel_sub_group_block_read2((const __global uint*)psl);
-    const uint2 meta = as_uint2(intel_sub_group_block_read_us4((const __global ushort*)(psl + 128)));
+    const uint2 slml = BLOCK_READN(uint, 2, psl, 0);
+    const uint2 meta = as_uint2(BLOCK_READN(ushort, 4, (psl + 128), 0));
     return (uint16)(q, H, slml, meta, 0, 0, 0, 0, 0, 0, 0);
 }
 
@@ -121,10 +123,10 @@ inline void FUNC(gg_decode)(uint16 r, uint j, uint8* blo, uint8* bhi) {
 
 // Raw tile: q(4) | HL | HH | d | scales(lo, hi bytes).
 inline uint8 FUNC(gg_fetch)(const __global uchar* W, uint num_blocks, uint blk, uint j) {
-    const uint4 q = intel_sub_group_block_read4((const __global uint*)(W + (ulong)blk * 2048 + j * 256));
-    const uint2 h = intel_sub_group_block_read2((const __global uint*)(W + (ulong)num_blocks * 128 + (ulong)blk * 1024 + (2 * j) * 64));
-    const uint d = intel_sub_group_block_read_us((const __global ushort*)(W + (ulong)num_blocks * 208 + (ulong)blk * 32));
-    const uchar2 sc = intel_sub_group_block_read_uc2(W + (ulong)num_blocks * 192 + (ulong)blk * 256 + (2 * j) * 16);
+    const uint4 q = BLOCK_READN(uint, 4, (W + (ulong)blk * 2048 + j * 256), 0);
+    const uint2 h = BLOCK_READN(uint, 2, (W + (ulong)num_blocks * 128 + (ulong)blk * 1024 + (2 * j) * 64), 0);
+    const uint d = BLOCK_READN(ushort, 1, (W + (ulong)num_blocks * 208 + (ulong)blk * 32), 0);
+    const uchar2 sc = BLOCK_READN(uchar, 2, W, (ulong)num_blocks * 192 + (ulong)blk * 256 + (2 * j) * 16);
     return (uint8)(q, h, d, (uint)as_ushort(sc));
 }
 
@@ -155,8 +157,8 @@ inline void FUNC(gg_decode)(uint8 r, uint j, uint8* blo, uint8* bhi) {
 
 // Raw tile: q lo(4) | q hi(4) | d.
 inline uint16 FUNC(gg_fetch)(const __global uchar* W, uint num_blocks, uint blk, uint j) {
-    const uint8 q = intel_sub_group_block_read8((const __global uint*)(W + (ulong)blk * 4096 + j * 512));
-    const uint d = intel_sub_group_block_read_us((const __global ushort*)(W + (ulong)num_blocks * 256 + (ulong)blk * 256 + j * 32));
+    const uint8 q = BLOCK_READN(uint, 8, (W + (ulong)blk * 4096 + j * 512), 0);
+    const uint d = BLOCK_READN(ushort, 1, (W + (ulong)num_blocks * 256 + (ulong)blk * 256 + j * 32), 0);
     return (uint16)(q, d, 0, 0, 0, 0, 0, 0, 0);
 }
 

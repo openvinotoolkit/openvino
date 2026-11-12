@@ -26,6 +26,8 @@
 // REQUANT_GROUP must divide GGUF_BLOCK_ELEM (so a group never straddles two GGUF blocks).
 
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "gguf/gguf_iq_tables.hpp"
 
 inline half FUNC(tq_load_f16)(const __global uchar* p) {
@@ -461,14 +463,14 @@ inline void FUNC(sh_gather_plane)(const __global uchar* base, uint entry, __priv
     // Wide 8-chunk (512 B) block reads to keep many loads in flight.
     __attribute__((opencl_unroll_hint))
     for (; c + 8 <= n_uint; c += 8) {
-        const uint8 v = intel_sub_group_block_read8(p + (uint)c * (uint)SG_T);
+        const uint8 v = BLOCK_READN(uint, 8, p, (uint)c * (uint)SG_T);
         out_u[c + 0] = v.s0; out_u[c + 1] = v.s1; out_u[c + 2] = v.s2; out_u[c + 3] = v.s3;
         out_u[c + 4] = v.s4; out_u[c + 5] = v.s5; out_u[c + 6] = v.s6; out_u[c + 7] = v.s7;
     }
     // Tail (n_uint not a multiple of 8): one chunk per block read.
     __attribute__((opencl_unroll_hint))
     for (; c < n_uint; ++c) {
-        out_u[c] = intel_sub_group_block_read(p + (uint)c * (uint)SG_T);
+        out_u[c] = BLOCK_READN(uint, 1, p, (uint)c * (uint)SG_T);
     }
 }
 #endif
@@ -655,10 +657,10 @@ KERNEL(fc_gguf_transcode)(
         const __global ushort* pe_s = (const __global ushort*)pe;
         const uint   sl = intel_sub_group_block_read   (pe_u + 0u);           // sl   @   0
         const uint   ml = intel_sub_group_block_read   (pe_u + (uint)SG_T);   // ml   @  64B (16 uints)
-        const ushort sh = intel_sub_group_block_read_us(pe_s + 64u);          // sh   @ 128B (64 ushort)
-        const ushort mh = intel_sub_group_block_read_us(pe_s + 80u);          // mh   @ 160B
-        const ushort dd = intel_sub_group_block_read_us(pe_s + 96u);          // d    @ 192B
-        const ushort dn = intel_sub_group_block_read_us(pe_s + 112u);         // dmin @ 224B
+        const ushort sh = BLOCK_READN(ushort, 1, pe_s, 64u);          // sh   @ 128B (64 ushort)
+        const ushort mh = BLOCK_READN(ushort, 1, pe_s, 80u);          // mh   @ 160B
+        const ushort dd = BLOCK_READN(ushort, 1, pe_s, 96u);          // d    @ 192B
+        const ushort dn = BLOCK_READN(ushort, 1, pe_s, 112u);         // dmin @ 224B
         psl[0]=(uchar)sl; psl[1]=(uchar)(sl>>8); psl[2]=(uchar)(sl>>16); psl[3]=(uchar)(sl>>24);
         psl[4]=(uchar)ml; psl[5]=(uchar)(ml>>8); psl[6]=(uchar)(ml>>16); psl[7]=(uchar)(ml>>24);
         psl[8]=(uchar)sh;  psl[9]=(uchar)(sh>>8);
@@ -683,10 +685,10 @@ KERNEL(fc_gguf_transcode)(
         const __global ushort* pe_s = (const __global ushort*)pe;
         const uint   sl = intel_sub_group_block_read   (pe_u + 0u);           // sl   @   0
         const uint   ml = intel_sub_group_block_read   (pe_u + (uint)SG_T);   // ml   @  64B (16 uints)
-        const ushort sh = intel_sub_group_block_read_us(pe_s + 64u);          // sh   @ 128B (64 ushort)
-        const ushort mh = intel_sub_group_block_read_us(pe_s + 80u);          // mh   @ 160B
-        const ushort dd = intel_sub_group_block_read_us(pe_s + 96u);          // d    @ 192B
-        const ushort dn = intel_sub_group_block_read_us(pe_s + 112u);         // dmin @ 224B
+        const ushort sh = BLOCK_READN(ushort, 1, pe_s, 64u);          // sh   @ 128B (64 ushort)
+        const ushort mh = BLOCK_READN(ushort, 1, pe_s, 80u);          // mh   @ 160B
+        const ushort dd = BLOCK_READN(ushort, 1, pe_s, 96u);          // d    @ 192B
+        const ushort dn = BLOCK_READN(ushort, 1, pe_s, 112u);         // dmin @ 224B
         psl[0]=(uchar)sl; psl[1]=(uchar)(sl>>8); psl[2]=(uchar)(sl>>16); psl[3]=(uchar)(sl>>24);
         psl[4]=(uchar)ml; psl[5]=(uchar)(ml>>8); psl[6]=(uchar)(ml>>16); psl[7]=(uchar)(ml>>24);
         psl[8]=(uchar)sh;  psl[9]=(uchar)(sh>>8);
@@ -707,13 +709,13 @@ KERNEL(fc_gguf_transcode)(
     FUNC_CALL(sh_gather_plane)(W, off_pqh + entry_idx * (uint)SG_T * 64u,  pqh_u, 16);
     {
         // ps: 16 scale bytes, scale si @ si*SG_T + lid -> one uchar block read (component si -> lane lid).
-        const uchar16 scq = intel_sub_group_block_read_uc16((const __global uchar*)(W + off_ps + entry_idx * (uint)SG_T * 16u));
+        const uchar16 scq = BLOCK_READN(uchar, 16, (W + off_ps + entry_idx * (uint)SG_T * 16u), 0);
         ps[0]=as_char(scq.s0);  ps[1]=as_char(scq.s1);  ps[2]=as_char(scq.s2);  ps[3]=as_char(scq.s3);
         ps[4]=as_char(scq.s4);  ps[5]=as_char(scq.s5);  ps[6]=as_char(scq.s6);  ps[7]=as_char(scq.s7);
         ps[8]=as_char(scq.s8);  ps[9]=as_char(scq.s9);  ps[10]=as_char(scq.sa); ps[11]=as_char(scq.sb);
         ps[12]=as_char(scq.sc); ps[13]=as_char(scq.sd); ps[14]=as_char(scq.se); ps[15]=as_char(scq.sf);
         // pd: one f16 per lane @ lid*2 -> one ushort block read.
-        const ushort dbits = intel_sub_group_block_read_us((const __global ushort*)(W + off_pd + entry_idx * (uint)SG_T * 2u));
+        const ushort dbits = BLOCK_READN(ushort, 1, (W + off_pd + entry_idx * (uint)SG_T * 2u), 0);
         FUNC_CALL(tq_decode_shuffle_q6k)((const __private uchar*)pql_u, (const __private uchar*)pqh_u, (const __private char*)ps, as_half(dbits), blk_vals);
     }
 #elif defined(GGUF_IS_Q4_0)
@@ -725,7 +727,7 @@ KERNEL(fc_gguf_transcode)(
     FUNC_CALL(sh_gather_plane)(W, off_pqs + entry_idx * (uint)SG_T * 128u, pqs_u, 32);
     {
         const __global ushort* pd_s = (const __global ushort*)(W + off_pd);
-        const ushort8 d8 = intel_sub_group_block_read_us8(pd_s + entry_idx * (uint)SG_T * 8u);
+        const ushort8 d8 = BLOCK_READN(ushort, 8, pd_s, entry_idx * (uint)SG_T * 8u);
         dv[0]=as_half(d8.s0); dv[1]=as_half(d8.s1); dv[2]=as_half(d8.s2); dv[3]=as_half(d8.s3);
         dv[4]=as_half(d8.s4); dv[5]=as_half(d8.s5); dv[6]=as_half(d8.s6); dv[7]=as_half(d8.s7);
     }
@@ -742,8 +744,8 @@ KERNEL(fc_gguf_transcode)(
     {
         const __global ushort* pd_s = (const __global ushort*)(W + off_pd);
         const __global ushort* pm_s = (const __global ushort*)(W + off_pm);
-        const ushort8 d8 = intel_sub_group_block_read_us8(pd_s + entry_idx * (uint)SG_T * 8u);
-        const ushort8 m8 = intel_sub_group_block_read_us8(pm_s + entry_idx * (uint)SG_T * 8u);
+        const ushort8 d8 = BLOCK_READN(ushort, 8, pd_s, entry_idx * (uint)SG_T * 8u);
+        const ushort8 m8 = BLOCK_READN(ushort, 8, pm_s, entry_idx * (uint)SG_T * 8u);
         dv[0]=as_half(d8.s0); dv[1]=as_half(d8.s1); dv[2]=as_half(d8.s2); dv[3]=as_half(d8.s3);
         dv[4]=as_half(d8.s4); dv[5]=as_half(d8.s5); dv[6]=as_half(d8.s6); dv[7]=as_half(d8.s7);
         mv[0]=as_half(m8.s0); mv[1]=as_half(m8.s1); mv[2]=as_half(m8.s2); mv[3]=as_half(m8.s3);
@@ -759,7 +761,7 @@ KERNEL(fc_gguf_transcode)(
     FUNC_CALL(sh_gather_plane)(W, off_pqs + entry_idx * (uint)SG_T * 256u, pqs_u, 64);
     {
         const __global ushort* pd_s = (const __global ushort*)(W + off_pd);
-        const ushort8 d8 = intel_sub_group_block_read_us8(pd_s + entry_idx * (uint)SG_T * 8u);
+        const ushort8 d8 = BLOCK_READN(ushort, 8, pd_s, entry_idx * (uint)SG_T * 8u);
         dv[0]=as_half(d8.s0); dv[1]=as_half(d8.s1); dv[2]=as_half(d8.s2); dv[3]=as_half(d8.s3);
         dv[4]=as_half(d8.s4); dv[5]=as_half(d8.s5); dv[6]=as_half(d8.s6); dv[7]=as_half(d8.s7);
     }

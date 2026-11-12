@@ -220,20 +220,22 @@ KERNEL(fc_gguf_gemm)(OPTIONAL_SHAPE_INFO_ARG
             if (bm < M) {
                 __attribute__((opencl_unroll_hint))
                 for (uint rg = 0; rg < ROW_GROUPS; ++rg) {
-                    const uint n = (h0 + rg) * 16 + lane;
+                    // Lane = consecutive output column, so one sub-group block write stores the 16 columns.
+                    const ulong c_off = (ulong)bm * N + (h0 + rg) * 16;
                     const float v = FUNC_CALL(gg_f8_el)(acc[rg * TOKEN_GROUPS + tg], i);
 #if HAS_FUSED_OPS
                     {
+                        const uint n = (h0 + rg) * 16 + lane;
                         const uint out_b = bm / OUTPUT_FEATURE_NUM;
                         const uint out_f = bm - out_b * OUTPUT_FEATURE_NUM;
                         OUTPUT_TYPE dequantized = TO_OUTPUT_TYPE(v);
                         FUSED_OPS;
-                        C[(ulong)bm * N + n] = FUSED_OPS_RESULT;
+                        DT_OUTPUT_BLOCK_WRITE(C, c_off, FUSED_OPS_RESULT);
                     }
 #elif GG_OUT_F32
-                    C[(ulong)bm * N + n] = v;
+                    DT_OUTPUT_BLOCK_WRITE(C, c_off, v);
 #else
-                    C[(ulong)bm * N + n] = convert_half_rte(v);
+                    DT_OUTPUT_BLOCK_WRITE(C, c_off, convert_half_rte(v));
 #endif
                 }
             }
