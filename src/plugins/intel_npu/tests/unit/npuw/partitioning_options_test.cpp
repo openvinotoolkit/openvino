@@ -241,8 +241,11 @@ std::shared_ptr<ov::Model> build_scalar_dq_scale_model(uint16_t q_value, const s
     std::shared_ptr<ov::Node> prev = input;
     for (float s : scales) {
         auto q = ov::op::v0::Constant::create(ov::element::u16, ov::Shape{1}, {q_value});
+        auto q_f32 = std::make_shared<ov::op::v0::Convert>(q, ov::element::f32);
+        q_f32->set_friendly_name("q_f32");
+        q_f32->get_rt_info()["test_rebalance_key"] = true;
         auto gamma =
-            std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Convert>(q, ov::element::f32),
+            std::make_shared<ov::op::v1::Multiply>(q_f32,
                                                    ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {s}));
         auto mul = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Relu>(prev), gamma);
         prev = std::make_shared<ov::op::v0::Tanh>(mul);
@@ -484,6 +487,11 @@ std::size_t count_rebalanced_calls(uint16_t q_value, const std::vector<float>& s
                 continue;
             }
             EXPECT_EQ(cst->cast_vector<float>(), std::vector<float>{std::ldexp(static_cast<float>(q_value), -k)});
+            if (k != 0) {
+                // The replacement keeps the name and runtime info of the scalar it replaced
+                EXPECT_EQ(cst->get_friendly_name().rfind("q_f32", 0), 0u) << cst->get_friendly_name();
+                EXPECT_EQ(cst->get_rt_info().count("test_rebalance_key"), 1u);
+            }
             const auto closure_idx = func._model->get_parameter_index(param) - func._param_offset;
             for (const auto& sg : partitioning.subgraphs) {
                 if (sg._funcall == func_name) {

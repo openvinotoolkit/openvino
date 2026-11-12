@@ -17,6 +17,7 @@
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/convert.hpp"
@@ -2563,8 +2564,12 @@ void Partitioner::rebalanceScalarClosures(const std::string& func_name) {
             }
 
             LOG_VERB("Rebalance " << node->get_friendly_name() << " in " << func_name << " by 2^" << k);
-            node->input(1 - side).replace_source_output(
-                ov::op::v0::Constant::create(ov::element::f32, cnst->get_shape(), {std::ldexp(c, -k)}));
+            const auto source = other.get_node_shared_ptr();
+            const auto rebalanced =
+                ov::op::v0::Constant::create(ov::element::f32, cnst->get_shape(), {std::ldexp(c, -k)});
+            rebalanced->set_friendly_name(source->get_friendly_name());
+            ov::copy_runtime_info(source, rebalanced);
+            node->input(1 - side).replace_source_output(rebalanced);
             for (std::size_t i = 0; i < refs.size(); i++) {
                 refs[i].get()._lazy_closure[cidx] = ov::npuw::weights::LazyTensor(
                     ov::op::v0::Constant::create(ov::element::f32, param->get_shape(), {std::ldexp(scales[i], k)}));
@@ -2884,8 +2889,10 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
-                p.attention(func_group);
+                // Before attention(): PYRAMID and HFA clone the body there, and the clones must see
+                // the rebalanced constants
                 p.rebalanceScalarClosures(func_group);
+                p.attention(func_group);
                 p.optimize(func_group);
                 p.decompressionCutOff(func_group);
             }
