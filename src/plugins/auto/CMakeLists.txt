@@ -21,6 +21,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/schedule.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/device_telemetry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/ipf_client.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/log.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/time_utils.cpp)
 
