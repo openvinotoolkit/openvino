@@ -9,6 +9,8 @@
 // has to describe the topology. The public GgmlModel surface is implemented in model.cpp.
 #pragma once
 
+#include <cstdint>
+#include <cstdio>
 #include <map>
 #include <set>
 #include <string>
@@ -26,6 +28,15 @@ namespace ov {
 namespace ggml_cgraph_loader {
 
 constexpr int MAX_NODES = 8192;
+
+/// fseek to a 64-bit offset (long is 32-bit on Windows, so fseek fails past 2 GB).
+inline int seek64(FILE* f, uint64_t offset) {
+#ifdef _WIN32
+    return _fseeki64(f, static_cast<__int64>(offset), SEEK_SET);
+#else
+    return fseeko(f, static_cast<off_t>(offset), SEEK_SET);
+#endif
+}
 
 /// Graph outputs, owned by the caller: the producer (the Loader) is destroyed after building, so
 /// anything needed afterwards must live here.
@@ -126,7 +137,7 @@ struct GgmlModel::Impl {
                 continue;
             }
             tmp.resize(ggml_nbytes(t));
-            if (fseek(f, static_cast<long>(doff + gguf_get_tensor_offset(gg, i)), SEEK_SET) != 0 ||
+            if (seek64(f, doff + gguf_get_tensor_offset(gg, i)) != 0 ||
                 fread(tmp.data(), 1, tmp.size(), f) != tmp.size()) {
                 fclose(f);
                 OPENVINO_THROW("[GGML] short read for tensor ", ggml_get_name(t));
