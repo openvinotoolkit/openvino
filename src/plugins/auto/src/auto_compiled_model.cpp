@@ -98,8 +98,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
         if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
-            real = m_scheduler->m_compile_context[ACTUALDEVICE].
-                m_compiled_model->get_property(name).as<unsigned int>();
+            real = m_scheduler->m_compile_context[ACTUALDEVICE].compiled_model()->get_property(name).as<unsigned int>();
         } else {
             DeviceInformation device_info;
             {
@@ -226,7 +225,7 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             std::lock_guard<std::mutex> lock(m_context->m_mutex);
             for (int i = 0; i < CONTEXTNUM; i++) {
                 if (m_scheduler->m_compile_context[i].m_is_enabled && m_scheduler->m_compile_context[i].m_is_already) {
-                    if (i == 0 && !m_scheduler->m_compile_context[CPU].m_compiled_model._ptr) {
+                    if (i == 0 && !m_scheduler->m_compile_context[CPU].compiled_model()._ptr) {
                         continue;
                     } else {
                         get_execution_devices(m_scheduler->m_compile_context[i].m_worker_name);
@@ -240,8 +239,8 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         {
             if (m_scheduler->m_compile_context[CPU].m_is_enabled && m_scheduler->m_compile_context[CPU].m_is_already)
-                return m_scheduler->m_compile_context[CPU].m_compiled_model->get_property(name);
-            return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name);
+                return m_scheduler->m_compile_context[CPU].compiled_model()->get_property(name);
+            return m_scheduler->m_compile_context[ACTUALDEVICE].compiled_model()->get_property(name);
         }
     } else if (name == ov::loaded_from_cache) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
@@ -250,16 +249,16 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
             std::lock_guard<std::mutex> lock(m_context->m_mutex);
             if (m_scheduler->m_compile_context[FALLBACKDEVICE].m_is_already) {
                 device_name = m_scheduler->m_compile_context[FALLBACKDEVICE].m_device_info.device_name;
-                return m_scheduler->m_compile_context[FALLBACKDEVICE].m_compiled_model->get_property(name).as<bool>();
+                return m_scheduler->m_compile_context[FALLBACKDEVICE].compiled_model()->get_property(name).as<bool>();
             }
             if (m_scheduler->m_compile_context[ACTUALDEVICE].m_is_already) {
                 device_name = m_scheduler->m_compile_context[ACTUALDEVICE].m_device_info.device_name;
-                return m_scheduler->m_compile_context[ACTUALDEVICE].m_compiled_model->get_property(name).as<bool>();
+                return m_scheduler->m_compile_context[ACTUALDEVICE].compiled_model()->get_property(name).as<bool>();
             } else {
                 OPENVINO_ASSERT(m_scheduler->m_compile_context[CPU].m_is_already == true &&
-                                m_scheduler->m_compile_context[CPU].m_compiled_model._ptr);
+                                m_scheduler->m_compile_context[CPU].compiled_model()._ptr);
                 device_name = m_scheduler->m_compile_context[CPU].m_device_info.device_name;
-                return m_scheduler->m_compile_context[CPU].m_compiled_model->get_property(name).as<bool>();
+                return m_scheduler->m_compile_context[CPU].compiled_model()->get_property(name).as<bool>();
             }
         } catch (const ov::Exception&) {
             LOG_DEBUG_TAG("get_property loaded_from_cache from %s failed", device_name.c_str());

@@ -366,13 +366,15 @@ TEST_F(AutoDynamicDeviceSelectionTest, repeated_inferences_with_a_single_worker_
 TEST_F(AutoDynamicDeviceSelectionTest, stateful_model_disables_dynamic_selection) {
     model = create_stateful_model();
     config.insert(ov::intel_auto::low_power_device("CPU"));
-    // optimal_number_of_infer_requests is mocked to 1, which the classic schedule promotes to
-    // 2; the dynamic schedule would instead keep a single worker per device.
-    EXPECT_CALL(*mockIExeNetActual.get(), create_infer_request()).Times(2).WillRepeatedly([this]() {
-        return mockIExeNetActual->ICompiledModel::create_infer_request();
-    });
+    // the mocked GPU model is rebound to the stateful one, so the passthrough schedule can serve requests
+    ON_CALL(*mockIExeNetActual.get(), inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+    ON_CALL(*mockIExeNetActual.get(), outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+    inferReqInternalActual = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    // the dynamic schedule would select a device again for every inference
+    EXPECT_CALL(*plugin, select_device).Times(0);
+    run_inferences(compiled_model, 3);
 }
 
 // filter_device_by_model() used to only classify a model as stateful after it had more than one
@@ -1377,7 +1379,36 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, device_without_caching_support_is_k
     EXPECT_EQ(m_cpu_compile_count.load(), 1);
 }
 
-TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_new_device_fails_to_compile) {
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_released_before_the_next_device_is_compiled) {
+    // GPU.1 is not warmed up, so it is only compiled by the switch
+    config.insert(ov::device::properties(ov::AnyMap{{"GPU.1", ov::AnyMap{ov::cache_dir("")}}}));
+    auto gpu1_compile_count = std::make_shared<std::atomic<int>>(0);
+    auto cpu_alive_at_gpu1_compile = std::make_shared<std::atomic<int>>(0);
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault([this, gpu1_compile_count, cpu_alive_at_gpu1_compile](const std::shared_ptr<const ov::Model>&,
+                                                                             const std::string&,
+                                                                             const ov::AnyMap&) {
+            ++*gpu1_compile_count;
+            if (!m_cpu_model.expired()) {
+                ++*cpu_alive_at_gpu1_compile;
+            }
+            return mockExeNetworkActual;
+        });
+    config.insert(ov::intel_auto::compile_for_all(true));
+    expect_selected_devices({"GPU.0", "CPU", "GPU.1"});
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 2);
+    EXPECT_EQ(gpu1_compile_count->load(), 1);
+    // only the initial device and the one being compiled are alive
+    EXPECT_EQ(cpu_alive_at_gpu1_compile->load(), 0);
+    EXPECT_TRUE(m_cpu_model.expired());
+}
+
+TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_reloaded_when_the_new_device_fails_to_compile) {
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
@@ -1392,7 +1423,8 @@ TEST_F(AutoDynamicInactiveDeviceReleaseTest, previous_device_is_kept_when_the_ne
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     run_inferences(compiled_model, 2);
-    EXPECT_EQ(m_cpu_compile_count.load(), 1);
+    // CPU was released before GPU.1 was compiled, so the fallback loads it again
+    EXPECT_EQ(m_cpu_compile_count.load(), 2);
     EXPECT_FALSE(m_cpu_model.expired());
 }
 

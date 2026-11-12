@@ -62,9 +62,13 @@ private:
      * @brief Drop the compiled model and workers of a device that is no longer the active one.
      * @note Only done with compile_for_all, and only for devices that support model caching and have a cache location
      * to reload from. The initial device is kept because it backs inputs()/outputs() and the property queries of the
-     * compiled model.
+     * compiled model. Called before the next device is compiled, so a failed compilation has to reload it from the cache.
      */
     void release_inactive_device(const DeviceName& device_name);
+    /**
+     * @brief Whether a model compiled for the device can be reloaded from the model cache, i.e. a cache blob exists.
+     */
+    bool has_reloadable_cache(DeviceExecutionContext& context);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
     bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
@@ -87,11 +91,6 @@ private:
     std::condition_variable                                              m_dispatch_done;
     DeviceName                                                           m_gate_current_device;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
-    DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
-    // whether Core writes a cache blob for the device, queried once per device
-    DeviceMap<bool>                                                      m_device_supports_caching;
-    // Cache keys are immutable for this compiled model/device configuration; file existence is still probed per release.
-    DeviceMap<std::string>                                               m_dynamic_cache_blob_ids;
     std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
     std::atomic<size_t>                                                  m_dynamic_switch_count = {0};
 };

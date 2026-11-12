@@ -92,21 +92,21 @@ void CumuSchedule::init() {
             if (context_ptr->m_worker_name.empty()) {
                 context_ptr->m_worker_name = context_ptr->m_device_info.device_name;
             }
-            generate_workers(context_ptr->m_worker_name, context_ptr->m_compiled_model);
+            hand_over_compile_result(*context_ptr);
             context_ptr->m_is_already = true;
             // reloadsuccess flag only for m_compile_context[FALLBACKDEVICE]
             context_ptr->m_is_reload_success = true;
             auto& device_name = context_ptr->m_device_info.device_name;
             LOG_INFO_TAG("device:%s compiling model finished", device_name.c_str());
             DEBUG_RUN([this, &context_ptr, &device_name] {
-                auto supported_config_keys = context_ptr->m_compiled_model->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+                auto supported_config_keys = context_ptr->compiled_model()->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
                 std::lock_guard<std::mutex> lock(m_context->m_mutex);
                 for (const auto& cfg : supported_config_keys) {
                     try {
                         LOG_DEBUG_TAG("device:%s, GetConfig:%s=%s",
                                       device_name.c_str(),
                                       cfg.c_str(),
-                                      context_ptr->m_compiled_model->get_property(cfg).as<std::string>().c_str());
+                                      context_ptr->compiled_model()->get_property(cfg).as<std::string>().c_str());
                     } catch (const ov::Exception&) {
                     }
                 }
@@ -142,11 +142,10 @@ void CumuSchedule::init() {
         }
     }
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, openvino::itt::handle(profilingTask));
+    m_model_only = m_n_ctput_devicenums == 1 && !m_context->m_bind_buffer;
+    // the contexts must exist before the devices are compiled concurrently, the map is not modified afterwards
     for (auto&& device : m_context->m_device_priorities) {
-        // initialize containers before run async task, if not initialized, it will hang during infer
-        m_idle_worker_requests[device.device_name];
-        m_worker_requests[device.device_name];
-        m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
+        add_device_context(device.device_name);
     }
     // load devices other than CPU first
     if (other_devices_loads.size() > 0) {
@@ -159,8 +158,8 @@ void CumuSchedule::init() {
         m_executor->run_and_wait(cpu_loads);
     }
     if (m_n_ctput_devicenums == 1 && m_p_ctput_loadcontext[0].m_is_already) {
-        m_passthrough_compiled_model = m_p_ctput_loadcontext[0].m_compiled_model;
-        m_context->m_hw_compiled_model = m_passthrough_compiled_model;
+        m_passthrough_context = m_p_ctput_loadcontext[0].m_device_context.load();
+        m_passthrough_context->keep_alive();
     }
     m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
 }
@@ -193,18 +192,20 @@ void CumuSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     }
     try {
         if (!(m_context->m_model_path.empty())) {
-            context.m_compiled_model =
+            context.m_compile_result =
                 m_context->m_ov_core->compile_model(m_context->m_model_path, device, device_config);
         } else {
-            context.m_compiled_model = m_context->m_ov_core->compile_model(model, device, device_config);
+            context.m_compile_result = m_context->m_ov_core->compile_model(model, device, device_config);
         }
         context.m_is_load_success = true;
     } catch (const ov::Exception& e) {
         context.m_err_message += device + ":" + e.what();
         context.m_is_load_success = false;
+        mark_compile_failure(context, e.what());
     } catch (const std::exception& e) {
         context.m_err_message += device + ":" + e.what();
         context.m_is_load_success = false;
+        mark_compile_failure(context, e.what());
     }
 }
 SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {
@@ -213,7 +214,7 @@ SoCompiledModel CumuSchedule::wait_first_compiled_model_ready() {
     for (size_t i = 0; i < m_n_ctput_devicenums; i++) {
         // check if device loaded successfully
         if (m_p_ctput_loadcontext[i].m_is_already) {
-            return m_p_ctput_loadcontext[i].m_compiled_model;
+            return m_p_ctput_loadcontext[i].compiled_model();
         } else {
             result << m_p_ctput_loadcontext[i].m_err_message.c_str();
             result << "; ";
@@ -246,7 +247,9 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
         }
         auto selected_device_name =
             preferred_device.empty() ? schedule_to_next_device(devices, current_device_index) : preferred_device;
-        if (run_pipeline_task(pipeline_task, m_idle_worker_requests[selected_device_name], preferred_device)) {
+        if (run_pipeline_task(pipeline_task,
+                              get_device_context(selected_device_name).idle_workers(),
+                              preferred_device)) {
             return true;
         } else {
             current_device_index++;
@@ -255,7 +258,7 @@ bool CumuSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
 
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
-        m_infer_pipeline_tasks_device_specific[preferred_device]->push(std::move(pipeline_task));
+        get_device_context(preferred_device).pending_tasks().push(std::move(pipeline_task));
     } else {
         m_infer_pipeline_tasks.push(std::move(pipeline_task));
     }
@@ -270,9 +273,9 @@ CumuSchedule::~CumuSchedule() {
     /* NOTE: The only threads that use `MultiSchedule` worker infer requests' threads.
      *       But AsyncInferRequest destructor should wait for all asynchronous tasks by the request
      */
-    for (auto&& idleWorker : m_idle_worker_requests) {
+    for (auto&& device : m_device_contexts) {
         // stop accepting any idle requests back (for re-scheduling)
-        idleWorker.second.set_capacity(0);
+        device.second->stop_scheduling();
     }
 }
 }  // namespace auto_plugin

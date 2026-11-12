@@ -215,6 +215,7 @@ struct IdleGuard<NotBusyPriorityWorkerRequests> {
 };
 
 class Plugin;
+class DeviceExecutionContext;
 
 // Selection-policy inputs consumed by Plugin::select_device: a hard filter (utilization thresholds)
 // applied first, then a ranking (performance curves) applied to the survivors.
@@ -270,7 +271,10 @@ struct AutoCompileContext {
     std::atomic<bool> m_is_reload_success = {false};
     std::future<void> m_future;
     std::promise<void> m_promise;
-    SoCompiledModel m_compiled_model;
+    // output of try_to_compile_model(), handed over to the device context once its workers are created
+    SoCompiledModel m_compile_result;
+    // owner of the compiled model after the hand-over, never reset so readers keep seeing the last loaded model
+    std::atomic<DeviceExecutionContext*> m_device_context = {nullptr};
     DeviceInformation  m_device_info;
     std::vector<DeviceInformation> m_meta_devices;
     std::string m_model_precision;
@@ -279,6 +283,8 @@ struct AutoCompileContext {
     std::string m_worker_name = "";
     // the priority registration of m_device_info has already been dropped by the caller
     bool m_priority_released = false;
+    // the compiled model of the device context, or the compile result if no device context owns it
+    SoCompiledModel compiled_model() const;
 };
 
 enum AutoCompileContextIndex {
