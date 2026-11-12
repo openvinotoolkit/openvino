@@ -289,9 +289,9 @@ set(samples_dirs
     classification_sample_async
     hello_classification
     hello_nv12_input_classification
+    hello_query_device
     hello_remote_tensor
     hello_reshape_ssd
-    hello_query_device
     model_creation_sample
 )
 
