@@ -3945,4 +3945,141 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_opt_key_leftover_params{data_types::f16, 2, 1, 50, 136, false}),
     sdpa_opt_key_leftover_test::PrintToStringParamName);
 
+// The multi-token sdpa_opt kernel has to keep the f16 Q*K^T scores in f32 until SoftMax. Every query and key row
+// here shares a large component, so all scores are close to 64 * 16 * 16 = 16384, where the f16 ulp is 16, and
+// they differ from each other only by tens. SoftMax depends on exactly those differences, so accumulating the
+// scores in f16 destroys the result. wav2vec2-base hits this: its last encoder layer reaches scores of ~18600 with
+// a pre-scaled query and SDPA scale 1.
+struct sdpa_opt_large_scores_params {
+    bool dynamic;
+    float scale;  // 0: default 1/sqrt(head_size)
+};
+
+class sdpa_opt_large_scores_test : public ::testing::TestWithParam<sdpa_opt_large_scores_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_opt_large_scores_params>& info) {
+        const auto& p = info.param;
+        return std::string(p.dynamic ? "dynamic" : "static") + (p.scale != 0.0f ? "_scale_1" : "_default_scale");
+    }
+};
+
+TEST_P(sdpa_opt_large_scores_test, matches_reference) {
+    const auto& p = GetParam();
+    auto& engine = get_test_engine();
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const size_t heads = 2, seq_q = 32, seq_kv = 64, head_size = 64;
+    const ov::Shape q_shape{1, heads, seq_q, head_size};
+    const ov::Shape kv_shape{1, heads, seq_kv, head_size};
+    const layout q_layout(q_shape, data_types::f16, format::bfyx);
+    const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
+    const layout dyn_layout(ov::PartialShape{1, static_cast<int64_t>(heads), -1, static_cast<int64_t>(head_size)}, data_types::f16, format::bfyx);
+
+    // Values on a 1/64 grid are exact in f16, so the reference below sees the same inputs as the kernel.
+    const auto q_data = rg.generate_random_1d<ov::float16>(q_layout.count(), 15.75f, 16.25f, 64);
+    const auto k_data = rg.generate_random_1d<ov::float16>(kv_layout.count(), 15.75f, 16.25f, 64);
+    const auto v_data = rg.generate_random_1d<ov::float16>(kv_layout.count(), -1.0f, 1.0f, 64);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+
+    topology topo;
+    topo.add(input_layout("q", p.dynamic ? dyn_layout : q_layout));
+    topo.add(input_layout("k", p.dynamic ? dyn_layout : kv_layout));
+    topo.add(input_layout("v", p.dynamic ? dyn_layout : kv_layout));
+    auto sdpa_prim = scaled_dot_product_attention("sdpa",
+                                                  {input_info("q"), input_info("k"), input_info("v")},
+                                                  false,
+                                                  -1,
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3});
+    if (p.scale != 0.0f)
+        sdpa_prim.scale_val = p.scale;
+    topo.add(sdpa_prim);
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // Keep systolic devices off sdpa_micro, so that every device runs the sdpa_opt multi-token kernel.
+    config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+    // Non-LLM models (such as wav2vec2) run without FlashAttention-2 online softmax by default, and only that path
+    // keeps the scores in f32 until SoftMax: the FlashAttention-2 path stores them in an f16 SLM buffer first.
+    config.set_property(ov::intel_gpu::could_use_flashattn_v2(false));
+    auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    auto output = net->execute().at("result").get_memory();
+
+    std::string sdpa_id;
+    for (const auto& info : net->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention")
+            sdpa_id = info.original_id;
+    }
+    ASSERT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+    const auto inst = net->get_primitive(sdpa_id);
+    const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+    ASSERT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+
+    // Double reference on the f16 inputs.
+    const double scale = p.scale != 0.0f ? static_cast<double>(p.scale) : 1.0 / std::sqrt(static_cast<double>(head_size));
+    std::vector<double> expected(heads * seq_q * head_size, 0.0);
+    std::vector<double> weights(seq_kv);
+    for (size_t h = 0; h < heads; ++h) {
+        for (size_t i = 0; i < seq_q; ++i) {
+            double max_logit = -std::numeric_limits<double>::infinity();
+            for (size_t j = 0; j < seq_kv; ++j) {
+                double dot = 0.0;
+                for (size_t e = 0; e < head_size; ++e) {
+                    dot += static_cast<double>(q_data[(h * seq_q + i) * head_size + e]) * static_cast<double>(k_data[(h * seq_kv + j) * head_size + e]);
+                }
+                weights[j] = dot * scale;
+                max_logit = std::max(max_logit, weights[j]);
+            }
+            double sum = 0.0;
+            for (auto& w : weights) {
+                w = std::exp(w - max_logit);
+                sum += w;
+            }
+            auto* out = &expected[(h * seq_q + i) * head_size];
+            for (size_t j = 0; j < seq_kv; ++j) {
+                for (size_t e = 0; e < head_size; ++e) {
+                    out[e] += weights[j] / sum * static_cast<double>(v_data[(h * seq_kv + j) * head_size + e]);
+                }
+            }
+        }
+    }
+
+    ASSERT_EQ(output->get_layout().get_shape(), q_shape);
+    cldnn::mem_lock<float, mem_lock_type::read> output_data(output, get_test_stream());
+    ASSERT_EQ(output_data.size(), expected.size());
+    double max_diff = 0.0;
+    size_t max_diff_idx = 0;
+    for (size_t i = 0; i < expected.size(); ++i) {
+        const double diff = std::abs(static_cast<double>(output_data[i]) - expected[i]);
+        if (!(diff <= max_diff)) {  // also records NaN
+            max_diff = diff;
+            max_diff_idx = i;
+        }
+    }
+    RecordProperty("max_abs_diff", std::to_string(max_diff));
+    // f32 scores keep the error at a few 1e-3 (f16 probabilities and output); f16 scores are off by ~1.
+    ASSERT_LE(max_diff, 1e-2) << "index " << max_diff_idx << ": " << output_data[max_diff_idx] << " vs " << expected[max_diff_idx];
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_opt_large_scores,
+                         sdpa_opt_large_scores_test,
+                         ::testing::Values(sdpa_opt_large_scores_params{false, 1.0f},
+                                           sdpa_opt_large_scores_params{true, 1.0f},
+                                           sdpa_opt_large_scores_params{false, 0.0f},
+                                           sdpa_opt_large_scores_params{true, 0.0f}),
+                         sdpa_opt_large_scores_test::PrintToStringParamName);
+
 } // namespace
