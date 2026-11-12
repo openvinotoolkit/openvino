@@ -370,6 +370,11 @@ void GatedResidualDnnlExecutor::runProjection(Projection& p, size_t m, void* src
 }
 
 impl_desc_type GatedResidualDnnlExecutor::implType() const {
+    // READ / FINAL_MIX are dominated by the projections: report what oneDNN chose for the down GEMM (the largest one).
+    if (m_proj[kDown].executor) {
+        return m_proj[kDown].executor->implType();
+    }
+    // WRITE has no GEMM, only the JIT elementwise kernel.
     return ov::with_cpu_x86_avx512_core() ? impl_desc_type::jit_avx512 : impl_desc_type::jit_avx2;
 }
 
