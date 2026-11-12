@@ -1886,7 +1886,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             }
         } else {
             auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            stream&* bank;
+            bank->deserialize(stream, [&](const std::string& device) {
+                CompiledModel::validate_import_device_against_allowlist(device, properties);
+            });
 
             // Encoder embedding models are prefill-only: no kvcache/generate compiled models.
             if (compiled->m_kvcache_compiled) {

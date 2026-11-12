@@ -182,6 +182,7 @@ private:
         const ov::AnyMap& properties,
         bool require_weights_bank,
         const std::function<std::string(const std::string&)>& decrypt);
+    static void validate_import_device_against_allowlist(const std::string& device, const ov::AnyMap& properties);
     void serialize_orc_container(std::ostream& stream,
                                  bool include_weights_bank,
                                  const std::function<std::string(const std::string&)>& encrypt,

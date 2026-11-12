@@ -210,6 +210,21 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
     return result;
 }
 
+void validate_import_device_against_allowlist(const std::string& device, const ov::AnyMap& properties) {
+    const auto it = properties.find(ov::intel_npu::npuw::devices.name());
+    if (it == properties.end()) {
+        return;
+    }
+
+    const auto allowed_devices = device_list_to_set(it->second.as<std::string>());
+    // An ID-specific allowlist entry matches only the exact device; an ID-less entry is a wildcard.
+    if (allowed_devices.count(device) == 0 && allowed_devices.count(canonical_device_name(device)) == 0) {
+        OPENVINO_THROW("NPUW ORC import: device \"",
+                       device,
+                       "\" embedded in the imported blob is not authorized by the caller-provided NPUW_DEVICES list");
+    }
+}
+
 // The blob's own m_dev_list is untrusted (attacker-controlled ORC metadata) and directly
 // selects which OpenVINO backend/device importer is invoked for every nested submodel.
 // The blob's m_dev_list and NPUW_WEIGHTS_BANK_ALLOC are untrusted and can select
@@ -222,28 +237,13 @@ void validate_import_devices_against_allowlist(const std::vector<std::string>& d
     if (it == properties.end()) {
         return;  // No caller-provided policy: preserve behavior for legitimate heterogeneous caches
     }
-    const auto allowed_devices = device_list_to_set(it->second.as<std::string>());
-    auto allowed_devices_check = [&](const std::string& device) {
-        // An allowlist entry naming a specific device ID (e.g. "GPU.0") must authorize only that
-        // exact device, not other IDs of the same device; only an ID-less entry ("GPU") acts as a
-        // wildcard for all its IDs. Compare the exact blob entry first, then fall back to the
-        // blob entry's canonical (ID-stripped) name - an ID-specific allowlist entry can never
-        // equal a canonical name, so this only ever matches an ID-less (wildcard) entry.
-        if (allowed_devices.count(device) == 0 && allowed_devices.count(canonical_device_name(device)) == 0) {
-            OPENVINO_THROW(
-                "NPUW ORC import: device \"",
-                device,
-                "\" embedded in the imported blob is not authorized by the caller-provided NPUW_DEVICES list");
-        }
-    };
-
     if (blob_config.has<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>() &&
         !blob_config.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>().empty()) {
-        allowed_devices_check(blob_config.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>());
+        validate_import_device_against_allowlist(blob_config.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>(), properties);
     }
 
     for (const auto& device : dev_list) {
-        allowed_devices_check(device);
+        validate_import_device_against_allowlist(device, properties);
     }
 }
 
@@ -1607,6 +1607,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Unsupported ORC schema for NPUW CompiledModel");
     }
     return deserialize_orc_container(stream, plugin, properties, true, {});
+}
+
+void ov::npuw::CompiledModel::validate_import_device_against_allowlist(const std::string& device,
+                                                                       const ov::AnyMap& properties) {
+    ::validate_import_device_against_allowlist(device, properties);
 }
 
 std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_orc_container(

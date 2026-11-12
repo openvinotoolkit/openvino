@@ -19,6 +19,9 @@
 #define private public
 #include "compiled_model.hpp"
 #undef private
+#define protected public
+#include "llm_compiled_model.hpp"
+#undef protected
 
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
@@ -183,12 +186,67 @@ std::shared_ptr<ov::Model> make_simple_model(const std::string& name) {
     return std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, ov::ParameterVector{param}, name);
 }
 
-void add_fake_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled) {
+void add_fake_submodel(const std::shared_ptr<ov::npuw::CompiledModel>& compiled, std::string device = {}) {
     auto model = make_simple_model("fake_sub");
     auto plugin = make_test_plugin();
     ov::npuw::CompiledModel::CompiledModelDesc desc;
-    desc.compiled_model = ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(model, plugin)};
+    desc.compiled_model =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(model, plugin, std::move(device))};
     compiled->m_compiled_submodels.push_back(std::move(desc));
+}
+
+std::string build_llm_blob_with_shared_bank_device(const std::string& bank_device) {
+    auto [plugin, core] = make_test_plugin_with_core();
+    auto shared_bank = ov::npuw::weights::bank("llm_shared_bank", core, "");
+    shared_bank->m_device_banks[bank_device].storage[0].tensor = ov::Tensor(ov::element::u8, ov::Shape{1});
+
+    auto stage_model = make_simple_model("llm_prefill");
+    auto stage = std::make_shared<ov::npuw::CompiledModel>(stage_model, plugin, true);
+    stage->m_inputs_to_submodels_inputs = {ov::npuw::CompiledModel::NO_LINK};
+    stage->m_outputs_to_submodels_outputs = {{0u, 0u}};
+    stage->m_dev_list = {"NPU"};
+    stage->m_cfg.update({{"NPUW_DEVICES", "NPU"},
+                         {"NPUW_FOLD", "NO"},
+                         {"NPUW_FOLD_ONLY", ""},
+                         {"NPUW_CWAI", "NO"},
+                         {"NPUW_ENSURE_COMPATIBILITY", "NO"}});
+    stage->set_weights_bank(shared_bank);
+    add_fake_submodel(stage, "NPU");
+
+    auto llm = std::make_shared<ov::npuw::LLMCompiledModel>(make_simple_model("llm"), plugin, true);
+    llm->m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "1024"}});
+    llm->m_non_llm_props[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SPEED;
+    llm->m_prefill_compiled = stage;
+
+    std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+    llm->export_model(stream);
+    return stream.str();
+}
+
+void expect_llm_shared_bank_import(const std::string& blob,
+                                   const std::optional<std::string>& allowed_devices,
+                                   bool should_throw) {
+    auto [plugin, core] = make_test_plugin_with_core();
+    ON_CALL(*core, get_default_context(testing::_))
+        .WillByDefault([](const std::string&) -> ov::SoPtr<ov::IRemoteContext> {
+            OPENVINO_THROW("Shared-bank remote allocation was reached");
+        });
+
+    std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
+    ov::AnyMap properties;
+    if (allowed_devices) {
+        properties["NPUW_DEVICES"] = *allowed_devices;
+    }
+    if (should_throw) {
+        try {
+            ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
+            FAIL() << "Expected shared-bank device to be rejected by NPUW_DEVICES";
+        } catch (const ov::Exception& ex) {
+            EXPECT_NE(std::string(ex.what()).find("NPUW_DEVICES"), std::string::npos) << ex.what();
+        }
+    } else {
+        EXPECT_NO_THROW(ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties));
+    }
 }
 
 void expect_validation_throw_contains(const std::shared_ptr<ov::npuw::CompiledModel>& compiled,
@@ -489,6 +547,18 @@ TEST(CompiledModelOrcImportValidationTest, AcceptsWeightsBankAllocationInsideCal
     const ov::AnyMap properties{{"NPUW_DEVICES", "NPU,CPU"}};
 
     EXPECT_EQ(import_and_count_nested_calls_for_blob(blob, properties), 1);
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsDisallowedDeviceInLlmSharedWeightsBank) {
+    expect_llm_shared_bank_import(build_llm_blob_with_shared_bank_device("GPU"), "NPU", true);
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsAllowedDeviceInLlmSharedWeightsBank) {
+    expect_llm_shared_bank_import(build_llm_blob_with_shared_bank_device("CPU"), "NPU,CPU", false);
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsLlmSharedBankDeviceWhenCallerOmitsDeviceList) {
+    expect_llm_shared_bank_import(build_llm_blob_with_shared_bank_device("CPU"), std::nullopt, false);
 }
 
 // An allowlist entry naming a specific device ID authorizes only that exact ID, not other
