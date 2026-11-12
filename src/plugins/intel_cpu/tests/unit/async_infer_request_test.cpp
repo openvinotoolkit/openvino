@@ -13,6 +13,7 @@
 #include <thread>
 #include <vector>
 
+#include "openvino/core/visibility.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -192,11 +193,23 @@ constexpr const char* kTestDeviceName = "ASYNC_INFER_REQUEST_TEST_CPU";
 // instead is NOT safe here: some CI packaging layouts (e.g. the Android CXX_Unit_Tests job) push
 // the plugin .so to a different directory than the ov_cpu_unit_tests binary itself, while still
 // configuring LD_LIBRARY_PATH to cover the actual location.
+//
+// The CPU plugin's build output name also varies by target architecture (same source tree, see
+// src/plugins/intel_cpu/CMakeLists.txt's per-arch OUTPUT_NAME), so the base name must be selected
+// at compile time -- this mirrors the existing pattern in
+// shared_tests_instances/behavior/ov_plugin/plugin_name.cpp.
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+constexpr const char* kCpuPluginBaseName = "openvino_arm_cpu_plugin";
+#elif defined(OPENVINO_ARCH_RISCV64)
+constexpr const char* kCpuPluginBaseName = "openvino_riscv_cpu_plugin";
+#else
+constexpr const char* kCpuPluginBaseName = "openvino_intel_cpu_plugin";
+#endif
+
 ov::Core& GetTestCore() {
     static ov::Core core = [] {
         ov::Core c;
-        auto plugin_name =
-            ov::util::make_plugin_library_name(std::string("openvino_intel_cpu_plugin") + OV_BUILD_POSTFIX);
+        auto plugin_name = ov::util::make_plugin_library_name(std::string(kCpuPluginBaseName) + OV_BUILD_POSTFIX);
         c.register_plugin(plugin_name.string(), kTestDeviceName);
         return c;
     }();
