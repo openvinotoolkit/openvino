@@ -1,0 +1,691 @@
+ir_version: 10
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "query"
+    input: "key"
+    input: "value"
+    input: "past_key"
+    input: "past_value"
+    input: "seqlens_k"
+    input: "total_sequence_length"
+    input: "cos_cache"
+    input: "sin_cache"
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: ""
+    input: "query_seqlens"
+    output: "out_full"
+    output: "pk_full"
+    output: "pv_full"
+    op_type: "GroupQueryAttention"
+    attribute {
+      name: "do_rotary"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "kv_num_heads"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  node {
+    input: "query"
+    output: "q_shape"
+    op_type: "Shape"
+  }
+  node {
+    input: "q_shape"
+    input: "idx1"
+    output: "s_len"
+    op_type: "Gather"
+  }
+  node {
+    input: "zero_i"
+    input: "s_len"
+    input: "one_i"
+    output: "q_range"
+    op_type: "Range"
+  }
+  node {
+    input: "q_range"
+    input: "ax_0_2"
+    output: "q_range_3d"
+    op_type: "Unsqueeze"
+  }
+  node {
+    input: "query_seqlens"
+    output: "qsl_i64"
+    op_type: "Cast"
+    attribute {
+      name: "to"
+      i: 7
+      type: INT
+    }
+  }
+  node {
+    input: "qsl_i64"
+    input: "ax_1_2"
+    output: "qsl_3d"
+    op_type: "Unsqueeze"
+  }
+  node {
+    input: "q_range_3d"
+    input: "qsl_3d"
+    output: "q_mask"
+    op_type: "Less"
+  }
+  node {
+    input: "q_mask"
+    input: "out_full"
+    input: "zero_f"
+    output: "output"
+    op_type: "Where"
+  }
+  node {
+    input: "pk_full"
+    output: "pk_shape"
+    op_type: "Shape"
+  }
+  node {
+    input: "pk_shape"
+    input: "idx2"
+    output: "kv_len"
+    op_type: "Gather"
+  }
+  node {
+    input: "zero_i"
+    input: "kv_len"
+    input: "one_i"
+    output: "kv_range"
+    op_type: "Range"
+  }
+  node {
+    input: "kv_range"
+    input: "ax_0_1_3"
+    output: "kv_range_4d"
+    op_type: "Unsqueeze"
+  }
+  node {
+    input: "kv_rows"
+    input: "ax_1_2_3"
+    output: "kv_rows_4d"
+    op_type: "Unsqueeze"
+  }
+  node {
+    input: "kv_range_4d"
+    input: "kv_rows_4d"
+    output: "kv_mask"
+    op_type: "Less"
+  }
+  node {
+    input: "kv_mask"
+    input: "pk_full"
+    input: "zero_f"
+    output: "present_key"
+    op_type: "Where"
+  }
+  node {
+    input: "kv_mask"
+    input: "pv_full"
+    input: "zero_f"
+    output: "present_value"
+    op_type: "Where"
+  }
+  name: "GroupQueryAttention_Graph"
+  initializer {
+    data_type: 7
+    int64_data: 0
+    name: "zero_i"
+  }
+  initializer {
+    data_type: 7
+    int64_data: 1
+    name: "one_i"
+  }
+  initializer {
+    data_type: 7
+    int64_data: 1
+    name: "idx1"
+  }
+  initializer {
+    data_type: 7
+    int64_data: 2
+    name: "idx2"
+  }
+  initializer {
+    dims: 2
+    data_type: 7
+    int64_data: 0
+    int64_data: 2
+    name: "ax_0_2"
+  }
+  initializer {
+    dims: 2
+    data_type: 7
+    int64_data: 1
+    int64_data: 2
+    name: "ax_1_2"
+  }
+  initializer {
+    dims: 3
+    data_type: 7
+    int64_data: 0
+    int64_data: 1
+    int64_data: 3
+    name: "ax_0_1_3"
+  }
+  initializer {
+    dims: 3
+    data_type: 7
+    int64_data: 1
+    int64_data: 2
+    int64_data: 3
+    name: "ax_1_2_3"
+  }
+  initializer {
+    data_type: 1
+    float_data: 0.0
+    name: "zero_f"
+  }
+  initializer {
+    dims: 16
+    dims: 8
+    data_type: 1
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 1.0
+    float_data: 0.540302
+    float_data: 0.950415
+    float_data: 0.995004
+    float_data: 0.9995
+    float_data: 0.99995
+    float_data: 0.999995
+    float_data: 1.0
+    float_data: 1.0
+    float_data: -0.416147
+    float_data: 0.806578
+    float_data: 0.980067
+    float_data: 0.998001
+    float_data: 0.9998
+    float_data: 0.99998
+    float_data: 0.999998
+    float_data: 1.0
+    float_data: -0.989992
+    float_data: 0.582754
+    float_data: 0.955336
+    float_data: 0.995503
+    float_data: 0.99955
+    float_data: 0.999955
+    float_data: 0.999996
+    float_data: 1.0
+    float_data: -0.653644
+    float_data: 0.301137
+    float_data: 0.921061
+    float_data: 0.992011
+    float_data: 0.9992
+    float_data: 0.99992
+    float_data: 0.999992
+    float_data: 0.999999
+    float_data: 0.283662
+    float_data: -0.010342
+    float_data: 0.877583
+    float_data: 0.987526
+    float_data: 0.99875
+    float_data: 0.999875
+    float_data: 0.999988
+    float_data: 0.999999
+    float_data: 0.96017
+    float_data: -0.320796
+    float_data: 0.825336
+    float_data: 0.982054
+    float_data: 0.998201
+    float_data: 0.99982
+    float_data: 0.999982
+    float_data: 0.999998
+    float_data: 0.753902
+    float_data: -0.599438
+    float_data: 0.764842
+    float_data: 0.9756
+    float_data: 0.997551
+    float_data: 0.999755
+    float_data: 0.999976
+    float_data: 0.999998
+    float_data: -0.1455
+    float_data: -0.818632
+    float_data: 0.696707
+    float_data: 0.96817
+    float_data: 0.996802
+    float_data: 0.99968
+    float_data: 0.999968
+    float_data: 0.999997
+    float_data: -0.91113
+    float_data: -0.956644
+    float_data: 0.62161
+    float_data: 0.959773
+    float_data: 0.995953
+    float_data: 0.999595
+    float_data: 0.99996
+    float_data: 0.999996
+    float_data: -0.839072
+    float_data: -0.999786
+    float_data: 0.540302
+    float_data: 0.950415
+    float_data: 0.995004
+    float_data: 0.9995
+    float_data: 0.99995
+    float_data: 0.999995
+    float_data: 0.004426
+    float_data: -0.94378
+    float_data: 0.453596
+    float_data: 0.940108
+    float_data: 0.993956
+    float_data: 0.999395
+    float_data: 0.99994
+    float_data: 0.999994
+    float_data: 0.843854
+    float_data: -0.794179
+    float_data: 0.362358
+    float_data: 0.92886
+    float_data: 0.992809
+    float_data: 0.99928
+    float_data: 0.999928
+    float_data: 0.999993
+    float_data: 0.907447
+    float_data: -0.56582
+    float_data: 0.267499
+    float_data: 0.916683
+    float_data: 0.991562
+    float_data: 0.999155
+    float_data: 0.999916
+    float_data: 0.999992
+    float_data: 0.136737
+    float_data: -0.281349
+    float_data: 0.169967
+    float_data: 0.90359
+    float_data: 0.990216
+    float_data: 0.99902
+    float_data: 0.999902
+    float_data: 0.99999
+    float_data: -0.759688
+    float_data: 0.031022
+    float_data: 0.070737
+    float_data: 0.889594
+    float_data: 0.988771
+    float_data: 0.998875
+    float_data: 0.999888
+    float_data: 0.999989
+    name: "cos_cache"
+  }
+  initializer {
+    dims: 16
+    dims: 8
+    data_type: 1
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.0
+    float_data: 0.841471
+    float_data: 0.310984
+    float_data: 0.099833
+    float_data: 0.031618
+    float_data: 0.01
+    float_data: 0.003162
+    float_data: 0.001
+    float_data: 0.000316
+    float_data: 0.909297
+    float_data: 0.591127
+    float_data: 0.198669
+    float_data: 0.063203
+    float_data: 0.019999
+    float_data: 0.006325
+    float_data: 0.002
+    float_data: 0.000632
+    float_data: 0.14112
+    float_data: 0.812649
+    float_data: 0.29552
+    float_data: 0.094726
+    float_data: 0.029996
+    float_data: 0.009487
+    float_data: 0.003
+    float_data: 0.000949
+    float_data: -0.756802
+    float_data: 0.953581
+    float_data: 0.389418
+    float_data: 0.126154
+    float_data: 0.039989
+    float_data: 0.012649
+    float_data: 0.004
+    float_data: 0.001265
+    float_data: -0.958924
+    float_data: 0.999947
+    float_data: 0.479426
+    float_data: 0.157456
+    float_data: 0.049979
+    float_data: 0.015811
+    float_data: 0.005
+    float_data: 0.001581
+    float_data: -0.279416
+    float_data: 0.947148
+    float_data: 0.564642
+    float_data: 0.1886
+    float_data: 0.059964
+    float_data: 0.018973
+    float_data: 0.006
+    float_data: 0.001897
+    float_data: 0.656987
+    float_data: 0.800422
+    float_data: 0.644218
+    float_data: 0.219556
+    float_data: 0.069943
+    float_data: 0.022134
+    float_data: 0.007
+    float_data: 0.002214
+    float_data: 0.989358
+    float_data: 0.574318
+    float_data: 0.717356
+    float_data: 0.250292
+    float_data: 0.079915
+    float_data: 0.025296
+    float_data: 0.008
+    float_data: 0.00253
+    float_data: 0.412118
+    float_data: 0.291259
+    float_data: 0.783327
+    float_data: 0.280778
+    float_data: 0.089879
+    float_data: 0.028457
+    float_data: 0.009
+    float_data: 0.002846
+    float_data: -0.544021
+    float_data: -0.020684
+    float_data: 0.841471
+    float_data: 0.310984
+    float_data: 0.099833
+    float_data: 0.031618
+    float_data: 0.01
+    float_data: 0.003162
+    float_data: -0.99999
+    float_data: -0.330575
+    float_data: 0.891207
+    float_data: 0.340878
+    float_data: 0.109778
+    float_data: 0.034778
+    float_data: 0.011
+    float_data: 0.003478
+    float_data: -0.536573
+    float_data: -0.607683
+    float_data: 0.932039
+    float_data: 0.370431
+    float_data: 0.119712
+    float_data: 0.037938
+    float_data: 0.012
+    float_data: 0.003795
+    float_data: 0.420167
+    float_data: -0.824528
+    float_data: 0.963558
+    float_data: 0.399614
+    float_data: 0.129634
+    float_data: 0.041098
+    float_data: 0.013
+    float_data: 0.004111
+    float_data: 0.990607
+    float_data: -0.959605
+    float_data: 0.98545
+    float_data: 0.428398
+    float_data: 0.139543
+    float_data: 0.044257
+    float_data: 0.014
+    float_data: 0.004427
+    float_data: 0.650288
+    float_data: -0.999519
+    float_data: 0.997495
+    float_data: 0.456753
+    float_data: 0.149438
+    float_data: 0.047416
+    float_data: 0.014999
+    float_data: 0.004743
+    name: "sin_cache"
+  }
+  input {
+    name: "query"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_param: "sequence_length"
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "key"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_param: "sequence_length"
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "value"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_param: "sequence_length"
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_key"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "past_sequence_length"
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_value"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "past_sequence_length"
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "seqlens_k"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "total_sequence_length"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+        }
+      }
+    }
+  }
+  input {
+    name: "query_seqlens"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "kv_rows"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_param: "batch_size"
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "ob"
+          }
+          dim {
+            dim_param: "os"
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_key"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "kb"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "kl"
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "present_value"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: "kb"
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_param: "kl"
+          }
+          dim {
+            dim_value: 16
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 17
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}

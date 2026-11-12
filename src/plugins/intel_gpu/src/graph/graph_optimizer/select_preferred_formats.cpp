@@ -240,8 +240,10 @@ void select_preferred_formats::run(program& p) {
                     n->set_preferred_input_fmt(
                         decompression_param_idx,
                         n->get_input_layout(decompression_param_idx).format);
-                    decompression_param_idx++;
                 }
+                // The index must advance even when the format was already chosen (e.g. by oneDNN
+                // query_formats), otherwise the zero-point slot below would re-check the scale index.
+                decompression_param_idx++;
             } if (fc_prim->decompression_zero_point.is_valid()) {
                 if (n->get_preferred_input_fmt(decompression_param_idx) == format::any) {
                     n->set_preferred_input_fmt(
