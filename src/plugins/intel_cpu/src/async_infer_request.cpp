@@ -55,7 +55,6 @@ class CallerThreadStateGuard {
 public:
     explicit CallerThreadStateGuard(ov::intel_cpu::Config::DenormalsOptMode denormals_opt_mode) {
 #if OV_CPU_HAS_MXCSR_INTRINSICS
-        m_mxcsr = _mm_getcsr();
         if (denormals_opt_mode == ov::intel_cpu::Config::DenormalsOptMode::DO_On) {
             ov::intel_cpu::flush_to_zero(true);
             ov::intel_cpu::denormals_as_zero(true);
@@ -64,9 +63,6 @@ public:
             ov::intel_cpu::denormals_as_zero(false);
         }
         // DO_Keep: leave this thread's current FTZ/DAZ bits untouched, matching compile_model()'s own behavior.
-#endif
-#if OV_THREAD == OV_THREAD_OMP
-        m_omp_max_threads = omp_get_max_threads();
 #endif
     }
 
@@ -83,11 +79,14 @@ public:
     }
 
 private:
+    // Default member initializers (rather than constructor-body assignments) so each is captured
+    // before any constructor-body statement can mutate the corresponding piece of thread state
+    // (satisfies cppcoreguidelines-prefer-member-initializer too).
 #if OV_CPU_HAS_MXCSR_INTRINSICS
-    unsigned int m_mxcsr = 0;
+    unsigned int m_mxcsr = _mm_getcsr();
 #endif
 #if OV_THREAD == OV_THREAD_OMP
-    int m_omp_max_threads = 1;
+    int m_omp_max_threads = omp_get_max_threads();
 #endif
 };
 
