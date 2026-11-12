@@ -132,7 +132,6 @@ public:
         REGISTER_OPTION(ENABLE_STRIDES_FOR);
         REGISTER_OPTION(SHARED_COMMON_QUEUE);
         REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-        REGISTER_OPTION(MAX_TILES);
         REGISTER_OPTION(MODEL_PTR);
         REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
@@ -798,6 +797,42 @@ TEST_P(WSCompileCallNumberPropertyTests, RemainsAvailableAsInternalCompilerOptio
     ASSERT_EQ(filteredConfig.get<::intel_npu::WS_COMPILE_CALL_NUMBER>(), 3);
 }
 
+using WriteOnlyPropertyTests = PropertiesManagerTests;
+
+// Write-only properties cannot be handed back to the user (e.g. the Python bindings have no Any -> object conversion
+// for ov::EncryptionCallbacks or std::shared_ptr<const ov::Model>), so reading them must succeed and return an empty
+// ov::Any.
+TEST_P(WriteOnlyPropertyTests, AllSupportedWriteOnlyPropertiesReturnEmptyAny) {
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(
+        supportedProperties =
+            propertiesManager->getProperty(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>());
+
+    size_t writeOnlyCount = 0;
+    for (const auto& property : supportedProperties) {
+        if (property.get_mutability() != ov::PropertyMutability::WO) {
+            continue;
+        }
+        ++writeOnlyCount;
+
+        ov::Any value;
+        OV_ASSERT_NO_THROW(value = propertiesManager->getProperty(property));
+        EXPECT_TRUE(value.empty()) << "Write-only property " << property << " must return an empty ov::Any";
+    }
+
+    ASSERT_GT(writeOnlyCount, 0u);
+}
+
+// Private (non-public) write-only properties are not part of supported_properties, so they are queried by name. The
+// property name is the test parameter.
+using PrivateWriteOnlyPropertyTests = PropertiesManagerTests;
+
+TEST_P(PrivateWriteOnlyPropertyTests, ReturnsEmptyAny) {
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = propertiesManager->getProperty(configuration));
+    EXPECT_TRUE(value.empty()) << configuration;
+}
+
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
 
 TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported) {
@@ -996,6 +1031,65 @@ TEST_P(DisableIdleMemoryPruningPropertyTests, MergedConfigurationDoesNotChangeTh
     ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
 }
 
+// DEVICE_ARCHITECTURE must always report the name of the resolved device, no matter how DEVICE_ID identifies it.
+class DeviceArchitecturePropertyTests : public PropertiesManagerTests {
+protected:
+    std::string expectedArchitecture;
+
+    void SetUp() override {
+        PropertiesManagerTests::SetUp();
+
+        const auto device = backend ? backend->getDevice() : nullptr;
+        if (device == nullptr) {
+            GTEST_SKIP() << "No NPU device available.";
+        }
+        expectedArchitecture = device->getName();
+    }
+
+    std::string getArchitecture(const ov::AnyMap& arguments = {}) const {
+        return propertiesManager->getProperty(ov::device::architecture.name(), arguments).as<std::string>();
+    }
+};
+
+TEST_P(DeviceArchitecturePropertyTests, IsSupported) {
+    ASSERT_TRUE(propertiesManager->isPropertySupported(ov::device::architecture.name()));
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DefaultDeviceReturnsDeviceName) {
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture());
+    ASSERT_FALSE(architecture.empty());
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DeviceIdAsIndexArgumentReturnsDeviceName) {
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture({ov::device::id("0")}));
+    ASSERT_NE(architecture, "0");
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DeviceIdAsNameArgumentReturnsDeviceName) {
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture({ov::device::id(expectedArchitecture)}));
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, DeviceIdAsIndexInConfigReturnsDeviceName) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({ov::device::id("0")}));
+
+    std::string architecture;
+    OV_ASSERT_NO_THROW(architecture = getArchitecture());
+    ASSERT_NE(architecture, "0");
+    ASSERT_EQ(architecture, expectedArchitecture);
+}
+
+TEST_P(DeviceArchitecturePropertyTests, UnknownDeviceIdIsNotSupported) {
+    OV_EXPECT_THROW(getArchitecture({ov::device::id("UNKNOWN_DEVICE")}),
+                    ov::Exception,
+                    HasSubstr("Unsupported configuration key: DEVICE_ARCHITECTURE"));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -1025,6 +1119,20 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         WriteOnlyPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+const std::vector<std::string> private_write_only_properties = {{ov::loaded_from_cache.name()}};
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         PrivateWriteOnlyPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(private_write_only_properties)),
+                         PropertiesManagerTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ExpectLoadingCompilerPropertySupported,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
@@ -1045,6 +1153,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          DisableIdleMemoryPruningPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         DeviceArchitecturePropertyTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);

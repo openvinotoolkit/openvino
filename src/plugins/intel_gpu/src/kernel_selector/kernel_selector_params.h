@@ -247,6 +247,7 @@ public:
         union DataTypesKey {
             struct val_t {
                 uint32_t uint2 : 1;
+                uint32_t uint3 : 1;
                 uint32_t int4 : 1;
                 uint32_t uint4 : 1;
                 uint32_t int8 : 1;
@@ -634,7 +635,7 @@ struct fused_operation_desc {
     int32_t dep_idx_start;
     size_t dep_size;
     MultiDataTensor tensors;
-    DataTensor output_tensor;
+    MultiDataTensor output_tensors;
     size_t op_id;
     std::vector<dep_info> dep_data;
 

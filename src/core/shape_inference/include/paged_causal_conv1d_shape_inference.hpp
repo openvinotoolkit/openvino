@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "dimension_util.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "utils.hpp"
 
@@ -40,11 +41,13 @@ std::vector<TRShape> shape_infer(const PagedCausalConv1D* op, const std::vector<
     }
 
     if (conv_state_table_rank_is_static && conv_weight_rank_is_static) {
+        const auto dilation = static_cast<typename T::value_type::value_type>(op->get_dilation());
+        const auto expected_window = ov::util::dim::dilated(input_shapes[2][2], dilation);
         NODE_SHAPE_INFER_CHECK(op,
                                input_shapes,
-                               input_shapes[1][2].compatible(input_shapes[2][2]),
-                               "The kernel_size dimensions of conv_state_table and conv_weight inputs must be "
-                               "compatible.");
+                               input_shapes[1][2].compatible(expected_window),
+                               "The causal-window dimension of conv_state_table must be compatible with "
+                               "(kernel_taps-1)*dilation+1 derived from conv_weight and the dilation attribute.");
     }
 
     if (input_embeds_rank_is_static && conv_weight_rank_is_static) {

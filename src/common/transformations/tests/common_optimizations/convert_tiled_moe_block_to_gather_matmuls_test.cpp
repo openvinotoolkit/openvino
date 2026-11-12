@@ -1053,4 +1053,60 @@ INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsTest_negative_cases_
                                             ::testing::Values(false),
                                             ::testing::Values(false)),
                          ConvertTiledMoeBlockToGatherMatmulsTest::getTestCaseName);
+
+// The test models have f32 activations
+using ConvertTiledMoeBlockToGatherMatmulsActivationTypesParams =
+    std::tuple<MoEType,
+               std::vector<ov::element::Type>,  // supported_activation_types
+               bool>;                           // should_be_applied
+
+class ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest
+    : public TransformationTestsF,
+      public WithParamInterface<ConvertTiledMoeBlockToGatherMatmulsActivationTypesParams> {
+public:
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<ConvertTiledMoeBlockToGatherMatmulsActivationTypesParams>& obj) {
+        const auto& [moe_type, supported_activation_types, should_be_applied] = obj.param;
+        std::ostringstream result;
+        result << "MoEType_" << moe_type << "_SupportedActivationTypes_";
+        for (const auto& type : supported_activation_types) {
+            result << type << "_";
+        }
+        result << "shouldBeApplied_" << (should_be_applied ? "true" : "false");
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& [moe_type, supported_activation_types, should_be_applied] = this->GetParam();
+        const bool is_2gemm = moe_type == MoEType::MoE2GeMM;
+        model = is_2gemm ? initMoE2GeMMSubgraph(false, false, false, true, false, AdditionalConsumersMode::NO)
+                         : initMoE3GeMMSubgraph(false, false, false, true, AdditionalConsumersMode::NO);
+        manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(std::vector<ov::element::Type>{},
+                                                                             supported_activation_types);
+        if (should_be_applied) {
+            model_ref = is_2gemm ? initMoE2GeMMSubgraphRef(false, false, false, true, false)
+                                 : initMoE3GeMMSubgraphRef(false, false, false, true);
+        }
+    }
+};
+
+TEST_P(ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest, CompareFunctions) {}
+
+INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest_positive_cases,
+                         ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_types),
+                                            ::testing::Values(std::vector<ov::element::Type>{ov::element::f16,
+                                                                                             ov::element::f32}),
+                                            ::testing::Values(true)),
+                         ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest_negative_cases,
+                         ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_types),
+                                            ::testing::Values(std::vector<ov::element::Type>{},
+                                                              std::vector<ov::element::Type>{ov::element::f16}),
+                                            ::testing::Values(false)),
+                         ConvertTiledMoeBlockToGatherMatmulsActivationTypesTest::getTestCaseName);
 }  // namespace

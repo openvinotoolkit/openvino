@@ -7,6 +7,8 @@
 
 #include "intel_gpu/runtime/engine.hpp"
 
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/permute.hpp"
@@ -342,4 +344,47 @@ TEST(test_select_preferred_formats, conv_reshape_reorder_planar_output) {
 
     ASSERT_EQ(build(true)->get_node("conv1").get_preferred_output_fmt(0), format::bfyx);
     ASSERT_EQ(build(false)->get_node("conv1").get_preferred_output_fmt(0), format::b_fs_yx_fsv16);
+}
+
+TEST(test_select_preferred_formats, dynamic_compressed_fc_keeps_fbyx_scale_and_zp) {
+    auto& engine = get_test_engine();
+
+    const int64_t ofm = 7680;
+    const int64_t ifm = 5120;
+    const int64_t groups = 80;
+
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::u2, format::bfyx});
+    auto scale_mem = engine.allocate_memory({ov::PartialShape{ofm, groups}, data_types::f16, format::bfyx});
+    auto zp_mem = engine.allocate_memory({ov::PartialShape{ofm, groups, 1}, data_types::u8, format::bfyx});
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape{1, -1, ifm}, data_types::f16, format::bfyx}));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    topology.add(data("zp", zp_mem));
+    topology.add(reorder("scale_reorder", input_info("scale"),
+                         layout{ov::PartialShape{ofm, groups}, data_types::f16, format::fbyx}));
+    topology.add(reshape("zp_reshape", input_info("zp"), false, {ofm, groups}, ov::PartialShape{ofm, groups}));
+    topology.add(reorder("zp_reorder", input_info("zp_reshape"),
+                         layout{ov::PartialShape{ofm, groups}, data_types::u8, format::fbyx}));
+    topology.add(fully_connected("fc", input_info("input"), "weights", "", "scale_reorder", "zp_reorder",
+                                 data_types::f16, 3, 2));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // oneDNN FC is static-shape only, so forcing it on a dynamic FC leaves no factory.
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::any, "", impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", fc_impl}}));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    program_wrapper::apply_opt_pass<select_preferred_formats>(*prog);
+
+    auto& fc_node = prog->get_node("fc");
+    ASSERT_TRUE(fc_node.is_dynamic());
+    ASSERT_EQ(fc_node.get_dependency(2).id(), "scale_reorder");
+    ASSERT_EQ(fc_node.get_dependency(3).id(), "zp_reorder");
+    ASSERT_EQ(fc_node.get_preferred_input_fmt(2), format::fbyx);
+    ASSERT_EQ(fc_node.get_preferred_input_fmt(3), format::fbyx);
 }

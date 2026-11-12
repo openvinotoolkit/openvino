@@ -4,13 +4,12 @@
 
 #pragma once
 
-#include <openvino/op/gather.hpp>
-
 #include "../convert_common.hpp"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "openvino/op/gather.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::intel_gpu::mlir {
@@ -58,9 +57,16 @@ struct ConvertGather {
         auto cast = arith::IndexCastOp::create(builder, loc, indices_type, mlir::ValueRange{shape_of});
 
         auto empty_add = tensor::EmptyOp::create(builder, loc, indices_expanded.getType(), dynamic_index_dims);
-        auto add = linalg::AddOp::create(builder, loc, mlir::ValueRange{cast.getResult(), indices_expanded}, mlir::ValueRange{empty_add});
-        auto select =
-            linalg::SelectOp::create(builder, loc, mlir::ValueRange{cmpi.getResult(), add.getResult(0), indices_expanded}, mlir::ValueRange{empty_add});
+        auto add = linalg::ElementwiseOp::create(builder,
+                                                 loc,
+                                                 mlir::ValueRange{cast.getResult(), indices_expanded},
+                                                 mlir::ValueRange{empty_add},
+                                                 linalg::ElementwiseKind::add);
+        auto select = linalg::ElementwiseOp::create(builder,
+                                                    loc,
+                                                    mlir::ValueRange{cmpi.getResult(), add.getResult(0), indices_expanded},
+                                                    mlir::ValueRange{empty_add},
+                                                    linalg::ElementwiseKind::select);
 
         auto gather_node = std::dynamic_pointer_cast<ov::op::util::GatherBase>(node);
         assert(gather_node && "Expected a gather node");

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from openvino import PartialShape, Dimension, Model, Type
-from openvino.exceptions import UserInputError
+from openvino.exceptions import OVTypeError, UserInputError
 from openvino.utils.types import make_constant_node
 
 import openvino.opset1 as ov_opset1
@@ -14,6 +14,7 @@ import openvino.opset5 as ov_opset5
 import openvino.opset10 as ov_opset10
 import openvino.opset15 as ov_opset15
 import openvino.opset16 as ov_opset16
+import openvino.opset17 as ov_opset17
 import openvino.opset11 as ov
 from openvino.op.util import VariableInfo, Variable
 
@@ -1009,6 +1010,33 @@ def test_read_value():
     assert read_value_attributes["variable_shape"] == [2, 2]
 
 
+@pytest.mark.parametrize(("variable_type", "expected_type"), [
+    ("i32", Type.i32),
+    ("f32", Type.f32),
+    ("boolean", Type.boolean),
+])
+def test_read_value_with_type_name(variable_type, expected_type):
+    init_value = ov.parameter([2, 2], name="init_value", dtype=expected_type)
+
+    node = ov.read_value(init_value, "var_id_667", variable_type, [2, 2])
+    assert node.get_output_element_type(0) == expected_type
+    assert node.get_attributes()["variable_type"] == variable_type
+
+    node = ov.read_value("var_id_668", variable_type, [2, 2])
+    assert node.get_output_element_type(0) == expected_type
+    assert node.get_attributes()["variable_type"] == variable_type
+
+
+@pytest.mark.parametrize("variable_type", ["nonsense", "real", "to_string"])
+def test_read_value_with_unknown_type_name(variable_type):
+    init_value = ov.parameter([2, 2], name="init_value", dtype=np.float32)
+
+    with pytest.raises(OVTypeError, match=f"Unidentified data type {variable_type}"):
+        ov.read_value(init_value, "var_id_667", variable_type, [2, 2])
+    with pytest.raises(OVTypeError, match=f"Unidentified data type {variable_type}"):
+        ov.read_value("var_id_668", variable_type, [2, 2])
+
+
 def test_read_value_ctors():
     data = np.ones((1, 64), dtype=np.float32)
     # check mixed args&kwargs creation
@@ -1033,6 +1061,35 @@ def test_read_value_ctors():
         ov.read_value(data, "variable_id_1", 2)
 
     assert "The necessary overload for read_value was not found" in str(e.value)
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"variable_id": "v1"},
+    {"variable_id": "v1", "variable_type": np.float32, "variable_shape": [1, 64]},
+    {"variable_id": "v1", "variable_type": np.float32, "variable_shape": [1, 64], "name": "read_value"},
+])
+def test_read_value_variable_id_overload_with_kwargs_only(kwargs):
+    # Keywords alone must select the overload without init_value, as the same call does positionally
+    read_value = ov.read_value(**kwargs)
+
+    assert read_value.get_type_name() == "ReadValue"
+    assert read_value.get_variable_id() == "v1"
+    assert read_value.get_input_size() == 0
+    if "variable_shape" in kwargs:
+        assert read_value.get_output_partial_shape(0) == PartialShape([1, 64])
+        assert read_value.get_output_element_type(0) == Type.f32
+    if "name" in kwargs:
+        assert read_value.friendly_name == "read_value"
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"name": "read_value"},
+    {"variable_type": np.float32, "variable_shape": [1, 64]},
+])
+def test_read_value_kwargs_only_without_required_args(kwargs):
+    # No overload gets all of its required parameters from these keywords
+    with pytest.raises(TypeError, match="The necessary overload for read_value was not found"):
+        ov.read_value(**kwargs)
 
 
 def test_read_value_dyn_variable_pshape():
@@ -1942,6 +1999,48 @@ def test_nv12_to_rgb():
     assert node_separate_planes.get_output_size() == 1
     assert node_separate_planes.get_output_element_type(0) == Type.f32
     assert list(node_separate_planes.get_output_shape(0)) == expected_output_shape
+
+
+def test_rgb_to_nv12():
+    # Single plane
+    arg = ov.parameter([1, 480, 640, 3], name="input", dtype=np.float32)
+    node_single_plane = ov_opset17.rgb_to_nv12(arg)
+
+    assert node_single_plane.get_type_name() == "RGBtoNV12"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == [1, 720, 640, 1]
+
+    # Two planes
+    node_two_planes = ov_opset17.rgb_to_nv12(arg, single_plane=False)
+
+    assert node_two_planes.get_type_name() == "RGBtoNV12"
+    assert node_two_planes.get_output_size() == 2
+    assert node_two_planes.get_output_element_type(0) == Type.f32
+    assert node_two_planes.get_output_element_type(1) == Type.f32
+    assert list(node_two_planes.get_output_shape(0)) == [1, 480, 640, 1]
+    assert list(node_two_planes.get_output_shape(1)) == [1, 240, 320, 2]
+
+
+def test_bgr_to_nv12():
+    # Single plane
+    arg = ov.parameter([1, 480, 640, 3], name="input", dtype=np.float32)
+    node_single_plane = ov_opset17.bgr_to_nv12(arg)
+
+    assert node_single_plane.get_type_name() == "BGRtoNV12"
+    assert node_single_plane.get_output_size() == 1
+    assert node_single_plane.get_output_element_type(0) == Type.f32
+    assert list(node_single_plane.get_output_shape(0)) == [1, 720, 640, 1]
+
+    # Two planes
+    node_two_planes = ov_opset17.bgr_to_nv12(arg, single_plane=False)
+
+    assert node_two_planes.get_type_name() == "BGRtoNV12"
+    assert node_two_planes.get_output_size() == 2
+    assert node_two_planes.get_output_element_type(0) == Type.f32
+    assert node_two_planes.get_output_element_type(1) == Type.f32
+    assert list(node_two_planes.get_output_shape(0)) == [1, 480, 640, 1]
+    assert list(node_two_planes.get_output_shape(1)) == [1, 240, 320, 2]
 
 
 def test_softsign():

@@ -5,6 +5,7 @@
 #if (defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT)) && !defined(_WIN32) && defined(ENABLE_LIBVA) && defined(ENABLE_LIBVA_DRM)
 
 #include <algorithm>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -127,17 +128,15 @@ TEST_F(OVRemoteTensorVA_Test, smoke_repeated_import_of_the_same_surface) {
     }
 }
 
-// Surface imports are excluded from the remote context memory cache
-// so every import creates a new cl_mem for the surface.
-TEST_F(OVRemoteTensorVA_Test, smoke_surface_import_is_not_cached) {
+TEST_F(OVRemoteTensorVA_Test, smoke_surface_import_is_cached_while_alive) {
     ov::Core core;
     ov::intel_gpu::ocl::VAContext context(core, va_device.get());
 
     auto first = context.create_tensor_nv12(surface_height, surface_width, surface);
     auto second = context.create_tensor_nv12(surface_height, surface_width, surface);
 
-    ASSERT_NE(first.first.get(), second.first.get());
-    ASSERT_NE(first.second.get(), second.second.get());
+    ASSERT_EQ(first.first.get(), second.first.get());
+    ASSERT_EQ(first.second.get(), second.second.get());
 
     // Both imports still describe the very same surface
     ASSERT_EQ(static_cast<VASurfaceID>(second.first), static_cast<VASurfaceID>(first.first));
@@ -182,13 +181,45 @@ TEST_F(OVRemoteTensorVA_Test, smoke_recycled_surface_id_is_reimported) {
     ov::Core core;
     ov::intel_gpu::ocl::VAContext context(core, va_device.get());
 
-    const VASurfaceID original_id = surface;
-    // The original import is kept alive, so the driver can't reuse its cl_mem for the new import
-    auto original = context.create_tensor_nv12(surface_height, surface_width, surface);
-    const auto original_mem_y = original.first.get();
-    const auto original_mem_uv = original.second.get();
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::u8,
+        ov::Shape{1, 3, surface_height, surface_width});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{parameter}, ov::ParameterVector{parameter});
 
-    // Emulate decoder teardown and recreation until VA-API reassigns the released id
+    using namespace ov::preprocess;
+    auto preprocessor = PrePostProcessor(model);
+    preprocessor.input().tensor().set_element_type(ov::element::u8)
+                                .set_color_format(ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                                .set_memory_type(ov::intel_gpu::memory_type::surface);
+    preprocessor.input().preprocess().convert_color(ColorFormat::BGR);
+    preprocessor.input().model().set_layout("NCHW");
+    model = preprocessor.build();
+
+    auto compiled_model = core.compile_model(model, context);
+    auto request = compiled_model.create_infer_request();
+    const auto infer_mean = [&](VASurfaceID input_surface) {
+        auto nv12 = context.create_tensor_nv12(surface_height, surface_width, input_surface);
+        request.set_input_tensor(0, nv12.first);
+        request.set_input_tensor(1, nv12.second);
+        request.infer();
+
+        auto output = request.get_output_tensor();
+        const auto* output_data = output.data<const uint8_t>();
+        return std::accumulate(output_data, output_data + output.get_size(), 0.0) / output.get_size();
+    };
+
+    const VASurfaceID original_id = surface;
+    ASSERT_TRUE(va_device.fill_nv12_surface(surface, surface_width, surface_height, 16, 128, 128));
+    const auto original_mean = infer_mean(surface);
+
+    VASurfaceID replacement_surface = va_device.create_nv12_surface(surface_width, surface_height);
+    ASSERT_NE(replacement_surface, VA_INVALID_SURFACE);
+    ASSERT_NE(replacement_surface, original_id);
+    ASSERT_TRUE(va_device.fill_nv12_surface(replacement_surface, surface_width, surface_height, 128, 128, 128));
+    infer_mean(replacement_surface);
+
+    // Keep the request and compiled model alive, but process a replacement input before destroying the old surface.
+    // This releases the request and plugin references to the old import, so its weak cache entry must expire.
     bool is_recycled = false;
     const size_t max_attempts = 8;
     for (size_t attempt = 0; attempt < max_attempts && !is_recycled; attempt++) {
@@ -198,18 +229,16 @@ TEST_F(OVRemoteTensorVA_Test, smoke_recycled_surface_id_is_reimported) {
         is_recycled = surface == original_id;
     }
 
-    if (!is_recycled)
+    if (!is_recycled) {
+        va_device.destroy_surface(replacement_surface);
         GTEST_SKIP() << "VA-API did not reassign the released surface id, cache aliasing can't be exercised";
+    }
 
-    auto reimported = context.create_tensor_nv12(surface_height, surface_width, surface);
+    ASSERT_TRUE(va_device.fill_nv12_surface(surface, surface_width, surface_height, 235, 128, 128));
+    const auto reimported_mean = infer_mean(surface);
+    va_device.destroy_surface(replacement_surface);
 
-    // The new surface produces the same cache key as the destroyed one
-    ASSERT_EQ(static_cast<VASurfaceID>(reimported.first), original_id);
-    ASSERT_EQ(reimported.first.get_shape(), original.first.get_shape());
-    ASSERT_EQ(reimported.second.get_shape(), original.second.get_shape());
-    // it must be imported from scratch instead of being served from the cache
-    ASSERT_NE(reimported.first.get(), original_mem_y);
-    ASSERT_NE(reimported.second.get(), original_mem_uv);
+    ASSERT_GT(reimported_mean, original_mean + 200.0);
 }
 
 #endif  // (OV_GPU_WITH_OCL_RT || OV_GPU_WITH_ZE_RT) && !_WIN32 && ENABLE_LIBVA && ENABLE_LIBVA_DRM

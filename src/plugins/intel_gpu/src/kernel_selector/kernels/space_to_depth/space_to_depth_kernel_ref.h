@@ -12,11 +12,22 @@ namespace kernel_selector {
 // space_to_depth_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct space_to_depth_params : public base_params {
-    space_to_depth_params() : base_params(KernelType::SPACE_TO_DEPTH), depth_mode(SpaceToDepthMode::BLOCKS_FIRST), block_size(1) {}
+    space_to_depth_params()
+        : base_params(KernelType::SPACE_TO_DEPTH),
+          depth_mode(SpaceToDepthMode::BLOCKS_FIRST),
+          block_size(1),
+          grouped(false),
+          factor_t(1),
+          factor_s(1),
+          output_channels(0) {}
 
     SpaceToDepthMode depth_mode;
 
     size_t block_size;
+    bool grouped;
+    size_t factor_t;
+    size_t factor_s;
+    size_t output_channels;
 };
 
 class SpaceToDepthKernelRef : public KernelBaseOpenCL {

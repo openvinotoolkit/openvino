@@ -18,6 +18,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/gqa_compiled_model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -137,7 +138,6 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-    REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
@@ -256,6 +256,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);
         }
+    } else if (ov::npuw::GQACompiledModel::supports(model)) {
+        // Zero-config path: detect if the model suits the NPUW_GQA path
+        _logger.info("Auto-detected NPUW_GQA path with no NPU_USE_NPUW set; routing through NPUW "
+                     "automatically.");
+        auto npuwProperties = localProperties;
+        npuwProperties[useNpuwKey] = true;
+        return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), npuwProperties);
     }
 
     // DEVICE_ID can be passed both as an index and as a platform name.
@@ -291,50 +298,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
-    if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
-        !localConfig.get<DYNAMIC_SHAPE_TO_STATIC>()) {
-        // HostCompile allocates dynamic buffers from I/O upper bounds, so every dynamic dimension must be bounded.
-        const auto hasFiniteUpperBounds = [](const auto& port) {
-            const auto& shape = port.get_partial_shape();
-            const auto rank = shape.rank();
-            return rank.is_static() && std::all_of(shape.begin(), shape.end(), [](const ov::Dimension& dimension) {
-                       return dimension.get_interval().has_upper_bound();
-                   });
-        };
-
-        // Detect a bounded dynamic 4D I/O port that makes the model a HostCompile candidate.
-        const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
-            const auto& shape = port.get_partial_shape();
-            const auto rank = shape.rank();
-
-            // Keep batch static to avoid failures in ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv,
-            // because reshape operations in these passes do not support dynamic batch shapes.
-            return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static() &&
-                   hasFiniteUpperBounds(port);
-        };
-
-        const auto& modelInputs = model->inputs();
-        const auto& modelOutputs = model->outputs();
-        const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
-        const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
-
-        // Candidate detection above uses any_of; validate every I/O separately because one unrelated unbounded port
-        // still prevents HostCompile from allocating all dynamic buffers.
-        const bool allPortsHaveFiniteUpperBounds =
-            std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
-            std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
-        if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
-            _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
-                         "for fully-dynamic model (inputs and outputs both dynamic)");
-            localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
-        }
+    if (should_use_host_compile_interpreter(model,
+                                            compilerType,
+                                            localConfig.has<COMPILATION_MODE>(),
+                                            localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        _logger.info(
+            "NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
+            "for dynamic model (at least one input has a dynamic non-batch dimension, all input ranks static)");
+        localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
     }
 
     // Read the default or explicit compilation mode so automatic and user-selected HostCompile take the same path.
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.
     const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
                                                 compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-                                                localConfig.get<COMPILATION_MODE>().find("HostCompile") == 0;
+                                                localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
@@ -407,30 +385,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 
-    // Update stepping w/ information from driver, unless provided by user or we are off-device
-    // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<STEPPING>() &&
-        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::stepping.name()) &&
-        device != nullptr && device->getName() == compilationPlatform) {
-        try {
-            localConfig.update(ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId()));
-        } catch (...) {
-            _logger.warning("Stepping information not implemented by selected backend. Skipping. Please provide "
-                            "NPU_STEPPING if required.");
-        }
-    }
-    // Update max_tiles w/ information from driver, unless provided by user or we are off-device
-    // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<MAX_TILES>() &&
-        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::max_tiles.name()) &&
-        device != nullptr && device->getName() == compilationPlatform) {
-        try {
-            localConfig.update(ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices()));
-        } catch (...) {
-            _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
-        }
-    }
-
     OV_ITT_TASK_NEXT(PLUGIN_COMPILE_MODEL, "compile");
 
     const bool isWeightlessSupported = [&]() {
@@ -460,13 +414,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    AdapterDescriptor adapterDesc;
+    // Bypass the adapter's internal cache if requested explicitly or if the OV cache is enabled
+    adapterDesc.bypassCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
+    // Request secure compilation if blob encryption is requested
+    adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
+                               localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config);
+            return compiler->compile(modelToCompile, config, adapterDesc);
         }
 
         check_weightless_cache_attribute_occurrence(model);
-        return compiler->compileWS(std::move(modelToCompile), config);
+        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc);
     };
 
     try {
@@ -650,10 +611,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     }
 
     const std::shared_ptr<IGraph> graph =
-        blobFormatImporter->create_graph(_backend,
-                                         "net" + std::to_string(_compiledModelLoadCounter++),
-                                         device->getName(),
-                                         get_core());
+        blobFormatImporter->create_graph(_backend, "net" + std::to_string(_compiledModelLoadCounter++), get_core());
 
     return std::make_shared<CompiledModel>(blobFormatImporter->create_dummy_model(),
                                            shared_from_this(),
