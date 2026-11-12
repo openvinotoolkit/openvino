@@ -32,6 +32,9 @@ struct paged_causal_conv1d_test_params {
     int32_t dilation = 1;
     // Append a Swish (SiLU) after the convolution; prepare_primitive_fusing folds it into the kernel epilogue.
     bool fuse_swish = false;
+    // Chain a second Swish behind the first one (requires fuse_swish). The kernel epilogue holds a single
+    // activation, so the second must not be folded into it: its effect has to show up in the output.
+    bool second_swish = false;
 };
 
 struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_causal_conv1d_test_params> {
@@ -209,7 +212,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                              layout cache_interval_data_layout,
                              data_types output_dt,
                              int32_t dilation = 1,
-                             bool fuse_swish = false) {
+                             bool fuse_swish = false,
+                             bool second_swish = false) {
         topology topo;
 
         topo.add(input_layout("input_embeds", input_data_layout));
@@ -237,7 +241,12 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
 
         if (fuse_swish) {
             topo.add(activation("swish_act", input_info("paged_causal_conv1d"), activation_func::swish, {1.0f, 0.0f}));
-            topo.add(reorder("output", input_info("swish_act"), format::bfyx, output_dt));
+            if (second_swish) {
+                topo.add(activation("swish_act2", input_info("swish_act"), activation_func::swish, {1.0f, 0.0f}));
+                topo.add(reorder("output", input_info("swish_act2"), format::bfyx, output_dt));
+            } else {
+                topo.add(reorder("output", input_info("swish_act"), format::bfyx, output_dt));
+            }
         } else {
             topo.add(reorder("output", input_info("paged_causal_conv1d"), format::bfyx, output_dt));
         }
@@ -336,9 +345,11 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
 
         if (p.fuse_swish) {
             // The kernel rounds the convolution to T first and evaluates SiLU in T, like the stand-alone activation.
-            for (auto& v : ref_output) {
-                const float x = static_cast<float>(v);
-                v = to_data_type<T>(x / (1.0f + std::exp(-x)));
+            for (int pass = 0; pass < (p.second_swish ? 2 : 1); pass++) {
+                for (auto& v : ref_output) {
+                    const float x = static_cast<float>(v);
+                    v = to_data_type<T>(x / (1.0f + std::exp(-x)));
+                }
             }
         }
 
@@ -368,7 +379,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                                     cache_interval_layout,
                                     data_type,
                                     p.dilation,
-                                    p.fuse_swish);
+                                    p.fuse_swish,
+                                    p.second_swish);
 
         auto [out_mem, net] = run_network(topo,
                                           input_mem,
@@ -428,7 +440,7 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
         return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" + std::to_string(p.num_sequences) +
                "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias") +
                (p.is_caching_test ? "_cached" : "") + (p.padded_input ? "_padded_input" : "") + "_dilation_" + std::to_string(p.dilation) +
-               (p.fuse_swish ? "_swish" : "");
+               (p.fuse_swish ? "_swish" : "") + (p.second_swish ? "_swish2" : "");
     }
 };
 
@@ -456,7 +468,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
                                            // SiLU folded into the convolution epilogue.
                                            paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true, false, false, 1, true},
                                            paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f32, true, false, false, 1, true},
-                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, false, false, false, 1, true}),
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, false, false, false, 1, true},
+                                           // Two consecutive Swish nodes: only one fits the epilogue, the other must still be applied.
+                                           paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true, false, false, 1, true, true},
+                                           paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f32, true, false, false, 1, true, true}),
                          paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace

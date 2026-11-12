@@ -21,14 +21,24 @@ using namespace testing;
 using namespace ov::intel_gpu;
 
 namespace {
-std::shared_ptr<ov::op::v1::Reshape> make_reshape(const ov::Output<ov::Node>& in) {
+std::shared_ptr<ov::op::v1::Reshape> make_reshape(const ov::Output<ov::Node>& in, bool special_zero = false) {
     auto shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, -1, 128});
-    return std::make_shared<ov::op::v1::Reshape>(in, shape, false);
+    return std::make_shared<ov::op::v1::Reshape>(in, shape, special_zero);
 }
+
+class MoveSwishUpThroughReshapeTest : public TransformationTestsF {
+public:
+    MoveSwishUpThroughReshapeTest() {
+        // The rewrite re-creates the Reshape and Swish: their constants (target shape, beta) and attributes
+        // (special_zero) must survive it.
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+};
 }  // namespace
 
 // Swish(Reshape(x)) -> Reshape(Swish(x)) when the Reshape feeds only the Swish.
-TEST_F(TransformationTestsF, MoveSwishUpThroughReshape) {
+TEST_F(MoveSwishUpThroughReshapeTest, MoveSwishUpThroughReshape) {
     {
         auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2048});
         auto swish = std::make_shared<ov::op::v4::Swish>(make_reshape(x));
@@ -43,11 +53,11 @@ TEST_F(TransformationTestsF, MoveSwishUpThroughReshape) {
 }
 
 // The optional beta input is carried over.
-TEST_F(TransformationTestsF, MoveSwishUpThroughReshapeWithBeta) {
+TEST_F(MoveSwishUpThroughReshapeTest, MoveSwishUpThroughReshapeWithBeta) {
     {
         auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2048});
         auto beta = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.5f});
-        auto swish = std::make_shared<ov::op::v4::Swish>(make_reshape(x), beta);
+        auto swish = std::make_shared<ov::op::v4::Swish>(make_reshape(x, true), beta);
         model = std::make_shared<ov::Model>(ov::OutputVector{swish}, ov::ParameterVector{x});
         manager.register_pass<MoveSwishUpThroughReshape>();
     }
@@ -55,12 +65,12 @@ TEST_F(TransformationTestsF, MoveSwishUpThroughReshapeWithBeta) {
         auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2048});
         auto beta = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.5f});
         auto swish = std::make_shared<ov::op::v4::Swish>(x, beta);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{make_reshape(swish)}, ov::ParameterVector{x});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{make_reshape(swish, true)}, ov::ParameterVector{x});
     }
 }
 
 // A Reshape with a second consumer would expose the un-activated values: nothing may change.
-TEST_F(TransformationTestsF, MoveSwishUpThroughReshapeSharedReshapeUntouched) {
+TEST_F(MoveSwishUpThroughReshapeTest, MoveSwishUpThroughReshapeSharedReshapeUntouched) {
     {
         auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2048});
         auto reshape = make_reshape(x);
@@ -68,12 +78,5 @@ TEST_F(TransformationTestsF, MoveSwishUpThroughReshapeSharedReshapeUntouched) {
         auto other = std::make_shared<ov::op::v0::Abs>(reshape);
         model = std::make_shared<ov::Model>(ov::OutputVector{swish, other}, ov::ParameterVector{x});
         manager.register_pass<MoveSwishUpThroughReshape>();
-    }
-    {
-        auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 2048});
-        auto reshape = make_reshape(x);
-        auto swish = std::make_shared<ov::op::v4::Swish>(reshape);
-        auto other = std::make_shared<ov::op::v0::Abs>(reshape);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{swish, other}, ov::ParameterVector{x});
     }
 }

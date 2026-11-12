@@ -4,30 +4,34 @@
 
 #include "move_swish_up_through_reshape.hpp"
 
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 
 MoveSwishUpThroughReshape::MoveSwishUpThroughReshape() {
+    MATCHER_SCOPE(MoveSwishUpThroughReshape);
+
+    using namespace ov::pass;
     using namespace ov::pass::pattern;
 
     auto reshape_m = wrap_type<ov::op::v1::Reshape>(consumers_count(1));
     auto swish_m = wrap_type<ov::op::v4::Swish>({reshape_m, any_input()});
     auto swish_no_beta_m = wrap_type<ov::op::v4::Swish>({reshape_m});
-    auto root_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{swish_m, swish_no_beta_m});
+    auto root_m = swish_m | swish_no_beta_m;
 
-    matcher_pass_callback callback = [=](Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto swish = ov::as_type_ptr<ov::op::v4::Swish>(m.get_match_root());
-        auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(reshape_m).get_node_shared_ptr());
-        if (!swish || !reshape) {
-            return false;
-        }
+        const auto swish = ov::as_type_ptr<ov::op::v4::Swish>(m.get_match_root());
+        const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(reshape_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(swish, "MoveSwishUpThroughReshape: matched root is expected to be v4::Swish");
+        OPENVINO_ASSERT(reshape, "MoveSwishUpThroughReshape: matched node is expected to be v1::Reshape");
 
         // consumers_count(1) already guarantees the Reshape feeds only this Swish, so no
         // other consumer can observe the pre-activation values.
@@ -60,7 +64,7 @@ MoveSwishUpThroughReshape::MoveSwishUpThroughReshape() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(root_m, "MoveSwishUpThroughReshape");
+    auto m = std::make_shared<Matcher>(root_m, matcher_name);
     this->register_matcher(m, callback);
 }
 
