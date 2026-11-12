@@ -90,6 +90,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/group_convolution_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gru_cell_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gru_sequence_shape_inference_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/histc_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/i420_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/identity_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/interpolate_shape_inference_test.cpp
@@ -187,6 +188,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/xattention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/eltwise_node_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph/x64/enforce_inference_precision_sparse_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/x64/selective_ssm_jit_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/brgemm_supported_precisions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/fake_quantize_tokenization_test.cpp

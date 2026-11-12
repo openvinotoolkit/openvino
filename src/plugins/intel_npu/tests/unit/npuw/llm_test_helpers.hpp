@@ -43,9 +43,13 @@ inline Config make_test_model_config() {
     return cfg;
 }
 
-inline std::shared_ptr<ov::Model> build_llm_test_model() {
+inline std::shared_ptr<ov::Model> build_llm_test_model(const LLMConfig& cfg) {
     ModelBuilder mb;
-    return mb.build_llm(make_test_model_config());
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_llm_test_model() {
+    return build_llm_test_model(make_test_model_config());
 }
 
 /// Phi-style LongRoPE LLM: the RoPE inverse frequencies are picked from

@@ -151,6 +151,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/clamp_bf16_scalar_constants.hpp"
 #include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
@@ -220,6 +221,7 @@
 #    include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #    include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #    include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
+#    include "transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.hpp"
 #    include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/reduce_l1_decomposition.hpp"
@@ -594,6 +596,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
@@ -1216,6 +1219,8 @@ void Transformations::PostLpt() {
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
+        // Must be before Snippets tokenization and ConvertToPowerStatic (CpuSpecificOpSet)
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::ClampBF16ScalarConstants);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
