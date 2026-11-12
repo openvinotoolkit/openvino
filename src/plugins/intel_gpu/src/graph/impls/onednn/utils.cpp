@@ -597,19 +597,18 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_forma
     return md.build();
 }
 
-bool conv_keeps_rank(const cldnn::layout& input_layout, const cldnn::layout& output_layout, bool grouped_weights) {
-    return format::is_blocked(input_layout.format) || format::is_blocked(output_layout.format) || grouped_weights;
-}
-
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
                                                                                              cldnn::layout weights_layout,
                                                                                              cldnn::layout output_layout,
                                                                                              dnnl::memory::format_tag target_fmt) {
+    bool need_blocked = input_layout.format.is_blocked() || output_layout.format.is_blocked();
+    bool is_grouped = format::is_grouped(weights_layout.format);
+
     auto input_mdb = MemoryDescriptorBuilder(input_layout, target_fmt);
     auto weights_mdb = MemoryDescriptorBuilder(weights_layout, dnnl::memory::format_tag::any);
     auto output_mdb = MemoryDescriptorBuilder(output_layout, target_fmt);
 
-    if (conv_keeps_rank(input_layout, output_layout, format::is_grouped(weights_layout.format))) {
+    if (need_blocked || is_grouped) {
         input_mdb.keep_rank();
         weights_mdb.keep_rank();
         output_mdb.keep_rank();

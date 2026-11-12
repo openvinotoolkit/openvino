@@ -1730,17 +1730,17 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
         }
     };
 
-    // Binary post-op descriptors must have the same rank as the primitive dst descriptor.
+    // Binary post-op descriptors must have the same rank as the dst descriptor (see get_conv_memory_descs()).
+    // Lazy: this function also runs from calc_output_layouts(), before the output layout of the node is valid.
     auto keep_dst_rank = [&]() {
+        bool keep_rank = is_type<reduce>() || cldnn::format::is_blocked(get_output_layout().format);
         if (is_type<convolution>()) {
-            // convolution_onednn promotes grouped weights of a 1D convolution to a 5D grouped format.
-            bool grouped_weights = cldnn::format::is_grouped(get_input_layout(1).format) || this->as<convolution>().get_primitive()->grouped_weights_shape;
-            return onednn::conv_keeps_rank(get_input_layout(0), get_output_layout(), grouped_weights);
+            keep_rank |= cldnn::format::is_blocked(get_input_layout(0).format) || cldnn::format::is_grouped(get_input_layout(1).format) ||
+                         this->as<convolution>().get_primitive()->grouped_weights_shape;
+        } else if (is_type<deconvolution>()) {
+            keep_rank |= cldnn::format::is_blocked(get_input_layout(0).format) || cldnn::format::is_grouped(get_input_layout(1).format);
         }
-        if (is_type<deconvolution>()) {
-            return onednn::conv_keeps_rank(get_input_layout(0), get_output_layout(), cldnn::format::is_grouped(get_input_layout(1).format));
-        }
-        return is_type<reduce>() || cldnn::format::is_blocked(get_output_layout().format);
+        return keep_rank;
     };
 
     int32_t num_inplace_post_ops = 0;
@@ -1869,11 +1869,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             const auto& q_param = desc.get_typed_fuse_params<QuantizeFuseParams>();
             if (q_param->_per_tensor_output_range && q_param->_out_lo < q_param->_out_hi) {
                 bool is_fc_or_gemm = this->is_type<gemm>() || this->is_type<fully_connected>();
-                bool keep_rank = !is_fc_or_gemm && keep_dst_rank();
-                // Cache import rebuilds the descriptor from this tag, so its rank must match the descriptor.
-                auto get_post_op_tag = [&](const layout& l) {
-                    return keep_rank ? onednn::convert_data_format(l.format) : onednn::get_default_data_format(l);
-                };
+                bool keep_rank = keep_dst_rank();
                 // 1. pre-scale & pre-shift
                 {
                     if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
@@ -1891,7 +1887,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
                             update_onednn_post_op_list(onednn_post_op_type::binary_mul,
                                                        dep_idx - 1,
-                                                       get_post_op_tag(in_scale),
+                                                       keep_rank ? onednn::convert_data_format(in_scale.format) : onednn::get_default_data_format(in_scale),
                                                        false,
                                                        in_scale_desc.get_dims(),
                                                        in_scale_desc.get_data_type());
@@ -1909,7 +1905,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
                                 update_onednn_post_op_list(onednn_post_op_type::binary_add,
                                                            dep_idx - 1,
-                                                           get_post_op_tag(in_shift),
+                                                           keep_rank ? onednn::convert_data_format(in_shift.format) : onednn::get_default_data_format(in_shift),
                                                            false,
                                                            in_shift_desc.get_dims(),
                                                            in_shift_desc.get_data_type());
@@ -1944,12 +1940,13 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
 
                                 dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, is_fc_or_gemm, keep_rank);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul,
-                                                           dep_idx - 1,
-                                                           get_post_op_tag(out_scale),
-                                                           false,
-                                                           out_scale_desc.get_dims(),
-                                                           out_scale_desc.get_data_type());
+                                update_onednn_post_op_list(
+                                    onednn_post_op_type::binary_mul,
+                                    dep_idx - 1,
+                                    keep_rank ? onednn::convert_data_format(out_scale.format) : onednn::get_default_data_format(out_scale),
+                                    false,
+                                    out_scale_desc.get_dims(),
+                                    out_scale_desc.get_data_type());
                             }
                         }
 

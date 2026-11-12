@@ -70,9 +70,6 @@ dnnl::memory::desc layout_to_memory_desc_blocked(
 ///  - For other primitives: use blocked format if output is blocked, otherwise use undef
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked = false);
 
-// Whether get_conv_memory_descs() keeps the 4D cldnn rank of 1D (rank-3 shape) tensors.
-bool conv_keeps_rank(const cldnn::layout& input_layout, const cldnn::layout& output_layout, bool grouped_weights);
-
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
                                                                  cldnn::layout weights_layout,
                                                                  cldnn::layout output_layout,
