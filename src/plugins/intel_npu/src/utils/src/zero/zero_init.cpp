@@ -159,23 +159,24 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
       _log("NPUZeroInitStructsHolder", Logger::global().level()) {
     _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
     initNpuDriver();
+    ze_api_version_t ze_drv_api_version = {};
 
     // Check L0 API version
-    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetApiVersion", zeDriverGetApiVersion(_driver_handle, &_ze_drv_api_version));
+    THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetApiVersion", zeDriverGetApiVersion(_driver_handle, &ze_drv_api_version));
 
-    if (ZE_MAJOR_VERSION(TARGET_ZE_API_VERSION) != ZE_MAJOR_VERSION(_ze_drv_api_version)) {
+    if (ZE_MAJOR_VERSION(TARGET_ZE_API_VERSION) != ZE_MAJOR_VERSION(ze_drv_api_version)) {
         OPENVINO_THROW("Incompatibility between NPU plugin and driver! ",
                        "Plugin L0 API major version = ",
                        ZE_MAJOR_VERSION(TARGET_ZE_API_VERSION),
                        ", ",
                        "Driver L0 API major version = ",
-                       ZE_MAJOR_VERSION(_ze_drv_api_version));
+                       ZE_MAJOR_VERSION(ze_drv_api_version));
     }
-    if (ZE_MINOR_VERSION(TARGET_ZE_API_VERSION) != ZE_MINOR_VERSION(_ze_drv_api_version)) {
+    if (ZE_MINOR_VERSION(TARGET_ZE_API_VERSION) != ZE_MINOR_VERSION(ze_drv_api_version)) {
         _log.info("Some features might not be available! "
                   "Plugin L0 API minor version = %d, Driver L0 API minor version = %d",
                   ZE_MINOR_VERSION(TARGET_ZE_API_VERSION),
-                  ZE_MINOR_VERSION(_ze_drv_api_version));
+                  ZE_MINOR_VERSION(ze_drv_api_version));
     }
 
     uint32_t count = 0;
@@ -187,12 +188,17 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetExtensionProperties",
                                 zeDriverGetExtensionProperties(_driver_handle, &count, extProps.data()));
 
+    // Extensions supported by both plugin and driver, keyed by the canonical extension name (without version suffix).
+    // The value is the negotiated version: the plugin target version, or an older version if the driver does not
+    // support the target one. Extensions with a major version different from the plugin target are not stored.
+    std::map<std::string, uint32_t, std::less<>> supported_extensions;
+
     // Query npu driver extension version
     std::string driver_ext_name;
     uint32_t driver_ext_version = 0;
     std::tie(driver_ext_version, driver_ext_name) =
         queryDriverExtensionVersion(ZE_DRIVER_NPU_EXT_NAME, TARGET_ZE_DRIVER_NPU_EXT_VERSION, extProps, count);
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_DRIVER_NPU_EXT_NAME,
                            driver_ext_version,
                            TARGET_ZE_DRIVER_NPU_EXT_VERSION);
@@ -256,11 +262,11 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                        "; discovered driver graph extension has major version ",
                        driver_ext_major_version);
     }
-    saveSupportedExtension(_supported_extensions, ZE_GRAPH_EXT_NAME, graph_ext_version, target_graph_ext_version);
+    saveSupportedExtension(supported_extensions, ZE_GRAPH_EXT_NAME, graph_ext_version, target_graph_ext_version);
 
     _log.info("Found Driver Version %d.%d, Graph Extension Version %d.%d (%s)",
-              ZE_MAJOR_VERSION(_ze_drv_api_version),
-              ZE_MINOR_VERSION(_ze_drv_api_version),
+              ZE_MAJOR_VERSION(ze_drv_api_version),
+              ZE_MINOR_VERSION(ze_drv_api_version),
               ZE_MAJOR_VERSION(graph_ext_version),
               ZE_MINOR_VERSION(graph_ext_version),
               graph_ext_name.c_str());
@@ -279,7 +285,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                                     TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION,
                                     extProps,
                                     count);
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_COMMAND_QUEUE_NPU_EXT_NAME,
                            command_queue_ext_version,
                            TARGET_ZE_COMMAND_QUEUE_NPU_EXT_VERSION);
@@ -314,7 +320,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
 #ifdef _WIN32
     }
 #endif
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_MUTABLE_COMMAND_LIST_EXP_NAME,
                            mutable_command_list_ext_version,
                            TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION);
@@ -328,7 +334,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     uint32_t profiling_ext_version = 0;
     std::tie(profiling_ext_version, profiling_ext_name) =
         queryDriverExtensionVersion(ZE_PROFILING_DATA_EXT_NAME, TARGET_ZE_PROFILING_NPU_EXT_VERSION, extProps, count);
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_PROFILING_DATA_EXT_NAME,
                            profiling_ext_version,
                            TARGET_ZE_PROFILING_NPU_EXT_VERSION);
@@ -347,7 +353,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     uint32_t context_ext_version = 0;
     std::tie(context_ext_version, context_ext_name) =
         queryDriverExtensionVersion(ZE_CONTEXT_NPU_EXT_NAME, TARGET_ZE_CONTEXT_NPU_EXT_VERSION, extProps, count);
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_CONTEXT_NPU_EXT_NAME,
                            context_ext_version,
                            TARGET_ZE_CONTEXT_NPU_EXT_VERSION);
@@ -378,6 +384,9 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     _context.store(ctx);
     _log.debug("ZeroInitStructsHolder initialize complete");
 
+    bool external_memory_standard_allocation_supported = false;
+    bool external_memory_fd_win32_supported = false;
+
     // Discover if standard allocation is supported
     ze_device_external_memory_properties_t external_memory_properties_desc = {};
     external_memory_properties_desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
@@ -385,17 +394,17 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     if (res == ZE_RESULT_SUCCESS) {
 #ifdef _WIN32
         if (external_memory_properties_desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32) {
-            _external_memory_fd_win32_supported = true;
+            external_memory_fd_win32_supported = true;
         }
 #else
         if (external_memory_properties_desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF) {
-            _external_memory_fd_win32_supported = true;
+            external_memory_fd_win32_supported = true;
         }
 #endif
 
         if (external_memory_properties_desc.memoryAllocationImportTypes &
             ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
-            _external_memory_standard_allocation_supported = true;
+            external_memory_standard_allocation_supported = true;
         }
     }
 
@@ -405,7 +414,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                                     TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION,
                                     extProps,
                                     count);
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_EXTERNAL_MEMORY_MAPPING_EXT_NAME,
                            external_memory_mapping_ext_version,
                            TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION);
@@ -415,7 +424,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                ZE_MINOR_VERSION(external_memory_mapping_ext_version));
 
     if (external_memory_mapping_ext_version > 0) {
-        _external_memory_standard_allocation_supported = true;
+        external_memory_standard_allocation_supported = true;
     }
 
     uint32_t command_queue_set_priority_ext_version = 0;
@@ -424,7 +433,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                                     TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION,
                                     extProps,
                                     count);
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME,
                            command_queue_set_priority_ext_version,
                            TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION);
@@ -436,7 +445,7 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
     uint32_t device_luid_ext_version = 0;
     std::tie(device_luid_ext_version, std::ignore) =
         queryDriverExtensionVersion(ZE_DEVICE_LUID_EXT_NAME, TARGET_ZE_DEVICE_LUID_EXT_VERSION, extProps, count);
-    saveSupportedExtension(_supported_extensions,
+    saveSupportedExtension(supported_extensions,
                            ZE_DEVICE_LUID_EXT_NAME,
                            device_luid_ext_version,
                            TARGET_ZE_DEVICE_LUID_EXT_VERSION);
@@ -445,8 +454,14 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
                ZE_MAJOR_VERSION(device_luid_ext_version),
                ZE_MINOR_VERSION(device_luid_ext_version));
 
-    _command_queue_group_ordinal =
+    const uint32_t command_queue_group_ordinal =
         zeroUtils::findCommandQueueGroupOrdinal(_device_handle, ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+
+    _capabilities = makeZeroCapabilities(supported_extensions,
+                                         external_memory_standard_allocation_supported,
+                                         external_memory_fd_win32_supported,
+                                         command_queue_group_ordinal,
+                                         ze_drv_api_version);
 }
 
 const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance() {
