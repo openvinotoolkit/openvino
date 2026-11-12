@@ -2,6 +2,8 @@
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
 * text=auto
+# Patches applied with git apply at configure time must stay LF on Windows checkouts
+*.patch text eol=lf
 ###############################################################################
 # Set default behavior for command prompt diff.
 #
