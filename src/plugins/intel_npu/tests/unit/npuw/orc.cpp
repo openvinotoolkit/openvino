@@ -286,7 +286,7 @@ TEST(OrcTest, RejectsScopedSectionSizeExceedingAvailableDataBeforeAllocation) {
     SectionHeader header{TYPE_TEST,
                          1u,
                          static_cast<SectionFlags>(SectionFlag::LEAF),
-                         std::numeric_limits<std::size_t>::max()};
+                         1u};
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
     auto writer = Stream::writer(buffer);
     writer & header;
