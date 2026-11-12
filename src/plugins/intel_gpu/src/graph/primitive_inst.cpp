@@ -311,6 +311,10 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     } else {
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
+        // Refresh dynamic arguments during preparation even if the input shape is unchanged.
+        if (is_dynamic()) {
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
         // Replacing the primary output means any borrowed remote permute view is no longer active.
         if (idx == 0)
             _remote_permute_output_alias.reset();
@@ -1558,6 +1562,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                     compressed_cache_variable->get_compression_scale_state()->set_memory(_outputs[2], present_scales_layout);
                     if (compressed_cache_variable->has_zp_state()) {
                         auto present_zp_layout = present_scales_layout;
+                        present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
                         compressed_cache_variable->get_compression_zp_state()->set_memory(_outputs[3], present_zp_layout);
                     }
                 }
@@ -1574,6 +1579,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 compressed_cache_variable->get_compression_scale_state()->set_layout(present_scales_layout);
                 if (compressed_cache_variable->has_zp_state()) {
                     auto present_zp_layout = present_scales_layout;
+                    present_zp_layout.data_type = _impl_params->output_layouts[3].data_type;
                     compressed_cache_variable->get_compression_zp_state()->set_layout(present_zp_layout);
                 }
             }

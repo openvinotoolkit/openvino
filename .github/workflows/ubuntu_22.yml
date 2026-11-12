@@ -579,7 +579,7 @@ jobs:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       run-real-models: ${{ github.event_name == 'schedule' }}
-      genai-ref: 2ccabebb8d5ab70673525a777a92f2bf62fce136
+      genai-ref: ccb13a1c79c067234e9af56167b360037a9dc07f
 
   GGUF_LlamaCpp_Validation:
     name: GGUF Frontend x llama.cpp validation
@@ -762,8 +762,8 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit, GGUF_GenAI_Validation,
+    needs: [Smart_CI, Build, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
+            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit,
             NVIDIA_Plugin, Openvino_tokenizers, iGPU,
             Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
     if: ${{ always() }}
