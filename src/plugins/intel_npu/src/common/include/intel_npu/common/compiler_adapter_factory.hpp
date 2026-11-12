@@ -45,10 +45,10 @@ public:
     /**
      * @brief Creates the compiler adapter and writes the resolved type back to `compilerType`.
      *
-     * PREFER_PLUGIN is resolved like in decideCompilerType(). Resolution loads the function table but does not create
-     * a compiler. A PLUGIN request creates the compiler-in-plugin and throws if that fails; there is no fallback to the
-     * driver compiler at that point. A provider that loads the library once, like the loader holder of the plugin,
-     * rethrows its first load failure instead of loading again.
+     * PREFER_PLUGIN is resolved like in decideCompilerType(): resolution only loads the function table. If loading
+     * fails during online compilation, the request falls back to DRIVER. A later compiler creation failure, or an
+     * explicit PLUGIN request failure, throws without fallback. A provider that loads the library once, like the
+     * loader holder of the plugin, rethrows its first load failure.
      *
      * @param[in,out] compilerType The requested compiler type on input; the type of the returned adapter on output
      *        (never PREFER_PLUGIN).
@@ -67,16 +67,17 @@ public:
     /**
      * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER. Any other `compilerType` is left unchanged.
      *
-     * Meant for validating properties against the selected compiler type. PLUGIN means that the function table could
-     * be loaded; compiler creation happens later in getCompiler(). A platform that only the driver compiler serves
-     * resolves to DRIVER without loading VCL when compilation is online.
+     * Meant for validating properties against the selected compiler type. Resolving PREFER_PLUGIN only loads the
+     * function table; it does not verify that a compiler can be created. An online function-table load failure falls
+     * back to DRIVER, while an offline or cross-compilation load failure throws. A platform that only the driver
+     * compiler serves resolves to DRIVER without loading VCL when compilation is online.
      *
      * @param[in,out] compilerType The requested compiler type on input; the resolved type on output.
      * @param device The device that runs the compiled model. May be null for offline compilation.
      * @param platform The compilation target platform. Empty means no explicit target, which is treated as online
      *        compilation on `device`.
-     * @throws ov::Exception if loading the function table fails during offline (or cross) compilation, since only
-     *         the compiler-in-plugin can serve such a compilation.
+     * @throws ov::Exception if loading the function table fails during offline (or cross) compilation, since only the
+     *         compiler-in-plugin can serve such a compilation.
      */
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
                             const std::shared_ptr<intel_npu::IDevice>& device,

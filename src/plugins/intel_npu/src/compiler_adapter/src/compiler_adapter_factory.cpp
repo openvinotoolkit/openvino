@@ -115,10 +115,11 @@ ov::intel_npu::CompilerType CompilerAdapterFactory::resolvePreferPluginCompiler(
         return ov::intel_npu::CompilerType::DRIVER;
     }
 
+    std::shared_ptr<const VCLFunctionTable> functions;
     try {
         OPENVINO_ASSERT(_vclFunctionsProvider != nullptr,
                         "CompilerAdapterFactory requires a way to obtain the VCL entry points");
-        const auto functions = _vclFunctionsProvider();
+        functions = _vclFunctionsProvider();
         OPENVINO_ASSERT(functions != nullptr, "VCL function table provider returned no entry points");
     } catch (...) {
         if (onlineCompilation) {

@@ -91,17 +91,32 @@ TEST(CompilerAdapterFactoryTests, DecideCompilerTypeProviderFailuresAreRetried) 
     EXPECT_EQ(calls, 2u);
 }
 
-TEST(CompilerAdapterFactoryTests, DecideCompilerTypeSeparateFactoriesProbeIndependently) {
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeSeparateFactoriesLoadProviderIndependently) {
     fake_vcl::FakeVcl fake;
-    const CompilerAdapterFactory first({}, fake.provider());
-    const CompilerAdapterFactory second({}, fake.provider());
+    std::size_t calls = 0;
+    const auto countedProvider = vcl_provider::counted(calls, fake.provider());
+    const CompilerAdapterFactory first({}, countedProvider);
+    const CompilerAdapterFactory second({}, countedProvider);
     EXPECT_EQ(decide(first), CompilerType::PLUGIN);
     EXPECT_EQ(decide(second), CompilerType::PLUGIN);
+    EXPECT_EQ(calls, 2u);
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 0u);
 }
 
 TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformWithWorkingCompilerResolvesToPlugin) {
     fake_vcl::FakeVcl fake;
+    const CompilerAdapterFactory factory({}, fake.provider());
+    auto type = CompilerType::PREFER_PLUGIN;
+
+    factory.decideCompilerType(type, deviceOf(kPluginPlatform), kPluginPlatform);
+
+    EXPECT_EQ(type, CompilerType::PLUGIN);
+    EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 0u);
+}
+
+TEST(CompilerAdapterFactoryTests, DecideCompilerTypeOnlinePluginPlatformUsesFunctionsWithoutCreatingCompiler) {
+    fake_vcl::FakeVcl fake;
+    fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     const CompilerAdapterFactory factory({}, fake.provider());
     auto type = CompilerType::PREFER_PLUGIN;
 
@@ -163,7 +178,7 @@ TEST(CompilerAdapterFactoryTests, GetCompilerPreferPluginThrowsWhenCompilerCreat
     EXPECT_EQ(type, CompilerType::PLUGIN);
 }
 
-TEST(CompilerAdapterFactoryTests, GetCompilerExplicitPluginWithFailingCompilerCreationRetriesAndKeepsOutcomeUnknown) {
+TEST(CompilerAdapterFactoryTests, GetCompilerExplicitPluginFailuresDoNotPreventLaterResolution) {
     fake_vcl::FakeVcl fake;
     fake.failWith(fake_vcl::kCompilerCreate, VCL_RESULT_ERROR_UNKNOWN);
     const CompilerAdapterFactory factory({}, fake.provider());
@@ -176,7 +191,7 @@ TEST(CompilerAdapterFactoryTests, GetCompilerExplicitPluginWithFailingCompilerCr
     }
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 2u);
 
-    // Resolving PREFER_PLUGIN only loads the function table and does not create a compiler.
+    // Explicit PLUGIN failures do not affect later PREFER_PLUGIN resolution, which only loads functions.
     fake.succeed(fake_vcl::kCompilerCreate);
     EXPECT_EQ(decide(factory), CompilerType::PLUGIN);
     EXPECT_EQ(fake.callCount(fake_vcl::kCompilerCreate), 2u);
