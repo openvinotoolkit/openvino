@@ -44,7 +44,7 @@
 #include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
+#include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 

@@ -30,7 +30,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
-#include "transformations/cpu_opset/common/op/qsa_indexer.hpp"
+#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "utils/plain_tensor.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64

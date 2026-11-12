@@ -23,7 +23,7 @@
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
+#include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 
 using namespace ov;
 using ov::intel_cpu::SparseAttentionKVCacheFusion;

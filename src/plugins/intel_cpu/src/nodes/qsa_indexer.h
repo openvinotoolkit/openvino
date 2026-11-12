@@ -15,7 +15,7 @@
 #include "nodes/kernels/sparse_attn/qsa_executor.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
-#include "transformations/cpu_opset/common/op/qsa_indexer.hpp"
+#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 
 namespace ov::intel_cpu::node {
 

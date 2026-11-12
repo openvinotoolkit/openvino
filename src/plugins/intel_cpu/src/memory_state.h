@@ -185,6 +185,7 @@ private:
     ov::Extensions::Cpu::CacheSpec m_spec;
 };
 
+#if defined(OPENVINO_ARCH_X86_64)
 // KV cache state kept in the plain BHLS order (contiguous rows along L, capacity carried by the strides) for the
 // sparse attention node; overrides the LBHS / beam-table get_state() and set_state_impl() of the base.
 class VariableStateKVcacheBHLS : public VariableStateKVcache {
@@ -198,6 +199,7 @@ private:
     // ov::intel_cpu::VariableStateBase
     void set_state_impl(const ov::SoPtr<ov::ITensor>& state) override;
 };
+#endif  // OPENVINO_ARCH_X86_64
 
 using MemStatePtr = std::shared_ptr<IVariableState>;
 using MemStateCPtr = std::shared_ptr<const IVariableState>;

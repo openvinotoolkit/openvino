@@ -26,7 +26,9 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
-#include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
+#endif
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -447,6 +449,7 @@ void VariableStateKVcache::assign_hidden_state(const MemoryPtr& mem) {
     m_hidden_state = mem;
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
 namespace {
 bool is_quantized(const ov::Extensions::Cpu::CacheSpec& spec) {
     return spec.precision == ov::element::u8 || spec.precision == ov::element::u4;
@@ -542,5 +545,6 @@ void VariableStateKVcacheBHLS::set_state_impl(const ov::SoPtr<ov::ITensor>& stat
     assign_internal_state_max_size(dense_internal_desc->getCurrentMemSize() /
                                    dense_internal_desc->getPrecision().size());
 }
+#endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace ov::intel_cpu

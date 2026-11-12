@@ -35,7 +35,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
+#include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 
 namespace ov::intel_cpu {
 

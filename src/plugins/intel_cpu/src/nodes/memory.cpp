@@ -48,7 +48,9 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "shape_inference/shape_inference_pass_through.hpp"
-#include "sparse_sdpa.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "sparse_sdpa.h"
+#endif
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "utils/general_utils.h"
 
@@ -1174,6 +1176,7 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     }
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
 MemoryInputSparseSDPA::MemoryInputSparseSDPA(const std::string& id,
                                              const std::string& name,
                                              const std::string& type,
@@ -1240,6 +1243,7 @@ MemStatePtr MemoryInputSparseSDPA::makeState() const {
     }
     return std::make_shared<VariableStateKVcacheBHLS>(state_name, original_desc, internal_desc, quant_param);
 }
+#endif
 
 MemoryInputSingle::MemoryInputSingle(const std::string& id,
                                      const std::string& name,

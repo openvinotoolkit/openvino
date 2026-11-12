@@ -287,8 +287,8 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_sdpa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_pa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/sparse_pa.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/common/op/qsa_indexer.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/common/op/qsa_indexer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/x64/op/qsa_indexer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/../../src/transformations/cpu_opset/x64/op/qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp

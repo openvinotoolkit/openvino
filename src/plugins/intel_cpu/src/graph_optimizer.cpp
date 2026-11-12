@@ -51,7 +51,9 @@
 #include "nodes/reshape.h"
 #include "nodes/rnn.h"
 #include "nodes/scaled_attn.h"
-#include "nodes/sparse_sdpa.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/sparse_sdpa.h"
+#endif
 #include "nodes/transpose.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -235,9 +237,11 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph& graph) {
     MatchSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
 
+#if defined(OPENVINO_ARCH_X86_64)
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "MatchSparseSdpaKvCache");
     MatchSparseSdpaKvCache(graph);
     graph.RemoveDroppedNodes();
+#endif
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "DropRedundantMemoryOutput");
     DropRedundantMemoryOutput(graph);
@@ -3185,6 +3189,7 @@ void GraphOptimizer::matchKVCache(Graph& graph, Type nodeType) {
                 return false;
             }
             if (nodeType == childNode->getType()) {
+#if defined(OPENVINO_ARCH_X86_64)
                 if constexpr (std::is_same_v<NodeT, node::SparseSDPA>) {
                     // only the stateful form owns a KV cache
                     const auto sparse = std::dynamic_pointer_cast<NodeT>(childNode);
@@ -3192,6 +3197,7 @@ void GraphOptimizer::matchKVCache(Graph& graph, Type nodeType) {
                         return false;
                     }
                 }
+#endif
                 if (childAttn && childAttn != childNode) {
                     // only one child attention node supported
                     return false;
@@ -3306,9 +3312,11 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
     matchKVCache<ScaledDotProductAttention, MemoryInputSDPA>(graph, Type::ScaledDotProductAttention);
 }
 
+#if defined(OPENVINO_ARCH_X86_64)
 void GraphOptimizer::MatchSparseSdpaKvCache(Graph& graph) {
     matchKVCache<node::SparseSDPA, MemoryInputSparseSDPA>(graph, Type::SparseSDPA);
 }
+#endif
 
 void GraphOptimizer::DropRedundantMemoryOutput(Graph& graph) {
     // When we have a MemoryInput->MemoryOutput pair, that means that the state is immediately populated with the init
