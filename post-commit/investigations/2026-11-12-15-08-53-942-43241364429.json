@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-15-08-53-942-43241364429",
+  "timestamp": "2026-11-12T15:08:53Z",
+  "run_id": "43241364429",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43241364429",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "3042b45f9274c1d91f3b8a0905064abfc6011ecc",
+  "pr_number": "39713",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39713",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with linker out-of-memory (LNK1102) under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "cmake/ninja build step 'CC COLLECT' fails: multiple MSVC link.exe invocations fail with 'LINK : fatal error LNK1102: out of memory' while linking several test/sample executables (throughput_benchmark.exe, ov_subgraphs_dumper_tests.exe, openvino_mock1_frontend.dll, ov_npu_unit_tests.exe, ov_api_conformance_tests.exe, ov_gpu_unit_tests.exe, ov_transformations_tests.exe, ov_lp_transformations_tests.exe)"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate 'Check status of all jobs' step fails because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/throughput_benchmark.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_subgraphs_dumper_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_npu_unit_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_gpu_unit_tests.exe\nLINK : fatal error LNK1102: out of memory",
+    "FAILED: C:/actions-runner/_work/openvino/openvino/openvino/bin/intel64/Release/ov_transformations_tests.exe\nLINK : fatal error LNK1102: out of memory"
+  ],
+  "root_cause": "The Windows Conditional Compilation build runs many parallel MSVC link.exe invocations (ninja/cmake parallel build) on a memory-constrained GitHub-hosted Windows runner. Several large test/sample binaries (ov_gpu_unit_tests, ov_api_conformance_tests, ov_transformations_tests, etc.) are linked concurrently; MSVC's link.exe is memory-hungry for large .lib/.obj graphs, and once available RAM is exhausted the linker aborts with LNK1102 ('out of memory') rather than a graceful OOM-kill. This is not caused by the triggering commit's content (a small, type-only OpenCL kernel pointer-cast fix with no functional/link-graph impact) but by resource contention from the existing build parallelism settings on this CI configuration. The same signature (compiler C1060 / linker LNK1102 under high parallelism) has recurred multiple times historically (see pattern 80cfa127185fbf3e), confirming this is a known, persistent CI resource/parallelism issue rather than a one-off.",
+  "reproduction_steps": "N/A - requires reproducing memory pressure on a GitHub-hosted Windows runner identical to the CI environment (limited RAM, many parallel ninja/cmake link jobs). Locally, this can sometimes be approximated by building the same CMake configuration with a high -j parallelism value (e.g., ninja -j<N> matching the runner's job count) on a machine with similarly constrained RAM.",
+  "recommended_actions": [
+    "Reduce the linker/build parallelism for the Windows Conditional Compilation job (e.g., lower CMake/Ninja job pool size via -j or CMAKE_JOB_POOLS for link-heavy targets) to reduce peak concurrent memory usage.",
+    "Consider splitting large test targets (ov_gpu_unit_tests, ov_api_conformance_tests, ov_transformations_tests) across build stages or disabling unused test target builds in the Conditional Compilation job if they are not needed for CC coverage.",
+    "Evaluate moving this job to a larger-memory Windows runner SKU if available.",
+    "Re-run the failed workflow (no code change needed) since this is an infrastructure/resource issue unrelated to the triggering commit."
+  ],
+  "prevention_strategies": "Monitor peak memory usage of the Windows CC build job and set an explicit ninja/cmake link job pool (e.g., JOB_POOLS link=2) to cap concurrent linker processes. Track recurrence via the CI Doctor pattern database and escalate to infra owners once the count crosses a threshold (already recurring, see historical pattern).",
+  "historical_context": "This exact signature (Windows Release build compiler C1060 / linker LNK1102 out-of-memory under high parallelism) was first recorded on 2026-11-03 (run 41586716106) and has now recurred, confirming a persistent, recurring Windows CI infrastructure/resource-contention issue rather than an isolated incident."
+}
