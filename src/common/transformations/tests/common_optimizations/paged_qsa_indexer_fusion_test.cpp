@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <limits>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -21,6 +23,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -32,7 +35,6 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
-#include "ov_ops/paged_qsa_indexer.hpp"
 #include "ov_ops/qsa_indexer.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
@@ -354,6 +356,97 @@ TEST_P(PagedQSAIndexerFusionNotConvertedTest, KeepsQSAIndexer) {
 INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
                          PagedQSAIndexerFusionNotConvertedTest,
                          testing::Values(GraphOptions{true, false, false}));
+
+class PagedQSAIndexerInvalidProductionInputsTest : public TransformationTestsF,
+                                                   public testing::WithParamInterface<std::string> {
+public:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        const auto& name = GetParam();
+        model = make_model(GraphOptions{}, false);
+        std::shared_ptr<op_internal::QSAIndexer> indexer;
+        for (const auto& node : model->get_ops()) {
+            indexer = ov::as_type_ptr<op_internal::QSAIndexer>(node);
+            if (indexer) {
+                break;
+            }
+        }
+        ASSERT_NE(indexer, nullptr);
+        auto inputs = indexer->input_values();
+        auto config = indexer->get_config();
+        if (name == "zero_block_size") {
+            config.key_block_size = 0;
+        } else if (name == "selection_heads") {
+            config.num_selection_heads = 2;
+        } else if (name == "nonfinite_scale") {
+            config.scale = std::numeric_limits<float>::infinity();
+        } else if (name == "head_dimension") {
+            config.indexer_head_dim = head_size / 2;
+        } else if (name == "head_count") {
+            inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] =
+                v0::Constant::create(element::f32, Shape{1, 1, 3, head_size}, {0.0f});
+        } else if (name == "weight_shape") {
+            inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] =
+                v0::Constant::create(element::f32, Shape{head_size - 1}, {1.0f});
+        } else if (name == "weight_type") {
+            inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(element::f16, Shape{head_size}, {1.0f});
+        } else if (name == "rotary_dimension") {
+            config.indexer_rotary_dim = rotary_dim - 1;
+        } else if (name == "zero_rotary_dimension") {
+            config.indexer_rotary_dim = 0;
+            inputs[QSAIndexerInputIdx::ROPE_COS] =
+                v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
+            inputs[QSAIndexerInputIdx::ROPE_SIN] =
+                v0::Constant::create(element::f32, Shape{1, 1, 0}, std::vector<float>{});
+        } else if (name == "incompatible_key_rope_cos" || name == "incompatible_key_rope_sin") {
+            model->get_parameters()[0]->set_partial_shape({1, Dimension(1, 3), query_heads, head_size});
+            model->get_parameters()[1]->set_partial_shape({1, 1, key_heads, head_size});
+            const auto idx =
+                name == "incompatible_key_rope_cos" ? QSAIndexerInputIdx::ROPE_COS : QSAIndexerInputIdx::ROPE_SIN;
+            inputs[idx] = v0::Constant::create(element::f32, Shape{1, 3, rotary_dim}, {1.0f});
+        } else {
+            model->get_parameters()[0]->set_partial_shape({1, 3, query_heads, head_size});
+            model->get_parameters()[1]->set_partial_shape({1, 3, key_heads, head_size});
+            inputs[QSAIndexerInputIdx::ROPE_COS] = v0::Constant::create(element::f32, Shape{1, 5, rotary_dim}, {1.0f});
+        }
+        const auto replacement = std::make_shared<op_internal::QSAIndexer>(inputs, config);
+        ov::replace_node(indexer, replacement);
+        model->validate_nodes_and_infer_types();
+        pa_params = std::make_unique<pass::paged_attention::PaParams>(model->get_parameters());
+        manager.register_pass<pass::PagedQSAIndexerFusion>(*pa_params, removed_ids);
+    }
+
+    void TearDown() override {
+        TransformationTestsF::TearDown();
+        ASSERT_NE(pa_params, nullptr);
+        EXPECT_TRUE(removed_ids.empty());
+        EXPECT_TRUE(pa_params->items().empty());
+    }
+
+private:
+    std::unique_ptr<pass::paged_attention::PaParams> pa_params;
+    std::unordered_set<std::string> removed_ids;
+};
+
+TEST_P(PagedQSAIndexerInvalidProductionInputsTest, DoesNotFuseOrAddCaches) {}
+
+INSTANTIATE_TEST_SUITE_P(PagedQSAIndexerFusion,
+                         PagedQSAIndexerInvalidProductionInputsTest,
+                         testing::Values("zero_block_size",
+                                         "selection_heads",
+                                         "nonfinite_scale",
+                                         "head_dimension",
+                                         "head_count",
+                                         "weight_shape",
+                                         "weight_type",
+                                         "rotary_dimension",
+                                         "zero_rotary_dimension",
+                                         "incompatible_key_rope_cos",
+                                         "incompatible_key_rope_sin",
+                                         "rope_token_count"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
 
 struct QueryOptions {
     std::string name;

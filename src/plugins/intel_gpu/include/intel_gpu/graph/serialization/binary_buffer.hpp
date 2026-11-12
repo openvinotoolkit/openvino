@@ -4,13 +4,15 @@
 
 #pragma once
 
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+
+#include "bind.hpp"
 #include "buffer.hpp"
 #include "helpers.hpp"
-#include "bind.hpp"
 
 namespace cldnn {
 
@@ -136,12 +138,20 @@ public:
         return _is_encrypted;
     }
 
+    void set_compiled_model_format_version(uint32_t version) {
+        _compiled_model_format_version = version;
+    }
+    uint32_t get_compiled_model_format_version() const {
+        return _compiled_model_format_version;
+    }
+
 private:
     std::istream& _stream;
     void* _impl_params;
     const size_t* _tensor_base_ptr;
     bool _is_encrypted;
     size_t _offset;
+    uint32_t _compiled_model_format_version = 0;  // Standalone buffers use the current format.
 };
 
 class EncryptedBinaryOutputBuffer : public BinaryOutputBuffer {

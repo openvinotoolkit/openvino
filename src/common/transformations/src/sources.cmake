@@ -362,7 +362,6 @@ set(OV_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/multiclass_nms_ie_internal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_ie_internal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_static_shape_ie.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rotary_positional_embeddings.cpp

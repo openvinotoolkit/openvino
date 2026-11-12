@@ -95,6 +95,18 @@ TEST(type_prop, paged_qsa_indexer_dynamic_tokens_and_pages) {
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{dyn, 1}));
 }
 
+TEST(type_prop, paged_qsa_indexer_merges_token_dimensions) {
+    auto inputs = make_paged_qsa_indexer_inputs();
+    inputs[0] = std::make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 8});
+    const auto config = make_paged_qsa_indexer_config();
+    const auto op = std::make_shared<PagedQSAIndexer>(inputs, config);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{6, 1, 3}));
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{6, 1}));
+
+    inputs[2] = std::make_shared<Parameter>(element::f32, PartialShape{5, 2});
+    EXPECT_THROW(std::ignore = std::make_shared<PagedQSAIndexer>(inputs, config), NodeValidationFailure);
+}
+
 TEST(type_prop, paged_qsa_indexer_rejects_invalid_config) {
     const auto expect_invalid = [](const PagedQSAIndexer::Config& config) {
         EXPECT_THROW(std::ignore = std::make_shared<PagedQSAIndexer>(make_paged_qsa_indexer_inputs(), config),

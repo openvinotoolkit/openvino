@@ -15,7 +15,7 @@ using PagedQSAIndexerGPU = ov::intel_gpu::op::PagedQSAIndexer;
 
 namespace ov::intel_gpu {
 
-static void CreatePagedQSAIndexerGPUOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexerGPU>& op) {
+static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexer>& op) {
     using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
     validate_inputs_count(op, {In::COUNT});
     const auto inputs = p.GetInputInfo(op);
@@ -56,6 +56,11 @@ static void CreatePagedQSAIndexerGPUOp(ProgramBuilder& p, const std::shared_ptr<
     p.add_primitive(*op, prim);
 }
 
+static void CreatePagedQSAIndexerGPUOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexerGPU>& op) {
+    CreatePagedQSAIndexerOp(p, op);
+}
+
+REGISTER_FACTORY_IMPL(internal, PagedQSAIndexer);
 REGISTER_FACTORY_IMPL(internal, PagedQSAIndexerGPU);
 
 }  // namespace ov::intel_gpu

@@ -73,6 +73,8 @@ bool PagedQSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("indexer_head_dim", m_config.indexer_head_dim);
     visitor.on_attribute("epsilon", m_config.epsilon);
     visitor.on_attribute("scale", m_config.scale);
+    visitor.on_attribute("query_norm", m_config.query_norm);
+    visitor.on_attribute("query_rope", m_config.query_rope);
     return true;
 }
 
@@ -149,7 +151,12 @@ void PagedQSAIndexer::validate_and_infer_types() {
         return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
     };
 
-    const ov::Dimension tokens = dim_at(index_query_ps, 0);
+    ov::Dimension tokens = dim_at(index_query_ps, 0);
+    for (const auto idx : {InputIdx::RAW_INDEX_KEYS, InputIdx::ROPE_COS, InputIdx::ROPE_SIN}) {
+        NODE_VALIDATION_CHECK(this,
+                              ov::Dimension::merge(tokens, tokens, dim_at(get_input_partial_shape(idx), 0)),
+                              "PagedQSAIndexer expects all token inputs to have the same number of tokens");
+    }
     const ov::Dimension di(static_cast<int64_t>(m_config.indexer_head_dim));
     const ov::Dimension rot(static_cast<int64_t>(m_config.indexer_rotary_dim));
     const ov::Dimension rope_row(static_cast<int64_t>(2 * m_config.indexer_rotary_dim));

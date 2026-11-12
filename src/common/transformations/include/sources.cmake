@@ -29,7 +29,6 @@ set(OV_OPS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_ie_internal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/nms_static_shape_ie.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/opset_private_tbl.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/paged_qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/qsa_indexer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rms.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ov_ops/rotary_positional_embeddings.hpp

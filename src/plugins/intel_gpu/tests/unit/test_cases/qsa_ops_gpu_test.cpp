@@ -28,7 +28,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
+#include <intel_gpu/graph/serialization/binary_buffer.hpp>
+#include <intel_gpu/graph/serialization/utils.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_qsa_indexer.hpp>
@@ -47,6 +50,7 @@
 #include <openvino/op/paged_sparse_attention.hpp>
 #include <openvino/op/parameter.hpp>
 #include <openvino/op/read_value.hpp>
+#include <openvino/op/relu.hpp>
 #include <openvino/op/result.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <set>
@@ -56,6 +60,8 @@
 #include <vector>
 
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/internal_properties.hpp"
+#include "ov_ops/qsa_indexer.hpp"
 #include "primitive_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
@@ -90,6 +96,8 @@ struct split_dims {
     size_t page_size = 16;
     size_t max_positions = 64;
     float eps = 1e-6f;
+    bool query_norm = true;
+    bool query_rope = true;
 
     size_t Hq = 2;
     size_t Hkv = 1;
@@ -340,8 +348,12 @@ struct split_reference {
         std::vector<std::vector<float>> heads(d.Hiq);
         for (size_t h = 0; h < d.Hiq; h++) {
             heads[h].assign(index_query_cur.begin() + (t * d.Hiq + h) * d.Di, index_query_cur.begin() + (t * d.Hiq + h + 1) * d.Di);
-            rms_norm(heads[h], q_norm, d.eps);
-            apply_rope(heads[h], rotary, d.rotary, static_cast<size_t>(positions[abs_pos]));
+            if (d.query_norm) {
+                rms_norm(heads[h], q_norm, d.eps);
+            }
+            if (d.query_rope) {
+                apply_rope(heads[h], rotary, d.rotary, static_cast<size_t>(positions[abs_pos]));
+            }
         }
 
         std::vector<std::pair<float, size_t>> scored;
@@ -695,6 +707,8 @@ std::unique_ptr<network> build_paged_network(engine& engine, const paged_inputs&
         cfg.indexer_head_dim = d.Di;
         cfg.epsilon = d.eps;
         cfg.scale = 1.0f / std::sqrt(static_cast<float>(d.Di));
+        cfg.query_norm = d.query_norm;
+        cfg.query_rope = d.query_rope;
 
         topo.add(input_layout("index_query", layout{{q, I(d.Hiq * d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("raw_index_keys", layout{{q, I(d.Di)}, data_types::f16, format::bfyx}));
@@ -989,6 +1003,8 @@ std::unique_ptr<network> build_dense_network(engine& engine, const dense_inputs&
         cfg.indexer_head_dim = d.Di;
         cfg.epsilon = d.eps;
         cfg.scale = 1.0f / std::sqrt(static_cast<float>(d.Di));
+        cfg.query_norm = d.query_norm;
+        cfg.query_rope = d.query_rope;
 
         topo.add(input_layout("index_query", layout{{B, q, I(d.Hiq), I(d.Di)}, data_types::f16, format::bfyx}));
         topo.add(input_layout("raw_index_keys", layout{{B, q, 1, I(d.Di)}, data_types::f16, format::bfyx}));
@@ -1242,21 +1258,15 @@ void dump_pair_outputs(const pair_outputs& gpu) {
     write(".count.i32", gpu.plan.count);
 }
 
-/// Checks the GPU plan against the reference scores (count exact; every selected block
-/// complete, unique, and scoring within fp16 tolerance of the k-th best), then compares
-/// attention computed by the reference over that same plan using a combined
-/// absolute+relative tolerance (`atol + rtol * |ref|`), after asserting every output
-/// element is finite.
-void validate_pair(const split_reference& ref, const pair_outputs& gpu, float atol, float rtol) {
-    dump_pair_outputs(gpu);
+void validate_selection(const split_reference& ref, const selection_plan& plan, std::vector<std::vector<size_t>>& selections) {
     const auto& d = ref.d;
-    ASSERT_EQ(gpu.plan.count.size(), ref.q_len);
-    ASSERT_EQ(gpu.plan.sel.size(), ref.q_len * d.block_topk);
-    std::vector<std::vector<size_t>> selections(ref.q_len);
+    ASSERT_EQ(plan.count.size(), ref.q_len);
+    ASSERT_EQ(plan.sel.size(), ref.q_len * d.block_topk);
+    selections.resize(ref.q_len);
     for (size_t t = 0; t < ref.q_len; t++) {
         const auto scored = ref.scored_blocks(t);
         const size_t expected_count = std::min(d.block_topk, scored.size());
-        ASSERT_EQ(static_cast<size_t>(gpu.plan.count[t]), expected_count) << "t=" << t;
+        ASSERT_EQ(static_cast<size_t>(plan.count[t]), expected_count) << "t=" << t;
         if (expected_count == 0) {
             continue;
         }
@@ -1268,13 +1278,25 @@ void validate_pair(const split_reference& ref, const pair_outputs& gpu, float at
         const float tol = 1e-2f * std::max(1.0f, std::fabs(kth));
         std::set<size_t> seen;
         for (size_t i = 0; i < expected_count; i++) {
-            const int32_t b = gpu.plan.sel[t * d.block_topk + i];
+            const int32_t b = plan.sel[t * d.block_topk + i];
             ASSERT_GE(b, 0) << "t=" << t << " i=" << i;
             ASSERT_LT(static_cast<size_t>(b), scored.size()) << "t=" << t << " selected an incomplete block";
             ASSERT_TRUE(seen.insert(static_cast<size_t>(b)).second) << "t=" << t << " selected block " << b << " twice";
             EXPECT_GE(score_of[b], kth - tol) << "t=" << t << " block " << b << " is not in the top-" << expected_count;
         }
         selections[t].assign(seen.begin(), seen.end());
+    }
+}
+
+/// Checks the GPU plan against the reference scores, then compares attention computed
+/// over that same plan using a combined absolute+relative tolerance.
+void validate_pair(const split_reference& ref, const pair_outputs& gpu, float atol, float rtol) {
+    dump_pair_outputs(gpu);
+    const auto& d = ref.d;
+    std::vector<std::vector<size_t>> selections;
+    validate_selection(ref, gpu.plan, selections);
+    if (::testing::Test::HasFatalFailure()) {
+        return;
     }
 
     const auto expected = ref.attention(selections);
@@ -1638,6 +1660,90 @@ const route dpas_dpas{IndexerPath::Dpas, AttnPath::Dpas};
 const route decode_scalar{IndexerPath::Decode, AttnPath::Scalar};
 const route decode_split{IndexerPath::Decode, AttnPath::Split};
 const route fused_scalar{IndexerPath::Fused, AttnPath::Scalar};
+
+class QSAIndexerQueryFlagsTest : public ::testing::TestWithParam<std::tuple<bool, bool, bool, bool>> {};
+
+TEST_P(QSAIndexerQueryFlagsTest, ProcessesQueryAndKeepsKeyState) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+
+    const auto [paged, query_norm, query_rope, dynamic] = GetParam();
+    split_dims dims;
+    dims.query_norm = query_norm;
+    dims.query_rope = query_rope;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto ref = make_split_reference(rg, dims, 3, 10, Positions::MRoPELike);
+    auto& engine = get_test_engine();
+    const auto paged_in = paged_inputs_from_reference(ref);
+    const auto dense_in = dense_inputs_from_reference(ref);
+    auto net = paged ? build_paged_network(engine, paged_in, Stage::IndexerOnly, dynamic) : build_dense_network(engine, dense_in, Stage::IndexerOnly, dynamic);
+    net->execute();
+    net->get_stream().finish();
+
+    const auto indexer = net->get_primitive("indexer");
+    selection_plan plan{read_i32(indexer->output_memory_ptr(0)), read_i32(indexer->output_memory_ptr(1))};
+    plan.sel.resize(ref.q_len * dims.block_topk);
+    plan.count.resize(ref.q_len);
+    std::vector<std::vector<size_t>> selections;
+    validate_selection(ref, plan, selections);
+
+    const auto& intermediates = indexer->get_intermediates_memories();
+    ASSERT_FALSE(intermediates.empty());
+    const auto query = read_f16(intermediates.front());
+    ASSERT_GE(query.size(), ref.index_query_cur.size());
+    for (size_t t = 0; t < ref.q_len; t++) {
+        for (size_t h = 0; h < dims.Hiq; h++) {
+            const auto offset = (t * dims.Hiq + h) * dims.Di;
+            std::vector<float> expected(ref.index_query_cur.begin() + offset, ref.index_query_cur.begin() + offset + dims.Di);
+            if (query_norm) {
+                rms_norm(expected, ref.q_norm, dims.eps);
+            }
+            if (query_rope) {
+                apply_rope(expected, ref.rotary, dims.rotary, static_cast<size_t>(ref.positions[ref.past_len + t]));
+            }
+            for (size_t j = 0; j < dims.Di; j++) {
+                const float rounded = static_cast<float>(ov::float16(expected[j]));
+                EXPECT_NEAR(query[offset + j], rounded, 3e-3f + 3e-3f * std::fabs(rounded)) << "token=" << t << " head=" << h << " channel=" << j;
+            }
+        }
+    }
+
+    if (!paged) {
+        validate_dense_state(*net, dense_in, {ref});
+        return;
+    }
+
+    const auto raw = read_f16(net->get_primitive("raw_k_cache")->output_memory_ptr());
+    const auto summaries = read_f16(net->get_primitive("block_index_keys_cache")->output_memory_ptr());
+    const auto rope = read_f16(net->get_primitive("rope_cache")->output_memory_ptr());
+    for (size_t p = 0; p < ref.total_len(); p++) {
+        for (size_t j = 0; j < dims.Di; j++) {
+            EXPECT_FLOAT_EQ(raw[p * dims.Di + j], ref.raw_index_keys_all[p * dims.Di + j]);
+        }
+    }
+    for (size_t block = 0; block * dims.r < ref.total_len(); block++) {
+        const auto expected_rope = rope_state_row(ref.rotary, dims.rotary, ref.positions[block * dims.r]);
+        for (size_t j = 0; j < expected_rope.size(); j++) {
+            EXPECT_FLOAT_EQ(rope[block * 2 * dims.rotary + j], expected_rope[j]);
+        }
+        if ((block + 1) * dims.r <= ref.total_len()) {
+            const auto expected_summary = ref.summary(block);
+            for (size_t j = 0; j < dims.Di; j++) {
+                EXPECT_NEAR(summaries[block * dims.Di + j], expected_summary[j], 1e-2f + 1e-2f * std::fabs(expected_summary[j]));
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(QSA,
+                         QSAIndexerQueryFlagsTest,
+                         ::testing::Combine(::testing::Bool(), ::testing::Bool(), ::testing::Bool(), ::testing::Bool()),
+                         ([](const ::testing::TestParamInfo<QSAIndexerQueryFlagsTest::ParamType>& info) {
+                             const auto [paged, query_norm, query_rope, dynamic] = info.param;
+                             return std::string(paged ? "Paged" : "Dense") + (dynamic ? "_Dynamic" : "_Static") + (query_norm ? "_NormOn" : "_NormOff") +
+                                    (query_rope ? "_RoPEOn" : "_RoPEOff");
+                         }));
 
 // Decode batches: Q2 score_partition + top-k, Q3 GQA-DPAS (qwen38 dims).
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_matches_reference) {
@@ -2333,6 +2439,352 @@ ov::intel_gpu::op::QSAIndexer::Config make_dense_indexer_config(const split_dims
     c.scale = 1.0f / std::sqrt(static_cast<float>(d.Di));
     return c;
 }
+
+template <typename Primitive, typename Config>
+void check_indexer_flag_serialization(const Config& base) {
+    auto& engine = get_test_engine();
+    for (bool norm : {false, true}) {
+        for (bool rope : {false, true}) {
+            SCOPED_TRACE(std::string("norm=") + (norm ? "true" : "false") + " rope=" + (rope ? "true" : "false"));
+            auto config = base;
+            config.query_norm = norm;
+            config.query_rope = rope;
+            const Primitive original("indexer", {}, config);
+            const Primitive same("indexer", {}, config);
+            EXPECT_TRUE(original == same);
+            EXPECT_EQ(original.hash(), same.hash());
+
+            auto changed = config;
+            changed.query_norm = !norm;
+            const Primitive different_norm("indexer", {}, changed);
+            EXPECT_FALSE(original == different_norm);
+            EXPECT_NE(original.hash(), different_norm.hash());
+            changed = config;
+            changed.query_rope = !rope;
+            const Primitive different_rope("indexer", {}, changed);
+            EXPECT_FALSE(original == different_rope);
+            EXPECT_NE(original.hash(), different_rope.hash());
+
+            membuf buffer;
+            {
+                std::ostream stream(&buffer);
+                BinaryOutputBuffer output(stream);
+                original.save(output);
+            }
+            Primitive restored;
+            {
+                std::istream stream(&buffer);
+                BinaryInputBuffer input(stream, engine);
+                restored.load(input);
+            }
+            EXPECT_EQ(restored.get_config().query_norm, norm);
+            EXPECT_EQ(restored.get_config().query_rope, rope);
+            EXPECT_TRUE(original == restored);
+            EXPECT_EQ(original.hash(), restored.hash());
+        }
+    }
+}
+
+TEST(qsa_ops_gpu_test, indexer_query_flags_survive_primitive_serialization) {
+    const split_dims dims;
+    check_indexer_flag_serialization<qsa_indexer>(make_dense_indexer_config(dims));
+    check_indexer_flag_serialization<paged_qsa_indexer>(make_paged_indexer_config(dims));
+}
+
+template <typename Primitive, typename Config>
+void check_legacy_indexer_serialization(const Config& config) {
+    const Primitive original("indexer", {}, config);
+    membuf buffer;
+    constexpr uint32_t next_object = 0x12345678;
+    {
+        std::ostream stream(&buffer);
+        BinaryOutputBuffer output(stream);
+        static_cast<const primitive&>(original).primitive::save(output);
+        output << original.key_block_size << original.block_topk << original.num_selection_heads << original.indexer_rotary_dim << original.indexer_head_dim
+               << original.epsilon << original.scale << next_object;
+    }
+
+    Primitive restored;
+    restored.query_norm = false;
+    restored.query_rope = false;
+    uint32_t actual_next = 0;
+    {
+        std::istream stream(&buffer);
+        BinaryInputBuffer input(stream, get_test_engine());
+        input.set_compiled_model_format_version(2);
+        restored.load(input);
+        input >> actual_next;
+    }
+    EXPECT_EQ(actual_next, next_object);
+    EXPECT_TRUE(restored.query_norm);
+    EXPECT_TRUE(restored.query_rope);
+    EXPECT_TRUE(original == restored);
+    EXPECT_EQ(original.hash(), restored.hash());
+}
+
+TEST(qsa_ops_gpu_test, legacy_indexer_serialization_preserves_following_data) {
+    const split_dims dims;
+    check_legacy_indexer_serialization<qsa_indexer>(make_dense_indexer_config(dims));
+    check_legacy_indexer_serialization<paged_qsa_indexer>(make_paged_indexer_config(dims));
+}
+
+TEST(qsa_ops_gpu_test, imports_and_upgrades_legacy_compiled_model_descriptor) {
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    const auto relu = std::make_shared<ov::op::v0::Relu>(input);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input});
+    ov::Core core;
+    auto compiled = core.compile_model(model, "GPU");
+    const auto requirements = compiled.get_property(ov::runtime_requirements);
+    constexpr char current_schema[] = "meta=2.0";
+    constexpr char legacy_schema[] = "meta=1.0";
+    ASSERT_EQ(requirements.substr(0, sizeof(current_schema) - 1), current_schema);
+    auto legacy_requirements = requirements;
+    legacy_requirements.replace(0, sizeof(current_schema) - 1, legacy_schema);
+    EXPECT_EQ(core.get_property("GPU", ov::compatibility_check, {{ov::runtime_requirements.name(), legacy_requirements}}), ov::CompatibilityCheck::SUPPORTED);
+
+    std::stringstream cache;
+    compiled.export_model(cache);
+    auto data = cache.str();
+    constexpr size_t version_offset = sizeof(ov::CacheMode) + sizeof(uint64_t);
+    constexpr size_t descriptor_offset = version_offset + sizeof(uint32_t) + sizeof(uint64_t);
+    ASSERT_GE(data.size(), descriptor_offset + requirements.size());
+    ASSERT_EQ(data.substr(descriptor_offset, requirements.size()), requirements);
+    const uint32_t legacy_version = 2;
+    std::memcpy(&data[version_offset], &legacy_version, sizeof(legacy_version));
+    {
+        std::stringstream mismatched_cache(data);
+        EXPECT_THROW((void)core.import_model(mismatched_cache, "GPU"), ov::Exception);
+    }
+    data.replace(descriptor_offset, sizeof(current_schema) - 1, legacy_schema);
+    std::stringstream legacy_cache(data);
+    ov::CompiledModel restored;
+    ASSERT_NO_THROW(restored = core.import_model(legacy_cache, "GPU"));
+    EXPECT_EQ(restored.get_property(ov::runtime_requirements), requirements);
+
+    auto request = restored.create_infer_request();
+    request.get_input_tensor().data<float>()[0] = 3.0f;
+    request.infer();
+    EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[0], 3.0f);
+
+    std::stringstream upgraded_cache;
+    restored.export_model(upgraded_cache);
+    const auto upgraded = upgraded_cache.str();
+    ASSERT_GE(upgraded.size(), descriptor_offset + requirements.size());
+    uint32_t upgraded_version = 0;
+    std::memcpy(&upgraded_version, upgraded.data() + version_offset, sizeof(upgraded_version));
+    EXPECT_EQ(upgraded_version, 3);
+    EXPECT_EQ(upgraded.substr(descriptor_offset, requirements.size()), requirements);
+
+    std::memcpy(&data[version_offset], &upgraded_version, sizeof(upgraded_version));
+    std::stringstream mismatched_cache(data);
+    EXPECT_THROW((void)core.import_model(mismatched_cache, "GPU"), ov::Exception);
+}
+
+class QueryFlagsVisitor : public ov::AttributeVisitor {
+public:
+    using ov::AttributeVisitor::on_adapter;
+    void on_adapter(const std::string&, ov::ValueAccessor<void>&) override {}
+    void on_adapter(const std::string& name, ov::ValueAccessor<bool>& adapter) override {
+        values[name] = adapter.get();
+    }
+    std::map<std::string, bool> values;
+};
+
+TEST(qsa_ops_gpu_test, dense_indexer_query_flag_attributes_and_clone) {
+    using Indexer = ov::intel_gpu::op::QSAIndexer;
+    EXPECT_TRUE(Indexer::Config{}.query_norm);
+    EXPECT_TRUE(Indexer::Config{}.query_rope);
+    EXPECT_TRUE(ov::op::internal::PagedQSAIndexer::Config{}.query_norm);
+    EXPECT_TRUE(ov::op::internal::PagedQSAIndexer::Config{}.query_rope);
+
+    const split_dims dims;
+    auto config = make_dense_indexer_config(dims);
+    config.query_norm = false;
+    config.query_rope = false;
+    const auto node = std::make_shared<Indexer>(make_dense_indexer_args(dims), config);
+    QueryFlagsVisitor visitor;
+    ASSERT_TRUE(node->visit_attributes(visitor));
+    ASSERT_EQ(visitor.values.size(), 2u);
+    EXPECT_FALSE(visitor.values.at("query_norm"));
+    EXPECT_FALSE(visitor.values.at("query_rope"));
+    const auto clone = ov::as_type_ptr<Indexer>(node->clone_with_new_inputs(node->input_values()));
+    ASSERT_NE(clone, nullptr);
+    EXPECT_FALSE(clone->get_config().query_norm);
+    EXPECT_FALSE(clone->get_config().query_rope);
+}
+
+class QSAIndexerPluginFlagsTest : public ::testing::TestWithParam<std::tuple<bool, bool, bool>> {};
+
+TEST_P(QSAIndexerPluginFlagsTest, LowersFusionOutputAndImportsCompiledModel) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+
+    const auto [paged, query_norm, query_rope] = GetParam();
+    split_dims dims;
+    dims.query_norm = query_norm;
+    dims.query_rope = query_rope;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto ref = make_split_reference(rg, dims, 20, 7, Positions::MRoPELike);
+    const auto paged_in = paged_inputs_from_reference(ref);
+    const auto dense_in = dense_inputs_from_reference(ref);
+    const auto args = paged ? make_paged_indexer_args(dims, paged_in.num_pages, paged_in.spp) : make_dense_indexer_args(dims);
+    std::shared_ptr<ov::Node> indexer;
+    if (paged) {
+        auto config = make_paged_indexer_config(dims);
+        config.query_norm = query_norm;
+        config.query_rope = query_rope;
+        indexer = std::make_shared<ov::op::internal::PagedQSAIndexer>(args, config);
+    } else {
+        ov::op::internal::QSAIndexer::Config config;
+        config.key_block_size = dims.r;
+        config.block_topk = dims.block_topk;
+        config.num_selection_heads = 1;
+        config.indexer_rotary_dim = dims.rotary;
+        config.indexer_head_dim = dims.Di;
+        config.epsilon = dims.eps;
+        config.query_norm = query_norm;
+        config.query_rope = query_rope;
+        indexer = std::make_shared<ov::op::internal::QSAIndexer>(args, config);
+    }
+    ov::ParameterVector parameters;
+    for (const auto& arg : args) {
+        const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(arg.get_node_shared_ptr());
+        ASSERT_NE(parameter, nullptr);
+        parameters.push_back(parameter);
+    }
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{indexer->output(0), indexer->output(1)}, parameters);
+    ov::Core core;
+    auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16));
+
+    const auto run = [&](ov::CompiledModel& compiled_model) {
+        auto request = compiled_model.create_infer_request();
+        const auto set_f16 = [&](size_t i, const ov::Shape& shape, const std::vector<float>& values) {
+            ov::Tensor tensor(ov::element::f16, shape);
+            ASSERT_EQ(tensor.get_size(), values.size());
+            auto* data = tensor.data<ov::float16>();
+            std::transform(values.begin(), values.end(), data, [](float value) {
+                return ov::float16(value);
+            });
+            request.set_input_tensor(i, tensor);
+        };
+        const auto set_i32 = [&](size_t i, const std::vector<int32_t>& values) {
+            ov::Tensor tensor(ov::element::i32, ov::Shape{values.size()});
+            std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+            request.set_input_tensor(i, tensor);
+        };
+        if (paged) {
+            const auto [cos, sin] = rope_rows(ref.rotary, dims.rotary, paged_in.position_ids);
+            set_f16(PagedIn::INDEX_QUERY, {ref.q_len, dims.Hiq * dims.Di}, paged_in.index_query);
+            set_f16(PagedIn::RAW_INDEX_KEYS, {ref.q_len, dims.Di}, paged_in.raw_index_keys);
+            set_f16(PagedIn::ROPE_COS, {ref.q_len, dims.rotary}, cos);
+            set_f16(PagedIn::ROPE_SIN, {ref.q_len, dims.rotary}, sin);
+            set_f16(PagedIn::Q_NORM_WEIGHT, {dims.Di}, paged_in.q_norm);
+            set_f16(PagedIn::K_NORM_WEIGHT, {dims.Di}, paged_in.k_norm);
+            set_i32(PagedIn::PAST_LENS, paged_in.past_lens);
+            set_i32(PagedIn::SUBSEQUENCE_BEGINS, paged_in.subsequence_begins);
+            set_i32(PagedIn::BLOCK_INDICES, paged_in.block_indices);
+            set_i32(PagedIn::BLOCK_INDICES_BEGINS, paged_in.block_indices_begins);
+            set_f16(PagedIn::INDEX_KEY_CACHE, {paged_in.num_pages, 1, dims.page_size, dims.Di}, paged_in.raw_k_cache);
+            set_f16(PagedIn::INDEX_BLOCK_ROPE_CACHE,
+                    {paged_in.num_pages, paged_in.spp, 2 * dims.rotary},
+                    rope_cache_rows(ref.rotary, dims.rotary, paged_in.position_cache));
+            set_f16(PagedIn::BLOCK_INDEX_KEYS_CACHE, {paged_in.num_pages, 1, paged_in.spp, dims.Di}, paged_in.block_index_keys_cache);
+        } else {
+            set_f16(DenseIdxIn::INDEX_QUERY, {1, ref.q_len, dims.Hiq, dims.Di}, dense_in.index_query);
+            set_f16(DenseIdxIn::RAW_INDEX_KEYS, {1, ref.q_len, 1, dims.Di}, dense_in.raw_index_keys);
+            set_f16(DenseIdxIn::ROPE_COS, {1, ref.q_len, dims.rotary}, dense_in.rope_cos);
+            set_f16(DenseIdxIn::ROPE_SIN, {1, ref.q_len, dims.rotary}, dense_in.rope_sin);
+            set_i32(DenseIdxIn::KEY_LENGTH, dense_in.key_length);
+            set_f16(DenseIdxIn::Q_NORM_WEIGHT, {dims.Di}, dense_in.q_norm);
+            set_f16(DenseIdxIn::K_NORM_WEIGHT, {dims.Di}, dense_in.k_norm);
+            set_f16(DenseIdxIn::BLOCK_INDEX_KEYS_CACHE, {1, 1, dense_in.summary_cap, dims.Di}, dense_in.block_index_keys_cache);
+            set_f16(DenseIdxIn::PAST_INCOMPLETE_RAW_K, {1, 1, dims.r - 1, dims.Di}, dense_in.raw_state);
+            set_f16(DenseIdxIn::PAST_INCOMPLETE_ROPE, {1, 2 * dims.rotary}, dense_in.rope_state);
+        }
+        ASSERT_FALSE(::testing::Test::HasFatalFailure());
+        request.infer();
+        const auto indices = request.get_output_tensor(0);
+        const auto counts = request.get_output_tensor(1);
+        const auto* indices_data = indices.data<int32_t>();
+        const auto* counts_data = counts.data<int32_t>();
+        selection_plan plan{std::vector<int32_t>(indices_data, indices_data + indices.get_size()),
+                            std::vector<int32_t>(counts_data, counts_data + counts.get_size())};
+        std::vector<std::vector<size_t>> selections;
+        validate_selection(ref, plan, selections);
+    };
+
+    run(compiled);
+    ASSERT_FALSE(::testing::Test::HasFatalFailure());
+    std::stringstream cache;
+    compiled.export_model(cache);
+    cache.seekg(0);
+    auto restored = core.import_model(cache, "GPU");
+    run(restored);
+
+    if (query_norm && query_rope) {
+        // Encrypted buffers omit alignment padding, so removing the v3 flags produces the v2 layout.
+        const auto identity = [](const std::string& value) {
+            return value;
+        };
+        const ov::EncryptionCallbacks callbacks{identity, identity};
+        auto encrypted = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16), ov::cache_encryption_callbacks(callbacks));
+        const auto requirements = encrypted.get_property(ov::runtime_requirements);
+        std::stringstream encrypted_cache;
+        encrypted.export_model(encrypted_cache);
+        auto data = encrypted_cache.str();
+        constexpr size_t payload_offset = sizeof(size_t);
+        constexpr size_t version_offset = payload_offset + sizeof(ov::CacheMode) + sizeof(uint64_t);
+        constexpr size_t descriptor_offset = version_offset + sizeof(uint32_t) + sizeof(uint64_t);
+        ASSERT_GE(data.size(), descriptor_offset + requirements.size());
+        size_t payload_size = 0;
+        std::memcpy(&payload_size, data.data(), sizeof(payload_size));
+        ASSERT_EQ(payload_size, data.size() - payload_offset);
+        ASSERT_EQ(data.substr(descriptor_offset, requirements.size()), requirements);
+
+        std::stringstream fields;
+        BinaryOutputBuffer output(fields);
+        const size_t selection_heads = 1;
+        const float scale = paged ? make_paged_indexer_config(dims).scale : 0.0f;
+        output << dims.r << dims.block_topk << selection_heads << dims.rotary << dims.Di << dims.eps << scale << query_norm << query_rope;
+        const auto marker = fields.str();
+        std::vector<size_t> positions;
+        for (auto pos = data.find(marker, descriptor_offset + requirements.size()); pos != std::string::npos; pos = data.find(marker, pos + marker.size())) {
+            positions.push_back(pos);
+        }
+        ASSERT_FALSE(positions.empty()) << "The exported model must contain an indexer primitive";
+        for (auto pos = positions.rbegin(); pos != positions.rend(); ++pos) {
+            data.erase(*pos + marker.size() - 2 * sizeof(bool), 2 * sizeof(bool));
+        }
+        constexpr char current_schema[] = "meta=2.0";
+        constexpr char legacy_schema[] = "meta=1.0";
+        ASSERT_EQ(requirements.substr(0, sizeof(current_schema) - 1), current_schema);
+        data.replace(descriptor_offset, sizeof(current_schema) - 1, legacy_schema);
+        const uint32_t legacy_version = 2;
+        std::memcpy(&data[version_offset], &legacy_version, sizeof(legacy_version));
+        payload_size = data.size() - payload_offset;
+        std::memcpy(&data[0], &payload_size, sizeof(payload_size));
+
+        std::stringstream legacy_cache(data);
+        auto legacy = core.import_model(legacy_cache, "GPU", ov::cache_encryption_callbacks(callbacks));
+        EXPECT_EQ(legacy.get_property(ov::runtime_requirements), requirements);
+        run(legacy);
+        ASSERT_FALSE(::testing::Test::HasFatalFailure());
+        std::stringstream upgraded_cache;
+        legacy.export_model(upgraded_cache);
+        upgraded_cache.seekg(0);
+        auto upgraded = core.import_model(upgraded_cache, "GPU", ov::cache_encryption_callbacks(callbacks));
+        run(upgraded);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(QSA,
+                         QSAIndexerPluginFlagsTest,
+                         ::testing::Combine(::testing::Bool(), ::testing::Bool(), ::testing::Bool()),
+                         ([](const ::testing::TestParamInfo<QSAIndexerPluginFlagsTest::ParamType>& info) {
+                             const auto [paged, query_norm, query_rope] = info.param;
+                             return std::string(paged ? "Paged" : "Dense") + (query_norm ? "_NormOn" : "_NormOff") + (query_rope ? "_RoPEOn" : "_RoPEOff");
+                         }));
 
 TEST(qsa_ops_gpu_test, paged_qsa_indexer_config_validation_rejects_illegal_attributes) {
     std::string reason;
