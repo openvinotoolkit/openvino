@@ -64,7 +64,6 @@
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/shuffle_channels.hpp"
-#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -304,7 +303,6 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v5::NonMaxSuppression>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v8::PriorBox>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v9::NonMaxSuppression>>(),
-    std::make_shared<TypeRelaxedExtension<ov::op::v17::SparseAttention>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::Brgemm>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastLoad>>(),
     std::make_shared<ov::OpExtension<ov::snippets::op::BroadcastMove>>(),

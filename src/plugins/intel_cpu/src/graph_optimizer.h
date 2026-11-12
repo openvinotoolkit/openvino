@@ -55,6 +55,8 @@ private:
     static void RemoveConvertMemoryOutput(Graph& graph);
     static void MatchSdpaKvCache(Graph& graph);
     static void MatchSparseSdpaKvCache(Graph& graph);
+    template <typename NodeT, typename MemInputT>
+    static void matchKVCache(Graph& graph, Type nodeType);
     static void DropRedundantMemoryOutput(Graph& graph);
 
     static bool canBeInplaced(const NodePtr& parentNode, const NodePtr& childNode);

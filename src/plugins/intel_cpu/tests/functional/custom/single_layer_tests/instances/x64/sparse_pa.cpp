@@ -141,7 +141,7 @@ std::vector<SparsePALayerTestParams> plain_cases() {
                                    /*selection=*/kRandom))};
 }
 
-// AMX brgemm path (see sparse_brgemm_kernel.hpp), bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 with pages
+// AMX brgemm path (see attn_brgemm_tiles.hpp), bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 with pages
 // that fit several blocks or only one, so adjacent selected blocks of a page are attended as one run. Head sizes 32,
 // 128 and 256 (the Qwen head size). v_head_size differs from the key head size to catch any coupling of the two. A
 // selection head per query head (no pack) keeps the prefill on the per-head AMX path.

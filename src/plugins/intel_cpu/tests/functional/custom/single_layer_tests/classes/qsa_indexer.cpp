@@ -450,11 +450,11 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
     ov::Tensor t_q_idx = ov::test::utils::create_and_fill_tensor(
         m_data_precision,
         ov::Shape{m_batch, L, m_h_iq, m_didx},
-        ov::test::utils::InputGenerateData(-1.0, 2000, 1000, static_cast<int32_t>(10 + call_idx * 4 + 1)));
+        ov::test::utils::InputGenerateData(-1, 2, 1000, static_cast<int32_t>(10 + call_idx * 4 + 1)));
     ov::Tensor t_k_idx = ov::test::utils::create_and_fill_tensor(
         m_data_precision,
         ov::Shape{m_batch, L, m_h_ik, m_didx},
-        ov::test::utils::InputGenerateData(-1.0, 2000, 1000, static_cast<int32_t>(10 + call_idx * 4 + 2)));
+        ov::test::utils::InputGenerateData(-1, 2, 1000, static_cast<int32_t>(10 + call_idx * 4 + 2)));
 
     // rope_cos/rope_sin can't be arbitrary random data: they must be genuine (cos, sin) pairs,
     // pre-duplicated across both halves of rotary_dim (per new_spec's rotate-half convention), so
@@ -602,11 +602,11 @@ void QSAIndexerLayerCPUTest::run() {
     m_q_norm_weight_tensor =
         ov::test::utils::create_and_fill_tensor(m_data_precision,
                                                 ov::Shape{m_didx},
-                                                ov::test::utils::InputGenerateData(0.5, 1000, 1000, 6));
+                                                ov::test::utils::InputGenerateData(0.5, 1, 1000, 6));
     m_k_norm_weight_tensor =
         ov::test::utils::create_and_fill_tensor(m_data_precision,
                                                 ov::Shape{m_didx},
-                                                ov::test::utils::InputGenerateData(0.5, 1000, 1000, 7));
+                                                ov::test::utils::InputGenerateData(0.5, 1, 1000, 7));
 
     m_oracle_summary_cache.assign(m_batch * m_h_ik * m_summary_cap * m_didx, 0.0F);
     m_oracle_past_raw_k.assign(m_batch * m_h_ik * (m_compress_ratio - 1) * m_didx, 0.0F);

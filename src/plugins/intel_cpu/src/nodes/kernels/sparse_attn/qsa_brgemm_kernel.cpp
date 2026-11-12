@@ -1,12 +1,11 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#pragma once
 
-// Block scoring and top-k selection of the QSAIndexer and the PagedQSAIndexer on brgemm (x64). Included by the
-// cross-compiled kernels only, so it is compiled per instruction set in the namespace XARCH, like the rest of them; the
-// brgemm kernels themselves (BrgemmKernel) are compiled once, the configuration and the scratch plan are in
-// qsa_brgemm.hpp.
+// Block scoring and top-k selection of the QSAIndexer and the PagedQSAIndexer on brgemm (x64). Cross-compiled for
+// AVX-512 only: the other instruction sets get stubs that throw (the scorer, QsaBrgemm, exists only on CPUs with the
+// AVX-512 brgemm kernels, see qsa_brgemm.hpp for the configuration and the scratch plan; the brgemm kernels themselves,
+// BrgemmKernel, are compiled once).
 //
 // A "row" is one sequence of the call (a batch entry of the dense node, a sequence of the paged one); the physical
 // layouts differ and are hidden behind `Source` (see below). Notation, per row: L tokens of the call, H_iq index query
@@ -31,55 +30,87 @@
 // A work item is `tile_tokens` tokens x a range of key chunks; prefill items select right away, decode items split the
 // chunks among threads and select in a separate pass.
 
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <functional>
+#include "qsa_brgemm_kernel.hpp"
+
 #include <memory>
 
-#include "cpu_parallel.hpp"
-#include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
-#include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
-#include "nodes/kernels/x64/brgemm_kernel.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/parallel.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "utils/general_utils.h"
 
-namespace ov::Extensions::Cpu::XARCH::qsa {
+#if defined(HAVE_AVX512F)
 
+#    include <immintrin.h>
+
+#    include <algorithm>
+#    include <bitset>
+#    include <cstddef>
+#    include <cstdint>
+#    include <functional>
+#    include <utility>
+
+#    include "cpu_parallel.hpp"
+#    include "nodes/kernels/sparse_attn/qsa_brgemm.hpp"
+#    include "nodes/kernels/sparse_attn/qsa_call_utils.hpp"
+#    include "nodes/kernels/sparse_attn/qsa_executor.hpp"
+#    include "nodes/kernels/sparse_attn/qsa_kernel_utils.hpp"
+#    include "nodes/kernels/x64/brgemm_kernel.hpp"
+#    include "openvino/core/parallel.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/element_type.hpp"
+#    include "openvino/core/type/float16.hpp"
+#    include "utils/general_utils.h"
+
+namespace ov::Extensions::Cpu::XARCH {
+
+namespace {
+
+using ov::Extensions::Cpu::qsa::Config;
+using ov::Extensions::Cpu::qsa::DenseCall;
+using ov::Extensions::Cpu::qsa::DenseScorer;
+using ov::Extensions::Cpu::qsa::kScoreBlockRows;
+using ov::Extensions::Cpu::qsa::kSelectBuckets;
+using ov::Extensions::Cpu::qsa::PagedCall;
+using ov::Extensions::Cpu::qsa::PagedScorer;
+using ov::Extensions::Cpu::qsa::QsaBrgemm;
 using ov::intel_cpu::AmxTileState;
 using ov::intel_cpu::BrgemmKernel;
 using ov::intel_cpu::CpuParallel;
+using ov::intel_cpu::CpuParallelPtr;
 using ov::intel_cpu::div_up;
 using ov::intel_cpu::rnd_up;
-using ov::intel_cpu::node::qsa::kScoreBlockRows;
-using ov::intel_cpu::node::qsa::kSelectBuckets;
-using ov::intel_cpu::node::qsa::QsaBrgemm;
+using qsa_kernel::block_address;
+using qsa_kernel::num_sequences;
+using qsa_kernel::rope_batch;
+using qsa_kernel::row_plan;
+using qsa_kernel::row_stats;
+using qsa_kernel::row_view;
+using qsa_kernel::seq_plan;
+using qsa_kernel::seq_stats;
+using qsa_kernel::SeqPlan;
 
 // Step 5: writes the (ascending) ids of the k blocks of the highest scores[0, n) to `chosen`, n > k > 0 (scores: the
 // [NB] row of one token and selection head). Equal scores: the lower block id wins. The k-th largest score is found by
-// a bucket selection: the scores are spread over kBuckets buckets of equal width between the smallest and the largest
-// one, a histogram finds the bucket that holds the k-th score, and the few scores of that bucket are partially sorted
-// (a skewed distribution only makes that bucket bigger). `candidates` (n + 1 floats) and `histogram` (kSelectBuckets
-// values) are scratch; the passes are branch-free as which scores qualify is as good as random.
+// a bucket selection: the scores are spread over kSelectBuckets buckets of equal width between the smallest and the
+// largest one, a histogram finds the bucket that holds the k-th score, and the few scores of that bucket are partially
+// sorted (a skewed distribution only makes that bucket bigger). `candidates` (n + 1 floats) and `histogram`
+// (kSelectBuckets values) are scratch; the passes are branch-free as which scores qualify is as good as random.
 inline void select_top_blocks(const float* scores,
                               size_t n,
                               size_t k,
                               float* candidates,
                               uint32_t* histogram,
                               int32_t* chosen) {
+    constexpr size_t kLanes = 16;
     // smallest and largest score
-    vfloat vlow = vset1(scores[0]);
-    vfloat vhigh = vlow;
+    __m512 vlow = _mm512_set1_ps(scores[0]);
+    __m512 vhigh = vlow;
     size_t i = 0;
     for (; i + kLanes <= n; i += kLanes) {
-        const vfloat v = vload(scores + i);
-        vlow = vmin(vlow, v);
-        vhigh = vmax(vhigh, v);
+        const __m512 v = _mm512_loadu_ps(scores + i);
+        vlow = _mm512_min_ps(vlow, v);
+        vhigh = _mm512_max_ps(vhigh, v);
     }
-    float low = vreduce_min(vlow);
-    float high = vreduce_max(vhigh);
+    float low = _mm512_reduce_min_ps(vlow);
+    float high = _mm512_reduce_max_ps(vhigh);
     for (; i < n; i++) {
         low = std::min(low, scores[i]);
         high = std::max(high, scores[i]);
@@ -87,18 +118,22 @@ inline void select_top_blocks(const float* scores,
 
     constexpr auto max_bucket = static_cast<int32_t>(kSelectBuckets) - 1;
     const float to_bucket = high > low ? static_cast<float>(kSelectBuckets) / (high - low) : 0.0F;
-    // The bucket of a score, the same arithmetic as the vector one (vbucket) so that both passes agree on it.
+    // The bucket of a score, the same arithmetic as the vector one so that both passes agree on it.
     const auto bucket_of = [&](float score) {
         return std::min(max_bucket, static_cast<int32_t>((score - low) * to_bucket));
     };
-    const vfloat vlow_all = vset1(low);
-    const vfloat vto_bucket = vset1(to_bucket);
+    const __m512 vlow_all = _mm512_set1_ps(low);
+    const __m512 vto_bucket = _mm512_set1_ps(to_bucket);
+    const auto buckets_of = [&](__m512 v) {
+        const __m512i bucket = _mm512_cvttps_epi32(_mm512_mul_ps(_mm512_sub_ps(v, vlow_all), vto_bucket));
+        return _mm512_min_epi32(bucket, _mm512_set1_epi32(max_bucket));
+    };
 
     // histogram: the buckets of a vector of scores are computed at once, the counters are bumped one by one
     std::fill_n(histogram, kSelectBuckets, 0U);
     alignas(64) int32_t buckets[kLanes];
     for (i = 0; i + kLanes <= n; i += kLanes) {
-        vstore_buckets(vload(scores + i), vlow_all, vto_bucket, max_bucket, buckets);
+        _mm512_storeu_si512(buckets, buckets_of(_mm512_loadu_ps(scores + i)));
         for (const int32_t bucket : buckets) {
             histogram[bucket]++;
         }
@@ -114,10 +149,12 @@ inline void select_top_blocks(const float* scores,
     }
     // the scores of that bucket
     size_t candidate_count = 0;
+    const __m512i wanted = _mm512_set1_epi32(bucket);
     for (i = 0; i + kLanes <= n; i += kLanes) {
-        candidate_count += vcompress_store(candidates + candidate_count,
-                                           vload(scores + i),
-                                           vbucket_mask(vload(scores + i), vlow_all, vto_bucket, max_bucket, bucket));
+        const __m512 v = _mm512_loadu_ps(scores + i);
+        const __mmask16 mask = _mm512_cmpeq_epi32_mask(buckets_of(v), wanted);
+        _mm512_mask_compressstoreu_ps(candidates + candidate_count, mask, v);
+        candidate_count += std::bitset<32>(mask).count();
     }
     for (; i < n; i++) {
         candidates[candidate_count] = scores[i];
@@ -138,11 +175,12 @@ inline void select_top_blocks(const float* scores,
     auto* const collected = reinterpret_cast<int32_t*>(candidates);
     size_t equal_left = k - greater;
     size_t written = 0;
-    const vfloat vthreshold = vset1(threshold);
+    const __m512 vthreshold = _mm512_set1_ps(threshold);
+    const __m512i lane_ids = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
     for (i = 0; i + kLanes <= n; i += kLanes) {
-        const vfloat v = vload(scores + i);
-        const uint32_t above_mask = vcmp_gt(v, vthreshold);
-        const uint32_t equal_mask = vcmp_eq(v, vthreshold);
+        const __m512 v = _mm512_loadu_ps(scores + i);
+        const __mmask16 above_mask = _mm512_cmp_ps_mask(v, vthreshold, _CMP_GT_OQ);
+        const __mmask16 equal_mask = _mm512_cmp_ps_mask(v, vthreshold, _CMP_EQ_OQ);
         if (equal_mask != 0 && equal_left > 0) {
             for (size_t lane = 0; lane < kLanes; lane++) {
                 const bool take_equal = ((equal_mask >> lane) & 1U) != 0 && equal_left > 0;
@@ -151,7 +189,9 @@ inline void select_top_blocks(const float* scores,
                 written += (((above_mask >> lane) & 1U) != 0 || take_equal) ? 1 : 0;
             }
         } else {
-            written += vcompress_ids(collected + written, static_cast<int32_t>(i), above_mask);
+            const __m512i ids = _mm512_add_epi32(_mm512_set1_epi32(static_cast<int32_t>(i)), lane_ids);
+            _mm512_mask_compressstoreu_epi32(collected + written, above_mask, ids);
+            written += std::bitset<32>(above_mask).count();
         }
     }
     for (; i < n; i++) {
@@ -196,12 +236,12 @@ inline void order_blocks_by_score(const float* scores, int32_t* blocks, size_t c
 //   int32_t* selection_count(b, v, sel_head)      where their number goes
 class BrgemmRunner {
 public:
-    using Config = QsaBrgemm::Config;
+    using Params = QsaBrgemm::Params;
     using Plan = QsaBrgemm::Plan;
 
     explicit BrgemmRunner(const QsaBrgemm& brgemm)
         : m_brgemm(brgemm),
-          m_config(brgemm.config()),
+          m_config(brgemm.params()),
           m_q_k_kernel(brgemm.q_k_kernel()),
           m_k_q_kernel(brgemm.k_q_kernel()),
           m_heads_per_key(brgemm.heads_per_key()),
@@ -452,17 +492,19 @@ private:
                     const float* const q_row = source.query_row(b, v, h, thread.q_row);
                     // step 1 (RMSNorm of the [D] row: x / sqrt(mean(x^2) + eps) * q_norm_weight) and step 2 (RoPE of
                     // its first Dr channels with cos / sin of the token, [Dr] each) -> q_rot[h]  [D]
-                    rms_rope(q_row,
-                             thread.normed,
-                             source.q_norm_weight(),
-                             dim,
-                             m_config.rotary_dim,
-                             m_config.eps,
-                             cos_row,
-                             sin_row);
+                    qsa_kernel::rms_rope(q_row,
+                                         thread.normed,
+                                         source.q_norm_weight(),
+                                         dim,
+                                         m_config.rotary_dim,
+                                         m_config.eps,
+                                         cos_row,
+                                         sin_row);
                     // q_rot[h] is the row (h % G) * tokens + token of the tile of the K head h / G, rounded to T
                     const size_t row = (h % heads_per_key) * q_slice.token_slots + token;
-                    store_row(thread.normed, query_tile + ((h / heads_per_key) * q_slice.query_rows + row) * dim, dim);
+                    qsa_kernel::store_row(thread.normed,
+                                          query_tile + ((h / heads_per_key) * q_slice.query_rows + row) * dim,
+                                          dim);
                 }
             }
             if (q_slice.is_single_token) {
@@ -631,11 +673,10 @@ private:
         }
     }
 
-    static constexpr size_t kAlign = QsaBrgemm::kAlign;
     static constexpr size_t kQuerySlicesPerItem = QsaBrgemm::kQuerySlicesPerItem;
 
     const QsaBrgemm& m_brgemm;
-    const Config& m_config;
+    const Params& m_config;
     const std::shared_ptr<BrgemmKernel>& m_q_k_kernel;
     const std::shared_ptr<BrgemmKernel>& m_k_q_kernel;
     size_t m_heads_per_key;
@@ -646,4 +687,285 @@ private:
     size_t m_select_offset;  // the selection scratch follows the fixed part of a thread slice
 };
 
-}  // namespace ov::Extensions::Cpu::XARCH::qsa
+// The layout of a call of the QSAIndexer as the scoring sees it (see BrgemmRunner): the rows are the rows of the batch,
+//   q_idx [B, L, H_iq, D], RoPE tables [1 | B, L, Dr], summary_cache [B, H_ik, NB, D] (with the blocks this call
+//   completes), selection [B, H_sel, L, block_topk] / [B, H_sel, L].
+// The window of a row is left-padded: the token v of the call is at the position num_padding + v of the window.
+template <typename T>
+class DenseSource {
+public:
+    using Element = T;
+
+    DenseSource(const DenseCall& call, const Config& config, const float* q_norm_weight)
+        : m_call(call),
+          m_c(config),
+          m_q_norm_weight(q_norm_weight) {}
+
+    [[nodiscard]] int64_t tokens(size_t b) const {
+        return row_plan(m_call, m_c, b).current;
+    }
+    [[nodiscard]] int64_t blocks_visible(size_t b, int64_t v) const {
+        return row_plan(m_call, m_c, b).blocks_visible(v, static_cast<int64_t>(m_c.key_block_size));
+    }
+    [[nodiscard]] int64_t blocks(size_t b) const {
+        const auto plan = row_plan(m_call, m_c, b);
+        return plan.past_blocks + plan.new_blocks;
+    }
+    [[nodiscard]] const float* query_row(size_t b, int64_t v, size_t h, float* buf) const {
+        return qsa_kernel::row_as_f32(m_call.q_idx.ptr<T>(b, position(b, v), h), m_call.q_idx.size(3), buf);
+    }
+    [[nodiscard]] const float* rope_cos(size_t b, int64_t v, float* buf) const {
+        return qsa_kernel::row_as_f32(m_call.rope_cos.ptr<T>(rope_batch(m_call.rope_cos, b), position(b, v)),
+                                      m_c.rotary_dim,
+                                      buf);
+    }
+    [[nodiscard]] const float* rope_sin(size_t b, int64_t v, float* buf) const {
+        return qsa_kernel::row_as_f32(m_call.rope_sin.ptr<T>(rope_batch(m_call.rope_sin, b), position(b, v)),
+                                      m_c.rotary_dim,
+                                      buf);
+    }
+    [[nodiscard]] const float* q_norm_weight() const {
+        return m_q_norm_weight;
+    }
+    // The blocks of a K head are contiguous in the cache: 32 of them are used in place, fewer (the end of the row) are
+    // copied into the zero-padded stage.
+    [[nodiscard]] const T* block_rows(size_t b, size_t hk, size_t first, size_t count, T* stage) const {
+        const T* rows = m_call.summary_cache.ptr<T>(b, hk, first);
+        if (count == kScoreBlockRows) {
+            return rows;
+        }
+        const size_t dim = m_call.q_idx.size(3);
+        std::copy_n(rows, count * dim, stage);
+        std::fill_n(stage + count * dim, (kScoreBlockRows - count) * dim, T{});
+        return stage;
+    }
+    [[nodiscard]] int32_t* selection_indices(size_t b, int64_t v, size_t sh) const {
+        return m_call.sel_indices.ptr<int32_t>(b, sh, position(b, v), 0);
+    }
+    [[nodiscard]] int32_t* selection_count(size_t b, int64_t v, size_t sh) const {
+        return m_call.sel_count.ptr<int32_t>(b, sh, position(b, v));
+    }
+
+private:
+    [[nodiscard]] size_t position(size_t b, int64_t v) const {
+        return static_cast<size_t>(row_plan(m_call, m_c, b).num_padding + v);
+    }
+
+    const DenseCall& m_call;
+    const Config& m_c;
+    const float* m_q_norm_weight;
+};
+
+// The paged layout of a call as the scoring sees it (see BrgemmRunner): rows are sequences, token v of a sequence is
+// flat token plan.token_begin + v, and summary blocks are addressed through the page table. `T` is the summary cache
+// precision.
+template <typename T>
+class PagedSource {
+public:
+    using Element = T;
+
+    PagedSource(const PagedCall& call, const Config& config, const float* q_norm_weight)
+        : m_call(call),
+          m_c(config),
+          m_q_norm_w(q_norm_weight) {}
+
+    [[nodiscard]] int64_t tokens(size_t seq) const {
+        return plan(seq).q_len;
+    }
+    // the complete blocks up to the one the token completes
+    [[nodiscard]] int64_t blocks_visible(size_t seq, int64_t v) const {
+        return plan(seq).blocks_visible(v);
+    }
+    [[nodiscard]] int64_t blocks(size_t seq) const {
+        return plan(seq).total_blocks();
+    }
+    [[nodiscard]] const float* query_row(size_t seq, int64_t v, size_t h, float* buf) const {
+        return row_view<T>(m_call.q_idx, m_c.head_dim, buf, token(seq, v), h * m_c.head_dim);
+    }
+    [[nodiscard]] const float* rope_cos(size_t seq, int64_t v, float* buf) const {
+        return row_view<T>(m_call.rope_cos, m_c.rotary_dim, buf, token(seq, v));
+    }
+    [[nodiscard]] const float* rope_sin(size_t seq, int64_t v, float* buf) const {
+        return row_view<T>(m_call.rope_sin, m_c.rotary_dim, buf, token(seq, v));
+    }
+    [[nodiscard]] const float* q_norm_weight() const {
+        return m_q_norm_w;
+    }
+    // 32 blocks that lie in one page are used in place; blocks of several pages (a small page, or the end of the
+    // sequence) are gathered, run by run, into the zero-padded stage.
+    [[nodiscard]] const T* block_rows(size_t seq, size_t key_head, size_t first, size_t count, T* stage) const {
+        const auto seq_plan = plan(seq);
+        const auto slots = static_cast<size_t>(seq_plan.slots_per_page);
+        const auto [first_page, first_slot] = block_address(m_call, seq_plan, static_cast<int64_t>(first));
+        if (count == kScoreBlockRows && first_slot + count <= slots) {
+            return m_call.summary_cache.ptr<T>(first_page, key_head, first_slot);
+        }
+        const size_t dim = m_c.head_dim;
+        size_t done = 0;
+        while (done < count) {
+            const auto [page, slot] = block_address(m_call, seq_plan, static_cast<int64_t>(first + done));
+            const size_t run = std::min(count - done, slots - slot);
+            std::copy_n(m_call.summary_cache.ptr<T>(page, key_head, slot), run * dim, stage + done * dim);
+            done += run;
+        }
+        std::fill_n(stage + count * dim, (kScoreBlockRows - count) * dim, T{});
+        return stage;
+    }
+    [[nodiscard]] int32_t* selection_indices(size_t seq, int64_t v, size_t sel_head) const {
+        return m_call.sel_indices.ptr<int32_t>(token(seq, v), sel_head, 0);
+    }
+    [[nodiscard]] int32_t* selection_count(size_t seq, int64_t v, size_t sel_head) const {
+        return m_call.sel_count.ptr<int32_t>(token(seq, v), sel_head);
+    }
+
+private:
+    [[nodiscard]] SeqPlan plan(size_t seq) const {
+        return seq_plan(m_call, m_c, seq);
+    }
+    [[nodiscard]] size_t token(size_t seq, int64_t v) const {
+        return static_cast<size_t>(plan(seq).token_begin + v);
+    }
+
+    const PagedCall& m_call;
+    const Config& m_c;
+    const float* m_q_norm_w;
+};
+
+// The scratch of a call: [ f32 query norm weights | what the runner shares between the threads | one slice per worker
+// thread ].
+struct ScorerScratch {
+    QsaBrgemm::Plan plan;
+    size_t shared_offset;
+    size_t threads_offset;
+    size_t total_bytes;
+
+    ScorerScratch(const QsaBrgemm& brgemm, size_t batch, int64_t max_current, int64_t max_row_blocks)
+        : plan(brgemm.plan(batch, max_current, max_row_blocks)),
+          shared_offset(rnd_up(brgemm.params().dim * sizeof(float), QsaBrgemm::kAlign)),
+          threads_offset(rnd_up(shared_offset + plan.shared_bytes, QsaBrgemm::kAlign)),
+          total_bytes(threads_offset + brgemm.params().num_threads * plan.thread_bytes) {}
+};
+
+template <typename T>
+class DenseScorerImpl final : public DenseScorer {
+public:
+    DenseScorerImpl(std::shared_ptr<const QsaBrgemm> brgemm, const Config& config)
+        : m_brgemm(std::move(brgemm)),
+          m_config(config) {}
+
+    // A call without blocks in the summary cache has nothing to score.
+    [[nodiscard]] bool applies(const DenseCall& call) const override {
+        return call.summary_cache.size(2) > 0;
+    }
+
+    [[nodiscard]] size_t scratch_bytes(const DenseCall& call) const override {
+        const auto stats = row_stats(call, m_config);
+        return ScorerScratch(*m_brgemm, call.q_idx.size(0), stats.max_current, stats.max_row_blocks).total_bytes;
+    }
+
+    void score(const DenseCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
+        const auto stats = row_stats(call, m_config);
+        const ScorerScratch scratch(*m_brgemm, call.q_idx.size(0), stats.max_current, stats.max_row_blocks);
+        auto* const q_norm_buf = reinterpret_cast<float*>(memory);
+        const float* const q_norm_w =
+            qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), m_config.head_dim, q_norm_buf);
+        const DenseSource<T> source(call, m_config, q_norm_w);
+        BrgemmRunner(*m_brgemm).run(scratch.plan,
+                                    source,
+                                    memory + scratch.shared_offset,
+                                    memory + scratch.threads_offset,
+                                    *cpu_parallel);
+    }
+
+private:
+    std::shared_ptr<const QsaBrgemm> m_brgemm;
+    Config m_config;
+};
+
+template <typename T>
+class PagedScorerImpl final : public PagedScorer {
+public:
+    PagedScorerImpl(std::shared_ptr<const QsaBrgemm> brgemm, const Config& config)
+        : m_brgemm(std::move(brgemm)),
+          m_config(config) {}
+
+    // A call whose sequences have no complete block has nothing to score.
+    [[nodiscard]] bool applies(const PagedCall& call) const override {
+        return seq_stats(call, m_config).max_blocks > 0;
+    }
+
+    [[nodiscard]] size_t scratch_bytes(const PagedCall& call) const override {
+        const auto stats = seq_stats(call, m_config);
+        return ScorerScratch(*m_brgemm, num_sequences(call), stats.max_q_len, stats.max_blocks).total_bytes;
+    }
+
+    void score(const PagedCall& call, uint8_t* memory, const CpuParallelPtr& cpu_parallel) override {
+        const auto stats = seq_stats(call, m_config);
+        const ScorerScratch scratch(*m_brgemm, num_sequences(call), stats.max_q_len, stats.max_blocks);
+        auto* const q_norm_buf = reinterpret_cast<float*>(memory);
+        const float* const q_norm_w =
+            qsa_kernel::row_as_f32(call.q_norm_weight.ptr<T>(), m_config.head_dim, q_norm_buf);
+        const PagedSource<T> source(call, m_config, q_norm_w);
+        BrgemmRunner(*m_brgemm).run(scratch.plan,
+                                    source,
+                                    memory + scratch.shared_offset,
+                                    memory + scratch.threads_offset,
+                                    *cpu_parallel);
+    }
+
+private:
+    std::shared_ptr<const QsaBrgemm> m_brgemm;
+    Config m_config;
+};
+
+template <template <typename> class Impl, typename Interface>
+std::shared_ptr<Interface> make_scorer(const std::shared_ptr<const QsaBrgemm>& brgemm, const Config& config) {
+    OPENVINO_ASSERT(brgemm, "QSA block scorer: no brgemm kernels");
+    if (config.precision == ov::element::f32) {
+        return std::make_shared<Impl<float>>(brgemm, config);
+    }
+    if (config.precision == ov::element::f16) {
+        return std::make_shared<Impl<ov::float16>>(brgemm, config);
+    }
+    if (config.precision == ov::element::bf16) {
+        return std::make_shared<Impl<ov::bfloat16>>(brgemm, config);
+    }
+    OPENVINO_THROW("QSA block scorer: unsupported precision ", config.precision);
+}
+
+}  // namespace
+
+std::shared_ptr<ov::Extensions::Cpu::qsa::DenseScorer> make_dense_qsa_scorer(
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& brgemm,
+    const ov::Extensions::Cpu::qsa::Config& config) {
+    return make_scorer<DenseScorerImpl, DenseScorer>(brgemm, config);
+}
+
+std::shared_ptr<ov::Extensions::Cpu::qsa::PagedScorer> make_paged_qsa_scorer(
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& brgemm,
+    const ov::Extensions::Cpu::qsa::Config& config) {
+    return make_scorer<PagedScorerImpl, PagedScorer>(brgemm, config);
+}
+
+}  // namespace ov::Extensions::Cpu::XARCH
+
+#else  // HAVE_AVX512F
+
+namespace ov::Extensions::Cpu::XARCH {
+
+// The scorers are created only on CPUs with the AVX-512 brgemm kernels, so the other instruction sets never get here.
+std::shared_ptr<ov::Extensions::Cpu::qsa::DenseScorer> make_dense_qsa_scorer(
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& /*brgemm*/,
+    const ov::Extensions::Cpu::qsa::Config& /*config*/) {
+    OPENVINO_THROW("QSAIndexer: the brgemm block scorer requires AVX-512");
+}
+
+std::shared_ptr<ov::Extensions::Cpu::qsa::PagedScorer> make_paged_qsa_scorer(
+    const std::shared_ptr<const ov::Extensions::Cpu::qsa::QsaBrgemm>& /*brgemm*/,
+    const ov::Extensions::Cpu::qsa::Config& /*config*/) {
+    OPENVINO_THROW("PagedQSAIndexer: the brgemm block scorer requires AVX-512");
+}
+
+}  // namespace ov::Extensions::Cpu::XARCH
+
+#endif  // HAVE_AVX512F

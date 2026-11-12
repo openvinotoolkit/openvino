@@ -5,122 +5,74 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 #include "cpu_parallel.hpp"
-#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
-#include "openvino/core/type/element_type.hpp"
-#include "utils/general_utils.h"
+#include "nodes/kernels/scaled_attn/attn_brgemm_common.hpp"
+#include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "utils/plain_tensor.hpp"
 
-// Defined outside XARCH, like QuantizeParam, so the cross-compiled dispatcher can name it in the signature.
+// Defined outside XARCH so the cross-compiled dispatcher can name the types in the signature.
 namespace ov::Extensions::Cpu {
 
-/// @brief Layout of quantized (u8/u4) paged KV caches, matching PagedAttention (see executor_pa.cpp):
-///  - by-token (key or value): each row is a sequence of groups `[scale f32][zp f32][group data]`, so the row
-///    holds `S + 8 * groups` elements (u8) or `S + 16 * groups` (u4); `*_group_size == 0` means one group per row.
-///  - by-channel (key only): each page is `f32 scale[S] | f32 zp[S] | data[block_size, S]`.
-/// The caches are either both quantized (`enabled()`) or both plain f32/f16/bf16. The node writes the current-step
-/// K/V into quantized caches before calling the kernel, so the kernel only reads them.
-struct SparsePAQuant {
-    ov::element::Type key_prec = ov::element::dynamic;  ///< u8/u4 if the key cache is quantized, else dynamic
-    ov::element::Type value_prec = ov::element::dynamic;
-    size_t key_group_size = 0;
-    size_t value_group_size = 0;
-    bool key_bychannel = false;
-    size_t block_size = 0;  ///< tokens per page, without by-channel parameter rows; 0 means key_cache dim 2
-
-    [[nodiscard]] bool enabled() const {
-        return key_prec != ov::element::dynamic;
-    }
+/// @brief What is fixed for the lifetime of a SparsePA node. The caches are either both quantized (u8 / u4 in the
+/// specs, with the PagedAttention layouts, see CacheSpec) or both plain f32 / f16 / bf16. Query and output share one
+/// floating-point type; plain caches have it too, or are f16 next to f32 data (like PagedAttention).
+struct SparsePAConfig {
+    size_t num_heads = 0;
+    size_t num_kv_heads = 0;
+    size_t num_selection_heads = 1;  ///< 1, num_kv_heads, or num_heads
+    size_t k_head_size = 0;
+    size_t v_head_size = 0;
+    size_t key_block_size = 0;
+    bool causal = true;
+    CacheSpec key_spec;
+    CacheSpec value_spec;
+    /// Tokens per physical page, without the parameter rows of by-channel key pages; 0: dim 2 of the key cache (plain
+    /// caches).
+    size_t page_size = 0;
+    /// Most key rows of one run: the page size when adjacent selected blocks are merged inside a page, key_block_size
+    /// when they are not.
+    size_t max_run_rows = 0;
+    /// The AMX prefill kernels; not enabled when the node is not eligible. They are owned by the node and must outlive
+    /// the executor.
+    TileBrgemm brgemm;
 };
 
-/// @brief Byte layout of the per-thread scratch of the sparse PA kernel. The node allocates one such block per worker
-/// thread (so nothing is allocated while computing) and the kernel carves it up with the same layout. Every part is
-/// 64-byte aligned. Sizes are for the largest query-head pack, max_q_head_pack_size().
-struct SparsePAScratchLayout {
-    // Shared by every path: the state of the head pack (accumulators, running softmax maximum / sum).
-    PackStateLayout pack;
+/// @brief The tensors of one call.
+struct SparsePATensors {
+    const ov::intel_cpu::PlainTensor& query;                 ///< [tokens, num_heads * k_head_size]
+    const ov::intel_cpu::PlainTensor& key_cache;             ///< [num_blocks, num_kv_heads, page rows, row size]
+    const ov::intel_cpu::PlainTensor& value_cache;           ///< the same for the values
+    const ov::intel_cpu::PlainTensor& block_indices;         ///< page table
+    const ov::intel_cpu::PlainTensor& block_indices_begins;  ///< [num_sequences + 1]
+    const ov::intel_cpu::PlainTensor& subsequence_begins;    ///< [num_sequences + 1]
+    const ov::intel_cpu::PlainTensor& past_lens;             ///< [num_sequences]
+    const ov::intel_cpu::PlainTensor& sel_indices;           ///< [tokens, num_selection_heads, K_max]
+    const ov::intel_cpu::PlainTensor& sel_count;             ///< [tokens, num_selection_heads]
+    ov::intel_cpu::PlainTensor& out;                         ///< [tokens, num_heads * v_head_size]
+    float scale = 1.0F;
+};
 
-    // SIMD path (run by run).
-    size_t q = 0;       ///< float[pack, k_head_size]: query rows of the pack, f32
-    size_t scores = 0;  ///< float[pack, max_run_rows]: scores, then weights, of a run of key rows
-    size_t k_run = 0;   ///< quantized caches: float[max_run_rows, k_head_size] dequantized key run
-    size_t v_run = 0;   ///< quantized caches, pack > 1: float[max_run_rows, v_head_size] dequantized value run
-
-    // Brgemm path: the gather tile, the scores / weights and the brgemm scratch.
-    SparseBrgemmLayout brgemm;
-
-    size_t total = 0;  ///< bytes per thread
-
-    /// @param max_run_rows most key rows of one run: the page size when adjacent selected blocks are merged inside a
-    /// page, key_block_size when they are not
-    /// @param max_pack_size max_q_head_pack_size()
-    /// @param data_size size in bytes of the query/key/value data type
-    SparsePAScratchLayout(size_t k_head_size,
-                          size_t v_head_size,
-                          size_t max_run_rows,
-                          size_t max_pack_size,
-                          size_t data_size,
-                          const SparsePAQuant& quant,
-                          const SparseBrgemmSizes& brgemm_sizes = {})
-        : pack(0, k_head_size, v_head_size, max_pack_size, data_size, false),
-          q(pack.total),
-          scores(q + aligned(max_pack_size * k_head_size * sizeof(float))),
-          k_run(scores + aligned(max_pack_size * max_run_rows * sizeof(float))),
-          v_run(k_run + aligned(key_run_rows(quant, max_pack_size, max_run_rows) * k_head_size * sizeof(float))),
-          brgemm(v_run + aligned(value_run_rows(quant, max_pack_size, max_run_rows) * v_head_size * sizeof(float)),
-                 k_head_size,
-                 v_head_size,
-                 max_pack_size,
-                 data_size,
-                 brgemm_sizes),
-          total(brgemm.total) {}
-
-private:
-    // Quantized keys are dequantized to f32 for by-channel keys and for packs; values for packs.
-    static size_t key_run_rows(const SparsePAQuant& quant, size_t max_pack_size, size_t max_run_rows) {
-        return quant.enabled() && (quant.key_bychannel || max_pack_size > 1) ? max_run_rows : 0;
-    }
-    static size_t value_run_rows(const SparsePAQuant& quant, size_t max_pack_size, size_t max_run_rows) {
-        return quant.enabled() && max_pack_size > 1 ? max_run_rows : 0;
-    }
+/// @brief Sparse attention of the SparsePA node over the paged caches (see sparse_pa.h for the algorithm). The node
+/// writes the current-step K/V into the caches first, so this only reads them. Built once by
+/// the factory below; the node asks for the scratch size of a call, allocates it and passes it to execute.
+class SparsePAExecutor {
+public:
+    virtual ~SparsePAExecutor() = default;
+    [[nodiscard]] virtual size_t scratch_bytes(const SparsePATensors& tensors,
+                                               const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
+    virtual void execute(const SparsePATensors& tensors,
+                         uint8_t* scratch,
+                         const ov::intel_cpu::CpuParallelPtr& cpu_parallel) const = 0;
 };
 
 }  // namespace ov::Extensions::Cpu
 
 namespace ov::Extensions::Cpu::XARCH {
 
-// Single cross-compiled entry point for ov::intel_cpu::node::SparsePA (see sparse_pa.h for the algorithm
-// description). The node writes the current-step K/V into the caches first (paged_attn_memcpy /
-// paged_attn_quantkv, parallel over token x kv head), so this reads them: it parallelizes the sparse attention over
-// (global query token, query head), with one preallocated scratch block per worker thread (SparsePAScratchLayout).
-// Query and output share one floating-point type (f32/f16/bf16); plain caches have it too, or are f16 next to f32
-// data (like PagedAttention); quantized caches are described by `quant`. The physical page size is quant.block_size, or
-// the key cache's dim 2 for plain caches.
-void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
-                       const ov::intel_cpu::PlainTensor& key_cache,
-                       const ov::intel_cpu::PlainTensor& value_cache,
-                       const ov::intel_cpu::PlainTensor& block_indices,
-                       const ov::intel_cpu::PlainTensor& block_indices_begins,
-                       const ov::intel_cpu::PlainTensor& subsequence_begins,
-                       const ov::intel_cpu::PlainTensor& past_lens,
-                       const ov::intel_cpu::PlainTensor& sel_indices,
-                       const ov::intel_cpu::PlainTensor& sel_count,
-                       ov::intel_cpu::PlainTensor& out,
-                       size_t q_head_num,
-                       size_t k_head_num,
-                       size_t k_head_size,
-                       size_t v_head_size,
-                       size_t key_block_size,
-                       size_t sel_head_num,
-                       bool causal,
-                       float scale,
-                       const SparsePAQuant& quant,
-                       size_t max_run_rows,
-                       const SparseBrgemm& brgemm,
-                       uint8_t* scratch,
-                       size_t scratch_bytes_per_thread,
-                       int32_t* token_ids,
-                       const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
+// Cross-compiled factory (AVX-512, AVX2 or plain C++ by the CPU).
+std::shared_ptr<ov::Extensions::Cpu::SparsePAExecutor> make_sparse_pa_executor(
+    const ov::Extensions::Cpu::SparsePAConfig& config);
 
 }  // namespace ov::Extensions::Cpu::XARCH

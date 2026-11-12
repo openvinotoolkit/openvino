@@ -323,6 +323,9 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/linear_attn/recurrent_linear_attn.hpp
     ${CPU_SRC_DIR}/nodes/kernels/paged_causal_conv1d.cpp
     ${CPU_SRC_DIR}/nodes/kernels/paged_causal_conv1d.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/attn_brgemm_common.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/attn_brgemm_tiles.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/attn_pack_kernels.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/attn_memcpy.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/attn_memcpy.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/attn_quant.cpp
@@ -356,14 +359,15 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_attn_common.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_selection_tiles.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/visit_float_type.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/xattention.hpp
     ${CPU_SRC_DIR}/nodes/kernels/selective_ssm.cpp
     ${CPU_SRC_DIR}/nodes/kernels/selective_ssm.hpp
@@ -439,12 +443,15 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
     ${CPU_SRC_DIR}/nodes/qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_common.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_executor.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_call_utils.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_brgemm.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_brgemm_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_kernel_utils.hpp
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp

@@ -285,28 +285,36 @@ cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
         API         src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
-        NAME        sparse_sdpa_compute sparse_kv_dequantize_rows
+        NAME        make_sparse_sdpa_executor sparse_kv_dequantize_rows
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
         API         src/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
-        NAME        sparse_pa_compute
+        NAME        make_sparse_pa_executor
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/sparse_attn/qsa_indexer_kernel.cpp
         API         src/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
-        NAME        qsa_indexer_compute
+        NAME        make_dense_qsa_executor
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
                     src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.cpp
         API         src/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
-        NAME        paged_qsa_indexer_compute
+        NAME        make_paged_qsa_executor
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+## The brgemm block scorer of the QSA nodes exists for AVX-512 only (the ANY build is a stub that throws).
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F ANY
+                    src/nodes/kernels/sparse_attn/qsa_brgemm_kernel.cpp
+        API         src/nodes/kernels/sparse_attn/qsa_brgemm_kernel.hpp
+        NAME        make_dense_qsa_scorer make_paged_qsa_scorer
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 ## turboq_rotation.cpp holds scalar setup only (sign cache, env parsing);

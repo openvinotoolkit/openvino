@@ -14,6 +14,7 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -39,7 +40,8 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
                                        ov::op::internal::PagedSparseAttention,
                                        ov::op::internal::PagedCausalConv1D,
                                        ov::op::internal::PagedGatedDeltaNet,
-                                       ov::op::internal::PagedSelectiveSSM>();
+                                       ov::op::internal::PagedSelectiveSSM,
+                                       ov::op::internal::PagedQSAIndexer>();
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto root = m.get_match_root();
         bool status = false;
@@ -194,6 +196,27 @@ ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& config,
             enable_keep_const_precision(ssm_state_table);
             ssm_state_table->validate_and_infer_types();
             return true;
+        }
+
+        if (const auto paged_qsa = ov::as_type_ptr<ov::op::internal::PagedQSAIndexer>(root)) {
+            // The indexer appends to its caches in place and requires all its floating-point inputs to share one
+            // type, so the caches get the inference precision and keep it, like the state tables below.
+            using InputIdx = ov::op::internal::PagedQSAIndexer::InputIdx;
+            auto cache_precision = m_config.inferencePrecision;
+            if (m_update_precision_func) {
+                m_update_precision_func(cache_precision);
+            }
+            bool changed = false;
+            for (const auto idx :
+                 {InputIdx::INDEX_KEY_CACHE, InputIdx::INDEX_BLOCK_ROPE_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE}) {
+                if (const auto cache = ov::as_type_ptr<v0::Parameter>(paged_qsa->get_input_node_shared_ptr(idx))) {
+                    cache->set_element_type(cache_precision);
+                    enable_keep_const_precision(cache);
+                    cache->validate_and_infer_types();
+                    changed = true;
+                }
+            }
+            return changed;
         }
 
         return status;

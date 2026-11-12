@@ -23,10 +23,8 @@ namespace {
 // Fixed configuration of this test: B independent batch items, each with its own dense [Hkv, S, D] K/V history and L
 // query positions. S == L (see SparseSDPAShape), so the bottom-right-aligned logical position q_abs = S - L + l reduces
 // to q_abs == l, matching a straightforward causal prefill over the whole history. k_head_size / sel_block_size are
-// parameterized (see SparseSDPALayerTestParams) so the AMX paths -- which require k_head_size % 32 == 0, merging
-// adjacent selected blocks up to a 16-row multiple when sel_block_size itself isn't one (see m_amx_unit_blocks in
-// sparse_sdpa.cpp)
-// -- can be exercised by dedicated instantiations. The synthetic selection below selects up to max_blocks complete
+// parameterized (see SparseSDPALayerTestParams) so the AMX path, which gathers runs of adjacent selected blocks into
+// tiles, can be exercised by dedicated instantiations. The synthetic selection below selects up to max_blocks complete
 // blocks before the query's own block, block_step apart (ascending by default, duplicate-free, matching what the CPU
 // indexer returns; SparseAttention does not depend on the order: see SparseSDPAShape::shuffle): with step 1 the query
 // rows near the end of the sequence build up a long run of physically-adjacent selected blocks (L = 40 and K_max = 10
@@ -34,16 +32,6 @@ namespace {
 constexpr size_t kHq = 4;
 constexpr size_t kHkv = 2;
 constexpr size_t kDv = 16;
-
-void fill_pseudo_random(std::vector<float>& v, uint32_t seed_base) {
-    for (size_t i = 0; i < v.size(); i++) {
-        uint32_t x = seed_base * 2654435761U + static_cast<uint32_t>(i) * 40503U + 1U;
-        x ^= x >> 13;
-        x *= 0x85EBCA6BU;
-        x ^= x >> 16;
-        v[i] = (static_cast<float>(x % 20000U) / 10000.0F) - 1.0F;
-    }
-}
 
 // Independent (host-vector based) re-implementation of the sparse-pa.rst non-paged consumer
 // spec, used purely as a test oracle -- NOT a copy of the CPU node's PlainTensor-based indexing.
@@ -235,27 +223,10 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     inputs.clear();
     host_inputs.clear();
 
-    const auto assign_precision = [this](ov::Tensor& t, const std::vector<float>& data) {
-        if (m_data_precision == ov::element::bf16) {
-            auto* dst = t.data<ov::bfloat16>();
-            for (size_t i = 0; i < data.size(); i++) {
-                dst[i] = ov::bfloat16(data[i]);
-            }
-        } else if (m_data_precision == ov::element::f16) {
-            auto* dst = t.data<ov::float16>();
-            for (size_t i = 0; i < data.size(); i++) {
-                dst[i] = ov::float16(data[i]);
-            }
-        } else {
-            std::copy(data.begin(), data.end(), t.data<float>());
-        }
-    };
-    const auto make_data = [this, &assign_precision](const ov::Shape& shape, uint32_t seed) {
-        ov::Tensor t(m_data_precision, shape);
-        std::vector<float> data(t.get_size());
-        fill_pseudo_random(data, seed);
-        assign_precision(t, data);
-        return t;
+    const auto make_data = [this](const ov::Shape& shape, uint32_t seed) {
+        return ov::test::utils::create_and_fill_tensor(m_data_precision,
+                                                       shape,
+                                                       ov::test::utils::InputGenerateData(-1, 2, 10000, seed));
     };
     const auto make_index = [](const std::vector<int32_t>& values, const ov::Shape& shape) {
         ov::Tensor t(ov::element::i32, shape);
@@ -266,30 +237,10 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     const auto& params = function->get_parameters();
     std::vector<ov::Tensor> tensors(params.size());
     tensors[0] = make_data(ov::Shape{m_batch, kHq, m_shape.seq_len, m_k_head_size}, 1);
-    {
-        // Each batch slot gets a distinct seed so a kernel bug that reused batch 0's cache slot
-        // for batch 1 produces numerically different (and thus detectable) output.
-        ov::Tensor key(m_data_precision, ov::Shape{m_batch, kHkv, m_shape.seq_len, m_k_head_size});
-        ov::Tensor value(m_data_precision, ov::Shape{m_batch, kHkv, m_shape.seq_len, kDv});
-        const size_t key_per_batch = kHkv * m_shape.seq_len * m_k_head_size;
-        const size_t value_per_batch = kHkv * m_shape.seq_len * kDv;
-        std::vector<float> key_data(key.get_size());
-        std::vector<float> value_data(value.get_size());
-        for (size_t b = 0; b < m_batch; b++) {
-            std::vector<float> key_slot(key_per_batch);
-            std::vector<float> value_slot(value_per_batch);
-            fill_pseudo_random(key_slot, 2 + static_cast<uint32_t>(b) * 11U);
-            fill_pseudo_random(value_slot, 3 + static_cast<uint32_t>(b) * 11U);
-            std::copy(key_slot.begin(), key_slot.end(), key_data.begin() + static_cast<ptrdiff_t>(b * key_per_batch));
-            std::copy(value_slot.begin(),
-                      value_slot.end(),
-                      value_data.begin() + static_cast<ptrdiff_t>(b * value_per_batch));
-        }
-        assign_precision(key, key_data);
-        assign_precision(value, value_data);
-        tensors[1] = key;
-        tensors[2] = value;
-    }
+    // Different values for every batch item, so a kernel bug that reused batch 0's cache slot for batch 1 produces
+    // numerically different (and thus detectable) output.
+    tensors[1] = make_data(ov::Shape{m_batch, kHkv, m_shape.seq_len, m_k_head_size}, 2);
+    tensors[2] = make_data(ov::Shape{m_batch, kHkv, m_shape.seq_len, kDv}, 3);
 
     // Synthetic selection: the up-to-m_shape.max_blocks *complete* blocks immediately strictly before the
     // query's own block, in ascending order (or shuffled, see below) -- per the documented producer contract, the

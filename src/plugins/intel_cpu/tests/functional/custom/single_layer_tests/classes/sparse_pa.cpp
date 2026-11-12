@@ -28,16 +28,6 @@
 
 namespace {
 
-void fill_pseudo_random(std::vector<float>& v, uint32_t seed_base) {
-    for (size_t i = 0; i < v.size(); i++) {
-        uint32_t x = seed_base * 2654435761U + static_cast<uint32_t>(i) * 40503U + 1U;
-        x ^= x >> 13;
-        x *= 0x85EBCA6BU;
-        x ^= x >> 16;
-        v[i] = (static_cast<float>(x % 20000U) / 10000.0F) - 1.0F;
-    }
-}
-
 uint32_t next_random(uint32_t& state) {
     state = state * 1664525U + 1013904223U;
     return state >> 8;
@@ -483,21 +473,6 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
     }
     const size_t tokens = begins[B];
 
-    const auto assign_precision = [this](ov::Tensor& t, const std::vector<float>& data) {
-        if (m_data_precision == ov::element::bf16) {
-            auto* dst = t.data<ov::bfloat16>();
-            for (size_t i = 0; i < data.size(); i++) {
-                dst[i] = ov::bfloat16(data[i]);
-            }
-        } else if (m_data_precision == ov::element::f16) {
-            auto* dst = t.data<ov::float16>();
-            for (size_t i = 0; i < data.size(); i++) {
-                dst[i] = ov::float16(data[i]);
-            }
-        } else {
-            std::copy(data.begin(), data.end(), t.data<float>());
-        }
-    };
     const auto make_i32 = [](const std::vector<int32_t>& values) {
         ov::Tensor t(ov::element::i32, ov::Shape{values.size()});
         std::copy(values.begin(), values.end(), t.data<int32_t>());
@@ -512,30 +487,16 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
         std::memset(m_value_cache.data(), 0, m_value_cache.get_byte_size());
     }
 
-    ov::Tensor query(m_data_precision, ov::Shape{tokens, Hq * Dh});
-    ov::Tensor key(m_data_precision, ov::Shape{tokens, Hkv * Dh});
-    ov::Tensor value(m_data_precision, ov::Shape{tokens, Hkv * Dv});
-    {
-        std::vector<float> query_data(query.get_size());
-        std::vector<float> key_data(key.get_size());
-        std::vector<float> value_data(value.get_size());
-        for (size_t s = 0; s < B; s++) {
-            const uint32_t seed = static_cast<uint32_t>(step) * 101U + static_cast<uint32_t>(s) * 11U;
-            const size_t L = m_cur_len[s];
-            std::vector<float> q_slot(L * Hq * Dh);
-            std::vector<float> k_slot(L * Hkv * Dh);
-            std::vector<float> v_slot(L * Hkv * Dv);
-            fill_pseudo_random(q_slot, 1 + seed);
-            fill_pseudo_random(k_slot, 2 + seed);
-            fill_pseudo_random(v_slot, 3 + seed);
-            std::copy(q_slot.begin(), q_slot.end(), query_data.begin() + static_cast<ptrdiff_t>(begins[s] * Hq * Dh));
-            std::copy(k_slot.begin(), k_slot.end(), key_data.begin() + static_cast<ptrdiff_t>(begins[s] * Hkv * Dh));
-            std::copy(v_slot.begin(), v_slot.end(), value_data.begin() + static_cast<ptrdiff_t>(begins[s] * Hkv * Dv));
-        }
-        assign_precision(query, query_data);
-        assign_precision(key, key_data);
-        assign_precision(value, value_data);
-    }
+    // The values differ per step and along the tokens, so every sequence gets its own.
+    const auto step_seed = static_cast<uint32_t>(step) * 101U;
+    const auto make_data = [this](const ov::Shape& shape, uint32_t seed) {
+        return ov::test::utils::create_and_fill_tensor(m_data_precision,
+                                                       shape,
+                                                       ov::test::utils::InputGenerateData(-1, 2, 10000, seed));
+    };
+    const auto query = make_data(ov::Shape{tokens, Hq * Dh}, 1 + step_seed);
+    const auto key = make_data(ov::Shape{tokens, Hkv * Dh}, 2 + step_seed);
+    const auto value = make_data(ov::Shape{tokens, Hkv * Dv}, 3 + step_seed);
 
     // Non-identity permutation (simple reversal) across all physical blocks shared by every sequence, so a kernel bug
     // that walked physical blocks in logical order instead of resolving through block_indices would give wrong results.
