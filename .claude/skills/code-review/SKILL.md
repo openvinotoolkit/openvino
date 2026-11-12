@@ -263,6 +263,23 @@ or guide deviation. Severity follows impact, not the presence of a rule.
 If a referenced file is unavailable, disclose the limitation and use available
 applicable guidance without pretending the missing reference was loaded.
 
+### Evidence checks before finalizing
+
+- For discussion-based claims, inspect relevant review threads and ordinary PR
+  comments, including later replies. Distinguish unanswered from unresolved.
+- Before claiming tests, guards, replies, or handling are absent, search the
+  relevant scope. Otherwise state "not verified" and identify the limitation.
+- Inspect large or truncated files through targeted reads before excluding
+  them, especially tests supporting a reported finding.
+- Separate demonstrated code defects, reported failures, validation gaps, and
+  optional improvements; keep the opening assessment consistent with them.
+- Check producer/caller contracts before proposing defensive checks. Do not
+  silently discard invalid input unless that behavior satisfies the contract.
+- Verify that a proposed fix preserves semantics. Do not describe an alternative
+  as faster, cheaper, or negligible-cost without supporting evidence.
+- Distinguish duplicate registrations from necessary related dependencies, and
+  historical reviewer preferences from current technical requirements.
+
 ## Conditional review modes
 
 ### Revert pull requests
@@ -349,17 +366,26 @@ validation is missing, or a checklist was not completed.
 Qualify uncertainty explicitly. Do not label a suspected failure as confirmed
 or use low-confidence speculation as a blocking defect.
 
-### Summary
+### Review summary table
 
-Briefly state:
+End the review with a concise table covering material findings and significant
+inspection or validation gaps. Use one row per root cause or material review
+area; omit minor observations and inapplicable areas.
 
-- major inspected areas and significant uninspected paths;
-- tests/checks actually run or results inspected;
-- unavailable validation;
-- material follow-up actions.
+| Area | Assessment | Evidence / scope | Next action |
+| --- | --- | --- | --- |
 
-If no actionable defect is established, say so within the inspected scope.
-Do not claim the whole change is safe or correct based on partial inspection.
+Use these assessments:
+- **Confirmed defect** — a reachable defect is established at the reviewed revision.
+- **Reported failure** — a failure was reported; applicability or root cause remains unverified.
+- **Needs verification** — a concrete invariant, test, or measurement remains unverified.
+- **Design question** — a requirement or owner decision is needed.
+- **No issue found** — only within the explicitly inspected scope.
+- **Not inspected** — a material affected path could not be reviewed.
 
-Omit automated style issues, unrelated legacy problems, repeated summaries,
-and broad refactoring requests. Do not include secrets or sensitive data.
+Name the triggering condition or inspected scope and link supporting evidence
+where available. Keep actions specific; use "None" when no action is needed.
+
+The table must agree with the detailed findings. Do not promote uncertainty to
+a confirmed defect, equate passing CI with correctness, or imply coverage of
+uninspected paths. Summarize rather than repeat the full findings.
