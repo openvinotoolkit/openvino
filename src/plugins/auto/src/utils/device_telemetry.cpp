@@ -175,6 +175,10 @@ public:
         }
     }
 
+    bool is_available() const {
+        return m_handle != nullptr;
+    }
+
     // Single IPF round trip; the returned JSON snapshot covers every device's utilization at
     // once, so callers should fetch it once per decision and reuse it for all candidates.
     std::string fetch_utilization_snapshot() {
@@ -418,6 +422,10 @@ TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
+bool TelemetryClient::is_available() const {
+    return m_impl->is_available();
+}
+
 std::unordered_map<std::string, float> TelemetryClient::utilizations(
     const std::vector<std::pair<std::string, std::string>>& devices) {
     return m_impl->utilizations(devices);
@@ -483,6 +491,10 @@ class TelemetryClient::Impl {};
 TelemetryClient::TelemetryClient() : m_impl(nullptr) {}
 
 TelemetryClient::~TelemetryClient() = default;
+
+bool TelemetryClient::is_available() const {
+    return false;
+}
 
 std::unordered_map<std::string, float> TelemetryClient::utilizations(const std::vector<std::pair<std::string, std::string>>&) {
     return {};

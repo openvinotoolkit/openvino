@@ -17,6 +17,13 @@ def _(inputs: typing.Union[openvino._pyopenvino.Tensor, numpy.number, int, float
     ...
 def _data_dispatch(request: openvino.utils.data_helpers.wrappers._InferRequestWrapper, inputs: typing.Union[dict, list, tuple, openvino.utils.data_helpers.wrappers.OVDict, openvino._pyopenvino.Tensor, numpy.ndarray, numpy.number, int, float, str] = None, is_shared: bool = False) -> typing.Union[dict, openvino._pyopenvino.Tensor]:
     ...
+def _to_bf16_view(value: numpy.ndarray) -> numpy.ndarray:
+    """
+    Convert float32/float64 values to bf16, as the float16 view used by bf16 Tensor.data.
+    
+        Rounds the same way as ov::bfloat16 (round_to_nearest_even in bfloat16.hpp).
+        
+    """
 def create_copied(*args, **kw) -> typing.Optional[dict]:
     ...
 def create_shared(*args, **kw) -> None:

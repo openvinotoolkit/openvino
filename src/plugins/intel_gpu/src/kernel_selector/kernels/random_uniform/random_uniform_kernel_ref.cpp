@@ -5,7 +5,6 @@
 #include "random_uniform_kernel_ref.h"
 
 #include <kernel_selector_utils.h>
-#include <random>
 
 
 namespace kernel_selector {
@@ -33,14 +32,8 @@ CommonDispatchData RandomUniformKernelRef::SetDefault(const random_uniform_param
 
 JitConstants RandomUniformKernelRef::GetJitConstants(const random_uniform_params &params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (params.global_seed == 0 && params.op_seed == 0) {
-        jit.AddConstant(MakeJitConstant("GLOBAL_SEED", std::random_device {}()));
-    } else {
-        jit.AddConstant(MakeJitConstant("GLOBAL_SEED", params.global_seed));
-    }
-
-    jit.AddConstant(MakeJitConstant("OP_SEED", params.op_seed));
+    // Seeds and the Philox state are runtime scalar arguments (see random_uniform_inst), not JIT constants:
+    // the state must advance between inferences, and the kernel binary must not depend on the seed.
     jit.AddConstant(MakeJitConstant("OUTPUT_STEP", getStep(params)));
 
     if (params.outputs[0].GetDType() == Datatype::BF16) {
@@ -70,6 +63,16 @@ KernelsData RandomUniformKernelRef::GetKernelsData(const Params &params) const {
     FillCLKernelData(kernel_data.kernels[0], dispatch_data, params.engineInfo, kernelName, jit, entry_point, "", false,
                      false, static_cast<int>(new_params.inputs.size()), static_cast<uint32_t>(new_params.fused_ops.size()),
                      static_cast<int>(new_params.outputs.size()), new_params.is_shape_agnostic);
+
+    // global_seed, n_state, counter_state. Values are set before every execution by the primitive impl.
+    auto& kernel = kernel_data.kernels[0];
+    for (uint32_t i = 0; i < 3; ++i) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, i});
+        ScalarDescriptor s;
+        s.t = ScalarDescriptor::Types::UINT64;
+        s.v.u64 = 0;
+        kernel.params.scalars.push_back(s);
+    }
 
     KernelsData kernelsData;
     kernelsData.push_back(std::move(kernel_data));

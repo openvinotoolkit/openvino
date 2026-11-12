@@ -149,6 +149,87 @@ TEST(type_prop, group_query_attention_dynamic_kv_len_accumulates) {
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, {6, 13}, 8}));
 }
 
+TEST(type_prop, group_query_attention_absent_past_is_empty_cache) {
+    auto args = make_valid_gqa_args();
+    const auto empty = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+
+    EXPECT_EQ(op->get_output_element_type(1), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 4, 8}));
+}
+
+TEST(type_prop, group_query_attention_absent_past_key_only) {
+    auto args = make_valid_gqa_args();
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] =
+        op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("both present or both absent"));
+}
+
+TEST(type_prop, group_query_attention_absent_typed_past_with_quantized_cache) {
+    auto args = make_valid_gqa_quant_args(element::i8, 8);
+    const auto empty = op::v0::Constant::create(element::i8, Shape{1, 2, 0, 8}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args,
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false,
+                                                                        8,
+                                                                        quantize_type,
+                                                                        quantize_type);
+
+    EXPECT_EQ(op->get_output_element_type(1), element::i8);
+    EXPECT_EQ(op->get_output_element_type(2), element::i8);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 8}));
+}
+
+TEST(type_prop, group_query_attention_absent_typed_past_with_4bit_cache) {
+    auto args = make_valid_gqa_quant_args(element::u8, 4);
+    const auto empty = op::v0::Constant::create(element::u8, Shape{1, 2, 0, 4}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args,
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false,
+                                                                        4,
+                                                                        quantize_type,
+                                                                        quantize_type);
+
+    EXPECT_EQ(op->get_output_element_type(1), element::u8);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 4, 4}));
+}
+
+TEST(type_prop, group_query_attention_absent_unshaped_past_with_quantized_cache) {
+    auto args = make_valid_gqa_quant_args(element::i8, 8);
+    const auto empty = op::v0::Constant::create(element::i8, Shape{0}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty;
+    const auto quantize_type = op::internal::GroupQueryAttentionQuantType::PER_TENSOR;
+
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<
+            op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false, 8, quantize_type, quantize_type),
+        ov::NodeValidationFailure,
+        HasSubstr("typed rank-4 empty past"));
+}
+
 TEST(type_prop, group_query_attention_invalid_query_rank) {
     auto args = make_valid_gqa_args();
     args[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 6, 8});
@@ -455,6 +536,21 @@ TEST(type_prop, group_query_attention_shared_kv_present_is_past) {
     args[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, -1, 8});
     op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, -1, 8}));
+}
+
+TEST(type_prop, group_query_attention_shared_kv_requires_non_empty_past) {
+    auto args = make_valid_gqa_args();
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::KEY)] =
+        std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::VALUE)] =
+        std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    const auto empty_past = op::v0::Constant::create(element::f32, Shape{1, 2, 0, 8}, {});
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_KEY)] = empty_past;
+    args[static_cast<size_t>(op::internal::GroupQueryAttentionInputs::PAST_VALUE)] = empty_past;
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("non-empty past_key and past_value for shared KV"));
 }
 
 TEST(type_prop, group_query_attention_regular_kv_is_not_shared) {
@@ -765,6 +861,142 @@ TEST(type_prop, group_query_attention_seqlens_k_must_match_batch) {
     args[5] = std::make_shared<Parameter>(element::i32, PartialShape{2, 1});
     OV_ASSERT_NO_THROW(std::ignore =
                            std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false));
+}
+
+namespace {
+// Valid args padded with empty optional inputs 7-15, then query_seqlens (input 16).
+ov::OutputVector make_gqa_query_seqlens_args(const PartialShape& query_seqlens_shape = PartialShape{1}) {
+    auto args = make_valid_gqa_args();
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    args.resize(16, empty);
+    args.push_back(std::make_shared<op::v0::Parameter>(element::i32, query_seqlens_shape));
+    return args;
+}
+}  // namespace
+
+TEST(type_prop, group_query_attention_query_seqlens) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_gqa_query_seqlens_args(), 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(op->has_query_seqlens());
+    // The padded chunk is still written as S rows, so output 0's shape does not depend on query_seqlens.
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, 4, 48}));
+    // Fixed capacity (5) can't be promised once query_seqlens is present and total_sequence_length is a
+    // runtime Parameter, not a known constant (ORT: max(past_rows, total_sequence_length)).
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, Dimension::dynamic(), 8}));
+
+    const auto plain =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_FALSE(plain->has_query_seqlens());
+
+    // A single-token step honors query_seqlens too (0 marks an idle entry).
+    auto decode_args = make_gqa_query_seqlens_args();
+    for (size_t i = 0; i < 3; ++i) {
+        decode_args[i] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, i == 0 ? 6 : 2, 1, 8});
+    }
+    const auto decode = std::make_shared<op::internal::GroupQueryAttention>(decode_args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(decode->has_query_seqlens());
+
+    // Batched padded chunks (sequence_length > 1, batch_size > 1) are supported.
+    auto batched = make_gqa_query_seqlens_args(PartialShape{2});
+    batched[0] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 6, 4, 8});
+    batched[1] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 4, 8});
+    batched[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 4, 8});
+    batched[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 5, 8});
+    batched[4] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{2, 2, 5, 8});
+    batched[5] = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{2});
+    const auto batched_op = std::make_shared<op::internal::GroupQueryAttention>(batched, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(batched_op->has_query_seqlens());
+    EXPECT_EQ(batched_op->get_output_partial_shape(0), (PartialShape{2, 4, 48}));
+}
+
+// A static past capacity must still grow to a constant total_sequence_length that exceeds it (ORT:
+// max(past_rows, total_sequence_length)); common cache writers must allocate before scattering into it.
+TEST(type_prop, group_query_attention_query_seqlens_fixed_capacity_grows_to_total_sequence_length) {
+    using op::v0::Constant;
+    using op::v0::Parameter;
+    auto grows = make_gqa_query_seqlens_args();
+    grows[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 8, 8});
+    grows[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 8, 8});
+    grows[6] = Constant::create(element::i32, Shape{}, {12});
+    const auto grown = std::make_shared<op::internal::GroupQueryAttention>(grows, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(grown->has_fixed_kv_capacity());
+    EXPECT_EQ(grown->get_output_partial_shape(1), (PartialShape{1, 2, 12, 8}));
+
+    auto fits = grows;
+    fits[6] = Constant::create(element::i32, Shape{}, {6});
+    const auto unchanged = std::make_shared<op::internal::GroupQueryAttention>(fits, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(unchanged->get_output_partial_shape(1), (PartialShape{1, 2, 8, 8}));
+}
+
+TEST(type_prop, group_query_attention_query_seqlens_invalid) {
+    using op::internal::GroupQueryAttention;
+    using op::internal::GroupQueryAttentionQuantType;
+    constexpr auto none = GroupQueryAttentionQuantType::NONE;
+
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(make_gqa_query_seqlens_args(PartialShape{2}),
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("query_seqlens must have batch_size"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(make_gqa_query_seqlens_args(PartialShape{1, 1}),
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("Rank of `query_seqlens` input is not compatible"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(make_gqa_query_seqlens_args(),
+                                                                        6,
+                                                                        2,
+                                                                        1.0f,
+                                                                        false,
+                                                                        false,
+                                                                        0,
+                                                                        none,
+                                                                        none,
+                                                                        -1,
+                                                                        false,
+                                                                        false,
+                                                                        false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("query_seqlens requires causal=1"));
+
+    auto no_past = make_gqa_query_seqlens_args();
+    no_past[3] = op::v0::Constant::create(element::f32, Shape{0}, {});
+    no_past[4] = no_past[3];
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(no_past, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("query_seqlens requires past_key and past_value"));
+
+    // A statically mismatched key/value sequence_length would apply the query's S rotary/mask positions to a
+    // differently-sized key chunk in the decomposition; reject it here instead.
+    auto mismatched_kv = make_gqa_query_seqlens_args();
+    mismatched_kv[1] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    mismatched_kv[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(mismatched_kv, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("query_seqlens requires key/value sequence_length to equal query's"));
+
+    // VALUE alone mismatched (KEY still matches query's S): must be rejected too, not just KEY.
+    auto mismatched_value_only = make_gqa_query_seqlens_args();
+    mismatched_value_only[2] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 1, 8});
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<GroupQueryAttention>(mismatched_value_only, 6, 2, 1.0f, false, false),
+        ov::NodeValidationFailure,
+        HasSubstr("query_seqlens requires key/value sequence_length to equal query's"));
+
+    // ORT's CheckQuerySeqlens: a non-windowed cache must hold the whole padded chunk (sequence_length=4 here).
+    auto undersized_capacity = make_gqa_query_seqlens_args();
+    undersized_capacity[3] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    undersized_capacity[4] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 2, 2, 8});
+    undersized_capacity[6] = op::v0::Constant::create(element::i32, Shape{}, {2});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<GroupQueryAttention>(undersized_capacity, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("requires the KV cache capacity"));
 }
 
 }  // namespace testing

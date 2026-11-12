@@ -145,7 +145,6 @@ REGISTER_IMPLS(detection_output);
 REGISTER_IMPLS(eltwise);
 REGISTER_IMPLS(fake_convert);
 REGISTER_IMPLS(fully_connected);
-REGISTER_IMPLS(gated_mlp);
 REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gated_delta_net);
@@ -182,6 +181,7 @@ REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
+REGISTER_IMPLS(msda);
 REGISTER_IMPLS(vl_sdpa);
 REGISTER_IMPLS(moe_3gemm_fused_compressed);
 REGISTER_IMPLS(moe_router_fused);
@@ -195,6 +195,10 @@ REGISTER_IMPLS(gather_matmul);
 REGISTER_IMPLS(mlir_primitive);
 #endif
 REGISTER_IMPLS(grouped_matmul);
+REGISTER_IMPLS(paged_qsa_indexer);
+REGISTER_IMPLS(qsa_indexer);
+REGISTER_IMPLS(sparse_pa);
+REGISTER_IMPLS(sparse_sdpa);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
