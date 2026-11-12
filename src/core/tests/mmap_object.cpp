@@ -276,7 +276,7 @@ TEST_F(ReadWriteMappingTest, writes_at_offset_leave_other_bytes_intact) {
     ASSERT_NE(expected, m_content);
 
     {
-        auto mm = load_mmap_object(m_file_path, k_offset, k_size, false, MmapMode::READ_WRITE);
+        auto mm = load_mmap_object(m_file_path, k_offset, k_size, MmapMode::READ_WRITE);
         std::fill_n(reinterpret_cast<uint8_t*>(mm->data()), k_size, uint8_t{0x5A});
     }
 
@@ -284,8 +284,8 @@ TEST_F(ReadWriteMappingTest, writes_at_offset_leave_other_bytes_intact) {
 }
 
 TEST_F(ReadWriteMappingTest, read_write_mappings_report_no_mapping_id) {
-    auto rw_whole = load_mmap_object(m_file_path, 0, auto_size, false, MmapMode::READ_WRITE);
-    auto rw_part = load_mmap_object(m_file_path, 128, 256, false, MmapMode::READ_WRITE);
+    auto rw_whole = load_mmap_object(m_file_path, 0, auto_size, MmapMode::READ_WRITE);
+    auto rw_part = load_mmap_object(m_file_path, 128, 256, MmapMode::READ_WRITE);
 
     ASSERT_NE(rw_whole, nullptr);
     ASSERT_NE(rw_part, nullptr);
