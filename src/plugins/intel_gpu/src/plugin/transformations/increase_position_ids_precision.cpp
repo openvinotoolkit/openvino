@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <deque>
 #include <map>
 #include <set>
 #include <utility>
@@ -49,6 +48,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/rt_info/dequantization_node.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
@@ -63,76 +63,207 @@ CollectSinCosConstantsForPrecisionPreservation::CollectSinCosConstantsForPrecisi
 
 namespace {
 
-// FakeQuantize and weight decompression (Convert(int8 / uint8 / int4 ... weights) -> [Subtract] -> Multiply(scale)) carry quantization
-// parameters. Keeping their f32 constants unfolded hides the quantization from low precision transformations and from the weight
-// compression patterns, so these constants are never preserved.
-// Convert(integer Constant) optionally wrapped into Subtract(zero point)
-bool is_integer_weights(const ov::Output<ov::Node>& output) {
+// TODO: Reassess the depth limit across other models when generalizing precision handling.
+constexpr size_t max_sincos_angle_depth = 50;
+
+// Floating-point dependencies of the angle shared by Sin/Cos.
+struct SinCosAnglePath {
+    // Output keys preserve ports and deduplicate shared paths; only floating-point input ports are recorded.
+    std::map<ov::Output<ov::Node>, std::vector<size_t>> floating_input_ports;
+    // Each value is recorded after its dependencies.
+    ov::OutputVector dependency_order;
+    // Leaves have depth 0 and shared paths use their longest dependency.
+    std::map<ov::Output<ov::Node>, size_t> depths;
+    bool has_required_arithmetic = false;
+    bool has_fp16 = false;
+};
+
+// Inspects the floating-point dependencies of the angle inputs, leaving integer/bool paths unchanged.
+// Returns false if the path contains a value that the FP32 angle reconstruction cannot rebuild.
+// Shared by the FP32 reconstruction and by the constant collection, so both accept the same angle paths.
+bool inspect_sincos_angle_path(const ov::OutputVector& angle_inputs, SinCosAnglePath& path) {
+    auto& floating_input_ports = path.floating_input_ports;
+    auto& dependency_order = path.dependency_order;
+    auto& depths = path.depths;
+
+    // Stack entry: (value, dependencies_processed); record each value after its dependencies.
+    std::vector<std::pair<ov::Output<ov::Node>, bool>> traversal_stack;
+
+    for (const auto& input_value : angle_inputs) {
+        traversal_stack.emplace_back(input_value, false);
+    }
+
+    // Iterative DFS avoids recursion limits and produces dependency-first reconstruction order.
+    // Example: A -> B -> Sin, A -> C -> Cos; the actual matcher requires a shared input.
+    // Stack top is left; F = inspect, T = record after dependencies.
+    //
+    // Action           | Stack (top first)       | dependency_order
+    // -----------------|-------------------------|-----------------
+    // Push B, C        | (C,F), (B,F)            | []
+    // Inspect C        | (A,F), (C,T), (B,F)     | []
+    // Inspect A        | (A,T), (C,T), (B,F)     | []
+    // Record A         | (C,T), (B,F)            | [A]
+    // Record C         | (B,F)                   | [A, C]
+    // Inspect B        | (A,F), (B,T)            | [A, C]
+    // Skip visited A   | (B,T)                   | [A, C]
+    // Record B         | []                      | [A, C, B]
+    //
+    // Dependencies precede consumers; leaves from separate branches need not all come first.
+    while (!traversal_stack.empty()) {
+        const auto [input_value, dependencies_processed] = traversal_stack.back();
+        traversal_stack.pop_back();
+
+        if (dependencies_processed) {
+            // Input depths are ready here; leaves have depth 0 and shared paths use their longest dependency.
+            size_t depth = 0;
+            for (const auto port : floating_input_ports.at(input_value)) {
+                const auto input_depth = depths.at(input_value.get_node()->input_value(port));
+                OPENVINO_ASSERT(input_depth < dependency_order.size(), "Invalid Sin/Cos angle depth");
+                depth = std::max(depth, input_depth + 1);
+            }
+            depths.emplace(input_value, depth);
+            dependency_order.push_back(input_value);
+            continue;
+        }
+        if (floating_input_ports.count(input_value)) {
+            continue;
+        }
+
+        const auto node = input_value.get_node_shared_ptr();
+
+        // This eligibility check is not a traversal allowlist or proof that the path only computes angles.
+        path.has_required_arithmetic |= ov::is_type_any_of<ov::op::v1::Add, ov::op::v1::Multiply, ov::op::v0::MatMul, ov::intel_gpu::op::Gemm>(node);
+
+        const auto type = input_value.get_element_type();
+        path.has_fp16 |= type == ov::element::f16;
+
+        // Changing outer inputs alone cannot safely rebuild bodies or state/control dependencies.
+        if ((type != ov::element::f16 && type != ov::element::f32) || ov::is_type<ov::op::util::MultiSubGraphOp>(node) ||
+            std::dynamic_pointer_cast<ov::op::util::VariableExtension>(node) || !node->get_control_dependencies().empty()) {
+            GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: unsupported angle output " << input_value << "; leaving Sin/Cos unchanged" << std::endl;
+            return false;
+        }
+
+        std::vector<size_t> ports;
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            if (node->get_input_element_type(i).is_real()) {
+                ports.push_back(i);
+            }
+        }
+
+        const bool is_leaf = ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(node);
+        const bool is_convert = ov::is_type<ov::op::v0::Convert>(node);
+
+        // Only an existing integer-to-float Convert may enter from an integer value path.
+        if ((!is_leaf && !is_convert && ports.empty()) || (is_convert && ports.empty() && !node->get_input_element_type(0).is_integral_number())) {
+            GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: unsupported angle source " << input_value << "; leaving Sin/Cos unchanged" << std::endl;
+            return false;
+        }
+
+        floating_input_ports.emplace(input_value, ports);
+        traversal_stack.emplace_back(input_value, true);
+        for (const auto port : ports) {
+            traversal_stack.emplace_back(input_value.get_node()->input_value(port), false);
+        }
+    }
+
+    return true;
+}
+
+size_t get_max_angle_depth(const SinCosAnglePath& path, const ov::OutputVector& angle_inputs) {
+    size_t max_depth = 0;
+    for (const auto& input_value : angle_inputs) {
+        max_depth = std::max(max_depth, path.depths.at(input_value));
+    }
+    return max_depth;
+}
+
+// Low-precision weight types of the decompression subgraphs marked by MarkDequantization in the GPU pipeline.
+bool is_low_precision_weight_type(const ov::element::Type& type) {
+    static const ov::element::TypeVector types{ov::element::i8,
+                                               ov::element::u8,
+                                               ov::element::i4,
+                                               ov::element::u4,
+                                               ov::element::u3,
+                                               ov::element::u2,
+                                               ov::element::f8e4m3,
+                                               ov::element::f8e5m2,
+                                               ov::element::f4e2m1,
+                                               ov::element::f8e8m0};
+    return std::find(types.begin(), types.end(), type) != types.end();
+}
+
+// Decompressed weights: Convert(low-precision Constant), optionally followed by Subtract(zero point).
+bool is_decompressed_weights(const ov::Output<ov::Node>& output) {
     auto node = output.get_node_shared_ptr();
     if (ov::is_type<ov::op::v1::Subtract>(node)) {
         node = node->input_value(0).get_node_shared_ptr();
     }
-    if (ov::is_type<ov::op::v0::Convert>(node)) {
-        node = node->input_value(0).get_node_shared_ptr();
+    if (!ov::is_type<ov::op::v0::Convert>(node)) {
+        return false;
     }
-    return ov::is_type<ov::op::v0::Constant>(node) && node->get_output_element_type(0).is_integral_number();
+    const auto weights = node->input_value(0);
+    return ov::is_type<ov::op::v0::Constant>(weights.get_node()) && is_low_precision_weight_type(weights.get_element_type());
 }
 
+// FakeQuantize and weight decompression (Convert(low-precision weights) -> [Subtract(zero point)] -> Multiply(scale)) carry
+// quantization parameters. Keeping their f32 constants unfolded hides the quantization from low precision transformations and from
+// the weight compression patterns, so these constants are never preserved. Integer values of other types (e.g. i64 coordinates
+// converted to f32) are angle inputs, not quantized weights.
 bool is_quantization_boundary(const std::shared_ptr<ov::Node>& node) {
-    if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
+    if (ov::is_type<ov::op::v0::FakeQuantize>(node) || ov::is_dequantization_node(node)) {
         return true;
     }
     if (!ov::is_type_any_of<ov::op::v1::Multiply, ov::op::v1::Subtract>(node)) {
         return false;
     }
     const auto inputs = node->input_values();
-    return std::any_of(inputs.begin(), inputs.end(), is_integer_weights);
+    return std::any_of(inputs.begin(), inputs.end(), is_decompressed_weights);
 }
 
 }  // namespace
 
 bool CollectSinCosConstantsForPrecisionPreservation::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    // A position angle (e.g. RoPE: position_ids -> Convert -> MatMul(inv_freq) -> Concat -> Sin / Cos) is computed within a few ops of
-    // the model inputs. In DETR-style models the Sin / Cos input is a positional embedding of predicted boxes and therefore depends on
-    // most of the network; an unbounded walk would mark every f32 constant of the network (weights, biases, quantization scales) as
-    // "keep in f32". Limit the walk to the neighbourhood of the Sin / Cos and stop at quantization parameters.
-    constexpr size_t max_depth = 8;
+    // The preserved constants are only consumed by the FP32 angle reconstruction (IncreasePositionIdsPrecisionForLtxVideo), so they
+    // are collected for the angle paths that the reconstruction accepts (same inspection and depth limit). This excludes e.g. the
+    // Sin / Cos of DETR-style models, whose input is a positional embedding of predicted boxes that depends on most of the network:
+    // preserving every f32 constant of it (weights, biases, quantization scales) would only disable their folding and conversion.
     m_constants->clear();
+    std::set<ov::Output<ov::Node>> inspected_angles;
     std::unordered_set<const ov::Node*> visited;
-    std::deque<std::pair<ov::Output<ov::Node>, size_t>> pending;
     for (const auto& node : model->get_ordered_ops()) {
-        if (ov::is_type_any_of<ov::op::v0::Sin, ov::op::v0::Cos>(node)) {
-            pending.emplace_back(node->input_value(0), 1);
+        if (!ov::is_type_any_of<ov::op::v0::Sin, ov::op::v0::Cos>(node)) {
+            continue;
         }
-    }
+        const ov::OutputVector angle_inputs{node->input_value(0)};
+        if (!inspected_angles.insert(angle_inputs[0]).second) {
+            continue;
+        }
+        SinCosAnglePath path;
+        if (!inspect_sincos_angle_path(angle_inputs, path) || !path.has_required_arithmetic ||
+            get_max_angle_depth(path, angle_inputs) > max_sincos_angle_depth) {
+            continue;
+        }
 
-    while (!pending.empty()) {
-        const auto [output, depth] = pending.front();
-        pending.pop_front();
-        if (!output.get_element_type().is_real()) {
-            continue;
-        }
-        const auto node = output.get_node_shared_ptr();
-        if (!visited.insert(node.get()).second) {
-            continue;
-        }
-        if (ov::is_type<ov::op::v0::Constant>(node)) {
-            if (output.get_element_type() == ov::element::f32) {
-                m_constants->insert(node.get());
+        ov::OutputVector pending{angle_inputs[0]};
+        while (!pending.empty()) {
+            const auto output = pending.back();
+            pending.pop_back();
+            const auto producer = output.get_node_shared_ptr();
+            if (!visited.insert(producer.get()).second) {
+                continue;
             }
-            continue;
-        }
-        if (depth >= max_depth || is_quantization_boundary(node)) {
-            continue;
-        }
-
-        // Follow floating-point dependencies without an op allowlist, including through MatMul.
-        // Integer/bool inputs (e.g. shapes, axes and indices) end the path even if derived from floats.
-        // Only outer-graph input edges are followed; subgraph bodies are not traversed.
-        // Breadth-first, so every node is first reached through its shortest path to a Sin / Cos.
-        for (const auto& input : node->input_values()) {
-            if (input.get_element_type().is_real()) {
-                pending.emplace_back(input, depth + 1);
+            if (ov::is_type<ov::op::v0::Constant>(producer)) {
+                if (output.get_element_type() == ov::element::f32) {
+                    m_constants->insert(producer.get());
+                }
+                continue;
+            }
+            if (is_quantization_boundary(producer)) {
+                continue;
+            }
+            for (const auto port : path.floating_input_ports.at(output)) {
+                pending.push_back(producer->input_value(port));
             }
         }
     }
@@ -422,9 +553,6 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
 
 namespace {
 
-// TODO: Reassess the depth limit across other models when generalizing precision handling.
-constexpr size_t max_sincos_angle_depth = 50;
-
 // Rebuild the floating-point angle path shared by Sin/Cos in FP32.
 // Promoting only Sin/Cos inputs cannot recover FP16 rounding that occurred upstream.
 //
@@ -437,114 +565,24 @@ constexpr size_t max_sincos_angle_depth = 50;
 bool increase_sincos_angle_precision(const std::shared_ptr<ov::Node>& sin, const std::shared_ptr<ov::Node>& cos) {
     // Phase 1: inspect the upstream floating-point paths and check rewrite eligibility.
     const ov::OutputVector angle_inputs{sin->input_value(0), cos->input_value(0)};
-
-    // Output keys preserve ports and deduplicate shared paths; only floating-point input ports are recorded.
-    std::map<ov::Output<ov::Node>, std::vector<size_t>> floating_input_ports;
-    bool has_required_arithmetic = false;
-    bool has_fp16_in_angle_path = false;
-
-    // Stack entry: (value, dependencies_processed); record each value after its dependencies.
-    std::vector<std::pair<ov::Output<ov::Node>, bool>> traversal_stack;
-    ov::OutputVector dependency_order;
-    std::map<ov::Output<ov::Node>, size_t> depths;
-
-    for (const auto& input_value : angle_inputs) {
-        traversal_stack.emplace_back(input_value, false);
+    SinCosAnglePath path;
+    if (!inspect_sincos_angle_path(angle_inputs, path)) {
+        return false;
     }
+    const auto& floating_input_ports = path.floating_input_ports;
+    const auto& dependency_order = path.dependency_order;
 
-    // Iterative DFS avoids recursion limits and produces dependency-first reconstruction order.
-    // Example: A -> B -> Sin, A -> C -> Cos; the actual matcher requires a shared input.
-    // Stack top is left; F = inspect, T = record after dependencies.
-    //
-    // Action           | Stack (top first)       | dependency_order
-    // -----------------|-------------------------|-----------------
-    // Push B, C        | (C,F), (B,F)            | []
-    // Inspect C        | (A,F), (C,T), (B,F)     | []
-    // Inspect A        | (A,T), (C,T), (B,F)     | []
-    // Record A         | (C,T), (B,F)            | [A]
-    // Record C         | (B,F)                   | [A, C]
-    // Inspect B        | (A,F), (B,T)            | [A, C]
-    // Skip visited A   | (B,T)                   | [A, C]
-    // Record B         | []                      | [A, C, B]
-    //
-    // Dependencies precede consumers; leaves from separate branches need not all come first.
-    while (!traversal_stack.empty()) {
-        const auto [input_value, dependencies_processed] = traversal_stack.back();
-        traversal_stack.pop_back();
-
-        if (dependencies_processed) {
-            // Input depths are ready here; leaves have depth 0 and shared paths use their longest dependency.
-            size_t depth = 0;
-            for (const auto port : floating_input_ports.at(input_value)) {
-                const auto input_depth = depths.at(input_value.get_node()->input_value(port));
-                OPENVINO_ASSERT(input_depth < dependency_order.size(), "Invalid Sin/Cos angle depth");
-                depth = std::max(depth, input_depth + 1);
-            }
-            depths.emplace(input_value, depth);
-            dependency_order.push_back(input_value);
-            continue;
-        }
-        if (floating_input_ports.count(input_value)) {
-            continue;
-        }
-
-        const auto node = input_value.get_node_shared_ptr();
-
-        // This eligibility check is not a traversal allowlist or proof that the path only computes angles.
-        has_required_arithmetic |= ov::is_type_any_of<ov::op::v1::Add,
-                                                    ov::op::v1::Multiply,
-                                                    ov::op::v0::MatMul,
-                                                    ov::intel_gpu::op::Gemm>(node);
-
-        const auto type = input_value.get_element_type();
-        has_fp16_in_angle_path |= type == ov::element::f16;
-
-        // Changing outer inputs alone cannot safely rebuild bodies or state/control dependencies.
-        if ((type != ov::element::f16 && type != ov::element::f32) ||
-            ov::is_type<ov::op::util::MultiSubGraphOp>(node) ||
-            std::dynamic_pointer_cast<ov::op::util::VariableExtension>(node) ||
-            !node->get_control_dependencies().empty()) {
-            GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: unsupported angle output " << input_value
-                          << "; leaving Sin/Cos unchanged" << std::endl;
-            return false;
-        }
-
-        std::vector<size_t> ports;
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            if (node->get_input_element_type(i).is_real()) {
-                ports.push_back(i);
-            }
-        }
-
-        const bool is_leaf = ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(node);
-        const bool is_convert = ov::is_type<ov::op::v0::Convert>(node);
-
-        // Only an existing integer-to-float Convert may enter from an integer value path.
-        if ((!is_leaf && !is_convert && ports.empty()) ||
-            (is_convert && ports.empty() && !node->get_input_element_type(0).is_integral_number())) {
-            GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: unsupported angle source " << input_value
-                          << "; leaving Sin/Cos unchanged" << std::endl;
-            return false;
-        }
-
-        floating_input_ports.emplace(input_value, ports);
-        traversal_stack.emplace_back(input_value, true);
-        for (const auto port : ports) {
-            traversal_stack.emplace_back(input_value.get_node()->input_value(port), false);
-        }
-    }
-
-    if (!has_required_arithmetic) {
+    if (!path.has_required_arithmetic) {
         GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: no angle arithmetic; leaving Sin/Cos unchanged"
                       << std::endl;
         return false;
     }
 
-    if (!has_fp16_in_angle_path) {
+    if (!path.has_fp16) {
         return false;
     }
 
-    const auto max_depth = std::max(depths.at(angle_inputs[0]), depths.at(angle_inputs[1]));
+    const auto max_depth = get_max_angle_depth(path, angle_inputs);
     if (max_depth > max_sincos_angle_depth) {
         GPU_DEBUG_INFO << "[Warning] Skipping Sin/Cos FP32 precision rewrite: sin=" << sin->get_friendly_name()
                        << ",cos=" << cos->get_friendly_name()
