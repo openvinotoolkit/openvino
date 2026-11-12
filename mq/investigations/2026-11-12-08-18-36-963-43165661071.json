@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-08-18-36-963-43165661071",
+  "timestamp": "2026-11-12T08:18:36Z",
+  "run_id": "43165661071",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43165661071",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39752",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39752",
+  "author": "jade-cho",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
+  "signature": "ssl certificate verify failed certificate has expired|External Service",
+  "signature_hash": "2641a2995515ec82",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All 18 Detectron2 precommit test cases fail identically: SSL certificate verify failed, certificate has expired, downloading model weights from dl.fbaipublicfiles.com"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the PyTorch Models tests job failed"
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_detectron2.py::TestDetectron2ConvertModel::test_detectron2_precommit[CPU-COCO-Detection/faster_rcnn_R_50_FPN_1x-none-None-None] FAILED",
+    "File \"/venv/lib/python3.11/site-packages/detectron2/checkpoint/detection_checkpoint.py\", line 61, in load\n    path = self.path_manager.get_local_path(path)",
+    "File \"/usr/lib/python3.11/urllib/request.py\", line 1364, in do_open\n    raise URLError(err)\nE           URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "Attempt 1 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>"
+  ],
+  "root_cause": "The Detectron2 pytorch model-hub tests download pretrained weight files directly from https://dl.fbaipublicfiles.com at test time via iopath's download() helper, which uses Python's stdlib urllib with default TLS verification. The TLS certificate currently served by dl.fbaipublicfiles.com is expired, so every HTTPS request to that host fails verification with CERTIFICATE_VERIFY_FAILED / 'certificate has expired'. All 18 Detectron2 precommit cases independently hit the same download path and fail identically within seconds of each other. This is an upstream (Meta/Facebook AI) infrastructure issue unrelated to the PR under test (openvinotoolkit/openvino#39752, which only touches src/plugins/intel_gpu/src/graph/graph_optimizer/prepare_quantization.cpp and its unit test); the pattern has now recurred 6 times across distinct merge-queue PRs within about 7 hours, confirming a persistent external-service outage rather than a one-off flake.",
+  "reproduction_steps": "Run `python3 -m pytest install/tests/model_hub_tests/pytorch/test_detectron2.py -m precommit -v` locally (or inside the CI container) while dl.fbaipublicfiles.com's certificate remains expired; the test fails downloading any detectron2 *.pkl weight file with the same SSL error. Alternatively: `curl -v https://dl.fbaipublicfiles.com/detectron2/COCO-Detection/faster_rcnn_R_50_FPN_1x/137257644/model_final_b275ba.pkl` and observe the certificate-expiry TLS error.",
+  "recommended_actions": [
+    "Re-run the failed job once dl.fbaipublicfiles.com's certificate is renewed upstream (a plain rerun is expected to succeed with no code changes).",
+    "Mirror/cache Detectron2 precommit model weights in an OpenVINO-controlled artifact store (reusing the existing pip-proxy pattern already in place for PyPI packages) so tests do not depend on a third-party TLS endpoint with recurring certificate issues.",
+    "Escalate to upstream Meta/Facebook AI maintainers or track this as a known outage, since 6 occurrences in ~7 hours indicate the certificate renewal is not yet complete."
+  ],
+  "prevention_strategies": "Track dl.fbaipublicfiles.com outages as an upstream dependency risk and alert on recurrence instead of silently blocking the merge queue repeatedly. Where feasible, vendor/cache third-party test fixtures (model weights) in infrastructure under OpenVINO's control to decouple CI reliability from external services with no SLA.",
+  "historical_context": "Recurring failure: signature 2641a2995515ec82 ('ssl certificate verify failed certificate has expired|External Service') has now been recorded 6 times since first seen at 2026-11-12T01:09:15Z (run 43121154399, PR #39201/#39727 context) through this run at 2026-11-12T08:18:36Z, affecting PRs #39201, #39727, #38204, and now #39752. All occurrences share the identical dl.fbaipublicfiles.com TLS certificate-expiry root cause with no code-side variation."
+}

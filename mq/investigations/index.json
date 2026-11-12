@@ -1,110 +1,573 @@
 {
   "schema_version": "1.0",
-  "total": 385,
+  "total": 427,
   "entries": [
     {
-      "investigation_id": "2026-07-09-13-58-10-000-29022024794",
-      "timestamp": "2026-07-09T13:58:10Z",
-      "run_id": "29022024794",
+      "investigation_id": "2026-06-11-19-02-43-000-27365701077",
+      "run_id": 27365701077,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27365701077",
+      "workflow_name": "",
+      "timestamp": "",
+      "title": "",
+      "category": "Network",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-22-08-32-35-804-27831497569",
+      "run_id": 27831497569,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27831497569",
+      "workflow_name": "",
+      "timestamp": "",
+      "title": "",
+      "category": "Code Issue",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-22-08-43-45-000-27831497569",
+      "run_id": 27831497569,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27831497569",
+      "workflow_name": "",
+      "timestamp": "",
+      "title": "",
+      "category": "Code Issue",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-22-10-42-57-000-27941353934",
+      "run_id": 27941353934,
+      "run_url": "",
+      "workflow_name": "",
+      "timestamp": "2026-06-22T10:42:57Z",
+      "title": "test_classification_sample_async_fp16 times out in Samples smoke tests",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": 36430
+    },
+    {
+      "investigation_id": "2026-06-22-10-58-47-000-27941353861",
+      "run_id": 27941353861,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27941353861",
+      "workflow_name": "",
+      "timestamp": "",
+      "title": "",
+      "category": "Infrastructure",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-22-11-22-00-000-27946523251",
+      "run_id": 27946523251,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27946523251",
+      "workflow_name": "",
+      "timestamp": "",
+      "title": "",
+      "category": "Network",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-22-11-37-47-000-27943348992",
+      "run_id": 27943348992,
+      "run_url": "",
+      "workflow_name": "",
+      "timestamp": "2026-06-22T11:37:47Z",
+      "title": "",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": 33769
+    },
+    {
+      "investigation_id": "2026-06-22-12-08-00-000-27946517601",
+      "run_id": 27946517601,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27946517601",
+      "workflow_name": "",
+      "timestamp": "2026-06-22T12:08:00Z",
+      "title": "",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": 36430
+    },
+    {
+      "investigation_id": "2026-06-22-12-21-02-404-27946518375",
+      "run_id": 27946518375,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27946518375",
+      "workflow_name": "",
+      "timestamp": "2026-06-22T12:21:02Z",
+      "title": "",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": 33769
+    },
+    {
+      "investigation_id": "2026-06-26-06-52-23-000-28219131186",
+      "run_id": 28219131186,
+      "run_url": "",
+      "workflow_name": "",
+      "timestamp": "2026-06-26T06:52:23Z",
+      "title": "",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": 36518
+    },
+    {
+      "investigation_id": "2026-06-26-15-08-57-000-28243842474",
+      "run_id": 28243842474,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28243842474",
+      "workflow_name": "",
+      "timestamp": "2026-06-26T15:09:15Z",
+      "title": "",
+      "category": "Infrastructure",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-29-10-53-13-000-28260319677",
+      "run_id": 28260319677,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28260319677",
+      "workflow_name": "",
+      "timestamp": "2026-06-29T10:53:13Z",
+      "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION in async mode with -no_warmup on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-29-12-07-51-000-28366156201",
+      "run_id": 28366156201,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28366156201",
+      "workflow_name": "",
+      "timestamp": "2026-06-29T12:07:51Z",
+      "title": "",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": 36592
+    },
+    {
+      "investigation_id": "2026-06-29-12-18-57-000-28161192347",
+      "run_id": 28161192347,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28161192347",
+      "workflow_name": "",
+      "timestamp": "2026-06-29T12:18:57Z",
+      "title": "test_keras_lstm_flags_float32 fails with LSTM accuracy mismatch on CPU",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": 36510
+    },
+    {
+      "investigation_id": "2026-06-29-15-59-13-000-28379764406",
+      "run_id": "28379764406",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28379764406",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-06-29T15:59:13Z",
+      "title": "Windows self-hosted runner ECONNREFUSED on GitHub artifact service",
+      "category": "Infrastructure",
+      "signature_hash": "3a6ca31c39b0147d",
+      "pr_number": "36589"
+    },
+    {
+      "investigation_id": "2026-06-29-21-12-18-000-28401943026",
+      "run_id": 28401943026,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28401943026",
+      "workflow_name": "",
+      "timestamp": "2026-06-29T21:12:18Z",
+      "title": "pip install fails - PyPI returns truncated JSON response for grpcio package index",
+      "category": "Network",
+      "signature_hash": "",
+      "pr_number": 36445
+    },
+    {
+      "investigation_id": "2026-06-30-06-54-51-000-28425259819",
+      "run_id": "28425259819",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28425259819",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
+      "timestamp": "2026-06-30T06:54:51Z",
+      "title": "CMake fails to download oneapi-tbb due to unresolvable storage.openvinotoolkit.org hostname",
+      "category": "Network",
+      "signature_hash": "b8b6bc5f75a07aea",
+      "pr_number": "36627"
+    },
+    {
+      "investigation_id": "2026-06-30-09-45-30-982-27757418260",
+      "run_id": 27757418260,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/27757418260",
+      "workflow_name": "",
+      "timestamp": "2026-06-30T09:45:30Z",
+      "title": "ov_gpu_unit_tests build fails: get_test_engine undeclared in paged_attention_gpu_test",
+      "category": "Code Issue",
+      "signature_hash": "",
+      "pr_number": null
+    },
+    {
+      "investigation_id": "2026-06-30-13-46-31-000-28446416608",
+      "run_id": "28446416608",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28446416608",
+      "workflow_name": "",
+      "timestamp": "2026-06-30T13:46:31Z",
+      "title": "hello_classification_c crashes with ld.so dl-sort-maps DFS assertion on ARM64",
+      "category": "Infrastructure",
+      "signature_hash": "39ded9b2c8a06334",
+      "pr_number": 36427
+    },
+    {
+      "investigation_id": "2026-07-01-09-51-46-000-28505410343",
+      "run_id": 28505410343,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28505410343",
+      "workflow_name": "",
+      "timestamp": "2026-07-01T09:51:46Z",
+      "title": "",
+      "category": "Infrastructure",
+      "signature_hash": "",
+      "pr_number": 36640
+    },
+    {
+      "investigation_id": "2026-07-01-10-28-17-000-28505410481",
+      "run_id": 28505410481,
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28505410481",
+      "workflow_name": "",
+      "timestamp": "2026-07-01T10:28:17Z",
+      "title": "test_keras_lstm_flags_float32 fails with LSTM accuracy mismatch on CPU",
+      "category": "Flaky Test",
+      "signature_hash": "",
+      "pr_number": "36640"
+    },
+    {
+      "investigation_id": "2026-07-01-11-21-46-000-28507710758",
+      "run_id": "28507710758",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28507710758",
+      "workflow_name": "",
+      "timestamp": "2026-07-01T11:21:46Z",
+      "title": "CachingTest LoadMulti_race import_model call count mismatch in C++ unit tests (Windows)",
+      "category": "Flaky Test",
+      "signature_hash": "0528d54ff68248cd",
+      "pr_number": "35805"
+    },
+    {
+      "investigation_id": "2026-07-01-18-01-12-000-28532884711",
+      "run_id": "28532884711",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28532884711",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-07-01T18:01:12Z",
+      "title": "Conformance jobs fail to download openvino_tests artifact with ECONNREFUSED",
+      "category": "Network",
+      "signature_hash": "1808e665f1f70825",
+      "pr_number": "36423"
+    },
+    {
+      "investigation_id": "2026-07-01-18-47-51-000-28537468325",
+      "run_id": "28537468325",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28537468325",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-01T18:47:51Z",
+      "title": "Windows Build openvino_package upload fails silently before blob upload on self-hosted runner",
+      "category": "Infrastructure",
+      "signature_hash": "89059626d1cbf7b3",
+      "pr_number": "36581"
+    },
+    {
+      "investigation_id": "2026-07-03-09-30-28-553-28648021149",
+      "run_id": "28648021149",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28648021149",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-07-03T09:30:28Z",
+      "title": "throughput_benchmark_py sample crashes with ld.so dl-sort-maps DFS assertion on ARM64",
+      "category": "Infrastructure",
+      "signature_hash": "505ffe872b32b761",
+      "pr_number": "36681"
+    },
+    {
+      "investigation_id": "2026-07-04-10-21-49-000-28700822021",
+      "run_id": "28700822021",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28700822021",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-04T10:21:49Z",
+      "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "5f5789b1a8659a47",
+      "pr_number": "35018"
+    },
+    {
+      "investigation_id": "2026-07-07-02-32-06-000-28833044082",
+      "run_id": "28833044082",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28833044082",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-07T02:32:06Z",
+      "title": "Python unit tests artifact upload fails with ENOTFOUND on self-hosted Windows runner",
+      "category": "Network",
+      "signature_hash": "4e9cf236bf92d555",
+      "pr_number": "36738"
+    },
+    {
+      "investigation_id": "2026-07-07-04-09-01-383-28837974056",
+      "run_id": "28837974056",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28837974056",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-07T04:09:01Z",
+      "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION in sync mode with -no_warmup on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "058ea9d678d180f9",
+      "pr_number": "36738"
+    },
+    {
+      "investigation_id": "2026-07-07-13-51-25-000-28861100887",
+      "run_id": "28861100887",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28861100887",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-07T13:51:25Z",
+      "title": "JS API E2E test cleanup fails with Permission denied on Electron DLL on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "b29c6f846d9fd3de",
+      "pr_number": "36744"
+    },
+    {
+      "investigation_id": "2026-07-07-14-37-38-000-28868848906",
+      "run_id": "28868848906",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28868848906",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-07-07T14:37:38Z",
+      "title": "iGPU RoPE Tests checkout fails with curl 16 Error in the HTTP2 framing layer",
+      "category": "Network",
+      "signature_hash": "a34cf8b1555a33e4",
+      "pr_number": "36754"
+    },
+    {
+      "investigation_id": "2026-07-07-19-17-19-000-28887792739",
+      "run_id": "28887792739",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28887792739",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-07T19:17:19Z",
+      "title": "CachingTest LoadMulti_race import_model call count mismatch on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "5f5789b1a8659a47",
+      "pr_number": "36727"
+    },
+    {
+      "investigation_id": "2026-07-08-16-38-48-734-28957097935",
+      "run_id": "28957097935",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28957097935",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-07-08T16:38:48Z",
+      "title": "smoke_ConvertCPULayerTest primType is unexpected: unknown_i32 Expected acl_i32 on ARM64",
+      "category": "Flaky Test",
+      "signature_hash": "cb7d14bccc236de4",
+      "pr_number": "36202"
+    },
+    {
+      "investigation_id": "2026-07-08-17-03-47-000-28955688136",
+      "run_id": "28955688136",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/28955688136",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-08T17:03:47Z",
+      "title": "CoreThreadingTests.ReadModel crashes with exit code 1 on Windows C++ unit tests",
+      "category": "Flaky Test",
+      "signature_hash": "9a33a1bb95efe59d",
+      "pr_number": "36638"
+    },
+    {
+      "investigation_id": "2026-07-09-07-11-08-000-29000379233",
+      "run_id": "29000379233",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29000379233",
       "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
-      "category": "Configuration",
+      "timestamp": "2026-07-09T07:11:08Z",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36780"
+    },
+    {
+      "investigation_id": "2026-07-09-07-26-09-557-29000703414",
+      "run_id": "29000703414",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29000703414",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-07-09T07:26:09Z",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36773"
+    },
+    {
+      "investigation_id": "2026-07-09-07-40-13-816-29001747652",
+      "run_id": "29001747652",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29001747652",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-07-09T07:40:13Z",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36504"
+    },
+    {
+      "investigation_id": "2026-07-09-07-55-19-000-29002123148",
+      "run_id": "29002123148",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29002123148",
+      "workflow_name": "Webassembly",
+      "timestamp": "2026-07-09T07:55:19Z",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36781"
+    },
+    {
+      "investigation_id": "2026-07-09-08-10-20-157-29003070994",
+      "run_id": "29003070994",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29003070994",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-07-09T08:10:20Z",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36781"
+    },
+    {
+      "investigation_id": "2026-07-09-09-43-17-000-29005496269",
+      "run_id": "29005496269",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29005496269",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+      "timestamp": "2026-07-09T09:43:17Z",
+      "title": "Smart CI fails: fastcore 2.0.1 breaks ghapi 1.0.4 - L.starmap AttributeError",
+      "category": "Dependencies",
+      "signature_hash": "7862e85dd17a5df8",
+      "pr_number": "36755"
+    },
+    {
+      "investigation_id": "2026-07-09-11-34-24-734-29010970383",
+      "run_id": "29010970383",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29010970383",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-07-09T11:34:24Z",
+      "title": "JS API E2E Electron test cleanup fails with Permission Denied on electron.exe on Windows",
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "36780"
+    },
+    {
+      "investigation_id": "2026-07-09-13-19-49-976-29014939485",
+      "run_id": "29014939485",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29014939485",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-07-09T13:19:49Z",
+      "title": "ci/gha_overall_status job cancelled before runner assignment in Linux CI merge queue run",
+      "category": "Infrastructure",
+      "signature_hash": "bf5775e54113be48",
+      "pr_number": "36780"
+    },
+    {
+      "investigation_id": "2026-07-09-13-58-10-000-29022024794",
+      "run_id": "29022024794",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29022024794",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+      "timestamp": "2026-07-09T13:58:10Z",
       "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "category": "Configuration",
       "signature_hash": "926d0537c057e523",
       "pr_number": "36774"
     },
     {
       "investigation_id": "2026-07-09-14-21-23-000-29023574901",
-      "timestamp": "2026-07-09T14:21:23Z",
       "run_id": "29023574901",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29023574901",
       "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
-      "category": "Configuration",
+      "timestamp": "2026-07-09T14:21:23Z",
       "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "category": "Configuration",
       "signature_hash": "926d0537c057e523",
       "pr_number": "36774"
     },
     {
       "investigation_id": "2026-07-09-15-32-32-477-29029047050",
-      "timestamp": "2026-07-09T15:32:32Z",
       "run_id": "29029047050",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29029047050",
       "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
-      "category": "Configuration",
+      "timestamp": "2026-07-09T15:32:32Z",
       "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "category": "Configuration",
       "signature_hash": "926d0537c057e523",
       "pr_number": "36774"
     },
     {
       "investigation_id": "2026-07-09-15-46-39-000-29030218781",
-      "timestamp": "2026-07-09T15:46:39Z",
       "run_id": "29030218781",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29030218781",
       "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
-      "category": "Configuration",
+      "timestamp": "2026-07-09T15:46:39Z",
       "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "category": "Configuration",
       "signature_hash": "926d0537c057e523",
       "pr_number": "36774"
     },
     {
       "investigation_id": "2026-07-09-16-28-39-874-29030218709",
-      "timestamp": "2026-07-09T16:28:39Z",
       "run_id": "29030218709",
-      "pr_number": "36774",
-      "category": "Dependencies",
-      "title": "Docker build fails: libpython3-dev:riscv64 unmet deps libncursesw6/libtinfo6 after docker_tag bump",
-      "signature_hash": "493bf4a71d007127"
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29030218709",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
+      "timestamp": "2026-07-09T16:28:39Z",
+      "title": "RISCV64 Docker build fails - libpython3-dev:riscv64 has unresolvable dependencies on libtinfo6:riscv64",
+      "category": "Configuration",
+      "signature_hash": "926d0537c057e523",
+      "pr_number": "36774"
     },
     {
       "investigation_id": "2026-07-09-16-59-02-000-29030218412",
-      "timestamp": "2026-07-09T16:59:02Z",
       "run_id": "29030218412",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29030218412",
       "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
-      "category": "External Service",
+      "timestamp": "2026-07-09T16:59:02Z",
       "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
+      "category": "External Service",
       "signature_hash": "9cb03e077ef3024a",
       "pr_number": "36773"
     },
     {
       "investigation_id": "2026-07-10-07-45-37-000-29072781821",
-      "timestamp": "2026-07-10T07:45:37Z",
       "run_id": "29072781821",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29072781821",
       "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-      "pr_number": "36763",
-      "category": "Flaky Test",
+      "timestamp": "2026-07-10T07:45:37Z",
       "title": "JS API E2E Electron test cleanup fails with Permission Denied on Windows",
-      "signature_hash": "85df26485ff568d8"
+      "category": "Flaky Test",
+      "signature_hash": "85df26485ff568d8",
+      "pr_number": "36763"
     },
     {
-      "id": "2026-07-13-10-41-15-000-29234771303",
+      "investigation_id": "2026-07-13-10-41-15-000-29234771303",
       "run_id": "29234771303",
-      "timestamp": "2026-07-13T10:41:15Z",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29234771303",
       "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Flaky Test",
+      "timestamp": "2026-07-13T10:41:15Z",
       "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
-      "pr_number": "36488",
+      "category": "Flaky Test",
       "signature_hash": "43e136cf67333978",
-      "investigation_id": "2026-07-13-10-41-15-000-29234771303"
+      "pr_number": "36488"
     },
     {
       "investigation_id": "2026-07-13-13-40-20-000-29245921214",
-      "timestamp": "2026-07-13T13:40:20Z",
       "run_id": "29245921214",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29245921214",
       "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-      "pr_number": "36413",
-      "category": "Flaky Test",
+      "timestamp": "2026-07-13T13:40:20Z",
       "title": "Windows CI: CachingTest LoadMulti_race mock call count mismatch and Electron cleanup permission error",
-      "signature_hash": "18324e8563a426a9"
+      "category": "Flaky Test",
+      "signature_hash": "18324e8563a426a9",
+      "pr_number": "36413"
     },
     {
       "investigation_id": "2026-07-13-16-41-56-000-29257338803",
-      "timestamp": "2026-07-13T16:41:56Z",
       "run_id": "29257338803",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29257338803",
       "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-      "category": "Flaky Test",
+      "timestamp": "2026-07-13T16:41:56Z",
       "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_flag[CPU-Python]",
+      "category": "Flaky Test",
       "signature_hash": "51203fa3d66f0e88",
       "pr_number": "36843"
     },
     {
       "investigation_id": "2026-07-13-18-31-40-077-29265037907",
       "run_id": "29265037907",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29265037907",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-13T18:31:40Z",
       "title": "benchmark_app crashes with STATUS_ACCESS_VIOLATION on Windows in test_benchmark_app_no_warmup_with_api_modes[async-CPU-Python]",
       "category": "Flaky Test",
@@ -114,6 +577,8 @@
     {
       "investigation_id": "2026-07-13-19-25-37-000-29268143021",
       "run_id": "29268143021",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29268143021",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-13T19:25:37Z",
       "title": "Windows CI fails with ECONNREFUSED downloading artifacts and Electron cleanup Permission Denied",
       "category": "Network",
@@ -123,6 +588,8 @@
     {
       "investigation_id": "2026-07-14-13-52-06-309-29334800771",
       "run_id": "29334800771",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29334800771",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-07-14T13:52:06Z",
       "title": "Build job fails on artifact upload step for debian packages",
       "category": "Infrastructure",
@@ -132,6 +599,8 @@
     {
       "investigation_id": "2026-07-14-16-50-52-344-29341562536",
       "run_id": "29341562536",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29341562536",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-14T16:50:52Z",
       "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
       "category": "Flaky Test",
@@ -141,6 +610,8 @@
     {
       "investigation_id": "2026-07-14-23-14-48-000-29370770675",
       "run_id": "29370770675",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29370770675",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-14T23:14:48Z",
       "title": "PyTorch FFT Layer Tests crash with Windows fatal exception: access violation in torch.randn",
       "category": "Flaky Test",
@@ -150,6 +621,8 @@
     {
       "investigation_id": "2026-07-15-08-59-25-000-29395509871",
       "run_id": "29395509871",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29395509871",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-15T08:59:25Z",
       "title": "PyTorch Models tests fail with ECONNREFUSED downloading openvino_tokenizers_wheel artifact",
       "category": "Network",
@@ -170,6 +643,8 @@
     {
       "investigation_id": "2026-07-15-11-39-22-000-29410904372",
       "run_id": "29410904372",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29410904372",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-07-15T11:39:22Z",
       "title": "Docker buildx builder boot fails - buildkit image not found in Azure Container Registry",
       "category": "Infrastructure",
@@ -179,6 +654,8 @@
     {
       "investigation_id": "2026-07-15-12-22-41-000-29410904372b",
       "run_id": "29410904372",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29410904372",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-07-15T12:22:41Z",
       "title": "smoke_ConvertCPULayerTest primType is unexpected : unknown_f32 Expected : ref_f32",
       "category": "Code Issue",
@@ -210,6 +687,8 @@
     {
       "investigation_id": "2026-07-16-01-44-02-000-29461222151",
       "run_id": "29461222151",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29461222151",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-16T01:44:02Z",
       "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
       "category": "Flaky Test",
@@ -219,6 +698,8 @@
     {
       "investigation_id": "2026-07-16-02-28-32-000-29465509080",
       "run_id": "29465509080",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29465509080",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-07-16T02:28:32Z",
       "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_i32 Expected : acl_i32",
       "category": "Code Issue",
@@ -228,6 +709,8 @@
     {
       "investigation_id": "2026-07-16-09-38-34-000-29484368562",
       "run_id": "29484368562",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29484368562",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
       "timestamp": "2026-07-16T09:38:34Z",
       "title": "Windows Debug build fails - LNK1116 cannot grow ilk file for ov_lp_transformations_tests",
       "category": "Infrastructure",
@@ -237,6 +720,8 @@
     {
       "investigation_id": "2026-07-16-11-11-27-000-29488629158",
       "run_id": "29488629158",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29488629158",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-16T11:11:27Z",
       "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
       "category": "Flaky Test",
@@ -246,6 +731,8 @@
     {
       "investigation_id": "2026-07-16-12-13-52-000-29495320624",
       "run_id": "29495320624",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29495320624",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-07-16T12:13:52Z",
       "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_i8 Expected : acl_i8",
       "category": "Code Issue",
@@ -255,6 +742,8 @@
     {
       "investigation_id": "2026-07-16-13-00-12-000-29495320592",
       "run_id": "29495320592",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29495320592",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-16T13:00:12Z",
       "title": "JAX Layer Tests artifact upload fails with FinalizeArtifact ECONNREFUSED",
       "category": "Network",
@@ -308,6 +797,8 @@
     {
       "investigation_id": "2026-07-17-03-59-16-000-29552016907",
       "run_id": "29552016907",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29552016907",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-17T03:59:16Z",
       "title": "smoke_ConvertCPULayerTest - primType is unexpected unknown_f32 Expected ref_f32 on ARM64/ACL",
       "category": "Code Issue",
@@ -317,6 +808,8 @@
     {
       "investigation_id": "2026-07-17-04-10-31-000-29552704755",
       "run_id": "29552704755",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29552704755",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-07-17T04:10:31Z",
       "title": "smoke_ConvertCPULayerTest - Value of: primTypeCheck(primType) is unexpected",
       "category": "Flaky Test",
@@ -326,6 +819,8 @@
     {
       "investigation_id": "2026-07-17-09-27-04-000-29564867992",
       "run_id": "29564867992",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29564867992",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-17T09:27:04Z",
       "title": "JS API E2E test cleanup fails - Permission denied removing Electron DLLs on Windows",
       "category": "Flaky Test",
@@ -346,6 +841,8 @@
     {
       "investigation_id": "2026-07-17-11-36-44-406-29573015584",
       "run_id": "29573015584",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29573015584",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-17T11:36:44Z",
       "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
       "category": "Flaky Test",
@@ -355,6 +852,8 @@
     {
       "investigation_id": "2026-07-17-15-26-00-000-29591125373",
       "run_id": "29591125373",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29591125373",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
       "timestamp": "2026-07-17T15:26:00Z",
       "title": "RISC-V Build fails - artifact upload FinalizeArtifact returns 403 Forbidden",
       "category": "Infrastructure",
@@ -375,6 +874,8 @@
     {
       "investigation_id": "2026-07-20-11-14-11-000-29735441172",
       "run_id": "29735441172",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29735441172",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-20T11:14:11Z",
       "title": "smoke_ConvertCPULayerTest - primType is unexpected : unknown_f32 Expected : acl_f32 on ARM64",
       "category": "Flaky Test",
@@ -384,6 +885,8 @@
     {
       "investigation_id": "2026-07-21-09-41-55-000-29813410817",
       "run_id": "29813410817",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29813410817",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-21T09:41:55Z",
       "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch on Windows",
       "category": "Flaky Test",
@@ -393,6 +896,8 @@
     {
       "investigation_id": "2026-07-22-08-51-55-000-29897298826",
       "run_id": "29897298826",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/29897298826",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-22T08:51:55Z",
       "title": "Windows workflow run failed on attempt 1 with no retrievable job logs - transient runner issue",
       "category": "Infrastructure",
@@ -402,6 +907,8 @@
     {
       "investigation_id": "2026-07-23-21-24-12-000-30043161341",
       "run_id": "30043161341",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30043161341",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-23T21:24:12Z",
       "title": "Linux ARM64 CPU functional tests conclude failure - job logs inaccessible (403)",
       "category": "Infrastructure",
@@ -433,6 +940,8 @@
     {
       "investigation_id": "2026-07-25-13-05-00-000-30156795631",
       "run_id": "30156795631",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30156795631",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-07-25T13:05:00Z",
       "title": "Linux Ubuntu 24.04 workflow logs unavailable for attempt 1 - re-run already in progress on attempt 2",
       "category": "Infrastructure",
@@ -442,13 +951,13 @@
     {
       "investigation_id": "2026-07-25-15-32-27-000-30160143296",
       "run_id": "30160143296",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30160143296",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-25T15:32:27Z",
       "title": "JS API E2E openvino-node package (cmd) step fails on Windows",
       "category": "Flaky Test",
       "signature_hash": "2c5337624cd0205d",
-      "pr_number": "37024",
-      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30160143296"
+      "pr_number": "37024"
     },
     {
       "investigation_id": "2026-07-27-02-46-42-000-30229750900",
@@ -475,6 +984,8 @@
     {
       "investigation_id": "2026-07-27-12-33-21-000-30261291251",
       "run_id": "30261291251",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30261291251",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-27T12:33:21Z",
       "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
       "category": "Code Issue",
@@ -495,6 +1006,8 @@
     {
       "investigation_id": "2026-07-27-14-02-12-000-30266971603",
       "run_id": "30266971603",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30266971603",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-27T14:02:12Z",
       "title": "test_export_model_precommit opt_gptq fails with accuracy validation failed",
       "category": "Code Issue",
@@ -504,6 +1017,8 @@
     {
       "investigation_id": "2026-07-27-14-34-56-000-30269464343",
       "run_id": "30269464343",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30269464343",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-27T14:34:56Z",
       "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
       "category": "Code Issue",
@@ -524,6 +1039,8 @@
     {
       "investigation_id": "2026-07-27-15-12-50-000-30275600133",
       "run_id": "30275600133",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30275600133",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
       "timestamp": "2026-07-27T15:12:50Z",
       "title": "RISC-V clang-tidy build fails - artifact upload FinalizeArtifact returns 403 Forbidden",
       "category": "Infrastructure",
@@ -555,6 +1072,8 @@
     {
       "investigation_id": "2026-07-27-19-02-00-000-30294958202",
       "run_id": "30294958202",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30294958202",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Debug)",
       "timestamp": "2026-07-27T19:02:00Z",
       "title": "Windows (VS 2022, Python 3.11, Debug) failed - logs unavailable (attempt 2 already in progress)",
       "category": "Infrastructure",
@@ -564,6 +1083,8 @@
     {
       "investigation_id": "2026-07-27-20-02-37-000-30294875333",
       "run_id": "30294875333",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30294875333",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-27T20:02:37Z",
       "title": "test_export_model_precommit[CPU-opt_gptq] accuracy validation failed for katuni4ka/opt-125m-gptq",
       "category": "Code Issue",
@@ -573,6 +1094,8 @@
     {
       "investigation_id": "2026-07-27-21-09-54-000-30294062597",
       "run_id": "30294062597",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30294062597",
+      "workflow_name": "PyTorch Models tests / PyTorch Models tests",
       "timestamp": "2026-07-27T21:09:54Z",
       "title": "OPT GPTQ model export accuracy validation fails - max diff 0.069 exceeds tolerance",
       "category": "Code Issue",
@@ -582,6 +1105,8 @@
     {
       "investigation_id": "2026-07-27-21-35-29-000-30301836970",
       "run_id": "30301836970",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30301836970",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-27T21:35:29Z",
       "title": "test_export_model_precommit opt_gptq accuracy validation failed - max diff 0.069",
       "category": "Code Issue",
@@ -591,6 +1116,8 @@
     {
       "investigation_id": "2026-07-27-22-50-38-000-30307050013",
       "run_id": "30307050013",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30307050013",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-27T22:50:38Z",
       "title": "PyTorch LLM Model Tests step fails in PyTorch Models tests job",
       "category": "Flaky Test",
@@ -600,6 +1127,8 @@
     {
       "investigation_id": "2026-07-27-23-50-30-000-30311997797",
       "run_id": "30311997797",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30311997797",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-27T23:50:30Z",
       "title": "Linux ARM64 CPU functional tests conclude failure - job logs inaccessible (403)",
       "category": "Infrastructure",
@@ -609,6 +1138,8 @@
     {
       "investigation_id": "2026-07-28-00-13-15-000-30311996736",
       "run_id": "30311996736",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30311996736",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-28T00:13:15Z",
       "title": "Windows VS2022 merge-queue run failed on attempt 1 - logs inaccessible (403)",
       "category": "Infrastructure",
@@ -618,6 +1149,8 @@
     {
       "investigation_id": "2026-07-28-00-48-53-000-30312759752",
       "run_id": "30312759752",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30312759752",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-28T00:48:53Z",
       "title": "Windows VS 2022 workflow failed on attempt 1 - logs inaccessible (403 secrecy policy)",
       "category": "Infrastructure",
@@ -627,6 +1160,8 @@
     {
       "investigation_id": "2026-07-28-02-13-41-000-30320203467",
       "run_id": "30320203467",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320203467",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-28T02:13:41Z",
       "title": "throughput_benchmark sample crashes with ld.so DFS assertion failure",
       "category": "Infrastructure",
@@ -636,6 +1171,8 @@
     {
       "investigation_id": "2026-07-28-02-47-53-000-30320203454",
       "run_id": "30320203454",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320203454",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-28T02:47:53Z",
       "title": "PyTorch LLM Model Tests step fails in PyTorch Models tests job",
       "category": "Flaky Test",
@@ -645,6 +1182,8 @@
     {
       "investigation_id": "2026-07-28-03-14-57-000-30320204236",
       "run_id": "30320204236",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30320204236",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-28T03:14:57Z",
       "title": "JS API E2E openvino-node package (cmd) step fails on Windows",
       "category": "Flaky Test",
@@ -676,8 +1215,10 @@
     {
       "investigation_id": "2026-07-28-04-50-13-000-30326123523",
       "run_id": "30326123523",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30326123523",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-28T04:50:13Z",
-      "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
+      "title": "opt-125m-gptq model export accuracy validation failed",
       "category": "Code Issue",
       "signature_hash": "671a331e9a60933e",
       "pr_number": "37029"
@@ -685,6 +1226,8 @@
     {
       "investigation_id": "2026-07-28-06-11-25-000-30329778351",
       "run_id": "30329778351",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30329778351",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-28T06:11:25Z",
       "title": "PyTorch LLM model accuracy validation fails for katuni4ka/opt-125m-gptq on CPU",
       "category": "Code Issue",
@@ -727,6 +1270,8 @@
     {
       "investigation_id": "2026-07-28-08-12-20-000-30336408463",
       "run_id": "30336408463",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30336408463",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-28T08:12:20Z",
       "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
       "category": "Code Issue",
@@ -747,6 +1292,8 @@
     {
       "investigation_id": "2026-07-28-11-01-06-000-30346547405",
       "run_id": "30346547405",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30346547405",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-28T11:01:06Z",
       "title": "test_export_model_precommit fails accuracy validation for opt_gptq katuni4ka/opt-125m-gptq",
       "category": "Code Issue",
@@ -756,6 +1303,8 @@
     {
       "investigation_id": "2026-07-28-11-15-51-175-30351149892",
       "run_id": "30351149892",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30351149892",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-28T11:15:51Z",
       "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already completed on attempt 2",
       "category": "Infrastructure",
@@ -765,6 +1314,8 @@
     {
       "investigation_id": "2026-07-28-11-54-01-000-30350620904",
       "run_id": "30350620904",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30350620904",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-07-28T11:54:01Z",
       "title": "OPT-GPTQ model export accuracy validation fails - max diff 0.069 exceeds threshold",
       "category": "Code Issue",
@@ -774,6 +1325,8 @@
     {
       "investigation_id": "2026-07-28-12-10-56-000-30356506123",
       "run_id": "30356506123",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30356506123",
+      "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
       "timestamp": "2026-07-28T12:10:56Z",
       "title": "RISC-V Build (RVV 1.0) CMake configure step fails - logs inaccessible, likely transient runner failure",
       "category": "Infrastructure",
@@ -783,6 +1336,8 @@
     {
       "investigation_id": "2026-07-28-12-39-00-000-30353712127",
       "run_id": "30353712127",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30353712127",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-28T12:39:00Z",
       "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
       "category": "Flaky Test",
@@ -792,6 +1347,8 @@
     {
       "investigation_id": "2026-07-28-13-28-07-000-30357349840",
       "run_id": "30357349840",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30357349840",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-28T13:28:07Z",
       "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
       "category": "Infrastructure",
@@ -812,6 +1369,8 @@
     {
       "investigation_id": "2026-07-28-14-49-03-000-30366211388",
       "run_id": "30366211388",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30366211388",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-28T14:49:03Z",
       "title": "Linux ARM64 workflow logs unavailable for attempt 1 - re-run already completed on attempt 2",
       "category": "Infrastructure",
@@ -832,6 +1391,8 @@
     {
       "investigation_id": "2026-07-28-18-19-23-000-30383729028",
       "run_id": "30383729028",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30383729028",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-07-28T18:19:23Z",
       "title": "Linux ARM64 CPU functional tests job fails - logs inaccessible (exit code 255)",
       "category": "Infrastructure",
@@ -852,6 +1413,8 @@
     {
       "investigation_id": "2026-07-29-07-16-54-000-30428294996",
       "run_id": "30428294996",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30428294996",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-29T07:16:54Z",
       "title": "Windows VS 2022 workflow logs unavailable - run re-queued automatically on attempt 2",
       "category": "Infrastructure",
@@ -872,6 +1435,8 @@
     {
       "investigation_id": "2026-07-29-09-30-40-000-30435558411",
       "run_id": "30435558411",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30435558411",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-07-29T09:30:40Z",
       "title": "Linux ARM64 cross-compilation workflow logs unavailable - attempt 1 failed, attempt 2 in progress",
       "category": "Infrastructure",
@@ -925,6 +1490,8 @@
     {
       "investigation_id": "2026-07-30-14-24-18-000-30544415611",
       "run_id": "30544415611",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30544415611",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-07-30T14:24:18Z",
       "title": "CPU functional tests fail with Not enough CPU resources on Windows runner",
       "category": "Infrastructure",
@@ -945,6 +1512,8 @@
     {
       "investigation_id": "2026-08-03-19-55-22-000-30837137504",
       "run_id": "30837137504",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30837137504",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-03T19:55:22Z",
       "title": "JS API E2E Electron cleanup fails with Permission Denied on Windows runner",
       "category": "Flaky Test",
@@ -998,6 +1567,8 @@
     {
       "investigation_id": "2026-08-04-17-46-16-000-30928353875",
       "run_id": "30928353875",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30928353875",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-04T17:46:16Z",
       "title": "CachingTest LoadMultiWithConfig_race import_model call count mismatch",
       "category": "Flaky Test",
@@ -1007,6 +1578,8 @@
     {
       "investigation_id": "2026-08-05-01-22-56-000-30960246250",
       "run_id": "30960246250",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/30960246250",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-05T01:22:56Z",
       "title": "CachingTest TearDown fails - file locked by another process on Windows runner",
       "category": "Flaky Test",
@@ -1016,6 +1589,8 @@
     {
       "investigation_id": "2026-08-06-05-35-09-000-31074001977",
       "run_id": "31074001977",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31074001977",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-06T05:35:09Z",
       "title": "GPU build fails: xe3p_35_10, xe3p_35_11, xe3p_unknown are not members of cldnn::gpu_arch",
       "category": "Code Issue",
@@ -1047,6 +1622,8 @@
     {
       "investigation_id": "2026-08-06-06-46-04-000-31073470727",
       "run_id": "31073470727",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31073470727",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-06T06:46:04Z",
       "title": "JS API E2E of openvino-node package fails on Windows",
       "category": "Flaky Test",
@@ -1056,6 +1633,8 @@
     {
       "investigation_id": "2026-08-06-15-00-28-000-31105749548",
       "run_id": "31105749548",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31105749548",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-06T15:00:28Z",
       "title": "JS API E2E Electron cleanup fails on Windows - Permission denied removing locked electron.exe/dll",
       "category": "Flaky Test",
@@ -1065,6 +1644,8 @@
     {
       "investigation_id": "2026-08-06-15-27-25-000-31112143407",
       "run_id": "31112143407",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31112143407",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-06T15:27:25Z",
       "title": "Setup Python action fails to resolve download info - Service Unavailable",
       "category": "Infrastructure",
@@ -1074,6 +1655,8 @@
     {
       "investigation_id": "2026-08-06-22-24-27-000-31115631719",
       "run_id": "31115631719",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31115631719",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-06T22:24:27Z",
       "title": "Multiple jobs fail at 'Set up job' - GitHub Actions Service Unavailable",
       "category": "Infrastructure",
@@ -1083,6 +1666,8 @@
     {
       "investigation_id": "2026-08-07-01-10-06-000-31136028903",
       "run_id": "31136028903",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31136028903",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-07T01:10:06Z",
       "title": "Windows VS 2022 CMake configure step fails transiently on AKS runner",
       "category": "Infrastructure",
@@ -1092,6 +1677,8 @@
     {
       "investigation_id": "2026-08-07-11-59-02-000-31174378977",
       "run_id": "31174378977",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31174378977",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-08-07T11:59:02Z",
       "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure",
       "category": "Code Issue",
@@ -1101,6 +1688,8 @@
     {
       "investigation_id": "2026-08-07-12-34-58-000-31176442700",
       "run_id": "31176442700",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31176442700",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-08-07T12:34:58Z",
       "title": "smoke_Conv1x1WeightCompressedToMatmul CPU functional test fails with comparison failure",
       "category": "Code Issue",
@@ -1110,6 +1699,8 @@
     {
       "investigation_id": "2026-08-07-14-19-30-000-31183760448",
       "run_id": "31183760448",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31183760448",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-07T14:19:30Z",
       "title": "smoke_Conv1x1WeightCompressedToMatmul fails with numerical mismatch on ARM64 CPU",
       "category": "Code Issue",
@@ -1130,6 +1721,8 @@
     {
       "investigation_id": "2026-08-07-15-20-05-000-31187877559",
       "run_id": "31187877559",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31187877559",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-07T15:20:05Z",
       "title": "smoke_Conv1x1WeightCompressedToMatmul and Samples tests fail on ARM64 (unrelated to PR)",
       "category": "Code Issue",
@@ -1139,6 +1732,8 @@
     {
       "investigation_id": "2026-08-08-01-04-42-000-31231244014",
       "run_id": "31231244014",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31231244014",
+      "workflow_name": "Android",
       "timestamp": "2026-08-08T01:04:42Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
       "category": "Code Issue",
@@ -1170,6 +1765,8 @@
     {
       "investigation_id": "2026-08-08-13-22-41-000-31258094887",
       "run_id": "31258094887",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31258094887",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-08-08T13:22:41Z",
       "title": "ARM64 CPU functional tests fail on cross-compilation workflow (unrelated to GPU clang-tidy PR)",
       "category": "Flaky Test",
@@ -1201,6 +1798,8 @@
     {
       "investigation_id": "2026-08-08-15-54-43-000-31261069153",
       "run_id": "31261069153",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31261069153",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-08T15:54:43Z",
       "title": "TensorFlow Layer Tests artifact upload fails on Windows runner - Upload Test Results step",
       "category": "Infrastructure",
@@ -1210,6 +1809,8 @@
     {
       "investigation_id": "2026-08-09-15-59-20-000-31321996989",
       "run_id": "31321996989",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31321996989",
+      "workflow_name": "Android",
       "timestamp": "2026-08-09T15:59:20Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked as targets",
       "category": "Code Issue",
@@ -1219,6 +1820,8 @@
     {
       "investigation_id": "2026-08-10-01-27-59-000-31346588247",
       "run_id": "31346588247",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31346588247",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T01:27:59Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
       "category": "Code Issue",
@@ -1228,6 +1831,8 @@
     {
       "investigation_id": "2026-08-10-02-35-09-000-31349537161",
       "run_id": "31349537161",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31349537161",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T02:35:09Z",
       "title": "Android CMake configure fails: plugin MODULE_LIBRARY targets cannot be linked",
       "category": "Code Issue",
@@ -1237,6 +1842,8 @@
     {
       "investigation_id": "2026-08-10-03-04-06-000-31349537487",
       "run_id": "31349537487",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31349537487",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-10T03:04:06Z",
       "title": "CPU functional tests on ARM64 interrupted - suite count mismatch in parallel runner",
       "category": "Flaky Test",
@@ -1257,6 +1864,8 @@
     {
       "investigation_id": "2026-08-10-03-44-31-000-31352885426",
       "run_id": "31352885426",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31352885426",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T03:44:31Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
       "category": "Code Issue",
@@ -1266,6 +1875,8 @@
     {
       "investigation_id": "2026-08-10-05-04-19-000-31352885581",
       "run_id": "31352885581",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31352885581",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-10T05:04:19Z",
       "title": "JS API E2E of openvino-node package (cmd) fails on Windows runner",
       "category": "Flaky Test",
@@ -1275,6 +1886,8 @@
     {
       "investigation_id": "inv-31356362934-2026-08-10-05-54-21-000",
       "run_id": "31356362934",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31356362934",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T05:54:21Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
       "category": "Code Issue",
@@ -1284,6 +1897,8 @@
     {
       "investigation_id": "2026-08-10-09-09-40-000-31369296085",
       "run_id": "31369296085",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31369296085",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T09:09:40Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
       "category": "Code Issue",
@@ -1304,6 +1919,8 @@
     {
       "investigation_id": "2026-08-10-11-37-59-000-31377672464",
       "run_id": "31377672464",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31377672464",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-10T11:37:59Z",
       "title": "Conformance API test CoreThreadingTestsWithIter smoke_CompileModel_MultipleCores crashes on CPU",
       "category": "Flaky Test",
@@ -1313,6 +1930,8 @@
     {
       "investigation_id": "2026-08-10-11-50-38-787-31384341073",
       "run_id": "31384341073",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31384341073",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T11:52:18Z",
       "title": "CMake configure fails: MODULE_LIBRARY targets cannot be linked into another target",
       "category": "Code Issue",
@@ -1333,6 +1952,8 @@
     {
       "investigation_id": "2026-08-10-14-07-04-000-31395025813",
       "run_id": "31395025813",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31395025813",
+      "workflow_name": "Android (Ubuntu 20.04, Python 3.11)",
       "timestamp": "2026-08-10T14:07:04Z",
       "title": "CMake configure fails - MODULE_LIBRARY type plugins cannot be linked",
       "category": "Code Issue",
@@ -1342,6 +1963,8 @@
     {
       "investigation_id": "2026-08-10-14-45-14-363-31398187201",
       "run_id": "31398187201",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31398187201",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T14:45:14Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
       "category": "Code Issue",
@@ -1351,6 +1974,8 @@
     {
       "investigation_id": "2026-08-10-15-03-51-000-31390975539",
       "run_id": "31390975539",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31390975539",
+      "workflow_name": "Android",
       "timestamp": "2026-08-10T15:03:51Z",
       "title": "Android CMake configure fails: MODULE_LIBRARY plugins cannot be linked via ov_generate_plugins_hpp",
       "category": "Code Issue",
@@ -1382,6 +2007,8 @@
     {
       "investigation_id": "2026-08-11-00-37-23-000-31444963268",
       "run_id": "31444963268",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31444963268",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
       "timestamp": "2026-08-11T00:37:23Z",
       "title": "Clang-tidy Docker job fails at handle_docker action - transient Docker buildx/registry issue",
       "category": "Infrastructure",
@@ -1391,6 +2018,8 @@
     {
       "investigation_id": "2026-08-11-01-01-40-000-31447607131",
       "run_id": "31447607131",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31447607131",
+      "workflow_name": "Android",
       "timestamp": "2026-08-11T01:01:40Z",
       "title": "Android Docker handle_docker step failed on merge-queue run",
       "category": "Infrastructure",
@@ -1444,6 +2073,8 @@
     {
       "investigation_id": "2026-08-12-01-48-12-000-31554475604",
       "run_id": "31554475604",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31554475604",
+      "workflow_name": "Smart_CI",
       "timestamp": "2026-08-12T01:48:12Z",
       "title": "Smart CI fails with SSL certificate verify failed self-signed certificate",
       "category": "Network",
@@ -1453,6 +2084,8 @@
     {
       "investigation_id": "2026-08-12-03-12-01-000-31554450015",
       "run_id": "31554450015",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31554450015",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-12T03:12:01Z",
       "title": "CachingTest/CachingTest.Load_threads crashes mid-run on Windows with exit code 1",
       "category": "Flaky Test",
@@ -1462,6 +2095,8 @@
     {
       "investigation_id": "2026-08-12-04-50-09-000-31562604779",
       "run_id": "31562604779",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31562604779",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
       "timestamp": "2026-08-12T04:50:09Z",
       "title": "Clang-tidy x86_64 build fails - compile_commands artifact upload step fails",
       "category": "Infrastructure",
@@ -1471,6 +2106,8 @@
     {
       "investigation_id": "2026-08-12-06-33-16-000-31565607750",
       "run_id": "31565607750",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31565607750",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-12T06:33:16Z",
       "title": "smoke_ScaledAttnDynamic4D_GPU test crashes with SIGSEGV on iGPU",
       "category": "Code Issue",
@@ -1502,6 +2139,8 @@
     {
       "investigation_id": "2026-08-13-06-35-37-000-31670117806",
       "run_id": "31670117806",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/31670117806",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-13T06:35:37Z",
       "title": "Windows CPU functional tests artifact upload fails with ENOTFOUND DNS error",
       "category": "Network",
@@ -1544,6 +2183,8 @@
     {
       "investigation_id": "2026-08-18-12-26-00-000-32134197721",
       "run_id": "32134197721",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32134197721",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
       "timestamp": "2026-08-18T12:26:00Z",
       "title": "Build-riscv64 fails downloading node-api-headers due to HTTP 502 from GitHub CDN",
       "category": "Network",
@@ -1564,6 +2205,8 @@
     {
       "investigation_id": "2026-08-18-16-02-00-000-32154561012",
       "run_id": "32154561012",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32154561012",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
       "timestamp": "2026-08-18T16:02:00Z",
       "title": "Build-gpu / Build fails downloading node-api-headers due to HTTP 502 from github.com",
       "category": "Network",
@@ -1584,6 +2227,8 @@
     {
       "investigation_id": "2026-08-18-16-46-02-000-32152867988",
       "run_id": "32152867988",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32152867988",
+      "workflow_name": "Debian Packages",
       "timestamp": "2026-08-18T16:46:02Z",
       "title": "Debian Packages job fails - apt-get update cannot reach azure.archive.ubuntu.com (connection timed out)",
       "category": "Network",
@@ -1604,6 +2249,8 @@
     {
       "investigation_id": "2026-08-18-17-25-05-000-32161677372",
       "run_id": "32161677372",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32161677372",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-18T17:25:05Z",
       "title": "smoke_FC_2D/MatMulLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
       "category": "Flaky Test",
@@ -1624,6 +2271,8 @@
     {
       "investigation_id": "2026-08-18-18-18-11-903-32161677361",
       "run_id": "32161677361",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32161677361",
+      "workflow_name": "Debian Packages",
       "timestamp": "2026-08-18T18:18:11Z",
       "title": "Debian Packages job fails \u2014 apt-get cannot connect to azure.archive.ubuntu.com",
       "category": "Network",
@@ -1633,6 +2282,8 @@
     {
       "investigation_id": "2026-08-19-05-25-56-000-32212108817",
       "run_id": "32212108817",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32212108817",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-19T05:25:56Z",
       "title": "Debian Packages job fails - apt-get update cannot reach azure.archive.ubuntu.com (connection timed out)",
       "category": "Network",
@@ -1642,6 +2293,8 @@
     {
       "investigation_id": "2026-08-19-07-28-20-000-32222069742",
       "run_id": "32222069742",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32222069742",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-08-19T07:28:20Z",
       "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timed out)",
       "category": "Network",
@@ -1651,6 +2304,8 @@
     {
       "investigation_id": "2026-08-19-08-39-29-000-32227108575",
       "run_id": "32227108575",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32227108575",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-19T08:39:29Z",
       "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timed out)",
       "category": "Network",
@@ -1660,6 +2315,8 @@
     {
       "investigation_id": "2026-08-19-08-57-00-000-32227815559",
       "run_id": "32227815559",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32227815559",
+      "workflow_name": "Debian Packages",
       "timestamp": "2026-08-19T08:57:00Z",
       "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timed out)",
       "category": "Network",
@@ -1691,6 +2348,8 @@
     {
       "investigation_id": "2026-08-19-10-14-58-000-32234143786",
       "run_id": "32234143786",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32234143786",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-19T10:14:58Z",
       "title": "Debian Packages install fails - Unable to connect to azure.archive.ubuntu.com",
       "category": "Network",
@@ -1700,6 +2359,8 @@
     {
       "investigation_id": "2026-08-19-10-34-27-000-32234146558",
       "run_id": "32234146558",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32234146558",
+      "workflow_name": "Debian Packages / Debian Packages",
       "timestamp": "2026-08-19T10:34:27Z",
       "title": "Debian Packages job fails - apt-get cannot reach azure.archive.ubuntu.com (connection timeout)",
       "category": "Network",
@@ -1731,6 +2392,8 @@
     {
       "investigation_id": "2026-08-19-13-05-00-000-32248928727",
       "run_id": "32248928727",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32248928727",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-19T13:05:00Z",
       "title": "Debian Packages job fails - Unable to connect to azure.archive.ubuntu.com",
       "category": "Network",
@@ -1740,6 +2403,8 @@
     {
       "investigation_id": "2026-08-19-13-23-09-077-32250213011",
       "run_id": "32250213011",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32250213011",
+      "workflow_name": "Conformance (OP)",
       "timestamp": "2026-08-19T13:23:09Z",
       "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
       "category": "Configuration",
@@ -1749,6 +2414,8 @@
     {
       "investigation_id": "2026-08-19-16-25-29-000-32266833204",
       "run_id": "32266833204",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32266833204",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-19T16:25:29Z",
       "title": "NPU Models Tests / 6010 - TensorFlow compile-only convert_model step fails on Windows runner",
       "category": "Flaky Test",
@@ -1769,6 +2436,8 @@
     {
       "investigation_id": "2026-08-24-18-30-00-000-32760116542",
       "run_id": "32760116542",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32760116542",
+      "workflow_name": "Android",
       "timestamp": "2026-08-24T18:30:00Z",
       "title": "Android workflow build fails - first attempt failure logs unavailable, second attempt auto-started",
       "category": "Infrastructure",
@@ -1778,6 +2447,8 @@
     {
       "investigation_id": "2026-08-24-22-00-50-000-32773741534",
       "run_id": "32773741534",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32773741534",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-24T22:00:50Z",
       "title": "CachingTest LoadMultiWithConfig_race flaky failure on Windows",
       "category": "Flaky Test",
@@ -1787,6 +2458,8 @@
     {
       "investigation_id": "2026-08-25-03-03-27-000-32797618628",
       "run_id": "32797618628",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32797618628",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-25T03:03:27Z",
       "title": "NPU Models Tests / 6010 - TensorFlow compile-only convert_model step fails on Windows runner",
       "category": "Flaky Test",
@@ -1807,6 +2480,8 @@
     {
       "investigation_id": "2026-08-26-04-45-36-000-32925478375",
       "run_id": "32925478375",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32925478375",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-26T04:45:36Z",
       "title": "NPU Models Tests - TensorFlow compile-only convert_model step fails on Windows runner",
       "category": "Flaky Test",
@@ -1816,6 +2491,8 @@
     {
       "investigation_id": "2026-08-26-08-40-52-000-32939982809",
       "run_id": "32939982809",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32939982809",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-26T08:40:52Z",
       "title": "GPU RoPE Tests fail \u2014 Intel proxy proxy-dmz.intel.com not resolvable when downloading HuggingFace models",
       "category": "Network",
@@ -1825,6 +2502,8 @@
     {
       "investigation_id": "2026-08-26-09-33-51-000-32950535921",
       "run_id": "32950535921",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/32950535921",
+      "workflow_name": "Android ARM64 with ONNX, CPU PlugIn, nGraph functions",
       "timestamp": "2026-08-26T09:33:51Z",
       "title": "Android SDK Build-Tools install fails with Connection reset",
       "category": "Network",
@@ -1845,6 +2524,8 @@
     {
       "investigation_id": "2026-08-26-23-42-54-000-33018808355",
       "run_id": "33018808355",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33018808355",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-08-26T23:42:54Z",
       "title": "NPU Models Tests fail with KeyError on aten.upsample_vec ops not in decomp table",
       "category": "Flaky Test",
@@ -1854,6 +2535,8 @@
     {
       "investigation_id": "2026-08-27-01-46-06-000-33025151669",
       "run_id": "33025151669",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33025151669",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-08-27T01:46:06Z",
       "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
       "category": "Flaky Test",
@@ -1874,6 +2557,8 @@
     {
       "investigation_id": "2026-08-27-11-33-47-000-33059551231",
       "run_id": "33059551231",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33059551231",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-27T11:33:47Z",
       "title": "Conformance (OP) Pack Artifacts fails - tar file changed as we read it",
       "category": "Configuration",
@@ -1883,6 +2568,8 @@
     {
       "investigation_id": "2026-08-27-15-18-59-000-33081754624",
       "run_id": "33081754624",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33081754624",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-08-27T15:18:59Z",
       "title": "ARM64 Samples smoke test fails with ld.so inconsistency in _dl_close_worker",
       "category": "Flaky Test",
@@ -1936,6 +2623,8 @@
     {
       "investigation_id": "2026-08-27-21-36-44-000-33117706228",
       "run_id": "33117706228",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33117706228",
+      "workflow_name": "Android",
       "timestamp": "2026-08-27T21:36:44Z",
       "title": "Android CMake configure fails: openvino.genai requires OpenVINO 2026.5.0 but build reports 2026.4.0",
       "category": "Configuration",
@@ -1945,6 +2634,8 @@
     {
       "investigation_id": "2026-08-27-22-06-20-000-33117706429",
       "run_id": "33117706429",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33117706429",
+      "workflow_name": "OpenVINO tokenizers extension",
       "timestamp": "2026-08-27T22:06:20Z",
       "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
       "category": "Dependencies",
@@ -1965,6 +2656,8 @@
     {
       "investigation_id": "2026-08-27-22-42-34-000-33117706507",
       "run_id": "33117706507",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33117706507",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-08-27T22:42:34Z",
       "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.0.dev not yet available on pip",
       "category": "Dependencies",
@@ -1996,6 +2689,8 @@
     {
       "investigation_id": "2026-08-28-00-21-53-000-33124736389",
       "run_id": "33124736389",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33124736389",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-08-28T00:21:53Z",
       "title": "Artifact download fails with ECONNREFUSED on self-hosted runner",
       "category": "Network",
@@ -2005,6 +2700,8 @@
     {
       "investigation_id": "2026-08-28-15-27-21-000-33178944609",
       "run_id": "33178944609",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33178944609",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-08-28T15:27:21Z",
       "title": "LLM accuracy CPU tests fail with HuggingFace 429 rate limit on model download",
       "category": "External Service",
@@ -2025,6 +2722,8 @@
     {
       "investigation_id": "2026-08-31-11-19-01-000-33383714649",
       "run_id": "33383714649",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33383714649",
+      "workflow_name": "NodeJS API tests (26) / OpenVINO JS API",
       "timestamp": "2026-08-31T11:19:01Z",
       "title": "NodeJS API tests fail - npm command not found after setup-node Node.js 26 install",
       "category": "Infrastructure",
@@ -2122,6 +2821,8 @@
     {
       "investigation_id": "2026-09-03-13-13-23-000-33753760233",
       "run_id": "33753760233",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33753760233",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-03T13:13:23Z",
       "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
       "category": "Flaky Test",
@@ -2131,6 +2832,8 @@
     {
       "investigation_id": "2026-09-04-08-38-10-000-33844291174",
       "run_id": "33844291174",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33844291174",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-09-04T08:38:10Z",
       "title": "NPU Models Tests fail installing TF Models tests requirements, unrelated to NPU mutex fix PR",
       "category": "Infrastructure",
@@ -2140,6 +2843,8 @@
     {
       "investigation_id": "2026-09-04-09-54-54-329-33854130288",
       "run_id": "33854130288",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33854130288",
+      "workflow_name": "LLM accuracy iGPU tests",
       "timestamp": "2026-09-04T09:54:54Z",
       "title": "LLM accuracy iGPU tests fail uploading test results - artifact blob storage returns HTML error page",
       "category": "Infrastructure",
@@ -2149,6 +2854,8 @@
     {
       "investigation_id": "2026-09-04-11-16-56-439-33859120806",
       "run_id": "33859120806",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/33859120806",
+      "workflow_name": "Debian Packages",
       "timestamp": "2026-09-04T11:16:56Z",
       "title": "Debian Packages job fails - runner OutOfMemoryException during apt-get install inside Docker container",
       "category": "Infrastructure",
@@ -2169,6 +2876,8 @@
     {
       "investigation_id": "2026-09-08-05-13-38-000-34188369195",
       "run_id": "34188369195",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34188369195",
+      "workflow_name": "Build",
       "timestamp": "2026-09-08T05:13:38Z",
       "title": "GPU unit tests CMake glob removal missing two test source files",
       "category": "Code Issue",
@@ -2189,6 +2898,8 @@
     {
       "investigation_id": "2026-09-08-07-00-30-000-34195807146",
       "run_id": "34195807146",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34195807146",
+      "workflow_name": "Build",
       "timestamp": "2026-09-08T07:00:30Z",
       "title": "GPU unit tests CMake glob removal missing two test source files",
       "category": "Code Issue",
@@ -2198,6 +2909,8 @@
     {
       "investigation_id": "2026-09-08-08-42-36-000-34200623966",
       "run_id": "34200623966",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34200623966",
+      "workflow_name": "Build",
       "timestamp": "2026-09-08T08:42:36Z",
       "title": "GPU unit tests CMake glob removal missing two test source files",
       "category": "Code Issue",
@@ -2207,6 +2920,8 @@
     {
       "investigation_id": "2026-09-08-08-55-47-000-34203314789",
       "run_id": "34203314789",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34203314789",
+      "workflow_name": "Android ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-09-08T08:55:47Z",
       "title": "GPU unit tests CMake glob removal missing two test source files",
       "category": "Code Issue",
@@ -2216,6 +2931,8 @@
     {
       "investigation_id": "2026-09-08-10-02-37-000-34205188404",
       "run_id": "34205188404",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34205188404",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-09-08T10:02:37Z",
       "title": "Merge-queue jobs fail downloading OpenVINO artifacts - blob storage chunk timeout",
       "category": "Infrastructure",
@@ -2225,6 +2942,8 @@
     {
       "investigation_id": "2026-09-08-10-25-30-000-34205186921",
       "run_id": "34205186921",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34205186921",
+      "workflow_name": "TensorFlow Layer Tests / NPU Models Tests / Windows",
       "timestamp": "2026-09-08T10:25:30Z",
       "title": "Merge-queue jobs fail downloading OpenVINO artifacts - blob storage chunk timeout",
       "category": "Infrastructure",
@@ -2234,6 +2953,8 @@
     {
       "investigation_id": "2026-09-08-11-02-56-000-34205186921",
       "run_id": "34205186921",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34205186921",
+      "workflow_name": "TensorFlow Layer Tests / NPU Models Tests / Windows",
       "timestamp": "2026-09-08T11:02:56Z",
       "title": "pip install fails - internal pip-proxy returns empty/invalid JSON for package index page",
       "category": "Network",
@@ -2276,6 +2997,8 @@
     {
       "investigation_id": "2026-09-10-11-17-07-000-34463046270",
       "run_id": "34463046270",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34463046270",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-09-10T11:17:07Z",
       "title": "NPU Models Tests - TensorFlow compile-only convert_model step fails on Windows runner",
       "category": "Flaky Test",
@@ -2285,6 +3008,8 @@
     {
       "investigation_id": "2026-09-11-00-58-17-427-34541186983",
       "run_id": "34541186983",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34541186983",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-09-11T00:58:17Z",
       "title": "NPU Models Tests fail installing TF Models tests requirements, unrelated to NPUW SWA runtime utils PR",
       "category": "Infrastructure",
@@ -2305,6 +3030,8 @@
     {
       "investigation_id": "2026-09-11-09-29-09-000-34575146676",
       "run_id": "34575146676",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34575146676",
+      "workflow_name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
       "timestamp": "2026-09-11T09:29:09Z",
       "title": "LLM accuracy iGPU tests checkout fails with curl 56 Connection died",
       "category": "Network",
@@ -2314,6 +3041,8 @@
     {
       "investigation_id": "2026-09-11-10-27-48-000-34586539583",
       "run_id": "34586539583",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34586539583",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-09-11T10:27:48Z",
       "title": "smoke_MaxPoolV8_CPU_4D primTypeCheck(primType) is unexpected (undef_f32 vs acl_f32)",
       "category": "Flaky Test",
@@ -2323,6 +3052,8 @@
     {
       "investigation_id": "2026-09-11-17-43-20-000-34620952707",
       "run_id": "34620952707",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34620952707",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-11T17:43:20Z",
       "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
       "category": "Flaky Test",
@@ -2332,6 +3063,8 @@
     {
       "investigation_id": "2026-09-14-15-16-25-694-34855105856",
       "run_id": "34855105856",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34855105856",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-09-14T15:16:25Z",
       "title": "openvino_wheels artifact download fails with ListArtifacts 403 Forbidden on Linux ARM64",
       "category": "Infrastructure",
@@ -2341,6 +3074,8 @@
     {
       "investigation_id": "2026-09-14-15-56-01-000-34855105961",
       "run_id": "34855105961",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34855105961",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-09-14T15:56:01Z",
       "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
       "category": "External Service",
@@ -2350,6 +3085,8 @@
     {
       "investigation_id": "2026-09-15-10-01-18-510-34946901491",
       "run_id": "34946901491",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34946901491",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-15T10:01:18Z",
       "title": "LLM accuracy iGPU tests job cancelled with no logs generated, causing overall status failure",
       "category": "Infrastructure",
@@ -2359,6 +3096,8 @@
     {
       "investigation_id": "2026-09-15-17-47-38-000-35000889493",
       "run_id": "35000889493",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35000889493",
+      "workflow_name": "Android",
       "timestamp": "2026-09-15T17:47:38Z",
       "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
       "category": "Configuration",
@@ -2368,6 +3107,8 @@
     {
       "investigation_id": "2026-09-16-02-58-00-000-35043753992",
       "run_id": "35043753992",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35043753992",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-16T02:58:00Z",
       "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
       "category": "Flaky Test",
@@ -2377,6 +3118,8 @@
     {
       "investigation_id": "2026-09-16-09-28-46-000-35077397634",
       "run_id": "35077397634",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35077397634",
+      "workflow_name": "Android",
       "timestamp": "2026-09-16T09:28:46Z",
       "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
       "category": "Configuration",
@@ -2386,6 +3129,8 @@
     {
       "investigation_id": "2026-09-16-09-44-39-000-35079443292",
       "run_id": "35079443292",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35079443292",
+      "workflow_name": "Docker",
       "timestamp": "2026-09-16T09:44:39Z",
       "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
       "category": "Configuration",
@@ -2428,6 +3173,8 @@
     {
       "investigation_id": "2026-09-18-07-08-56-373-35309912883",
       "run_id": "35309912883",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35309912883",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-09-18T07:08:56Z",
       "title": "NPU Models Tests fail downloading EasyOCR detector model - DNS resolution failure",
       "category": "Network",
@@ -2481,6 +3228,8 @@
     {
       "investigation_id": "2026-09-21-15-08-45-278-35611487106",
       "run_id": "35611487106",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35611487106",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-09-21T15:08:45Z",
       "title": "OpenVINO tokenizers extension build fails downloading pcre2-10.48.zip (HTTP 504 from github.com)",
       "category": "Network",
@@ -2512,6 +3261,8 @@
     {
       "investigation_id": "2026-09-21-21-22-50-199-35653600747",
       "run_id": "35653600747",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35653600747",
+      "workflow_name": "Manylinux 2_28",
       "timestamp": "2026-09-21T21:22:50Z",
       "title": "Manylinux 2_28 build fails to upload openvino_package artifact - FinalizeArtifact 403 Forbidden",
       "category": "Infrastructure",
@@ -2521,8 +3272,10 @@
     {
       "investigation_id": "2026-09-21-22-38-57-784-35655862357",
       "run_id": "35655862357",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35655862357",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-21T22:38:57Z",
-      "title": "TensorFlow layer test flaky failure (Keras LSTM dropout mismatch) in merge queue",
+      "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
       "category": "Flaky Test",
       "signature_hash": "a284d27dfee44614",
       "pr_number": "38168"
@@ -2530,6 +3283,8 @@
     {
       "investigation_id": "2026-09-21-23-05-27-132-35655862348",
       "run_id": "35655862348",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35655862348",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-09-21T23:05:27Z",
       "title": "NPU Models Tests artifact upload fails with FinalizeArtifact ECONNREFUSED",
       "category": "Network",
@@ -2539,6 +3294,8 @@
     {
       "investigation_id": "2026-09-22-12-10-20-676-35717727822",
       "run_id": "35717727822",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35717727822",
+      "workflow_name": "LLM accuracy CPU tests",
       "timestamp": "2026-09-22T12:10:20Z",
       "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
       "category": "Dependencies",
@@ -2548,6 +3305,8 @@
     {
       "investigation_id": "2026-09-22-12-30-15-000-35719650364",
       "run_id": "35719650364",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35719650364",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-22T12:30:15Z",
       "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
       "category": "Dependencies",
@@ -2557,6 +3316,8 @@
     {
       "investigation_id": "2026-09-22-16-19-47-000-35742977292",
       "run_id": "35742977292",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35742977292",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-22T16:19:47Z",
       "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
       "category": "Dependencies",
@@ -2566,6 +3327,8 @@
     {
       "investigation_id": "2026-09-22-17-33-10-000-35751991888",
       "run_id": "35751991888",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35751991888",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-22T17:33:10Z",
       "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
       "category": "Dependencies",
@@ -2575,6 +3338,8 @@
     {
       "investigation_id": "2026-09-22-18-05-30-000-35755893592",
       "run_id": "35755893592",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35755893592",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-22T18:05:30Z",
       "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
       "category": "Dependencies",
@@ -2584,6 +3349,8 @@
     {
       "investigation_id": "2026-09-22-21-49-37-000-35783641423",
       "run_id": "35783641423",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35783641423",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-09-22T21:49:37Z",
       "title": "smoke_ConvertCPULayerTest - Value of: primTypeCheck(primType) is unexpected",
       "category": "Flaky Test",
@@ -2593,6 +3360,8 @@
     {
       "investigation_id": "2026-09-23-09-21-50-000-35832740280",
       "run_id": "35832740280",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35832740280",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-23T09:21:50Z",
       "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
       "category": "Dependencies",
@@ -2602,6 +3371,8 @@
     {
       "investigation_id": "2026-09-23-17-20-33-229-35887391845",
       "run_id": "35887391845",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35887391845",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-09-23T17:20:33Z",
       "title": "Merge-queue jobs fail downloading OpenVINO wheels - blob storage 403 authentication failure",
       "category": "Infrastructure",
@@ -2633,6 +3404,8 @@
     {
       "investigation_id": "2026-09-25-09-41-57-000-36118153521",
       "run_id": "36118153521",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36118153521",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-09-25T09:41:57Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_shape_inference",
       "category": "Infrastructure",
@@ -2642,6 +3415,8 @@
     {
       "investigation_id": "2026-09-28-05-40-54-000-36375932375",
       "run_id": "36375932375",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36375932375",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-09-28T05:40:54Z",
       "title": "NPU Models Tests fail downloading external model artifacts due to network/DNS resolution failure",
       "category": "Network",
@@ -2651,6 +3426,8 @@
     {
       "investigation_id": "2026-09-29-14-11-01-330-36576906053",
       "run_id": "36576906053",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36576906053",
+      "workflow_name": "Manylinux 2_28",
       "timestamp": "2026-09-29T14:11:01Z",
       "title": "Python API tests job fails - artifact upload ECONNREFUSED and git fetch connection failure",
       "category": "Network",
@@ -2660,6 +3437,8 @@
     {
       "investigation_id": "2026-10-01-12-33-04-000-36855299174",
       "run_id": "36855299174",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36855299174",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-10-01T12:33:04Z",
       "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
       "category": "Dependencies",
@@ -2680,6 +3459,8 @@
     {
       "investigation_id": "2026-10-01-16-36-03-000-36887680376",
       "run_id": "36887680376",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36887680376",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-10-01T16:36:03Z",
       "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 500 from github.com)",
       "category": "Network",
@@ -2711,6 +3492,8 @@
     {
       "investigation_id": "2026-10-02-15-16-39-688-37014563729",
       "run_id": "37014563729",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37014563729",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-10-02T15:16:39Z",
       "title": "PyTorch model-hub tests fail to clone mvafin/ALIKED due to SSL certificate verification error",
       "category": "Network",
@@ -2731,6 +3514,8 @@
     {
       "investigation_id": "2026-10-06-04-32-00-000-37412634531",
       "run_id": "37412634531",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37412634531",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-06T04:32:00Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2740,6 +3525,8 @@
     {
       "investigation_id": "2026-10-06-07-36-59-596-37427383726",
       "run_id": "37427383726",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37427383726",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-06T07:36:59Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2749,6 +3536,8 @@
     {
       "investigation_id": "2026-10-06-08-31-17-000-37431189452",
       "run_id": "37431189452",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37431189452",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-06T08:31:17Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2758,6 +3547,8 @@
     {
       "investigation_id": "2026-10-06-09-24-38-521-37438183236",
       "run_id": "37438183236",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37438183236",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-06T09:24:53Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2767,6 +3558,8 @@
     {
       "investigation_id": "2026-10-06-10-37-24-000-37448993556",
       "run_id": "37448993556",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37448993556",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-06T10:37:24Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2776,6 +3569,8 @@
     {
       "investigation_id": "2026-10-06-11-31-16-250-37453488195",
       "run_id": "37453488195",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37453488195",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-06T11:31:16Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2785,6 +3580,8 @@
     {
       "investigation_id": "2026-10-06-12-10-34-000-37457680616",
       "run_id": "37457680616",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37457680616",
+      "workflow_name": "Build / Build",
       "timestamp": "2026-10-06T12:10:34Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2794,6 +3591,8 @@
     {
       "investigation_id": "2026-10-06-13-57-17-200-37470596140",
       "run_id": "37470596140",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37470596140",
+      "workflow_name": "Build / Build",
       "timestamp": "2026-10-06T13:57:17Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2803,6 +3602,8 @@
     {
       "investigation_id": "2026-10-06-14-40-00-000-37476784927",
       "run_id": "37476784927",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37476784927",
+      "workflow_name": "Build / Build",
       "timestamp": "2026-10-06T14:40:00Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2812,6 +3613,8 @@
     {
       "investigation_id": "2026-10-06-14-58-37-000-37479314236",
       "run_id": "37479314236",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37479314236",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-06T14:58:37Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2821,6 +3624,8 @@
     {
       "investigation_id": "2026-10-07-09-34-46-000-37598300093",
       "run_id": "37598300093",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37598300093",
+      "workflow_name": "Build / Build",
       "timestamp": "2026-10-07T09:34:46Z",
       "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
       "category": "Infrastructure",
@@ -2830,6 +3635,8 @@
     {
       "investigation_id": "2026-10-07-13-34-38-000-37618643779",
       "run_id": "37618643779",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37618643779",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-10-07T13:34:38Z",
       "title": "esrgan-tf2 NPU model-hub TensorFlow conversion test killed with signal on Windows",
       "category": "Flaky Test",
@@ -2839,6 +3646,8 @@
     {
       "investigation_id": "2026-10-07-14-15-48-000-37630491521",
       "run_id": "37630491521",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37630491521",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-07T14:15:48Z",
       "title": "smoke_ConvertCPULayerTest_7D_Dynamic - primType is unexpected : unknown_i32 Expected : acl_i32",
       "category": "Flaky Test",
@@ -2848,6 +3657,8 @@
     {
       "investigation_id": "2026-10-10-19-28-00-000-38073966332",
       "run_id": "38073966332",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38073966332",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-10-10T19:28:00Z",
       "title": "TensorFlow Layer Tests artifact upload fails - FinalizeArtifact returns HTML error page",
       "category": "Infrastructure",
@@ -2857,6 +3668,8 @@
     {
       "investigation_id": "2026-10-10-22-32-01-339-38085592391",
       "run_id": "38085592391",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38085592391",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-10-10T22:32:01Z",
       "title": "TensorFlow Layer Tests artifact upload fails with ENOTFOUND on Windows runner",
       "category": "Network",
@@ -2866,6 +3679,8 @@
     {
       "investigation_id": "2026-10-12-03-33-58-847-38196468912",
       "run_id": "38196468912",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/38196468912",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-10-12T03:33:58Z",
       "title": "Windows build fails to finalize developer package artifact upload with ENOTFOUND",
       "category": "Network",
@@ -2875,6 +3690,8 @@
     {
       "investigation_id": "2026-10-19-10-01-47-000-39230131464",
       "run_id": "39230131464",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39230131464",
+      "workflow_name": "Build / Build",
       "timestamp": "2026-10-19T10:01:47Z",
       "title": "GPU plugin link fails: FuseRoPEInputDeinterleave and SDPAImplementationManager omitted from new explicit sources.cmake",
       "category": "Code Issue",
@@ -2906,6 +3723,8 @@
     {
       "investigation_id": "2026-10-23-20-18-53-722-40003582793",
       "run_id": "40003582793",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/40003582793",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-10-23T20:18:53Z",
       "title": "smoke_ScatterUpdateGeneralPathOutOfRangeIndices tests fail - reference plugin doesn't throw on out-of-range indices",
       "category": "Code Issue",
@@ -2915,6 +3734,8 @@
     {
       "investigation_id": "2026-10-26-00-42-05-000-39883798354",
       "run_id": "39883798354",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/39883798354",
+      "workflow_name": "Android ARM64",
       "timestamp": "2026-10-26T00:42:05Z",
       "title": "GPU MSDAOpt build fails with 'must use struct tag' for ov::layout vs ::layout name clash",
       "category": "Code Issue",
@@ -2946,6 +3767,8 @@
     {
       "investigation_id": "2026-10-30-02-34-55-345-40984294752",
       "run_id": "40984294752",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/40984294752",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-10-30T02:34:55Z",
       "title": "PyTorch Models tests fail to download artifacts - GitHub Actions ArtifactService ListArtifacts request timeout",
       "category": "Infrastructure",
@@ -2966,6 +3789,8 @@
     {
       "investigation_id": "2026-10-30-12-12-48-123-41050129111",
       "run_id": "41050129111",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41050129111",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-10-30T12:12:48Z",
       "title": "ARM64 cross-compile Build job fails uploading openvino_package artifact due to Azure blob storage DNS resolution failure",
       "category": "Network",
@@ -2975,6 +3800,8 @@
     {
       "investigation_id": "2026-10-30-12-57-17-715-41045325507",
       "run_id": "41045325507",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41045325507",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-10-30T12:57:17Z",
       "title": "C++ unit tests job fails to download openvino_package artifact after 5 retries",
       "category": "Infrastructure",
@@ -3006,6 +3833,8 @@
     {
       "investigation_id": "2026-10-30-17-37-50-000-41095713937",
       "run_id": "41095713937",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41095713937",
+      "workflow_name": "Build / Build",
       "timestamp": "2026-10-30T17:37:50Z",
       "title": "Windows Debug build fails: MockMappedMemory::hint_prefetch_async conflicting return type",
       "category": "Code Issue",
@@ -3026,6 +3855,8 @@
     {
       "investigation_id": "2026-10-30-18-30-54-000-41095714229",
       "run_id": "41095714229",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41095714229",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-10-30T18:30:54Z",
       "title": "Windows build fails: MockMappedMemory::hint_prefetch_async overriding virtual function return type differs and is not covariant",
       "category": "Code Issue",
@@ -3046,6 +3877,8 @@
     {
       "investigation_id": "2026-10-31-01-54-47-000-41145194349",
       "run_id": "41145194349",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41145194349",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-10-31T01:54:47Z",
       "title": "Windows self-hosted Build job fails with no error logged after Build additional Python wheels step starts",
       "category": "Infrastructure",
@@ -3055,6 +3888,8 @@
     {
       "investigation_id": "2026-11-02-10-23-47-000-41423319664",
       "run_id": "41423319664",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41423319664",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-11-02T10:23:47Z",
       "title": "smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
       "category": "Flaky Test",
@@ -3064,6 +3899,8 @@
     {
       "investigation_id": "2026-11-02-11-21-44-000-41426227749",
       "run_id": "41426227749",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41426227749",
+      "workflow_name": "LLM accuracy iGPU tests",
       "timestamp": "2026-11-02T11:21:44Z",
       "title": "LLM accuracy iGPU tests fail downloading TinyLlama model from HuggingFace Hub - DNS resolution failure",
       "category": "Network",
@@ -3073,6 +3910,8 @@
     {
       "investigation_id": "2026-11-02-20-08-46-000-41502170440",
       "run_id": "41502170440",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41502170440",
+      "workflow_name": "OpenVINO JS API (22) / OpenVINO JS API",
       "timestamp": "2026-11-02T20:08:46Z",
       "title": "infer_request.test.js GC safety test crashes Node test runner with SIGSEGV",
       "category": "Code Issue",
@@ -3082,6 +3921,8 @@
     {
       "investigation_id": "2026-11-03-06-33-27-085-41585987160",
       "run_id": "41585987160",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41585987160",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
       "timestamp": "2026-11-03T06:33:27Z",
       "title": "smoke_AvgPool_CPU_4D_NotOptimized/PoolingLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
       "category": "Flaky Test",
@@ -3091,6 +3932,8 @@
     {
       "investigation_id": "2026-11-03-10-53-06-000-41618022107",
       "run_id": "41618022107",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41618022107",
+      "workflow_name": "Android ARM",
       "timestamp": "2026-11-03T10:53:06Z",
       "title": "Android CXX_Unit_Tests fails - emulator adb daemon unreachable, device stays offline during boot",
       "category": "Infrastructure",
@@ -3100,6 +3943,8 @@
     {
       "investigation_id": "2026-11-03-16-13-25-000-41662992773",
       "run_id": "41662992773",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41662992773",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-03T16:13:25Z",
       "title": "model_creation_sample.py (CPU) sample execution fails intermittently on ARM64 with no captured error output",
       "category": "Flaky Test",
@@ -3109,6 +3954,8 @@
     {
       "investigation_id": "2026-11-03-17-00-30-000-41662992699",
       "run_id": "41662992699",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41662992699",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-03T17:00:30Z",
       "title": "JS API artifact download fails with ListArtifacts ECONNREFUSED on self-hosted Windows runner",
       "category": "Network",
@@ -3118,6 +3965,8 @@
     {
       "investigation_id": "2026-11-03-18-28-07-586-41683559401",
       "run_id": "41683559401",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41683559401",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-11-03T18:28:07Z",
       "title": "LLM accuracy GPU tests fail with HuggingFace 429 rate limit on model download",
       "category": "External Service",
@@ -3138,6 +3987,8 @@
     {
       "investigation_id": "2026-11-03-23-34-45-000-41721476029",
       "run_id": "41721476029",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41721476029",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-03T23:34:45Z",
       "title": "smoke/TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch",
       "category": "Flaky Test",
@@ -3180,6 +4031,8 @@
     {
       "investigation_id": "2026-11-04-23-29-11-000-41923824165",
       "run_id": "41923824165",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41923824165",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-04T23:29:11Z",
       "title": "Windows Build fails storing artifacts to shared drive - disk full (WinError 112)",
       "category": "Infrastructure",
@@ -3189,6 +4042,8 @@
     {
       "investigation_id": "2026-11-05-01-47-23-000-41939333537",
       "run_id": "41939333537",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41939333537",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-05T01:47:23Z",
       "title": "NPU model hub tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
       "category": "Dependencies",
@@ -3198,6 +4053,8 @@
     {
       "investigation_id": "2026-11-05-06-17-40-000-41968975027",
       "run_id": "41968975027",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41968975027",
+      "workflow_name": "LLM accuracy iGPU tests / LLM accuracy CPU tests",
       "timestamp": "2026-11-05T06:17:40Z",
       "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
       "category": "Dependencies",
@@ -3207,6 +4064,8 @@
     {
       "investigation_id": "2026-11-05-06-35-38-000-41968975085",
       "run_id": "41968975085",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41968975085",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-05T06:35:38Z",
       "title": "NPU model hub tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
       "category": "Dependencies",
@@ -3216,6 +4075,8 @@
     {
       "investigation_id": "2026-11-05-08-28-18-000-41982665173",
       "run_id": "41982665173",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41982665173",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-05T08:28:18Z",
       "title": "CPU functional tests fail with Not enough CPU resources on tensor-parallel MatMul tests",
       "category": "Infrastructure",
@@ -3236,6 +4097,8 @@
     {
       "investigation_id": "2026-11-05-10-50-38-725-41997458873",
       "run_id": "41997458873",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41997458873",
+      "workflow_name": "Build (C++20, non-blocking) / Build",
       "timestamp": "2026-11-05T10:50:38Z",
       "title": "GGUF frontend test_parser.cpp fails to build under C++20 mode (char8_t/std::string mismatch in unicode path concatenation)",
       "category": "Code Issue",
@@ -3245,6 +4108,8 @@
     {
       "investigation_id": "2026-11-05-12-59-21-000-42026334922",
       "run_id": "42026334922",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42026334922",
+      "workflow_name": "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)",
       "timestamp": "2026-11-05T12:59:21Z",
       "title": "ARM64 CMake configure fails because sccache times out waiting for server startup",
       "category": "External Service",
@@ -3254,6 +4119,8 @@
     {
       "investigation_id": "2026-11-05-14-03-59-299-42026335242",
       "run_id": "42026335242",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42026335242",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-05T14:03:59Z",
       "title": "smoke/benchmark_app_sub_ms_console_output_only fails when average latency exceeds 1.0ms threshold",
       "category": "Flaky Test",
@@ -3263,6 +4130,8 @@
     {
       "investigation_id": "2026-11-05-16-35-05-000-42045188647",
       "run_id": "42045188647",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42045188647",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-05T16:35:05Z",
       "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
       "category": "Network",
@@ -3272,6 +4141,8 @@
     {
       "investigation_id": "2026-11-05-17-26-00-000-42057393550",
       "run_id": "42057393550",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42057393550",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-05T17:26:00Z",
       "title": "NVIDIA plugin CMake configure fails because sccache times out waiting for server startup",
       "category": "External Service",
@@ -3281,6 +4152,8 @@
     {
       "investigation_id": "2026-11-05-17-44-46-000-42062435152",
       "run_id": "42062435152",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42062435152",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-05T17:44:46Z",
       "title": "NPU model hub tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
       "category": "Dependencies",
@@ -3301,6 +4174,8 @@
     {
       "investigation_id": "2026-11-05-20-07-27-000-42089440979",
       "run_id": "42089440979",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42089440979",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-05T20:07:27Z",
       "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
       "category": "Network",
@@ -3310,6 +4185,8 @@
     {
       "investigation_id": "2026-11-06-11-53-20-167-42198977524",
       "run_id": "42198977524",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42198977524",
+      "workflow_name": "ci/gha_overall_status_ubuntu_24",
       "timestamp": "2026-11-06T11:53:20Z",
       "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
       "category": "Configuration",
@@ -3319,6 +4196,8 @@
     {
       "investigation_id": "2026-11-06-16-06-09-000-42234699742",
       "run_id": "42234699742",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42234699742",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-11-06T16:06:09Z",
       "title": "OpenVINO GenAI job fails because sccache Azure connection string is not trailing-slash-sanitized",
       "category": "Configuration",
@@ -3328,6 +4207,8 @@
     {
       "investigation_id": "2026-11-06-16-55-13-917-42242867193",
       "run_id": "42242867193",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42242867193",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-06T16:55:13Z",
       "title": "OpenVINO tokenizers wheel build fails - openvino~=2026.5.1.dev not yet available on pip",
       "category": "Dependencies",
@@ -3348,6 +4229,8 @@
     {
       "investigation_id": "2026-11-06-18-08-04-000-42251178938",
       "run_id": "42251178938",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42251178938",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-06T18:08:04Z",
       "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
       "category": "Dependencies",
@@ -3379,6 +4262,8 @@
     {
       "investigation_id": "2026-11-09-16-59-01-275-42647164506",
       "run_id": "42647164506",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42647164506",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-11-09T16:59:01Z",
       "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
       "category": "Dependencies",
@@ -3388,6 +4273,8 @@
     {
       "investigation_id": "2026-11-09-17-09-09-701-42647164675",
       "run_id": "42647164675",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42647164675",
+      "workflow_name": "PyTorch Models tests",
       "timestamp": "2026-11-09T17:09:09Z",
       "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
       "category": "Dependencies",
@@ -3397,6 +4284,8 @@
     {
       "investigation_id": "2026-11-09-17-40-08-000-42647164508",
       "run_id": "42647164508",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42647164508",
+      "workflow_name": "NPU Models Tests",
       "timestamp": "2026-11-09T17:40:08Z",
       "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
       "category": "Dependencies",
@@ -3406,6 +4295,8 @@
     {
       "investigation_id": "2026-11-09-18-52-27-000-42668697693",
       "run_id": "42668697693",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42668697693",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-11-09T18:52:27Z",
       "title": "Linux Ubuntu 24.04 merge-queue run reports failure though every job succeeded or was skipped",
       "category": "Infrastructure",
@@ -3448,6 +4339,8 @@
     {
       "investigation_id": "2026-11-09-20-50-58-000-42680170472",
       "run_id": "42680170472",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42680170472",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-09T20:50:58Z",
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
@@ -3457,6 +4350,8 @@
     {
       "investigation_id": "2026-11-09-21-02-32-000-42681233404",
       "run_id": "42681233404",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42681233404",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-09T21:02:32Z",
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
@@ -3466,6 +4361,8 @@
     {
       "investigation_id": "2026-11-10-08-35-09-000-42770964527",
       "run_id": "42770964527",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42770964527",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-10T08:35:09Z",
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
@@ -3486,6 +4383,8 @@
     {
       "investigation_id": "2026-11-10-11-05-08-042-42789867873",
       "run_id": "42789867873",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42789867873",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-11-10T11:05:08Z",
       "title": "PyTorch Layer Tests fail - builtin cannot be used as a value in reflection_pad TorchScript",
       "category": "Code Issue",
@@ -3495,6 +4394,8 @@
     {
       "investigation_id": "2026-11-10-11-32-00-000-42789868150",
       "run_id": "42789868150",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42789868150",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-10T11:32:00Z",
       "title": "Debian Packages job fails - 404 Not Found fetching perl packages from Ubuntu archive mirror",
       "category": "External Service",
@@ -3504,6 +4405,8 @@
     {
       "investigation_id": "2026-11-10-11-45-13-000-42798063954",
       "run_id": "42798063954",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42798063954",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-10T11:45:13Z",
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
@@ -3513,6 +4416,8 @@
     {
       "investigation_id": "2026-11-10-12-35-30-000-42798063954",
       "run_id": "42798063954",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42798063954",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-10T12:35:30Z",
       "title": "GGUF frontend test_parser.cpp fails to build under C++20 mode (char8_t/std::string mismatch in unicode path concatenation)",
       "category": "Code Issue",
@@ -3522,6 +4427,8 @@
     {
       "investigation_id": "2026-11-10-12-51-32-000-42806601643",
       "run_id": "42806601643",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42806601643",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-10T12:51:32Z",
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
@@ -3531,6 +4438,8 @@
     {
       "investigation_id": "2026-11-10-13-39-30-000-42806601643",
       "run_id": "42806601643",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42806601643",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-10T13:39:30Z",
       "title": "GGUF frontend test_parser.cpp fails to build under C++20 mode (char8_t/std::string mismatch in unicode path concatenation)",
       "category": "Code Issue",
@@ -3540,6 +4449,8 @@
     {
       "investigation_id": "2026-11-10-15-03-01-608-42832292043",
       "run_id": "42832292043",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42832292043",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-10T15:03:01Z",
       "title": "smoke_tests throughput_benchmark_py fails with ld.so _dl_close_worker assertion on ARM64",
       "category": "Flaky Test",
@@ -3549,6 +4460,8 @@
     {
       "investigation_id": "2026-11-10-16-36-52-277-42841245398",
       "run_id": "42841245398",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42841245398",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-10T16:36:52Z",
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
@@ -3569,6 +4482,8 @@
     {
       "investigation_id": "2026-11-10-18-10-00-753-42857529315",
       "run_id": "42857529315",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42857529315",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
       "timestamp": "2026-11-10T18:10:00Z",
       "title": "LLM accuracy tests fail with TypeError: genai_gen_text() got an unexpected keyword argument 'context'",
       "category": "Dependencies",
@@ -3578,6 +4493,8 @@
     {
       "investigation_id": "2026-11-10-18-43-07-000-42857529037",
       "run_id": "42857529037",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42857529037",
+      "workflow_name": "NPU Models Tests",
       "timestamp": "2026-11-10T18:43:07Z",
       "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
       "category": "Dependencies",
@@ -3587,6 +4504,8 @@
     {
       "investigation_id": "2026-11-11-10-17-29-000-42983827471",
       "run_id": "42983827471",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/42983827471",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-11T10:17:29Z",
       "title": "GPU unit tests fail to extract OpenVINO package - tbb12.dll locked (Access denied) on Windows self-hosted runner",
       "category": "Infrastructure",
@@ -3596,6 +4515,8 @@
     {
       "investigation_id": "2026-11-11-13-06-31-119-43009490565",
       "run_id": "43009490565",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43009490565",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
       "timestamp": "2026-11-11T13:06:31Z",
       "title": "GPU unit tests fail to extract OpenVINO package - stale onednn_third-party-programs.txt blocks Expand-Archive -Force cleanup",
       "category": "Infrastructure",
@@ -3605,6 +4526,8 @@
     {
       "investigation_id": "2026-11-11-14-34-10-000-43030484756",
       "run_id": "43030484756",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43030484756",
+      "workflow_name": "Debian Packages / Debian Packages",
       "timestamp": "2026-11-11T14:34:10Z",
       "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
       "category": "Network",
@@ -3680,6 +4603,8 @@
     {
       "investigation_id": "2026-11-11-17-39-56-000-43056188729",
       "run_id": "43056188729",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43056188729",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-11T17:39:56Z",
       "title": "Debian Packages job fails - apt-get cannot resolve archive.ubuntu.com mirrors (DNS resolution failure)",
       "category": "Network",
@@ -3711,6 +4636,8 @@
     {
       "investigation_id": "2026-11-12-01-09-15-457-43121154399",
       "run_id": "43121154399",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43121154399",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-12T01:09:15Z",
       "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
       "category": "External Service",
@@ -3720,6 +4647,8 @@
     {
       "investigation_id": "2026-11-12-02-34-24-000-43133112821",
       "run_id": "43133112821",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43133112821",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-12T02:34:24Z",
       "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
       "category": "External Service",
@@ -3740,6 +4669,8 @@
     {
       "investigation_id": "2026-11-12-05-20-12-688-43151858776",
       "run_id": "43151858776",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43151858776",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
       "timestamp": "2026-11-12T05:20:12Z",
       "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
       "category": "External Service",
@@ -3756,6 +4687,17 @@
       "category": "External Service",
       "signature_hash": "2641a2995515ec82",
       "pr_number": "38204"
+    },
+    {
+      "investigation_id": "2026-11-12-08-18-36-963-43165661071",
+      "run_id": "43165661071",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43165661071",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-11-12T08:18:36Z",
+      "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
+      "category": "External Service",
+      "signature_hash": "2641a2995515ec82",
+      "pr_number": "39752"
     }
   ]
 }
