@@ -190,10 +190,10 @@ to learn more about the release types.
 
                     * GCC 11.3.0 (for Ubuntu 22.04), GCC 13.2.0 (for Ubuntu 24.04) or GCC 15.2.0 (for Ubuntu 26.04)
 
-                 .. tab-item:: RHEL 8
-                    :sync: rhel-8
+                 .. tab-item:: RHEL 9
+                    :sync: rhel-9
 
-                    * GCC 8.4.1
+                    * GCC 11
 
          .. tab-item:: macOS
             :name: archive-mac-sysreq
