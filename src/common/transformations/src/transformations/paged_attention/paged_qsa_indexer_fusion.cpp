@@ -50,8 +50,6 @@ op_internal::PagedQSAIndexer::Config paged_config_from(const op_internal::QSAInd
     result.indexer_head_dim = config.indexer_head_dim;
     result.epsilon = config.epsilon;
     result.scale = config.scale;
-    result.query_norm = config.query_norm;
-    result.query_rope = config.query_rope;
     return result;
 }
 

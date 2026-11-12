@@ -15,7 +15,6 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
-#include "openvino/op/paged_qsa_indexer.hpp"
 #include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -23,11 +22,8 @@
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/node_registry.hpp"
-#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -48,8 +44,8 @@ FuseQSAIndexer::FuseQSAIndexer() {
     MATCHER_SCOPE(FuseQSAIndexer);
     using namespace ov::pass::pattern;
 
-    constexpr size_t query_heads_axis = 1;
-    constexpr size_t query_sequence_axis = 2;
+    constexpr size_t query_heads_axis = 2;
+    constexpr size_t query_sequence_axis = 1;
     constexpr size_t query_head_dim_axis = 3;
     constexpr size_t keys_sequence_axis = 1;
     constexpr size_t rotary_dim_axis = 2;
@@ -65,6 +61,33 @@ FuseQSAIndexer::FuseQSAIndexer() {
     const auto p_k_norm_weight = any_input(rank_equals(1));
     const auto p_incomplete_raw_keys = any_input();
     const auto p_incomplete_rope = any_input();
+    const auto p_rms = wrap_type<op_internal::RMS>({p_query},
+                                                   [](const ov::Output<ov::Node>& output) {
+                                                       return output.get_element_type() ==
+                                                              output.get_node()->get_input_element_type(0);
+                                                   },
+                                                   {{"axis", -1}, {"elementwise_affine", false}});
+    // NopElimination can replace the head-axis Unsqueeze of [tokens, 1, D] with a Reshape.
+    const auto with_head_axis = [](const ov::Output<ov::Node>& rows) {
+        const auto unsqueeze = wrap_type<v0::Unsqueeze>({rows, wrap_type<v0::Constant>(value_matches("1"))});
+        const auto reshape = wrap_type<v1::Reshape>({rows, wrap_const()}, [](const ov::Output<ov::Node>& output) {
+            const auto& shape = output.get_node()->get_input_partial_shape(0);
+            return shape.rank() == 3 && shape[1] == 1 && shape[2].is_static() && shape[2].get_length() > 0 &&
+                   output.get_partial_shape() == ov::PartialShape{shape[0], 1, 1, shape[2]};
+        });
+        return unsqueeze | reshape;
+    };
+    const auto p_rope = wrap_type<op_internal::RoPE>(
+        {p_rms, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
+        [](const ov::Output<ov::Node>& output) {
+            const auto rope = ov::as_type<op_internal::RoPE>(output.get_node());
+            auto config = rope->get_config();
+            config.input_trans0213 = false;
+            const auto& cos_shape = rope->get_input_partial_shape(1);
+            return op_internal::is_plain_rotate_half(config) && cos_shape.rank() == 4 &&
+                   cos_shape[-1] == static_cast<int64_t>(config.rotary_ndims);
+        },
+        {{"config.input_trans0213", true}, {"config.input_interleaved", false}, {"config.use_rope_cache", false}});
     const auto p_prepare = wrap_type_strict_index<v17::QSAPrepare>({p_raw_keys,
                                                                     p_past_block_keys,
                                                                     p_key_length,
@@ -74,8 +97,29 @@ FuseQSAIndexer::FuseQSAIndexer() {
                                                                     p_incomplete_raw_keys,
                                                                     p_incomplete_rope});
 
-    const auto p_indexer = wrap_type<v17::SparseAttentionIndexer>({p_query, p_prepare->output(0), p_key_length},
-                                                                  {{"num_selection_heads", 1}});
+    const auto p_indexer = wrap_type<v17::SparseAttentionIndexer>(
+        {p_rope, p_prepare->output(0), p_key_length},
+        [=](const ov::Output<ov::Node>& output) {
+            const auto indexer = ov::as_type<v17::SparseAttentionIndexer>(output.get_node());
+            const auto prepare = ov::as_type<v17::QSAPrepare>(indexer->get_input_node_ptr(1));
+            const auto rope = ov::as_type<op_internal::RoPE>(indexer->get_input_node_ptr(0));
+            if (!prepare || !rope) {
+                return false;
+            }
+            const auto rms = ov::as_type<op_internal::RMS>(rope->get_input_node_ptr(0));
+            if (!rms) {
+                return false;
+            }
+            const auto& query_shape = rms->get_input_partial_shape(0);
+            const auto& keys_shape = prepare->get_input_partial_shape(0);
+            const auto& weight_shape = prepare->get_input_partial_shape(5);
+            return query_shape.rank() == 4 && keys_shape.rank() == 3 && weight_shape.rank() == 1 &&
+                   query_shape[query_sequence_axis].compatible(keys_shape[keys_sequence_axis]) &&
+                   weight_shape[0].compatible(query_shape[query_head_dim_axis]) &&
+                   indexer->get_key_block_size() == prepare->get_key_block_size() &&
+                   rms->get_epsilon() == prepare->get_epsilon();
+        },
+        {{"num_selection_heads", 1}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -92,14 +136,6 @@ FuseQSAIndexer::FuseQSAIndexer() {
         const auto& raw_keys = pattern_map.at(p_raw_keys);
         const auto& k_norm_weight = pattern_map.at(p_k_norm_weight);
         const auto& head_dim = query.get_partial_shape()[query_head_dim_axis];
-        // QSAIndexer takes the query and the raw keys for the same tokens, a single key_block_size and an enabled
-        // key norm; the source ops validate the other head sizes against the query.
-        if (!query.get_partial_shape()[query_sequence_axis].compatible(
-                raw_keys.get_partial_shape()[keys_sequence_axis]) ||
-            indexer->get_key_block_size() != prepare->get_key_block_size() ||
-            !k_norm_weight.get_partial_shape()[0].compatible(head_dim)) {
-            return false;
-        }
         const auto& past_block_keys = pattern_map.at(p_past_block_keys);
         const auto& key_length = pattern_map.at(p_key_length);
         const auto& incomplete_raw_keys = pattern_map.at(p_incomplete_raw_keys);
@@ -118,8 +154,6 @@ FuseQSAIndexer::FuseQSAIndexer() {
         config.indexer_rotary_dim = static_cast<size_t>(rope_cos.get_partial_shape()[rotary_dim_axis].get_length());
         config.indexer_head_dim = static_cast<size_t>(head_dim.get_length());
         config.epsilon = prepare->get_epsilon();
-        config.query_norm = false;
-        config.query_rope = false;
 
         // QSAIndexer takes [B, L, H, D] activations and head-first states, while the public ops are head-first for
         // the query and head-less for the keys.
@@ -127,7 +161,10 @@ FuseQSAIndexer::FuseQSAIndexer() {
         const auto i64 = [&rg](const std::vector<int64_t>& values) {
             return rg.make<v0::Constant>(ov::element::i64, ov::Shape{values.size()}, values);
         };
-        const ov::NodeVector sources{prepare, indexer};
+        const ov::NodeVector sources{prepare,
+                                     indexer,
+                                     pattern_map.at(p_rms).get_node_shared_ptr(),
+                                     pattern_map.at(p_rope).get_node_shared_ptr()};
         const auto dims_of = [&sources](const ov::Output<ov::Node>& data, const std::vector<size_t>& axes) {
             return ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(data, axes, sources);
         };
@@ -183,11 +220,10 @@ FuseQSAIndexer::FuseQSAIndexer() {
         const auto block_keys_cache =
             rg.make<v0::Concat>(ov::OutputVector{past_block_keys_with_head, cache_padding}, state_blocks_axis);
 
-        const auto query_blhd = rg.make<v1::Transpose>(query, i64({0, 2, 1, 3}));
         const auto key_length_i32 = key_length.get_element_type() == ov::element::i32
                                         ? batched_key_length
                                         : rg.make<v0::Convert>(batched_key_length, ov::element::i32);
-        const auto fused = rg.make<op_internal::QSAIndexer>(ov::OutputVector{query_blhd,
+        const auto fused = rg.make<op_internal::QSAIndexer>(ov::OutputVector{query,
                                                                              raw_keys_blhd,
                                                                              rope_for_batch(rope_cos),
                                                                              rope_for_batch(rope_sin),
@@ -221,175 +257,6 @@ FuseQSAIndexer::FuseQSAIndexer() {
     };
 
     register_matcher(std::make_shared<Matcher>(p_indexer, matcher_name), callback);
-}
-
-template <class Indexer>
-FuseQSAIndexerQueryRoPE<Indexer>::FuseQSAIndexerQueryRoPE() {
-    MATCHER_SCOPE(FuseQSAIndexerQueryRoPE);
-    using namespace ov::pass::pattern;
-    using In = typename Indexer::InputIdx;
-
-    const auto p_query = any_input();
-    const auto p_rope_cos = any_input();
-    const auto p_rope_sin = any_input();
-    // NopElimination can replace the head-axis Unsqueeze of [tokens, 1, D] with a Reshape.
-    const auto with_head_axis = [](const ov::Output<ov::Node>& rows) {
-        const auto unsqueeze = wrap_type<v0::Unsqueeze>({rows, wrap_type<v0::Constant>(value_matches("1"))});
-        const auto reshape = wrap_type<v1::Reshape>({rows, wrap_const()}, [](const ov::Output<ov::Node>& output) {
-            const auto& shape = output.get_node()->get_input_partial_shape(0);
-            return shape.rank() == 3 && shape[1] == 1 && shape[2].is_static() && shape[2].get_length() > 0 &&
-                   output.get_partial_shape() == ov::PartialShape{shape[0], 1, 1, shape[2]};
-        });
-        return unsqueeze | reshape;
-    };
-    const auto p_rope = wrap_type<op_internal::RoPE>(
-        {p_query, with_head_axis(p_rope_cos), with_head_axis(p_rope_sin)},
-        [](const ov::Output<ov::Node>& output) {
-            const auto rope = ov::as_type<op_internal::RoPE>(output.get_node());
-            auto config = rope->get_config();
-            config.input_trans0213 = false;
-            const auto& cos_shape = rope->get_input_partial_shape(1);
-            return op_internal::is_plain_rotate_half(config) && cos_shape.rank().is_static() &&
-                   cos_shape[-1] == static_cast<int64_t>(config.rotary_ndims);
-        },
-        {{"config.input_trans0213", true}, {"config.input_interleaved", false}, {"config.use_rope_cache", false}});
-    const auto p_query_transpose =
-        wrap_type<v1::Transpose>({p_rope, wrap_type<v0::Constant>(value_matches("0, 2, 1, 3"))});
-    const auto p_query_reshape =
-        optional<v1::Reshape>({p_query_transpose, any_input()}, rank_equals(2) && consumers_count(1));
-    // FuseQSAIndexer broadcasts the cos / sin rows with a v3 Broadcast, which ConvertBroadcast3 may turn into a
-    // numpy v1 Broadcast before this pass.
-    const auto rope_rows = [](const ov::Output<ov::Node>& rows) {
-        const auto batch_rows = optional<v3::Broadcast>({rows, any_input()}) |
-                                wrap_type<v1::Broadcast>({rows, any_input(), any_input()}, {{"mode", "numpy"}});
-        return optional<v1::Reshape>({batch_rows, any_input()}, rank_equals(2));
-    };
-    const auto p_cos_reshape = rope_rows(p_rope_cos);
-    const auto p_sin_reshape = rope_rows(p_rope_sin);
-    OutputVector pattern_inputs(In::COUNT);
-    for (auto& input : pattern_inputs) {
-        input = any_input();
-    }
-    pattern_inputs[In::INDEX_QUERY] = p_query_reshape;
-    pattern_inputs[In::ROPE_COS] = p_cos_reshape;
-    pattern_inputs[In::ROPE_SIN] = p_sin_reshape;
-    const auto p_indexer = wrap_type<Indexer>(pattern_inputs, {{"query_rope", false}});
-
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        const auto indexer = ov::as_type_ptr<Indexer>(m.get_match_root());
-        OPENVINO_ASSERT(indexer, "FuseQSAIndexerQueryRoPE: expected QSA indexer");
-        if (transformation_callback(indexer)) {
-            return false;
-        }
-        auto config = indexer->get_config();
-        config.query_rope = true;
-        auto inputs = indexer->input_values();
-        NodeRegistry rg;
-        NodeVector sources{pattern_map.at(p_rope).get_node_shared_ptr(),
-                           pattern_map.at(p_query_transpose).get_node_shared_ptr()};
-        if (pattern_map.count(p_query_reshape)) {
-            // The layout Reshape feeds only this indexer, so it is rewired to the unprocessed query.
-            const auto query_reshape = pattern_map.at(p_query_reshape).get_node_shared_ptr();
-            query_reshape->input(0).replace_source_output(pattern_map.at(p_query));
-            query_reshape->validate_and_infer_types();
-        } else {
-            inputs[In::INDEX_QUERY] = pattern_map.at(p_query);
-        }
-        const auto fused = rg.make<Indexer>(inputs, config);
-        fused->set_friendly_name(indexer->get_friendly_name());
-        sources.push_back(indexer);
-        ov::copy_runtime_info(sources, rg.get());
-        ov::replace_node(indexer, fused);
-        register_new_node(fused);
-        return true;
-    };
-    register_matcher(std::make_shared<Matcher>(p_indexer, matcher_name), callback);
-}
-
-template <class Indexer>
-FuseQSAIndexerQueryNorm<Indexer>::FuseQSAIndexerQueryNorm() {
-    MATCHER_SCOPE(FuseQSAIndexerQueryNorm);
-    using namespace ov::pass::pattern;
-    using In = typename Indexer::InputIdx;
-
-    const auto p_query = any_input();
-    const auto p_rms = wrap_type<op_internal::RMS>({p_query},
-                                                   [](const ov::Output<ov::Node>& output) {
-                                                       return output.get_element_type() ==
-                                                              output.get_node()->get_input_element_type(0);
-                                                   },
-                                                   {{"axis", -1}, {"elementwise_affine", false}});
-    const auto p_query_reshape = optional<v1::Reshape>({p_rms, any_input()}, rank_equals(2) && consumers_count(1));
-    OutputVector pattern_inputs(In::COUNT);
-    for (auto& input : pattern_inputs) {
-        input = any_input();
-    }
-    pattern_inputs[In::INDEX_QUERY] = p_query_reshape;
-    const auto p_indexer = wrap_type<Indexer>(pattern_inputs, {{"query_norm", false}});
-
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-        const auto indexer = ov::as_type_ptr<Indexer>(m.get_match_root());
-        OPENVINO_ASSERT(indexer, "FuseQSAIndexerQueryNorm: expected QSA indexer");
-        auto config = indexer->get_config();
-        const auto rms = ov::as_type_ptr<op_internal::RMS>(pattern_map.at(p_rms).get_node_shared_ptr());
-        OPENVINO_ASSERT(rms, "FuseQSAIndexerQueryNorm: expected RMS");
-        // The indexer normalizes each head separately; an RMS spanning several heads is not equivalent.
-        const auto& rms_shape = rms->get_input_partial_shape(0);
-        if (rms->get_epsilon() != config.epsilon || rms_shape.rank().is_dynamic() || rms_shape.rbegin()->is_dynamic() ||
-            rms_shape.rbegin()->get_length() != static_cast<int64_t>(config.indexer_head_dim)) {
-            return false;
-        }
-        if (transformation_callback(indexer)) {
-            return false;
-        }
-        config.query_norm = true;
-        auto inputs = indexer->input_values();
-        NodeRegistry rg;
-        NodeVector sources{pattern_map.at(p_rms).get_node_shared_ptr()};
-        if (pattern_map.count(p_query_reshape)) {
-            // The layout Reshape feeds only this indexer, so it is rewired to the unprocessed query.
-            const auto query_reshape = pattern_map.at(p_query_reshape).get_node_shared_ptr();
-            query_reshape->input(0).replace_source_output(pattern_map.at(p_query));
-            query_reshape->validate_and_infer_types();
-        } else {
-            inputs[In::INDEX_QUERY] = pattern_map.at(p_query);
-        }
-        // The external RMS was non-affine; enabling normalization must not activate unused scaling.
-        // The unused weight already has the element type shared by all floating-point indexer inputs.
-        inputs[In::Q_NORM_WEIGHT] = rg.make<v0::Constant>(inputs[In::Q_NORM_WEIGHT].get_element_type(),
-                                                          Shape{config.indexer_head_dim},
-                                                          std::vector<float>{1.0f});
-        const auto fused = rg.make<Indexer>(inputs, config);
-        fused->set_friendly_name(indexer->get_friendly_name());
-        sources.push_back(indexer);
-        ov::copy_runtime_info(sources, rg.get());
-        ov::replace_node(indexer, fused);
-        register_new_node(fused);
-        return true;
-    };
-    register_matcher(std::make_shared<Matcher>(p_indexer, matcher_name), callback);
-}
-
-template class FuseQSAIndexerQueryRoPE<op_internal::QSAIndexer>;
-template class FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>;
-template class FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>;
-template class FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>;
-
-bool FuseQSAIndexerQuery::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_MODEL_SCOPE(FuseQSAIndexerQuery);
-    // QSAIndexer normalizes before it rotates, so RoPE is absorbed over the whole model before RMS.
-    GraphRewrite rope;
-    rope.set_pass_config(get_pass_config());
-    rope.add_matcher<FuseQSAIndexerQueryRoPE<op_internal::QSAIndexer>>();
-    rope.add_matcher<FuseQSAIndexerQueryRoPE<op_internal::PagedQSAIndexer>>();
-    GraphRewrite norm;
-    norm.set_pass_config(get_pass_config());
-    norm.add_matcher<FuseQSAIndexerQueryNorm<op_internal::QSAIndexer>>();
-    norm.add_matcher<FuseQSAIndexerQueryNorm<op_internal::PagedQSAIndexer>>();
-    const bool rope_fused = rope.run_on_model(model);
-    return norm.run_on_model(model) || rope_fused;
 }
 
 }  // namespace ov::pass

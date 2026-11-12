@@ -34,7 +34,7 @@ namespace ov::pass {
  * FuseQSAIndexer. Their variable ids are added to var_ids_to_remove; the caller must remove the associated
  * Assign sinks.
  *
- * Query normalization/rotation flags are preserved, so plugin compilation can absorb query preprocessing later.
+ * Both dense and paged indexers always apply query RMSNorm followed by RoPE internally.
  * The query and raw keys must have static head counts and f32, f16 or bf16 data.
  */
 class TRANSFORMATIONS_API PagedQSAIndexerFusion : public MatcherPass {

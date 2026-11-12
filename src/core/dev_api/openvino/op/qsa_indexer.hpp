@@ -58,8 +58,6 @@ public:
         size_t indexer_head_dim = 0;     ///< D_idx
         float epsilon = 1e-6f;           ///< RMSNorm epsilon
         float scale = 0.0f;      ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
-        bool query_norm = true;  ///< Apply RMSNorm to the indexer query.
-        bool query_rope = true;  ///< Apply partial RoPE to the indexer query.
     };
 
     QSAIndexer() = default;

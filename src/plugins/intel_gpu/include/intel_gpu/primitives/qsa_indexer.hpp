@@ -34,9 +34,7 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
           indexer_rotary_dim(config.indexer_rotary_dim),
           indexer_head_dim(config.indexer_head_dim),
           epsilon(config.epsilon),
-          scale(config.scale),
-          query_norm(config.query_norm),
-          query_rope(config.query_rope) {}
+          scale(config.scale) {}
 
     size_t key_block_size = 0;
     size_t block_topk = 0;
@@ -45,8 +43,6 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
     size_t indexer_head_dim = 0;
     float epsilon = 1e-6f;
     float scale = 0.0f;
-    bool query_norm = true;
-    bool query_rope = true;
 
     ov::op::internal::QSAIndexer::Config get_config() const {
         ov::op::internal::QSAIndexer::Config config;
@@ -57,8 +53,6 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
         config.indexer_head_dim = indexer_head_dim;
         config.epsilon = epsilon;
         config.scale = scale;
-        config.query_norm = query_norm;
-        config.query_rope = query_rope;
         return config;
     }
 
@@ -71,8 +65,6 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
         seed = hash_combine(seed, indexer_head_dim);
         seed = hash_combine(seed, epsilon);
         seed = hash_combine(seed, scale);
-        seed = hash_combine(seed, query_norm);
-        seed = hash_combine(seed, query_rope);
         return seed;
     }
 
@@ -81,24 +73,17 @@ struct qsa_indexer : public primitive_base<qsa_indexer> {
             return false;
         auto r = downcast<const qsa_indexer>(rhs);
         return key_block_size == r.key_block_size && block_topk == r.block_topk && num_selection_heads == r.num_selection_heads &&
-               indexer_rotary_dim == r.indexer_rotary_dim && indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale &&
-               query_norm == r.query_norm && query_rope == r.query_rope;
+               indexer_rotary_dim == r.indexer_rotary_dim && indexer_head_dim == r.indexer_head_dim && epsilon == r.epsilon && scale == r.scale;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<qsa_indexer>::save(ob);
-        ob << key_block_size << block_topk << num_selection_heads << indexer_rotary_dim << indexer_head_dim << epsilon << scale << query_norm << query_rope;
+        ob << key_block_size << block_topk << num_selection_heads << indexer_rotary_dim << indexer_head_dim << epsilon << scale;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<qsa_indexer>::load(ib);
         ib >> key_block_size >> block_topk >> num_selection_heads >> indexer_rotary_dim >> indexer_head_dim >> epsilon >> scale;
-        if (ib.get_compiled_model_format_version() == 2) {
-            query_norm = true;
-            query_rope = true;
-        } else {
-            ib >> query_norm >> query_rope;
-        }
     }
 };
 

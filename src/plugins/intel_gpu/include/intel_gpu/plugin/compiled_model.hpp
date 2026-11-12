@@ -49,20 +49,20 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    // Builds the GPU compatibility descriptor.
+    // Builds the simplified v1 GPU compatibility descriptor.
     // Format: meta=<ver>;ov=<ov>;desc=[<driver/hw features>]
     static std::string build_runtime_requirements(const cldnn::device_info& info);
 
     // Single source of truth for the GPU compatibility policy: returns true if the persisted
     // descriptor 'requirements' can run on the device described by 'info'. Shared by import_model()
     // and the ov::compatibility_check property so the two never diverge if the policy changes.
-    // A format_version of 0 checks every supported descriptor without an enclosing blob header.
-    static bool is_runtime_requirements_compatible(const std::string& requirements, const cldnn::device_info& info, uint32_t format_version = 0);
+    static bool is_runtime_requirements_compatible(const std::string& requirements, const cldnn::device_info& info);
 
-    // Bump the descriptor schema and this version when the serialized format changes incompatibly.
+    // Version of the runtime requirements descriptor persisted in the blob. Bump this whenever
+    // build_runtime_requirements() changes (its format or the fields it emits) so the importer
+    // can detect and reject descriptors produced by a different build.
     // v2: added the compile-time runtime tag (rt=) to partition OCL/ZE blobs.
-    // v3: added the query preprocessing flags to QSA indexer primitives.
-    static constexpr uint32_t runtime_requirements_version = 3;
+    static constexpr uint32_t runtime_requirements_version = 2;
 
     // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
     // the importer reject blobs that lack it (e.g. produced by an OpenVINO build predating this

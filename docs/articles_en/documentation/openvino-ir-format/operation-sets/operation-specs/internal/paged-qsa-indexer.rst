@@ -16,7 +16,7 @@ in the core development API. GPU lowering uses this same operator, not a GPU-spe
 **Short description**:
 The *PagedQSAIndexer* is the **model-specific plan producer** for Qwen Sparse Attention (QSA) in its
 **paged** form, used under **continuous batching / PagedAttention page tables**. It consumes externally projected
-indexer queries and keys, optionally applies query RMSNorm/RoPE, appends raw keys, generates summaries for completed blocks,
+indexer queries and keys, applies query RMSNorm/RoPE, appends raw keys, generates summaries for completed blocks,
 and produces block selections. *PagedQSAIndexer* owns its recurrent caches **in place** as explicitly-passed
 paged tensors and reads the shared main PagedAttention page table (``block_indices`` / ``block_indices_begins``).
 It performs the *K-side compression chain* (pooled key mean-pool, RMSNorm, RoPE with the caller-supplied cos/sin of each completed
@@ -65,7 +65,7 @@ PagedAttention ``key_cache`` / ``value_cache`` and satisfy ``block_index_keys_ca
   ``index_query`` row ``t``. They are the same per-token
   cos/sin consumed by the main attention RoPE, so the indexer shares its RoPE coordinates (including any mRoPE or
   other multi-axis position scheme, resolved by the producer) and needs neither ``position_ids`` nor a
-  position-indexed rotary table. When query RoPE is enabled, a query is rotated with its own row; the row of a block's first token is copied
+  position-indexed rotary table. A query is rotated with its own row; the row of a block's first token is copied
   into ``index_block_rope_cache`` for that block's summary.
 
 A block is *completed* once exactly :math:`r` raw keys have been appended. The flush reads the block's contiguous
@@ -151,8 +151,8 @@ The op separates the *logical KV index* used for block addressing and causal fil
 coefficients* used for positional rotation. The **logical position** of a token is derived from ``past_lens`` and
 the sequence partition (``subsequence_begins``): for sequence ``s`` and token ``t``,
 :math:`pos = past\_lens[s] + (t - subsequence\_begins[s])`. This logical position drives (a) which blocks are
-causally valid and (b) the raw-K, summary and rope-cache page/offset. It is never used as a RoPE angle: when query
-RoPE is enabled, query ``t`` is rotated with ``(rope_cos[t], rope_sin[t])``, and the summary of block ``b`` is rotated with the
+causally valid and (b) the raw-K, summary and rope-cache page/offset. It is never used as a RoPE angle: query
+``t`` is rotated with ``(rope_cos[t], rope_sin[t])``, and the summary of block ``b`` is rotated with the
 coefficients of the token at logical position ``b * r`` (the block's first token), read from
 ``index_block_rope_cache`` rather than recomputed from ``b * r``. ``index_block_rope_cache`` is written once, in
 whichever invocation first appends the block's first token, so by the time the block completes (possibly several
@@ -167,10 +167,9 @@ logical-token count; only the coefficients applied to the pooled result come fro
 
 **Score computation**
 
-For a query at logical position :math:`p`, let :math:`q_h` be the query after the enabled query-processing
-steps (per index-query head :math:`h`, stored as *T*). When both are enabled,
-:math:`q_h = \mathrm{RoPE}_{\rho(p)}(\mathrm{RMSNorm}(q^{idx}_h))`. Each disabled step is omitted; normalization,
-when enabled, precedes rotation. For block :math:`b` whose per-index-key-head summary key is
+For a query at logical position :math:`p` with normalized and rotated query
+:math:`q_h = \mathrm{RoPE}_{\rho(p)}(\mathrm{RMSNorm}(q^{idx}_h)) \in \mathbb{R}^{D_{idx}}` (per index-query
+head :math:`h`, stored as *T*) and block :math:`b` whose per-index-key-head summary key is
 :math:`\bar{k}_{b,\mathrm{kv}(h)} \in \mathbb{R}^{D_{idx}}`, the per-selection-head score is a **grouped reduction
 over index-query heads**:
 
@@ -185,7 +184,7 @@ over index-query heads**:
 where :math:`\bar{k}_{b,\mathrm{kv}(h)} =
 \mathrm{RoPE}_{\rho(b\cdot r)}(\mathrm{RMSNorm}(\tfrac{1}{r}\sum_{j=0}^{r-1} k_{b\cdot r + j,\mathrm{kv}(h)}))`
 is the per-index-key-head block summary key and :math:`\rho(p)` is the ``(rope_cos, rope_sin)`` row of the token at
-logical position :math:`p`, as recorded in ``index_block_rope_cache``. Enabled query RoPE uses :math:`\rho` of its own token.
+logical position :math:`p`, as recorded in ``index_block_rope_cache``. Queries use :math:`\rho` of their own token.
 The rotation is the split-half (rotate-half) RoPE of Hugging Face Transformers over the first
 :math:`R = \mathrm{indexer\_rotary\_dim}` channels, computed in ``fp32``; the channels after :math:`R` are not
 rotated:
@@ -230,10 +229,10 @@ and the result is stored to ``block_index_keys_cache`` as *T*. An implementation
 instead of rounding it to *T*; the summaries then differ by at most one rounding of *T*, which can change the
 selection only among blocks whose scores are equal within that error.
 
-**Numerics of the query.** The enabled RMSNorm and RoPE steps are evaluated in ``fp32`` and the result is rounded
-once to *T* (``f16`` on GPU) before scoring. The dot products, ReLU, head reduction and ``scale`` are evaluated in
-``fp32`` on the *T* query and *T* summary values. When both query steps are enabled, the reference model rounds the
-query to *T* after RMSNorm and again after RoPE; an implementation MAY do so, which differs by at most one rounding of *T*.
+**Numerics of the query.** ``index_query`` is RMSNorm'ed and rotated in ``fp32`` and the result is rounded once to *T*
+(``f16`` on GPU) before scoring. The dot products, ReLU, head reduction and ``scale`` are evaluated in ``fp32``
+on the *T* query and *T* summary values. The reference model rounds the query to *T* after RMSNorm and again
+after RoPE; an implementation MAY do so, which differs by at most one rounding of *T*.
 
 **Score scale.** ``scale`` multiplies every score of a query by the same positive constant, so it never changes
 the ranking: in exact arithmetic ``selected_block_indices`` and ``selected_block_count`` do not depend on its value. It is kept for
@@ -291,8 +290,8 @@ multiplication.
                           index_key_cache, index_block_rope_cache, block_index_keys_cache,
                           *, key_block_size, block_topk, num_selection_heads,
                           indexer_rotary_dim, indexer_head_dim,
-                          epsilon, scale, query_norm=True, query_rope=True):
-        # index_query:            [tokens, H_iq * D_idx]   (enabled query steps applied here)
+                          epsilon, scale):
+        # index_query:            [tokens, H_iq * D_idx]   (raw external projection; norm/RoPE applied here)
         # raw_index_keys:            [tokens, H_ik * D_idx]   (raw external projection)
         # rope_cos, rope_sin: [tokens, indexer_rotary_dim]  (per-token rotate-half coefficients)
         # q_norm_weight, k_norm_weight: [D_idx]
@@ -320,10 +319,8 @@ multiplication.
 
         k = np.reshape(raw_index_keys, (tokens, Hik, indexer_head_dim))
         q = np.reshape(index_query, (tokens, Hiq, indexer_head_dim))
-        if query_norm:
-            q = rms_norm(q, q_norm_weight, epsilon)
-        if query_rope:
-            q = apply_partial_rope(q, rope_cos[:, None, :], rope_sin[:, None, :], indexer_rotary_dim)
+        q = rms_norm(q, q_norm_weight, epsilon)
+        q = apply_partial_rope(q, rope_cos[:, None, :], rope_sin[:, None, :], indexer_rotary_dim)
         q = q.astype(index_query.dtype)                     # rounded once to T before scoring
         # 1. Per-token K-side update, addressed by logical page and offset. Full-history raw K
         #    means no ring wraparound or ring-capacity constraint.
@@ -438,7 +435,7 @@ multiplication.
 
 * *epsilon*
 
-  * **Description**: Epsilon for the pooled block key RMSNorm and, when enabled, the query RMSNorm.
+  * **Description**: Epsilon for both RMSNorms (query and pooled block key).
   * **Type**: ``float``
   * **Default value**: ``1e-6``
   * **Required**: *no*
@@ -453,28 +450,12 @@ multiplication.
   * **Required**: *no*
   * **Constraints**: ``scale >= 0``.
 
-* *query_norm*
-
-  * **Description**: Apply RMSNorm with ``q_norm_weight`` to each index-query head. If false, this step must be
-    performed by the producer when required.
-  * **Type**: ``boolean``
-  * **Default value**: ``true``
-  * **Required**: *no*
-
-* *query_rope*
-
-  * **Description**: Apply partial RoPE to each index-query head. If false, this step must be performed by the
-    producer when required. Neither query flag changes the pooled block-key RMSNorm or RoPE.
-  * **Type**: ``boolean``
-  * **Default value**: ``true``
-  * **Required**: *no*
-
 
 **Inputs**
 
 * **0**: ``index_query``
   A 2D tensor of type *T* with shape ``[tokens, H_iq * D_idx]``.
-  Indexer queries before the query-processing steps enabled by ``query_norm`` and ``query_rope``. **Required.**
+  Raw projected indexer queries before indexer RMSNorm and RoPE. The operation applies both internally. **Required.**
 
 * **1**: ``raw_index_keys``
   A 2D tensor of type *T* with shape ``[tokens, H_ik * D_idx]``.
@@ -494,8 +475,7 @@ multiplication.
   with the same layout. **Required.**
 
 * **4**: ``q_norm_weight``
-  A 1D tensor of type *T* with shape ``[D_idx]``. RMSNorm weight for indexer queries, used when ``query_norm``
-  is true. The input is required even when query normalization is disabled.
+  A 1D tensor of type *T* with shape ``[D_idx]``. RMSNorm weight for raw projected indexer queries. **Required.**
 
 * **5**: ``k_norm_weight``
   A 1D tensor of type *T* with shape ``[D_idx]``.

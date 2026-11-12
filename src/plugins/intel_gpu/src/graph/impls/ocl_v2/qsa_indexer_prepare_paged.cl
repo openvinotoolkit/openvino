@@ -4,13 +4,13 @@
 
 // Q1 - PagedQSAIndexer prepare.
 //
-// One subgroup owns one (sequence, QSA block, role) triple. Roles 0..HIQ-1 optionally normalise + rotate one index-query head
+// One subgroup owns one (sequence, QSA block, role) triple. Roles 0..HIQ-1 normalise + rotate one index-query head
 // of every new token of the block; role HIQ writes the raw key cache, the per-block rope row and, once the block is
 // complete, the block summary (mean pooling -> f16 -> RMSNorm -> RoPE). The roles are independent, so no SLM and no
 // barrier is needed: the pooled rows of this call are read from the input, older rows from the raw key cache.
 //
-// JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM, QSA_IDX_QUERY_NORM, QSA_IDX_QUERY_ROPE,
-//      QSA_COMPRESS_RATIO, QSA_PAGE_SIZE, QSA_IDX_NORM_EPS, SUBGROUP_SIZE
+// JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM, QSA_COMPRESS_RATIO, QSA_PAGE_SIZE,
+//      QSA_IDX_NORM_EPS, SUBGROUP_SIZE
 // Dispatch: gws = [SG, HIQ + 1, num_wg], lws = [SG, 1, 1]
 
 #define QSA_INDEXER_HELPERS
@@ -88,10 +88,8 @@ KERNEL(qsa_indexer_prepare_paged)(const __global half* q_idx,                  /
             const uint token_idx = seq_begin + (p - past_len);
             float q[QSA_NE];
             FUNC_CALL(qsa_rd_f32)(q_idx + (token_idx * HIQ + role) * DI, q, QSA_NE);
-#if QSA_IDX_QUERY_NORM
             FUNC_CALL(qsa_rms_norm)(q, q_norm_weight);
-#endif
-#if QSA_IDX_QUERY_ROPE && QSA_IDX_ROTARY_DIM > 0
+#if QSA_IDX_ROTARY_DIM > 0
             FUNC_CALL(qsa_rope)(q, rope_cos + token_idx * ROT, rope_sin + token_idx * ROT, 1);
 #endif
             FUNC_CALL(qsa_wr_f32)(indexer_q + (token_idx * HIQ + role) * DI, q, QSA_NE);
