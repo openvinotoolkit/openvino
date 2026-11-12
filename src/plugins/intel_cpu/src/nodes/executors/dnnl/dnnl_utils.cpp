@@ -4,6 +4,7 @@
 
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -117,6 +118,15 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
     }
 
     return ptr;
+}
+
+bool isNonNegativeI8(const IMemory& mem) {
+    OPENVINO_ASSERT(mem.getDesc().getPrecision() == ov::element::i8, "isNonNegativeI8 expects i8 memory");
+    const auto* data = mem.getDataAs<const int8_t>();
+    const size_t count = mem.getShape().getElementsCount();
+    return std::all_of(data, data + count, [](int8_t value) {
+        return value >= 0;
+    });
 }
 
 }  // namespace ov::intel_cpu::utils

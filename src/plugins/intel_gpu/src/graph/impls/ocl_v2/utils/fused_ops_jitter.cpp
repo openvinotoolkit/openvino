@@ -9,6 +9,7 @@
 #include "eltwise_inst.h"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/op/swoosh.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
@@ -989,6 +990,16 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
     case activation_func::softplus: {
         const auto threshold = (calc_dt == ov::element::f32) ? "20.0f"_jit : "11.0h"_jit;
         jit.add(make_jit_constant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input)));
+        break;
+    }
+    case activation_func::swoosh: {
+        const JitTerm offset = convert_to_type("m"_jit, calc_dt);
+        const JitTerm bias = convert_to_type("n"_jit, calc_dt);
+        const JitTerm slope_literal{std::to_string(ov::intel_gpu::op::swoosh_constants::slope)};
+        const JitTerm slope = convert_to_type(slope_literal, calc_dt);
+        const JitTerm shifted = input - offset;
+        const JitTerm softplus = max(shifted, zero) + log(one + exp(neg(abs(shifted))));
+        jit.add(make_jit_constant(macro_def, softplus - slope * input - bias));
         break;
     }
     case activation_func::softsign: {

@@ -14,8 +14,10 @@
 
 namespace intel_npu {
 
-Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+               const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
+      _profilingDecoder(profilingDecoder),
       _logger("Parser", Logger::global().level()) {
     _logger.info("initialize Parser start");
 
@@ -73,7 +75,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
                                        compatibilityDescriptor,
-                                       blobIsPersistent);
+                                       blobIsPersistent,
+                                       _profilingDecoder);
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
@@ -103,7 +106,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                              initBlobs,
                                              std::move(weightsSource),
                                              blobIsPersistent,
-                                             compatibilityDescriptor);
+                                             compatibilityDescriptor,
+                                             _profilingDecoder);
 }
 
 }  // namespace intel_npu

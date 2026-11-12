@@ -158,6 +158,19 @@ public:
 
         const auto& prim = impl_params.typed_desc<grouped_matmul>();
         if (prim->compressed_weights) {
+            // The micro-gemm grouped matmul kernel requires fpmath_mode with apply_to_int
+            // enabled whenever the activations are floating point but the weights use a
+            // narrower integer type (weights-only compression / WOQ). Without this, the
+            // oneDNN GPU implementations reject the problem as an unsupported
+            // src/weights datatype combination.
+            const auto input_dt = impl_params.get_input_layout(grouped_matmul::GroupedMatmulInputIdx::INPUT).data_type;
+            const auto weights_dt = impl_params.get_input_layout(grouped_matmul::GroupedMatmulInputIdx::WEIGHT).data_type;
+            const bool src_is_integral = cldnn::one_of(input_dt, {data_types::i8, data_types::u8});
+            const bool weights_is_integral = cldnn::one_of(weights_dt, {data_types::i8, data_types::u8, data_types::i4, data_types::u4});
+            if (!src_is_integral && weights_is_integral) {
+                attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+            }
+
             size_t idx = grouped_matmul::GroupedMatmulInputIdx::OFFSETS + 1;
 
             const auto& scale_layout = arg.get_dependency(idx++).get_output_layout();

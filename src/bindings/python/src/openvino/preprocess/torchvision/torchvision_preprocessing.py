@@ -260,15 +260,16 @@ class _(TransformConverterBase):
         target_size = _setup_size(transform.size, "Incorrect size type for CenterCrop operation")
 
         if target_size[0] > source_size[0] or target_size[1] > source_size[1]:
-            ValueError(f"CenterCrop size={target_size} is greater than source_size={source_size}")
+            raise ValueError(f"CenterCrop size={target_size} is greater than source_size={source_size}")
 
+        # Same offsets as torchvision.transforms.functional.center_crop; the crop end is exclusive
         bottom_left = []
-        bottom_left.append(int((source_size[0] - target_size[0]) / 2))
-        bottom_left.append(int((source_size[1] - target_size[1]) / 2))
+        bottom_left.append(int(round((source_size[0] - target_size[0]) / 2.0)))
+        bottom_left.append(int(round((source_size[1] - target_size[1]) / 2.0)))
 
         top_right = []
-        top_right.append(min(bottom_left[0] + target_size[0], source_size[0] - 1))
-        top_right.append(min(bottom_left[1] + target_size[1], source_size[1] - 1))
+        top_right.append(bottom_left[0] + target_size[0])
+        top_right.append(bottom_left[1] + target_size[1])
 
         is_nchw = meta["layout"] == Layout("NCHW")
         if is_nchw:

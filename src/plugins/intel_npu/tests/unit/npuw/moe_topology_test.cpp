@@ -36,7 +36,8 @@ struct Graph {
 };
 
 Graph make_moe(Routing routing, bool grouped = false, size_t tokens = 1, int64_t k = 2, bool shared = false) {
-    constexpr size_t experts = 4, hidden = 8, intermediate = 16;
+    size_t experts = 4;  // non-const: the weight lambda below must actually capture it
+    constexpr size_t hidden = 8, intermediate = 16;
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, hidden});
     auto logits = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, experts});
     input->set_friendly_name("hidden");
