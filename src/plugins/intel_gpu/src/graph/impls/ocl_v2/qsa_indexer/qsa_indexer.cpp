@@ -46,8 +46,6 @@ JitConstants make_jit(JitConstants jit, const std::shared_ptr<const qsa_indexer>
     jit.make("QSA_IDX_QUERY_HEADS", h_iq);
     jit.make("QSA_IDX_HEAD_DIM", desc->indexer_head_dim);
     jit.make("QSA_IDX_ROTARY_DIM", desc->indexer_rotary_dim);
-    jit.make("QSA_IDX_QUERY_NORM", desc->query_norm ? 1 : 0);
-    jit.make("QSA_IDX_QUERY_ROPE", desc->query_rope ? 1 : 0);
     jit.make("QSA_COMPRESS_RATIO", desc->key_block_size);
     jit.make("QSA_BLOCK_TOPK", desc->block_topk);
     jit.make("QSA_ADDRESS_MODE", 1);

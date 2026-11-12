@@ -8,8 +8,7 @@
 // is t = b * seq_len + l, and the staged incomplete block / its first-token rope row live in distinct input and output
 // state buffers (the host has already copied every state input into its output).
 //
-// JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM, QSA_IDX_QUERY_NORM, QSA_IDX_QUERY_ROPE,
-//      QSA_COMPRESS_RATIO, QSA_IDX_NORM_EPS, SUBGROUP_SIZE
+// JIT: QSA_IDX_QUERY_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_ROTARY_DIM, QSA_COMPRESS_RATIO, QSA_IDX_NORM_EPS, SUBGROUP_SIZE
 // Dispatch: gws = [SG, HIQ + 1, num_wg], lws = [SG, 1, 1]
 
 #define QSA_INDEXER_HELPERS
@@ -69,10 +68,8 @@ KERNEL(qsa_indexer_prepare_dense)(const __global half* q_idx,           // [B, L
             const uint token_idx = seq_begin + (p - past_len);
             float q[QSA_NE];
             FUNC_CALL(qsa_rd_f32)(q_idx + (token_idx * HIQ + role) * DI, q, QSA_NE);
-#if QSA_IDX_QUERY_NORM
             FUNC_CALL(qsa_rms_norm)(q, q_norm_weight);
-#endif
-#if QSA_IDX_QUERY_ROPE && QSA_IDX_ROTARY_DIM > 0
+#if QSA_IDX_ROTARY_DIM > 0
             FUNC_CALL(qsa_rope)(q, rope_cos + token_idx * ROT, rope_sin + token_idx * ROT, 1);
 #endif
             FUNC_CALL(qsa_wr_f32)(indexer_q + (token_idx * HIQ + role) * DI, q, QSA_NE);
