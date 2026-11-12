@@ -144,17 +144,15 @@ void PagedQSAIndexer::validate_and_infer_types() {
                               in_ps);
     }
 
-    // Local helper: the extent of one axis, or dynamic when the rank or the axis is unknown.
-    const auto dim_at = [](const ov::PartialShape& ps, size_t axis) -> ov::Dimension {
-        return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
-    };
-
-    const ov::Dimension tokens = dim_at(index_query_ps, 0);
+    const ov::Dimension tokens = index_query_ps.rank().is_static() ? index_query_ps[0] : ov::Dimension::dynamic();
     const ov::Dimension di(static_cast<int64_t>(m_config.indexer_head_dim));
     const ov::Dimension rot(static_cast<int64_t>(m_config.indexer_rotary_dim));
     const ov::Dimension rope_row(static_cast<int64_t>(2 * m_config.indexer_rotary_dim));
     // page_size is not an attribute: it is the block size of the raw-K cache (dim 2).
-    const ov::Dimension page = dim_at(get_input_partial_shape(InputIdx::INDEX_KEY_CACHE), 2);
+    const auto& index_key_cache_ps = get_input_partial_shape(InputIdx::INDEX_KEY_CACHE);
+    const ov::Dimension page = index_key_cache_ps.rank().is_static() && index_key_cache_ps.size() > 2
+                                   ? index_key_cache_ps[2]
+                                   : ov::Dimension::dynamic();
     ov::Dimension spp = ov::Dimension::dynamic();
     if (page.is_static()) {
         const auto page_size = static_cast<size_t>(page.get_length());
@@ -166,8 +164,8 @@ void PagedQSAIndexer::validate_and_infer_types() {
         spp = ov::Dimension(static_cast<int64_t>(page_size / m_config.key_block_size));
     }
     // H_iq / H_ik come from the flattened [tokens, H * D_idx] inputs; dynamic unless the last axis is static.
-    const auto flat_heads = [this, &dim_at](const ov::PartialShape& ps, const char* name) -> ov::Dimension {
-        const auto last = dim_at(ps, 1);
+    const auto flat_heads = [this](const ov::PartialShape& ps, const char* name) -> ov::Dimension {
+        const auto last = ps.rank().is_static() ? ps[1] : ov::Dimension::dynamic();
         if (last.is_dynamic()) {
             return ov::Dimension::dynamic();
         }
@@ -209,8 +207,10 @@ void PagedQSAIndexer::validate_and_infer_types() {
     // The three paged caches share the main KV page pool (dim 0).
     ov::Dimension num_blocks = ov::Dimension::dynamic();
     for (auto idx : {InputIdx::BLOCK_INDEX_KEYS_CACHE, InputIdx::INDEX_KEY_CACHE, InputIdx::INDEX_BLOCK_ROPE_CACHE}) {
+        const auto& cache_ps = get_input_partial_shape(idx);
+        const auto blocks = cache_ps.rank().is_static() && cache_ps.size() > 0 ? cache_ps[0] : ov::Dimension::dynamic();
         NODE_VALIDATION_CHECK(this,
-                              ov::Dimension::merge(num_blocks, num_blocks, dim_at(get_input_partial_shape(idx), 0)),
+                              ov::Dimension::merge(num_blocks, num_blocks, blocks),
                               "PagedQSAIndexer expects block_index_keys_cache, index_key_cache and "
                               "index_block_rope_cache to share dim 0 (num_blocks)");
     }
@@ -233,7 +233,8 @@ void PagedQSAIndexer::validate_and_infer_types() {
                           "[num_blocks, page_size/r, 2*indexer_rotary_dim], got ",
                           get_input_partial_shape(InputIdx::INDEX_BLOCK_ROPE_CACHE));
 
-    const auto num_seqs = dim_at(get_input_partial_shape(InputIdx::PAST_LENS), 0);
+    const auto& past_lens_ps = get_input_partial_shape(InputIdx::PAST_LENS);
+    const auto num_seqs = past_lens_ps.rank().is_static() ? past_lens_ps[0] : ov::Dimension::dynamic();
     const auto num_seqs_plus_one =
         num_seqs.is_static() ? ov::Dimension(num_seqs.get_length() + 1) : ov::Dimension::dynamic();
     NODE_VALIDATION_CHECK(
