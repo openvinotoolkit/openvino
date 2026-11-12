@@ -10,6 +10,7 @@
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -54,6 +56,7 @@ namespace ov::intel_gpu {
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v8 = ov::op::v8;
 
 
 struct GroupQueryAttentionDecomposition::StatelessKVMetadata : public ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata {
@@ -127,15 +130,6 @@ ov::Output<ov::Node> GroupQueryAttentionDecomposition::make_qk_norm(const ov::Ou
     return register_new_node<ov::op::internal::RMS>(input, weight, epsilon, input.get_element_type());
 }
 
-namespace {
-// StatelessKV has nothing to append to for a 0-row past; a free predicate (vs. an inline shape probe) keeps the
-// fallback condition self-documenting and easy to narrow once StatelessKV can roll a 0-row past with query_seqlens.
-bool has_empty_past(const ov::Output<ov::Node>& past_key) {
-    const auto& past_ps = past_key.get_partial_shape();
-    return past_ps.rank().is_static() && past_ps[2].is_static() && past_ps[2].get_length() == 0;
-}
-}  // namespace
-
 GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecomposition::construct_kvcache(
     const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
     const ov::Output<ov::Node>& past_key,
@@ -143,41 +137,23 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const ov::Output<ov::Node>& key,
     const ov::Output<ov::Node>& value,
     const ov::Output<ov::Node>& seqlens_1d,
-    [[maybe_unused]] const std::shared_ptr<ov::Node>& kv_seqlen,
+    const std::shared_ptr<ov::Node>& kv_seqlen,
     const std::shared_ptr<ov::Node>& past_seqlen,
-    [[maybe_unused]] const ov::Output<ov::Node>& current_seqlen_scalar,
+    const ov::Output<ov::Node>& current_seqlen_scalar,
     KVCacheMetadata& metadata_) {
     using namespace ov::op;
     static const std::vector<int64_t> transpose_v_order{0, 1, 3, 2};
     
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
 
-    // StatelessKV rolls a windowed cache by its present length, which a right-padded chunk (query_seqlens) would
-    // overstate; the generic staging path writes back only the valid rows.
     const bool query_seqlens = node->has_query_seqlens();
-    if (query_seqlens && node->get_sliding_window_cache()) {
-        // GPU SDPA broadcasts the KV heads natively; the explicit chain groups them itself.
-        metadata.should_broadcast_kv = false;
-        return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
-                                                                             past_seqlen, current_seqlen_scalar, metadata_);
-    }
-    // A padded chunk with an empty past has nothing for StatelessKV to append to; keep the generic present sizing.
-    // A declared fixed capacity has the same problem when total_sequence_length exceeds it: StatelessKV's own
-    // shape inference only grows past a static past_rows when its update offset folds to a constant (it almost
-    // never does for a runtime seqlens_k), so it would silently keep producing a past_rows-sized buffer while the
-    // op's own shape inference (fixed up for this case) declares max(past_rows, total_sequence_length).
-    if (query_seqlens && (has_empty_past(past_key) || node->has_fixed_kv_capacity())) {
-        return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node, past_key, past_value, key, value, seqlens_1d, kv_seqlen,
-                                                                             past_seqlen, current_seqlen_scalar, metadata_);
-    }
-
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
     bool can_fuse_transpose_v = m_sdpa_support_immad && !use_explicit_attention;
     // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
     if (!use_explicit_attention) {
         // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively
-        metadata.should_broadcast_kv = false; 
+        metadata.should_broadcast_kv = false;
         if (node->is_kv_quantized()) {
             if (!prepare_compressed_kv(node, past_key.get_element_type(), past_value.get_element_type(), past_key.get_partial_shape(), metadata)) {
                 // when failed to fuse compressed kv, should not fuse transpose_v, dequantized K/V expects original layout.
@@ -186,18 +162,36 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         }
     }
 
+    const auto get_exclusive_to_result = [](const Output<ov::Node>& output) -> const v0::Result* {
+        const auto inputs = output.get_target_inputs();
+        if (inputs.size() != 1) {
+            GPU_DEBUG_TRACE_DETAIL << "GQA's output " << output.get_index() << " connects to " << inputs.size() << " nodes" << std::endl;
+            return nullptr;
+        }
+        ov::Node* const node = inputs.begin()->get_node();
+        if (!ov::is_type<v0::Result>(node)) {
+            GPU_DEBUG_TRACE_DETAIL << "GQA's output " << output.get_index() << " not connects to Result, get: " << node->get_type_name() << ":"
+                                   << node->get_friendly_name() << std::endl;
+            return nullptr;
+        }
+        return ov::as_type<v0::Result>(node);
+    };
+    const v0::Result* present_key = get_exclusive_to_result(node->output(1));
+    const v0::Result* present_value = get_exclusive_to_result(node->output(2));
+
     KVCacheOutputs outputs;
     const bool sliding_window = node->get_sliding_window_cache();
     const int64_t window_size = sliding_window ? node->get_local_window_size() : 0;
-    // StatelessKV takes the present length and writes the S new rows at present - S. A right-padded chunk writes them
-    // at its past P = total - Q, so it passes P + S; SDPA's lower-right causal mask then lets row s see keys <= P + s.
-    const ov::Output<ov::Node> present_len =
-        query_seqlens ? register_new_node<v1::Add>(past_seqlen, current_seqlen_scalar)->output(0) : seqlens_1d;
+    std::optional<ov::Output<ov::Node>> cur_seq_len;
+    if (query_seqlens) {
+        cur_seq_len = node->input_value(static_cast<size_t>(ov::op::internal::GroupQueryAttentionInputs::QUERY_SEQLENS));
+    }
     const auto make_stateless_kv = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current, int64_t concat_axis) {
-        return register_new_node<op::StatelessKV>(past, current, present_len, concat_axis, true, window_size);
+        if (query_seqlens) {
+            return register_new_node<op::StatelessKV>(past, current, seqlens_1d, *cur_seq_len, concat_axis, true, window_size);
+        }
+        return register_new_node<op::StatelessKV>(past, current, seqlens_1d, concat_axis, true, window_size);
     };
-
-    const auto key_cache = make_stateless_kv(past_key, key, 2);
 
     const auto value_transpose_order = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, transpose_v_order));
     const auto find_value_transpose = [](const ov::Output<ov::Node>& output) -> std::shared_ptr<v1::Transpose> {
@@ -222,6 +216,42 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
             present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
         }
     }
+    if (past_value_transpose && present_value_transpose) {
+        OPENVINO_ASSERT(!present_value);
+        GPU_DEBUG_TRACE_DETAIL << "pending transpose_v fusion on " << present_value_transpose->get_friendly_name() << std::endl;
+        present_value = get_exclusive_to_result(present_value_transpose->output(0));
+    }
+
+    if (!present_key || !present_value) {
+        GPU_DEBUG_TRACE_DETAIL << "GQA not having key&value both exclusively connects to Result, key: "
+                               << (present_key ? present_key->get_friendly_name() : "null")
+                               << " value: " << (present_value ? present_value->get_friendly_name() : "null") << " so fallback to common decompose"
+                               << std::endl;
+        auto outputs = ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node,
+                                                                                     past_key,
+                                                                                     past_value,
+                                                                                     key,
+                                                                                     value,
+                                                                                     seqlens_1d,
+                                                                                     kv_seqlen,
+                                                                                     past_seqlen,
+                                                                                     current_seqlen_scalar,
+                                                                                     metadata_);
+        if (!node->get_sliding_window_cache() && node->has_fixed_kv_capacity()) {
+            // static path put full buffer to SDPA, trim it for causal.
+            const auto slice_start = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+            const auto slice_step = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+            const auto slice_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+            const auto sdpa_end = register_new_node<v1::Add>(past_seqlen, current_seqlen_scalar);
+            outputs.sdpa_key = register_new_node<v8::Slice>(outputs.sdpa_key, slice_start, sdpa_end, slice_step, slice_axis);
+            outputs.sdpa_value = register_new_node<v8::Slice>(outputs.sdpa_value, slice_start, sdpa_end, slice_step, slice_axis);
+            GPU_DEBUG_TRACE_DETAIL << "GQA static path fix: SDPA key/value trimmed" << std::endl;
+        }
+        return outputs;
+    }
+
+    const auto key_cache = make_stateless_kv(past_key, key, 2);
+    key_cache->set_friendly_name(present_key->get_friendly_name() + "_stateless");
 
     std::shared_ptr<op::StatelessKV> value_cache;
     if (past_value_transpose && present_value_transpose) {
@@ -235,6 +265,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     } else {
         value_cache = make_stateless_kv(past_value, value, 2);
     }
+    value_cache->set_friendly_name(present_value->get_friendly_name() + "_stateless");
 
     outputs.present_key = key_cache->output(0);
     outputs.present_value = value_cache->output(0);
