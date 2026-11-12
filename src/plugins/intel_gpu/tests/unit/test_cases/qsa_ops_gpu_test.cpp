@@ -1628,6 +1628,9 @@ void unset_env_var(const char* name) {
 #endif
 }
 
+/// The budget override is a debug option: release builds ignore it, so the chunk loop cannot be forced there.
+constexpr bool score_budget_override_available = GPU_DEBUG_VALUE_OR(true, false);
+
 /// Caps the decode BLOCK_SCORES scratch so the Q2 chunk loop runs several times.
 struct scoped_score_budget {
     explicit scoped_score_budget(const char* bytes) {
@@ -1658,17 +1661,26 @@ TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_matches_reference) {
 // (past_lens stay in GPU memory), i.e. the whole 1948-block pool, so only one row fits per
 // chunk: 3 chunks of one sequence each.
 TEST(qsa_ops_gpu_test, qwen38_paged_batch_decode_chunked_scores_match_reference) {
+    if (!score_budget_override_available) {
+        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
+    }
     scoped_score_budget budget("1");
     run_paged_batch_test(qwen38_dims(), {{2100, 1}, {2600, 1}, {3071, 1}}, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_chunked_scores_match_reference) {
+    if (!score_budget_override_available) {
+        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
+    }
     scoped_score_budget budget("1");
     run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 3}, 3e-3f);
 }
 
 // Budget of exactly two 768-block rows: a full chunk followed by a partial one.
 TEST(qsa_ops_gpu_test, qwen38_dense_batch_decode_partial_last_chunk_matches_reference) {
+    if (!score_budget_override_available) {
+        GTEST_SKIP() << "QSA_SCORE_BUDGET_BYTES needs a build with debug capabilities";
+    }
     scoped_score_budget budget("6144");
     run_dense_batch_test(qwen38_dims(), 3, 3071, 1, {IndexerPath::Decode, AttnPath::GqaSplit, 2}, 3e-3f);
 }
