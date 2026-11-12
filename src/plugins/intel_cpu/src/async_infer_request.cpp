@@ -17,8 +17,15 @@
 #include "openvino/runtime/threading/itask_executor.hpp"
 #include "utils/denormals.hpp"
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+// _mm_getcsr()/_mm_setcsr() (and <immintrin.h>) are only actually available where SSE is present.
+// OPENVINO_ARCH_X86 is intentionally also defined for 32-bit/ILP32 targets like __wasm32__ (see
+// visibility.hpp), which do NOT have these intrinsics, so that macro alone is not a safe guard here.
+// Mirror the precise condition denormals.hpp itself uses to decide whether MXCSR intrinsics are usable.
+#if defined(OPENVINO_ARCH_X86_64) || defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
+#    define OV_CPU_HAS_MXCSR_INTRINSICS 1
 #    include <immintrin.h>
+#else
+#    define OV_CPU_HAS_MXCSR_INTRINSICS 0
 #endif
 
 namespace {
@@ -42,7 +49,7 @@ namespace {
 class CallerThreadStateGuard {
 public:
     explicit CallerThreadStateGuard(ov::intel_cpu::Config::DenormalsOptMode denormals_opt_mode) {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CPU_HAS_MXCSR_INTRINSICS
         m_mxcsr = _mm_getcsr();
         if (denormals_opt_mode == ov::intel_cpu::Config::DenormalsOptMode::DO_On) {
             ov::intel_cpu::flush_to_zero(true);
@@ -62,7 +69,7 @@ public:
     CallerThreadStateGuard& operator=(const CallerThreadStateGuard&) = delete;
 
     ~CallerThreadStateGuard() {
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CPU_HAS_MXCSR_INTRINSICS
         _mm_setcsr(m_mxcsr);
 #endif
 #if OV_THREAD == OV_THREAD_OMP
@@ -71,7 +78,7 @@ public:
     }
 
 private:
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#if OV_CPU_HAS_MXCSR_INTRINSICS
     unsigned int m_mxcsr = 0;
 #endif
 #if OV_THREAD == OV_THREAD_OMP
@@ -124,11 +131,10 @@ ov::intel_cpu::AsyncInferRequest::AsyncInferRequest(
     static_cast<SyncInferRequest*>(request.get())->set_async_request(this);
     if (is_optimized_single_stream || run_sync_in_caller_thread) {
         if (auto stream_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(task_executor)) {
-            m_sync_pipeline = {{std::make_shared<CallerThreadStageExecutor>(std::move(stream_executor),
-                                                                            denormals_opt_mode),
-                                [this]() {
-                                    m_internal_request->infer();
-                                }}};
+            m_sync_pipeline = {
+                {std::make_shared<CallerThreadStageExecutor>(std::move(stream_executor), denormals_opt_mode), [this]() {
+                     m_internal_request->infer();
+                 }}};
         }
     }
 }

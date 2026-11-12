@@ -72,7 +72,13 @@
 // and optionally fail (for the exception/queue-poisoning regression tests) -- all without
 // relying on fragile wall-clock timing.
 
-namespace {
+// ControllableOp (and its state struct) are deliberately NOT inside the anonymous namespace below:
+// OPENVINO_OP()'s RTTI machinery applies a hidden-visibility attribute to a static member function,
+// which some compilers (e.g. the RISC-V GCC toolchain used in CI) warn/error on ("visibility
+// attribute ignored") when the enclosing class already has no linkage because it lives in an
+// anonymous namespace. Giving this class ordinary (translation-unit-local, since this is a .cpp
+// file) external linkage avoids that false positive; its RTTI type name is unique enough that this
+// carries no practical risk of clashing with anything else in the test binary.
 
 // Shared control block between a test and the ControllableOp instance(s) in its compiled model.
 struct ControllableOpState {
@@ -168,6 +174,8 @@ private:
     std::shared_ptr<ControllableOpState> m_state;
 };
 
+namespace {
+
 // Device name under which the real CPU plugin .so is registered with a dedicated, test-local
 // ov::Core instance (see GetTestCore() below) -- deliberately distinct from "CPU" so this never
 // collides with any ambient/default plugin registration.
@@ -180,9 +188,9 @@ constexpr const char* kTestDeviceName = "ASYNC_INFER_REQUEST_TEST_CPU";
 ov::Core& GetTestCore() {
     static ov::Core core = [] {
         ov::Core c;
-        auto plugin_path = ov::util::make_plugin_library_name(
-            ov::util::make_path(ov::test::utils::getExecutableDirectory()),
-            std::string("openvino_intel_cpu_plugin") + OV_BUILD_POSTFIX);
+        auto plugin_path =
+            ov::util::make_plugin_library_name(ov::util::make_path(ov::test::utils::getExecutableDirectory()),
+                                               std::string("openvino_intel_cpu_plugin") + OV_BUILD_POSTFIX);
         c.register_plugin(plugin_path.string(), kTestDeviceName);
         return c;
     }();
@@ -202,9 +210,8 @@ TestInferContext CreateTestInferRequest(const ov::AnyMap& properties) {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
     auto op = std::make_shared<ControllableOp>(ov::OutputVector{param}, state);
     auto result = std::make_shared<ov::op::v0::Result>(op);
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result},
-                                              ov::ParameterVector{param},
-                                              "AsyncInferRequestTestModel");
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "AsyncInferRequestTestModel");
 
     auto compiled_model = GetTestCore().compile_model(model, kTestDeviceName, properties);
     auto infer_request = compiled_model.create_infer_request();
@@ -234,9 +241,9 @@ ov::AnyMap OptimizedSingleStreamProperties() {
 // topologies, which is not what these tests are exercising.
 ov::AnyMap ExplicitMultiAppThreadSyncProperties() {
     return {ov::num_streams(4),
-           ov::inference_num_threads(4),
-           ov::hint::enable_cpu_pinning(false),
-           ov::intel_cpu::multi_app_thread_sync_execution(true)};
+            ov::inference_num_threads(4),
+            ov::hint::enable_cpu_pinning(false),
+            ov::intel_cpu::multi_app_thread_sync_execution(true)};
 }
 
 }  // namespace
@@ -368,11 +375,13 @@ void RunDestroyThenReuseSameExecutorScenario(const ov::AnyMap& properties) {
 
 }  // namespace
 
-TEST(AsyncInferRequestExceptionRecoveryTest, DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForOptimizedSingleStream) {
+TEST(AsyncInferRequestExceptionRecoveryTest,
+     DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForOptimizedSingleStream) {
     RunDestroyThenReuseSameExecutorScenario(OptimizedSingleStreamProperties());
 }
 
-TEST(AsyncInferRequestExceptionRecoveryTest, DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForExplicitMultiAppThreadSync) {
+TEST(AsyncInferRequestExceptionRecoveryTest,
+     DestroyingFailedRequestDoesNotPoisonSiblingRequestOnSameExecutorForExplicitMultiAppThreadSync) {
     RunDestroyThenReuseSameExecutorScenario(ExplicitMultiAppThreadSyncProperties());
 }
 
@@ -434,15 +443,14 @@ TEST(AsyncInferRequestStreamCollisionTest, StaysCorrectWhenAppThreadsExceedConfi
     auto op = std::make_shared<ControllableOp>(ov::OutputVector{param}, state);
     auto result = std::make_shared<ov::op::v0::Result>(op);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result},
-                                              ov::ParameterVector{param},
-                                              "AsyncInferRequestCollisionTestModel");
+                                             ov::ParameterVector{param},
+                                             "AsyncInferRequestCollisionTestModel");
 
-    auto compiled_model = GetTestCore().compile_model(
-        model,
-        kTestDeviceName,
-        {ov::num_streams(kStreams),
-         ov::hint::enable_cpu_pinning(false),
-         ov::intel_cpu::multi_app_thread_sync_execution(true)});
+    auto compiled_model = GetTestCore().compile_model(model,
+                                                      kTestDeviceName,
+                                                      {ov::num_streams(kStreams),
+                                                       ov::hint::enable_cpu_pinning(false),
+                                                       ov::intel_cpu::multi_app_thread_sync_execution(true)});
 
     std::vector<ov::InferRequest> requests;
     requests.reserve(kAppThreads);

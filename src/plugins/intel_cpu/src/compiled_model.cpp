@@ -188,8 +188,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // (e.g. in Config) and must live here instead.
     if (m_cfg.multiAppThreadSyncExecution) {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::CPUStreamsExecutor>(m_task_executor);
-        m_run_sync_in_caller_thread =
-            streams_executor && !m_has_sub_compiled_models && !m_cfg.exclusiveAsyncRequests;
+        m_run_sync_in_caller_thread = streams_executor && !m_has_sub_compiled_models && !m_cfg.exclusiveAsyncRequests;
         // Reject the combination outright rather than silently tolerating it: when the caller-thread
         // sync path is actually going to be used, and CPU pinning is actually active on the executor
         // that path dispatches through (`executor_config` reflects the real resolved pinning state used
