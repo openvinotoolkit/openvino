@@ -5457,7 +5457,7 @@ static void test_compressed_int4_single_row_large_ofm(long int ifm_num, long int
 
     set_values(input_mem, rg.generate_random_1d<ov::float16>(ifm_num, -1.0f, 1.0f));
     set_values(weights_mem, rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255));
-    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * groups_num, -0.05f, 0.05f));
+    set_values(scale_mem, rg.generate_random_1d<ov::float16>(ofm_num * groups_num, -0.05f, 0.05f, 100));
     if (zp_mode == large_ofm_zp::grouped)
         set_values(zp_mem, rg.generate_random_1d<uint8_t>(ofm_num * groups_num, 0, 15));
     else
