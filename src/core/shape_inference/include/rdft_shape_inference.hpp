@@ -41,6 +41,7 @@ std::vector<TRShape> shape_infer(const RDFT* op,
                                                   input_shapes,
                                                   axes,
                                                   util::fft_common_validation::FFTKind::RealInput);
+    util::fft_common_validation::validate_axes_non_empty(op, input_shapes, axes_shape, axes);
 
     if (input_shape.rank().is_dynamic()) {
         output_shape = ov::PartialShape::dynamic();

@@ -81,6 +81,20 @@ void validate_axes(const ov::op::util::FFTBase* op,
 }
 
 template <class T>
+void validate_axes_non_empty(const ov::op::util::FFTBase* op,
+                             const std::vector<T>& input_shapes,
+                             const T& axes_shape,
+                             const std::optional<std::vector<int64_t>>& axes) {
+    if (axes_shape.rank().is_static()) {
+        NODE_SHAPE_INFER_CHECK(op,
+                               input_shapes,
+                               axes_shape[0].is_dynamic() || axes_shape[0].get_length() > 0,
+                               "Axes input must not be empty.");
+    }
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, !axes || !axes->empty(), "Axes input must not be empty.");
+}
+
+template <class T>
 void validate_signal_size(const ov::op::util::FFTBase* op,
                           const std::vector<T>& input_shapes,
                           const T& axes_shape,
