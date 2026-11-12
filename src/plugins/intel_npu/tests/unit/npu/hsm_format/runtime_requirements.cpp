@@ -340,7 +340,6 @@ TEST_F(RuntimeRequirementsSectionTest, MissingSectionIdMappingWhileWriting) {
 }
 
 TEST_F(RuntimeRequirementsSectionTest, WriteUnknownSectionType) {
-    // TODO careful when calling CRE to string, it may crash when unkown tokens are in there
     RuntimeRequirementsSection section(
         RuntimeRequirements({}, CRE({std::make_shared<SectionType>(SectionTypeCode::UNKNOWN)}), {}));
     std::ostringstream stream;

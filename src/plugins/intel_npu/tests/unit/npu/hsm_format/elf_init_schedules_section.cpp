@@ -216,7 +216,6 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
     ASSERT_FALSE(read_section);
 }
 
-// TODO test that checks page alignment using the OV HSM writer/reader
 TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
     std::string section_content("dummy");                                   // the content of init schedule 1
     section_content += std::string("\x06\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1

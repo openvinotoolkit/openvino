@@ -53,7 +53,6 @@ TEST_F(DynamicScheduleSectionTest, CtorSetsTheRightValue) {
               0);
 
     // Test using an empty schedule too
-    // TODO LLVM was replaced. make sure there is no test redundancy
     section =
         std::make_shared<DynamicScheduleSection>(ov::Tensor(ov::element::Type_t::u8, ov::Shape({0}), (void*)nullptr));
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::DYNAMIC_SCHEDULE));
@@ -103,7 +102,6 @@ TEST_F(DynamicScheduleSectionTest, InvalidStateWrite) {
     const std::shared_ptr<DynamicScheduleSection> section = create_section_using_dummy_content();
     std::ostringstream stream;
     // Invalid state. The attribute should have been a graph
-    // TODO consider adding error messages to asserts
     OV_EXPECT_THROW(section->encode(create_generic_section_sink(stream)), ov::Exception, _);
 }
 
@@ -191,7 +189,6 @@ protected:
     ov::runtime::hsm::Section section;
 };
 
-// TODO consider uniting with ELFMainSchedule tests
 TEST_P(DynamicScheduleSectionReadTest, SuccessfulRead) {
     auto read_section = DynamicScheduleSection::decode(section);
     ASSERT_TRUE(read_section);

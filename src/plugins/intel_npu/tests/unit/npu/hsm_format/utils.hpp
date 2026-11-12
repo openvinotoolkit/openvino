@@ -21,7 +21,6 @@ ov::runtime::hsm::ManifestEntry create_manifest_entry_of_type(const SectionTypeC
                                                               const bool is_inline = false,
                                                               const bool any_device = false);
 
-// TODO could use gtests "MOCK"
 class MockTypeEvaluator : public ISectionTypeEvaluator {
 public:
     MockTypeEvaluator(const bool result);

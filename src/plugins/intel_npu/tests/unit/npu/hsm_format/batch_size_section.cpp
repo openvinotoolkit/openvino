@@ -17,7 +17,6 @@ class BatchSizeSectionTest : public ::testing::Test {
 protected:
     void SetUp() override {
         batch_size = 0xDEADBEEF;
-        // TODO right log level?
         section = std::make_shared<BatchSizeSection>(batch_size);
     }
 

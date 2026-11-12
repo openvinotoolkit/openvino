@@ -273,7 +273,6 @@ void write_to(std::ostream& stream, const BlobSectionsRegistry& blob_sections_re
     auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
     OPENVINO_ASSERT(deferred_writer.has_value(), "A blob writer could not be created. The stream may be invalid");
 
-    // TODO add common sections when available
     const auto runtime_requirements_section = blob_sections_registry.build_runtime_requirements_section();
     deferred_writer->add_section(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
                                  build_section_tag(runtime_requirements_section),

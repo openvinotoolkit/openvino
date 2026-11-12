@@ -17,7 +17,6 @@ class CompilerVersionSectionTest : public ::testing::Test {
 protected:
     void SetUp() override {
         compiler_version = 0xDEADBEEF;
-        // TODO right log level?
         section = std::make_shared<CompilerVersionSection>(compiler_version);
     }
 

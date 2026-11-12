@@ -178,7 +178,6 @@ uint64_t DynamicGraph::export_main_blob(const ov::runtime::hsm::SectionSink& sin
     if (paddingSize > 0) {
         const std::vector<uint8_t> padding(paddingSize, 0);
         sink(ov::util::MemoryView(reinterpret_cast<const std::byte*>(padding.data()), padding.size()));
-        // TODO why this log here but not in graph?
         _logger.info("Blob size with padding: %zu", size);
     }
     _logger.info("Write blob to stream successfully.");

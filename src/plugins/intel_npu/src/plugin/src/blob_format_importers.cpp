@@ -280,16 +280,16 @@ private:
 /**
  * @brief Class used to import a blob that follows the "V1" format: compiler payload + some (non-TLV) metadata
  */
-class BlobFormatV1Importer : public IBlobFormatImporter {
+class MetadataFormatImporter : public IBlobFormatImporter {
 public:
-    explicit BlobFormatV1Importer(BlobSource& npu_formatted_blob,
-                                  const std::shared_ptr<const ov::Model>& original_model,
-                                  const ov::SoPtr<IEngineBackend>& backend,
-                                  const Config& config)
+    explicit MetadataFormatImporter(BlobSource& npu_formatted_blob,
+                                    const std::shared_ptr<const ov::Model>& original_model,
+                                    const ov::SoPtr<IEngineBackend>& backend,
+                                    const Config& config)
         : IBlobFormatImporter(original_model,
                               backend,
                               config,
-                              Logger("BlobFormatV1Importer", config.get<LOG_LEVEL>())) {
+                              Logger("MetadataFormatImporter", config.get<LOG_LEVEL>())) {
         // Read only the metadata from the source and check if the blob is compatible. Load the blob into memory
         // only if it passes the compatibility checks.
         m_metadata = read_metadata_from(npu_formatted_blob);
@@ -469,19 +469,18 @@ private:
     std::unique_ptr<MetadataBase> m_metadata;
 };
 
-// TODO consider renaming the class
 /**
  * @brief Class used to import a blob that follows the "V2" format: header + sections + manifest (HSM)
  */
-class BlobFormatV2Importer : public IBlobFormatImporter {
+class HSMFormatImporter : public IBlobFormatImporter {
 public:
-    explicit BlobFormatV2Importer(ov::runtime::hsm::Reader& base_reader,
-                                  const std::shared_ptr<void> blob_so,
-                                  const std::shared_ptr<const ov::Model>& original_model,
-                                  const ov::SoPtr<IEngineBackend>& backend,
-                                  const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
-                                  const Config& config)
-        : IBlobFormatImporter(original_model, backend, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
+    explicit HSMFormatImporter(ov::runtime::hsm::Reader& base_reader,
+                               const std::shared_ptr<void> blob_so,
+                               const std::shared_ptr<const ov::Model>& original_model,
+                               const ov::SoPtr<IEngineBackend>& backend,
+                               const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
+                               const Config& config)
+        : IBlobFormatImporter(original_model, backend, config, Logger("HSMFormatImporter", config.get<LOG_LEVEL>())),
           m_blob_so(blob_so) {
         std::tie(m_blob_sections_registry, m_runtime_requirements) =
             hsm::read_from(base_reader, get_readers(), {}, create_instance_evaluators(option_helper));
@@ -831,12 +830,12 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
     std::optional<ov::runtime::hsm::Reader> reader = open_hsm_reader(blob_source);
     if (reader.has_value()) {
         logger.debug("Creating a blob format v2 import handler using the factory");
-        return std::make_unique<BlobFormatV2Importer>(reader.value(),
-                                                      get_shared_object_pointer(blob_source),
-                                                      original_model,
-                                                      backend,
-                                                      option_helper,
-                                                      config);
+        return std::make_unique<HSMFormatImporter>(reader.value(),
+                                                   get_shared_object_pointer(blob_source),
+                                                   original_model,
+                                                   backend,
+                                                   option_helper,
+                                                   config);
     }
 
     // The V1 format is identified by some magic bytes at the end of the input
@@ -852,7 +851,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& blob_source,
     blob_source.seekg(compiler_payload_beginning, std::ios::beg);
 
     logger.debug("Creating a blob format v1 import handler using the factory");
-    return std::make_unique<BlobFormatV1Importer>(blob_source, original_model, backend, config);
+    return std::make_unique<MetadataFormatImporter>(blob_source, original_model, backend, config);
 }
 
 }  // namespace blob_format_importer_factory
