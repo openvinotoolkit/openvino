@@ -34,7 +34,7 @@ namespace ov::pass {
  *  - the block-key cache is grown by zero blocks up to the complete blocks of the longest sequence, which
  *    is the shape of the QSAPrepare output, since QSAIndexer keeps the cache shape;
  *  - q_norm_weight is a vector of ones.
- * block_topk is token_budget / key_block_size and scale is the default 1 / sqrt(head size).
+ * block_topk is token_budget / key_block_size and scale is set explicitly to the default 1 / sqrt(head size).
  *
  * The rewrite is applied only when the query and the raw keys have compatible sequence lengths, the query
  * head count and head size are static, RoPE and the key norm are enabled, both source ops use the same

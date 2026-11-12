@@ -33,6 +33,7 @@ namespace ov::pass {
  * The dense states must be read from variables, directly or through the beam Gather, in the layout created by
  * FuseQSAIndexer. Their variable ids are added to var_ids_to_remove; the caller must remove the associated
  * Assign sinks.
+ * The effective score scale is stored explicitly as a positive value in the paged op.
  *
  * Both dense and paged indexers always apply query RMSNorm followed by RoPE internally.
  * The query and raw keys must have static head counts and f32, f16 or bf16 data.

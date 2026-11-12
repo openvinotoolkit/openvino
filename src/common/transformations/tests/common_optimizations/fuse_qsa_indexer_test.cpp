@@ -348,6 +348,7 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     config.indexer_rotary_dim = rotary;
     config.indexer_head_dim = head_size;
     config.epsilon = epsilon;
+    config.scale = 1.0f / std::sqrt(static_cast<float>(head_size));
     const auto fused = std::make_shared<op_internal::QSAIndexer>(inputs, config);
 
     const std::vector<Output<Node>> outputs{
