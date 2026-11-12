@@ -16,6 +16,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_schedule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/device_execution_context.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_config.cpp

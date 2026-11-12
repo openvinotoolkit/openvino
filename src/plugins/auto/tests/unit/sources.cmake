@@ -9,6 +9,7 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_property_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ctput_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/default_perf_hint_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/device_execution_context_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/device_telemetry_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_device_selection_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_output_test.cpp
@@ -46,6 +47,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_compiled_model.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_schedule.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cumulative_schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/device_execution_context.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/device_execution_context.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/infer_request.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/itt.hpp
