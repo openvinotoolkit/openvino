@@ -1833,7 +1833,10 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
         // unsafe_get() avoids blocking on the weights-bank evaluation future: the closure is sized
         // during deserialization and the async evaluation only fills its entries.
         const auto closure_size = compiled->m_compiled_submodels[idx].closure.unsafe_get().closure.size();
-        if (submodel_desc.param_base > num_inputs || closure_size > num_inputs - submodel_desc.param_base) {
+        // Block-KV HFA uses logical function inputs, not the final tile model's input ports.
+        const bool block_kv_hfa = ov::npuw::attn::has_block_kv_hfa(real_desc.pipeline);
+        if (!block_kv_hfa &&
+            (submodel_desc.param_base > num_inputs || closure_size > num_inputs - submodel_desc.param_base)) {
             OPENVINO_THROW("Invalid m_compiled_submodels[",
                            idx,
                            "].param_base ",

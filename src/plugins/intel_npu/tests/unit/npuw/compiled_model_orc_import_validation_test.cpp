@@ -5,9 +5,12 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
+#include "attn/attn_subgraph.hpp"
+#include "host_flash_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 
@@ -75,7 +78,10 @@ public:
         return m_model;
     }
     void set_property(const ov::AnyMap&) override {}
-    ov::Any get_property(const std::string&) const override {
+    ov::Any get_property(const std::string& name) const override {
+        if (name == ov::execution_devices.name()) {
+            return std::vector<std::string>{"CPU"};
+        }
         return {};
     }
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
@@ -89,9 +95,11 @@ private:
     std::shared_ptr<ov::Model> m_model;
 };
 
-std::shared_ptr<TestPlugin> make_test_plugin() {
+std::shared_ptr<TestPlugin> make_test_plugin(std::shared_ptr<testing::NiceMock<ov::MockICore>> core = nullptr) {
     auto plugin = std::make_shared<TestPlugin>();
-    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    if (!core) {
+        core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    }
 
     ON_CALL(*core, get_supported_property(testing::_, testing::_, testing::_))
         .WillByDefault([](const std::string&, const ov::AnyMap& properties, const bool) {
@@ -135,18 +143,27 @@ std::shared_ptr<TestPlugin> make_test_plugin() {
 }
 
 std::shared_ptr<ov::npuw::CompiledModel> make_compiled_model_with_input_link(
-    const std::pair<std::size_t, std::size_t>& input_link) {
-    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
-    param->output(0).get_tensor().set_names({"input"});
-    auto res = std::make_shared<ov::op::v0::Result>(param);
+    const std::pair<std::size_t, std::size_t>& input_link,
+    std::size_t num_inputs = 1u,
+    std::shared_ptr<TestPlugin> plugin = nullptr) {
+    ov::ParameterVector params;
+    for (std::size_t i = 0; i < num_inputs; ++i) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        param->output(0).get_tensor().set_names({"input_" + std::to_string(i)});
+        params.push_back(std::move(param));
+    }
+    auto res = std::make_shared<ov::op::v0::Result>(params.front());
     res->output(0).get_tensor().set_names({"output"});
     auto model =
-        std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, ov::ParameterVector{param}, "test_model");
+        std::make_shared<ov::Model>(ov::OutputVector{res->output(0)}, params, "test_model");
 
-    auto plugin = make_test_plugin();
+    if (!plugin) {
+        plugin = make_test_plugin();
+    }
     auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, true);
 
-    compiled->m_inputs_to_submodels_inputs = {input_link};
+    compiled->m_inputs_to_submodels_inputs.resize(num_inputs, ov::npuw::CompiledModel::NO_LINK);
+    compiled->m_inputs_to_submodels_inputs[0] = input_link;
     compiled->m_outputs_to_submodels_outputs = {{0u, 0u}};
     compiled->m_param_subscribers.clear();
     compiled->m_submodels_input_to_prev_output.clear();
@@ -431,6 +448,63 @@ TEST(CompiledModelOrcImportValidationTest, AcceptsFuncallParamBaseWithinBodyInpu
     add_fake_funcall_submodel(compiled, 0u, 1u, 0u);
 
     EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
+}
+
+TEST(CompiledModelOrcImportValidationTest, BlockKvHfaLogicalInputsSurviveExportImport) {
+    constexpr std::size_t logical_inputs = 8u;
+    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
+    auto plugin = make_test_plugin(core);
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK, logical_inputs, plugin);
+    add_fake_submodel(compiled, 7u);
+
+    auto& desc = compiled->m_compiled_submodels.back();
+    desc.replaced_by = 0u;
+    desc.param_base = logical_inputs;
+    ov::npuw::v1::subgraphs::RuntimeBehaviorSpec behavior;
+    behavior.handles_function_prologue = true;
+    desc.pipeline.runtime_behavior = std::move(behavior);
+
+    auto hfa = std::make_shared<ov::npuw::compiled::HostFlashAttention>();
+    auto& info = hfa->_sdpa_attention_info;
+    info._query_size = 1u;
+    info._context_size = 3u;
+    info._k_seq_dim = 0u;
+    info._v_seq_dim = 0u;
+    info._sdpa_indices = {4u, {0u, 2u}, {1u, 3u}, 5u, 6u, 7u};
+    info._tile_input_indices = {5u, 3u, 4u, 6u, 0u, 1u, 2u};
+    info._tile_output_indices = {0u, 1u, 2u};
+    hfa->_past_tile_size = 1;
+    hfa->_final_tile_size = 1;
+    hfa->_compiled_tile_model = desc.compiled_model;
+    hfa->_compiled_final_tile_model = desc.compiled_model;
+    ov::npuw::attn::put_compiled_hfa(desc.pipeline.context, std::move(hfa));
+
+    for (std::size_t i = 0; i < logical_inputs; ++i) {
+        compiled->m_inputs_to_submodels_inputs[i] = {0u, i};
+    }
+    add_fake_funcall_submodel(compiled, 0u, logical_inputs, 0u);
+    compiled->m_dev_list = {"CPU"};
+    compiled->m_cfg.update({{"NPUW_DEVICES", "CPU"}});
+
+    std::weak_ptr<const ov::IPlugin> weak_plugin = plugin;
+    ON_CALL(*core, import_model(testing::An<std::istream&>(), testing::An<const std::string&>(), testing::_))
+        .WillByDefault([weak_plugin](std::istream&, const std::string&, const ov::AnyMap&) {
+            return ov::SoPtr<ov::ICompiledModel>{
+                std::make_shared<FakeSubCompiledModel>(make_simple_model("imported_tile", 7u), weak_plugin.lock())};
+        });
+
+    std::stringstream blob;
+    compiled->export_model(blob);
+    auto imported = ov::npuw::CompiledModel::import_model(blob, plugin, {});
+
+    ASSERT_EQ(imported->m_compiled_submodels.size(), 2u);
+    EXPECT_EQ(imported->m_compiled_submodels[0].param_base, logical_inputs);
+    EXPECT_EQ(imported->m_compiled_submodels[1].param_base, logical_inputs);
+    const auto* imported_hfa = ov::npuw::attn::get_compiled_hfa(imported->m_compiled_submodels[0].pipeline.context);
+    ASSERT_NE(imported_hfa, nullptr);
+    EXPECT_EQ(imported_hfa->_sdpa_attention_info._sdpa_indices.past_key_blocks, (std::vector<std::size_t>{0u, 2u}));
+    EXPECT_EQ(imported_hfa->_sdpa_attention_info._sdpa_indices.past_value_blocks, (std::vector<std::size_t>{1u, 3u}));
+    EXPECT_TRUE(imported_hfa->is_valid());
 }
 
 // The port vector read at the paired site stays in range (idx < inputs()), so only the
