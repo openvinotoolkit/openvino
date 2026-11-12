@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-01-58-30-000-43127638525",
+  "timestamp": "2026-11-12T01:58:30Z",
+  "run_id": "43127638525",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43127638525",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "7e11265ea54dfaf319ff57770a65fa7e896d83f3",
+  "pr_number": "39560",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39560",
+  "author": "maxim-kurin",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model hub tests fail: pretrained weight download SSL certificate expired on dl.fbaipublicfiles.com",
+  "signature": "detectron2 pretrained weight download fails: URLError CERTIFICATE_VERIFY_FAILED certificate has expired when downloading model_final weights via iopath PathManager from dl.fbaipublicfiles.com|External Service",
+  "signature_hash": "4014ef1f5a5e54e7",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All 19 'PyTorch Detectron2 Tests' sub-tests fail: weight download via iopath PathManager raises URLError SSL certificate verify failed (certificate has expired)"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the PyTorch Models tests job failed"
+    }
+  ],
+  "key_errors": [
+    "E             File \"/venv/lib/python3.11/site-packages/detectron2/checkpoint/detection_checkpoint.py\", line 61, in load\nE               path = self.path_manager.get_local_path(path)\nE             File \"/venv/lib/python3.11/site-packages/iopath/common/file_io.py\", line 797, in _get_local_path\nE               cached = download(path, dirname, filename=filename)\nE             File \"/venv/lib/python3.11/site-packages/iopath/common/download.py\", line 58, in download\nE               tmp, _ = request.urlretrieve(url, filename=tmp, reporthook=hook(t))\nE           URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "multiprocessing.context.ProcessError: \nCOCO-Detection/faster_rcnn_R_50_FPN_1x running failed: \n  File \".../models_hub_common/utils.py\", line 189, in wrapper\n    return func(*args, **kwargs)\n  File \".../pytorch/test_detectron2.py\", line 46, in load_model\n    model, save_to_disk=False).load(cfg.MODEL.WEIGHTS)",
+    "Attempt 1 of 3 failed: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>\nAttempt 2 of 3 failed: ...\nAttempt 3 of 3 failed: ..."
+  ],
+  "root_cause": "Every detectron2 precommit test (19/19 parametrizations) fails identically: loading a detectron2 config calls DetectionCheckpointer.load(cfg.MODEL.WEIGHTS), which routes the pretrained-weight URL through iopath's PathManager.get_local_path -> download(), which uses Python's urllib.request.urlretrieve. This raises 'SSL: CERTIFICATE_VERIFY_FAILED: certificate has expired' on every retry (3 attempts). This is the same recurring external-service outage previously recorded for run 43127634633 roughly 15 minutes earlier: the TLS certificate presented by dl.fbaipublicfiles.com (Facebook/Meta's public model file storage used by detectron2's model zoo) is still expired. The triggering commit (#39560, an NPU VM runtime header-documentation-only change) is unrelated to the failure.",
+  "reproduction_steps": "Not reliably reproducible locally unless the remote certificate is still expired at the time of testing. To approximate: run `python -c \"from urllib.request import urlretrieve; urlretrieve('https://dl.fbaipublicfiles.com/detectron2/COCO-Detection/faster_rcnn_R_50_FPN_1x/137257794/model_final_b275ba.pkl', '/tmp/w.pkl')\"` and observe whether an SSL certificate-expiry error is raised; or run `openssl s_client -connect dl.fbaipublicfiles.com:443 -servername dl.fbaipublicfiles.com </dev/null 2>/dev/null | openssl x509 -noout -dates` to check the certificate's current validity window.",
+  "recommended_actions": [
+    "Treat this as a transient external-service (Meta/Facebook CDN) certificate issue; re-run the 'PyTorch Models tests' job once the certificate is renewed upstream (this doctor does not auto-rerun; a maintainer should trigger the rerun).",
+    "This is now the second consecutive post-commit failure (2 occurrences within ~15 minutes) with this exact signature -- escalate to infrastructure/CI maintainers since the upstream certificate has apparently been expired for an extended window, not a one-off blip.",
+    "Add a CI-level pre-flight check (e.g., a lightweight HTTPS HEAD request with verify=True) before the detectron2 test suite runs, to fail fast with a clearer 'external host certificate invalid' message instead of 19 duplicated pytest failures.",
+    "Consider mirroring detectron2 pretrained weights to an internal/cached storage location used by CI to decouple test stability from dl.fbaipublicfiles.com."
+  ],
+  "prevention_strategies": "Model-hub tests that fetch third-party pretrained weights over HTTPS are inherently coupled to the availability and certificate hygiene of external hosts outside OpenVINO's control. Mitigate by caching/mirroring frequently used weight files (e.g., via an internal artifact proxy) so CI does not depend on live reachability of dl.fbaipublicfiles.com, and by adding a single upfront connectivity/certificate check for the external host so failures are reported once with a clear message rather than once per parametrized test case.",
+  "historical_context": "Exact recurrence of signature hash 4014ef1f5a5e54e7, first recorded ~15 minutes earlier in run 43127634633 (commit 8a91a733ef1c01752ea51a1256198850b4140a6f, PR #39495). This is now occurrence #2 of the same dl.fbaipublicfiles.com certificate-expiry issue, confirming it is an ongoing external-service outage rather than a one-off blip."
+}
