@@ -1,0 +1,44 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-12-16-45-29-000-43242892126",
+    "timestamp": "2026-11-12T16:45:29Z",
+    "run_id": "43242892126",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43242892126",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "pr_number": "39512",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39512",
+    "author": "mfhansen",
+    "category": "Dependencies",
+    "title": "PyTorch Models tests fail with pyarrow/NumPy ABI mismatch (ImportError: pyarrow requires NumPy 2.0)",
+    "signature": "pyarrow requires numpy 2.0 or newer but older numpy installed causing importerror in datasets/pyarrow dependency chain|Dependencies",
+    "signature_hash": "90d42369fa7c1efb",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "PyTorch Models tests / PyTorch Models tests",
+            "conclusion": "failure",
+            "symptom": "7 HuggingFace transformer model-hub tests fail at import time with ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4"
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check fails because the PyTorch Models tests job failed"
+        }
+    ],
+    "key_errors": [
+        "install/tests/model_hub_tests/pytorch/test_hf_transformers.py::TestTransformersModel::test_convert_model_precommit[CPU-allenai/led-base-16384-led] FAILED",
+        "File \"/__w/openvino/openvino/install/tests/model_hub_tests/pytorch/test_hf_transformers.py\", line 59, in load_model\n    from datasets import Audio, load_dataset",
+        "File \"/venv/lib/python3.11/site-packages/pyarrow/__init__.py\", line 59, in <module>\n    from pyarrow.lib import (BuildInfo, CppBuildInfo, RuntimeInfo, set_timezone_db_path,",
+        "ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4"
+    ],
+    "root_cause": "The PyTorch model-hub test job pins numpy==1.26.4 via install/tests/requirements_pytorch (line 7), reinstalling over the newer numpy that was installed with openvino's wheel. The hf_transformers test env (install/tests/model_hub_tests/pytorch/envs/hf_transformers.txt) separately pulls in datasets==3.0.1, which installs pyarrow>=15.0.0; the resolved pyarrow-26.0.1 wheel requires NumPy >= 2.0 at import time (its compiled extension enforces the ABI at runtime), so importing `datasets` (which imports pyarrow) raises ImportError as soon as any hf_transformers test tries to load a HF dataset. This is unrelated to the PR's actual change (a CSV docs file) - it is a latent, environment-wide dependency conflict between the pinned numpy==1.26.4 requirement and the newer pyarrow resolved by datasets==3.0.1.",
+    "reproduction_steps": "1. Build/install OpenVINO as in CI.\n2. pip install -r install/tests/requirements_pytorch (pins numpy==1.26.4).\n3. pip install -r install/tests/model_hub_tests/pytorch/envs/hf_transformers.txt (installs datasets==3.0.1 -> pyarrow-26.0.1).\n4. python3 -c \"from datasets import load_dataset\" -> ImportError: pyarrow requires NumPy 2.0 or newer, found 1.26.4.",
+    "recommended_actions": [
+        "Pin pyarrow to a version compatible with numpy 1.26.x (e.g., pyarrow<15 or pin pyarrow explicitly in hf_transformers.txt / requirements_pytorch) or bump numpy to >=2.0 in requirements_pytorch if other pinned deps allow it.",
+        "Add an explicit pyarrow version constraint in install/tests/model_hub_tests/pytorch/envs/hf_transformers.txt to avoid resolving an incompatible pyarrow build against the pinned numpy.",
+        "Consider isolating model-hub test environments per-suite (already partially done via envs/*.txt) so a dependency resolved for one suite does not conflict with the shared numpy pin.",
+        "This is the 8th occurrence of this exact signature since 2026-11-05 - escalate to component owners to fix the pin rather than re-investigating on every merge-queue run."
+    ],
+    "prevention_strategies": "Pin transitive dependencies (pyarrow) explicitly wherever a package (datasets) can silently resolve an incompatible version against another already-pinned package (numpy). Add a CI smoke import check (`python -c \"import datasets\"`) right after installing model-hub test requirements, before running the full test suite, to fail fast with a clearer error message. Periodically audit install/tests/requirements_pytorch and the model_hub_tests envs/*.txt files for numpy/pyarrow/datasets compatibility windows.",
+    "historical_context": "Recurring signature 90d42369fa7c1efb has now been seen 9 times since 2026-11-05T01:47:23Z (most recently 2026-11-10T18:43:07Z, previously flagged on PR #39512 and others), all with the identical pyarrow/NumPy ABI ImportError in PyTorch Models tests. The fix (pinning pyarrow or numpy compatibly) has not yet been merged."
+}
