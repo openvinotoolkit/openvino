@@ -5,24 +5,24 @@
 #include "test_utils.h"
 
 #include "intel_gpu/op/stateless_kv.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
-
-#include <algorithm>
-#include <numeric>
+#include "stateless_kv_inst.h"
 
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/stateless_kv.hpp>
-#include <intel_gpu/primitives/reorder.hpp>
-#include <intel_gpu/primitives/strided_slice.hpp>
 
-#include "stateless_kv_inst.h"
+#include <algorithm>
+#include <numeric>
+#include <optional>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -38,15 +38,12 @@ struct stateless_kv_runtime_params {
 
 class stateless_kv_runtime : public testing::TestWithParam<stateless_kv_runtime_params> {};
 
-namespace {
-
-topology make_stateless_kv_topology(const layout& new_token_layout, data_types result_type = data_types::f32, bool indirect_past = false) {
+static topology make_stateless_kv_topology(const layout& new_token_layout, data_types result_type = data_types::f32, bool indirect_past = false) {
     topology topology;
     const auto past_id = indirect_past ? "past_unsqueeze" : "past";
     if (indirect_past) {
         topology.add(input_layout("past", layout{ov::PartialShape{2, -1, 4}, data_types::f32, format::bfyx}));
-        topology.add(
-            reshape("past_unsqueeze", input_info("past"), false, {0}, ov::PartialShape{1, 2, -1, 4}, reshape::reshape_mode::unsqueeze));
+        topology.add(reshape("past_unsqueeze", input_info("past"), false, {0}, ov::PartialShape{1, 2, -1, 4}, reshape::reshape_mode::unsqueeze));
     } else {
         topology.add(input_layout("past", layout{ov::PartialShape{1, 2, -1, 4}, data_types::f32, format::bfyx}));
     }
@@ -61,25 +58,66 @@ topology make_stateless_kv_topology(const layout& new_token_layout, data_types r
     return topology;
 }
 
-std::vector<float> expected_concatenated_cache(const std::vector<float>& past_values, const std::vector<float>& token_values,
-                                               const ov::Shape& past_shape, size_t output_capacity, size_t logical_past_len) {
+// Rows [0, token_count) hold plane * 1000 + absolute position; the remaining rows are -1.
+static std::vector<float> make_token_values(int64_t batch, int64_t heads, int64_t head_size, int64_t capacity, int64_t first_token_id, int64_t token_count) {
+    std::vector<float> values(static_cast<size_t>(batch * heads * capacity * head_size), -1.0f);
+    for (int64_t plane = 0; plane < batch * heads; ++plane) {
+        for (int64_t row = 0; row < token_count; ++row) {
+            const auto offset = (plane * capacity + row) * head_size;
+            std::fill_n(values.begin() + offset, head_size, static_cast<float>(plane * 1000 + first_token_id + row));
+        }
+    }
+    return values;
+}
+
+// Returns the full [batch, heads, output_capacity, head_size] cache; only the first new_seq_len token rows are appended.
+static std::vector<float> expected_concatenated_cache(const std::vector<float>& past_values,
+                                                      const std::vector<float>& token_values,
+                                                      const ov::Shape& past_shape,
+                                                      size_t output_capacity,
+                                                      size_t logical_past_len,
+                                                      std::optional<size_t> new_seq_len = std::nullopt) {
     const size_t planes = past_shape[0] * past_shape[1];
     const size_t past_capacity = past_shape[2];
     const size_t head_size = past_shape[3];
     const size_t token_len = token_values.size() / (planes * head_size);
+    OPENVINO_ASSERT(!new_seq_len.has_value() || *new_seq_len <= token_len, "new_seq_len exceeds token len");
+    const size_t copy_len = new_seq_len.value_or(token_len);
+    OPENVINO_ASSERT(copy_len + logical_past_len <= output_capacity, "appended tokens exceed output capacity");
     std::vector<float> expected(planes * output_capacity * head_size);
     for (size_t plane = 0; plane < planes; ++plane) {
-        std::copy_n(past_values.begin() + plane * past_capacity * head_size,
-                    past_capacity * head_size,
-                    expected.begin() + plane * output_capacity * head_size);
+        std::copy_n(past_values.begin() + plane * past_capacity * head_size, past_capacity * head_size, expected.begin() + plane * output_capacity * head_size);
         std::copy_n(token_values.begin() + plane * token_len * head_size,
-                    token_len * head_size,
+                    copy_len * head_size,
                     expected.begin() + (plane * output_capacity + logical_past_len) * head_size);
     }
     return expected;
 }
 
-}  // namespace
+// Copies the first seq_len rows of each [batch, heads] plane of a dense [batch, heads, capacity, head_size] source
+static std::vector<float> copy_partial_seqlen(const float* src, int64_t batch, int64_t heads, int64_t head_size, int64_t capacity, int64_t seq_len) {
+    std::vector<float> values(static_cast<size_t>(batch * heads * seq_len * head_size));
+    auto dst = values.begin();
+    for (int64_t plane = 0; plane < batch * heads; ++plane) {
+        dst = std::copy_n(src + plane * capacity * head_size, seq_len * head_size, dst);
+    }
+    return values;
+}
+
+static std::vector<float> read_token_values(const memory::ptr& output, int64_t batch, int64_t heads, int64_t head_size, int64_t token_count) {
+    const auto& output_layout = output->get_layout();
+    const auto shape = output_layout.get_shape();
+    OPENVINO_ASSERT(shape.size() == 4 && static_cast<int64_t>(shape[0]) == batch && static_cast<int64_t>(shape[1]) == heads &&
+                        static_cast<int64_t>(shape[3]) == head_size && static_cast<int64_t>(shape[2]) >= token_count,
+                    "output shape does not match the requested batch/heads/head_size/token_count");
+    // A view keeps the buffer's physical seq length as shape + padding; other dims must be unpadded.
+    const auto padded = output_layout.get_padded_dims();
+    OPENVINO_ASSERT(padded[0] == batch && padded[1] == heads && padded[3] == head_size, "only the seq dim may be padded");
+    const auto capacity = padded[2];
+    const auto base_offset = output_layout.get_linear_offset();
+    mem_lock<float, mem_lock_type::read> output_lock(output, get_test_stream());
+    return copy_partial_seqlen(output_lock.data() + base_offset, batch, heads, head_size, capacity, token_count);
+}
 
 TEST_P(stateless_kv_runtime, output_memory_reuse) {
     const auto& params = GetParam();
@@ -89,16 +127,18 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     constexpr int64_t batch = 1;
     constexpr int64_t heads = 2;
     constexpr int64_t head_size = 4;
-    const auto logical_past_len = params.is_seq_len_present_len ? params.seq_len - params.new_token_len : params.seq_len;
-    const auto logical_present_len = params.is_seq_len_present_len ? params.seq_len : params.seq_len + params.new_token_len;
-    const auto output_capacity = std::max(past_capacity, logical_present_len);
-    const bool reuse_past_buffer = logical_present_len <= past_capacity;
+    const bool has_cur_len = params.cur_seq_len != -1;
+    const auto new_seq_len = has_cur_len ? params.cur_seq_len : params.new_token_len;
+    const auto logical_past_len = params.is_seq_len_present_len ? params.seq_len - new_seq_len : params.seq_len;
+    const auto logical_present_len = params.is_seq_len_present_len ? params.seq_len : params.seq_len + new_seq_len;
+    const auto padded_present_len = logical_past_len + params.new_token_len;
+    const auto output_capacity = std::max(past_capacity, padded_present_len);
+    const bool reuse_past_buffer = padded_present_len <= past_capacity;
     const auto past_layout = layout{ov::PartialShape{batch, heads, past_capacity, head_size}, data_types::f32, format::bfyx};
     const auto new_token_layout = layout{ov::PartialShape{batch, heads, params.new_token_len, head_size}, data_types::f32, format::bfyx};
     const auto seq_len_layout = layout{ov::PartialShape{1}, data_types::i64, format::bfyx};
     const auto pos_idx_layout = layout{ov::PartialShape{params.new_token_len}, data_types::i32, format::bfyx};
 
-    const bool has_cur_len = params.cur_seq_len != -1;
     if (has_cur_len) {
         ASSERT_FALSE(params.has_pos_idx);
         ASSERT_GT(params.cur_seq_len, 0);
@@ -144,14 +184,8 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     auto seq_len = engine.allocate_memory(seq_len_layout);
     auto pos_idx = engine.allocate_memory(pos_idx_layout);
     auto cur_seq_len = engine.allocate_memory(seq_len_layout);
-    std::vector<float> past_values(past_layout.count());
-    std::vector<float> new_token_values(new_token_layout.count());
-    for (size_t i = 0; i < past_values.size(); ++i) {
-        past_values[i] = static_cast<float>(i);
-    }
-    for (size_t i = 0; i < new_token_values.size(); ++i) {
-        new_token_values[i] = static_cast<float>(1000 + i);
-    }
+    const auto past_values = make_token_values(batch, heads, head_size, past_capacity, 0, logical_past_len);
+    const auto new_token_values = make_token_values(batch, heads, head_size, params.new_token_len, logical_past_len, params.new_token_len);
     set_values(past, past_values);
     set_values(new_token, new_token_values);
     set_values<int64_t>(seq_len, {params.seq_len});
@@ -159,7 +193,7 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     std::iota(pos_idx_values.begin(), pos_idx_values.end(), static_cast<int32_t>(logical_past_len));
     set_values(pos_idx, pos_idx_values);
 
-    const auto expected = expected_concatenated_cache(past_values, new_token_values, past_layout.get_shape(), output_capacity, logical_past_len);
+    const auto expected = expected_concatenated_cache(past_values, new_token_values, past_layout.get_shape(), output_capacity, logical_past_len, new_seq_len);
 
     network.set_input_data("past", past);
     network.set_input_data("new_token", new_token);
@@ -186,13 +220,12 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     EXPECT_TRUE(engine.is_the_same_buffer(*output1, *output0));
     EXPECT_EQ(engine.is_the_same_buffer(*output0, *past), reuse_past_buffer);
     EXPECT_EQ(output0->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, output_capacity, head_size}));
-    EXPECT_EQ(output1->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, logical_present_len, head_size}));
+    EXPECT_EQ(output1->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, padded_present_len, head_size}));
     ASSERT_NE(output0->get_mem_tracker(), nullptr);
     ASSERT_GE(output0->get_mem_tracker()->size(), output0->get_layout().bytes_count());
 
-    mem_lock<float, mem_lock_type::read> output_lock(output0, get_test_stream());
-    const std::vector<float> actual(output_lock.begin(), output_lock.begin() + expected.size());
-    EXPECT_THAT(actual, testing::ElementsAreArray(expected));
+    const auto expected_present = copy_partial_seqlen(expected.data(), batch, heads, head_size, output_capacity, logical_present_len);
+    EXPECT_THAT(read_token_values(output0, batch, heads, head_size, logical_present_len), testing::ElementsAreArray(expected_present));
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
@@ -213,7 +246,16 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                          stateless_kv_runtime_params{2, 16, -1, false, true},
                                          stateless_kv_runtime_params{2, 15, -1, true, false, true},
                                          stateless_kv_runtime_params{2, 15, -1, false, false, true},
-                                         stateless_kv_runtime_params{2, 15, -1, true, true, true}),
+                                         stateless_kv_runtime_params{2, 15, -1, true, true, true},
+                                         stateless_kv_runtime_params{4, 13, 1, false, false},
+                                         stateless_kv_runtime_params{4, 14, 2, true, false},
+                                         stateless_kv_runtime_params{4, 16, 1, true, false},
+                                         stateless_kv_runtime_params{4, 15, 4, false, false},
+                                         stateless_kv_runtime_params{4, 0, 2, false, false},
+                                         stateless_kv_runtime_params{4, 15, 2, false, false},
+                                         stateless_kv_runtime_params{4, 17, 3, true, false},
+                                         stateless_kv_runtime_params{4, 13, 1, false, false, true},
+                                         stateless_kv_runtime_params{4, 17, 3, true, false, true}),
                          [](const testing::TestParamInfo<stateless_kv_runtime_params>& info) {
                              const auto& params = info.param;
                              return std::string{params.is_seq_len_present_len ? "PresentSeq" : "PastSeq"} + std::to_string(params.seq_len) + "_NewToken" +
@@ -221,49 +263,13 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                     (params.has_pos_idx ? "_Scatter" : "_Concat") + (params.use_caching ? "_cached" : "");
                          });
 
-namespace swa_helper {
-
-// Rows [0, token_count) hold plane * 1000 + absolute position; the remaining rows are -1.
-static std::vector<float> make_token_values(int64_t batch, int64_t heads, int64_t head_size, int64_t capacity, int64_t first_token_id, int64_t token_count) {
-    std::vector<float> values(static_cast<size_t>(batch * heads * capacity * head_size), -1.0f);
-    for (int64_t plane = 0; plane < batch * heads; ++plane) {
-        for (int64_t row = 0; row < token_count; ++row) {
-            const auto offset = (plane * capacity + row) * head_size;
-            std::fill_n(values.begin() + offset, head_size, static_cast<float>(plane * 1000 + first_token_id + row));
-        }
-    }
-    return values;
-}
-
-// Reads the first token_count rows of each [batch, heads] plane in make_token_values order.
-static std::vector<float> read_token_values(const memory::ptr& output, int64_t batch, int64_t heads, int64_t head_size, int64_t token_count) {
-    const auto& output_layout = output->get_layout();
-    const auto pitches = output_layout.get_pitches();
-    const auto base_offset = output_layout.get_linear_offset();
-    mem_lock<float, mem_lock_type::read> output_lock(output, get_test_stream());
-    std::vector<float> values;
-    values.reserve(static_cast<size_t>(batch * heads * token_count * head_size));
-    for (int64_t b = 0; b < batch; ++b) {
-        for (int64_t head = 0; head < heads; ++head) {
-            for (int64_t token = 0; token < token_count; ++token) {
-                for (int64_t element = 0; element < head_size; ++element) {
-                    values.push_back(output_lock[base_offset + b * pitches[0] + head * pitches[1] + token * pitches[2] + element * pitches[3]]);
-                }
-            }
-        }
-    }
-    return values;
-}
-
 // Absolute position of the first resident row in a window-sized rolling cache.
-static int64_t get_front_idx(int64_t seq_len, int64_t capacity, int64_t window_size) {
+static int64_t swa_get_front_idx(int64_t seq_len, int64_t capacity, int64_t window_size) {
     if (seq_len <= capacity)
         return int64_t{0};
     const auto rolling_gap = capacity - window_size + 1;
     return rolling_gap * (1 + (seq_len - capacity - 1) / rolling_gap);
 }
-
-}  // namespace swa_helper
 
 struct stateless_kv_swa_runtime_params : stateless_kv_runtime_params {
     stateless_kv_swa_runtime_params(int64_t new_token_len, int64_t past_seq_len, int64_t cur_seq_len, bool reuse_present_buffer, bool use_caching = false)
@@ -297,9 +303,9 @@ TEST_P(stateless_kv_swa_runtime, swa_memory) {
     const auto past_seq_len = params.seq_len;
     const auto present_seq_len = past_seq_len + new_seq_len;
     const auto padded_seq_len = past_seq_len + new_token_size;
-    const auto past_front_idx = swa_helper::get_front_idx(past_seq_len, past_capacity, window_size);
-    const auto present_front_idx = swa_helper::get_front_idx(present_seq_len, past_capacity, window_size);
-    const auto padded_front_idx = swa_helper::get_front_idx(padded_seq_len, past_capacity, window_size);
+    const auto past_front_idx = swa_get_front_idx(past_seq_len, past_capacity, window_size);
+    const auto present_front_idx = swa_get_front_idx(present_seq_len, past_capacity, window_size);
+    const auto padded_front_idx = swa_get_front_idx(padded_seq_len, past_capacity, window_size);
     const auto is_capacity_overflow = padded_front_idx > past_front_idx;
     const auto past_resident_len = past_seq_len - past_front_idx;
     const auto present_resident_len = present_seq_len - present_front_idx;
@@ -340,8 +346,8 @@ TEST_P(stateless_kv_swa_runtime, swa_memory) {
     auto new_token = engine.allocate_memory(new_token_layout);
     auto seq_len = engine.allocate_memory(seq_len_layout);
     auto cur_seq_len = engine.allocate_memory(seq_len_layout);
-    set_values(past, swa_helper::make_token_values(batch, heads, head_size, past_capacity, past_front_idx, past_resident_len));
-    set_values(new_token, swa_helper::make_token_values(batch, heads, head_size, params.new_token_len, past_seq_len, params.new_token_len));
+    set_values(past, make_token_values(batch, heads, head_size, past_capacity, past_front_idx, past_resident_len));
+    set_values(new_token, make_token_values(batch, heads, head_size, params.new_token_len, past_seq_len, params.new_token_len));
     set_values<int64_t>(seq_len, {params.seq_len});
     network.set_input_data("past", past);
     network.set_input_data("new_token", new_token);
@@ -368,10 +374,10 @@ TEST_P(stateless_kv_swa_runtime, swa_memory) {
     ASSERT_EQ(present->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, past_capacity, head_size}));
     ASSERT_EQ(sdpa->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, sdpa_buffer_seq_len, head_size}));
 
-    const auto present_ref = swa_helper::make_token_values(batch, heads, head_size, present_resident_len, present_front_idx, present_resident_len);
-    const auto sdpa_ref = swa_helper::make_token_values(batch, heads, head_size, sdpa_seq_len, sdpa_front_idx, sdpa_seq_len);
-    EXPECT_THAT(swa_helper::read_token_values(present, batch, heads, head_size, present_resident_len), testing::ElementsAreArray(present_ref));
-    EXPECT_THAT(swa_helper::read_token_values(sdpa, batch, heads, head_size, sdpa_seq_len), testing::ElementsAreArray(sdpa_ref));
+    const auto present_ref = make_token_values(batch, heads, head_size, present_resident_len, present_front_idx, present_resident_len);
+    const auto sdpa_ref = make_token_values(batch, heads, head_size, sdpa_seq_len, sdpa_front_idx, sdpa_seq_len);
+    EXPECT_THAT(read_token_values(present, batch, heads, head_size, present_resident_len), testing::ElementsAreArray(present_ref));
+    EXPECT_THAT(read_token_values(sdpa, batch, heads, head_size, sdpa_seq_len), testing::ElementsAreArray(sdpa_ref));
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
@@ -393,17 +399,17 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                          stateless_kv_swa_runtime_params{1, 14, -1, true, true},
                                          stateless_kv_swa_runtime_params{3, 16, -1, false, true},
                                          stateless_kv_swa_runtime_params{16, 29, -1, false, true},
-                                         stateless_kv_swa_runtime_params{3, 15, 1, false},    // overflow, no rolling
-                                         stateless_kv_swa_runtime_params{3, 16, 2, false},    // ovrflow and token 1 rolls
-                                         stateless_kv_swa_runtime_params{16, 0, 1, true},     // empty past, fills capacity without rolling
-                                         stateless_kv_swa_runtime_params{16, 29, 5, false}),  // overflow crosses multiple eviction boundaries, token 5 rolls
+                                         stateless_kv_swa_runtime_params{3, 15, 1, false},   // overflow, no rolling
+                                         stateless_kv_swa_runtime_params{3, 16, 2, false},   // ovrflow and token 1 rolls
+                                         stateless_kv_swa_runtime_params{16, 0, 1, true},    // empty past, fills capacity without rolling
+                                         stateless_kv_swa_runtime_params{16, 29, 5, false},  // overflow crosses multiple eviction boundaries, token 5 rolls
+                                         stateless_kv_swa_runtime_params{3, 15, 1, false, true}),
                          [](const testing::TestParamInfo<stateless_kv_swa_runtime_params>& info) {
                              const auto& params = info.param;
                              return std::string{"Past"} + std::to_string(params.seq_len) + "_NewToken" + std::to_string(params.new_token_len) +
                                     (params.cur_seq_len != -1 ? "_Cur" + std::to_string(params.cur_seq_len) : "") +
                                     (params.reuse_present_buffer ? "_ReusePresent" : "_SeparateSDPA") + (params.use_caching ? "_cached" : "");
                          });
-
 
 TEST(stateless_kv_runtime, swa_runtime_state_refresh) {
     auto& engine = get_test_engine();
@@ -498,8 +504,8 @@ TEST(stateless_kv_runtime, reallocation_across_executions) {
         set_values(new_token, new_token_values);
         set_values<int64_t>(seq_len, {present_len});
 
-        auto expected = expected_concatenated_cache(current_values, new_token_values, current_past->get_layout().get_shape(),
-                                                    output_capacity, logical_past_len);
+        auto expected =
+            expected_concatenated_cache(current_values, new_token_values, current_past->get_layout().get_shape(), output_capacity, logical_past_len);
 
         network.set_input_data("past", current_past);
         network.set_input_data("new_token", new_token);
@@ -522,9 +528,7 @@ TEST(stateless_kv_runtime, reallocation_across_executions) {
         ASSERT_NE(output0->get_mem_tracker(), nullptr);
         ASSERT_GE(output0->get_mem_tracker()->size(), output0->get_layout().bytes_count());
 
-        mem_lock<float, mem_lock_type::read> output_lock(output0, get_test_stream());
-        const std::vector<float> actual(output_lock.begin(), output_lock.begin() + expected.size());
-        EXPECT_THAT(actual, testing::ElementsAreArray(expected));
+        EXPECT_THAT(read_token_values(output0, batch, heads, head_size, output_capacity), testing::ElementsAreArray(expected));
 
         current_past = output0;
         current_values = std::move(expected);
@@ -567,8 +571,8 @@ TEST(stateless_kv_runtime, swa_shape_changes) {
 
     auto run_and_verify = [&](int64_t batch, int64_t capacity, int64_t past_seq_len, bool expect_rolling) {
         const auto present_seq_len = past_seq_len + new_token_len;
-        const auto past_front_idx = swa_helper::get_front_idx(past_seq_len, capacity, window_size);
-        const auto present_front_idx = swa_helper::get_front_idx(present_seq_len, capacity, window_size);
+        const auto past_front_idx = swa_get_front_idx(past_seq_len, capacity, window_size);
+        const auto present_front_idx = swa_get_front_idx(present_seq_len, capacity, window_size);
         const auto past_resident_len = past_seq_len - past_front_idx;
         const auto present_resident_len = present_seq_len - present_front_idx;
         const auto sdpa_front_idx = std::max<int64_t>(0, past_seq_len - window_size + 1);
@@ -579,8 +583,8 @@ TEST(stateless_kv_runtime, swa_shape_changes) {
         auto past = engine.allocate_memory(past_layout, allocation_type::usm_host);
         auto new_token = engine.allocate_memory(new_token_layout);
 
-        set_values(past, swa_helper::make_token_values(batch, heads, head_size, capacity, past_front_idx, past_resident_len));
-        set_values(new_token, swa_helper::make_token_values(batch, heads, head_size, new_token_len, past_seq_len, new_token_len));
+        set_values(past, make_token_values(batch, heads, head_size, capacity, past_front_idx, past_resident_len));
+        set_values(new_token, make_token_values(batch, heads, head_size, new_token_len, past_seq_len, new_token_len));
         set_values<int64_t>(past_len, {past_seq_len});
 
         network.set_input_data("past", past);
@@ -605,10 +609,10 @@ TEST(stateless_kv_runtime, swa_shape_changes) {
         EXPECT_EQ(result->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, capacity, head_size}));
         EXPECT_EQ(sdpa->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, sdpa_seq_len, head_size}));
 
-        const auto present_ref = swa_helper::make_token_values(batch, heads, head_size, present_resident_len, present_front_idx, present_resident_len);
-        const auto sdpa_ref = swa_helper::make_token_values(batch, heads, head_size, sdpa_seq_len, sdpa_front_idx, sdpa_seq_len);
-        EXPECT_THAT(swa_helper::read_token_values(result, batch, heads, head_size, present_resident_len), testing::ElementsAreArray(present_ref));
-        EXPECT_THAT(swa_helper::read_token_values(sdpa, batch, heads, head_size, sdpa_seq_len), testing::ElementsAreArray(sdpa_ref));
+        const auto present_ref = make_token_values(batch, heads, head_size, present_resident_len, present_front_idx, present_resident_len);
+        const auto sdpa_ref = make_token_values(batch, heads, head_size, sdpa_seq_len, sdpa_front_idx, sdpa_seq_len);
+        EXPECT_THAT(read_token_values(result, batch, heads, head_size, present_resident_len), testing::ElementsAreArray(present_ref));
+        EXPECT_THAT(read_token_values(sdpa, batch, heads, head_size, sdpa_seq_len), testing::ElementsAreArray(sdpa_ref));
     };
 
     run_and_verify(1, 16, 10, false);
@@ -663,9 +667,7 @@ TEST(stateless_kv_runtime, zero_length_past) {
     EXPECT_TRUE(engine.is_the_same_buffer(*kv_output, *present));
     EXPECT_EQ(kv_output->get_layout().get_partial_shape(), ov::PartialShape({batch, heads, new_token_len, head_size}));
 
-    mem_lock<float, mem_lock_type::read> output_lock(kv_output, get_test_stream());
-    const std::vector<float> actual(output_lock.begin(), output_lock.begin() + expected.size());
-    EXPECT_THAT(actual, testing::ElementsAreArray(expected));
+    EXPECT_THAT(read_token_values(kv_output, batch, heads, head_size, new_token_len), testing::ElementsAreArray(expected));
 }
 
 TEST(stateless_kv_runtime, caller_output_binding_respects_inplace_contract) {
@@ -795,8 +797,7 @@ TEST(stateless_kv_runtime, concat_growth_with_aliased_caller_buffer) {
     EXPECT_TRUE(engine.is_the_same_buffer(*result, *caller_buffer));
     EXPECT_FALSE(engine.is_the_same_buffer(*kv_output, *caller_buffer));
 
-    mem_lock<float, mem_lock_type::read> actual(caller_buffer, get_test_stream());
-    EXPECT_THAT(std::vector<float>(actual.begin(), actual.begin() + expected.size()), testing::ElementsAreArray(expected));
+    EXPECT_THAT(read_token_values(caller_buffer, 1, heads, head_size, present_len), testing::ElementsAreArray(expected));
 }
 
 // stateless_kv must not write f32 present into the f16 buffer of a converting Result.
@@ -997,10 +998,9 @@ TEST_P(stateless_kv_caller_host_output, repeated_inference) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         stateless_kv_caller_host_output,
-                         testing::Bool(),
-                         [](const testing::TestParamInfo<bool>& info) { return info.param ? "RemotePast" : "CallerHostPast"; });
+INSTANTIATE_TEST_SUITE_P(smoke, stateless_kv_caller_host_output, testing::Bool(), [](const testing::TestParamInfo<bool>& info) {
+    return info.param ? "RemotePast" : "CallerHostPast";
+});
 
 // Another reader of past must still see the original past, whether or not present is bound over it.
 TEST(stateless_kv_runtime, infer_request_aliased_past_with_another_reader) {

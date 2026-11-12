@@ -280,6 +280,15 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     EXPECT_EQ(value->output(0).get_element_type(), expected_cache_type);
     EXPECT_EQ(value->output(1).get_element_type(), expected_cache_type);
 
+    // qk reads the full present (output 0, shaped like the cache input); SDPA reads the trimmed view (output 1).
+    if (need_qk_output) {
+        EXPECT_EQ(key->output(0).get_partial_shape().is_static(), parameters[3]->get_partial_shape().is_static());
+        EXPECT_EQ(value->output(0).get_partial_shape().is_static(), parameters[4]->get_partial_shape().is_static());
+    } else {
+        EXPECT_TRUE(key->output(1).get_partial_shape().is_dynamic());
+        EXPECT_TRUE(value->output(1).get_partial_shape().is_dynamic());
+    }
+
     const bool fused_transpose_v = cfg.transpose_v && cfg.should_fuse_transpose_v && !need_qk_output;
     const auto present_key_source = model->output(1).get_node()->input_value(0);
     auto present_value_source = model->output(2).get_node()->input_value(0);
@@ -348,6 +357,8 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
 std::shared_ptr<ov::Model> expect_no_stateless_kv(const GQAConfig& cfg) {
     const auto model = decompose_gqa_model(cfg);
     const bool need_qk_output = cfg.qk_output != QKOutput::NONE;
+    const bool use_explicit_attention = cfg.softcap > 0.0f || need_qk_output;
+    const bool sdpa_kv_dynamic = !cfg.static_past_cache || (cfg.causal && !cfg.sliding_window_cache && !use_explicit_attention);
 
     std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
     for (const auto& node : model->get_ordered_ops()) {
@@ -358,12 +369,12 @@ std::shared_ptr<ov::Model> expect_no_stateless_kv(const GQAConfig& cfg) {
         }
     }
 
-    if (need_qk_output) {
+    if (use_explicit_attention) {
+        // Explicit attention replaces SDPA, so no SDPA op may remain.
         EXPECT_EQ(sdpa, nullptr);
-        EXPECT_EQ(model->get_output_size(), 4u);
-    } else if (cfg.softcap > 0.0f) {
-        // Softcap replaces SDPA, so no SDPA op may remain.
-        EXPECT_EQ(sdpa, nullptr);
+        if (need_qk_output) {
+            EXPECT_EQ(model->get_output_size(), 4u);
+        }
     } else {
         EXPECT_NE(sdpa, nullptr);
         if (sdpa) {
@@ -371,12 +382,14 @@ std::shared_ptr<ov::Model> expect_no_stateless_kv(const GQAConfig& cfg) {
             if (sdpa->get_causal()) {
                 EXPECT_EQ(sdpa->get_input_size(), 3u) << "causal SDPA must not carry an explicit mask";
             } else {
-                EXPECT_TRUE(sdpa->get_input_size() > 3u && sdpa->input_value(3).get_partial_shape().is_dynamic())
-                    << "non-causal SDPA must carry a dynamic explicit mask";
+                EXPECT_GT(sdpa->get_input_size(), 3u) << "non-causal SDPA must carry an explicit mask";
+                if (sdpa_kv_dynamic) {
+                    EXPECT_TRUE(sdpa->input_value(3).get_partial_shape().is_dynamic()) << "explicit mask must follow the dynamic K/V length";
+                }
             }
             for (size_t input_index = 1; input_index <= 2; ++input_index) {
                 const auto& kv_shape = sdpa->input_value(input_index).get_partial_shape();
-                EXPECT_TRUE(kv_shape.rank().is_static() && kv_shape[2].is_dynamic()) << "SDPA input " << input_index << " seqlen dim should be dynamic";
+                EXPECT_EQ(kv_shape[2].is_dynamic(), sdpa_kv_dynamic) << "SDPA input " << input_index << " seqlen dim dynamic mismatch";
             }
         }
     }
@@ -507,6 +520,21 @@ TEST(GQADecompositionTest, explicit_scale_mask_has_dynamic_shapes) {
     cfg.present_key_slice = true;
     cfg.scale = 0.125f;
 
+    expect_no_stateless_kv(cfg);
+}
+
+TEST(GQADecompositionTest, static_causal_sdpa_kv_is_trimmed) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.present_key_slice = true;  // forces the common-decompose fallback
+    expect_no_stateless_kv(cfg);
+}
+
+TEST(GQADecompositionTest, static_non_causal_sdpa_kv_keeps_static_shape) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.causal = false;
+    cfg.present_key_slice = true;  // forces the common-decompose fallback
     expect_no_stateless_kv(cfg);
 }
 

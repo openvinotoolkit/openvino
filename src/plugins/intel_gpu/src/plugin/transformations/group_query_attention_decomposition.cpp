@@ -237,7 +237,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
                                                                                      past_seqlen,
                                                                                      current_seqlen_scalar,
                                                                                      metadata_);
-        if (!node->get_sliding_window_cache() && node->has_fixed_kv_capacity()) {
+        if (!use_explicit_attention && node->get_causal() && !node->get_sliding_window_cache() && node->has_fixed_kv_capacity()) {
             // static path put full buffer to SDPA, trim it for causal.
             const auto slice_start = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
             const auto slice_step = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
