@@ -116,11 +116,11 @@
 #    include "transformations/snippets/common/op/store_convert.hpp"
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
-#    include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 #    include "transformations/cpu_opset/x64/op/interaction.hpp"
 #    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#    include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
+#    include "transformations/cpu_opset/x64/op/sparse_attention_with_kv_cache.hpp"
 #    include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"

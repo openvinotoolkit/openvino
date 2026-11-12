@@ -275,8 +275,12 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
 
     // The tokens of a call are dynamic: every call of the test parameter is a target shape of them.
     const ov::Dimension tokens = ov::Dimension::dynamic();
-    auto p_q_idx = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape{tokens, m_h_iq * kDidx});
-    auto p_k_idx = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape{tokens, m_h_ik * kDidx});
+    auto p_q_idx = std::make_shared<ov::op::v0::Parameter>(
+        data_precision,
+        ov::PartialShape{tokens, static_cast<ov::Dimension::value_type>(m_h_iq * kDidx)});
+    auto p_k_idx = std::make_shared<ov::op::v0::Parameter>(
+        data_precision,
+        ov::PartialShape{tokens, static_cast<ov::Dimension::value_type>(m_h_ik * kDidx)});
     auto p_rope_cos = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape{tokens, kRotaryDim});
     auto p_rope_sin = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::PartialShape{tokens, kRotaryDim});
     auto p_q_norm_weight = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{kDidx});
@@ -313,9 +317,9 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
         const bool token_input = p->get_partial_shape().is_dynamic();
         std::vector<ov::Shape> target_shapes;
         for (const auto new_tokens_per_seq : m_calls) {
-            ov::Shape shape =
-                token_input ? ov::Shape{m_num_sequences * new_tokens_per_seq, p->get_partial_shape()[1].get_length()}
-                            : p->get_shape();
+            ov::Shape shape = token_input ? ov::Shape{m_num_sequences * new_tokens_per_seq,
+                                                      static_cast<size_t>(p->get_partial_shape()[1].get_length())}
+                                          : p->get_shape();
             target_shapes.push_back(shape);
         }
         input_shapes.emplace_back(p->get_partial_shape(), target_shapes);
