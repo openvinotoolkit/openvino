@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <iomanip>
+#include <limits>
+#include <locale>
+#include <sstream>
 #include <string>
 
 #include "../primitive_ocl_base.hpp"
@@ -1244,12 +1248,16 @@ protected:
             if (fd.is_type<cldnn::activation>()) {
                 const auto act = fd.typed_desc<cldnn::activation>();
                 switch (act->activation_function) {
-                case cldnn::activation_func::swish:
-                    // swish(x) = x / (1 + exp(-x))
+                case cldnn::activation_func::swish: {
+                    // swish(x) = x / (1 + exp(-beta*x))
                     // CM has no expf(); use cm_exp(x*log2e) = e^x  (base-2 hardware
                     // exp, vector form -- cm_exp deduces width from its argument).
-                    op.apply_stmt = "V = V / (1.0f + cm_exp(-V * 1.4426950408889634f));";
+                    std::ostringstream beta;
+                    beta.imbue(std::locale::classic());
+                    beta << std::scientific << std::setprecision(std::numeric_limits<float>::max_digits10) << act->additional_params.a << 'f';
+                    op.apply_stmt = "V = V / (1.0f + cm_exp(-V * (" + beta.str() + ") * 1.4426950408889634f));";
                     break;
+                }
                 case cldnn::activation_func::relu:
                     op.apply_stmt = "V = cm_max<float>(V, 0.0f);";
                     break;
@@ -1516,6 +1524,9 @@ public:
     // DQ-activation W4A8 prefill: per-token INT8 activation quantisation + W4A8 DP4A dnnl::matmul.
     // Enabled by default (OV_GPU_GGUF_PREFILL_DQ_ACT=1); overridden to false when m_prefill_f16=true.
     bool m_use_dq_act = false;
+    size_t m_act_dq_group = 1;
+    bool m_act_dq_asymmetric = false;
+    int m_requant_group = GGUF_REQUANT_GROUP;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Shared prefill transcode scratchpad for this engine (see TranscodeArena). Lazily fetched on the
@@ -1554,6 +1565,14 @@ public:
             const size_t K = wl.get_shape()[1];
             return gguf_shuffle_applicable(wl.data_type, N, K);
         }();
+
+        const auto& weight_shape = params.input_layouts[1].get_shape();
+        const auto weight_type = static_cast<element::Type_t>(wet);
+        m_act_dq_group = gguf_act_dq_safe_group_size(weight_shape[1], weight_type, weight_shape[0]);
+        m_act_dq_asymmetric = gguf_prefill_dq_act_asymmetric();
+        const int block_elem = shuffle_applicable && gguf_is_small_shuffle_format(weight_type)
+                                   ? 256 : static_cast<int>(element::Type(weight_type).block_elem_count());
+        m_requant_group = gguf_requant_group(block_elem);
 
         if (shuffle_applicable && wet == element::Type_t::gguf_q4_k) {
             m_q4k_shuffle = true;
@@ -1603,7 +1622,7 @@ public:
     void save(cldnn::BinaryOutputBuffer& ob) const override {
         PrimitiveImplOCL::save(ob);
         ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16
-           << m_use_dq_act;
+           << m_use_dq_act << m_act_dq_group << m_act_dq_asymmetric << m_requant_group;
         const auto prefill_kernel = static_cast<uint8_t>(m_prefill_kernel);
         ob << prefill_kernel << m_gemm_strict << m_gemm_family;
     }
@@ -1611,7 +1630,7 @@ public:
     void load(cldnn::BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
         ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >>
-            m_use_dq_act;
+            m_use_dq_act >> m_act_dq_group >> m_act_dq_asymmetric >> m_requant_group;
         uint8_t prefill_kernel = 0;
         ib >> prefill_kernel >> m_gemm_strict >> m_gemm_family;
         m_prefill_kernel = static_cast<PrefillKernel>(prefill_kernel);
@@ -1629,6 +1648,9 @@ public:
         c->m_q8_0_shuffle = m_q8_0_shuffle;
         c->m_prefill_f16 = m_prefill_f16;
         c->m_use_dq_act = m_use_dq_act;
+        c->m_act_dq_group = m_act_dq_group;
+        c->m_act_dq_asymmetric = m_act_dq_asymmetric;
+        c->m_requant_group = m_requant_group;
         c->m_prefill_kernel = m_prefill_kernel;
         c->m_gemm_strict = m_gemm_strict;
         c->m_gemm_family = m_gemm_family;
@@ -2100,7 +2122,7 @@ private:
         // transcode decoder (GGUF_SHUFFLE=1) for coalesced reads. Only the explicit flag forces f16.
         const bool use_f16 = m_prefill_f16;
         // requant_group=128 when block_elem=256: matches NNCF group=128, 4x fewer scale/ZP ops in GEMM.
-        const int requant_group = gguf_requant_group(block_elem);
+        const int requant_group = m_requant_group;
         const auto w_dt = use_f16           ? data_types::f16
                           : !tgt.asymmetric ? data_types::i8  // s8 symmetric (Q5_K/Q6_K/Q8_0/IQ2*)
                           : tgt.to_i4       ? data_types::u4  // u4 asymmetric 4-bit (Q4_K/Q4_0/Q4_1/...)
@@ -2179,13 +2201,14 @@ private:
         // LM Head heuristic: large vocabulary output (N ≥ 50000, e.g. Qwen3=151936, Llama2=32000).
         // LM Head must preserve f16 activation precision for logit accuracy; use WOQ (no INT8 DQ).
         const bool is_lm_head = (static_cast<size_t>(N) >= 50000);
-        const bool run_dq = !use_f16 && m_use_dq_act && !is_lm_head;
-        const bool act_asym = gguf_prefill_dq_act_asymmetric();
+        const bool run_dq = !use_f16 && m_use_dq_act && !is_lm_head &&
+                    params.get_input_layout(0).data_type == data_types::f16;
+        const bool act_asym = m_act_dq_asymmetric;
         // Use the safe group size: if the user-requested group < K AND the weight is
         // asymmetric, the fast gemm_t would require precomputed B-group-sums (needsBGroupSums)
         // that we don't supply, causing a silent ref_t fallback (~100x slower).
         // gguf_act_dq_safe_group_size() detects this and returns K (per-token) instead.
-        const size_t act_group = gguf_act_dq_safe_group_size(static_cast<size_t>(K), et, static_cast<size_t>(N));
+        const size_t act_group = m_act_dq_group;
         validate_gguf_act_dq_config(static_cast<size_t>(K), act_group, act_asym);
         const size_t act_groups = static_cast<size_t>(K) / act_group;
 

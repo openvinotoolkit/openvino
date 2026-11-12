@@ -27,6 +27,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
@@ -457,6 +458,233 @@ TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
 }
 
 class GGUFParserGpu : public GGUFParser, public ::testing::WithParamInterface<GgufRawFormat> {};
+
+TEST_F(GGUFParser, ActivationDqPreservesFp32Input) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", "0");
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", "0");
+    GgufScopedEnvironment dq("OV_GPU_GGUF_PREFILL_DQ_ACT", "1");
+    GgufScopedEnvironment group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "0");
+    GgufScopedEnvironment asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", "0");
+    constexpr size_t rows = 33;
+    constexpr size_t columns = 512;
+    constexpr size_t channels = 64;
+    std::array<uint8_t, 176> block{};
+    const ov::float16 scale(0.03125f);
+    std::memcpy(block.data(), &scale, sizeof(scale));
+    std::fill(block.begin() + 4, block.begin() + 16, 1);
+    std::fill(block.begin() + 48, block.end(), 0x11);
+    std::vector<uint8_t> payload(channels * columns / 256 * block.size());
+    for (size_t offset = 0; offset < payload.size(); offset += block.size())
+        std::memcpy(payload.data() + offset, block.data(), block.size());
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", GGUF_TYPE_Q5_K, columns, channels, payload));
+    auto loaded = get_gguf_data(m_path, GGUFLoadOptions{false, true});
+    for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+        SCOPED_TRACE(precision.get_type_name());
+        GraphEmitter emitter(std::get<1>(loaded), std::get<2>(loaded), "test");
+        emitter.add_input("activation", precision, {1, 1, rows, columns});
+        emitter.add_weight("projection.weight");
+        emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
+        emitter.graph()->model_output_names = {"output"};
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+        FrontEnd frontend;
+        const auto model = frontend.convert(frontend.load(decoder));
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(precision),
+                           ov::num_streams(1));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(precision, {1, 1, rows, columns});
+        if (precision == ov::element::f32)
+            std::fill_n(input.data<float>(), input.get_size(), 0.03125f);
+        else
+            std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
+        request.set_input_tensor(input);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_size(), rows * channels);
+        for (size_t index = 0; index < output.get_size(); ++index) {
+            const float actual = output.get_element_type() == ov::element::f32
+                                     ? output.data<const float>()[index]
+                                     : static_cast<float>(output.data<const ov::float16>()[index]);
+            ASSERT_NEAR(actual, 0.5f, 0.001f) << index;
+        }
+        if (precision == ov::element::f16) {
+            for (const bool compile_asymmetric : {true, false}) {
+                SCOPED_TRACE(compile_asymmetric);
+                GgufScopedEnvironment compile_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "128");
+                GgufScopedEnvironment compile_asym("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC",
+                                                  compile_asymmetric ? "1" : "0");
+                GgufScopedEnvironment compile_requant("OV_GPU_GGUF_REQUANT_GROUP", "64");
+                auto cached = core.compile_model(model, "GPU", ov::hint::inference_precision(precision),
+                                                 ov::num_streams(1));
+                std::stringstream blob;
+                cached.export_model(blob);
+                GgufScopedEnvironment import_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "512");
+                GgufScopedEnvironment import_asym("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC",
+                                                 compile_asymmetric ? "0" : "1");
+                GgufScopedEnvironment import_requant("OV_GPU_GGUF_REQUANT_GROUP", "32");
+                ov::Core import_core;
+                auto imported = import_core.import_model(blob, "GPU", ov::hint::inference_precision(precision),
+                                                          ov::num_streams(1));
+                for (auto* compiled_model : {&cached, &imported}) {
+                    auto restored_request = compiled_model->create_infer_request();
+                    for (size_t index = 0; index < input.get_size(); ++index)
+                        input.data<ov::float16>()[index] = ov::float16(0.015625f *
+                            static_cast<float>(1 << ((index % columns) / 128)));
+                    restored_request.set_input_tensor(input);
+                    restored_request.infer();
+                    const auto restored_output = restored_request.get_output_tensor();
+                    ASSERT_EQ(restored_output.get_size(), rows * channels);
+                    for (size_t index = 0; index < restored_output.get_size(); ++index) {
+                        const float actual = restored_output.get_element_type() == ov::element::f32
+                            ? restored_output.data<const float>()[index]
+                            : static_cast<float>(restored_output.data<const ov::float16>()[index]);
+                        ASSERT_NEAR(actual, 0.9375f, 0.001f) << index;
+                    }
+                }
+            }
+        }
+    }
+#endif
+}
+
+TEST_F(GGUFParser, AsymmetricWeightTranscodePreservesSingleSignGroups) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", "0");
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", "0");
+    GgufScopedEnvironment group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", "0");
+    GgufScopedEnvironment asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", "0");
+    GgufScopedEnvironment requant_group("OV_GPU_GGUF_REQUANT_GROUP", "32");
+    constexpr size_t rows = 33;
+    constexpr size_t columns = 512;
+    constexpr size_t channels = 64;
+    const std::array<uint8_t, 6> codes{0x99, 0x77, 0xb9, 0x75, 0x88, 0xa7};
+    const std::array<float, 6> expected{0.5f, -0.5f, 1.f, -1.f, 0.f, 0.25f};
+    const ov::float16 scale(0.03125f);
+    std::vector<uint8_t> payload(channels * columns / 32 * 18);
+    for (size_t channel = 0; channel < channels; ++channel) {
+        for (size_t block = 0; block < columns / 32; ++block) {
+            auto* destination = payload.data() + (channel * columns / 32 + block) * 18;
+            std::memcpy(destination, &scale, sizeof(scale));
+            std::fill_n(destination + 2, 16, codes[channel % codes.size()]);
+        }
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", GGUF_TYPE_Q4_0, columns, channels, payload));
+    auto loaded = get_gguf_data(m_path, GGUFLoadOptions{false, false, false, false, true});
+    GraphEmitter emitter(std::get<1>(loaded), std::get<2>(loaded), "test");
+    emitter.add_input("activation", ov::element::f16, {1, 1, rows, columns});
+    emitter.add_weight("projection.weight");
+    emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
+    emitter.graph()->model_output_names = {"output"};
+    std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+    FrontEnd frontend;
+    const auto model = frontend.convert(frontend.load(decoder));
+    for (const char* dq_value : {"0", "1"}) {
+        SCOPED_TRACE(dq_value);
+        GgufScopedEnvironment dq("OV_GPU_GGUF_PREFILL_DQ_ACT", dq_value);
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16),
+                                           ov::num_streams(1));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(ov::element::f16, {1, 1, rows, columns});
+        std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
+        request.set_input_tensor(input);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_TRUE(output.get_element_type() == ov::element::f16 ||
+                output.get_element_type() == ov::element::f32);
+        ASSERT_EQ(output.get_size(), rows * channels);
+        std::array<float, 6> max_errors{};
+        for (size_t index = 0; index < output.get_size(); ++index) {
+            const auto pattern = (index % channels) % codes.size();
+            const float actual = output.get_element_type() == ov::element::f32
+                         ? output.data<const float>()[index]
+                         : static_cast<float>(output.data<const ov::float16>()[index]);
+            ASSERT_TRUE(std::isfinite(actual)) << index;
+            max_errors[pattern] = std::max(max_errors[pattern], std::abs(actual - expected[pattern]));
+        }
+        for (size_t pattern = 0; pattern < codes.size(); ++pattern)
+            EXPECT_LE(max_errors[pattern], 0.001f) << "pattern=" << pattern;
+    }
+#endif
+}
+
+TEST_F(GGUFParser, CmFusedSwishPreservesBeta) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", "1");
+    GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+    GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "32");
+    constexpr size_t rows = 33;
+    constexpr size_t columns = 512;
+    constexpr size_t channels = 64;
+    const ov::float16 scale(0.03125f);
+    ov::Tensor weights(ov::element::gguf_q4_0, {channels, columns});
+    for (size_t offset = 0; offset < weights.get_byte_size(); offset += 18) {
+        auto* block = static_cast<uint8_t*>(weights.data()) + offset;
+        std::memcpy(block, &scale, sizeof(scale));
+        std::fill_n(block + 2, 16, 0x99);
+    }
+    const auto weight = std::make_shared<ov::op::v0::Constant>(weights);
+    const auto absent = ov::op::v0::Constant::create(ov::element::f32, {0}, {});
+    for (const float beta : {0.f, 1.f, 2.f, -1.f}) {
+        SCOPED_TRACE(beta);
+        const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                                      ov::Shape{rows, columns});
+        const auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+            activation, weight, absent, absent, absent, ov::element::f16);
+        const auto swish = std::make_shared<ov::op::v4::Swish>(
+            fc, ov::op::v0::Constant::create(ov::element::f16, {}, {beta}));
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{swish}, ov::ParameterVector{activation});
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f16),
+                                           ov::num_streams(1), ov::enable_profiling(true));
+        auto request = compiled.create_infer_request();
+        ov::Tensor input(ov::element::f16, {rows, columns});
+        std::fill_n(input.data<ov::float16>(), input.get_size(), scale);
+        request.set_input_tensor(input);
+        request.infer();
+        const auto profile = request.get_profiling_info();
+        const bool used_cm = std::any_of(profile.begin(), profile.end(), [](const ov::ProfilingInfo& entry) {
+            return entry.exec_type.find("cm::fc_gguf_cm") != std::string::npos;
+        });
+        ASSERT_TRUE(used_cm) << "Requires CM GGUF FC execution";
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_element_type(), ov::element::f16);
+        ASSERT_EQ(output.get_size(), rows * channels);
+        const float expected = 0.5f / (1.f + std::exp(-beta * 0.5f));
+        for (size_t index = 0; index < output.get_size(); ++index)
+            EXPECT_NEAR(static_cast<float>(output.data<const ov::float16>()[index]), expected, 0.001f) << index;
+    }
+#endif
+}
 
 TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
 #ifndef GGUF_GPU_NATIVE_TESTS
