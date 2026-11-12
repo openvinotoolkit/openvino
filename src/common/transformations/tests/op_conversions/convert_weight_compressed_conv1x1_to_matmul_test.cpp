@@ -43,6 +43,8 @@ struct Conv1x1ToMatmulTestParams {
     bool with_act_new_reshape;
     bool with_batched_input;
     std::string activation_op_type;
+    // scale is Convert(Constant f32 -> f16) instead of a plain f16 Constant (e.g. kept in f32 until precision conversion)
+    bool scale_as_convert = false;
 };
 
 std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
@@ -99,7 +101,15 @@ std::shared_ptr<ov::Model> gen_model(const Conv1x1ToMatmulTestParams& p) {
         ov::opset1::Constant::create(ov::element::f16,
                                      p.with_group_quant ? ov::Shape{15, 5, 1, 1, 1} : ov::Shape{15, 1, 1, 1},
                                      {1});
-    std::shared_ptr<ov::Node> mul = std::make_shared<ov::opset1::Multiply>(current_node, scale_const);
+    std::shared_ptr<ov::Node> scale_node = scale_const;
+    if (p.scale_as_convert) {
+        auto scale_f32 =
+            ov::opset1::Constant::create(ov::element::f32,
+                                         p.with_group_quant ? ov::Shape{15, 5, 1, 1, 1} : ov::Shape{15, 1, 1, 1},
+                                         {1});
+        scale_node = std::make_shared<ov::op::v0::Convert>(scale_f32, ov::element::f16);
+    }
+    std::shared_ptr<ov::Node> mul = std::make_shared<ov::opset1::Multiply>(current_node, scale_node);
 
     if (p.with_group_quant) {
         auto reshape_const = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {15, 10, 1, 1});
@@ -331,6 +341,73 @@ TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3) {
         return model;
     };
     model = CreateConv3x3();
+}
+
+// The scale may still be a constant subgraph (Convert(Constant)) when the pass runs. Both operands of the decompression Multiply are then
+// Convert(Constant): the compressed weights must still be bound as the weights (not the scale) and the scale must be folded.
+class ConvertWeightCompressedConv1x1ToMatmulTest_ConvertScale : public TransformationTestsF {
+public:
+    ConvertWeightCompressedConv1x1ToMatmulTest_ConvertScale() {
+        manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
+    }
+
+    void run(bool with_group_quant) {
+        Conv1x1ToMatmulTestParams params{with_group_quant, true, true, false, false, false, false, "Transpose"};
+        params.scale_as_convert = true;
+        model = gen_model(params);
+        params.scale_as_convert = false;
+        model_ref = gen_model_ref(params);
+    }
+};
+
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ConvertScale, conv1x1_scale_as_convert) {
+    run(false);
+}
+
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_ConvertScale, conv1x1_group_quant_scale_as_convert) {
+    run(true);
+}
+
+// A 3x3 convolution must be left alone (and the pass must not throw) when the decompression scale is Convert(Constant [C, 1, 1, 1]):
+// the scale used to be mistaken for 1x1 "compressed weights".
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv3x3_scale_as_convert) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 2, 2, 4});
+    auto to_nchw = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+    auto to_nhwc = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+    auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{4, 4, 3, 3}, {1});
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+    auto scale = ov::opset1::Constant::create(ov::element::f32, ov::Shape{4, 1, 1, 1}, {1});
+    auto scale_convert = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f16);
+    auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale_convert);
+    auto conv = std::make_shared<ov::opset1::Convolution>(std::make_shared<ov::opset1::Transpose>(input, to_nchw),
+                                                          mul,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::CoordinateDiff{1, 1},
+                                                          ov::Strides{1, 1},
+                                                          ov::op::PadType::EXPLICIT);
+    auto output = std::make_shared<ov::opset1::Transpose>(conv, to_nhwc);
+    model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+}
+
+// The scale is not a constant (here a Parameter): nothing can be folded, the pass must skip the convolution instead of asserting.
+TEST_F(ConvertWeightCompressedConv1x1ToMatmulTest_Blocked, conv1x1_non_constant_scale) {
+    auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, 10});
+    auto scale = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{15, 1, 1, 1});
+    auto to_nchw = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 3, 1, 2});
+    auto to_nhwc = ov::opset1::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
+    auto weights = ov::opset1::Constant::create(ov::element::i4, ov::Shape{15, 10, 1, 1}, {1});
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+    auto mul = std::make_shared<ov::opset1::Multiply>(weights_convert, scale);
+    auto conv = std::make_shared<ov::opset1::Convolution>(std::make_shared<ov::opset1::Transpose>(input, to_nchw),
+                                                          mul,
+                                                          ov::Strides{1, 1},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::CoordinateDiff{0, 0},
+                                                          ov::Strides{1, 1},
+                                                          ov::op::PadType::EXPLICIT);
+    auto output = std::make_shared<ov::opset1::Transpose>(conv, to_nhwc);
+    model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input, scale});
 }
 
 // Regression test for the NCHW/NHWC layout mismatch when the Convolution output is consumed by a
