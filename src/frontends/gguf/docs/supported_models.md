@@ -191,8 +191,13 @@ Original Cohere2 Q4_0, Qwen3-VL-2B Q4_0 and Gemma3n E2B Q4_0 each match all
 must match and at least 90% of the 13 choices must agree. Full-logit NMSE is recorded
 separately; Gemma3n's maximum is `0.001477`, which does not use the synthetic-fixture
 NMSE gate. Cohere2's repeated GenAI SDPA and PA outputs now agree. The original combined
-Gemma3n projector passes the vision feature gate and repeated PA image generation;
-its audio branch is unsupported, as described in [mmproj.md](mmproj.md#added-2026-projector-paths).
+Gemma3n projector passes the vision feature gate for one previously tested input and repeated
+image generation; other tested inputs and the unsupported audio branch are described in
+[mmproj.md](mmproj.md#added-2026-projector-paths).
+
+An additional replay against llama.cpp `604cc430239c76ff636c443e3400bf552b750421`
+matches 13/13 choices for Cohere2 and Gemma3n and 12/13 for Qwen3-VL. This is
+teacher-forced agreement, not identical free-running generation or strict logit parity.
 
 A real Llama-Nemotron-Embed-1B-v2 F16 checkpoint at revision
 `effc8deb9688852dbf4ba458301999f7133f8eed` passes per-token embedding comparison
@@ -201,11 +206,14 @@ against the same pinned CPU oracle.
 Drafts may omit token embeddings and the output head. Conversion then exposes
 `gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI
 consumer clones target weight subgraphs before compilation. EAGLE3's reduced-vocabulary
-`d2t` is an auxiliary mapping constant; omitted tables use identity mapping. DFlash
+`d2t` auxiliary constant contains absolute target token IDs; omitted tables use identity
+mapping. GenAI must convert these IDs to the offsets expected by its sampler. DFlash
 Markov, LiLiCorr, selector and convolution variants are unsupported.
 The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request
-continuous batching and target-only greedy agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash
-BF16 pair passes repeated single-request PA generation with prefix caching disabled.
+continuous batching and target-only greedy agreement, with 23 of 68 draft tokens accepted
+in each tested repetition. The Qwen3.6-35B-A3B Q4_K_M/DFlash BF16 pair passes repeated
+single-request PA generation with prefix caching disabled, accepting 4 of 65 draft tokens
+per repetition. These checks use the companion GenAI mapping and metrics fixes.
 DeepSeek-V4 and multiple active DFlash requests are deferred.
 
 ### Quantized support and reference accuracy
@@ -239,6 +247,8 @@ They measure reference-answer agreement, not percent accuracy. The lowest AFMoE
 score is 0.7204 on a flawed French translation shared by both quantized backends.
 Omni's lowest GenAI score is 0.9133; reviewed low-score outputs remain coherent.
 Image/audio/TTS, long-context and GPU quality are outside this WWB result.
+In a separate CPU PA smoke test, Omni repeatedly identified a cat in a box and
+transcribed a short speech clip; this is not a feature-parity or broader quality test.
 
 References come from original publisher BF16 GGUFs converted to F16, with only
 BF16/F32 input tensors; they are not expansions of quantized weights. Publisher
@@ -263,7 +273,7 @@ reuse gives the same score. These integration differences remain recorded. See
 | Qwen3-ASR | Original BF16 decoder matches 13/13; F32 `qwen3a` projector feature parity passes | Q8_0 decoder with CPU DQ32 matches 12/13, with DQ disabled 10/13; original BF16/Q8_0 projectors differ from llama.cpp |
 | MiniCPM-V 4.7 | F32 `minicpmv4_7` projector passes 448×448 and 224×112 feature checks; existing `qwen35` decoder matches 13/13 | Original mixed BF16/F32 projector exceeds the feature parity gate |
 | Qwen3TTS | Represented-F32 decoder matches 13/13; F32 speaker/predictor/codec projector checks pass | Original Q4_K_M decoder matches 8/13; original BF16/Q8_0 projectors differ from llama.cpp |
-| Qwen3VL MoE / Qwen3-Omni | Original-weight F16 Omni reference used by WWB; represented mixed-F16 decoder matches 13/13; F32 combined projector feature parity passes | Omni Q4_K_M text quality supported by WWB above; token replay matches 11/13; original Q8_0 projector differs from llama.cpp |
+| Qwen3VL MoE / Qwen3-Omni | Original-weight F16 Omni reference used by WWB; represented mixed-F16 decoder matches 13/13; F32 combined projector feature parity passes | Omni Q4_K_M text quality supported by WWB above; post-merge token replay matches 11/13, below the 90% gate, with maximum logit NMSE `0.111346`; original Q8_0 projector differs from llama.cpp |
 
 ASR's F32 projector feature NMSE is `4.60e-9` / `4.74e-8` for 100 / 200 frames.
 Both the original BF16 decoder and Q8_0 decoder with CPU DQ32, paired with this projector, pass two pinned LibriSpeech clips

@@ -246,9 +246,13 @@ unequal Q/KV attention grids.
 
 The original Gemma3n E2B combined projector passes full vision-feature comparison:
 524288 features, NMSE `6.10e-7`, below the unchanged `1e-5` limit. Its output is
-byte-identical to the previously retained vision-only reference. The native frontend
-omits the unsupported `gemma3na` audio branch only for this combined pair, matching
-the pinned llama.cpp behavior. It serializes `audio.projector=gemma3na` and
+byte-identical to the previously retained vision-only reference. For two additional
+deterministic inputs to the combined E4B projector, the original-file NMSE is
+`1.36e-5` and `7.90e-6`; the first exceeds the same limit. Represented-F32 copies
+produce `1.14e-7` and `1.44e-7` against an adapted llama.cpp CPU oracle that uses
+F32 im2col for F32 depthwise weights; this does not waive the original-file failure.
+The native frontend omits the unsupported `gemma3na` audio branch only for this combined
+pair, matching the pinned llama.cpp behavior. It serializes `audio.projector=gemma3na` and
 `audio.supported=false`; a registered audio extension takes precedence over omission.
 This establishes vision support for the original file, without audio support.
 
@@ -281,6 +285,8 @@ The original Q8_0 and BF16 projectors fail feature parity. The Q8_0 decoder
 reaches the greedy agreement gate with CPU `DYNAMIC_QUANTIZATION_GROUP_SIZE=32`;
 with DQ disabled it matches 10/13 choices. Both settings remain loadable. See
 [decoder reference accuracy](supported_models.md#quantized-support-and-reference-accuracy).
+For two additional synthetic audio-feature inputs, original BF16 NMSE is `2.27e-5` and
+`8.39e-5` at 100 and 200 frames; represented-F32 copies pass at `4.61e-9` and `4.74e-8`.
 
 Qwen3TTS accepts speaker/predictor/codec tensors in its combined projector. The
 F32 reference path establishes the following checks.
