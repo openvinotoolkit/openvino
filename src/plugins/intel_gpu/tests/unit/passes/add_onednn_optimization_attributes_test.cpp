@@ -101,8 +101,7 @@ TEST(add_onednn_optimization_attributes, sum_post_op_for_residual_connection) {
 
 }
 
-
-TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_sum) {
+TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_binary) {
     auto& engine = get_test_engine();
 
     if (!engine.get_device_info().supports_immad)
@@ -139,7 +138,7 @@ TEST(add_onednn_optimization_attributes, fc_sum_u8_single_user_input_uses_sum) {
     ASSERT_EQ(fused.size(), 1);
 
     auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
-    ASSERT_EQ(fusing_type, add_fusing_type::sum);
+    ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
 }
 
 TEST(add_onednn_optimization_attributes, fc_sum_u8_residual_input_uses_binary) {
@@ -220,6 +219,41 @@ TEST(add_onednn_optimization_attributes, fc_sum_refused_for_reshaped_network_inp
 
     auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(fc_node, fused[0]);
     ASSERT_EQ(fusing_type, add_fusing_type::binary_per_tensor);
+}
+
+TEST(add_onednn_optimization_attributes, fc_mul_inplace_refused_for_reshaped_network_input) {
+    auto& engine = get_test_engine();
+
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "onednn post-ops are only selected on a device with immad";
+
+    auto weights_mem = engine.allocate_memory({ov::PartialShape({16, 16}), data_types::f16, format::bfyx});
+
+    topology topology;
+    topology.add(data("weights", weights_mem));
+    topology.add(input_layout("input", layout{ov::PartialShape({32, 16}), data_types::f16, format::bfyx}));
+    topology.add(input_layout("mul_in", layout{ov::PartialShape({1, 32, 16}), data_types::f16, format::bfyx}));
+    topology.add(fully_connected("fc", input_info("input"), "weights"));
+    topology.add(reshape("mul_view", input_info("mul_in"), false, {32, 16}, ov::PartialShape{32, 16}));
+    topology.add(eltwise("mul", {input_info("fc"), input_info("mul_view")}, eltwise_mode::prod));
+    topology.add(reorder("out", input_info("mul"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+    program_wrapper::apply_opt_pass<add_onednn_optimization_attributes>(*prog);
+
+    auto& fc_node = prog->get_node("fc");
+    auto& fused = fc_node.get_fused_primitives();
+    ASSERT_EQ(fused.size(), 1u);
+    ASSERT_FALSE(onednn_eltwise_fusing_helpers::can_use_mul_inplace(fc_node, fused[0]));
 }
 
 // Builds input -> conv1 -> ... -> conv{depth} plus eltwise(conv1, conv{depth}), which puts conv1
