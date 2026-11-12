@@ -27,6 +27,7 @@
 #include "moe_3gemm_test_data.h"
 #include "common_test_utils/common_utils.hpp"
 #include "primitive_inst.h"
+#include "ocl_v2/moe/residency/moe_lookahead_registry.hpp"
 #include "ocl/kernels_cache.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 
@@ -47,7 +48,8 @@ protected:
 };
 
 TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
-    const auto [tokens, is_u4, shared, enable_les] = GetParam();
+    const auto [initial_tokens, is_u4, shared, enable_les] = GetParam();
+    size_t tokens = initial_tokens ? initial_tokens : 33;
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
         GTEST_SKIP() << "No immad support";
@@ -61,9 +63,10 @@ TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
     auto input = engine.allocate_memory(layout{ov::Shape{1, tokens, hidden}, data_types::f16, format::bfyx});
     auto routing = engine.allocate_memory(layout{ov::Shape{1, tokens, top_k}, data_types::f16, format::bfyx});
     auto indices = engine.allocate_memory(layout{ov::Shape{1, tokens, top_k}, data_types::i32, format::bfyx});
-    topo.add(input_layout("hidden", input->get_layout()));
-    topo.add(input_layout("routing", routing->get_layout()));
-    topo.add(input_layout("indices", indices->get_layout()));
+    const ov::Dimension sequence = initial_tokens ? ov::Dimension(tokens) : ov::Dimension::dynamic();
+    topo.add(input_layout("hidden", layout{ov::PartialShape{1, sequence, hidden}, data_types::f16, format::bfyx}));
+    topo.add(input_layout("routing", layout{ov::PartialShape{1, sequence, top_k}, data_types::f16, format::bfyx}));
+    topo.add(input_layout("indices", layout{ov::PartialShape{1, sequence, top_k}, data_types::i32, format::bfyx}));
     std::vector<input_info> inputs{input_info("hidden"), input_info("routing"), input_info("indices")};
 
     weights_path = std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".bin");
@@ -140,33 +143,49 @@ TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
     topo.add(moe_3gemm_fused_compressed("moe", inputs, config, offsets, weights_path, 1));
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    net_config.set_property({ov::intel_gpu::enable_les(enable_les),
+    net_config.set_property({ov::intel_gpu::moe_lookahead_prefetch(enable_les),
                              ov::intel_gpu::les_queue_capacity(2),
                              ov::intel_gpu::offload_ratio(50)});
     network net(engine, topo, net_config);
-    EXPECT_EQ(net.get_les_context() != nullptr, enable_les);
+    auto lookahead = ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(net);
+    EXPECT_EQ(lookahead != nullptr, enable_les);
     if (enable_les && tokens == 1 && is_u4 && !shared) {
         cldnn::network independent(net.get_program());
-        ASSERT_NE(independent.get_les_context(), nullptr);
-        EXPECT_NE(net.get_les_context(), independent.get_les_context());
-        EXPECT_EQ(independent.get_les_epoch(), 0U);
+        auto other = ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(independent);
+        ASSERT_NE(other, nullptr);
+        EXPECT_NE(lookahead, other);
+        auto validate = [&](const ExecutionConfig& candidate) {
+            cldnn::network invalid_network(engine, topo, candidate);
+            (void)ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(invalid_network);
+        };
         auto invalid = net_config.clone();
         invalid.set_property(ov::num_streams(2));
-        EXPECT_THROW((void)cldnn::network(engine, topo, invalid), ov::Exception);
+        EXPECT_THROW(validate(invalid), ov::Exception);
         invalid = net_config.clone();
         invalid.set_property(ov::intel_gpu::offload_ratio(100));
-        EXPECT_THROW((void)cldnn::network(engine, topo, invalid), ov::Exception);
+        EXPECT_THROW(validate(invalid), ov::Exception);
         invalid = net_config.clone();
         invalid.set_property(ov::intel_gpu::record_replay(true));
-        EXPECT_THROW((void)cldnn::network(engine, topo, invalid), ov::Exception);
+        EXPECT_THROW(validate(invalid), ov::Exception);
     }
     net.set_input_data("hidden", input);
     net.set_input_data("routing", routing);
     net.set_input_data("indices", indices);
 
     const float scale = static_cast<float>(ov::float16(0.01f));
-    for (size_t iteration = 0; iteration < 3; ++iteration) {
+    const std::vector<size_t> transition_tokens{33, 1, 16, 1, 33, 1};
+    const size_t iterations = initial_tokens ? 3 : transition_tokens.size();
+    for (size_t iteration = 0; iteration < iterations; ++iteration) {
         SCOPED_TRACE(iteration);
+        if (!initial_tokens) {
+            tokens = transition_tokens[iteration];
+            input = engine.allocate_memory(layout{ov::Shape{1, tokens, hidden}, data_types::f16, format::bfyx});
+            routing = engine.allocate_memory(layout{ov::Shape{1, tokens, top_k}, data_types::f16, format::bfyx});
+            indices = engine.allocate_memory(layout{ov::Shape{1, tokens, top_k}, data_types::i32, format::bfyx});
+            net.set_input_data("hidden", input);
+            net.set_input_data("routing", routing);
+            net.set_input_data("indices", indices);
+        }
         const int32_t first_expert = iteration == 1 ? 2 : 0;
         const ov::float16 x(0.1f * static_cast<float>(iteration + 1));
         set_values(input, std::vector<ov::float16>(tokens * hidden, x));
@@ -182,7 +201,17 @@ TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
         set_values(routing, routes);
         stream.finish();
         const auto outputs = net.execute();
-        EXPECT_EQ(net.get_les_epoch(), enable_les ? iteration + 1 : 0U);
+        EXPECT_EQ(ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(net), lookahead);
+        if (enable_les) {
+            auto& instance = static_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(*net.get_primitive("moe"));
+            const auto& weights = instance._weights;
+            const std::vector<memory::ptr> bound{weights.gate_w, weights.gate_s, weights.gate_z,
+                weights.up_w, weights.up_s, weights.up_z, weights.down_w, weights.down_s, weights.down_z};
+            constexpr size_t first_weight_input = 3;
+            for (size_t index = 0; index < bound.size(); ++index) {
+                EXPECT_EQ(bound[index], instance.input_memory_ptr(first_weight_input + index));
+            }
+        }
         auto output = outputs.at("moe").get_memory();
         mem_lock<ov::float16, mem_lock_type::read> result(output, stream);
         auto expert_output = [&](float gate_weight, float up_weight, float down_weight) {
@@ -209,7 +238,7 @@ TEST_P(moe_3gemm_offload_fallback, one_slot_matches_reference) {
 
 INSTANTIATE_TEST_SUITE_P(smoke,
                          moe_3gemm_offload_fallback,
-                         ::testing::Combine(::testing::Values(size_t{1}, size_t{2}, size_t{16}, size_t{33}),
+                         ::testing::Combine(::testing::Values(size_t{1}, size_t{2}, size_t{16}, size_t{33}, size_t{0}),
                                             ::testing::Bool(),
                                             ::testing::Bool(),
                                             ::testing::Bool()));
@@ -924,6 +953,20 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         }
         file.close();
         ASSERT_TRUE(file.good());
+        const std::vector<memory::ptr> target_weights{w0_weight_mem, w0_scale_mem, w0_zp_mem,
+                                                     w1_weight_mem, w1_scale_mem, w1_zp_mem,
+                                                     w2_weight_mem, w2_scale_mem, w2_zp_mem};
+        for (size_t index = 0; index < target_weights.size(); ++index) {
+            auto full_layout = target_weights[index]->get_layout();
+            auto partial_shape = full_layout.get_partial_shape();
+            partial_shape[0] = param.lru_expert_num;
+            auto partial_layout = full_layout;
+            partial_layout.set_partial_shape(partial_shape);
+            auto backing = engine.allocate_memory(partial_layout, engine.get_preferred_memory_allocation_type(), false);
+            const auto id = "proxy_partial_" + std::to_string(index);
+            topology.add(data(id, engine.reinterpret_buffer(*backing, full_layout), true));
+            proxy_target_inputs[3 + index] = input_info(id);
+        }
         auto target = moe_3gemm_fused_compressed("proxy_target", proxy_target_inputs, moe_config);
         target._otd.lru_expert_num = param.lru_expert_num;
         target._otd.weight_bin_offsets = offsets;
@@ -934,7 +977,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     if (param.enable_les) {
-        net_config.set_property({ov::intel_gpu::enable_les(true),
+        net_config.set_property({ov::intel_gpu::moe_lookahead_prefetch(true),
                                  ov::enable_profiling(param.profiling),
                                  ov::intel_gpu::les_queue_capacity(2),
                                  ov::intel_gpu::offload_ratio(param.proxy_router ? 50 : 0),
@@ -958,21 +1001,30 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         }
     }
     network network(engine, topology, net_config);
+    auto lookahead = ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(network);
     if (!param.proxy_router) {
-        EXPECT_EQ(network.get_les_context(), nullptr);
+        EXPECT_EQ(lookahead, nullptr);
     }
     network.set_input_data("hidden_states", hidden_states_mem);
     network.set_input_data("routing_weights", routing_weights_mem);
 
     if (param.proxy_router) {
-        ASSERT_NE(network.get_les_context(), nullptr);
-        auto links = network.get_les_router_links();
+        ASSERT_NE(lookahead, nullptr);
+        auto links = lookahead->links();
         ASSERT_EQ(links.size(), 2U);
         EXPECT_EQ(links.back().status, program::les_router_status::supported);
         EXPECT_EQ(links.back().chain.source_moe, "moe_3gemm_fused_compressed");
         EXPECT_EQ(links.back().chain.target_moe, "proxy_target");
         EXPECT_EQ(links.back().router, "proxy_router");
-        EXPECT_TRUE(network.is_les_prediction_enabled());
+        const auto* next_layer = lookahead->get_next_layer(network.get_primitive("moe_3gemm_fused_compressed").get());
+        ASSERT_NE(next_layer, nullptr);
+        EXPECT_TRUE(next_layer->is_supported);
+        EXPECT_EQ(next_layer->moe_inst, network.get_primitive("proxy_target").get());
+        EXPECT_EQ(next_layer->router_fc_inst, network.get_primitive(links.back().projection).get());
+        EXPECT_EQ(next_layer->weight_mem, network.get_primitive(links.back().weights)->output_memory_ptr());
+        EXPECT_EQ(lookahead->get_next_layer(network.get_primitive("proxy_target").get()), nullptr);
+        EXPECT_EQ(lookahead->get_next_layer(nullptr), nullptr);
+        EXPECT_TRUE(network.get_config().get_moe_lookahead_prefetch());
         if (param.proxy_runtime_kernels) {
             auto router = network.get_primitive("proxy_router");
             auto binaries = router->get_impl()->get_kernels();
@@ -984,19 +1036,16 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
             router->get_impl()->set_kernels(std::move(compiled));
         }
         auto predicted_outputs = network.execute();
-        const auto state = network.get_les_proxy_state("proxy_target");
+        const auto state = lookahead->prediction("proxy_target");
         ASSERT_NE(state.hidden, nullptr);
         ASSERT_NE(state.hidden_ready, nullptr);
         ASSERT_NE(state.prediction_ready, nullptr);
         ASSERT_NE(state.predicted_indices, nullptr);
-        const auto expected_index_allocation = param.proxy_prefetch
-                               ? engine.get_lockable_preferred_memory_allocation_type()
-                               : engine.get_preferred_memory_allocation_type();
-        EXPECT_EQ(state.predicted_indices->get_allocation_type(), expected_index_allocation);
-        EXPECT_EQ(state.hidden->get_allocation_type(), engine.get_preferred_memory_allocation_type());
-        EXPECT_NE(state.hidden, hidden_states_mem);
+        EXPECT_TRUE(engine.is_the_same_buffer(*state.hidden,
+            *network.get_primitive("moe_3gemm_fused_compressed")->input_memory_ptr(0)));
         state.prediction_ready->wait();
         auto actual_indices = network.get_primitive("proxy_router")->output_memory_ptr(1);
+        EXPECT_FALSE(engine.is_the_same_buffer(*state.predicted_indices, *actual_indices));
         mem_lock<uint32_t, mem_lock_type::read> predicted_ids(state.predicted_indices, network.get_stream());
         mem_lock<uint32_t, mem_lock_type::read> actual_ids(actual_indices, network.get_stream());
         size_t prediction_matches = 0;
@@ -1014,7 +1063,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
             network.get_stream(), prior_source_output.data(), 0, 0, prior_source_output.size() * sizeof(ov::float16), true);
 
         auto baseline_config = net_config.clone();
-        baseline_config.set_property(ov::intel_gpu::enable_les(false));
+        baseline_config.set_property(ov::intel_gpu::moe_lookahead_prefetch(false));
         cldnn::network baseline(engine, baseline_topology, baseline_config);
         baseline.set_input_data("hidden_states", hidden_states_mem);
         baseline.set_input_data("routing_weights", routing_weights_mem);
@@ -1037,14 +1086,15 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
             auto imported_program = std::make_shared<program>(engine, net_config);
             imported_program->load(input_buffer);
             cldnn::network imported(imported_program);
-            ASSERT_TRUE(imported.is_les_prediction_enabled());
-            auto imported_links = imported.get_les_router_links();
+            auto imported_lookahead = ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(imported);
+            ASSERT_NE(imported_lookahead, nullptr);
+            auto imported_links = imported_lookahead->links();
             ASSERT_EQ(imported_links.size(), 2U);
             EXPECT_EQ(imported_links.back().status, program::les_router_status::supported);
             imported.set_input_data("hidden_states", hidden_states_mem);
             imported.set_input_data("routing_weights", routing_weights_mem);
             auto imported_outputs = imported.execute();
-            const auto imported_state = imported.get_les_proxy_state("proxy_target");
+            const auto imported_state = imported_lookahead->prediction("proxy_target");
             ASSERT_NE(imported_state.prediction_ready, nullptr);
             imported_state.prediction_ready->wait();
             auto imported_result = imported_outputs.begin()->second.get_memory();
@@ -1065,10 +1115,10 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
         network.get_primitive("proxy_router")->output_memory_ptr(1)->copy_to(
             network.get_stream(), prior_router_ids.data(), 0, 0, prior_router_ids.size() * sizeof(uint32_t), true);
         auto next_outputs = network.execute();
-        auto next_state = network.get_les_proxy_state("proxy_target");
+        auto next_state = lookahead->prediction("proxy_target");
         ASSERT_NE(next_state.hidden, nullptr);
         ASSERT_NE(next_state.prediction_ready, nullptr);
-        EXPECT_NE(next_state.hidden, prior_snapshot);
+        EXPECT_TRUE(engine.is_the_same_buffer(*next_state.hidden, *prior_snapshot));
         EXPECT_NE(next_state.prediction_ready, prior_prediction);
         next_state.prediction_ready->wait();
         std::vector<uint32_t> next_proxy_ids(config.top_k);
@@ -1100,7 +1150,7 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     }
 
     auto outputs = network.execute();
-    EXPECT_EQ(network.get_les_epoch(), 0U);
+    EXPECT_EQ(lookahead, nullptr);
     auto output_prim = outputs.begin()->second.get_memory();
     get_test_stream().flush();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
@@ -1515,8 +1565,6 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
         EXPECT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance);
     }
     if (param.enable_les) {
-        ASSERT_EQ(group_num, 1U);
-        ASSERT_EQ(group_num2, 1U);
         offload_weights_path = std::filesystem::temp_directory_path() /
             ("moe_shared_les_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".bin");
         std::ofstream file(offload_weights_path, std::ios::binary);
@@ -1528,6 +1576,30 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
             offsets.push_back(static_cast<size_t>(file.tellp()));
             std::vector<uint8_t> bytes(memory->size());
             memory->copy_to(get_test_stream(), bytes.data(), 0, 0, bytes.size(), true);
+            if (memory->get_layout().format == format::byfx) {
+                const auto shape = memory->get_layout().get_shape();
+                const size_t channels = shape[1];
+                const size_t groups = shape[2];
+                const size_t bits = ov::element::Type(memory->get_layout().data_type).bitwidth();
+                const auto grouped = bytes;
+                for (size_t expert = 0; expert < config.num_experts; ++expert) {
+                    for (size_t channel = 0; channel < channels; ++channel) {
+                        for (size_t group = 0; group < groups; ++group) {
+                            const size_t source = (expert * groups + group) * channels + channel;
+                            const size_t destination = (expert * channels + channel) * groups + group;
+                            if (bits == 4) {
+                                const uint8_t value = (grouped[source / 2] >> ((source % 2) * 4)) & 0x0f;
+                                const size_t shift = (destination % 2) * 4;
+                                bytes[destination / 2] = static_cast<uint8_t>(
+                                    (bytes[destination / 2] & ~(0x0f << shift)) | (value << shift));
+                            } else {
+                                std::memcpy(bytes.data() + destination * (bits / 8),
+                                            grouped.data() + source * (bits / 8), bits / 8);
+                            }
+                        }
+                    }
+                }
+            }
             file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
         }
         file.close();
@@ -1537,15 +1609,52 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
         offloaded._otd.weight_bin_offsets = offsets;
         offloaded._otd.weights_path = offload_weights_path;
         cldnn::topology split_topology;
+        const std::vector<memory::ptr> routed_weights{w0_weight_mem, w0_scale_mem, w0_zp_mem,
+                                                     w1_weight_mem, w1_scale_mem, w1_zp_mem,
+                                                     w2_weight_mem, w2_scale_mem, w2_zp_mem};
+        std::set<primitive_id> partial_ids;
+        for (size_t index = 0; index < routed_weights.size(); ++index) {
+            const auto id = offloaded.input[3 + index].pid;
+            auto full_layout = routed_weights[index]->get_layout();
+            auto partial_layout = full_layout;
+            auto partial_shape = full_layout.get_partial_shape();
+            partial_shape[0] = param.lru_expert_num;
+            partial_layout.set_partial_shape(partial_shape);
+            auto backing = engine.allocate_memory(partial_layout, engine.get_preferred_memory_allocation_type(), false);
+            split_topology.add(data(id, engine.reinterpret_buffer(*backing, full_layout), true));
+            partial_ids.insert(id);
+        }
         for (const auto& entry : offload_topology.get_primitives()) {
-            if (entry.first != offloaded.id) {
+            if (entry.first != offloaded.id && !partial_ids.count(entry.first)) {
                 split_topology.add_primitive(entry.second);
             }
         }
         split_topology.add(offloaded);
         auto split_config = net_config.clone();
-        split_config.set_property({ov::intel_gpu::enable_les(true), ov::intel_gpu::offload_ratio(50),
+        split_config.set_property({ov::intel_gpu::moe_lookahead_prefetch(true), ov::intel_gpu::offload_ratio(50),
                                    ov::enable_profiling(param.profiling), ov::num_streams(1)});
+        if (param.hidden_size == 2048) {
+            split_config.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order),
+                                      ov::intel_gpu::use_onednn(false));
+        }
+        std::vector<ov::float16> expected_values(output_ptr.data(), output_ptr.data() + ref_output.size());
+        if (param.seq_len > 1) {
+            cldnn::topology control_topology;
+            for (const auto& entry : split_topology.get_primitives()) {
+                control_topology.add_primitive(entry.second->clone());
+            }
+            auto control_config = split_config.clone();
+            control_config.set_property(ov::intel_gpu::moe_lookahead_prefetch(false));
+            cldnn::network control(engine, control_topology, control_config);
+            control.set_input_data("hidden_states", hidden_states_mem);
+            control.set_input_data("routing_weights", routing_weights_mem);
+            auto result = control.execute().begin()->second.get_memory();
+            result->copy_to(control.get_stream(), expected_values.data(), 0, 0,
+                            expected_values.size() * sizeof(ov::float16), true);
+            for (size_t index = 0; index < ref_output.size(); ++index) {
+                EXPECT_NEAR(static_cast<float>(expected_values[index]), static_cast<float>(ref_output[index]), tolerance);
+            }
+        }
         cldnn::network split(engine, split_topology, split_config);
         split.set_input_data("hidden_states", hidden_states_mem);
         split.set_input_data("routing_weights", routing_weights_mem);
@@ -1553,7 +1662,7 @@ TEST_P(moe_3gemm_compressed_gpu_shared_random, moe_accuracy_test_shared_expert_r
             auto result = split.execute().begin()->second.get_memory();
             cldnn::mem_lock<ov::float16, mem_lock_type::read> values(result, split.get_stream());
             for (size_t index = 0; index < ref_output.size(); ++index) {
-                ASSERT_EQ(std::memcmp(&values[index], &output_ptr[index], sizeof(ov::float16)), 0)
+                ASSERT_EQ(std::memcmp(&values[index], &expected_values[index], sizeof(ov::float16)), 0)
                     << "Shared split mismatch " << index << ", iteration " << iteration;
             }
         }
@@ -1572,6 +1681,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_les_p3_shared,
                     }
                 }
             }
+        }
+        for (bool profiling : {false, true}) {
+            parameters.push_back({1, true, 2048, 512, 16, 8, 128, false, true, profiling, false, 8});
         }
         return parameters;
     }()));

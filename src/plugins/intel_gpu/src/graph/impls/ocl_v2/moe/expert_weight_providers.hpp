@@ -62,6 +62,7 @@ public:
 // input memory. Loading metadata (config / bin offsets / weights path) is captured
 // at construction from graph-build time information.
 class OffloadExpertWeightProvider : public IExpertWeightProvider {
+    friend class ExpertPrefetcher;
 public:
     OffloadExpertWeightProvider(size_t capacity,
                                 const cldnn::MOECompressed::Config& config,

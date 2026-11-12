@@ -76,8 +76,6 @@ struct primitive_impl {
     virtual void set_arguments(primitive_inst& instance) = 0;
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
-    virtual void enqueue_les_prefetch(primitive_inst&, const std::vector<uint32_t>&, event::ptr) {}
-    virtual void enqueue_les_prediction(primitive_inst&) {}
     const std::string& get_kernel_name() const { return _kernel_name; }
 
     // class typed_primitive_gpu_impl override this with return false;

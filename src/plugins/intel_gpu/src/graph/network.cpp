@@ -5,7 +5,6 @@
 #include "intel_gpu/graph/network.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <map>
@@ -31,7 +30,6 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/lora.hpp"
-#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
@@ -41,7 +39,6 @@
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "intel_gpu/runtime/les_context.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "kv_cache_inst.h"
@@ -281,7 +278,6 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
-    initialize_les();
     prepare_record_replay();
 #ifdef ENABLE_MLIR_FOR_GPU
     if (ov::intel_gpu::mlir::MLIRGpuRuntime::create) {
@@ -313,7 +309,6 @@ network::network(program::ptr program, uint16_t stream_id)
 network::network(program::ptr program, stream::ptr stream, uint16_t stream_id) : network(program, stream, false, stream_id == 0) {}
 
 network::~network() {
-    _les_context.reset();
     if (_program != nullptr) {
         _program->cancel_compilation_context();
     }
@@ -1059,84 +1054,7 @@ void network::add_to_exec_order(const primitive_id& id) {
     _exec_order.push_back(inst);
 }
 
-void network::initialize_les() {
-    const auto& config = get_config();
-    if (_internal || !config.get_enable_les() || config.get_offload_ratio() == 0) {
-        return;
-    }
-    const bool has_otd = std::any_of(_exec_order.begin(), _exec_order.end(), [](const auto& inst) {
-        auto desc = std::dynamic_pointer_cast<const moe_3gemm_fused_compressed>(inst->get_node().get_primitive());
-        return desc && desc->_otd.lru_expert_num > 0;
-    });
-    if (!has_otd) {
-        return;
-    }
-    OPENVINO_ASSERT(config.get_offload_ratio() < 100, "LES requires OFFLOAD_RATIO in [1, 99]");
-    OPENVINO_ASSERT(config.get_num_streams() == 1, "LES requires NUM_STREAMS=1");
-    OPENVINO_ASSERT(!config.get_record_replay(), "LES does not support record/replay");
-    OPENVINO_ASSERT(_engine.runtime_type() == runtime_types::ocl, "LES asynchronous loading currently requires the OCL backend");
-    auto transfer_config = config.clone();
-    transfer_config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    _les_context = std::make_unique<les_context>(config.get_les_queue_capacity(), _engine.create_stream(transfer_config));
-    const auto* prediction = std::getenv("OV_GPU_LES_PREDICT");
-    _les_prediction_enabled = prediction && std::string(prediction) == "1";
-    const auto* prefetch = std::getenv("OV_GPU_LES_PREFETCH");
-    _les_prefetch_enabled = _les_prediction_enabled && prefetch && std::string(prefetch) == "1";
-    if (_les_prediction_enabled) {
-        _les_router_links = _program->get_les_router_links();
-        for (const auto& link : _les_router_links) {
-            GPU_DEBUG_INFO << "[LES_PREDICT_QUALIFY] source=" << link.chain.source_moe << " target="
-                           << link.chain.target_moe << " status=" << static_cast<int>(link.status)
-                           << " reason=" << link.rejection_reason << std::endl;
-        }
-    }
-}
-
-void network::set_les_proxy_hidden(const primitive_id& target_moe, memory::ptr hidden, event::ptr ready) {
-    auto& state = _les_proxy_states[target_moe];
-    state.hidden = std::move(hidden);
-    state.hidden_ready = std::move(ready);
-    state.predicted_indices.reset();
-    state.predicted_weights.reset();
-    state.prediction_ready.reset();
-}
-
-network::les_proxy_state network::get_les_proxy_state(const primitive_id& target_moe) const {
-    const auto it = _les_proxy_states.find(target_moe);
-    return it == _les_proxy_states.end() ? les_proxy_state{} : it->second;
-}
-
-void network::set_les_proxy_prediction(const primitive_id& target_moe,
-                                       memory::ptr indices,
-                                       memory::ptr weights,
-                                       event::ptr ready) {
-    auto& state = _les_proxy_states[target_moe];
-    state.predicted_indices = std::move(indices);
-    state.predicted_weights = std::move(weights);
-    state.prediction_ready = std::move(ready);
-}
-
-void network::clear_les_proxy_state(const primitive_id& target_moe) {
-    _les_proxy_states.erase(target_moe);
-}
-
 std::map<primitive_id, network_output> network::execute(const std::vector<event::ptr>& dependencies) {
-    if (!_les_context) {
-        return execute_graph(dependencies);
-    }
-    _les_epoch = _les_context->begin_epoch();
-    _les_proxy_states.clear();
-    try {
-        auto outputs = execute_graph(dependencies);
-        _les_context->wait();
-        return outputs;
-    } catch (...) {
-        _les_context->cancel();
-        throw;
-    }
-}
-
-std::map<primitive_id, network_output> network::execute_graph(const std::vector<event::ptr>& dependencies) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     NETWORK_DEBUG(*this);
 

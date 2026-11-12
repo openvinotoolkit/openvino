@@ -16,6 +16,29 @@
 
 namespace ov::intel_gpu::ocl::moe_otd {
 
+cldnn::stream::ptr create_copy_stream(cldnn::engine& engine, const cldnn::ExecutionConfig& config) {
+    auto* native = dynamic_cast<cldnn::ocl::ocl_engine*>(&engine);
+    OPENVINO_ASSERT(native && native->extension_supported("cl_intel_command_queue_families"),
+                    "LES copy engine requires OpenCL command queue families");
+    const auto families = native->get_cl_device().getInfo<CL_DEVICE_QUEUE_FAMILY_PROPERTIES_INTEL>();
+    for (size_t family = 0; family < families.size(); ++family) {
+        if (families[family].count == 0 || std::strncmp(families[family].name, "bcs", 3) != 0) {
+            continue;
+        }
+        const cl_queue_properties properties[] = {
+            CL_QUEUE_FAMILY_INTEL, static_cast<cl_queue_properties>(family),
+            CL_QUEUE_INDEX_INTEL, 0,
+            CL_QUEUE_PROPERTIES, static_cast<cl_queue_properties>(config.get_enable_profiling() ? CL_QUEUE_PROFILING_ENABLE : 0),
+            0};
+        cl_int status = CL_SUCCESS;
+        cl::CommandQueue queue(clCreateCommandQueueWithProperties(native->get_cl_context().get(),
+                                                                 native->get_cl_device().get(), properties, &status));
+        OPENVINO_ASSERT(status == CL_SUCCESS, "LES BCS queue creation failed: ", status);
+        return engine.create_stream(config, queue.get());
+    }
+    OPENVINO_THROW("LES copy engine requires an exposed BCS queue family");
+}
+
 bool les_trace_enabled() {
     static const bool enabled = [] {
         const auto* value = std::getenv("MOE_LES_TRACE");
@@ -336,8 +359,9 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                                                       cldnn::moe_weights& weights,
                                                       const std::vector<uint32_t>& experts,
                                                       const std::vector<size_t>& slots,
-                                                      uint64_t* uploaded_bytes) {
-    constexpr size_t chunk_bytes = 8 * 1024 * 1024;
+                                                      uint64_t* uploaded_bytes,
+                                                      LookaheadStagingPool* staging_pool) {
+    constexpr size_t chunk_bytes = LookaheadStagingPool::chunk_bytes;
     const std::array<cldnn::memory::ptr, 9> tensors{weights.gate_w, weights.up_w, weights.down_w,
                                                 weights.gate_s, weights.up_s, weights.down_s,
                                                 weights.gate_z, weights.up_z, weights.down_z};
@@ -375,13 +399,11 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
             plans.push_back({memory, component, source, slots[index] * bytes, bytes});
         }
     }
-    struct Staging {
-        std::vector<uint8_t> bytes;
-        cldnn::event::ptr upload;
-    };
-    std::array<Staging, 2> staging;
+    LookaheadStagingPool local_pool;
+    auto& pool = staging_pool ? *staging_pool : local_pool;
+    auto& staging = pool.chunks;
     std::vector<cldnn::event::ptr> events;
-    size_t cursor = 0;
+    auto& cursor = pool.cursor;
     std::exception_ptr error;
     auto* perf = get_perf_counters();
     try {
@@ -392,18 +414,24 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                     buffer.upload->wait();
                 }
                 auto bytes = std::min(chunk_bytes, plan.bytes - offset);
-                if (buffer.bytes.capacity() < bytes) {
-                    buffer.bytes = std::vector<uint8_t>(bytes);
-                } else {
-                    buffer.bytes.resize(bytes);
+                if (!buffer.memory) {
+                    buffer.memory = plan.memory->get_engine()->allocate_memory(
+                        cldnn::layout{cldnn::data_types::u8, cldnn::format::bfyx,
+                                      {1, 1, 1, static_cast<int32_t>(chunk_bytes)}},
+                        cldnn::allocation_type::usm_host, false);
                 }
+                cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> payload(buffer.memory, transfer_stream);
                 const auto read_start = les_trace_enabled() ? les_device_time(transfer_stream) : 0;
-                weight_reader.read(reinterpret_cast<char*>(buffer.bytes.data()), bytes, plan.source + offset);
+                weight_reader.read(reinterpret_cast<char*>(payload.data()), bytes, plan.source + offset);
                 if (les_trace_enabled()) {
                     les_trace_interval("read", read_start, les_device_time(transfer_stream));
                 }
-                maybe_transpose_scale_zp(config, plan.component, plan.memory->get_layout(), buffer.bytes, bytes);
-                buffer.upload = plan.memory->copy_from(transfer_stream, buffer.bytes.data(), 0, plan.destination + offset, bytes, false);
+                if (plan.component >= 3) {
+                    std::vector<uint8_t> metadata(payload.data(), payload.data() + bytes);
+                    maybe_transpose_scale_zp(config, plan.component, plan.memory->get_layout(), metadata, bytes);
+                    std::memcpy(payload.data(), metadata.data(), bytes);
+                }
+                buffer.upload = plan.memory->copy_from(transfer_stream, payload.data(), 0, plan.destination + offset, bytes, false);
                 OPENVINO_ASSERT(buffer.upload, "LES upload did not return a completion event");
                 events.push_back(buffer.upload);
                 if (uploaded_bytes) {

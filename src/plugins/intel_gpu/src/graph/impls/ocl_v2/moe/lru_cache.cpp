@@ -5,6 +5,7 @@
 #include "lru_cache.hpp"
 #include <algorithm>
 #include <unordered_set>
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_gpu::ocl::moe {
 
@@ -162,6 +163,7 @@ bool ExpertSlotReservations::release(const Ticket& ticket) {
 
 LRUCache::LRUCache(size_t max_total_experts) : m_max_total_experts(max_total_experts), m_total_experts(0), m_to_filled_lru_expert_no(0) {
     m_filled_list.resize(max_total_experts, false);
+    m_slot_last_use.resize(max_total_experts);
 }
 
 void LRUCache::move_to_end(std::list<Node>::iterator it) {
@@ -171,18 +173,214 @@ void LRUCache::move_to_end(std::list<Node>::iterator it) {
     m_list.splice(m_list.end(), m_list, it);
 }
 
+std::optional<LRUCache::Partition> LRUCache::partition_3way(const std::vector<uint32_t>& topk_ids,
+                                                        const EventFactory& make_event,
+                                                        bool allow_pending_reuse) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const std::unordered_set<uint32_t> requested(topk_ids.begin(), topk_ids.end());
+    if (requested.size() > m_max_total_experts) {
+        return std::nullopt;
+    }
+    for (auto expert : requested) {
+        auto found = m_map.find(Key{expert});
+        OPENVINO_ASSERT(found == m_map.end() || found->second->state.loading ||
+                            m_filled_list[found->second->lru_expert_no],
+                        "Lookahead cannot consume an unfilled OTD slot");
+    }
+    Partition result;
+    std::unordered_set<uint32_t> missing;
+    std::vector<bool> occupied(m_max_total_experts, false);
+    for (const auto& node : m_list) {
+        occupied[node.lru_expert_no] = true;
+    }
+    std::vector<std::list<Node>::iterator> victims;
+    for (auto expert : topk_ids) {
+        if (m_map.count(Key{expert}) || !missing.insert(expert).second) {
+            continue;
+        }
+        auto free_slot = std::find(occupied.begin(), occupied.end(), false);
+        size_t slot = static_cast<size_t>(free_slot - occupied.begin());
+        cldnn::event::ptr last_use;
+        if (free_slot == occupied.end()) {
+            auto victim = std::find_if(m_list.begin(), m_list.end(), [&](const Node& node) {
+                return !requested.count(static_cast<uint32_t>(node.expert)) &&
+                                             ((node.state.status == SlotStatus::READY && !node.state.loading) ||
+                                                (allow_pending_reuse && node.state.status == SlotStatus::PENDING_LOAD &&
+                                                 node.state.demanded && node.state.last_use_event)) &&
+                       std::none_of(victims.begin(), victims.end(), [&](const auto& chosen) { return &*chosen == &node; });
+            });
+            if (victim == m_list.end()) {
+                return std::nullopt;
+            }
+            victims.push_back(victim);
+            slot = victim->lru_expert_no;
+            last_use = victim->state.last_use_event;
+        } else {
+            occupied[slot] = true;
+            last_use = m_slot_last_use[slot];
+        }
+        result.missing.push_back({expert, slot, 0, {}, last_use});
+    }
+    for (auto& load : result.missing) {
+        load.ready_event = make_event();
+        OPENVINO_ASSERT(load.ready_event, "Lookahead load requires a completion event");
+    }
+    for (auto victim : victims) {
+        m_map.erase(Key{victim->expert});
+        m_list.erase(victim);
+        --m_total_experts;
+    }
+    for (auto& load : result.missing) {
+        load.generation = ++m_generation;
+        m_list.push_back(Node{load.expert_id, load.slot,
+                             {SlotStatus::PENDING_LOAD, load.ready_event, load.last_use_event, load.generation, true}});
+        m_map.emplace(Key{load.expert_id}, std::prev(m_list.end()));
+        m_filled_list[load.slot] = false;
+        ++m_total_experts;
+    }
+    std::unordered_set<uint32_t> waiting;
+    for (size_t pair = 0; pair < topk_ids.size(); ++pair) {
+        const auto expert = topk_ids[pair];
+        auto node = m_map.at(Key{expert});
+        result.slots.push_back(node->lru_expert_no);
+        if (missing.count(expert)) {
+            result.missing_pairs.push_back(pair);
+        } else if (node->state.loading) {
+            result.inflight_pairs.push_back(pair);
+        } else {
+            OPENVINO_ASSERT(m_filled_list[node->lru_expert_no], "Lookahead cannot consume an unfilled OTD slot");
+            result.ready_pairs.push_back(pair);
+            if (node->state.ready_event && waiting.insert(expert).second) {
+                result.ready_events.push_back(node->state.ready_event);
+            }
+        }
+        if (node->state.loading && waiting.insert(expert).second) {
+            result.wait_events.push_back(node->state.ready_event);
+        }
+        node->state.status = SlotStatus::PINNED;
+        node->state.demanded = true;
+        move_to_end(node);
+    }
+    return result;
+}
+
+std::optional<LRUCache::Load> LRUCache::reserve_speculative(uint32_t expert_id,
+                                                         size_t top_k,
+                                                         const EventFactory& make_event) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (top_k >= m_max_total_experts || m_map.count(Key{expert_id})) {
+        return std::nullopt;
+    }
+    const auto quota = std::min({top_k, m_max_total_experts / 4, m_max_total_experts - top_k});
+    const auto pending = static_cast<size_t>(std::count_if(m_list.begin(), m_list.end(), [](const Node& node) {
+        return node.state.loading;
+    }));
+    if (pending >= quota) {
+        return std::nullopt;
+    }
+    std::vector<bool> occupied(m_max_total_experts, false);
+    for (const auto& node : m_list) {
+        occupied[node.lru_expert_no] = true;
+    }
+    auto free_slot = std::find(occupied.begin(), occupied.end(), false);
+    size_t slot = static_cast<size_t>(free_slot - occupied.begin());
+    auto victim = m_list.end();
+    cldnn::event::ptr last_use;
+    if (free_slot == occupied.end()) {
+        victim = std::find_if(m_list.begin(), m_list.end(), [](const Node& node) {
+            return node.state.status == SlotStatus::READY && !node.state.loading;
+        });
+        if (victim == m_list.end()) {
+            return std::nullopt;
+        }
+        slot = victim->lru_expert_no;
+        last_use = victim->state.last_use_event;
+    }
+    auto ready = make_event();
+    if (victim == m_list.end()) {
+        last_use = m_slot_last_use[slot];
+    }
+    OPENVINO_ASSERT(ready, "Lookahead load requires a completion event");
+    if (victim != m_list.end()) {
+        m_map.erase(Key{victim->expert});
+        m_list.erase(victim);
+        --m_total_experts;
+    }
+    Load load{expert_id, slot, ++m_generation, ready, last_use};
+    m_list.push_back(Node{expert_id, slot, {SlotStatus::PENDING_LOAD, ready, last_use, load.generation, true}});
+    m_map.emplace(Key{expert_id}, std::prev(m_list.end()));
+    m_filled_list[slot] = false;
+    ++m_total_experts;
+    return load;
+}
+
+std::optional<LRUCache::Load> LRUCache::get_pending_load(uint32_t expert_id) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto found = m_map.find(Key{expert_id});
+    if (found == m_map.end() || !found->second->state.loading) {
+        return std::nullopt;
+    }
+    const auto& node = *found->second;
+    return Load{expert_id, node.lru_expert_no, node.state.generation, node.state.ready_event, node.state.last_use_event};
+}
+
+bool LRUCache::complete_load(const Load& load) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto found = m_map.find(Key{load.expert_id});
+    if (found == m_map.end() || found->second->state.generation != load.generation) {
+        return false;
+    }
+    auto& node = *found->second;
+    node.state.loading = false;
+    if (node.state.status != SlotStatus::PINNED) {
+        node.state.status = SlotStatus::READY;
+    }
+    m_filled_list[node.lru_expert_no] = true;
+    return true;
+}
+
+bool LRUCache::cancel_load(const Load& load) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    auto found = m_map.find(Key{load.expert_id});
+    if (found == m_map.end() || found->second->state.generation != load.generation ||
+        found->second->state.demanded || !found->second->state.loading) {
+        return false;
+    }
+    m_filled_list[found->second->lru_expert_no] = false;
+    m_list.erase(found->second);
+    m_map.erase(found);
+    --m_total_experts;
+    return true;
+}
+
+void LRUCache::unpin_all(const cldnn::event::ptr& complete_event) {
+    OPENVINO_ASSERT(complete_event, "Lookahead unpin requires a GPU consumer event");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    for (auto& node : m_list) {
+        if (node.state.status == SlotStatus::PINNED) {
+            node.state.last_use_event = complete_event;
+            m_slot_last_use[node.lru_expert_no] = complete_event;
+            node.state.status = node.state.loading ? SlotStatus::PENDING_LOAD : SlotStatus::READY;
+        }
+    }
+}
+
 void LRUCache::evict_one_unlocked() {
     if (m_list.empty()) {
         return;
     }
 
-    auto& oldest = m_list.front();
+    auto candidate = std::find_if(m_list.begin(), m_list.end(), [](const Node& node) {
+        return node.state.status == SlotStatus::READY && !node.state.loading;
+    });
+    OPENVINO_ASSERT(candidate != m_list.end(), "Cannot evict a pinned or pending lookahead slot");
+    auto& oldest = *candidate;
 
     m_filled_list[oldest.lru_expert_no] = false;
     m_to_filled_lru_expert_no = oldest.lru_expert_no;
     Key key{oldest.expert};
     m_map.erase(key);
-    m_list.pop_front();
+    m_list.erase(candidate);
     --m_total_experts;
 }
 
@@ -202,7 +400,11 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t expert) {
             evict_one_unlocked();
             to_filled_no = m_to_filled_lru_expert_no;
         } else {
-            to_filled_no = m_total_experts;
+            std::vector<bool> occupied(m_max_total_experts, false);
+            for (const auto& node : m_list) {
+                occupied[node.lru_expert_no] = true;
+            }
+            to_filled_no = static_cast<size_t>(std::find(occupied.begin(), occupied.end(), false) - occupied.begin());
         }
         m_list.push_back(Node{expert, to_filled_no});
         auto new_it = std::prev(m_list.end());
@@ -210,6 +412,8 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t expert) {
         ++m_total_experts;
         return {to_filled_no, false};
     }
+    OPENVINO_ASSERT(!it->second->state.loading && it->second->state.status != SlotStatus::PINNED,
+                    "Synchronous OTD cannot acquire an active lookahead slot");
     move_to_end(it->second);
     const bool is_hit = m_filled_list[it->second->lru_expert_no];
     return {it->second->lru_expert_no, is_hit};

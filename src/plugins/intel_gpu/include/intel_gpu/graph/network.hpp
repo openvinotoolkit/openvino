@@ -34,8 +34,6 @@ struct MLIRGpuRuntime;
 
 namespace cldnn {
 
-class les_context;
-
 /// @brief Represents network output returned by @ref network::get_output().
 struct network_output {
     /// @brief Returns @ref event associated with the output.
@@ -247,25 +245,6 @@ public:
     bool is_reuse_variable_mem() { return _reuse_variable_mem; }
 
     const ExecutionConfig& get_config() const { return _program->get_config(); }
-    les_context* get_les_context() const { return _les_context.get(); }
-    uint64_t get_les_epoch() const { return _les_epoch; }
-    struct les_proxy_state {
-        memory::ptr hidden;
-        event::ptr hidden_ready;
-        memory::ptr predicted_indices;
-        memory::ptr predicted_weights;
-        event::ptr prediction_ready;
-    };
-    bool is_les_prediction_enabled() const { return _les_prediction_enabled; }
-    bool is_les_prefetch_enabled() const { return _les_prefetch_enabled; }
-    const std::vector<program::les_router_link>& get_les_router_links() const { return _les_router_links; }
-    void set_les_proxy_hidden(const primitive_id& target_moe, memory::ptr hidden, event::ptr ready);
-    les_proxy_state get_les_proxy_state(const primitive_id& target_moe) const;
-    void set_les_proxy_prediction(const primitive_id& target_moe,
-                                  memory::ptr indices,
-                                  memory::ptr weights,
-                                  event::ptr ready);
-    void clear_les_proxy_state(const primitive_id& target_moe);
 
     std::shared_ptr<ShapePredictor> get_shape_predictor() { return _shape_predictor; }
     void set_shape_predictor(std::shared_ptr<ShapePredictor> shape_predictor) { _shape_predictor = shape_predictor; }
@@ -322,15 +301,6 @@ private:
     output_chains_map _remote_output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
-    std::unique_ptr<les_context> _les_context;
-    uint64_t _les_epoch = 0;
-    bool _les_prediction_enabled = false;
-    bool _les_prefetch_enabled = false;
-    std::vector<program::les_router_link> _les_router_links;
-    std::unordered_map<primitive_id, les_proxy_state> _les_proxy_states;
-
-    void initialize_les();
-    std::map<primitive_id, network_output> execute_graph(const std::vector<event::ptr>& dependencies);
 
     /// @brief Invalidate the recording of the previous iteration
     void invalidate_recording();

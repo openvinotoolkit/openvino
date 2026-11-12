@@ -67,21 +67,40 @@ TEST(moe_offload_property_test, set_back_to_zero_disables) {
     ASSERT_EQ(config.get_offload_ratio(), 0U);
 }
 
+TEST(moe_les_config, lookahead_property_roundtrip_and_clone) {
+    cldnn::ExecutionConfig config;
+    EXPECT_FALSE(config.get_moe_lookahead_prefetch());
+    config.set_property(ov::intel_gpu::moe_lookahead_prefetch(true));
+    auto cloned = config.clone();
+    EXPECT_TRUE(cloned.get_moe_lookahead_prefetch());
+    config.set_property(ov::intel_gpu::moe_lookahead_prefetch(false));
+    EXPECT_FALSE(config.get_moe_lookahead_prefetch());
+    EXPECT_TRUE(cloned.get_moe_lookahead_prefetch());
+}
+
+TEST(moe_les_config, lookahead_property_accepts_user_configuration) {
+    cldnn::ExecutionConfig config;
+    ASSERT_NO_THROW(config.set_user_property({ov::intel_gpu::moe_lookahead_prefetch(true)}));
+    EXPECT_TRUE(config.get_property(ov::intel_gpu::moe_lookahead_prefetch.name()).as<bool>());
+    ASSERT_NO_THROW(config.set_user_property({ov::intel_gpu::moe_lookahead_prefetch(false)}));
+    EXPECT_FALSE(config.get_property(ov::intel_gpu::moe_lookahead_prefetch.name()).as<bool>());
+}
+
 TEST(moe_les_config, disabled_by_default) {
     cldnn::ExecutionConfig config;
-    EXPECT_FALSE(config.get_enable_les());
+    EXPECT_FALSE(config.get_moe_lookahead_prefetch());
     EXPECT_EQ(config.get_les_queue_capacity(), 32U);
 }
 
 TEST(moe_les_config, roundtrip_and_clone) {
     cldnn::ExecutionConfig config;
-    config.set_property({ov::intel_gpu::enable_les(true), ov::intel_gpu::les_queue_capacity(7)});
+    config.set_property({ov::intel_gpu::moe_lookahead_prefetch(true), ov::intel_gpu::les_queue_capacity(7)});
     auto cloned = config.clone();
-    EXPECT_TRUE(cloned.get_enable_les());
+    EXPECT_TRUE(cloned.get_moe_lookahead_prefetch());
     EXPECT_EQ(cloned.get_les_queue_capacity(), 7U);
-    config.set_property(ov::intel_gpu::enable_les(false));
-    EXPECT_FALSE(config.get_enable_les());
-    EXPECT_TRUE(cloned.get_enable_les());
+    config.set_property(ov::intel_gpu::moe_lookahead_prefetch(false));
+    EXPECT_FALSE(config.get_moe_lookahead_prefetch());
+    EXPECT_TRUE(cloned.get_moe_lookahead_prefetch());
 }
 
 TEST(moe_les_config, rejects_zero_capacity) {
@@ -102,7 +121,7 @@ TEST(moe_les_config, accepts_capacity_boundaries) {
     EXPECT_EQ(config.get_les_queue_capacity(), 1024U);
 }
 
-TEST(moe_les_network, non_moe_graph_creates_no_context_and_preserves_output) {
+TEST(moe_les_network, non_moe_graph_preserves_output) {
     auto& engine = get_test_engine();
     cldnn::layout input_layout{cldnn::data_types::f32, cldnn::format::bfyx, {1, 1, 1, 2}};
     auto input = engine.allocate_memory(input_layout);
@@ -112,15 +131,14 @@ TEST(moe_les_network, non_moe_graph_creates_no_context_and_preserves_output) {
     topology.add(cldnn::activation("output", cldnn::input_info("input"), cldnn::activation_func::relu));
     for (size_t ratio : {0U, 50U}) {
         auto config = get_test_default_config(engine);
-        config.set_property({ov::intel_gpu::enable_les(true), ov::intel_gpu::offload_ratio(ratio)});
+        config.set_property({ov::intel_gpu::moe_lookahead_prefetch(true), ov::intel_gpu::offload_ratio(ratio)});
         cldnn::network network(engine, topology, config);
-        EXPECT_EQ(network.get_les_context(), nullptr);
+        EXPECT_TRUE(network.get_program()->get_les_router_links().empty());
         network.set_input_data("input", input);
         auto output = network.execute().at("output").get_memory();
         cldnn::mem_lock<float, cldnn::mem_lock_type::read> values(output, network.get_stream());
         EXPECT_FLOAT_EQ(values[0], 0.0f);
         EXPECT_FLOAT_EQ(values[1], 3.0f);
-        EXPECT_EQ(network.get_les_epoch(), 0U);
     }
 }
 
@@ -128,7 +146,7 @@ class moe_les_chain : public testing::Test {
 protected:
     std::unique_ptr<cldnn::program> make_program(bool enabled = true) {
         auto config = get_test_default_config(get_test_engine());
-        config.set_property(ov::intel_gpu::enable_les(enabled));
+        config.set_property(ov::intel_gpu::moe_lookahead_prefetch(enabled));
         return std::make_unique<cldnn::program>(get_test_engine(), config);
     }
 

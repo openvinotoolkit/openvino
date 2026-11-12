@@ -510,7 +510,7 @@ void program::set_options() {
 
 std::vector<program::les_moe_link> program::get_les_moe_links() const {
     std::vector<les_moe_link> links;
-    if (!_config.get_enable_les() || is_internal) {
+    if (!_config.get_moe_lookahead_prefetch() || is_internal) {
         return links;
     }
     std::map<primitive_id, size_t> successor_counts;

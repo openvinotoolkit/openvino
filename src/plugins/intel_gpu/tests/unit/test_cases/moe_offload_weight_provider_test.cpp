@@ -4,6 +4,9 @@
 
 #include "test_utils/test_utils.h"
 #include "ocl_v2/moe/expert_weight_providers.hpp"
+#include "ocl_v2/moe/residency/lookahead_router.hpp"
+#include "ocl_v2/moe/residency/moe_lookahead_registry.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
 #include <array>
 #include <chrono>
 #include <fstream>
@@ -39,6 +42,13 @@ protected:
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order), ov::enable_profiling(profiling));
         return engine.create_stream(config);
+    }
+
+    stream::ptr copy_lane(bool profiling = false) {
+        auto& engine = get_test_engine();
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order), ov::enable_profiling(profiling));
+        return otd::create_copy_stream(engine, config);
     }
 
     memory::ptr buffer(size_t count, data_types type = data_types::u8, size_t experts = 1) {
@@ -97,15 +107,145 @@ TEST_F(moe_les_upload, staging_reuse_preserves_large_tensor_source) {
     write(source);
     MOECompressed::Config config{};
     config.num_expert = 1;
-    moe_weights weights;
-    weights.gate_w = buffer(source.size());
-    auto transfer = lane();
+    auto transfer = copy_lane();
     otd::ParallelWeightReader reader(path);
-    auto events = otd::fill_weights_memory_async(*transfer, config, std::vector<size_t>(9), reader, weights, {0}, {0});
-    EXPECT_EQ(events.size(), 3U);
-    std::vector<uint8_t> actual(source.size());
-    weights.gate_w->copy_to(*transfer, actual.data(), true);
-    EXPECT_EQ(actual, source);
+    for (auto allocation : {allocation_type::cl_mem, allocation_type::usm_device}) {
+        moe_weights weights;
+        weights.gate_w = get_test_engine().allocate_memory(
+            layout{data_types::u8, format::bfyx, {1, 1, 1, static_cast<int32_t>(source.size())}}, allocation, false);
+        auto events = otd::fill_weights_memory_async(*transfer, config, std::vector<size_t>(9), reader, weights, {0}, {0});
+        EXPECT_EQ(events.size(), 3U);
+        std::vector<uint8_t> actual(source.size());
+        weights.gate_w->copy_to(*transfer, actual.data(), true);
+        EXPECT_EQ(actual, source);
+    }
+}
+
+TEST_F(moe_les_upload, native_lookahead_router_keeps_actual_outputs_independent) {
+    auto& engine = get_test_engine();
+    const layout hidden_layout{ov::PartialShape{1, 16}, data_types::f16, format::bfyx};
+    auto actual_hidden = engine.allocate_memory(hidden_layout);
+    auto predicted_hidden = engine.allocate_memory(hidden_layout);
+    auto weights = engine.allocate_memory(layout{ov::PartialShape{16, 16}, data_types::f16, format::bfyx});
+    std::vector<ov::float16> identity(256, 0);
+    for (size_t expert = 0; expert < 16; ++expert) {
+        identity[expert * 16 + expert] = 1;
+    }
+    set_values(weights, identity);
+    std::vector<ov::float16> hidden(16, 0);
+    hidden[2] = 4;
+    set_values(actual_hidden, hidden);
+    hidden[2] = 0;
+    hidden[5] = 4;
+    set_values(predicted_hidden, hidden);
+    MoERouterFused::Config config{};
+    config.num_expert = 16;
+    config.top_k = 1;
+    config.routing_type = MoERouterFused::RoutingType::SOFTMAX;
+    topology graph;
+    graph.add(input_layout("hidden", hidden_layout));
+    graph.add(data("weights", weights));
+    graph.add(fully_connected("projection", input_info("hidden"), "weights"));
+    graph.add(moe_router_fused("router", {input_info("projection")}, config));
+    network actual(engine, graph, get_test_default_config(engine));
+    actual.set_input_data("hidden", actual_hidden);
+    ov::intel_gpu::ocl::moe::LookaheadRouter lookahead(actual, "hidden", "router");
+    write(std::vector<uint8_t>(256, 11));
+    MOECompressed::Config expert_config{};
+    expert_config.num_expert = 16;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(4, expert_config, std::vector<size_t>(9), path);
+    moe_weights expert_weights;
+    expert_weights.gate_w = engine.reinterpret_buffer(*buffer(16, data_types::u8, 4),
+        layout{data_types::u8, format::bfyx, {16, 1, 1, 16}});
+    provider->bind(expert_weights);
+    ov::intel_gpu::ocl::moe::ExpertPrefetcher prefetcher(engine, get_test_default_config(engine));
+    prefetcher.bind(provider);
+    uint32_t actual_id = 0;
+    auto& compute = actual.get_stream();
+    auto readback_memory = engine.allocate_memory(
+        layout{data_types::i32, format::bfyx, {1, 1, 1, 1}}, allocation_type::usm_host, false);
+    cl::UserEvent producer_gate(dynamic_cast<cldnn::ocl::ocl_engine&>(engine).get_cl_context());
+    cl::UserEvent prediction_gate(dynamic_cast<cldnn::ocl::ocl_engine&>(engine).get_cl_context());
+    dynamic_cast<cldnn::ocl::ocl_stream&>(compute).enqueue_external_barrier(
+        {std::make_shared<cldnn::ocl::ocl_event>(producer_gate)});
+    std::promise<event::ptr> submitted;
+    auto readback_submitted = submitted.get_future();
+    auto current_finished = std::async(std::launch::async, [&] {
+        actual.execute();
+        auto actual_ready = compute.enqueue_marker({}, true);
+        compute.enqueue_barrier({actual_ready});
+        auto readback = readback_memory->copy_from(
+            compute, *actual.get_primitive("router")->output_memory_ptr(1), 0, 0, sizeof(actual_id), false);
+        compute.flush();
+        submitted.set_value(readback);
+        dynamic_cast<cldnn::ocl::ocl_stream&>(compute).enqueue_external_barrier(
+            {std::make_shared<cldnn::ocl::ocl_event>(prediction_gate)});
+        auto prediction = lookahead.enqueue(predicted_hidden, actual_ready);
+        compute.enqueue_barrier({compute.enqueue_marker({}, true)});
+        compute.flush();
+        readback->wait();
+        {
+            mem_lock<uint32_t, mem_lock_type::read> indices(readback_memory, compute);
+            actual_id = indices[0];
+        }
+        auto demand = provider->cache().partition_3way({actual_id}, [&] { return prefetcher.make_ready_event(); });
+        OPENVINO_ASSERT(demand, "Current demand must fit before prediction completes");
+        prefetcher.demand_async(*provider, {actual_id})->wait();
+        EXPECT_FALSE(prediction.ready->is_set());
+        return prediction;
+    });
+    const auto before_producer = readback_submitted.wait_for(std::chrono::seconds(2));
+    if (before_producer == std::future_status::ready) {
+        EXPECT_FALSE(readback_submitted.get()->is_set());
+    }
+    producer_gate.setStatus(CL_COMPLETE);
+    EXPECT_EQ(before_producer, std::future_status::ready);
+    const auto before_prediction = current_finished.wait_for(std::chrono::seconds(2));
+    prediction_gate.setStatus(CL_COMPLETE);
+    EXPECT_EQ(before_prediction, std::future_status::ready);
+    auto prediction = current_finished.get();
+    prediction.ready->wait();
+    uint32_t predicted_id = 0;
+    prediction.indices->copy_to(actual.get_stream(), &predicted_id, true);
+    EXPECT_EQ(predicted_id, 5U);
+    EXPECT_EQ(actual_id, 2U);
+    std::vector<uint8_t> uploaded(16);
+    expert_weights.gate_w->copy_to(compute, uploaded.data(), 0, 0, uploaded.size(), true);
+    EXPECT_EQ(uploaded, std::vector<uint8_t>(16, 11));
+    actual.get_primitive("router")->output_memory_ptr(1)->copy_to(compute, &actual_id, true);
+    EXPECT_EQ(actual_id, 2U);
+}
+
+TEST_F(moe_les_upload, lookahead_registry_shares_without_owning_context) {
+    auto& engine = get_test_engine();
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::moe_lookahead_prefetch(true), ov::intel_gpu::offload_ratio(75));
+    topology graph(input_layout("hidden", layout{data_types::f16, format::bfyx, {1, 16, 1, 1}}));
+    network owner(engine, graph, config);
+    auto context = ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(owner);
+    ASSERT_NE(context, nullptr);
+    EXPECT_EQ(context, ov::intel_gpu::ocl::moe::LookaheadRegistry::acquire(owner));
+    EXPECT_EQ(context->get_next_layer(owner.get_primitive("hidden").get()), nullptr);
+    MOECompressed::Config expert_config{};
+    expert_config.num_expert = 2;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(1, expert_config, std::vector<size_t>(9), path);
+    moe_weights weights;
+    weights.gate_w = buffer(16, data_types::u8, 2);
+    provider->bind(weights);
+    auto canonical = context->bind("hidden", provider);
+    auto cloned = provider->clone();
+    cloned->bind(weights);
+    EXPECT_EQ(context->bind("hidden", cloned), canonical);
+    EXPECT_EQ(canonical, provider);
+    std::weak_ptr<ov::intel_gpu::ocl::moe::IExpertWeightProvider> provider_lifetime = canonical;
+    provider.reset();
+    canonical.reset();
+    cloned.reset();
+    EXPECT_FALSE(provider_lifetime.expired());
+    std::weak_ptr<ov::intel_gpu::ocl::moe::LookaheadContext> observer = context;
+    context.reset();
+    EXPECT_TRUE(observer.expired());
+    EXPECT_TRUE(provider_lifetime.expired());
 }
 
 TEST_F(moe_les_upload, validates_entire_plan_before_first_upload) {
@@ -170,37 +310,43 @@ TEST_F(moe_les_upload, later_short_read_drains_already_submitted_dma) {
     EXPECT_EQ(actual, std::vector<uint8_t>(32, 7));
 }
 TEST_F(moe_les_upload, split_demand_returns_ready_pairs_before_upload_finishes) {
-    auto file = std::vector<uint8_t>(32, 7);
-    std::fill(file.begin() + 16, file.end(), 11);
+    auto file = std::vector<uint8_t>(48, 7);
+    std::fill(file.begin() + 16, file.begin() + 32, 11);
     write(file);
     MOECompressed::Config config{};
-    config.num_expert = 2;
-    OffloadExpertWeightProvider provider(2, config, std::vector<size_t>(9), path);
+    config.num_expert = 3;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(2, config, std::vector<size_t>(9), path);
     moe_weights weights;
-    weights.gate_w = buffer(16, data_types::u8, 2);
-    provider.bind(weights);
-    auto transfer = lane();
-    cldnn::les_context context(2, transfer);
-    provider.set_les_context(&context, context.begin_epoch());
+    weights.gate_w = buffer(16, data_types::u8, 3);
+    provider->bind(weights);
     auto compute = lane();
-    ASSERT_TRUE(provider.try_acquire_simultaneous({0}, *compute));
-    provider.release();
+    ASSERT_TRUE(provider->try_acquire_simultaneous({0, 2}, *compute));
+    provider->release();
+    ov::intel_gpu::ocl::moe::ExpertPrefetcher prefetcher(get_test_engine(), get_test_default_config(get_test_engine()));
+    prefetcher.bind(provider);
+    auto make_event = [&] { return prefetcher.make_ready_event(); };
+    auto initial = provider->cache().partition_3way({0, 2}, make_event);
+    ASSERT_TRUE(initial);
     cl::UserEvent gate(dynamic_cast<cldnn::ocl::ocl_engine&>(get_test_engine()).get_cl_context());
-    dynamic_cast<cldnn::ocl::ocl_stream&>(*transfer).enqueue_external_barrier({std::make_shared<cldnn::ocl::ocl_event>(gate)});
-    transfer->flush();
-    auto begin = std::async(std::launch::async, [&] { return provider.begin_les_demand({1, 0, 1, 0}); });
-    auto begin_status = begin.wait_for(std::chrono::seconds(5));
-    if (begin_status != std::future_status::ready) {
-        gate.setStatus(CL_COMPLETE);
+    provider->cache().unpin_all(std::make_shared<cldnn::ocl::ocl_event>(gate));
+    auto demand = provider->cache().partition_3way({1, 0, 1, 0}, make_event);
+    ASSERT_TRUE(demand);
+    auto submit = std::async(std::launch::async, [&] { return prefetcher.demand_async(*provider, {1}); });
+    auto submitted = submit.wait_for(std::chrono::seconds(1));
+    bool gpu_pending = false;
+    if (submitted == std::future_status::ready) {
+        dynamic_cast<cldnn::ocl::ocl_stream&>(*compute).enqueue_external_barrier({submit.get()});
+        auto consumer = compute->enqueue_marker({}, true);
+        compute->flush();
+        gpu_pending = !consumer->is_set();
     }
-    ASSERT_EQ(begin_status, std::future_status::ready);
-    auto demand = begin.get();
-    auto finish = std::async(std::launch::async, [&] { provider.finish_les_demand(*compute); });
-    auto blocked = finish.wait_for(std::chrono::milliseconds(20));
     gate.setStatus(CL_COMPLETE);
-    EXPECT_EQ(blocked, std::future_status::timeout);
-    ASSERT_EQ(finish.wait_for(std::chrono::seconds(5)), std::future_status::ready);
-    EXPECT_NO_THROW(finish.get());
+    EXPECT_EQ(submitted, std::future_status::ready);
+    EXPECT_TRUE(gpu_pending);
+    if (submit.valid()) {
+        EXPECT_NO_THROW(submit.get());
+    }
+    EXPECT_NO_THROW(prefetcher.drain());
     ASSERT_TRUE(demand);
     EXPECT_EQ(demand->ready_pairs, (std::vector<size_t>{1, 3}));
     EXPECT_EQ(demand->missing_pairs, (std::vector<size_t>{0, 2}));
@@ -211,8 +357,184 @@ TEST_F(moe_les_upload, split_demand_returns_ready_pairs_before_upload_finishes) 
     EXPECT_EQ(actual, std::vector<uint8_t>(16, 11));
     weights.gate_w->copy_to(*compute, actual.data(), demand->slots[1] * actual.size(), 0, actual.size(), true);
     EXPECT_EQ(actual, std::vector<uint8_t>(16, 7));
-    EXPECT_THROW(provider.finish_les_demand(*compute), ov::Exception);
-    provider.release();
+    provider->cache().unpin_all(compute->enqueue_marker({}, true));
+    compute->flush();
+}
+
+TEST_F(moe_les_upload, current_demand_does_not_wait_for_next_prediction) {
+    write(std::vector<uint8_t>(128, 11));
+    MOECompressed::Config config{};
+    config.num_expert = 8;
+    config.top_k = 1;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(8, config, std::vector<size_t>(9), path);
+    moe_weights weights;
+    weights.gate_w = buffer(16, data_types::u8, 8);
+    provider->bind(weights);
+    auto current_provider = std::make_shared<OffloadExpertWeightProvider>(8, config, std::vector<size_t>(9), path);
+    moe_weights current_weights;
+    current_weights.gate_w = buffer(16, data_types::u8, 8);
+    current_provider->bind(current_weights);
+    auto compute = lane();
+    auto predicted_ids = buffer(1, data_types::i32);
+    const uint32_t predicted_expert = 1;
+    predicted_ids->copy_from(*compute, &predicted_expert, true);
+    compute->flush();
+    ov::intel_gpu::ocl::moe::ExpertPrefetcher prefetcher(get_test_engine(), get_test_default_config(get_test_engine()));
+    prefetcher.bind(provider);
+    prefetcher.bind(current_provider);
+    prefetcher.advance(1, 0);
+    auto current = current_provider->cache().partition_3way({0}, [&] { return prefetcher.make_ready_event(); });
+    ASSERT_TRUE(current);
+    auto current_copy = prefetcher.demand_async(*current_provider, {0});
+    cl::UserEvent prediction_gate(dynamic_cast<cldnn::ocl::ocl_engine&>(get_test_engine()).get_cl_context());
+    auto consumed = std::make_shared<std::atomic<bool>>(false);
+    prefetcher.submit_prefetch({1, 1, predicted_ids, std::make_shared<cldnn::ocl::ocl_event>(prediction_gate), provider, consumed});
+    dynamic_cast<cldnn::ocl::ocl_stream&>(*compute).enqueue_external_barrier({current_copy});
+    auto pass_b_ready = compute->enqueue_marker({}, true);
+    compute->flush();
+    auto current_finished = std::async(std::launch::async, [&] { pass_b_ready->wait(); });
+    const auto before_prediction = current_finished.wait_for(std::chrono::seconds(2));
+    EXPECT_FALSE(consumed->load(std::memory_order_acquire));
+    EXPECT_EQ(provider->cache().size(), 0U);
+    prediction_gate.setStatus(CL_COMPLETE);
+    EXPECT_EQ(before_prediction, std::future_status::ready);
+    EXPECT_NO_THROW(current_finished.get());
+    current_provider->cache().unpin_all(pass_b_ready);
+    EXPECT_NO_THROW(prefetcher.drain());
+    EXPECT_TRUE(consumed->load(std::memory_order_acquire));
+    auto demand = provider->cache().partition_3way({1}, [&] { return prefetcher.make_ready_event(); });
+    ASSERT_TRUE(demand);
+    EXPECT_EQ(demand->ready_pairs, std::vector<size_t>{0});
+    EXPECT_TRUE(demand->missing.empty());
+    std::vector<uint8_t> actual(16);
+    weights.gate_w->copy_to(*compute, actual.data(), demand->slots.front() * actual.size(), 0, actual.size(), true);
+    EXPECT_EQ(actual, std::vector<uint8_t>(16, 11));
+    provider->cache().unpin_all(compute->enqueue_marker({}, true));
+    compute->flush();
+}
+
+TEST_F(moe_les_upload, cancellation_terminates_unsubmitted_completion_bridge) {
+    auto compute = lane();
+    event::ptr completion;
+    event::ptr consumer;
+    {
+        ov::intel_gpu::ocl::moe::ExpertPrefetcher prefetcher(get_test_engine(), get_test_default_config(get_test_engine()));
+        completion = prefetcher.make_ready_event();
+        dynamic_cast<cldnn::ocl::ocl_stream&>(*compute).enqueue_external_barrier({completion});
+        consumer = compute->enqueue_marker({}, true);
+        compute->flush();
+        prefetcher.cancel_all();
+    }
+    auto native = std::dynamic_pointer_cast<cldnn::ocl::ocl_event>(completion);
+    ASSERT_NE(native, nullptr);
+    EXPECT_EQ(native->get().getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>(), CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+    EXPECT_ANY_THROW(consumer->wait());
+}
+
+TEST_F(moe_les_upload, stale_prediction_is_cancelled_without_waiting_for_gpu) {
+    write(std::vector<uint8_t>(128, 11));
+    MOECompressed::Config config{};
+    config.num_expert = 8;
+    config.top_k = 1;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(8, config, std::vector<size_t>(9), path);
+    moe_weights weights;
+    weights.gate_w = buffer(16, data_types::u8, 8);
+    provider->bind(weights);
+    ov::intel_gpu::ocl::moe::ExpertPrefetcher prefetcher(get_test_engine(), get_test_default_config(get_test_engine()));
+    prefetcher.bind(provider);
+    prefetcher.advance(1, 0);
+    cl::UserEvent prediction_gate(dynamic_cast<cldnn::ocl::ocl_engine&>(get_test_engine()).get_cl_context());
+    auto consumed = std::make_shared<std::atomic<bool>>(false);
+    prefetcher.submit_prefetch({1, 1, buffer(1, data_types::i32),
+                               std::make_shared<cldnn::ocl::ocl_event>(prediction_gate), provider, consumed});
+    prefetcher.advance(1, 1);
+    auto drained = std::async(std::launch::async, [&] { prefetcher.drain(); });
+    const auto status = drained.wait_for(std::chrono::seconds(2));
+    prediction_gate.setStatus(CL_COMPLETE);
+    EXPECT_EQ(status, std::future_status::ready);
+    EXPECT_NO_THROW(drained.get());
+    EXPECT_TRUE(consumed->load(std::memory_order_acquire));
+    EXPECT_EQ(provider->cache().size(), 0U);
+}
+
+TEST_F(moe_les_upload, lookahead_upload_retains_resources_after_provider_destruction) {
+    write(std::vector<uint8_t>(32, 11));
+    MOECompressed::Config config{};
+    config.num_expert = 2;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(1, config, std::vector<size_t>(9), path);
+    moe_weights weights;
+    weights.gate_w = buffer(16, data_types::u8, 2);
+    provider->bind(weights);
+    auto compute = lane();
+    ASSERT_TRUE(provider->try_acquire_simultaneous({0}, *compute));
+    ov::intel_gpu::ocl::moe::ExpertPrefetcher prefetcher(get_test_engine(), get_test_default_config(get_test_engine()));
+    prefetcher.bind(provider);
+    auto make_event = [&] { return prefetcher.make_ready_event(); };
+    ASSERT_TRUE(provider->cache().partition_3way({0}, make_event));
+    cl::UserEvent gate(dynamic_cast<cldnn::ocl::ocl_engine&>(get_test_engine()).get_cl_context());
+    provider->cache().unpin_all(std::make_shared<cldnn::ocl::ocl_event>(gate));
+    ASSERT_TRUE(provider->cache().partition_3way({1}, make_event));
+    auto completion = prefetcher.demand_async(*provider, {1});
+    std::weak_ptr<cldnn::memory> backing = weights.gate_w;
+    provider.reset();
+    weights = {};
+    EXPECT_FALSE(backing.expired());
+    gate.setStatus(CL_COMPLETE);
+    EXPECT_NO_THROW(prefetcher.drain());
+    EXPECT_NO_THROW(completion->wait());
+    auto retained = backing.lock();
+    ASSERT_NE(retained, nullptr);
+    std::vector<uint8_t> actual(16);
+    retained->copy_to(*compute, actual.data(), 0, 0, actual.size(), true);
+    EXPECT_EQ(actual, std::vector<uint8_t>(16, 11));
+}
+
+TEST_F(moe_les_upload, lookahead_cancellation_allows_callback_after_worker_destruction) {
+    write(std::vector<uint8_t>(32, 7));
+    MOECompressed::Config config{};
+    config.num_expert = 2;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(1, config, std::vector<size_t>(9), path);
+    moe_weights weights;
+    weights.gate_w = buffer(16, data_types::u8, 2);
+    provider->bind(weights);
+    auto compute = lane();
+    ASSERT_TRUE(provider->try_acquire_simultaneous({0}, *compute));
+    auto prefetcher = std::make_unique<ov::intel_gpu::ocl::moe::ExpertPrefetcher>(
+        get_test_engine(), get_test_default_config(get_test_engine()));
+    prefetcher->bind(provider);
+    auto make_event = [&] { return prefetcher->make_ready_event(); };
+    ASSERT_TRUE(provider->cache().partition_3way({0}, make_event));
+    cl::UserEvent gate(dynamic_cast<cldnn::ocl::ocl_engine&>(get_test_engine()).get_cl_context());
+    provider->cache().unpin_all(std::make_shared<cldnn::ocl::ocl_event>(gate));
+    ASSERT_TRUE(provider->cache().partition_3way({1}, make_event));
+    auto completion = prefetcher->demand_async(*provider, {1});
+    auto destroyed = std::async(std::launch::async, [&] { prefetcher.reset(); });
+    const auto status = destroyed.wait_for(std::chrono::seconds(2));
+    gate.setStatus(CL_COMPLETE);
+    EXPECT_EQ(status, std::future_status::ready);
+    EXPECT_NO_THROW(destroyed.get());
+    EXPECT_ANY_THROW(completion->wait());
+}
+
+TEST_F(moe_les_upload, lookahead_upload_failure_terminates_all_waiters) {
+    write(std::vector<uint8_t>(16, 7));
+    MOECompressed::Config config{};
+    config.num_expert = 2;
+    auto provider = std::make_shared<OffloadExpertWeightProvider>(2, config, std::vector<size_t>(9), path);
+    moe_weights weights;
+    weights.gate_w = buffer(16, data_types::u8, 2);
+    provider->bind(weights);
+    ov::intel_gpu::ocl::moe::ExpertPrefetcher prefetcher(get_test_engine(), get_test_default_config(get_test_engine()));
+    prefetcher.bind(provider);
+    auto demand = provider->cache().partition_3way({1, 0}, [&] { return prefetcher.make_ready_event(); });
+    ASSERT_TRUE(demand);
+    auto completion = prefetcher.demand_async(*provider, {1, 0});
+    EXPECT_ANY_THROW(prefetcher.drain());
+    EXPECT_ANY_THROW(prefetcher.rethrow_if_failed());
+    EXPECT_ANY_THROW(completion->wait());
+    for (const auto& event : demand->wait_events) {
+        EXPECT_ANY_THROW(event->wait());
+    }
 }
 
 TEST_F(moe_les_upload, split_demand_release_drains_unfinished_upload) {

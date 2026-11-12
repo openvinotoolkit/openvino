@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <array>
 #include <algorithm>
 #include <cstdint>
 #include <filesystem>
@@ -18,6 +19,8 @@
 #include "openvino/util/parallel_io.hpp"
 
 namespace ov::intel_gpu::ocl::moe_otd {
+
+cldnn::stream::ptr create_copy_stream(cldnn::engine& engine, const cldnn::ExecutionConfig& config);
 
 struct LesSpeculationPolicy {
     static constexpr size_t lookahead_layers = 1;
@@ -138,6 +141,16 @@ void fill_weights_memory(cldnn::stream& exec_stream,
                          const std::vector<uint32_t>& experts_list,
                          const std::vector<size_t>& lru_experts);
 
+struct LookaheadStagingPool {
+    struct Chunk {
+        cldnn::memory::ptr memory;
+        cldnn::event::ptr upload;
+    };
+    static constexpr size_t chunk_bytes = 8 * 1024 * 1024;
+    std::array<Chunk, 2> chunks;
+    size_t cursor = 0;
+};
+
 std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer_stream,
                                                       const cldnn::MOECompressed::Config& config,
                                                       const std::vector<size_t>& weight_bin_offsets,
@@ -145,6 +158,7 @@ std::vector<cldnn::event::ptr> fill_weights_memory_async(cldnn::stream& transfer
                                                       cldnn::moe_weights& weights,
                                                       const std::vector<uint32_t>& experts,
                                                       const std::vector<size_t>& slots,
-                                                      uint64_t* uploaded_bytes = nullptr);
+                                                      uint64_t* uploaded_bytes = nullptr,
+                                                      LookaheadStagingPool* staging_pool = nullptr);
 
 }  // namespace ov::intel_gpu::ocl::moe_otd

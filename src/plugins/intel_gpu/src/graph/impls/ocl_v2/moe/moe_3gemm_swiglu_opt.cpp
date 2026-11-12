@@ -10,6 +10,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "lru_cache.hpp"
 #include "expert_weight_providers.hpp"
+#include "residency/moe_lookahead_registry.hpp"
 #include "intel_gpu/runtime/les_context.hpp"
 // clang-format on
 
@@ -51,6 +52,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 #    include "ocl_v2/utils/jitter.hpp"
 #    include "primitive_inst.h"
 #    include "runtime/ocl/ocl_event.hpp"
+#    include "runtime/ocl/ocl_stream.hpp"
 
 namespace ov::intel_gpu::ocl {
 
@@ -652,24 +654,6 @@ class moe_3gemm_swiglu_opt_impl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
 
-    void enqueue_les_prefetch(cldnn::primitive_inst& ins,
-                              const std::vector<uint32_t>& experts,
-                              cldnn::event::ptr) override {
-        auto& network = ins.get_network();
-        auto* context = network.get_les_context();
-        if (!context || !network.is_les_prediction_enabled() || !_weight_provider->is_offloaded()) {
-            return;
-        }
-        if (_les_owner != context) {
-            _weight_provider = _weight_provider->clone();
-            _les_owner = context;
-        }
-        _weight_provider->set_les_context(context, network.get_les_epoch());
-        auto& instance = reinterpret_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(ins);
-        bind_weights_on_first_exec(instance);
-        _weight_provider->prefetch_les_demand(experts, network.get_stream());
-    }
-
     // Routing/expert selection is read back to the host (topk_ids, expert masks)
     bool supports_replay() const override {
         return false;
@@ -768,10 +752,11 @@ public:
     int _shared_intermediate_size;
     int _gate_up_group_size;
     int _down_group_size;
+    std::shared_ptr<moe::LookaheadContext> _lookahead;
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
-    cldnn::les_context* _les_owner = nullptr;
-    memory::ptr _les_proxy_hidden;
+    moe::LookaheadContext* _les_owner = nullptr;
     std::vector<memory::ptr> _les_decode_metadata = std::vector<memory::ptr>(3);
+    memory::ptr _les_topk_readback;
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
@@ -800,18 +785,7 @@ public:
         }
         if (!_weight_provider->is_bound()) {
             auto bind = [&](MOE3GemmInputIndex index) {
-                auto input = instance.input_memory_ptr(static_cast<size_t>(index));
-                if (!_les_owner) {
-                    return input;
-                }
-                auto logical = input->get_layout();
-                auto physical = logical;
-                auto shape = physical.get_partial_shape();
-                shape[0] = static_cast<int64_t>(resident_slot_count());
-                physical.set_partial_shape(shape);
-                auto& engine = instance.get_network().get_engine();
-                auto allocation = engine.allocate_memory(physical, engine.get_preferred_memory_allocation_type(), false);
-                return engine.reinterpret_buffer(*allocation, logical);
+                return instance.input_memory_ptr(static_cast<size_t>(index));
             };
             instance._weights.gate_w = bind(MOE3GemmInputIndex::WEIGHT_0);
             instance._weights.gate_z = bind(MOE3GemmInputIndex::ZP_0);
@@ -1222,7 +1196,7 @@ public:
         if (needs_grouped_gpu_mask_gen()) {
             add_stage(grouped_gemm_mask_gen, params);
     }
-        if (params.prog->get_config().get_enable_les() && cur_moe->_otd.lru_expert_num > 0) {
+        if (params.prog->get_config().get_moe_lookahead_prefetch() && cur_moe->_otd.lru_expert_num > 0) {
             add_stage(mlp_gate_up_masked, params);
             add_stage(mlp_down_masked, params);
         }
@@ -1501,7 +1475,7 @@ public:
         cur_moe->_down_group_size = _down_group_size;
         cur_moe->_weight_provider = _weight_provider;  // shared across clones within the same network
         cur_moe->_les_owner = nullptr;
-        cur_moe->_les_proxy_hidden.reset();
+        cur_moe->_lookahead.reset();
         cur_moe->_les_decode_metadata.assign(3, nullptr);
         cur_moe->force_gpu_mask_gen_prefill = force_gpu_mask_gen_prefill;
         cur_moe->prefill_impl = prefill_impl;
@@ -1762,12 +1736,52 @@ public:
 
         const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
 
-        const bool split_les = _les_owner && _weight_provider->is_offloaded();
+        const bool split_les = _les_owner && token_num == 1 && _weight_provider->is_offloaded() &&
+                       _weight_provider->resident_capacity() > 0;
+        std::vector<uint32_t> experts;
+        event::ptr topk_readback;
+        if (split_les) {
+            experts.resize(token_num * static_cast<size_t>(max_topk));
+            if (!_les_topk_readback || _les_topk_readback->count() != experts.size()) {
+                _les_topk_readback = cur_net.get_engine().allocate_memory(
+                    cldnn::layout({1, 1, 1, static_cast<int64_t>(experts.size())}, ov::element::i32, format::bfyx),
+                    allocation_type::usm_host, false);
+            }
+            stream.enqueue_barrier({stream.enqueue_marker({}, true)});
+            topk_readback = _les_topk_readback->copy_from(stream, *scratch.topk_id, 0, 0,
+                                                        experts.size() * sizeof(uint32_t), false);
+        }
+        try {
+            if (token_num == 1) {
+                enqueue_lookahead_prediction(events, instance);
+            }
+            if (topk_readback) {
+                stream.flush();
+                topk_readback->wait();
+                mem_lock<uint32_t, mem_lock_type::read> indices(_les_topk_readback, stream);
+                std::copy_n(indices.data(), experts.size(), experts.begin());
+                for (auto expert : experts) {
+                    OPENVINO_ASSERT(expert < static_cast<uint32_t>(cur_moe->_config.num_expert),
+                                    "Lookahead TopK readback outside expert range: layer=", instance.id(),
+                                    ", expert=", expert, ", count=", cur_moe->_config.num_expert,
+                                    ", layout=", scratch.topk_id->get_layout().to_short_string());
+                }
+            }
+        } catch (...) {
+            if (topk_readback) {
+                topk_readback->wait();
+            }
+            throw;
+        }
         auto batch_mem_ptr = scratch.topk_id;
         if (!split_les) {
             batch_mem_ptr = get_batched_gemv_expert_ids(stream, instance, scratch, token_num);
             if (!batch_mem_ptr) {
                 return exec_batched_gemv_fallback(events, stream, instance, scratch, token_num);
+            }
+            if (_lookahead && token_num == 1) {
+                _lookahead->demand_partitioned(instance.id());
+                _lookahead->prefetch(&instance);
             }
         }
 
@@ -1870,142 +1884,95 @@ public:
             if (!split_les) {
                 ret_event = enqueue_pairs(events, batch_mem_ptr, nullptr);
             } else {
-                for (const auto& dependency : events) {
-                    if (dependency) {
-                        dependency->wait();
-                    }
-                }
                 const size_t pair_count = token_num * static_cast<size_t>(max_topk);
-                std::vector<uint32_t> experts(pair_count);
-                scratch.topk_id->copy_to(stream, experts.data(), 0, 0, pair_count * sizeof(uint32_t), true);
-                if (cur_net.is_les_prediction_enabled() && moe_otd::les_prediction_compare_enabled()) {
-                    auto prediction = cur_net.get_les_proxy_state(instance.id());
-                    if (prediction.predicted_indices && prediction.prediction_ready) {
-                        prediction.prediction_ready->wait();
-                        std::vector<uint32_t> predicted(pair_count);
-                        prediction.predicted_indices->copy_to(stream,
-                                                              predicted.data(),
-                                                              0,
-                                                              0,
-                                                              pair_count * sizeof(uint32_t),
-                                                              true);
-                        uint64_t matches = 0;
-                        for (size_t pair = 0; pair < pair_count; ++pair) {
-                            matches += predicted[pair] == experts[pair];
-                        }
-                        if (auto* perf = moe_otd::get_perf_counters()) {
-                            perf->les_prediction_matches.fetch_add(matches, std::memory_order_relaxed);
-                            perf->les_prediction_pairs.fetch_add(pair_count, std::memory_order_relaxed);
-                        }
-                        GPU_DEBUG_INFO << "[LES_PREDICT] target=" << instance.id() << " matches=" << matches << "/"
-                                       << pair_count << std::endl;
-                    }
+                auto provider = std::dynamic_pointer_cast<moe::OffloadExpertWeightProvider>(_weight_provider);
+                OPENVINO_ASSERT(provider, "Lookahead requires an offload provider");
+                auto& prefetcher = _lookahead->prefetcher();
+                prefetcher.rethrow_if_failed();
+                const size_t wave_capacity = provider->resident_capacity();
+                const size_t wave_count = (pair_count + wave_capacity - 1) / wave_capacity;
+                if (_les_decode_metadata.size() < wave_count * 3) {
+                    _les_decode_metadata.resize(wave_count * 3);
                 }
-                std::vector<bool> done(pair_count, false);
-                size_t remaining = pair_count;
-                bool shared_pending = _has_shared_expert;
                 try {
-                    while (remaining > 0) {
-                        std::vector<uint32_t> selected;
-                        std::vector<uint32_t> wave_experts;
-                        std::vector<size_t> wave_pairs;
-                        for (size_t pair = 0; pair < pair_count; ++pair) {
-                            if (done[pair]) {
-                                continue;
-                            }
-                            if (std::find(selected.begin(), selected.end(), experts[pair]) == selected.end()) {
-                                if (selected.size() == _weight_provider->resident_capacity()) {
-                                    continue;
-                                }
-                                selected.push_back(experts[pair]);
-                            }
-                            wave_experts.push_back(experts[pair]);
-                            wave_pairs.push_back(pair);
+                    for (size_t wave = 0; wave < wave_count; ++wave) {
+                    const size_t first_pair = wave * wave_capacity;
+                    const size_t last_pair = std::min(pair_count, first_pair + wave_capacity);
+                    std::vector<uint32_t> wave_experts(experts.begin() + first_pair, experts.begin() + last_pair);
+                    auto partition = provider->cache().partition_3way(wave_experts,
+                        [&] { return prefetcher.make_ready_event(); }, wave > 0);
+                    OPENVINO_ASSERT(partition, "Lookahead demand cannot reserve its wave slots");
+                    if (wave == 0) {
+                        _lookahead->demand_partitioned(instance.id());
+                    }
+                    std::vector<uint32_t> missing_ids;
+                    for (const auto& load : partition->missing) {
+                        missing_ids.push_back(load.expert_id);
+                    }
+                    auto demand_event = prefetcher.demand_async(*provider, missing_ids);
+                    prefetcher.promote(*provider, wave_experts);
+                    if (wave == 0) {
+                        _lookahead->prefetch(&instance);
+                    }
+                    std::vector<int32_t> slots(pair_count, 0);
+                    std::copy(partition->slots.begin(), partition->slots.end(), slots.begin() + first_pair);
+                    std::vector<int32_t> ready_mask(compute_experts, 0);
+                    std::vector<int32_t> pending_mask(compute_experts, 0);
+                    for (auto pair : partition->ready_pairs) {
+                        ready_mask[first_pair + pair] = 1;
+                    }
+                    for (auto pair : partition->inflight_pairs) {
+                        pending_mask[first_pair + pair] = 1;
+                    }
+                    for (auto pair : partition->missing_pairs) {
+                        pending_mask[first_pair + pair] = 1;
+                    }
+                    if (_has_shared_expert && wave == 0) {
+                        ready_mask[max_topk] = 1;
+                    }
+                    auto upload = [&](const std::vector<int32_t>& values, size_t index) {
+                        auto& memory = _les_decode_metadata[wave * 3 + index];
+                        if (!memory || memory->size() != values.size() * sizeof(int32_t)) {
+                            auto layout = cldnn::layout({1, 1, 1, static_cast<int64_t>(values.size())},
+                                                        ov::element::i32, cldnn::format::bfyx);
+                            memory = cur_net.get_engine().allocate_memory(layout, allocation_type::usm_host, false);
                         }
-                        auto demand = _weight_provider->begin_les_demand(wave_experts);
-                        OPENVINO_ASSERT(demand && !wave_pairs.empty(), "LES wave reservation cannot progress");
-                        if (auto* perf = moe_otd::get_perf_counters()) {
-                            perf->les_waves.fetch_add(1, std::memory_order_relaxed);
-                            perf->les_ready_pairs.fetch_add(demand->ready_pairs.size(), std::memory_order_relaxed);
-                            perf->les_missing_pairs.fetch_add(demand->missing_pairs.size(), std::memory_order_relaxed);
-                            perf->les_shared_pairs.fetch_add(shared_pending ? token_num : 0, std::memory_order_relaxed);
+                        mem_lock<int32_t, mem_lock_type::write> metadata(memory, stream);
+                        std::copy(values.begin(), values.end(), metadata.data());
+                        return memory;
+                    };
+                    auto indices = upload(slots, 0);
+                    auto ready_memory = upload(ready_mask, 1);
+                    auto pending_memory = upload(pending_mask, 2);
+                    auto dependencies = wave == 0 ? events : std::vector<event::ptr>{ret_event};
+                    if (!partition->ready_pairs.empty() || (_has_shared_expert && wave == 0)) {
+                        if (!partition->ready_events.empty()) {
+                            dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(partition->ready_events);
                         }
-                        std::vector<int32_t> slots(pair_count, 0);
-                        std::vector<int32_t> ready_mask(token_num * compute_experts, 0);
-                        std::vector<int32_t> missing_mask(ready_mask.size(), 0);
-                        for (size_t index = 0; index < wave_pairs.size(); ++index) {
-                            slots[wave_pairs[index]] = static_cast<int32_t>(demand->slots[index]);
-                        }
-                        for (auto index : demand->ready_pairs) {
-                            auto pair = wave_pairs[index];
-                            ready_mask[pair / max_topk * compute_experts + pair % max_topk] = 1;
-                        }
-                        for (auto index : demand->missing_pairs) {
-                            auto pair = wave_pairs[index];
-                            missing_mask[pair / max_topk * compute_experts + pair % max_topk] = 1;
-                        }
-                        if (shared_pending) {
-                            for (size_t token = 0; token < token_num; ++token) {
-                                ready_mask[token * compute_experts + max_topk] = 1;
-                            }
-                        }
-                        auto upload = [&](const std::vector<int32_t>& values, size_t index) {
-                            auto& memory = _les_decode_metadata[index];
-                            if (!memory || memory->size() != values.size() * sizeof(int32_t)) {
-                                auto layout = cldnn::layout({1, 1, 1, static_cast<int64_t>(values.size())},
-                                                            ov::element::i32, cldnn::format::bfyx);
-                                memory = cur_net.get_engine().allocate_memory(layout, allocation_type::usm_host, false);
-                            }
-                            mem_lock<int32_t, mem_lock_type::write> metadata(memory, stream);
-                            std::copy(values.begin(), values.end(), metadata.data());
-                            return memory;
-                        };
-                        auto indices = upload(slots, 0);
-                        auto ready_memory = upload(ready_mask, 1);
-                        auto missing_memory = upload(missing_mask, 2);
-                        std::vector<event::ptr> dependencies = ret_event ? std::vector<event::ptr>{ret_event} : events;
-                        if (!demand->ready_pairs.empty() || shared_pending) {
-                            pass_a = true;
-                            ret_event = enqueue_pairs(dependencies, indices, ready_memory);
-                            dependencies = {ret_event};
-                            stream.flush();
-                        }
-                        _weight_provider->finish_les_demand(stream);
-                        if (!demand->missing_pairs.empty()) {
-                            pass_a = false;
-                            ret_event = enqueue_pairs(dependencies, indices, missing_memory);
-                        }
-                        OPENVINO_ASSERT(ret_event, "LES wave produced no consumer");
+                        pass_a = true;
+                        ret_event = enqueue_pairs(dependencies, indices, ready_memory);
+                        dependencies = {ret_event};
                         stream.flush();
-                        _weight_provider->set_consumer(ret_event);
-                        if (moe_otd::les_trace_enabled() || wave_pairs.size() < remaining) {
-                            ret_event->wait();
-                        }
-                        for (const auto& entry : trace_events) {
-                            auto* native = dynamic_cast<cldnn::ocl::ocl_event*>(entry.second.get());
-                            OPENVINO_ASSERT(native, "LES trace requires native kernel events");
-                            moe_otd::les_trace_interval(entry.first,
-                                native->get().getProfilingInfo<CL_PROFILING_COMMAND_START>(),
-                                native->get().getProfilingInfo<CL_PROFILING_COMMAND_END>());
-                        }
-                        trace_events.clear();
-                        shared_pending = false;
-                        for (auto pair : wave_pairs) {
-                            done[pair] = true;
-                            --remaining;
-                        }
                     }
+                    auto copy_events = partition->wait_events;
+                    if (demand_event) {
+                        copy_events.push_back(demand_event);
+                    }
+                    if (!partition->inflight_pairs.empty() || !partition->missing_pairs.empty()) {
+                        dynamic_cast<cldnn::ocl::ocl_stream&>(stream).enqueue_external_barrier(copy_events);
+                        pass_a = false;
+                        ret_event = enqueue_pairs(dependencies, indices, pending_memory);
+                    }
+                    provider->cache().unpin_all(ret_event);
+                    stream.flush();
+                    }
+                    ret = exec_batched_gemv_reduce(ret_event, instance, scratch, token_num);
+                    auto complete = stream.enqueue_marker({ret}, true);
+                    stream.flush();
+                    return complete;
                 } catch (...) {
-                    auto error = std::current_exception();
-                    try {
-                        stream.finish();
-                    } catch (...) {
-                    }
-                    try {
-                        _weight_provider->release();
-                    } catch (...) {
-                    }
-                    std::rethrow_exception(error);
+                    prefetcher.cancel_all();
+                    throw;
                 }
             }
 
@@ -3133,32 +3100,42 @@ public:
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& ins) override {
         auto& network = ins.get_network();
-        auto* context = network.get_les_context();
-        if (!context || !_weight_provider->is_offloaded()) {
+        if (!_lookahead) {
+            _lookahead = moe::LookaheadRegistry::acquire(network);
+        }
+        if (!_lookahead || !_weight_provider->is_offloaded()) {
             return execute_impl(events, ins);
         }
-        auto& stream = network.get_stream();
+        auto* context = _lookahead.get();
         if (_les_owner != context) {
-            stream.finish();
             _weight_provider = _weight_provider->clone();
             _les_owner = context;
         }
-        _weight_provider->set_les_context(context, network.get_les_epoch());
+        auto& instance = reinterpret_cast<typed_primitive_inst<moe_3gemm_fused_compressed>&>(ins);
+        bind_weights_on_first_exec(instance);
+        _weight_provider = _lookahead->bind(ins.id(), _weight_provider);
         try {
-            auto result = execute_impl(events, ins);
-            auto consumer = stream.enqueue_marker({});
-            stream.flush();
-            _weight_provider->set_consumer(std::move(consumer));
-            return result;
+            return execute_impl(events, ins);
         } catch (...) {
-            try {
-                stream.finish();
-            } catch (...) {
-                _weight_provider->release();
-                throw;
-            }
-            _weight_provider->release();
+            _lookahead->prefetcher().cancel_all();
             throw;
+        }
+    }
+
+    void enqueue_lookahead_prediction(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) {
+        if (_lookahead) {
+            auto& stream = instance.get_network().get_stream();
+            auto hidden = instance.input_memory_ptr(0);
+            const auto& layout = hidden->get_layout();
+            if (layout.data_type == data_types::f16 && layout.format == format::bfyx &&
+                layout.count() == layout.get_shape().back() && layout.get_linear_size() == layout.count()) {
+                _lookahead->enter(instance.id());
+                auto ready = stream.enqueue_marker(events, true);
+                if (const auto* next_layer = _lookahead->get_next_layer(&instance)) {
+                    _lookahead->predict(*next_layer, hidden, ready);
+                }
+                stream.enqueue_barrier({stream.enqueue_marker({}, true)});
+            }
         }
     }
 
@@ -3171,33 +3148,6 @@ public:
         auto& stream = cur_net.get_stream();
 
         OPENVINO_ASSERT(_weight_provider, "expert weight provider not initialized");
-
-        if (cur_net.is_les_prediction_enabled()) {
-            for (const auto& link : cur_net.get_les_router_links()) {
-                if (moe_otd::LesSpeculationPolicy::lookahead_layers != 1 ||
-                    link.status != program::les_router_status::supported || link.chain.source_moe != instance.id()) {
-                    continue;
-                }
-                auto source_hidden = instance.input_memory_ptr(0);
-                const auto& hidden_layout = source_hidden->get_layout();
-                if (hidden_layout.data_type != data_types::f16 || hidden_layout.format != format::bfyx ||
-                    hidden_layout.count() != hidden_layout.get_shape().back() ||
-                    hidden_layout.get_linear_size() != hidden_layout.count()) {
-                    continue;
-                }
-                if (!_les_proxy_hidden || _les_proxy_hidden.use_count() > 1 ||
-                    _les_proxy_hidden->get_layout() != hidden_layout) {
-                    _les_proxy_hidden = cur_net.get_engine().allocate_memory(
-                        hidden_layout, cur_net.get_engine().get_preferred_memory_allocation_type(), false);
-                }
-                auto snapshot = _les_proxy_hidden;
-                stream.enqueue_barrier(events);
-                auto snapshot_ready = snapshot->copy_from(stream, *source_hidden, false);
-                cur_net.set_les_proxy_hidden(link.chain.target_moe, std::move(snapshot), std::move(snapshot_ready));
-                auto router = cur_net.get_primitive(link.router);
-                router->get_impl()->enqueue_les_prediction(*router);
-            }
-        }
 
         cldnn::event::ptr ret_env = nullptr;
         _has_shared_expert = (config.num_shared_expert > 0);
@@ -3224,6 +3174,9 @@ public:
         // Batched GEMV: for small token counts (including single token, MTP/speculative decoding),
         // use optimized GEMV kernels with batch dimension. Avoids gather/scatter overhead.
         const MoeGemmImpl impl = select_impl(token_num);
+        if (_lookahead && (token_num != 1 || impl != MoeGemmImpl::batched_gemv)) {
+            _lookahead->pause_for_prefill();
+        }
         if (impl == MoeGemmImpl::batched_gemv) {
             return exec_batched_gemv(events, instance, scratch, token_num);
         }

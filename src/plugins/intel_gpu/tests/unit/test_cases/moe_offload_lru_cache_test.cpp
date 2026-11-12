@@ -16,6 +16,128 @@ using namespace tests;
 using ov::intel_gpu::ocl::moe::LRUCache;
 using ov::intel_gpu::ocl::moe::ExpertSlotReservations;
 
+namespace {
+class LookaheadTestEvent : public cldnn::event {
+    void wait_impl() override { ADD_FAILURE() << "LRU operations must not wait for GPU events"; }
+    void set_impl() override {}
+    bool is_set_impl() override { return false; }
+};
+
+cldnn::event::ptr make_lookahead_test_event() {
+    return std::make_shared<LookaheadTestEvent>();
+}
+}
+
+TEST(moe_lookahead_lru, partitions_and_pins_ready_inflight_missing_atomically) {
+    LRUCache cache(8);
+    const auto resident = cache.get_lru_item(1);
+    cache.set_filled(resident.first);
+    const auto speculative = cache.reserve_speculative(2, 3, make_lookahead_test_event);
+    ASSERT_TRUE(speculative);
+    EXPECT_FALSE(cache.reserve_speculative(2, 3, make_lookahead_test_event));
+    const auto demand = cache.partition_3way({1, 2, 3, 2}, make_lookahead_test_event);
+    ASSERT_TRUE(demand);
+    EXPECT_EQ(demand->ready_pairs, (std::vector<size_t>{0}));
+    EXPECT_EQ(demand->inflight_pairs, (std::vector<size_t>{1, 3}));
+    EXPECT_EQ(demand->missing_pairs, (std::vector<size_t>{2}));
+    ASSERT_EQ(demand->missing.size(), 1U);
+    EXPECT_EQ(demand->missing.front().expert_id, 3U);
+    EXPECT_EQ(demand->slots[1], speculative->slot);
+    EXPECT_EQ(demand->slots[1], demand->slots[3]);
+    ASSERT_EQ(demand->wait_events.size(), 2U);
+    EXPECT_EQ(demand->wait_events.front(), speculative->ready_event);
+    EXPECT_FALSE(cache.cancel_load(*speculative));
+    cache.unpin_all(make_lookahead_test_event());
+    EXPECT_FALSE(cache.cancel_load(*speculative));
+    EXPECT_TRUE(cache.complete_load(*speculative));
+    EXPECT_TRUE(cache.complete_load(demand->missing.front()));
+    const auto hits = cache.partition_3way({1, 2, 3}, make_lookahead_test_event);
+    ASSERT_TRUE(hits);
+    EXPECT_EQ(hits->ready_pairs.size(), 3U);
+    EXPECT_TRUE(hits->wait_events.empty());
+    ASSERT_EQ(hits->ready_events.size(), 2U);
+    EXPECT_EQ(hits->ready_events.front(), speculative->ready_event);
+}
+
+TEST(moe_lookahead_lru, preserves_war_event_on_slot_replacement) {
+    LRUCache cache(1);
+    auto first = cache.partition_3way({1}, make_lookahead_test_event);
+    ASSERT_TRUE(first);
+    ASSERT_TRUE(cache.complete_load(first->missing.front()));
+    EXPECT_FALSE(cache.partition_3way({2}, make_lookahead_test_event));
+    auto consumer = make_lookahead_test_event();
+    cache.unpin_all(consumer);
+    auto next = cache.partition_3way({2}, make_lookahead_test_event);
+    ASSERT_TRUE(next);
+    ASSERT_EQ(next->missing.size(), 1U);
+    EXPECT_EQ(next->missing.front().last_use_event, consumer);
+    EXPECT_EQ(next->missing.front().slot, first->missing.front().slot);
+    EXPECT_FALSE(cache.complete_load(first->missing.front()));
+}
+
+TEST(moe_lookahead_lru, pending_waves_reuse_slots_only_after_consumer_is_recorded) {
+    LRUCache cache(1);
+    auto first = cache.partition_3way({1}, make_lookahead_test_event);
+    ASSERT_TRUE(first);
+    EXPECT_FALSE(cache.partition_3way({2}, make_lookahead_test_event, true));
+    auto consumer = make_lookahead_test_event();
+    cache.unpin_all(consumer);
+    EXPECT_FALSE(cache.partition_3way({2}, make_lookahead_test_event));
+    auto next = cache.partition_3way({2}, make_lookahead_test_event, true);
+    ASSERT_TRUE(next);
+    EXPECT_EQ(next->slots, first->slots);
+    EXPECT_EQ(next->missing.front().last_use_event, consumer);
+    EXPECT_FALSE(cache.complete_load(first->missing.front()));
+    auto pending = cache.get_pending_load(2);
+    ASSERT_TRUE(pending);
+    EXPECT_EQ(pending->generation, next->missing.front().generation);
+    EXPECT_TRUE(cache.complete_load(next->missing.front()));
+}
+
+TEST(moe_lookahead_lru, speculative_quota_reserves_demand_headroom) {
+    LRUCache full(4);
+    EXPECT_FALSE(full.reserve_speculative(0, 4, make_lookahead_test_event));
+    LRUCache cache(8);
+    ASSERT_TRUE(cache.reserve_speculative(0, 7, make_lookahead_test_event));
+    EXPECT_FALSE(cache.reserve_speculative(1, 7, make_lookahead_test_event));
+    auto demand = cache.partition_3way({1, 2, 3, 4, 5, 6, 7}, make_lookahead_test_event);
+    ASSERT_TRUE(demand);
+    EXPECT_EQ(demand->missing.size(), 7U);
+}
+
+TEST(moe_lookahead_lru, cancelled_replacement_retains_physical_slot_war) {
+    LRUCache cache(4);
+    auto initial = cache.partition_3way({1, 2, 3, 4}, make_lookahead_test_event);
+    ASSERT_TRUE(initial);
+    for (const auto& load : initial->missing) {
+        ASSERT_TRUE(cache.complete_load(load));
+    }
+    auto consumer = make_lookahead_test_event();
+    cache.unpin_all(consumer);
+    auto speculative = cache.reserve_speculative(5, 1, make_lookahead_test_event);
+    ASSERT_TRUE(speculative);
+    ASSERT_TRUE(cache.cancel_load(*speculative));
+    auto replacement = cache.partition_3way({6}, make_lookahead_test_event);
+    ASSERT_TRUE(replacement);
+    ASSERT_EQ(replacement->missing.size(), 1U);
+    EXPECT_EQ(replacement->missing.front().slot, speculative->slot);
+    EXPECT_EQ(replacement->missing.front().last_use_event, consumer);
+}
+
+TEST(moe_lookahead_lru, cancellation_and_failed_reservation_do_not_alias_slots) {
+    LRUCache cache(8);
+    auto cancelled = cache.reserve_speculative(1, 2, make_lookahead_test_event);
+    ASSERT_TRUE(cancelled);
+    ASSERT_TRUE(cache.reserve_speculative(2, 2, make_lookahead_test_event));
+    ASSERT_TRUE(cache.cancel_load(*cancelled));
+    EXPECT_FALSE(cache.complete_load(*cancelled));
+    EXPECT_FALSE(cache.partition_3way({0, 1, 2, 3, 4, 5, 6, 7, 8}, make_lookahead_test_event));
+    EXPECT_EQ(cache.size(), 1U);
+    auto demand = cache.partition_3way({3, 2}, make_lookahead_test_event);
+    ASSERT_TRUE(demand);
+    EXPECT_NE(demand->slots[0], demand->slots[1]);
+}
+
 TEST(moe_les_reservations, deduplicates_and_rejects_capacity_without_mutation) {
     ExpertSlotReservations cache(2);
     EXPECT_FALSE(cache.reserve({1, 2, 3}, 1));
