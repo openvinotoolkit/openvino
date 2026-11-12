@@ -93,8 +93,7 @@ TEST_P(TPRankPassesTest, InsertsNoGatherWithoutAVocabularyProjection) {
 }
 
 TEST_P(TPRankPassesTest, CutsEveryWeightAtCompileTime) {
-    // The block's intermediate size does not divide by 3 or 4, so the split falls back on whole
-    // quantization groups -- still without a runtime Slice.
+    // Every rank boundary of the block falls on whole quantization groups.
     auto model = make_transformer_block(BlockConfig{});
     ASSERT_EQ(count_ops_of_type(model, slice), 0u);
     for (const auto& rank_model : rank_models(model, GetParam()))
@@ -230,17 +229,17 @@ INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                          });
 
 // Packed 4-bit elements keep their values when a rank's range starts or ends inside a byte, along
-// the outer axis (rows of three) as well as the inner one.
+// the outer axis (rows of five) as well as the inner one (three of six elements per row).
 TEST(TPRankPassesNibbleTest, CutsPacked4BitElementsInsideAByte) {
     for (const int64_t axis : {0, 1}) {
         SCOPED_TRACE("axis " + std::to_string(axis));
-        const auto shape = axis == 0 ? ov::Shape{5, 3} : ov::Shape{3, 5};
-        std::vector<int> values(15);
+        const auto shape = axis == 0 ? ov::Shape{2, 5} : ov::Shape{2, 6};
+        std::vector<int> values(ov::shape_size(shape));
         for (size_t i = 0; i < values.size(); ++i)
             values[i] = static_cast<int>(i);
         const auto constant = ov::op::v0::Constant::create(ov::element::u4, shape, values);
         const auto model = std::make_shared<ov::Model>(ov::OutputVector{constant}, ov::ParameterVector{});
-        const std::vector<Segment> segments{{5, 1}};
+        const std::vector<Segment> segments{{shape[axis], 1}};
         set_shard(constant, ShardAnnotation(ShardStrategy::COLUMN_PARALLEL, axis, segments, "test"));
         for (size_t rank = 0; rank < 2; ++rank) {
             const auto rank_model = model->clone();
@@ -259,14 +258,15 @@ TEST(TPRankPassesNibbleTest, CutsPacked4BitElementsInsideAByte) {
     }
 }
 
-// Groups of 64: one per unit of two query heads, 7 in the MLP. The MLP's rows of 7 zero points, and
-// ranks that end after an odd number of groups on three and four ranks, cut the packed u4 zero
-// points inside a byte; every weight is still cut at compile time.
+// Groups of 64 and three of them per rank in the MLP: every rank boundary of the down projection's
+// packed u4 zero points falls inside a byte, on every world size; every weight is still cut at
+// compile time.
 TEST(TPRankPassesNibbleTest, CutsZeroPointsInsideAByteAtCompileTime) {
     BlockConfig config;
     config.group_size = 64;
     for (const size_t world_size : {2u, 3u, 4u}) {
         SCOPED_TRACE("world " + std::to_string(world_size));
+        config.intermediate = 3 * 64 * world_size;
         auto analyzed = make_transformer_block(config);
         const auto report = analyze(analyzed, world_size);
         EXPECT_TRUE(report->runtime_slices.empty()) << report->runtime_slices.front();
@@ -275,16 +275,16 @@ TEST(TPRankPassesNibbleTest, CutsZeroPointsInsideAByteAtCompileTime) {
     }
 }
 
-// Units of two query heads (64 features) and groups of 128: two ranks end on a group boundary, but
-// three (4, 2, 2 heads) and four (2 each) end at 192, inside a group of the O projection, which
-// only a runtime Slice can cut.
+// Units of two query heads (64 features) and groups of 128: two and three ranks (12 and 8 heads)
+// end on a group boundary, four (6 heads each) end at 192, inside a group of the O projection,
+// which only a runtime Slice can cut.
 TEST(TPRankPassesRuntimeSliceTest, SlicesOnlyTheOProjectionWhenARankEndsInsideAGroup) {
     BlockConfig config;
     config.group_size = 128;
-    config.intermediate = 512;
+    config.intermediate = 1536;
     for (const size_t world_size : {2u, 3u, 4u}) {
         SCOPED_TRACE("world " + std::to_string(world_size));
-        const size_t expected = world_size == 2 ? 0u : 1u;
+        const size_t expected = world_size == 4 ? 1u : 0u;
         auto analyzed = make_transformer_block(config);
         const auto report = analyze(analyzed, world_size);
         EXPECT_EQ(report->runtime_slices.size(), expected);

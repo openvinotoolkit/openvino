@@ -30,16 +30,15 @@ enum class Fused {
 
 /// Geometry of the synthetic transformer block.
 ///
-/// Deliberately awkward: `intermediate` is not a multiple of the world sizes
-/// under test, so the split has to fall back on whole quantization groups, and
-/// `num_kv_heads` is small enough that the grouped-query pairing is exercised
-/// while still allowing every world size the tests use.
+/// Every split divides evenly over the world sizes under test (2, 3 and 4):
+/// 12 KV heads of two query heads each, and an MLP of 12 quantization groups.
+/// The grouped-query pairing is exercised on every rank.
 struct BlockConfig {
     size_t hidden = 256;
-    size_t num_heads = 8;
-    size_t num_kv_heads = 4;
+    size_t num_heads = 24;
+    size_t num_kv_heads = 12;
     size_t head_dim = 32;
-    size_t intermediate = 448;
+    size_t intermediate = 384;
     int group_size = 32;  ///< quantization group; -1 disables grouping
     ov::element::Type weights_precision = ov::element::u4;
     bool with_bias = false;

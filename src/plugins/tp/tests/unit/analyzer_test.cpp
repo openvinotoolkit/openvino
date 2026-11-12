@@ -141,7 +141,7 @@ TEST(TPAnalyzerTest, RejectsAProjectionWithRuntimeWeights) {
 }
 
 TEST(TPAnalyzerTest, RejectsMoreRanksThanKvHeads) {
-    BlockConfig config;  // 4 KV heads
+    BlockConfig config;  // 12 KV heads
     auto model = make_transformer_block(config);
     EXPECT_THROW(analyze(model, config.num_kv_heads + 1), ov::Exception);
 }

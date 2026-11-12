@@ -250,9 +250,10 @@ TEST(TPShardingVerifierTest, FailsTheAnalysisOfAnUnadjustedComputedShape) {
     }
     ASSERT_TRUE(replaced);
     model->validate_nodes_and_infer_types();
+    const auto q_features = std::to_string(config.num_heads * config.head_dim);
     OV_EXPECT_THROW(analyze(model, 2),
                     ov::Exception,
-                    AllOf(HasSubstr("Sharding verification failed"), HasSubstr("holds 256 for the split output axis 2")));
+                    AllOf(HasSubstr("Sharding verification failed"), HasSubstr("holds " + q_features + " for the split output axis 2")));
 }
 
 // A fused gate_up_proj split with the global lengths would hand rank 0 only gate features and

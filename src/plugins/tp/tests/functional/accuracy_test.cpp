@@ -222,24 +222,20 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceAfterKvCacheTrim) {
     expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
 }
 
-// Every other case leaves `intermediate` at 448 -- 14 quantization groups, so
-// three and four ranks cannot divide it evenly and the split falls back on
-// whole groups. 512 is 16 groups, which two and four ranks do divide evenly;
-// running both tells an error in that fallback apart from one in the split
-// itself.
-TEST_P(TPAccuracyTest, MatchesSingleDeviceOnEvenlyDivisibleMlp) {
+// 448 is 14 quantization groups: three and four ranks get unequal shares of the
+// MLP, the remainder on the lower ranks.
+TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUnevenMlpSplit) {
     BlockConfig config;
-    config.intermediate = 512;
+    config.intermediate = 448;
     auto model = make_transformer_block(config);
 
     auto [reference, parallel] = run_both(model, make_input(config));
     expect_close(reference, parallel);
 }
 
-// The default 4 KV heads divide evenly over two and four ranks. Five do not,
-// for any world size the tests use, so the ranks end up with different numbers
-// of attention heads -- and with the remainder handed to the lower ranks, the
-// last rank is the one that gets shorted.
+// Five KV heads divide by none of the world sizes under test, so the ranks end
+// up with different numbers of attention heads -- and with the remainder handed
+// to the lower ranks, the last rank is the one that gets shorted.
 TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUnevenHeadSplit) {
     BlockConfig config;
     config.num_kv_heads = 5;
@@ -250,22 +246,24 @@ TEST_P(TPAccuracyTest, MatchesSingleDeviceOnUnevenHeadSplit) {
     expect_close(reference, parallel);
 }
 
-// The packed u4 zero points are cut inside a byte on every world size (TPRankPassesNibbleTest).
+// Three groups of 64 per rank in the MLP: the packed u4 zero points of the down projection are cut
+// inside a byte on every world size (TPRankPassesNibbleTest).
 TEST_P(TPAccuracyTest, MatchesSingleDeviceOnZeroPointsCutInsideAByte) {
     BlockConfig config;
     config.group_size = 64;
+    config.intermediate = 3 * 64 * world_size();
     auto model = make_transformer_block(config);
 
     auto [reference, parallel] = run_both(model, make_input(config));
     expect_close(reference, parallel);
 }
 
-// On three and four ranks a boundary of the O projection falls inside a quantization group, so its
-// weight is cut by a Slice at run time (TPRankPassesRuntimeSliceTest); two ranks cut it whole.
+// On four ranks a boundary of the O projection falls inside a quantization group, so its weight is
+// cut by a Slice at run time (TPRankPassesRuntimeSliceTest); two and three ranks cut it whole.
 TEST_P(TPAccuracyTest, MatchesSingleDeviceOnAWeightSlicedAtRunTime) {
     BlockConfig config;
     config.group_size = 128;
-    config.intermediate = 512;
+    config.intermediate = 1536;
     auto model = make_transformer_block(config);
 
     auto [reference, parallel] = run_both(model, make_input(config));
