@@ -27,6 +27,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -266,9 +267,10 @@ ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
                                                                     {{"auto_broadcast", "numpy"}});
     auto offsets_m =
         ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ngram_hash_function_fusion::is_last_axis_constant);
-    auto add_m = ov::pass::pattern::wrap_type<ov::op::v1::Add>({mod_m, offsets_m},
-                                                               ov::pass::pattern::type_matches(ov::element::i64),
-                                                               {{"auto_broadcast", "numpy"}});
+    // A zero-offset Add may already be removed, e.g. by NopElimination.
+    auto add_m = ov::pass::pattern::optional<ov::op::v1::Add>({mod_m, offsets_m},
+                                                              ov::pass::pattern::type_matches(ov::element::i64),
+                                                              {{"auto_broadcast", "numpy"}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
@@ -276,10 +278,22 @@ ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
         if (transformation_callback(root)) {
             return false;
         }
+        const auto mod = pm.at(mod_m).get_node_shared_ptr();
+        const bool has_add = pm.count(add_m) != 0;
+        if (!has_add) {
+            // The FloorMod can be matched as root before the optional Add is visited, 
+            // return false if it has an Add consumer, it will be handled by the match rooted at the Add.
+            for (const auto& target : mod->get_output_target_inputs(0)) {
+                if (ov::as_type<ov::op::v1::Add>(target.get_node())) {
+                    return false;
+                }
+            }
+        }
         const auto unsqueeze = pm.at(unsqueeze_m).get_node_shared_ptr();
 
         auto vocab_sizes = ngram_hash_function_fusion::constant_values(pm.at(vocab_m));
-        auto offsets = ngram_hash_function_fusion::constant_values(pm.at(offsets_m));
+        auto offsets = has_add ? ngram_hash_function_fusion::constant_values(pm.at(offsets_m))
+                               : std::vector<int64_t>(vocab_sizes.size(), 0);
         if (offsets.size() == 1) {
             offsets.resize(vocab_sizes.size(), offsets[0]);
         }
@@ -293,7 +307,10 @@ ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
             return ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr()) && scalar_multiplier(&m, output);
         };
         std::vector<ngram_hash_function_fusion::Term> terms;
-        ov::NodeVector matched_nodes{root, pm.at(mod_m).get_node_shared_ptr(), unsqueeze};
+        ov::NodeVector matched_nodes{mod, unsqueeze};
+        if (has_add) {
+            matched_nodes.push_back(root);
+        }
         if (!ngram_hash_function_fusion::collect_terms(unsqueeze->input_value(0),
                                                        is_multiplier,
                                                        terms,

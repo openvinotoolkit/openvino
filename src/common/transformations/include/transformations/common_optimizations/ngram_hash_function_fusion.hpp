@@ -24,8 +24,10 @@ class TRANSFORMATIONS_API NGramHashFunctionFusion;
  *
  * Matches an int64 subgraph for one order, such as the Qwen3.8-Flash-Next PLE or DeepSeek Engram hash:
  *     mix   = (x[0] * m[0]) ^ (x[1] * m[1]) ^ ... ^ (x[o-1] * m[o-1])
- *     block = FloorMod(Unsqueeze(mix, -1), vocab) + offsets
- * and replaces it with Convert(NGramHashFunction(Concat(Unsqueeze(x[o-1]), ..., Unsqueeze(x[0])))). The generated
+ *     block = FloorMod(Unsqueeze(mix, -1), vocab) [+ offsets]
+ * and replaces it with Convert(NGramHashFunction(Concat(Unsqueeze(x[o-1]), ..., Unsqueeze(x[0])))). The offsets Add
+ * is optional, e.g. NopElimination removes an all-zero one, and is then fused as zero offsets. If an offsets Add
+ * consumes the FloorMod but cannot be fused, the block is left unchanged. The generated
  * hash has heads only for this order; its leading heads_per_order entries are zero. The Convert preserves the
  * original i64 result type while keeping wrapping 64-bit multiplication and modulo inside the operation, before a
  * plugin can lower surrounding i64 arithmetic to i32.

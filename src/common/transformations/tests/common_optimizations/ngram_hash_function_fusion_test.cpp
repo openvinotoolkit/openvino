@@ -30,6 +30,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 
 using namespace ov;
 using namespace ov::op;
@@ -660,4 +661,26 @@ TEST_F(NGramHashFunctionFusionTests, CallbackSkipsConcatFusion) {
                                           head_range(t.offsets, 4, 8));
     model_ref =
         std::make_shared<Model>(OutputVector{std::make_shared<v0::Concat>(OutputVector{bigram, trigram}, -1)}, tokens);
+}
+
+class NGramHashFunctionFusionAfterNopEliminationTests : public TransformationTestsF {
+public:
+    NGramHashFunctionFusionAfterNopEliminationTests() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::pass::NopElimination>();
+        manager.register_pass<ov::pass::NGramHashFunctionFusion>();
+    }
+};
+
+TEST_F(NGramHashFunctionFusionAfterNopEliminationTests, FusesBlocksWithRemovedZeroOffsetsAdd) {
+    auto t = make_tables(kTrigram.heads_per_order);
+    std::fill(t.offsets.begin(), t.offsets.end(), 0);
+    model = make_hash_model(kTrigram, t);
+    model_ref = make_fused_model(kTrigram, t);
 }
