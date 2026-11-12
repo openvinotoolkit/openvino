@@ -39,21 +39,22 @@ The applications include:
 
    All C++ samples support input paths containing only ASCII characters, except
    for the Hello Classification Sample and the Hello Remote Tensor Sample, which
-   support Unicode.
+   support Unicode paths on Linux. On Windows, use ASCII-only paths.
 
 - :doc:`Hello Classification Sample <openvino-samples/hello-classification>` -
   Inference of image classification networks like AlexNet and GoogLeNet using
   Synchronous Inference Request API. Input of any size and layout can be set to
   an infer request which will be pre-processed automatically during inference.
-  The sample supports only images as input and supports input paths containing
-  only Unicode characters.
+  The sample supports only images as input. Input paths may contain Unicode
+  characters on Linux; on Windows, they must contain only ASCII characters.
 
 - :doc:`Hello Remote Tensor Sample <openvino-samples/hello-remote-tensor>` -
   Inference of image classification networks on an Intel GPU, with input and
   output tensors allocated in Level Zero device memory. The sample supports
-  only images as input and supports input paths containing Unicode characters.
-  With the OpenCL GPU runtime, it requires a driver with Level Zero - OpenCL
-  interoperability (LEO) enabled; the experimental Level Zero GPU runtime is also supported.
+  only images as input. Input paths may contain Unicode characters on Linux;
+  on Windows, they must contain only ASCII characters. With the OpenCL GPU
+  runtime, it requires a driver with Level Zero - OpenCL interoperability (LEO)
+  enabled; the experimental Level Zero GPU runtime is also supported.
 
 - :doc:`Hello NV12 Input Classification Sample <openvino-samples/hello-nv12-input-classification>` -
   Input of any size and layout can be provided to an infer request. The sample

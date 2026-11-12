@@ -39,7 +39,8 @@ For more detailed information on how this sample works, check the dedicated [art
 - OpenCL headers and the OpenCL ICD loader library to build the sample. They are used for a single
   `clGetContextInfo` call (see above).
 - Level Zero headers and the Level Zero loader library (`ze_loader`) to build the sample, which links
-  the loader. At run time the loader is provided by the GPU driver (or the `libze1` package on Ubuntu).
+  the loader. On Ubuntu, install the development files with `sudo apt install libze-dev`. At run time
+  the loader is provided by the GPU driver (or the `libze1` package on Ubuntu).
 
 The following C++ API is used in the application:
 

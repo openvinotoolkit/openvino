@@ -3,6 +3,7 @@
 //
 
 #include <cstdint>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -99,7 +100,8 @@ void* get_usm_pointer(const ov::RemoteTensor& tensor) {
     return pointer;
 }
 
-// cl_context query of the Level Zero - OpenCL interoperability (LEO) driver feature.
+// Intel Compute Runtime LEO driver extension; 0x42B0 is CL_CONTEXT_L0_HANDLE_INTEL:
+// https://github.com/intel/compute-runtime/blob/710ede9ddfec3779cbd847b916a37d72e988ad9c/level_zero/api/opencl/extensions/public/cl_ext_private.h#L164
 constexpr cl_context_info cl_l0_context_handle = 0x42B0;
 
 ze_context_handle_t get_level_zero_context(const ov::AnyMap& context_params) {
@@ -217,7 +219,7 @@ int tmain(int argc, tchar* argv[]) {
         // 5) Apply preprocessing modifying the original 'model'
         model = ppp.build();
 
-        // -------- Step 6. Loading a model to the device using the Level Zero context --------
+        // -------- Step 6. Compile the model using the GPU plugin's default context --------
         ov::CompiledModel compiled_model = core.compile_model(model, context);
         OPENVINO_ASSERT(compiled_model.output().get_partial_shape().is_static(),
                         "Sample supports models with static output shape only");
