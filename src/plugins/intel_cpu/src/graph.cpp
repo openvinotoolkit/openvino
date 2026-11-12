@@ -2160,6 +2160,20 @@ void Graph::EnforceInferencePrecision() const {
                 if (node->getType() == Type::PagedAttention && any_of(inPort, 3U, 4U)) {
                     return true;
                 }
+                // The caches of SparsePA are written directly. The op needs the scale in the query type, but a constant
+                // input is never converted: enforce it explicitly.
+                if (node->getType() == Type::SparsePA) {
+                    if (any_of(inPort, 3U, 4U)) {
+                        return true;
+                    }
+                    if (inPort == 11U) {
+                        return false;
+                    }
+                }
+                // PagedQSAIndexer writes its caches directly and the op needs one element type on all float inputs.
+                if (node->getType() == Type::PagedQSAIndexer) {
+                    return true;
+                }
                 // kv cache of PaKVReorder should be written directly
                 if (node->getType() == Type::PaKVReorder && any_of(inPort, 0U, 1U)) {
                     return true;
