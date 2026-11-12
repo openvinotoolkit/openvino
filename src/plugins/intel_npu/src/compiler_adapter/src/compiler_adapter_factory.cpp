@@ -20,14 +20,14 @@
 
 namespace intel_npu {
 CompilerAdapterFactory::CompilerAdapterFactory(const ov::SoPtr<IEngineBackend>& engineBackend,
-                                               const VCLFunctionTableProvider& vclFunctionsProvider)
+                                               const VCLFunctionTableProvider& vclFunctionsProvider,
+                                               const std::shared_ptr<OptionSupportCache>& optionSupportCache)
     : _engineBackend(engineBackend),
-      _vclFunctionsProvider(vclFunctionsProvider) {}
+      _vclFunctionsProvider(vclFunctionsProvider),
+      _optionSupportCache(optionSupportCache ? optionSupportCache : std::make_shared<OptionSupportCache>()) {}
 
-std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
-    ov::intel_npu::CompilerType& compilerType,
-    std::string_view platform,
-    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
+std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(ov::intel_npu::CompilerType& compilerType,
+                                                                      std::string_view platform) const {
     const auto device = _engineBackend ? _engineBackend->getDevice() : nullptr;
 
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
@@ -47,7 +47,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
                 onlineCompilation ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()}
                                   : std::nullopt,
                 ScopedOptionSupportCache{
-                    optionSupportCache,
+                    _optionSupportCache,
                     static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
         } catch (const std::exception& vclException) {
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
@@ -79,7 +79,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
             OPENVINO_THROW("Could not find a valid NPU device for the provided configuration.");
         }
 
-        return std::make_unique<DriverCompilerAdapter>(_engineBackend->getInitStructs(), optionSupportCache);
+        return std::make_unique<DriverCompilerAdapter>(_engineBackend->getInitStructs(), _optionSupportCache);
     }
 
     OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");

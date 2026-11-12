@@ -158,12 +158,15 @@ public:
             REGISTER_OPTION(Opt);
         });
 
+        const auto optionSupportCache = std::make_shared<::intel_npu::OptionSupportCache>();
         const auto adapterFactory =
-            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, npu::vcl_provider::processWide());
+            std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
+                                                                        npu::vcl_provider::processWide(),
+                                                                        optionSupportCache);
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory),
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory, optionSupportCache),
             adapterFactory,
             ::intel_npu::Logger::global());
     }
@@ -687,12 +690,15 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
 
     std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
     localOptions->add<::intel_npu::COMPILER_TYPE>();
+    const auto optionSupportCache = std::make_shared<::intel_npu::OptionSupportCache>();
     const auto adapterFactory =
-        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend, npu::vcl_provider::processWide());
+        std::make_shared<const ::intel_npu::CompilerAdapterFactory>(backend,
+                                                                    npu::vcl_provider::processWide(),
+                                                                    optionSupportCache);
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
-        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory),
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, adapterFactory, optionSupportCache),
         adapterFactory,
         ::intel_npu::Logger::global());
 

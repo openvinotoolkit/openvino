@@ -35,9 +35,11 @@ public:
      * @param engineBackend The backend that provides the device and Level Zero structures. May be empty for offline
      *        compilation with the compiler-in-plugin.
      * @param vclFunctionsProvider Supplies VCL entry points when a compiler-in-plugin is needed.
+     * @param optionSupportCache Shared compiler option cache. A new cache is created if null.
      */
     CompilerAdapterFactory(const ov::SoPtr<IEngineBackend>& engineBackend,
-                           const VCLFunctionTableProvider& vclFunctionsProvider);
+                           const VCLFunctionTableProvider& vclFunctionsProvider,
+                           const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
     CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
     CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
@@ -54,15 +56,12 @@ public:
      *        (never PREFER_PLUGIN).
      * @param platform The compilation target platform. Empty means no explicit target, which is treated as online
      *        compilation on the backend device.
-     * @param optionSupportCache Where the compiler records which options it supports. May be null.
      * @return The compiler adapter. Never null.
      * @throws ov::Exception if the requested compiler cannot be created, if the driver compiler is selected without a
      *         device matching `platform`, or if `compilerType` is invalid.
      */
-    std::unique_ptr<ICompilerAdapter> getCompiler(
-        ov::intel_npu::CompilerType& compilerType,
-        std::string_view platform,
-        const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
+    std::unique_ptr<ICompilerAdapter> getCompiler(ov::intel_npu::CompilerType& compilerType,
+                                                  std::string_view platform) const;
 
     /**
      * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER. Any other `compilerType` is left unchanged.
@@ -93,6 +92,7 @@ private:
 
     ov::SoPtr<IEngineBackend> _engineBackend;
     VCLFunctionTableProvider _vclFunctionsProvider;
+    std::shared_ptr<OptionSupportCache> _optionSupportCache;
 };
 
 }  // namespace intel_npu

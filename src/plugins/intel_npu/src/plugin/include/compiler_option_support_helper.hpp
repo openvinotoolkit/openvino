@@ -22,9 +22,8 @@ namespace intel_npu {
 class CompilerOptionSupportHelper final {
 public:
     explicit CompilerOptionSupportHelper(const ov::SoPtr<IEngineBackend>& backend,
-                                         const std::shared_ptr<const CompilerAdapterFactory>& adapterFactory);
-
-    const std::shared_ptr<OptionSupportCache>& getOptionSupportCache() const;
+                                         const std::shared_ptr<const CompilerAdapterFactory>& adapterFactory,
+                                         const std::shared_ptr<OptionSupportCache>& optionSupportCache);
 
     bool isOptionSupported(ov::intel_npu::CompilerType compilerType,
                            const std::string& optionName,

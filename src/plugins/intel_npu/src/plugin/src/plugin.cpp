@@ -188,7 +188,9 @@ Plugin::Plugin()
     // backend registry shall be created after configs are updated
     _backendsRegistry = std::make_unique<BackendsRegistry>();
     _backend = _backendsRegistry->getEngineBackend();
-    _compilerAdapterFactory = std::make_shared<const CompilerAdapterFactory>(_backend, vcl_functions());
+    const auto optionSupportCache = std::make_shared<OptionSupportCache>();
+    _compilerAdapterFactory =
+        std::make_shared<const CompilerAdapterFactory>(_backend, vcl_functions(), optionSupportCache);
 
     register_options(_backend, *options);
     if (_backend) {
@@ -198,7 +200,8 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, _compilerAdapterFactory);
+    _compilerOptionSupportHelper =
+        std::make_shared<CompilerOptionSupportHelper>(_backend, _compilerAdapterFactory, optionSupportCache);
     _propertiesManager = std::make_unique<PluginPropertyManager>(options,
                                                                  _backend,
                                                                  _compilerOptionSupportHelper,
@@ -291,9 +294,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto compiler = _compilerAdapterFactory->getCompiler(compilerType,
-                                                         compilationPlatform,
-                                                         _compilerOptionSupportHelper->getOptionSupportCache());
+    auto compiler = _compilerAdapterFactory->getCompiler(compilerType, compilationPlatform);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -313,9 +314,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                             compilerType,
                                             localConfig.has<COMPILATION_MODE>(),
                                             localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
-        _logger.info(
-            "NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
-            "for dynamic model (at least one input has a dynamic non-batch dimension, all input ranks static)");
+        auto compiler = _compilerAdapterFactory->getCompiler(compilerType, compilationPlatform);
         localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
     }
 
@@ -668,9 +667,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto compiler = _compilerAdapterFactory->getCompiler(compilerType,
-                                                         compilationPlatform,
-                                                         _compilerOptionSupportHelper->getOptionSupportCache());
+    auto compiler = _compilerAdapterFactory->getCompiler(compilerType, compilationPlatform);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {

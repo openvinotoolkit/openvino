@@ -61,6 +61,7 @@ class CompilerOptionSupportHelperFunctionalTests : public ov::test::behavior::OV
                                                    public testing::WithParamInterface<ov::intel_npu::CompilerType> {
 protected:
     ov::SoPtr<IEngineBackend> backend;
+    std::shared_ptr<OptionSupportCache> optionSupportCache;
     std::unique_ptr<CompilerOptionSupportHelper> helper;
     ov::intel_npu::CompilerType compilerType;
 
@@ -74,9 +75,13 @@ protected:
 
         compilerType = GetParam();
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        optionSupportCache = std::make_shared<OptionSupportCache>();
         helper = std::make_unique<CompilerOptionSupportHelper>(
             backend,
-            std::make_shared<const CompilerAdapterFactory>(backend, npu::vcl_provider::processWide()));
+            std::make_shared<const CompilerAdapterFactory>(backend,
+                                                           npu::vcl_provider::processWide(),
+                                                           optionSupportCache),
+            optionSupportCache);
     }
 
     void TearDown() override {
@@ -159,7 +164,7 @@ TEST_P(CompilerOptionSupportHelperFunctionalTests, CachesResultAfterRealCompiler
 
 TEST_P(CompilerOptionSupportHelperFunctionalTests, AddsNewOptionToCacheAndReturnsItWithoutCompilerLookup) {
     const auto cacheKey = static_cast<OptionSupportCache::CacheKey>(compilerType);
-    helper->getOptionSupportCache()->addSupportedOption(cacheKey, "MANUALLY_CACHED_OPTION", true);
+    optionSupportCache->addSupportedOption(cacheKey, "MANUALLY_CACHED_OPTION", true);
 
     std::string logs;
     std::mutex logsMutex;
@@ -339,9 +344,13 @@ protected:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<IEngineBackend>(std::make_shared<ZeroEngineBackend>());
+        const auto optionSupportCache = std::make_shared<OptionSupportCache>();
         helper = std::make_unique<CompilerOptionSupportHelper>(
             backend,
-            std::make_shared<const CompilerAdapterFactory>(backend, npu::vcl_provider::processWide()));
+            std::make_shared<const CompilerAdapterFactory>(backend,
+                                                           npu::vcl_provider::processWide(),
+                                                           optionSupportCache),
+            optionSupportCache);
     }
 
     void TearDown() override {
