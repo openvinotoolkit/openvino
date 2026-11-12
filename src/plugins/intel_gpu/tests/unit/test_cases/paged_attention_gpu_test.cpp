@@ -318,6 +318,58 @@ static std::vector<int32_t> gen_tokens_ids_test_data(size_t seq_len, int num_ima
     return v;
 }
 
+class paged_attention_large_head_token_type_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_large_head_token_type_test, matches_reference) {
+    auto params = GetParam();
+    execute(params, true);
+}
+
+TEST_P(paged_attention_large_head_token_type_test, bidirectional_tokens_cross_partition) {
+    auto params = GetParam();
+    auto& token_types = params.token_type_ids.value();
+    std::fill(token_types.begin() + 345, token_types.begin() + 360, 1);
+    ASSERT_TRUE(pam.has_value());
+    auto& manager = *pam;
+    std::fill(manager.query_data[0].begin(), manager.query_data[0].end(), ov::float16{0.0f});
+    std::fill(manager.key_data[0].begin(), manager.key_data[0].end(), ov::float16{0.0f});
+    std::fill(manager.value_data[0].begin(), manager.value_data[0].end(), ov::float16{0.0f});
+    std::fill(manager.value_data[0].begin() + 345 * 512, manager.value_data[0].begin() + 360 * 512, ov::float16{1.0f});
+
+    auto result = run_gpu_inference(manager, params);
+    cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> output(result.outputs.at("output_data").get_memory(), tests::get_test_stream());
+    for (const int token : {344, 345, 351, 352, 359, 360, 399}) {
+        const float expected = token < 345 ? 0.0f : 15.0f / static_cast<float>(std::max(token + 1, 360));
+        EXPECT_NEAR(static_cast<float>(output[token * 512]), expected, 1e-3f) << "token=" << token;
+    }
+}
+
+static paged_attention_test_params make_large_head_token_type_params(bool flash_attention_v2, bool scores) {
+    paged_attention_test_params params{{{400, 0}},
+                                       1,
+                                       1,
+                                       512,
+                                       512,
+                                       16,
+                                       0,
+                                       DISABLE_CACHE_COMPRESSION,
+                                       ov::internal::CacheQuantMode::BY_TOKEN,
+                                       STATIC_INPUT_PAD,
+                                       DISABLE_SCORES,
+                                       DISABLE_ROTATION,
+                                       DISABLE_FA_V2};
+    params.token_type_ids = std::vector<int>(400, 0);
+    params.force_flashattn_v2 = flash_attention_v2;
+    params.scores_mode = scores ? ENABLE_SCORES : DISABLE_SCORES;
+    return params;
+}
+
+INSTANTIATE_TEST_SUITE_P(regression_paged_attention_large_head_token_type,
+                         paged_attention_large_head_token_type_test,
+                         ::testing::Values(make_large_head_token_type_params(false, false),
+                                           make_large_head_token_type_params(true, false),
+                                           make_large_head_token_type_params(false, true),
+                                           make_large_head_token_type_params(true, true)));
 
 // Test class to verify FlashAttnV2 multi-token sink correction is actually active.
 // Runs the same prompt twice with FA_V2 enabled: once with non-zero sinks, once with zero sinks.

@@ -2724,9 +2724,19 @@ TEST(sdpa_gpu_custom, multi_token_partition_respects_local_memory) {
     using ov::intel_gpu::ocl::get_seq_len_partition_size;
     using ov::intel_gpu::ocl::SDPAStage;
 
-    EXPECT_EQ(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 512), 384u);
-    EXPECT_EQ(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 256), 640u);
+    EXPECT_EQ(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 512), 352u);
+    EXPECT_EQ(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 256), 608u);
     EXPECT_EQ(get_seq_len_partition_size(info, 128, SDPAStage::MULTI_TOKENS, 128), 256u);
+
+    const auto partition = get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 512);
+    const size_t subgroup_count = 64;
+    const size_t local_bytes = (512 + partition + 2 * subgroup_count + 4) * 16 * sizeof(float) + subgroup_count * sizeof(int32_t);
+    EXPECT_LE(local_bytes, info.max_local_mem_size);
+
+    info.max_local_mem_size = local_bytes - (partition - 31) * 16 * sizeof(float);
+    EXPECT_ANY_THROW(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 512));
+    info.max_local_mem_size = 1;
+    EXPECT_ANY_THROW(get_seq_len_partition_size(info, 512, SDPAStage::MULTI_TOKENS, 512));
 }
 
 TEST(sdpa_gpu_custom, different_rank_orders_dynamic_v_head_size_rejects_opt) {

@@ -344,7 +344,8 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
 size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
     size_t partition_size = 0;
     if (stage == PagedAttentionStage::PREFILL) {
-        partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
+        const auto desc = params.typed_desc<paged_attention>();
+        partition_size = get_seq_len_partition_size(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS, desc->k_head_size);
     } else {
         partition_size = seq_len_partition_size;
     }

@@ -78,6 +78,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/op/util/topk_base.hpp"
@@ -1623,21 +1624,30 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     if (infer_precision == ov::element::bf16) {
-        for (const auto& node : func->get_ordered_ops()) {
-            const auto topk = ov::as_type_ptr<ov::op::util::TopKBase>(node);
-            if (!topk || topk->get_input_element_type(0) != ov::element::bf16)
-                continue;
+        const auto convert_topk = [](const auto& self, const std::shared_ptr<ov::Model>& model) -> void {
+            for (const auto& node : model->get_ordered_ops()) {
+                if (const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+                    for (const auto& body : subgraph->get_functions()) {
+                        if (body)
+                            self(self, body);
+                    }
+                }
+                const auto topk = ov::as_type_ptr<ov::op::util::TopKBase>(node);
+                if (!topk || topk->get_input_element_type(0) != ov::element::bf16)
+                    continue;
 
-            const auto consumers = topk->output(0).get_target_inputs();
-            auto input_convert = std::make_shared<ov::op::v0::Convert>(topk->input_value(0), ov::element::f32);
-            ov::copy_runtime_info(topk, input_convert);
-            topk->input(0).replace_source_output(input_convert);
-            topk->validate_and_infer_types();
-            auto output_convert = std::make_shared<ov::op::v0::Convert>(topk->output(0), ov::element::bf16);
-            ov::copy_runtime_info(topk, output_convert);
-            for (auto input : consumers)
-                input.replace_source_output(output_convert);
-        }
+                const auto consumers = topk->output(0).get_target_inputs();
+                auto input_convert = std::make_shared<ov::op::v0::Convert>(topk->input_value(0), ov::element::f32);
+                ov::copy_runtime_info(topk, input_convert);
+                topk->input(0).replace_source_output(input_convert);
+                topk->validate_and_infer_types();
+                auto output_convert = std::make_shared<ov::op::v0::Convert>(topk->output(0), ov::element::bf16);
+                ov::copy_runtime_info(topk, output_convert);
+                for (auto input : consumers)
+                    input.replace_source_output(output_convert);
+            }
+        };
+        convert_topk(convert_topk, func);
     }
 
     if (enableInt8) {

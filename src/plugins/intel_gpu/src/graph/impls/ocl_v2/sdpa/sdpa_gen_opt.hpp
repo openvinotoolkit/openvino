@@ -48,14 +48,13 @@ inline size_t get_seq_len_partition_size(const device_info& info, size_t head_si
         const size_t query_block_size = get_target_seq_len_block_size();
         const size_t query_size = query_head_size ? query_head_size : head_size;
         const size_t subgroup_count = ceil_div(head_size * scale_factor, size_t{16});
-        const size_t reserved = (query_size + 2 * subgroup_count) * query_block_size * sizeof(float);
+        const size_t reserved = (query_size + 2 * subgroup_count + 4) * query_block_size * sizeof(float) + subgroup_count * sizeof(int32_t);
         const size_t alignment = scale_factor * 16;
-        if (info.max_local_mem_size > reserved) {
-            const size_t available = (info.max_local_mem_size - reserved) / (query_block_size * sizeof(float));
-            const size_t max_partition = available / alignment * alignment;
-            if (max_partition >= alignment)
-                seq_len = std::min(seq_len, max_partition);
-        }
+        OPENVINO_ASSERT(info.max_local_mem_size > reserved, "Insufficient local memory for SDPA");
+        const size_t available = (info.max_local_mem_size - reserved) / (query_block_size * sizeof(float));
+        const size_t max_partition = available / alignment * alignment;
+        OPENVINO_ASSERT(max_partition >= alignment, "Insufficient local memory for SDPA partition");
+        seq_len = std::min(seq_len, max_partition);
     } else {
         seq_len = 256;
     }
