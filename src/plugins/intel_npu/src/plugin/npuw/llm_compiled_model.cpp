@@ -250,12 +250,16 @@ std::pair<bool, std::string> apply_weights_bank_name_if_not_exist(ov::AnyMap& co
     return {true, bank_name};
 }
 
-void assign_model_sharing_context_for_bank(ov::AnyMap& config, const std::string& bank_name, std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>>& shared_ctxs) {
+void assign_model_sharing_context_for_bank(
+    ov::AnyMap& config,
+    const std::string& bank_name,
+    std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>>& shared_ctxs) {
     if (shared_ctxs.count(bank_name) == 0) {
         shared_ctxs[bank_name] = std::make_shared<ov::weight_sharing::Context>();
-        LOG_INFO("Created an OV Weight Sharing Context for weights bank: " << bank_name << ", total contexts count: " << shared_ctxs.size());
+        LOG_INFO("Created an OV Weight Sharing Context for weights bank: " << bank_name << ", total contexts count: "
+                                                                           << shared_ctxs.size());
     }
-    
+
     config[ov::internal::model_sharing_context.name()] = shared_ctxs[bank_name];
 }
 
@@ -1414,15 +1418,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     std::unordered_map<std::string, std::shared_ptr<ov::weight_sharing::Context>> shared_weight_ctx_per_bank;
     LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
     shared_weight_ctx_per_bank[weights_bank_name] = std::make_shared<ov::weight_sharing::Context>();
-    // Although it should not be considered as the usecase, when multiple models, which are extracted from the initial LLM model, share different weights banks,
-    // the implementation should ensure that each model gets the correct weight sharing context.
-    // The implementation assings the same context to all models that share the same weights bank.
+    // Although it should not be considered as the usecase, when multiple models, which are extracted from the initial
+    // LLM model, share different weights banks, the implementation should ensure that each model gets the correct
+    // weight sharing context. The implementation assings the same context to all models that share the same weights
+    // bank.
     auto [prefill_applied, prefill_bank_name] = apply_weights_bank_name_if_not_exist(prefill_config, weights_bank_name);
-    LOG_INFO("Prefill config accepts the unique weights bank: " << (prefill_applied ? "yes" : "no") << ", bank name: " << prefill_bank_name);
+    LOG_INFO("Prefill config accepts the unique weights bank: " << (prefill_applied ? "yes" : "no")
+                                                                << ", bank name: " << prefill_bank_name);
     assign_model_sharing_context_for_bank(prefill_config, prefill_bank_name, shared_weight_ctx_per_bank);
 
-    auto [generate_applied, generate_bank_name] = apply_weights_bank_name_if_not_exist(generate_config, weights_bank_name);
-    LOG_INFO("Generate config accepts the unique weights bank: " << (generate_applied ? "yes" : "no") << ", bank name: " << generate_bank_name);
+    auto [generate_applied, generate_bank_name] =
+        apply_weights_bank_name_if_not_exist(generate_config, weights_bank_name);
+    LOG_INFO("Generate config accepts the unique weights bank: " << (generate_applied ? "yes" : "no")
+                                                                 << ", bank name: " << generate_bank_name);
     assign_model_sharing_context_for_bank(generate_config, generate_bank_name, shared_weight_ctx_per_bank);
     LOG_VERB("Create an OV Weight Sharing Context for weights bank: " << weights_bank_name);
 
@@ -1701,8 +1709,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         auto lm_head_config_addition_value = lm_head_config_addition.value_or(ov::AnyMap{}).as<ov::AnyMap>();
         merge_config_with(lm_head_config, lm_head_config_addition_value);
 
-        auto [lm_head_applied, lm_head_bank_name] = apply_weights_bank_name_if_not_exist(lm_head_config, weights_bank_name);
-        LOG_INFO("LM Head config accepts the unique weights bank: " << (lm_head_applied ? "yes" : "no") << ", bank name: " << lm_head_bank_name);
+        auto [lm_head_applied, lm_head_bank_name] =
+            apply_weights_bank_name_if_not_exist(lm_head_config, weights_bank_name);
+        LOG_INFO("LM Head config accepts the unique weights bank: " << (lm_head_applied ? "yes" : "no")
+                                                                    << ", bank name: " << lm_head_bank_name);
         assign_model_sharing_context_for_bank(lm_head_config, lm_head_bank_name, shared_weight_ctx_per_bank);
 
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
