@@ -2,32 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// Validation helpers shared by the QSA indexer / sparse-attention ops (GPU plugin).
+
 #pragma once
 
 #include <cstddef>
 #include <initializer_list>
 #include <string>
 
-#include "intel_gpu/op/sparse_kv_quant.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 
-namespace ov::intel_gpu::op::sparse_op_util {
+namespace ov::intel_gpu::op::qsa_util {
 
-/// Checks that the input `idx` of `node` is compatible with `expected`.
+// The kernels read every integer input as int32_t.
+inline void check_i32_input(const ov::Node* node, size_t idx, const char* name, int64_t rank) {
+    const auto& et = node->get_input_element_type(idx);
+    const auto& ps = node->get_input_partial_shape(idx);
+    NODE_VALIDATION_CHECK(node, et.is_dynamic() || et == element::i32, node->get_type_name(), " expects an i32 ", name, " input, got ", et);
+    NODE_VALIDATION_CHECK(node, ps.rank().compatible(rank), node->get_type_name(), " expects a rank-", rank, " ", name, " input, got ", ps);
+}
+
 inline void check_shape(const ov::Node* node, size_t idx, const char* name, const ov::PartialShape& expected) {
     const auto& ps = node->get_input_partial_shape(idx);
     NODE_VALIDATION_CHECK(node, ps.compatible(expected), node->get_type_name(), " expects ", name, " shaped ", expected, ", got ", ps);
 }
 
-/// Returns the dimension at `axis`, or a dynamic dimension when the rank is dynamic or too small.
-inline ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
-    return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
-}
-
-/// Checks that the inputs `indices` of `node` share one floating-point (or dynamic) element type.
 inline void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indices) {
     element::Type et = element::dynamic;
     for (auto idx : indices) {
@@ -43,7 +45,11 @@ inline void check_float_inputs(const ov::Node* node, std::initializer_list<size_
     NODE_VALIDATION_CHECK(node, et.is_dynamic() || et.is_real(), node->get_type_name(), " expects floating-point inputs, got ", et);
 }
 
-/// Config rules shared by SparseSDPA::Config and SparsePA::Config.
+inline ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
+    return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
+}
+
+/// Config rules for SparseSDPA::Config.
 template <class Config>
 bool validate_sparse_attention_config(const Config& c, std::string& reason) {
     auto fail = [&reason](const char* msg) {
@@ -80,18 +86,4 @@ void visit_sparse_attention_config(ov::AttributeVisitor& visitor, Config& c) {
     visitor.on_attribute("causal", c.causal);
 }
 
-/// Serializes the key/value quantization attributes shared by SparseSDPA::Config and SparsePA::Config.
-inline void visit_kv_quant(ov::AttributeVisitor& visitor, const std::string& prefix, KVQuant& quant) {
-    auto mode = static_cast<int32_t>(quant.mode);
-    auto bits = static_cast<int32_t>(quant.bits);
-    auto group_size = static_cast<int32_t>(quant.group_size);
-    visitor.on_attribute(prefix + "quant_mode", mode);
-    visitor.on_attribute(prefix + "quant_bits", bits);
-    visitor.on_attribute(prefix + "quant_symmetric", quant.symmetric);
-    visitor.on_attribute(prefix + "quant_group_size", group_size);
-    quant.mode = static_cast<KVQuant::Mode>(mode);
-    quant.bits = static_cast<uint8_t>(bits);
-    quant.group_size = static_cast<uint16_t>(group_size);
-}
-
-}  // namespace ov::intel_gpu::op::sparse_op_util
+}  // namespace ov::intel_gpu::op::qsa_util

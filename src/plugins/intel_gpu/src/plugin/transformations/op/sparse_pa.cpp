@@ -7,11 +7,28 @@
 #include <string>
 #include <utility>
 
-#include "sparse_op_utils.hpp"
+#include "qsa_op_utils.hpp"
 
 namespace ov::intel_gpu::op {
 
-using namespace sparse_op_util;
+using namespace qsa_util;
+
+namespace {
+
+void visit_kv_quant(ov::AttributeVisitor& visitor, const std::string& prefix, KVQuant& quant) {
+    auto mode = static_cast<int32_t>(quant.mode);
+    auto bits = static_cast<int32_t>(quant.bits);
+    auto group_size = static_cast<int32_t>(quant.group_size);
+    visitor.on_attribute(prefix + "quant_mode", mode);
+    visitor.on_attribute(prefix + "quant_bits", bits);
+    visitor.on_attribute(prefix + "quant_symmetric", quant.symmetric);
+    visitor.on_attribute(prefix + "quant_group_size", group_size);
+    quant.mode = static_cast<KVQuant::Mode>(mode);
+    quant.bits = static_cast<uint8_t>(bits);
+    quant.group_size = static_cast<uint16_t>(group_size);
+}
+
+}  // namespace
 
 SparsePA::SparsePA(const ov::OutputVector& args, const Config& config) : Base(args, static_cast<int64_t>(config.key_block_size)), m_config(config) {
     constructor_validate_and_infer_types();
