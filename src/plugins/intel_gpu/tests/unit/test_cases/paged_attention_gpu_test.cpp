@@ -1642,3 +1642,138 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_by_channel_large_head, kv_cache_by_chann
     paged_attention_test_params{ {{1, 10}, {1, 14}}, 2, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2 },
 }));
 
+// See new_plan.md Phase 5: exercises the new CHUNK_BASE_PTRS addressing path (both the
+// pa_kv_cache_update write kernel and the pa_sdpa_opt read kernel) by splitting the legacy
+// key_cache/value_cache buffers into multiple independent device chunks. The CPU reference
+// computation (PagedAttentionReference) is derived purely from PagedAttentionManager's host-side
+// query/key/value vectors, never from the GPU cache buffer layout for these non-adaptive-RKV,
+// non-xattention cases, so the exact same comparison used by every other basic test case is valid
+// here without modification.
+class paged_attention_chunked_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(paged_attention_chunked_test, basic) {
+    auto p = GetParam();
+    execute(p, p.run_reference);
+}
+
+namespace {
+paged_attention_test_params make_chunked_test_params(std::vector<SubsequenceDescriptor> subsequences, size_t blocks_per_chunk, bool use_tables = false) {
+    paged_attention_test_params p{};
+    p.subsequences = std::move(subsequences);
+    p.num_heads = 2;
+    p.num_kv_heads = 2;
+    p.k_head_size = 64;
+    p.v_head_size = 64;
+    p.block_size = 16;
+    p.sliding_window_size = 0;
+    p.kv_cache_compression = false;
+    p.key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    p.dynamic_paddings = STATIC_INPUT_PAD;
+    p.scores_mode = DISABLE_SCORES;
+    p.rotation_config = DISABLE_ROTATION;
+    p.disable_flashattn_v2 = DISABLE_FA_V2;
+    p.chunking_blocks_per_chunk = blocks_per_chunk;
+    p.chunking_use_tables = use_tables;
+    // Peaky attention so that wrong key-chunk addressing is visible in the output (see qk_scale).
+    p.qk_scale = 10.0f;
+    return p;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_chunked,
+    paged_attention_chunked_test,
+    ::testing::Values(
+        // Decode (2nd+ token): past_len=40, block_size=16 -> 3 physical blocks (0,1,2).
+        // blocks_per_chunk=2 -> 2 chunks (chunk0={0,1}, chunk1={2}); the read kernel's per-block
+        // loop crosses the chunk boundary, the write kernel only touches the single block in chunk1.
+        make_chunked_test_params({{1, 40}}, 2),
+        // Prefill (1st token): num_tokens=20, past_len=0, block_size=16 -> 2 physical blocks
+        // (block0 full, block1 partial-4-tokens). blocks_per_chunk=1 -> 2 chunks, one per block;
+        // the write kernel's prefill full-block and partial-block branches each touch a different chunk.
+        make_chunked_test_params({{20, 0}}, 1)));
+
+// Same shapes as above, but key_cache/value_cache are bound as i64 chunk pointer tables and the primitive has no
+// 29th CHUNK_BASE_PTRS input (has_chunk_tables mode).
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_chunked_tables,
+    paged_attention_chunked_test,
+    ::testing::Values(
+        make_chunked_test_params({{1, 40}}, 2, true),
+        make_chunked_test_params({{20, 0}}, 1, true)));
+
+// Negative control for the table-mode suite above: the key table has two entries swapped, so the decode kernel
+// reads the wrong chunk and the output MUST deviate from the reference by more than the tolerance. This proves the
+// table-mode tests are sensitive to key addressing. Only the decode case is used: the first-token prefill never
+// reads the cache, so a corrupt table would go unnoticed there.
+class paged_attention_chunked_negative_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(paged_attention_chunked_negative_test, corrupt_key_table_is_detected) {
+    auto p = GetParam();
+    // Diagnostic: report the max |GPU - reference| for this run so a silent pass can be told apart from low sensitivity.
+    ASSERT_TRUE(this->pam.has_value());
+    auto result = this->run_gpu_inference(*this->pam, p);
+    auto ref = std::get<0>(PagedAttentionReference(*this->pam).get_reference(result.key_cache_mem));
+    auto out_mem = result.outputs.at("output_data").get_memory();
+    cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> out(out_mem, tests::get_test_stream());
+    ASSERT_EQ(out_mem->count(), ref.size());
+    float max_diff = 0.f, max_abs_ref = 0.f;
+    for (size_t i = 0; i < ref.size(); i++) {
+        max_diff = std::max(max_diff, std::fabs(static_cast<float>(out[i]) - static_cast<float>(ref[i])));
+        max_abs_ref = std::max(max_abs_ref, std::fabs(static_cast<float>(ref[i])));
+    }
+    std::cout << "[negative-control] corrupt_key_table=" << p.chunking_corrupt_key_table
+              << " corrupt_directory=" << p.chunking_corrupt_directory << " max|gpu-ref|=" << max_diff
+              << " max|ref|=" << max_abs_ref << " tolerance=" << this->tolerance << std::endl;
+    EXPECT_GT(max_diff, this->tolerance) << "corrupted chunk table did not change the output";
+}
+
+namespace {
+paged_attention_test_params make_corrupt_key_table_params() {
+    auto p = make_chunked_test_params({{1, 40}}, 2, true);
+    p.chunking_corrupt_key_table = true;
+    return p;
+}
+
+// Table mode with explicit per-chunk block counts and a granule exponent (granule = 2^granule_shift blocks).
+paged_attention_test_params make_granule_test_params(std::vector<SubsequenceDescriptor> subsequences,
+                                                     std::vector<size_t> chunk_blocks,
+                                                     uint32_t granule_shift) {
+    auto p = make_chunked_test_params(std::move(subsequences), chunk_blocks.front(), true);
+    p.chunking_chunk_blocks = std::move(chunk_blocks);
+    p.chunking_granule_shift = granule_shift;
+    return p;
+}
+
+paged_attention_test_params make_corrupt_directory_params() {
+    auto p = make_granule_test_params({{1, 40}}, {2, 4}, 1);
+    p.chunking_corrupt_directory = true;
+    return p;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_chunked_tables_negative,
+    paged_attention_chunked_negative_test,
+    ::testing::Values(make_corrupt_key_table_params(), make_corrupt_directory_params()));
+
+// Granule-based chunk tables: chunks of different sizes (each a multiple of the granule) addressed through the table's
+// directory. Block counts in the comments are ceil((num_tokens + past_len) / 16) per sequence, summed.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_chunked_granules,
+    paged_attention_chunked_test,
+    ::testing::Values(
+        // 3 blocks; granule 2 blocks; chunks of 2 and 4 blocks (the last one only partly used).
+        make_granule_test_params({{1, 40}}, {2, 4}, 1),
+        // 7 blocks; granule 4 blocks; chunks of 8, 4 and 4 blocks, so the largest chunk comes first.
+        make_granule_test_params({{1, 100}}, {8, 4, 4}, 2),
+        // 3 + 5 + 1 = 9 blocks across three sequences; chunks of 2, 6 and 2 blocks, so sequences straddle chunks.
+        make_granule_test_params({{1, 40}, {1, 70}, {1, 10}}, {2, 6, 2}, 1),
+        // Mixed prefill and decode batch: 2 + 4 = 6 blocks.
+        make_granule_test_params({{20, 0}, {1, 50}}, {4, 2}, 1),
+        // Prefill with past context: 3 blocks, granule of one block.
+        make_granule_test_params({{10, 30}}, {1, 2}, 0),
+        // 63 blocks (several softmax partitions); granule 16 blocks; chunks of 16, 32 and 16 blocks.
+        make_granule_test_params({{1, 1000}}, {16, 32, 16}, 4),
+        // Same sequence in a single 64-block chunk with granule 64 (the doc's default granule).
+        make_granule_test_params({{1, 1000}}, {64}, 6)));
+
+

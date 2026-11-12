@@ -32,6 +32,10 @@ struct PagedAttentionImplementationManager : public ImplementationManager {
 
         // Enable CM PA only in case of XAttention been enabled. May decouple them in future.
         auto desc = node.as<paged_attention>().get_primitive();
+        if (desc->is_chunked()) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because the CM kernels do not support chunked KV cache. " << std::endl;
+            return false;
+        }
         if (!desc->has_xattention) {
             GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because we enable CM PA when XAttention is enabled. " << std::endl;
             return false;

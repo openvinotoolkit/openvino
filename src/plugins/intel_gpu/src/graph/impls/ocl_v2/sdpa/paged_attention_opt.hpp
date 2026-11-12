@@ -24,6 +24,9 @@ inline bool pa_micro_uses_tt_bounds(const paged_attention& desc) {
     return desc.has_token_type_ids && !desc.has_scores_output() && !desc.has_adaptive_rkv;
 }
 
+// Element type of the KV cache in chunk-table mode, where the cache inputs hold i64 pointer tables.
+ov::element::Type get_chunk_table_cache_type(const kernel_impl_params& params);
+
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 // Kernel used for MIXED stage with few query tokens per subsequence (speculative decoding)

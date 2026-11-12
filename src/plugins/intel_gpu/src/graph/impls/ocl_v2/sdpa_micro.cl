@@ -181,6 +181,22 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
 
 #define binary_add(x, y) ((x) + (y))
 
+// Chunked KV cache: the key/value cache arguments hold chunk tables (see kv_chunk_table.hpp) instead of the cache.
+#define MICRO_CHUNKED_KV (IS_PAGED_ATTENTION && !IS_PREFILL && HAS_CHUNK_TABLES)
+#if MICRO_CHUNKED_KV
+// Table words: [0] granule_shift | num_chunks << 8, [1] num_granules, then chunk base pointers, then a u32 directory.
+// K0 is also built for the subgroups past the last past block, whose block index may be stale, so the granule is clamped.
+inline ulong FUNC(micro_resolve_chunk_block)(const __global ulong *table, uint gbid, uint *local_block) {
+    const ulong header = table[0];
+    const uint granule_shift = (uint)(header & 0xFFu);
+    const uint num_chunks = (uint)((header >> 8) & 0xFFFFFFu);
+    const uint num_granules = (uint)table[1];
+    const __global uint *directory = (const __global uint *)(table + 2 + num_chunks);
+    const uint entry = directory[min(gbid >> granule_shift, num_granules - 1u)];
+    *local_block = ((entry & 0xFFFFFu) << granule_shift) | (gbid & ((1u << granule_shift) - 1u));
+    return table[2 + (entry >> 20)];
+}
+#endif
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 #if IS_PREFILL
 #define TT_MASK_PRESENT 1
@@ -523,8 +539,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #else
         const uint base_block_index = block_indices_begins[gws_mapping];
 
+    #if MICRO_CHUNKED_KV
+        // K/V are chunk tables: the head offset is added to each resolved block pointer instead.
+        const size_t k_head_off = (size_t)b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+        const size_t v_head_off = (size_t)b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+    #else
         K += b0_kv * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
         V += b0_kv * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+    #endif
         Kc += subsequence_begin * ldkc
             + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
         Vc += subsequence_begin * ldvc
@@ -835,8 +857,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
                                         - (uint)(PAGED_ATTENTION_BLOCK_SIZE / 2) * sg_i_kq;
             #else
+                #if MICRO_CHUNKED_KV
+                uint k_local_block;
+                const ulong k_chunk_base = FUNC_CALL(micro_resolve_chunk_block)((const __global ulong *)K, block_indices[base_block_index + k_block_num], &k_local_block);
+                global KEY_DATA_T *K0 = (global KEY_DATA_T *)k_chunk_base
+                                        + (size_t)k_local_block * KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + k_head_off
+                                        - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+                #else
                 global KEY_DATA_T *K0 = K + KV_HEADS_NUM * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + k_block_num]
                                         - PAGED_ATTENTION_BLOCK_SIZE * sg_i_kq;
+                #endif
             #endif
             #if IS_KV_COMPRESSED_PA
                 #if IS_INT4_KV_CACHE
@@ -1635,7 +1665,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             uint s_block_num = kb0 / PAGED_ATTENTION_BLOCK_SIZE;
             local KV_SLM_T *Sb0 = S_slm + s_block_num * ugemm_kq_sg_tile_m * ugemm_kq_sg_tile_n;
             uint v_block_num = (k0 + kb0) / PAGED_ATTENTION_BLOCK_SIZE;
+            #if MICRO_CHUNKED_KV
+            uint v_local_block;
+            const ulong v_chunk_base = FUNC_CALL(micro_resolve_chunk_block)((const __global ulong *)V, block_indices[base_block_index + v_block_num], &v_local_block);
+            global VAL_DATA_T *Vb0 = (global VAL_DATA_T *)v_chunk_base
+                                     + (size_t)v_local_block * KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + v_head_off;
+            #else
             global VAL_DATA_T *Vb0 = V + KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE * block_indices[base_block_index + v_block_num];
+            #endif
             int kb_chunk = min(k_chunk - kb0, PAGED_ATTENTION_BLOCK_SIZE);
             #if IS_KV_COMPRESSED_PA
                 #if IS_INT4_KV_CACHE

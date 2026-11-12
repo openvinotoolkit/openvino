@@ -11,6 +11,7 @@
 #include "ocl_engine.hpp"
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace cldnn {
@@ -61,6 +62,11 @@ public:
 
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
+
+    // new_plan.md Phase 5: last chunk_base_ptrs USM pointer set registered via clSetKernelExecInfo
+    // per kernel, so set_arguments() can skip the (otherwise unconditional, per-dispatch) driver call
+    // once the chunk set is stable between steps -- it only actually changes on a growth event.
+    std::unordered_map<void*, std::vector<void*>> _last_registered_chunk_exec_info;
 
     const ocl_engine& _engine;
     ocl_queue_type _command_queue;
