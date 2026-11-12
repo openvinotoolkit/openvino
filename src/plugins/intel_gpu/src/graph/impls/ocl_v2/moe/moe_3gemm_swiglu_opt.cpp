@@ -2747,7 +2747,6 @@ public:
         }
 
         for (const size_t expert_no : expert_order) {
-
             on_load_expert_weights(expert_no, instance, scratch.moe_fusion_wei_addr, dnn_stream);
             auto& dnnl_weights = _dnnl_weights[expert_no];
 
