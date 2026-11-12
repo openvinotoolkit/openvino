@@ -59,7 +59,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::value_cache_precision.name()),
         RO_property(ov::key_cache_group_size.name()),
         RO_property(ov::value_cache_group_size.name()),
-        RO_property(ov::runtime_requirements.name())};
+        RO_property(ov::runtime_requirements.name())
+    };
 
     ov::Core ie;
     std::vector<ov::PropertyName> supportedProperties;
@@ -633,8 +634,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
 
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
     bool enable_tensor_parallel = false;
-    OV_ASSERT_NO_THROW(model_distribution_policy_value =
-                           compiledModel.get_property(ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
     OV_ASSERT_NO_THROW(enable_tensor_parallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
     ASSERT_EQ(model_distribution_policy_value, setModels);
     ASSERT_EQ(enable_tensor_parallel, true);
