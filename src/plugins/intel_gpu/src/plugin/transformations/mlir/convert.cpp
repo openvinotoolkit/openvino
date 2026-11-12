@@ -90,7 +90,7 @@ SmallVector<mlir::Type> get_types_for_values(mlir::MLIRContext* context, const o
 // Erases input function args that have no uses.
 void dropUnusedInputArgs(mlir::func::FuncOp func, size_t numInputs, SmallVector<size_t>& kept) {
     llvm::BitVector toErase(func.getNumArguments());
-    for (size_t i = 0; i < numInputs; ++i) {
+    for (unsigned i = 0; i < numInputs; ++i) {
         auto arg = func.getArgument(i);
         if (arg.use_empty()) {
             toErase.set(i);
@@ -137,12 +137,12 @@ MemRefType get_ordered_memref_type(MemRefType type, ArrayRef<int64_t> order) {
 // Returns the applied orders keyed by runtime input index (inputs without an entry stay plain).
 InputOrders apply_requested_orders(mlir::func::FuncOp func, const ov::OutputVector& runtime_inputs, const GraphConverter& converter) {
     InputOrders orders;
-    for (size_t i = 0; i < runtime_inputs.size(); ++i) {
+    for (unsigned i = 0; i < runtime_inputs.size(); ++i) {
         const auto requested = converter.get_requested_order(runtime_inputs[i]);
         if (requested.empty() || mlir::isIdentityPermutation(requested)) {
             continue;  // plain, nothing to change
         }
-        auto arg = func.getArgument(i);
+        auto arg = func.getArgument(i); 
         auto type = mlir::cast<MemRefType>(arg.getType());
         if (!is_supported_order(type, requested)) {
             OPENVINO_MLIR_DEBUG_PRINT("The physical order requested for " << runtime_inputs[i] << " can't be honoured, the plain one is used");
@@ -196,7 +196,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
     GraphConverter graph_converter(context, &block_builder);
 
-    for (size_t i = 0, r = 0; i < inputs.size(); ++i) {
+    for (unsigned i = 0, r = 0; i < inputs.size(); ++i) {
         auto loc = createLocation(context, inputs[i].get_node_shared_ptr());
         if (is_constant[i]) {
             auto* cst = ov::as_type<ov::op::v0::Constant>(inputs[i].get_node());
@@ -240,7 +240,7 @@ mlir::OwningOpRef<mlir::ModuleOp> ngraph_to_mlir(MLIRContext* context,
 
     for (size_t i = 0; i < outputs.size(); ++i) {
         auto tensor = graph_converter.nodeOutputMap.at(outputs[i]);
-        auto memref = func.getArgument(i + runtime_inputs.size());
+        auto memref = func.getArgument(static_cast<unsigned>(i + runtime_inputs.size()));
         auto loc = createLocation(context, outputs[i].get_node_shared_ptr());
         // Ensure the result is stored in the provided function argument.
         // Mark as restrict to avoid temporary buffer and copy.
