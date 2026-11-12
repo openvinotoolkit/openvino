@@ -140,15 +140,11 @@ TEST_F(VCLCompilerImplTest, SubdeviceIdExactlyAtTheSentinelAlsoClamps) {
     EXPECT_EQ(fake.deviceDescs[0].revision, sentinel);
 }
 
-TEST_F(VCLCompilerImplTest, AbsentDevicePropertiesUseDefaultSentinels) {
+TEST_F(VCLCompilerImplTest, AbsentDevicePropertiesPassANullDeviceDescriptor) {
     auto compiler = makeCompiler(std::nullopt);
 
-    ASSERT_EQ(fake.deviceDescs.size(), 1u);
-    const auto& desc = fake.deviceDescs[0];
-    EXPECT_EQ(desc.size, sizeof(vcl_device_desc_t));
-    EXPECT_EQ(desc.deviceID, 0x00u);
-    EXPECT_EQ(desc.revision, std::numeric_limits<uint16_t>::max());
-    EXPECT_EQ(desc.tileCount, std::numeric_limits<uint32_t>::max());
+    ASSERT_EQ(fake.compilerDescs.size(), 1u);
+    EXPECT_TRUE(fake.deviceDescs.empty());
 }
 
 TEST_F(VCLCompilerImplTest, NullApiTableIsRejected) {
