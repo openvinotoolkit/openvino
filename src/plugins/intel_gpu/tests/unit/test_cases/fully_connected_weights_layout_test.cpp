@@ -246,10 +246,10 @@ TEST(fc_weights_layout, gnk_shape_inference_and_impl_rejection) {
 // A TernOCL-shaped u2 FC (scalar zero point 1, group 128, N % 16) must still be rejected for GNK weights.
 TEST(fc_weights_layout, ternocl_rejects_gnk) {
     auto& engine = get_test_engine();
-    const int64_t G = 8, N = 32, gs = 128, K = G * gs;
+    const int64_t G = 16, N = 128, gs = 1, K = G * gs;
     topology topo(input_layout("input", layout{ov::PartialShape{4, K}, data_types::f16, format::bfyx}));
     topo.add(data("weights", engine.allocate_memory({ov::PartialShape{G, N, gs}, data_types::u2, format::bfyx})));
-    topo.add(data("scale", engine.allocate_memory({ov::PartialShape{N, G}, data_types::f16, format::bfyx})));
+    topo.add(data("scale", engine.allocate_memory({ov::PartialShape{G, 1}, data_types::f16, format::bfyx})));
     auto fc = fully_connected("fc", input_info("input"), "weights", "", "scale", "", data_types::f16, 2, 3, true, true, true, FcWeightsLayout::GNK);
     fc.decompression_zero_point_scalar = 1;
     topo.add(fc);
