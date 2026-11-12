@@ -13,8 +13,9 @@
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/matmul.hpp"
@@ -59,15 +60,19 @@ struct GQAConfig {
     QKOutput qk_output = QKOutput::NONE;
     ov::PartialShape key_scale_shape{1};
     ov::PartialShape value_scale_shape{1};
+    // Right-padded query chunk (ONNX query_seqlens, input 16): when set, query/key/value get sequence_length
+    // rows (S > 1) and a query_seqlens Parameter is wired in, exercising the StatelessKV P+S present-length path.
+    bool query_seqlens = false;
+    int64_t sequence_length = 1;
 };
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     const auto f32 = ov::element::f32;
     const auto past_len = cfg.static_past_cache ? ov::Dimension{128} : ov::Dimension::dynamic();
 
-    auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, 1, head_size});
-    auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
-    auto value = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
+    auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, cfg.sequence_length, head_size});
+    auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, cfg.sequence_length, head_size});
+    auto value = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, cfg.sequence_length, head_size});
     const auto cache_type = cfg.kv_cache_bit_width ? cfg.cache_type : f32;
     const auto cache_head_size = cfg.kv_cache_bit_width == 4 ? head_size / 2 : head_size;
     auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, cache_head_size});
@@ -82,7 +87,9 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
-    ov::OutputVector inputs(14);
+    // query_seqlens (input 16) is appended only when wired, matching the ONNX FE: models without it keep a
+    // 16-input op instead of a 17-input op with an empty placeholder at 16.
+    ov::OutputVector inputs(cfg.query_seqlens ? 17 : 16);
     inputs[0] = query;
     inputs[1] = key;
     inputs[2] = value;
@@ -90,10 +97,16 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     inputs[4] = gqa_past_value;
     inputs[5] = seqlens_k;
     inputs[6] = total_sequence_length;
-    for (size_t i = 7; i <= 13; ++i) {
+    for (size_t i = 7; i <= 15; ++i) {
         inputs[i] = ov::op::v0::Constant::create(f32, ov::Shape{0}, {});
     }
     ov::ParameterVector parameters{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
+
+    if (cfg.query_seqlens) {
+        auto query_seqlens = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+        inputs[16] = query_seqlens;
+        parameters.push_back(query_seqlens);
+    }
 
     if (cfg.attention_bias) {
         auto attention_bias = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, 1, 1, past_len});
@@ -341,6 +354,72 @@ TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {
     GQAConfig cfg;
 
     expect_stateless_kv_cache_connections(cfg);
+}
+
+// Right-padded query chunk (query_seqlens, S=4 > Q): a static single batch stays on StatelessKV's P + S
+// present-length path (construct_kvcache), not the generic windowed/dynamic-batch fallback. Guards against the
+// present length silently reverting to plain seqlens_1d and losing the padded-tail offset.
+TEST(GQADecompositionTest, padded_query_uses_stateless_kv_present_length) {
+    GQAConfig cfg;
+    // A declared fixed (static) capacity instead falls back to the generic writer (see
+    // padded_query_fixed_capacity_falls_back_to_generic_cache below) -- keep the past dynamic here so this
+    // config stays on the path it is meant to exercise.
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto current_sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(node)) {
+            sdpa = current_sdpa;
+        }
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_TRUE(sdpa->get_causal());
+    EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+
+    ASSERT_EQ(statelesskvs.size(), 2u);
+    for (const auto& stateless_kv : statelesskvs) {
+        // present_len (input 2) must be P + S (an Add), not the plain total seqlens_1d a non-padded chunk uses;
+        // StatelessKV would otherwise roll the cache by the full chunk length and drop the padded-tail offset.
+        EXPECT_TRUE(ov::is_type<ov::op::v1::Add>(stateless_kv->input_value(2).get_node()))
+            << "StatelessKV present length is not P + S for a right-padded query chunk";
+    }
+}
+
+// A declared fixed (static) capacity falls back to the generic (non-StatelessKV) cache writer instead: the
+// capacity can need growing past its static size (ORT's max(past_rows, total_sequence_length)), which
+// StatelessKV's own shape inference does not do for a runtime present length. The generic writer's present
+// buffer can then hold capacity slack beyond the true past + current total, so this must also take an
+// explicit (mask-based) SDPA rather than the native is_causal + LOWER_RIGHT alignment, which assumes the
+// query sits at the buffer's tail -- untrue once there is capacity slack.
+TEST(GQADecompositionTest, padded_query_fixed_capacity_falls_back_to_generic_cache) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    cfg.query_seqlens = true;
+    cfg.sequence_length = 4;
+
+    const auto model = decompose_gqa_model(cfg);
+
+    std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
+    size_t statelesskv_count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto current_sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(node)) {
+            sdpa = current_sdpa;
+        }
+        if (ov::is_type<ov::intel_gpu::op::StatelessKV>(node)) {
+            ++statelesskv_count;
+        }
+    }
+    EXPECT_EQ(statelesskv_count, 0u) << "a fixed-capacity padded chunk must not use StatelessKV's present-length path";
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_FALSE(sdpa->get_causal()) << "a fixed-capacity padded chunk must take an explicit mask, not the native LOWER_RIGHT alignment";
 }
 
 TEST(GQADecompositionTest, transpose_v_fused) {
