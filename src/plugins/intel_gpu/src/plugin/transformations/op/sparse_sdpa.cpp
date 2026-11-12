@@ -7,11 +7,11 @@
 #include <string>
 #include <utility>
 
-#include "qsa_op_utils.hpp"
+#include "sparse_op_utils.hpp"
 
 namespace ov::intel_gpu::op {
 
-using namespace qsa_util;
+using namespace sparse_op_util;
 
 SparseSDPA::SparseSDPA(const ov::OutputVector& args, const Config& config, const ov::element::Type output_type)
     : Op(args),
@@ -37,23 +37,6 @@ bool SparseSDPA::validate_config(const Config& c, std::string& reason) {
     }
     return validate_dense_kv_quant(c.key_quant, c.k_head_size, reason) && validate_dense_kv_quant(c.value_quant, c.v_head_size, reason);
 }
-
-namespace {
-
-void visit_kv_quant(ov::AttributeVisitor& visitor, const std::string& prefix, KVQuant& quant) {
-    auto mode = static_cast<int32_t>(quant.mode);
-    auto bits = static_cast<int32_t>(quant.bits);
-    auto group_size = static_cast<int32_t>(quant.group_size);
-    visitor.on_attribute(prefix + "quant_mode", mode);
-    visitor.on_attribute(prefix + "quant_bits", bits);
-    visitor.on_attribute(prefix + "quant_symmetric", quant.symmetric);
-    visitor.on_attribute(prefix + "quant_group_size", group_size);
-    quant.mode = static_cast<KVQuant::Mode>(mode);
-    quant.bits = static_cast<uint8_t>(bits);
-    quant.group_size = static_cast<uint16_t>(group_size);
-}
-
-}  // namespace
 
 bool SparseSDPA::visit_attributes(ov::AttributeVisitor& visitor) {
     visit_sparse_attention_config(visitor, m_config);

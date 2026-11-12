@@ -82,8 +82,6 @@ public:
     size_t get_index_key_heads() const;
 
 private:
-    void check_float_inputs() const;
-
     Config m_config{};
 };
 
