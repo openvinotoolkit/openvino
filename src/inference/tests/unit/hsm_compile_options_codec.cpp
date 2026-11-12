@@ -783,9 +783,11 @@ using CompileOptionsFloatingPointTypes = ::testing::Types<float, double, long do
 TYPED_TEST_SUITE(HsmCompileOptionsFloatingPointTest, CompileOptionsFloatingPointTypes);
 
 TYPED_TEST(HsmCompileOptionsFloatingPointTest, finite_limits_roundtrip_exactly) {
+    // min() can print slightly below the smallest normal value, causing stof/stold to report underflow on ARM64.
+    // Test the next representable value above min() to avoid that libc conversion boundary.
     for (const auto value : {std::numeric_limits<TypeParam>::lowest(),
                              std::numeric_limits<TypeParam>::max(),
-                             std::numeric_limits<TypeParam>::min(),
+                             std::nextafter(std::numeric_limits<TypeParam>::min(), TypeParam{1}),
                              std::nextafter(TypeParam{1}, TypeParam{2})}) {
         SCOPED_TRACE(value);
         expect_value_roundtrip(value);
