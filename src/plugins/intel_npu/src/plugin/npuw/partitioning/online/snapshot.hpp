@@ -67,6 +67,7 @@ public:
     const std::map<std::string, std::vector<std::set<std::string>>>& getMatches() const;
     void repeat(detail::Pass&& pass);
     void setCtx(const PassContext& ctx);
+    const PassContext& getCtx() const;
     size_t graphSize() const;
     std::string getMetaDesc(const std::shared_ptr<ov::Node>& node) const;
 

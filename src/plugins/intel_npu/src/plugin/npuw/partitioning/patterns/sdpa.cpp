@@ -177,13 +177,16 @@ SDPA::SDPA(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const st
 SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
                                const std::string& isol_tag) {
     // A past-KV input fed in [B, S, H, D] layout and permuted to [B, H, S, D] right before the Concat.
-    auto as_bshd_kv_transpose = [](const std::shared_ptr<ov::Node>& node) -> std::shared_ptr<ov::op::v1::Transpose> {
-        auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(node);
+    // Accepted only for HFA: other attention modes (e.g. PYRAMID) take the Concat axis as the past
+    // parameter's sequence axis, which a Transpose breaks.
+    const bool allow_bshd = snapshot->getCtx().allow_transposed_past_kv;
+    auto as_bshd_kv_transpose = [allow_bshd](const std::shared_ptr<ov::Node>& node) {
+        auto transpose = allow_bshd ? ov::as_type_ptr<ov::op::v1::Transpose>(node) : nullptr;
         if (!transpose || transpose->get_output_target_inputs(0).size() != 1)
-            return nullptr;
+            return std::shared_ptr<ov::op::v1::Transpose>{};
         auto order = ov::as_type_ptr<ov::op::v0::Constant>(transpose->get_input_node_shared_ptr(1));
         if (!order || order->cast_vector<int64_t>() != std::vector<int64_t>{0, 2, 1, 3})
-            return nullptr;
+            return std::shared_ptr<ov::op::v1::Transpose>{};
         return transpose;
     };
 
