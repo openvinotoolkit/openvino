@@ -1,9 +1,5 @@
 name: Windows (VS 2022, Python 3.11, Release)
-run-name: ${{ github.event_name == 'schedule' && 'Windows (VS 2022, Python 3.11, Release) - Nightly (C++20 build only)' || 'Windows (VS 2022, Python 3.11, Release)' }}
 on:
-  schedule:
-    # at 02:00 every day: C++20 build without the regular build and tests
-    - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       target-branch:
@@ -68,8 +64,7 @@ jobs:
 
   Build:
     needs: [ Smart_CI ]
-    # Skip the regular build and its dependent build/test jobs on the daily C++20 schedule.
-    if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event.schedule != '0 2 * * *' }}
+    if: ${{ !needs.smart_ci.outputs.skip_workflow }}
     uses: ./.github/workflows/job_build_windows.yml
     with:
       runner: 'aks-win-16-cores-32gb-build'
