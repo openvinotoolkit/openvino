@@ -1,3 +1,4 @@
+
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -67,7 +68,7 @@ inline std::istream& operator>>(std::istream& is, TbbPartitioner& tbb_partitione
 
 /**
  * @brief This property defines the type of TBB partitioner in parallel.
- * @ingroup ov_runtime_cpu_prop_cpp_api
+ * @ingroup ov_runtime_cpp_prop_api
  *
  * Developer can use this property to select the type of TBB partitioner.
  *
