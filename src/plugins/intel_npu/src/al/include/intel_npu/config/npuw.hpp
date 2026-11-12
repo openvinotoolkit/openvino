@@ -44,7 +44,7 @@ void registerNPUWOptions(OptionsDesc& desc);
 void registerNPUWLLMOptions(OptionsDesc& desc);
 void registerNPUWKokoroOptions(OptionsDesc& desc);
 
-// Keeps only the entries whose keys are CACHED NPUW options.
+// Keeps only the entries whose keys are CACHED NPUW options (plus NPUW_WHISPER_EOS_TOKEN, see the TODO in npuw.cpp).
 Config::ConfigMap filterCachedNPUWOptions(const Config::ConfigMap& options);
 
 #define DEFINE_NPUW_SIMPLE_OPT(Name, Type, DefaultValue, KeyLiteral) \

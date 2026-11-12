@@ -278,6 +278,17 @@ TEST(NPUWConfigOptionsSmokeTest, FilterCachedNPUWOptionsKeepsCachedKeys) {
     EXPECT_EQ(filtered.at(std::string(::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE::key())), "256");
 }
 
+// NPUW_WHISPER_EOS_TOKEN is UNCACHED but must survive import, so the reported property matches the EOS token
+// baked into the compiled Whisper model.
+TEST(NPUWConfigOptionsSmokeTest, FilterCachedNPUWOptionsKeepsWhisperEosToken) {
+    const auto filtered = ::intel_npu::filterCachedNPUWOptions({
+        {std::string(::intel_npu::NPUW_WHISPER_EOS_TOKEN::key()), "50256"},
+    });
+
+    EXPECT_EQ(filtered.size(), 1);
+    EXPECT_EQ(filtered.at(std::string(::intel_npu::NPUW_WHISPER_EOS_TOKEN::key())), "50256");
+}
+
 TEST(NPUWConfigOptionsSmokeTest, FilterCachedNPUWOptionsDropsUncachedAndUnknownKeys) {
     const auto filtered = ::intel_npu::filterCachedNPUWOptions({
         {std::string(::intel_npu::NPUW_CACHE_DIR::key()), "/tmp/attacker"},

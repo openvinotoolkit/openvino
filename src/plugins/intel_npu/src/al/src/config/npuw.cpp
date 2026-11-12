@@ -42,6 +42,10 @@ intel_npu::Config::ConfigMap intel_npu::filterCachedNPUWOptions(const Config::Co
             using Opt = typename decltype(tag)::type;
             keys.insert(std::string(Opt::key()));
         });
+        // TODO: Mark NPUW_WHISPER_EOS_TOKEN as CACHED and drop this exception. It is baked into the compiled model
+        // (serialized as m_eos_token_id), but is UNCACHED today. Changing that alters the model cache key and
+        // invalidates existing NPUW caches once.
+        keys.insert(std::string(NPUW_WHISPER_EOS_TOKEN::key()));
         return keys;
     }();
 
