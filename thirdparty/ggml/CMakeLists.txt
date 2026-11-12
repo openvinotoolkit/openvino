@@ -55,6 +55,11 @@ set(GGML_BUILD_TOOLS    OFF                 CACHE BOOL "" FORCE)
 # ggml defaults to -march=native, which would make the build non-portable and can break
 # cross-compiles and CI runners that differ from the build host.
 set(GGML_NATIVE         OFF                 CACHE BOOL "" FORCE)
+# Unloading the plugin also unloads MSVC's OpenMP runtime (vcomp140.dll) while its worker threads
+# are still parked in it, and they crash; ggml's own thread pool is joined before compute returns.
+if(WIN32)
+    set(GGML_OPENMP     OFF                 CACHE BOOL "" FORCE)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(ggml
