@@ -102,10 +102,8 @@ private:
     std::shared_ptr<SubMemoryManager> m_sub_memory_manager = nullptr;
     bool m_has_sub_compiled_models = false;
     bool m_optimized_single_stream = false;
-    // Effective "run synchronous inference directly on the calling application thread" flag for
-    // CPU_MULTI_APP_THREAD_SYNC_EXECUTION. Computed in the constructor (see below) from the real task executor and
-    // m_has_sub_compiled_models, rather than normalized inside Config, so it always reflects what streams executor
-    // this specific CompiledModel instance actually ended up with.
+    // Effective "run inference on the caller thread" flag for CPU_MULTI_APP_THREAD_SYNC_EXECUTION,
+    // computed in the constructor from the real task executor.
     bool m_run_sync_in_caller_thread = false;
     std::string m_runtime_requirements;
 };

@@ -22,63 +22,14 @@
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/util/file_util.hpp"
 
-// NOTE on test design (see the review-fix plan for PR #35276, P0 item):
-//
-// The previous version of this file used a hand-rolled `TestStreamsExecutor` mock whose
-// `execute()` just called `task()` directly, and a `TestInferRequest` mock that was a plain
-// `ov::IInferRequest`, not a `SyncInferRequest`. Neither reproduced the real bug: a mock
-// `execute()` doesn't replicate `CPUStreamsExecutor::Impl::Defer()`'s real
-// `catch (...) {}`-then-maybe-not-`pop()` task-queue mechanics, so a test built on it could not
-// tell a correct fix apart from the original P0 bug (both "pass"). And `static_cast<SyncInferRequest*>`
-// (restored in production per reviewer wangleis's request) is undefined behavior on a non-
-// `SyncInferRequest` object.
-//
-// This rewrite instead builds a tiny *real* model (Parameter -> ControllableOp -> Result) and
-// compiles it through a real `ov::intel_cpu::Plugin`.
-//
-// Two approaches were tried for the compile step:
-//  1. Constructing `ov::intel_cpu::Plugin` directly (no `ov::Core`) plus a bare `ov::MockICore`.
-//     This links cleanly for everything EXCEPT `Plugin` itself: the CPU plugin's build uses
-//     `ov_add_version_defines()` to compile src/plugin.cpp into a *separate* companion object
-//     library (`openvino_intel_cpu_plugin_obj_version`) that is merged into the real
-//     `openvino_intel_cpu_plugin` shared library via a `target_sources(... $<TARGET_OBJECTS:...>)`
-//     generator expression. `tests/unit/CMakeLists.txt` only lists
-//     `$<TARGET_OBJECTS:openvino_intel_cpu_plugin_obj>` as this test binary's extra object files,
-//     which does not transitively pick up that companion object library, so `Plugin::Plugin()` /
-//     `Plugin::compile_model()` are undefined references when linking directly against the object
-//     library from this test binary. Fixing that is a build-system (CMakeLists.txt) change outside
-//     this test-only task's scope, so this approach was dropped rather than touching production
-//     build files.
-//  2. Using the already-built real `libopenvino_intel_cpu_plugin.so` through `ov::Core`
-//     (`core.register_plugin(path, device_name)`), which is exactly the documented fallback for
-//     this test file. This is what is implemented below: it still produces a real
-//     `ov::intel_cpu::CompiledModel` -> real `ov::intel_cpu::SyncInferRequest` -> real
-//     `ov::intel_cpu::AsyncInferRequest` stack sitting on top of a real
-//     `ov::threading::CPUStreamsExecutor` (so `Defer()`/`Execute()`'s real exception/task-queue
-//     mechanics and the `static_cast<SyncInferRequest*>` in `AsyncInferRequest`'s constructor are
-//     genuinely exercised, not mocked), it still lives in tests/unit/ and is registered the normal
-//     way in sources.cmake, and it still compiles/runs in well under a second per test -- it is
-//     just reached via the public `ov::Core`/`ov::CompiledModel`/`ov::InferRequest` API surface
-//     instead of the plugin-internal classes directly.
-//
-// `ControllableOp` (modeled after `SleepCustomOp` in
-// tests/functional/custom/behavior/ov_executable_network/concurent_release_memory.cpp, which
-// already proves this "custom op compiled through the real CPU plugin" approach works end to
-// end) is picked up by the CPU plugin's generic `Reference` node fallback (any op with
-// `has_evaluate() == true` that isn't natively supported gets wrapped by
-// `ov::intel_cpu::node::Reference`, see node.cpp/reference.cpp), so no CPU-plugin-internal
-// registration is required. It lets each test deterministically: observe which thread actually
-// ran the computation, block until a controlling thread releases it (for busy/cancel races),
-// and optionally fail (for the exception/queue-poisoning regression tests) -- all without
-// relying on fragile wall-clock timing.
+// Builds a real model through the real CPU plugin (via ov::Core/register_plugin) instead of mocks,
+// so CPUStreamsExecutor's actual task-queue/exception mechanics are genuinely exercised.
+// ControllableOp is picked up by the CPU plugin's generic Reference-node fallback, needing no
+// plugin-internal registration.
 
-// ControllableOp (and its state struct) are deliberately NOT inside the anonymous namespace below:
-// OPENVINO_OP()'s RTTI machinery applies a hidden-visibility attribute to a static member function,
-// which some compilers (e.g. the RISC-V GCC toolchain used in CI) warn/error on ("visibility
-// attribute ignored") when the enclosing class already has no linkage because it lives in an
-// anonymous namespace. Giving this class ordinary (translation-unit-local, since this is a .cpp
-// file) external linkage avoids that false positive; its RTTI type name is unique enough that this
-// carries no practical risk of clashing with anything else in the test binary.
+// ControllableOp is kept out of the anonymous namespace below: OPENVINO_OP()'s RTTI machinery
+// trips a hidden-visibility warning/error on some compilers (e.g. RISC-V GCC) when its enclosing
+// class has no linkage.
 
 // Shared control block between a test and the ControllableOp instance(s) in its compiled model.
 struct ControllableOpState {
@@ -176,28 +127,14 @@ private:
 
 namespace {
 
-// Device name under which the real CPU plugin .so is registered with a dedicated, test-local
-// ov::Core instance (see GetTestCore() below) -- deliberately distinct from "CPU" so this never
-// collides with any ambient/default plugin registration.
+// Device name for the test-local ov::Core's registered CPU plugin -- distinct from "CPU" so it
+// never collides with ambient/default plugin registration.
 constexpr const char* kTestDeviceName = "ASYNC_INFER_REQUEST_TEST_CPU";
 
-// Lazily builds (once) a process-local ov::Core with the real, just-built CPU plugin shared
-// library registered under kTestDeviceName. Reused across all TESTs in this file: compile_model()
-// itself is what creates a brand-new, independent CompiledModel/executor per test, so sharing the
-// Core/plugin instance is safe and keeps each test fast.
-//
-// Only a bare library name (no directory) is passed to register_plugin(): it is then resolved by
-// the OS dynamic loader via its normal search path (LD_LIBRARY_PATH/rpath/etc.), exactly like
-// ov::test::utils::PluginCache's "target_plugin_name" mechanism does elsewhere in the test suite.
-// Resolving a path relative to the test executable's own directory (getExecutableDirectory())
-// instead is NOT safe here: some CI packaging layouts (e.g. the Android CXX_Unit_Tests job) push
-// the plugin .so to a different directory than the ov_cpu_unit_tests binary itself, while still
-// configuring LD_LIBRARY_PATH to cover the actual location.
-//
-// The CPU plugin's build output name also varies by target architecture (same source tree, see
-// src/plugins/intel_cpu/CMakeLists.txt's per-arch OUTPUT_NAME), so the base name must be selected
-// at compile time -- this mirrors the existing pattern in
-// shared_tests_instances/behavior/ov_plugin/plugin_name.cpp.
+// Lazily builds a process-local ov::Core with the real CPU plugin registered, reused across tests.
+// A bare library name is passed to register_plugin() so the OS loader resolves it (needed since
+// some CI layouts, e.g. Android, don't co-locate the plugin .so with the test binary); the base
+// name varies by architecture (see CMakeLists.txt's per-arch OUTPUT_NAME).
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 constexpr const char* kCpuPluginBaseName = "openvino_arm_cpu_plugin";
 #elif defined(OPENVINO_ARCH_RISCV64)
@@ -247,17 +184,14 @@ float GetOutput(ov::InferRequest& request, const ov::Output<const ov::Node>& por
     return *request.get_tensor(port).data<float>();
 }
 
-// Properties that yield is_optimized_single_stream == true (1 stream, 1 thread total) without
-// requesting CPU_MULTI_APP_THREAD_SYNC_EXECUTION at all.
+// 1 stream, 1 thread: yields is_optimized_single_stream == true without requesting
+// CPU_MULTI_APP_THREAD_SYNC_EXECUTION at all.
 ov::AnyMap OptimizedSingleStreamProperties() {
     return {ov::num_streams(1), ov::inference_num_threads(1)};
 }
 
-// Properties that yield run_sync_in_caller_thread == true via an explicit multi-stream request
-// for CPU_MULTI_APP_THREAD_SYNC_EXECUTION. CPU pinning is explicitly disabled: the plugin
-// rejects the combination of multi_app_thread_sync_execution=true with CPU pinning resolved to
-// true (see compiled_model.cpp), and pinning otherwise defaults to true on typical Linux
-// topologies, which is not what these tests are exercising.
+// 4 streams with multi_app_thread_sync_execution=true (pinning off, since the plugin rejects that
+// combination with pinning resolved to true).
 ov::AnyMap ExplicitMultiAppThreadSyncProperties() {
     return {ov::num_streams(4),
             ov::inference_num_threads(4),
@@ -291,9 +225,8 @@ TEST(AsyncInferRequestTest, UsesCallerThreadForExplicitMultiAppThreadSync) {
 }
 
 TEST(AsyncInferRequestTest, KeepsExecutorDispatchForSyncInferWhenCallerThreadModeIsDisabled) {
-    // Same stream count as ExplicitMultiAppThreadSyncProperties, but CPU_MULTI_APP_THREAD_SYNC_EXECUTION
-    // is not requested, so this must keep using the base class's default ImmediateStreamsExecutor,
-    // which dispatches to a worker thread (via run_and_wait) whenever streams > 1.
+    // Same stream count as ExplicitMultiAppThreadSyncProperties, but without the property set, so
+    // dispatch must still go through the base class's worker-thread executor.
     auto ctx = CreateTestInferRequest({ov::num_streams(4), ov::inference_num_threads(4)});
     ASSERT_FALSE(ctx.compiled_model.get_property(ov::intel_cpu::multi_app_thread_sync_execution.name()).as<bool>());
 
@@ -307,18 +240,9 @@ TEST(AsyncInferRequestTest, KeepsExecutorDispatchForSyncInferWhenCallerThreadMod
 
 namespace {
 
-// This is the actual regression test for the P0 queue-poisoning bug. With the old `m_infer_func`
-// override that called `m_stream_executor->execute(...)` with a raw, unwrapped lambda, an
-// exception thrown from inference would escape straight into
-// `CPUStreamsExecutor::Impl::Defer()`'s outer `catch (...) {}`, which swallows it *before*
-// popping the failed task off the per-thread `_taskQueue` -- corrupting that queue for the next
-// call on the same thread (stale/poisoned task re-run, risking UAF). With the current
-// `m_sync_pipeline` + `CallerThreadStageExecutor` design, `make_next_stage_task()` already wraps
-// every stage in its own try/catch before any executor ever sees it, so nothing ever throws out
-// of the task object into `Defer()`, and the queue is never corrupted. A second, successful
-// `infer()` call on the very same request/executor after the first one failed is therefore the
-// tight assertion that would catch a regression back to the old behavior (which would otherwise
-// re-run the stale task, hang, or crash on the second call).
+// Regression test for the P0 queue-poisoning bug: the old raw-lambda dispatch let exceptions
+// escape into Defer()'s catch(...){}, corrupting the task queue. A second, successful infer() call
+// after the first one failed is the tight assertion that would catch a regression.
 void RunExceptionThenRecoveryScenario(const ov::AnyMap& properties) {
     auto ctx = CreateTestInferRequest(properties);
     const auto caller_thread_id = std::this_thread::get_id();
@@ -350,22 +274,9 @@ TEST(AsyncInferRequestExceptionRecoveryTest, RecoversAfterExceptionForExplicitMu
 
 namespace {
 
-// This is the UAF/queue-poisoning regression test explicitly requested by reviewer wangleis for the P0 test-validity
-// comment: "destroying the failed request then using another on same executor is safe". Both requests are created
-// from the same ov::CompiledModel, so both of their AsyncInferRequest/SyncInferRequest stacks share the exact same
-// underlying ov::threading::CPUStreamsExecutor instance (CompiledModel::m_task_executor is one shared member -- this
-// mirrors the real production risk called out in the review: "executors are shared across compiled models" via
-// ExecutorManager::get_idle_cpu_streams_executor(), which would return the very same executor for two separately
-// compiled models using identical stream configs, as long as the first one is still idle; using two requests on one
-// compiled model here is just a simpler, deterministic way to force that sharing for the test).
-//
-// Under the old buggy m_infer_func implementation, requestA's failing task would be left at the front of the
-// executor's per-thread task queue (Defer()'s catch(...){} swallows the exception before pop()), and the lambda that
-// failed captured `this` (requestA's AsyncInferRequest). Destroying requestA then frees that object; the next task
-// run on the same thread through the same executor (requestB's infer()) would replay the poisoned, stale task first
-// -- a use-after-free. With the current make_next_stage_task()-based pipeline, the stage task always finishes
-// normally from the executor's point of view (exceptions are caught inside the task itself), so the queue is never
-// left poisoned and requestA's destruction cannot affect requestB.
+// UAF/queue-poisoning regression test: two requests share one CompiledModel's executor, mirroring
+// production executor sharing across compiled models. The old implementation could replay
+// requestA's stale, exception-poisoned task after requestA's destruction when requestB infers next.
 void RunDestroyThenReuseSameExecutorScenario(const ov::AnyMap& properties) {
     auto ctxA = CreateTestInferRequest(properties);
     ov::CompiledModel compiled_model = ctxA.compiled_model;  // keep the compiled model (and its shared executor) alive
@@ -374,15 +285,12 @@ void RunDestroyThenReuseSameExecutorScenario(const ov::AnyMap& properties) {
     SetInput(ctxA.infer_request, compiled_model.input(), 1.0F);
     ASSERT_THROW(ctxA.infer_request.infer(), ov::Exception);
 
-    // The per-stream Graph (and the ControllableOp node instance inside it, hence ControllableOpState) is owned by
-    // the CompiledModel and reused across every infer request created from it -- unlike the executor's task queue,
-    // it is deliberately shared infrastructure, not something that disappears when requestA is destroyed. Reset it
-    // back to "don't throw" before destroying requestA so requestB's infer() exercises only the thing actually under
-    // test here (whether requestA's destruction left the *executor's* queue in a bad state), not a leftover
-    // should_throw flag from requestA's own setup.
+    // The Graph/ControllableOpState is shared infrastructure owned by the CompiledModel, not
+    // requestA; reset should_throw before destroying requestA so requestB's infer() only exercises
+    // the executor-queue behavior under test.
     ctxA.state->should_throw = false;
 
-    // Destroy requestA (and its ControllableOpState handle) while its shared executor stays alive via `compiled_model`.
+    // Destroy requestA while its shared executor stays alive via `compiled_model`.
     { ov::InferRequest dropped = std::move(ctxA.infer_request); }
     ctxA.state.reset();
 
@@ -445,14 +353,9 @@ TEST(AsyncInferRequestCancelTest, CancelDuringCallerThreadSyncInferRaisesCancell
     ASSERT_FLOAT_EQ(GetOutput(ctx.infer_request, ctx.compiled_model.output()), 9.0F);
 }
 
-// Known/accepted limitation (PR #35276 review item F-4, documented in
-// CompiledModel::get_graph(), not fixed here per explicit review discussion): the per-thread
-// stream id handed out by CPUStreamsExecutor grows from an unbounded counter, so when more
-// concurrent application threads call infer() than there are configured streams/graphs, two or
-// more threads can be routed to the very same graph slot and serialize on its lock instead of
-// running on independent ones. This test documents and locks in that CURRENT behavior: it does
-// NOT assert anything about per-thread isolation/parallelism, only that results stay numerically
-// correct and no thread crashes or throws when 8 application threads (M) share just 4 streams (N).
+// Known limitation: more app threads than configured streams can collide on the same graph slot
+// and serialize. This test locks in that current behavior -- only checks numerical correctness,
+// not per-thread isolation.
 TEST(AsyncInferRequestStreamCollisionTest, StaysCorrectWhenAppThreadsExceedConfiguredStreams) {
     constexpr int kStreams = 4;
     constexpr int kAppThreads = 8;  // M > N: guarantees stream-id collisions (8 % 4 == 0)

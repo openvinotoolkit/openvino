@@ -117,40 +117,25 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
 /**
- * @brief This CPU-specific opt-in property enables synchronous infer execution in the invoking
- * application thread context, avoiding sync-path dispatch through internal worker scheduling.
+ * @brief This CPU-specific opt-in property runs synchronous inference directly on the calling
+ * application thread instead of dispatching to a worker thread.
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *
- * This mode is intended for workloads where multiple application threads share one compiled model
- * and each thread drives its own synchronous request/stream.
- *
- * The following code enables invoking-thread sync execution.
+ * Intended for workloads where multiple application threads share one compiled model, each
+ * driving its own synchronous request.
  *
  * @code
  * core.compile_model(model, "CPU", ov::AnyMap{{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
  * @endcode
  *
- * @note This property is silently ignored (the compiled model falls back to the regular async
- * pipeline) when exclusive async requests are enabled or when the model is split across
- * sub-streams (e.g. tensor-parallel execution); use get_property() on the compiled model to read
- * back the effective value.
- * @note This property is rejected with an exception at compile_model() time if CPU pinning
- * (ov::hint::enable_cpu_pinning) is, or resolves to, true -- whether the application set it
- * explicitly or it was left at its default and the plugin's own heuristics turned it on. Running
- * inference directly on the invoking application thread while CPU pinning is active would
- * silently alter that thread's CPU affinity (it is pinned to a vacant core on entry to the
- * streams executor's TBB arena and restored only to the broader process-wide mask on exit, not
- * to the application's original affinity), which is considered unsafe. Pass
- * ov::hint::enable_cpu_pinning(false) explicitly together with this property to compile
- * successfully.
- * @note Known limitations:
- *  - If more application threads call infer() concurrently than NUM_STREAMS, threads can be
- *    mapped onto the same internal stream/graph slot (id % NUM_STREAMS) and serialize on it;
- *    results remain numerically correct but full per-thread parallelism requires
- *    concurrent threads <= NUM_STREAMS.
- *  - The invoking thread's OpenMP max-thread setting and FTZ/DAZ MXCSR bits are not currently
- *    saved/restored around the inference call; any side effects the streams executor's dispatch
- *    has on those are not undone before returning control to the application thread.
+ * @note Falls back to the regular async pipeline (silently) when exclusive async requests are
+ * enabled or the model uses sub-streams (e.g. tensor-parallel); check get_property() for the
+ * effective value.
+ * @note Rejected with an exception at compile_model() time if CPU pinning is, or resolves to,
+ * true, since inline inference would otherwise silently change the caller thread's own affinity.
+ * Pass ov::hint::enable_cpu_pinning(false) explicitly together with this property.
+ * @note Known limitation: more concurrent application threads than NUM_STREAMS can collide on the
+ * same internal graph slot and serialize; results stay correct, only parallelism degrades.
  */
 static constexpr Property<bool> multi_app_thread_sync_execution{"CPU_MULTI_APP_THREAD_SYNC_EXECUTION"};
 

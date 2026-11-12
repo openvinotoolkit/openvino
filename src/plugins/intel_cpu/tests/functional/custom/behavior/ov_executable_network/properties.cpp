@@ -203,14 +203,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckTensorParallelRejectsMulti
     std::shared_ptr<ov::Model> tensorParallelModel = ov::test::utils::make_matmul_bias();
     std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {
         ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
-    // Tensor-parallel sub-compiled-models always build their own executor with CPU pinning
-    // hardcoded to true (required for tensor-parallel correctness -- each sub-stream must stay
-    // pinned to its assigned NUMA-local cores) and inherit multi_app_thread_sync_execution=true
-    // from the parent config, regardless of the outer ov::hint::enable_cpu_pinning setting. So
-    // this combination always hits the multi_app_thread_sync_execution-vs-CPU-pinning rejection
-    // rule (see smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionRejectsCpuPinning) at one of
-    // the sub-compiled-models, before the orchestrator's own "disable sync-in-caller-thread for
-    // orchestrators" logic is ever reached. The two features are therefore incompatible outright.
+    // Tensor-parallel sub-streams always pin CPUs and inherit multi_app_thread_sync_execution=true,
+    // so this always hits the pinning-rejection rule and the two features are incompatible.
     ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), modelDistributionPolicy},
                          {ov::intel_cpu::enable_tensor_parallel.name(), true},
                          {ov::num_streams.name(), 1},
@@ -222,13 +216,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckTensorParallelRejectsMulti
                                   "multi_app_thread_sync_execution");
 }
 
-// ---------------------------------------------------------------------------
-// multi_app_thread_sync_execution=true combined with CPU pinning (explicit or
-// resolved-by-default) must be rejected: running inference directly on the calling
-// application thread while pinning is active would silently alter that thread's own
-// CPU affinity (see ov::intel_cpu::multi_app_thread_sync_execution doc and
-// async_infer_request.h for the exact mechanism).
-// ---------------------------------------------------------------------------
+// multi_app_thread_sync_execution=true + CPU pinning must be rejected: running inference on the
+// caller thread while pinned would silently alter that thread's own CPU affinity.
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionRejectsCpuPinning) {
     ov::Core ie;
     ov::AnyMap config = {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},
@@ -668,10 +657,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncDefaultIsFals
 // ---------------------------------------------------------------------------
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkMultiAppThreadSyncSetTrue) {
     ov::Core core;
-    // enable_cpu_pinning(false) is required here: multi_app_thread_sync_execution=true is
-    // rejected by the plugin when CPU pinning is (or resolves to) true, see
-    // smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionRejectsCpuPinning. This test targets
-    // the get_property readback behavior, not that rule.
+    // Pinning must be disabled here since it's rejected alongside this property (see the
+    // rejection test above); this test only targets get_property readback.
     ov::CompiledModel compiledModel = core.compile_model(
         model, deviceName,
         {{ov::intel_cpu::multi_app_thread_sync_execution.name(), true},

@@ -18,13 +18,8 @@ const Params paramsStreams[] = {
     std::tuple<Device, Config>{ov::test::utils::DEVICE_CPU, {{ov::num_streams(ov::streams::AUTO)}}},
 };
 
-// Local (not shared/reusable) reusable-count barrier used ONLY by
-// CoreThreadingCpuMultiAppThreadSyncTest below, to force every application thread to call
-// infer() at (as close as possible to) the same instant, so the test proves genuine concurrent
-// overlap of real OS threads rather than threads that merely happen to run one after another and
-// still produce matching output (which would also pass even if caller-thread-sync silently never
-// engaged). Plain mutex/condition_variable + generation counter is used instead of std::barrier
-// since this codebase targets C++17.
+// Forces application threads to call infer() at the same instant, proving genuine concurrent
+// overlap. Plain mutex/condition_variable + generation counter since this targets C++17.
 class LocalThreadBarrier {
 public:
     explicit LocalThreadBarrier(unsigned expected_count) : m_expected(expected_count) {}
@@ -65,9 +60,8 @@ TEST_P(CoreThreadingCpuMultiAppThreadSyncTest, smoke_CpuExecNetworkMultiAppThrea
         Config compileConfig = config;
         compileConfig[ov::intel_cpu::multi_app_thread_sync_execution.name()] = syncExec;
         compileConfig[ov::num_streams.name()] = static_cast<int32_t>(numThreads);
-        // CPU pinning is explicitly disabled: the plugin rejects multi_app_thread_sync_execution=true
-        // combined with CPU pinning resolved to true, and pinning otherwise defaults to true on
-        // typical Linux topologies, which is not what this test (concurrent app-thread overlap) targets.
+        // CPU pinning is disabled: this property rejects pinning resolved to true, which isn't
+        // what this concurrent-overlap test targets.
         compileConfig[ov::hint::enable_cpu_pinning.name()] = false;
 
         auto compiledModel = core.compile_model(ov::test::utils::make_single_conv(), target_device, compileConfig);
@@ -89,22 +83,14 @@ TEST_P(CoreThreadingCpuMultiAppThreadSyncTest, smoke_CpuExecNetworkMultiAppThrea
             requests.back().set_input_tensor(inputTensors.back());
         }
 
-        // Warm-up: pay for any first-call lazy init (e.g. JIT kernel generation) outside of
-        // both timed measurements below, so neither is skewed by one-time setup cost.
+        // Warm-up: absorb first-call lazy init cost before the timed/compared runs below.
         for (unsigned int i = 0; i < numThreads; ++i) {
             requests[i].infer();
         }
 
         auto inferViaThread = [&](unsigned int i, LocalThreadBarrier& barrier) {
-            // Every application thread blocks here until all numThreads threads have reached
-            // this point, so the infer() calls below are launched in genuine overlap rather
-            // than merely happening to run one after another. Because arrive_and_wait() cannot
-            // return for ANY thread until EVERY thread has called it, no thread can complete its
-            // infer() before every other thread has at least started theirs -- this is a
-            // deterministic proof of concurrent overlap, independent of wall-clock timing (which
-            // is too noisy on shared/virtualized hardware and tiny models to use as a reliable
-            // bound, as a timing-comparison variant of this test demonstrated via flaky
-            // failures during development).
+            // Blocks until all threads arrive, so infer() calls launch in genuine overlap,
+            // independent of noisy wall-clock timing.
             barrier.arrive_and_wait();
             requests[i].infer();
             const auto output = requests[i].get_output_tensor(0);
