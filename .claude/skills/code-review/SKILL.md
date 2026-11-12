@@ -366,6 +366,9 @@ validation is missing, or a checklist was not completed.
 Qualify uncertainty explicitly. Do not label a suspected failure as confirmed
 or use low-confidence speculation as a blocking defect.
 
+Every review should be finalized with a ## Review summary Markdown table, including 
+partial reviews and reviews with no confirmed defects. Render it as a table.
+
 ### Review summary table
 
 End the review with a concise table covering material findings and significant
