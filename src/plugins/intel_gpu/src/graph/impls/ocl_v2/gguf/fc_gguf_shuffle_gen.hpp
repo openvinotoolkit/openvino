@@ -4,10 +4,8 @@
 // fc_gguf_shuffle_gen.hpp — Shared OCL shuffle GEMV kernel generators for
 // GGUF FC nodes.
 //
-// Included by both the OCL impl (fc_gguf_opt.cpp) and the CM impl
-// (fc_gguf_cm.cpp) so both share the same shuffle GEMV kernel classes without
-// code duplication.  These generators target the fc_gguf_q{4k,5k,6k}_sg.cl
-// and fc_gguf_q{4_0,4_1,8_0}_sg.cl OCL kernels that operate on the
+// These generators target the single fc_gguf_gemv_opt.cl source (one GG_FMT_*
+// section per format, selected by a jit define) whose kernels operate on the
 // SG-transposed plane-separated weight layout produced by
 // RepackGGUFWeightsShuffle.
 
@@ -34,47 +32,51 @@ constexpr int GGUF_GEMV_SG_SIZE = 16;
 // Overridable via OV_GPU_GGUF_SHUFFLE_KSPLIT.
 inline int gguf_shuffle_choose_ksplit(size_t N, size_t K) {
     const long TARGET_THREADS = 4096;
-    const long BASE_KEEP      = 512;
-    const long MAX_KSPLIT     = 16;
+    const long BASE_KEEP = 512;
+    const long MAX_KSPLIT = 16;
     const long MIN_BLK_PER_SG = 2;
-    const long MIN_THREADS    = 1024;
-    const long OPG            = GGUF_GEMV_SG_SIZE;
+    const long MIN_THREADS = 1024;
+    const long OPG = GGUF_GEMV_SG_SIZE;
 
     if (const char* env = std::getenv("OV_GPU_GGUF_SHUFFLE_KSPLIT")) {
         const long v = std::atol(env);
-        if (v >= 1) return static_cast<int>(v);
+        if (v >= 1)
+            return static_cast<int>(v);
     }
 
     const long nbpr = static_cast<long>(K) / 256;
     const long base = std::max<long>(1, static_cast<long>(N) / OPG);
-    if (base >= BASE_KEEP) return 1;
+    if (base >= BASE_KEEP)
+        return 1;
 
     const long want = (TARGET_THREADS + base / 2) / base;
     long capped = std::max<long>(1, want);
     capped = std::min<long>(capped, nbpr);
     capped = std::min<long>(capped, MAX_KSPLIT);
     long ks = 1;
-    while (ks * 2 <= capped) ks *= 2;
-    while (ks > 1 && (nbpr / ks) < MIN_BLK_PER_SG && base * (ks / 2) >= MIN_THREADS) ks /= 2;
+    while (ks * 2 <= capped)
+        ks *= 2;
+    while (ks > 1 && (nbpr / ks) < MIN_BLK_PER_SG && base * (ks / 2) >= MIN_THREADS)
+        ks /= 2;
     return static_cast<int>(ks);
 }
 
 // =================================================================================================
 // Q4_K / Q5_K / Q6_K / Q4_0 / Q4_1 / Q8_0 weight-shuffle GEMV generator.
-// Targets fc_gguf_q{4k,5k,6k}_sg.cl and fc_gguf_q{4_0,4_1,8_0}_sg.cl.
+// Targets fc_gguf_gemv_opt.cl; the format section is selected by the GG_FMT_* define.
 // Reads the SG-transposed plane-separated weight with intel_sub_group_block_read.
 // Activation is f16 (INPUT0). Explicit-args; static K, N + output dtype baked in.
 // =================================================================================================
 class FCGGUFShuffleGenerator : public KernelGenerator {
 public:
-    explicit FCGGUFShuffleGenerator(const char* kernel_name) : KernelGenerator(kernel_name) {}
+    FCGGUFShuffleGenerator(const char* kernel_name, const char* format_define)
+        : KernelGenerator(kernel_name, "", "fc_gguf_gemv_opt"),
+          m_format_define(format_define) {}
 
 protected:
     [[nodiscard]] std::string get_entry_point(const RuntimeParams& params) const override {
         const auto& in1 = params.input_layouts[1];
-        std::string name = get_kernel_name() +
-                           "_K" + std::to_string(in1.get_shape()[1]) +
-                           "_N" + std::to_string(in1.get_shape()[0]);
+        std::string name = get_kernel_name() + "_K" + std::to_string(in1.get_shape()[1]) + "_N" + std::to_string(in1.get_shape()[0]);
         if (params.is_dynamic()) {
             name += "__sa";  // shape-agnostic; distinguishes from the static-shape variant
         }
@@ -85,23 +87,23 @@ protected:
         auto jit = make_base_jit_constants(params);
         const auto& in0 = params.input_layouts[0];  // activation [BM, K]
         const auto& in1 = params.input_layouts[1];  // gguf weight [N, K]
-        const size_t N  = in1.get_shape()[0];
-        const size_t K  = in1.get_shape()[1];
+        const size_t N = in1.get_shape()[0];
+        const size_t K = in1.get_shape()[1];
         jit.add(make_tensors_jit_constants(params));
         jit.add(make_type_jit_constants("INPUT0", in0.data_type));
         jit.add(make_type_jit_constants("OUTPUT", params.output_layouts[0].data_type));
         jit.add({
-            make_jit_constant("K_SIZE",  static_cast<int>(K)),
-            make_jit_constant("N_SIZE",  static_cast<int>(N)),
+            make_jit_constant("K_SIZE", static_cast<int>(K)),
+            make_jit_constant("N_SIZE", static_cast<int>(N)),
             make_jit_constant("SG_SIZE", GGUF_GEMV_SG_SIZE),
-            make_jit_constant("OPG",     GGUF_GEMV_SG_SIZE),
-            make_jit_constant("KSPLIT",  gguf_shuffle_choose_ksplit(N, K)),
+            make_jit_constant("OPG", GGUF_GEMV_SG_SIZE),
+            make_jit_constant("KSPLIT", gguf_shuffle_choose_ksplit(N, K)),
+            make_jit_constant(m_format_define, 1),
         });
         if (params.has_fused_primitives()) {
             const auto& out_l = params.output_layouts[0];
-            const std::vector<std::string> idx_order = out_l.get_partial_shape().size() == 2
-                ? std::vector<std::string>{"bm", "n", "0", "0"}
-                : std::vector<std::string>{"out_b", "out_f", "n", "0"};
+            const std::vector<std::string> idx_order =
+                out_l.get_partial_shape().size() == 2 ? std::vector<std::string>{"bm", "n", "0", "0"} : std::vector<std::string>{"out_b", "out_f", "n", "0"};
             FusedOpsConfiguration conf = {"", idx_order, "dequantized", out_l.data_type};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
         }
@@ -120,26 +122,35 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams&, KernelData&, ImplRuntimeParams*) {}};
     }
+
+private:
+    std::string m_format_define;  // GG_FMT_* macro selecting the format section of fc_gguf_gemv_opt.cl
 };
 
 // Per-format subclasses — one per OCL kernel entry point.
 class FCGGUFQ4kSgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ4kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4k_sg") {}
+public:
+    FCGGUFQ4kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4k_sg", "GG_FMT_Q4_K") {}
 };
 class FCGGUFQ5kSgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ5kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q5k_sg") {}
+public:
+    FCGGUFQ5kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q5k_sg", "GG_FMT_Q5_K") {}
 };
 class FCGGUFQ6kSgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ6kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q6k_sg") {}
+public:
+    FCGGUFQ6kSgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q6k_sg", "GG_FMT_Q6_K") {}
 };
 class FCGGUFQ40SgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ40SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_0_sg") {}
+public:
+    FCGGUFQ40SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_0_sg", "GG_FMT_Q4_0") {}
 };
 class FCGGUFQ41SgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ41SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_1_sg") {}
+public:
+    FCGGUFQ41SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q4_1_sg", "GG_FMT_Q4_1") {}
 };
 class FCGGUFQ80SgGenerator : public FCGGUFShuffleGenerator {
-public: FCGGUFQ80SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q8_0_sg") {}
+public:
+    FCGGUFQ80SgGenerator() : FCGGUFShuffleGenerator("fc_gguf_q8_0_sg", "GG_FMT_Q8_0") {}
 };
 
 }  // namespace ov::intel_gpu::ocl

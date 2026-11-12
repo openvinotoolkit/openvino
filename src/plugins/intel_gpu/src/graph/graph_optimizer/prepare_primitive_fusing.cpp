@@ -1114,6 +1114,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             std::vector<bool> can_fuse_parents = { false, false };
 
+            // Static GGUF FC + binary eltwise is fused only when the prefill GEMM kernels of FCGGUFOpt can run on
+            // this device (they apply the fused post-ops); otherwise the pair stays unfused.
+            const auto& gguf_device_info = p.get_engine().get_device_info();
+            const bool gguf_gemm_supported = gguf_device_info.arch >= gpu_arch::xe2 && gguf_device_info.supports_immad &&
+                                             gguf_device_info.supports_intel_subgroups_short &&
+                                             gguf_device_info.supports_intel_subgroups_char &&
+                                             gguf_device_info.supports_intel_subgroup_2d_block_io &&
+                                             gguf_device_info.supports_intel_subgroup_matrix_multiply_accumulate;
+
             for (size_t i = 0; i < parents.size(); i++) {
                 can_fuse_parents[i] = (parents[i].first->is_type<convolution>() &&
                                        conv_supports_fusings(parents[i].first->as<convolution>())) ||
@@ -1131,7 +1140,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                                      ((prim->mode == eltwise_mode::sum || prim->mode == eltwise_mode::prod) &&
                                                       prim->coefficients.empty() &&
                                                       ov::element::is_gguf_block(parents[i].first->get_input_layout(1).data_type) &&
-                                                      parents[i].first->can_use(impl_types::cm) &&
+                                                      gguf_gemm_supported &&
                                                       parents[i].first->get_output_layout().is_static() &&
                                                       parents[1 - i].first->get_output_layout().is_static() &&
                                                       parents[i].first->get_output_pshape() == parents[1 - i].first->get_output_pshape()))) ||

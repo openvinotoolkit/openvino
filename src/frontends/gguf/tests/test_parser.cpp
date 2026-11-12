@@ -853,9 +853,9 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             run_model->validate_nodes_and_infer_types();
             ASSERT_FALSE(run_model->is_dynamic());
         }
-        const bool cm_requested = std::getenv("OV_GPU_GGUF_GEMM_CM") &&
-                                  std::string(std::getenv("OV_GPU_GGUF_GEMM_CM")) == "1";
-        GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", cm_requested ? "1" : "0");
+        const bool cm_requested = std::getenv("OV_GPU_GGUF_PREFILL_GEMM") &&
+                                  std::string(std::getenv("OV_GPU_GGUF_PREFILL_GEMM")) == "cm";
+        GgufScopedEnvironment cm("OV_GPU_GGUF_PREFILL_GEMM", cm_requested ? "cm" : "ocl");
         const bool shuffled = std::string(shuffle_value) == "1";
         const std::string scenario = std::string(binary_mode ? binary_mode : "plain") + "_" +
             inference_type.get_type_name() + "_s" + shuffle_value + (threshold_value ? "_native" : "_default") +
@@ -972,15 +972,20 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                 RecordProperty(request_scenario + "_stage_" + std::to_string(iteration), iteration_stages);
                 if (!has_gather) {
                     const auto weight_name = gguf_raw_element_type(format.type).to_string();
-                    const std::string expected_stage = !threshold_value && rows > 32
+                    const bool prefill_stage = !threshold_value && rows > 32;
+                    const std::string expected_stage = prefill_stage
                         ? "fc_gguf_transcode_" + weight_name : "fc_gguf_opt_" + weight_name;
-                    EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
+                    // A shuffled prefill node may run the OCL GEMM when the device supports it.
+                    const bool ocl_gemm_executed = prefill_stage && shuffled && !cm_requested &&
+                                                   iteration_stages.find("fc_gguf_gemm_") != std::string::npos;
+                    EXPECT_TRUE(ocl_gemm_executed || iteration_stages.find(expected_stage) != std::string::npos)
+                        << iteration_stages;
                     EXPECT_EQ(iteration_stages.find("_sg"), std::string::npos) << iteration_stages;
-                    EXPECT_EQ(iteration_stages.find("gemm_q"), std::string::npos) << iteration_stages;
+                    EXPECT_EQ(iteration_stages.find("_full"), std::string::npos) << iteration_stages;
                 }
                 EXPECT_EQ(iteration_stages.find("fc_gguf_act_dq"), std::string::npos) << iteration_stages;
                 if (binary_mode) {
-                    const bool expect_fused = !static_rows || (cm_requested && shuffled);
+                    const bool expect_fused = !static_rows || (shuffled && (cm_requested || static_rows > 32));
                     EXPECT_EQ(iteration_fusions.find("file_binary_post") != std::string::npos, expect_fused) << iteration_fusions;
                     EXPECT_EQ(iteration_fusions.rfind("0:", 0) == 0u, !expect_fused) << iteration_fusions;
                     RecordProperty(request_scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
@@ -1001,7 +1006,10 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                     const std::string expected_stage = broadcast_peer ? sg_stage
                         : prefill ? (cm_requested && shuffled ? cm_stage : "fc_gguf_transcode_" + weight_name)
                         : shuffled ? sg_stage : "fc_gguf_opt_" + weight_name;
-                    EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
+                    const bool ocl_gemm_executed = prefill && shuffled && !cm_requested && !broadcast_peer &&
+                                                   iteration_stages.find("fc_gguf_gemm_") != std::string::npos;
+                    EXPECT_TRUE(ocl_gemm_executed || iteration_stages.find(expected_stage) != std::string::npos)
+                        << iteration_stages;
                 }
                 const auto output = request.get_output_tensor(0);
                 ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
@@ -1175,7 +1183,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             parameters.insert(parameters.end(), second_model->get_parameters().begin(), second_model->get_parameters().end());
             const auto shared_model = std::make_shared<ov::Model>(results, parameters);
             GgufScopedEnvironment sharing_shuffle("OV_GPU_GGUF_SHUFFLE", "0");
-            GgufScopedEnvironment sharing_cm("OV_GPU_GGUF_GEMM_CM", "0");
+            GgufScopedEnvironment sharing_cm("OV_GPU_GGUF_PREFILL_GEMM", "ocl");
             auto compiled = core.compile_model(shared_model, "GPU");
             std::stringstream exported_binary;
             compiled.export_model(exported_binary);

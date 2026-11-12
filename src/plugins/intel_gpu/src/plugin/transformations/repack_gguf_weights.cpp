@@ -21,8 +21,7 @@ namespace ov::intel_gpu {
 
 namespace {
 
-// SG (sub-group) width == output-row group size. Must match OPG / SG_SIZE in fc_gguf_q4k_sg.cl /
-// fc_gguf_q5k_sg.cl / fc_gguf_q6k_sg.cl and the dispatch in FCGGUFOptImpl.
+// SG (sub-group) width == output-row group size. Must match OPG / SG_SIZE in fc_gguf_gemv_opt.cl and the dispatch in FCGGUFOptImpl.
 constexpr size_t kSG = 16;
 constexpr const char* kShuffledWeights = "intel_gpu_gguf_weights_shuffled";
 

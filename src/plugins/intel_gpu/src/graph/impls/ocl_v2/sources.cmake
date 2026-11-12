@@ -122,14 +122,12 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_gguf.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_opt.cl
-    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_q4k_sg.cl
-    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_q5k_sg.cl
-    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_q6k_sg.cl
-    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_q4_0_sg.cl
-    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_q4_1_sg.cl
-    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_q8_0_sg.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemv_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_transcode.cl
     ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_act_dq.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemm_common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemm_body.cl
+    ${CMAKE_CURRENT_LIST_DIR}/fc_gguf_gemm_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul.cl
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul_batched.cl
     ${CMAKE_CURRENT_LIST_DIR}/gathermatmul_gather.cl

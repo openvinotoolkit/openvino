@@ -409,8 +409,8 @@ inline void FUNC(tq_decode_block)(const __global uchar* blk, __private half* out
 }
 #endif
 
-// ---- shuffle-layout prefill: decode the SG-shuffled Q4_K / Q6_K weight (fc_gguf_q4k_sg.cl /
-//      fc_gguf_q6k_sg.cl layout) directly into the 256 f16 block values, then requant as usual. ----
+// ---- shuffle-layout prefill: decode the SG-shuffled Q4_K / Q6_K weight (fc_gguf_gemv_opt.cl
+//      layout) directly into the 256 f16 block values, then requant as usual. ----
 // When GGUF_SHUFFLE, the weight Constant was reordered at compile_model into the plane-separated,
 // SG-transposed layout (RepackGGUFWeightsShuffle). The transcode work-item owns one (n, blk); it reads
 // its own block's shuffled bytes (per-lane 4-byte chunks) and reconstructs the 256 decoded values,
@@ -450,7 +450,7 @@ inline void FUNC(tq_decode_block)(const __global uchar* blk, __private half* out
 // intel_sub_group_block_read consumes -> component c of a wide read8 delivers chunk (c0+c) to lane
 // lid in a single hardware block-load transaction (512 B / call), replacing the previous SG_T*4
 // scattered scalar uchar loads per chunk that the compiler could not coalesce. This mirrors the
-// coalesced-weight-load path the sibling GEMV kernels (fc_gguf_q4k_sg.cl / fc_gguf_q6k_sg.cl) use.
+// coalesced-weight-load path the sibling GEMV kernels (fc_gguf_gemv_opt.cl) use.
 //
 // out_u is a private uint[n_uint]; the byte-wise decoders reinterpret it as uchar* (little-endian,
 // bit-exact with the previous per-byte gather). Requires the launch sub-group width == SG_T, which
@@ -564,7 +564,7 @@ inline void FUNC(tq_decode_shuffle_q6k)(const __private uchar* pql, const __priv
 
 // ---- SG-shuffle small-block (Q4_0 / Q4_1 / Q8_0) super-block decoders. EIGHT native 32-weight
 //      blocks are grouped into one 256-weight super-block; the shuffle scatter (RepackGGUFWeightsShuffle)
-//      is byte-identical to the sibling GEMV kernels (fc_gguf_q4_0_sg.cl / q4_1 / q8_0). pd/pm are SoA
+//      is byte-identical to the sibling GEMV kernels (fc_gguf_gemv_opt.cl: Q4_0 / Q4_1 / Q8_0). pd/pm are SoA
 //      fp16 per-lane fields; pqs is chunk-interleaved (128 B for 4-bit, 256 B for 8-bit). ----
 #if GGUF_SHUFFLE && defined(GGUF_IS_Q4_0)
 // Q4_0: w = (nibble - 8) * d_j.  pqs sub-block j byte k = qs[k] of native block j (low@k, high@16+k).
