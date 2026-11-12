@@ -1615,19 +1615,23 @@ void ExplicitHistory::prepare(int64_t past_len) {
     const auto& port = _rq.get().get_compiled_model()->inputs()[_history_idx];
     const auto tensor = _rq.get().get_tensor(port);
     OPENVINO_ASSERT(tensor->get_size() > 0, "HFA explicit history input must not be empty");
+    int64_t history = 0;
     if (tensor->get_element_type() == ov::element::i64) {
-        _past_length = tensor->data<int64_t>()[0];
+        history = tensor->data<int64_t>()[0];
     } else if (tensor->get_element_type() == ov::element::i32) {
-        _past_length = tensor->data<int32_t>()[0];
+        history = tensor->data<int32_t>()[0];
     } else {
         OPENVINO_THROW("HFA explicit history input must have i32 or i64 element type");
     }
-    OPENVINO_ASSERT(_past_length >= 0, "HFA explicit history size cannot be negative");
-    OPENVINO_ASSERT(_past_length == past_len,
+    OPENVINO_ASSERT(history >= 0, "HFA explicit history size cannot be negative");
+    OPENVINO_ASSERT(history == past_len,
                     "HFA explicit history input does not match request history size: ",
-                    _past_length,
+                    history,
                     " vs ",
                     past_len);
+    // Past tiles span whole query-sized blocks (as in HistorySize); the mask hides positions beyond the history.
+    const auto query_size = static_cast<int64_t>(_query_size);
+    _past_length = ((history + query_size - 1) / query_size) * query_size;
 }
 
 int64_t ExplicitHistory::context_length() const {
