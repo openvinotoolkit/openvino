@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-06-28-40-000-43157183354",
+  "timestamp": "2026-11-12T06:28:40Z",
+  "run_id": "43157183354",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43157183354",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38204",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38204",
+  "author": "Kotomi-Du",
+  "category": "External Service",
+  "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
+  "signature": "ssl certificate verify failed certificate has expired|External Service",
+  "signature_hash": "2641a2995515ec82",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "All 19 Detectron2 precommit tests fail: SSL certificate verify failed, certificate has expired, downloading model weights from dl.fbaipublicfiles.com"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the PyTorch Models tests job failed"
+    }
+  ],
+  "key_errors": [
+    "E URLError: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1018)>",
+    "install/tests/model_hub_tests/pytorch/test_detectron2.py:46: in load_model -> model, save_to_disk=False).load(cfg.MODEL.WEIGHTS)",
+    "iopath/common/download.py:58: in download -> tmp, _ = request.urlretrieve(url, filename=tmp, reporthook=hook(t))"
+  ],
+  "root_cause": "The Detectron2 pytorch model-hub tests download pretrained weight files (e.g. model_final_b275ba.pkl) directly from https://dl.fbaipublicfiles.com at test time via iopath's download() helper, which uses Python's stdlib urllib with default TLS verification. The TLS certificate currently served by dl.fbaipublicfiles.com has expired, so every HTTPS request to that host fails certificate verification with CERTIFICATE_VERIFY_FAILED / 'certificate has expired'. This is an upstream (Meta/Facebook AI) infrastructure issue unrelated to the PR under test; it has recurred 5 times across different merge-queue PRs in roughly the last 5 hours, confirming it is a persistent external-service outage rather than a one-off flake.",
+  "reproduction_steps": "Run `python3 -m pytest install/tests/model_hub_tests/pytorch/test_detectron2.py -m precommit -v` locally (or inside the CI container) while dl.fbaipublicfiles.com's certificate remains expired; the test will fail downloading any detectron2 *.pkl weight file with the same SSL error. Alternatively: `curl -v https://dl.fbaipublicfiles.com/detectron2/COCO-Detection/faster_rcnn_R_50_FPN_1x/137257644/model_final_b275ba.pkl` and observe the certificate-expiry TLS error.",
+  "recommended_actions": [
+    "Re-run the failed jobs once the dl.fbaipublicfiles.com certificate is renewed upstream (tracked via remediate_transient_failure / workflow rerunner once approved).",
+    "Consider mirroring/caching Detectron2 precommit model weights in an OpenVINO-controlled artifact store (e.g. internal cache or HuggingFace mirror) so tests do not depend on a third-party TLS endpoint known to have intermittent certificate issues.",
+    "Add a short retry-with-backoff or a one-time cert-reload (e.g. via certifi update) wrapper around iopath's download() call in test_detectron2.py / models_hub_common/utils.py if this recurs after the upstream cert is fixed, to tolerate transient cert propagation delays."
+  ],
+  "prevention_strategies": "Track dl.fbaipublicfiles.com outages as an upstream dependency risk; alert when the pattern recurs instead of silently blocking the merge queue. Where feasible, vendor/cache third-party test fixtures (model weights) in infrastructure under OpenVINO's control to decouple CI reliability from external services with no SLA.",
+  "historical_context": "This exact signature (2641a2995515ec82) was first seen at 2026-11-12T01:09:15Z and has now recurred 5 times within ~5 hours across PRs #38204, #39201, and #39727, all failing on the same Detectron2 weight download from dl.fbaipublicfiles.com with an expired certificate. No code fix is applicable; this is purely an upstream TLS certificate expiry."
+}

@@ -4,21 +4,23 @@
   "signature_hash": "2641a2995515ec82",
   "title": "PyTorch Detectron2 model-hub tests fail to download weights due to expired TLS certificate on dl.fbaipublicfiles.com",
   "category": "External Service",
-  "count": 4,
+  "count": 5,
   "first_seen": "2026-11-12T01:09:15Z",
-  "last_seen": "2026-11-12T05:20:12Z",
+  "last_seen": "2026-11-12T06:28:40Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43157183354",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43151858776",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43137477872",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43133112821",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43121154399"
   ],
   "affected_prs": [
-    "https://github.com/openvinotoolkit/openvino/pull/39201",
     "https://github.com/openvinotoolkit/openvino/pull/38204",
+    "https://github.com/openvinotoolkit/openvino/pull/39201",
     "https://github.com/openvinotoolkit/openvino/pull/39727"
   ],
   "recent_timestamps": [
+    "2026-11-12T06:28:40Z",
     "2026-11-12T05:20:12Z",
     "2026-11-12T03:21:31Z",
     "2026-11-12T02:34:24Z",
