@@ -1832,9 +1832,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         const float activations_scale_factor = config.get_activations_scale_factor();
+        const bool fp16_activation_scaling = activations_scale_factor > 0.f && infer_precision == ov::element::f16;
         // A fused GatedResidual node has no implementation without the subgroup extensions, and it hides the Add / MatMul ops that
         // the activation scaling below has to rescale.
-        if (cldnn::gated_residual_caps::is_device_supported(device_info) && !(activations_scale_factor > 0.f && infer_precision == ov::element::f16)) {
+        if (cldnn::gated_residual_caps::is_device_supported(device_info) && !fp16_activation_scaling) {
             manager.register_pass<ov::intel_gpu::GatedResidualFusion>(cldnn::gated_residual_caps::has_systolic(device_info, config));
         }
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
@@ -1845,7 +1846,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
         }
 
-        if (activations_scale_factor > 0.f && infer_precision == ov::element::f16) {
+        if (fp16_activation_scaling) {
             using namespace ov::pass::low_precision;
 
             auto supportedPrecisions = std::vector<PrecisionsRestriction>({});
