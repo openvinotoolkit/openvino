@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-12-08-35-24-301-43172647749",
+  "timestamp": "2026-11-12T08:35:24Z",
+  "run_id": "43172647749",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/43172647749",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39578",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39578",
+  "author": "davidsnam-intel",
+  "category": "Configuration",
+  "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
+  "signature": "sccache server startup failed cache storage failed to read unexpected permanent at read azbloberror code invaliduri message the requested uri does not represent any resource on the server|Configuration",
+  "signature_hash": "08b993dbdc18ccac",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build (C++20, non-blocking) / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails at the trivial C-compiler-check test compile because sccache's wrapped compiler invocation errors with 'sccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\" ... }'"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=2] CMakeFiles/cmTC_f7147.dir/testCCompiler.c.o\nsccache /usr/bin/cc    -o CMakeFiles/cmTC_f7147.dir/testCCompiler.c.o -c .../testCCompiler.c\nsccache: error: Server startup failed: cache storage failed to read: Unexpected (permanent) at read => AzblobError { code: \"InvalidUri\", message: \"The requested URI does not represent any resource on the server. RequestId:9b2372e0-601e-00ac-5380-72e399000000 Time:2026-11-12T08:30:56.2272696Z\" }",
+    "uri: https://ghasccacheblobs.blob.core.windows.net//sccache/ubuntu_22_04_x86_64_Release_cpp20/.sccache_check\nresponse: Parts { status: 400, ... \"x-ms-error-code\": \"InvalidUri\" ... }",
+    "-- Configuring incomplete, errors occurred!\nCMake will not be able to correctly generate this project.\nCall Stack (most recent call first):\n  CMakeLists.txt:42 (project)"
+  ],
+  "root_cause": "The sccache server fails to start because the Azure Blob Storage connection/container URI it builds contains a double slash ('ghasccacheblobs.blob.core.windows.net//sccache/...'), which Azure's Blob API rejects with a 400 InvalidUri error. This happens during CMake's trivial C-compiler-check test compile, before any PR-specific compilation occurs, so it is unrelated to the PR's actual source changes (which only touch GPU kv_cache/primitive_inst code and a unit test). This is the same recurring CI infrastructure/configuration misconfiguration already recorded 4 times as pattern 08b993dbdc18ccac, now recurring a 5th time, again in the C++20 (Ubuntu 22.04) Build job.",
+  "reproduction_steps": "N/A - CI-infrastructure configuration issue in the sccache Azure Blob cache backend setup (SCCACHE_AZURE_CONNECTION_STRING / key-prefix construction), not reproducible by rebuilding locally without the same Azure cache configuration.",
+  "recommended_actions": [
+    "Fix the sccache Azure Blob Storage configuration so the computed blob URI never contains a doubled '/' (sanitize trailing slashes when concatenating the storage account URL with SCCACHE_AZURE_KEY_PREFIX in the CI environment/action that sets these variables).",
+    "Add a pre-flight check or SCCACHE_IGNORE_SERVER_IO_ERROR-based fallback to no-cache compilation when the sccache server fails to start, instead of failing the whole CMake configure step.",
+    "This is the 5th occurrence of the same signature across multiple jobs/OS variants - escalate to the team owning the sccache/Azure cache CI infrastructure for a permanent fix rather than relying on reruns."
+  ],
+  "prevention_strategies": "Validate the SCCACHE_AZURE_* environment variables (connection string, key prefix) at CI setup time to catch a malformed/double-slash URI before it reaches sccache; add a guard or sanitation step in the reusable CI action that assembles the Azure blob path.",
+  "historical_context": "This exact signature (sccache Azure InvalidUri on blob URI with a doubled slash) was first recorded 2026-11-06T11:53:20Z and has now been seen 5 times total across the GenAI job and the C++20 Build job (Ubuntu 22.04 and 24.04 variants). The root cause (CI sccache/Azure cache configuration) is identical across jobs even though the job name/OS differs."
+}

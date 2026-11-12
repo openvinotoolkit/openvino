@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 427,
+  "total": 428,
   "entries": [
     {
       "investigation_id": "2026-06-11-19-02-43-000-27365701077",
@@ -4698,6 +4698,15 @@
       "category": "External Service",
       "signature_hash": "2641a2995515ec82",
       "pr_number": "39752"
+    },
+    {
+      "investigation_id": "2026-11-12-08-35-24-301-43172647749",
+      "run_id": "43172647749",
+      "timestamp": "2026-11-12T08:35:24Z",
+      "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
+      "category": "Configuration",
+      "signature_hash": "08b993dbdc18ccac",
+      "pr_number": "39578"
     }
   ]
 }

@@ -4,21 +4,24 @@
   "signature_hash": "08b993dbdc18ccac",
   "title": "Build (C++20) job fails - sccache cannot start because Azure Blob connection string URI is malformed",
   "category": "Configuration",
-  "count": 4,
+  "count": 5,
   "first_seen": "2026-11-06T11:53:20Z",
-  "last_seen": "2026-11-11T16:42:00Z",
+  "last_seen": "2026-11-12T08:35:24Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/43172647749",
     "https://github.com/openvinotoolkit/openvino/actions/runs/43046960596",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42681233252",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42234699742",
     "https://github.com/openvinotoolkit/openvino/actions/runs/42198977524"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39578",
     "https://github.com/openvinotoolkit/openvino/pull/39262",
     "https://github.com/openvinotoolkit/openvino/pull/39034",
     "https://github.com/openvinotoolkit/openvino/pull/39101"
   ],
   "recent_timestamps": [
+    "2026-11-12T08:35:24Z",
     "2026-11-11T16:42:00Z"
   ],
   "rerun_search_string": null
