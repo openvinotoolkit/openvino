@@ -11,6 +11,8 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 #pragma OPENCL EXTENSION cl_intel_subgroups        : enable
 #pragma OPENCL EXTENSION cl_intel_subgroups_short  : enable
@@ -124,14 +126,14 @@ KERNEL(fc_gguf_q4_0_sg)(
 
         // --- Issue all long-latency global loads first (weights + scales) ---
         uint pe_u = (h * nbpr + bid) * (OPG * 128 / 4);   // uints
-        uint8 w0 = intel_sub_group_block_read8(pqs_u + pe_u +   0);  // sub 0,1
-        uint8 w1 = intel_sub_group_block_read8(pqs_u + pe_u + 128);  // sub 2,3
-        uint8 w2 = intel_sub_group_block_read8(pqs_u + pe_u + 256);  // sub 4,5
-        uint8 w3 = intel_sub_group_block_read8(pqs_u + pe_u + 384);  // sub 6,7
+        uint8 w0 = BLOCK_READN(uint, 8, pqs_u, pe_u +   0);  // sub 0,1
+        uint8 w1 = BLOCK_READN(uint, 8, pqs_u, pe_u + 128);  // sub 2,3
+        uint8 w2 = BLOCK_READN(uint, 8, pqs_u, pe_u + 256);  // sub 4,5
+        uint8 w3 = BLOCK_READN(uint, 8, pqs_u, pe_u + 384);  // sub 6,7
 
         // 8 fp16 scales per lane (SoA), fetched with ONE wide block read.
         uint    pd_off = (h * nbpr + bid) * (OPG * 8);    // ushorts
-        ushort8 dv = intel_sub_group_block_read_us8(pd_us + pd_off);
+        ushort8 dv = BLOCK_READN(ushort, 8, pd_us, pd_off);
 
         // --- Load 256 activations into SLM (each lane writes 16 elements at stride OPG) ---
         __attribute__((opencl_unroll_hint))
@@ -321,15 +323,15 @@ KERNEL(fc_gguf_q4_1_sg)(
 
         // --- Issue all long-latency global loads first (weights + scales) ---
         uint pe_u = (h * nbpr + bid) * (OPG * 128 / 4);   // uints
-        uint8 w0 = intel_sub_group_block_read8(pqs_u + pe_u +   0);  // sub 0,1
-        uint8 w1 = intel_sub_group_block_read8(pqs_u + pe_u + 128);  // sub 2,3
-        uint8 w2 = intel_sub_group_block_read8(pqs_u + pe_u + 256);  // sub 4,5
-        uint8 w3 = intel_sub_group_block_read8(pqs_u + pe_u + 384);  // sub 6,7
+        uint8 w0 = BLOCK_READN(uint, 8, pqs_u, pe_u +   0);  // sub 0,1
+        uint8 w1 = BLOCK_READN(uint, 8, pqs_u, pe_u + 128);  // sub 2,3
+        uint8 w2 = BLOCK_READN(uint, 8, pqs_u, pe_u + 256);  // sub 4,5
+        uint8 w3 = BLOCK_READN(uint, 8, pqs_u, pe_u + 384);  // sub 6,7
 
         // 8 fp16 scales + 8 fp16 minima per lane (SoA), one wide read each.
         uint    pd_off = (h * nbpr + bid) * (OPG * 8);    // ushorts
-        ushort8 dv = intel_sub_group_block_read_us8(pd_us + pd_off);
-        ushort8 mv = intel_sub_group_block_read_us8(pm_us + pd_off);
+        ushort8 dv = BLOCK_READN(ushort, 8, pd_us, pd_off);
+        ushort8 mv = BLOCK_READN(ushort, 8, pm_us, pd_off);
 
         // --- Load 256 activations into SLM (each lane writes 16 elements at stride OPG) ---
         __attribute__((opencl_unroll_hint))
@@ -526,19 +528,19 @@ KERNEL(fc_gguf_q4k_sg)(
 
         // --- Issue all long-latency global loads first (weights + scales) ---
         uint pe_u = (h * nbpr + bid) * (OPG * 128 / 4);   // uints
-        uint8 w0 = intel_sub_group_block_read8(pqs_u + pe_u +   0);  // sub 0,1
-        uint8 w1 = intel_sub_group_block_read8(pqs_u + pe_u + 128);  // sub 2,3
-        uint8 w2 = intel_sub_group_block_read8(pqs_u + pe_u + 256);  // sub 4,5
-        uint8 w3 = intel_sub_group_block_read8(pqs_u + pe_u + 384);  // sub 6,7
+        uint8 w0 = BLOCK_READN(uint, 8, pqs_u, pe_u +   0);  // sub 0,1
+        uint8 w1 = BLOCK_READN(uint, 8, pqs_u, pe_u + 128);  // sub 2,3
+        uint8 w2 = BLOCK_READN(uint, 8, pqs_u, pe_u + 256);  // sub 4,5
+        uint8 w3 = BLOCK_READN(uint, 8, pqs_u, pe_u + 384);  // sub 6,7
 
         uint   psl_pu_off = (h * nbpr + bid) * (OPG * 16 / 4);   // uints
         uint   psl_us_off = (h * nbpr + bid) * (OPG * 16 / 2);   // ushort
         uint   sl     = intel_sub_group_block_read   (psl_pu + psl_pu_off +  0);
         uint   ml     = intel_sub_group_block_read   (psl_pu + psl_pu_off + 16);
-        ushort sh     = intel_sub_group_block_read_us(psl_us + psl_us_off + 64);
-        ushort mh     = intel_sub_group_block_read_us(psl_us + psl_us_off + 80);
-        ushort d_raw  = intel_sub_group_block_read_us(psl_us + psl_us_off + 96);
-        ushort dn_raw = intel_sub_group_block_read_us(psl_us + psl_us_off + 112);
+        ushort sh     = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 64);
+        ushort mh     = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 80);
+        ushort d_raw  = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 96);
+        ushort dn_raw = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 112);
 
         // --- Load 256 activations into SLM (each lane writes 16 elements at stride OPG) ---
         __attribute__((opencl_unroll_hint))
@@ -774,22 +776,22 @@ KERNEL(fc_gguf_q5k_sg)(
 
         // --- Issue all long-latency global loads first (weights + high bits + scales) ---
         uint pqs_e = (h * nbpr + bid) * (OPG * 128 / 4);   // uints
-        uint8 w0 = intel_sub_group_block_read8(pqs_u + pqs_e +   0);  // sub 0,1
-        uint8 w1 = intel_sub_group_block_read8(pqs_u + pqs_e + 128);  // sub 2,3
-        uint8 w2 = intel_sub_group_block_read8(pqs_u + pqs_e + 256);  // sub 4,5
-        uint8 w3 = intel_sub_group_block_read8(pqs_u + pqs_e + 384);  // sub 6,7
+        uint8 w0 = BLOCK_READN(uint, 8, pqs_u, pqs_e +   0);  // sub 0,1
+        uint8 w1 = BLOCK_READN(uint, 8, pqs_u, pqs_e + 128);  // sub 2,3
+        uint8 w2 = BLOCK_READN(uint, 8, pqs_u, pqs_e + 256);  // sub 4,5
+        uint8 w3 = BLOCK_READN(uint, 8, pqs_u, pqs_e + 384);  // sub 6,7
 
         uint pqh_e = (h * nbpr + bid) * (OPG * 32 / 4);    // uints
-        uint8 hq = intel_sub_group_block_read8(pqh_u + pqh_e);  // 8 sub-block qh words
+        uint8 hq = BLOCK_READN(uint, 8, pqh_u, pqh_e);  // 8 sub-block qh words
 
         uint   psl_pu_off = (h * nbpr + bid) * (OPG * 16 / 4);   // uints
         uint   psl_us_off = (h * nbpr + bid) * (OPG * 16 / 2);   // ushort
         uint   sl     = intel_sub_group_block_read   (psl_pu + psl_pu_off +  0);
         uint   ml     = intel_sub_group_block_read   (psl_pu + psl_pu_off + 16);
-        ushort sh     = intel_sub_group_block_read_us(psl_us + psl_us_off + 64);
-        ushort mh     = intel_sub_group_block_read_us(psl_us + psl_us_off + 80);
-        ushort d_raw  = intel_sub_group_block_read_us(psl_us + psl_us_off + 96);
-        ushort dn_raw = intel_sub_group_block_read_us(psl_us + psl_us_off + 112);
+        ushort sh     = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 64);
+        ushort mh     = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 80);
+        ushort d_raw  = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 96);
+        ushort dn_raw = BLOCK_READN(ushort, 1, psl_us, psl_us_off + 112);
 
         // --- Load 256 activations into SLM (each lane writes 16 elements at stride OPG) ---
         __attribute__((opencl_unroll_hint))
@@ -1020,20 +1022,20 @@ KERNEL(fc_gguf_q6k_sg)(
 
         // --- Issue all long-latency global loads first (weights + scales) ---
         uint pql_e = (h * nbpr + bid) * (OPG * 128 / 4);   // uints
-        uint8 w0 = intel_sub_group_block_read8(pql_u + pql_e +   0);  // sub 0,1
-        uint8 w1 = intel_sub_group_block_read8(pql_u + pql_e + 128);  // sub 2,3
-        uint8 w2 = intel_sub_group_block_read8(pql_u + pql_e + 256);  // sub 4,5
-        uint8 w3 = intel_sub_group_block_read8(pql_u + pql_e + 384);  // sub 6,7
+        uint8 w0 = BLOCK_READN(uint, 8, pql_u, pql_e +   0);  // sub 0,1
+        uint8 w1 = BLOCK_READN(uint, 8, pql_u, pql_e + 128);  // sub 2,3
+        uint8 w2 = BLOCK_READN(uint, 8, pql_u, pql_e + 256);  // sub 4,5
+        uint8 w3 = BLOCK_READN(uint, 8, pql_u, pql_e + 384);  // sub 6,7
 
         uint pqh_e = (h * nbpr + bid) * (OPG * 64 / 4);    // uints
-        uint8 hq0 = intel_sub_group_block_read8(pqh_u + pqh_e +   0);  // sub 0..3
-        uint8 hq1 = intel_sub_group_block_read8(pqh_u + pqh_e + 128);  // sub 4..7
+        uint8 hq0 = BLOCK_READN(uint, 8, pqh_u, pqh_e +   0);  // sub 0..3
+        uint8 hq1 = BLOCK_READN(uint, 8, pqh_u, pqh_e + 128);  // sub 4..7
 
         uint ps_e = (h * nbpr + bid) * (OPG * 16);         // bytes
-        uchar16 scq = intel_sub_group_block_read_uc16((const __global uchar*)(PS + ps_e));
+        uchar16 scq = BLOCK_READN(uchar, 16, (PS + ps_e), 0);
 
         uint pd_e = (h * nbpr + bid) * (OPG * 2);          // bytes
-        ushort d_raw = intel_sub_group_block_read_us((const __global ushort*)(PD + pd_e));
+        ushort d_raw = BLOCK_READN(ushort, 1, (PD + pd_e), 0);
 
         // --- Load 256 activations into SLM (each lane writes 16 elements at stride OPG) ---
         __attribute__((opencl_unroll_hint))
@@ -1198,18 +1200,18 @@ KERNEL(fc_gguf_q8_0_sg)(
         // --- Issue all long-latency global loads first (weights + scales). Each sub-block is
         //     OPG*32 bytes = OPG*8 uints apart. ---
         uint pe_u = (h * nbpr + bid) * (OPG * 256 / 4);   // uints
-        uint8 w0 = intel_sub_group_block_read8(pqs_u + pe_u + 0*OPG*8);  // sub 0
-        uint8 w1 = intel_sub_group_block_read8(pqs_u + pe_u + 1*OPG*8);  // sub 1
-        uint8 w2 = intel_sub_group_block_read8(pqs_u + pe_u + 2*OPG*8);  // sub 2
-        uint8 w3 = intel_sub_group_block_read8(pqs_u + pe_u + 3*OPG*8);  // sub 3
-        uint8 w4 = intel_sub_group_block_read8(pqs_u + pe_u + 4*OPG*8);  // sub 4
-        uint8 w5 = intel_sub_group_block_read8(pqs_u + pe_u + 5*OPG*8);  // sub 5
-        uint8 w6 = intel_sub_group_block_read8(pqs_u + pe_u + 6*OPG*8);  // sub 6
-        uint8 w7 = intel_sub_group_block_read8(pqs_u + pe_u + 7*OPG*8);  // sub 7
+        uint8 w0 = BLOCK_READN(uint, 8, pqs_u, pe_u + 0*OPG*8);  // sub 0
+        uint8 w1 = BLOCK_READN(uint, 8, pqs_u, pe_u + 1*OPG*8);  // sub 1
+        uint8 w2 = BLOCK_READN(uint, 8, pqs_u, pe_u + 2*OPG*8);  // sub 2
+        uint8 w3 = BLOCK_READN(uint, 8, pqs_u, pe_u + 3*OPG*8);  // sub 3
+        uint8 w4 = BLOCK_READN(uint, 8, pqs_u, pe_u + 4*OPG*8);  // sub 4
+        uint8 w5 = BLOCK_READN(uint, 8, pqs_u, pe_u + 5*OPG*8);  // sub 5
+        uint8 w6 = BLOCK_READN(uint, 8, pqs_u, pe_u + 6*OPG*8);  // sub 6
+        uint8 w7 = BLOCK_READN(uint, 8, pqs_u, pe_u + 7*OPG*8);  // sub 7
 
         // 8 fp16 scales per lane (SoA), fetched with ONE wide block read.
         uint    pd_off = (h * nbpr + bid) * (OPG * 8);    // ushorts
-        ushort8 dv = intel_sub_group_block_read_us8(pd_us + pd_off);
+        ushort8 dv = BLOCK_READN(ushort, 8, pd_us, pd_off);
 
         // --- Load 256 activations into SLM (each lane writes 16 elements at stride OPG) ---
         __attribute__((opencl_unroll_hint))

@@ -7,6 +7,10 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <iomanip>
+#include <limits>
+#include <locale>
+#include <sstream>
 #include <string>
 
 #include "../primitive_ocl_base.hpp"
@@ -1244,12 +1248,16 @@ protected:
             if (fd.is_type<cldnn::activation>()) {
                 const auto act = fd.typed_desc<cldnn::activation>();
                 switch (act->activation_function) {
-                case cldnn::activation_func::swish:
-                    // swish(x) = x / (1 + exp(-x))
+                case cldnn::activation_func::swish: {
+                    // swish(x) = x / (1 + exp(-beta*x))
                     // CM has no expf(); use cm_exp(x*log2e) = e^x  (base-2 hardware
                     // exp, vector form -- cm_exp deduces width from its argument).
-                    op.apply_stmt = "V = V / (1.0f + cm_exp(-V * 1.4426950408889634f));";
+                    std::ostringstream beta;
+                    beta.imbue(std::locale::classic());
+                    beta << std::scientific << std::setprecision(std::numeric_limits<float>::max_digits10) << act->additional_params.a << 'f';
+                    op.apply_stmt = "V = V / (1.0f + cm_exp(-V * (" + beta.str() + ") * 1.4426950408889634f));";
                     break;
+                }
                 case cldnn::activation_func::relu:
                     op.apply_stmt = "V = cm_max<float>(V, 0.0f);";
                     break;
@@ -1613,18 +1621,16 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const override {
         PrimitiveImplOCL::save(ob);
-        ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle
-              << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16 << m_use_dq_act
-              << m_act_dq_group << m_act_dq_asymmetric << m_requant_group;
+        ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16
+           << m_use_dq_act << m_act_dq_group << m_act_dq_asymmetric << m_requant_group;
         const auto prefill_kernel = static_cast<uint8_t>(m_prefill_kernel);
         ob << prefill_kernel << m_gemm_strict << m_gemm_family;
     }
 
     void load(cldnn::BinaryInputBuffer& ib) override {
         PrimitiveImplOCL::load(ib);
-        ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle
-              >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >> m_use_dq_act
-              >> m_act_dq_group >> m_act_dq_asymmetric >> m_requant_group;
+        ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >>
+            m_use_dq_act >> m_act_dq_group >> m_act_dq_asymmetric >> m_requant_group;
         uint8_t prefill_kernel = 0;
         ib >> prefill_kernel >> m_gemm_strict >> m_gemm_family;
         m_prefill_kernel = static_cast<PrefillKernel>(prefill_kernel);
@@ -1641,7 +1647,7 @@ public:
         c->m_q4_1_shuffle = m_q4_1_shuffle;
         c->m_q8_0_shuffle = m_q8_0_shuffle;
         c->m_prefill_f16 = m_prefill_f16;
-    c->m_use_dq_act = m_use_dq_act;
+        c->m_use_dq_act = m_use_dq_act;
         c->m_act_dq_group = m_act_dq_group;
         c->m_act_dq_asymmetric = m_act_dq_asymmetric;
         c->m_requant_group = m_requant_group;
