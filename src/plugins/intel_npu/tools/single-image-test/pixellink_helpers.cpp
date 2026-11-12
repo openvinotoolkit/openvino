@@ -16,6 +16,13 @@
 
 namespace {
 
+std::string lowercase(std::string name) {
+    std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return name;
+}
+
 // Best link probability over the 8 link channels of one head at pixel (idx).
 inline float channelMax(const std::vector<float>& buf, int channels, int hw, int idx) {
     float best = -std::numeric_limits<float>::infinity();
@@ -39,8 +46,7 @@ cv::Mat pickLinkMask(const pixellink::ScaleData& s, float linkThresh) {
             const float sv = s.scoresV.at<float>(y, x);
             const float lhMax = channelMax(s.linksH, 8, HW, idx);
             const float lvMax = channelMax(s.linksV, 8, HW, idx);
-            float linkConf = (sh >= sv) ? lhMax : lvMax;
-            linkConf = std::max(linkConf, std::min(lhMax, lvMax));
+            const float linkConf = (sh >= sv) ? lhMax : lvMax;
             mask.at<uint8_t>(y, x) = (linkConf > linkThresh) ? 255 : 0;
         }
     }
@@ -104,7 +110,7 @@ void nmsPolygons(const std::vector<pixellink::Polygon>& boxes, const std::vector
 
     std::vector<size_t> order(boxes.size());
     std::iota(order.begin(), order.end(), size_t{0});
-    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+    std::stable_sort(order.begin(), order.end(), [&](size_t a, size_t b) {
         return tieKey(a) < tieKey(b);
     });
 
@@ -125,95 +131,82 @@ void nmsPolygons(const std::vector<pixellink::Polygon>& boxes, const std::vector
 
 }  // namespace
 
+bool pixellink::isPixelLinkOutputs(const std::map<std::string, ov::Tensor>& tensors) {
+    return std::any_of(tensors.begin(), tensors.end(), [](const auto& entry) {
+        return lowercase(entry.first).find("link_scores") != std::string::npos;
+    });
+}
+
 bool pixellink::buildScales(const std::map<std::string, ov::Tensor>& tensors,
                             std::vector<ScaleData>& scales) {
-    struct Head {
-        int C;
-        int H;
-        int W;
-        std::string name;
-        ov::Tensor tensor;
-    };
-    std::vector<Head> heads;
-    for (const auto& [name, tensor] : tensors) {
-        const ov::Shape shape = tensor.get_shape();
-        if (shape.size() != 4 || shape[0] != 1) {
-            std::cout << "pixellink: skipping tensor '" << name << "' with unsupported shape " << shape
-                      << std::endl;
-            continue;
-        }
-        heads.push_back({static_cast<int>(shape[1]), static_cast<int>(shape[2]),
-                         static_cast<int>(shape[3]), name, tensor});
-    }
-    if (heads.empty()) {
+    scales.clear();
+    if (!isPixelLinkOutputs(tensors)) {
         return false;
     }
 
-    // Unique (H, W) scales sorted by resolution, largest first (fpn2, fpn3, fpn4).
-    std::vector<std::pair<int, int>> shapes;
-    for (const auto& h : heads) {
-        const std::pair<int, int> hw{h.H, h.W};
-        if (std::find(shapes.begin(), shapes.end(), hw) == shapes.end()) {
-            shapes.push_back(hw);
-        }
-    }
-    std::sort(shapes.begin(), shapes.end(), [](const auto& a, const auto& b) {
-        return a.first > b.first || (a.first == b.first && a.second > b.second);
-    });
+    std::map<std::pair<int, int>, ScaleData, std::greater<>> grouped;
+    for (const auto& [name, tensor] : tensors) {
+        const ov::Shape shape = tensor.get_shape();
+        OPENVINO_ASSERT(shape.size() == 4 && shape[0] == 1,
+                        "pixellink: expected [1,C,H,W] for '",
+                        name,
+                        "', got ",
+                        shape);
+        const auto limit = static_cast<size_t>(std::numeric_limits<int>::max() / 8);
+        OPENVINO_ASSERT(shape[2] > 0 && shape[3] > 0 && shape[2] <= limit && shape[3] <= limit / shape[2],
+                        "pixellink: unsupported spatial dimensions for '",
+                        name,
+                        "': ",
+                        shape);
 
-    scales.assign(shapes.size(), ScaleData{});
-    for (size_t i = 0; i < shapes.size(); ++i) {
-        scales[i].H = shapes[i].first;
-        scales[i].W = shapes[i].second;
-    }
-    auto scaleIndex = [&](int H, int W) -> int {
-        for (size_t i = 0; i < shapes.size(); ++i) {
-            if (shapes[i].first == H && shapes[i].second == W) {
-                return static_cast<int>(i);
-            }
-        }
-        return -1;
-    };
-
-    for (auto& h : heads) {
-        const int si = scaleIndex(h.H, h.W);
-        if (si < 0) {
-            continue;
-        }
-        ScaleData& sc = scales[si];
-
-        std::string lname = h.name;
-        std::transform(lname.begin(), lname.end(), lname.begin(), [](unsigned char c) {
-            return static_cast<char>(std::tolower(c));
-        });
+        const int H = static_cast<int>(shape[2]);
+        const int W = static_cast<int>(shape[3]);
+        ScaleData& sc = grouped[{H, W}];
+        sc.H = H;
+        sc.W = W;
+        const std::string lname = lowercase(name);
         const bool isLink = lname.find("link") != std::string::npos;
+        const bool isDelta = lname.find("delta") != std::string::npos;
+        const bool isScore = !isLink && lname.find("score") != std::string::npos;
         const bool hasVert = lname.find("vert") != std::string::npos;
         const bool hasHori = lname.find("hori") != std::string::npos;
+        OPENVINO_ASSERT(hasVert != hasHori && (isLink || isDelta || isScore),
+                        "pixellink: ambiguous head name '",
+                        name,
+                        "'; expected score/delta/link and hori/vert tokens");
+        OPENVINO_ASSERT(shape[1] == (isScore ? 1 : 8), "pixellink: unexpected channel count for '", name, "': ", shape);
 
-        const ov::Tensor fp32 = npu::utils::toFP32(h.tensor);
+        const ov::Tensor fp32 = npu::utils::toFP32(tensor);
         const float* buf = fp32.data<const float>();
-        std::vector<float> vec(buf, buf + fp32.get_size());
+        OPENVINO_ASSERT(std::all_of(buf,
+                                    buf + fp32.get_size(),
+                                    [](float value) {
+                                        return std::isfinite(value);
+                                    }),
+                        "pixellink: non-finite value in '",
+                        name,
+                        "'");
 
-        if (h.C == 1) {
-            // No token -> fill horizontal slot first, then vertical.
-            const bool toVert = hasVert || (!hasHori && !sc.scoresH.empty());
-            cv::Mat m = cv::Mat(h.H, h.W, CV_32F, const_cast<float*>(vec.data())).clone();
-            (toVert ? sc.scoresV : sc.scoresH) = m;
-        } else if (h.C == 8 && isLink) {
-            const bool toVert = hasVert || (!hasHori && !sc.linksH.empty());
-            (toVert ? sc.linksV : sc.linksH) = std::move(vec);
-        } else if (h.C == 8) {
-            const bool toVert = hasVert || (!hasHori && !sc.deltasH.empty());
-            (toVert ? sc.deltasV : sc.deltasH) = std::move(vec);
+        if (isScore) {
+            cv::Mat& target = hasVert ? sc.scoresV : sc.scoresH;
+            OPENVINO_ASSERT(target.empty(), "pixellink: duplicate score head '", name, "'");
+            target = cv::Mat(H, W, CV_32F, const_cast<float*>(buf)).clone();
+        } else {
+            auto& target = isLink ? (hasVert ? sc.linksV : sc.linksH) : (hasVert ? sc.deltasV : sc.deltasH);
+            OPENVINO_ASSERT(target.empty(), "pixellink: duplicate head '", name, "'");
+            target.assign(buf, buf + fp32.get_size());
         }
     }
 
-    for (const auto& sc : scales) {
+    for (auto& [shape, sc] : grouped) {
         const size_t need = static_cast<size_t>(8) * sc.H * sc.W;
-        if (sc.scoresH.empty() || sc.scoresV.empty() || sc.deltasH.size() != need ||
-            sc.deltasV.size() != need || sc.linksH.size() != need || sc.linksV.size() != need) {
-            return false;
-        }
+        OPENVINO_ASSERT(!sc.scoresH.empty() && !sc.scoresV.empty() && sc.deltasH.size() == need &&
+                            sc.deltasV.size() == need && sc.linksH.size() == need && sc.linksV.size() == need,
+                        "pixellink: incomplete six-head set at ",
+                        sc.H,
+                        "x",
+                        sc.W);
+        scales.push_back(std::move(sc));
     }
     return true;
 }
@@ -227,20 +220,19 @@ double pixellink::polygonIoU(const Polygon& a, const Polygon& b) {
     if (area1 <= 0.0 || area2 <= 0.0) {
         return 0.0;
     }
-    double interArea = 0.0;
-    try {
-        std::vector<cv::Point2f> interPoly;
-        interArea = cv::intersectConvexConvex(a, b, interPoly, true);
-    } catch (const cv::Exception&) {
-        // Any degeneracy (colinear points, zero area, etc.) -> treat as no overlap.
-        return 0.0;
-    }
+    std::vector<cv::Point2f> interPoly;
+    const double interArea = cv::intersectConvexConvex(a, b, interPoly, true);
     const double unionArea = area1 + area2 - interArea;
     return unionArea > 0.0 ? interArea / unionArea : 0.0;
 }
 
 void pixellink::decodeLinkAware(const std::vector<ScaleData>& scales, const DecodeParams& params,
                                 std::vector<Polygon>& outBoxes, std::vector<float>& outScores) {
+    OPENVINO_ASSERT(params.origH > 0 && params.origW > 0, "pixellink: image height and width must be positive");
+    for (float value : {params.textThresh, params.linkThresh, params.nmsIoU}) {
+        OPENVINO_ASSERT(std::isfinite(value) && value >= 0.0f && value <= 1.0f,
+                        "pixellink: thresholds must be finite values in [0,1]");
+    }
     std::vector<Polygon> allBoxes;
     std::vector<float> allScores;
 
@@ -255,14 +247,20 @@ void pixellink::decodeLinkAware(const std::vector<ScaleData>& scales, const Deco
 
         const cv::Mat linkMask = pickLinkMask(s, params.linkThresh);
 
-        // Determinism patch 1: round the text score to 3 decimals before thresholding.
+        // Match NumPy's three-decimal, ties-to-even rounding before thresholding.
         cv::Mat strong(H, W, CV_8U);
         for (int y = 0; y < H; ++y) {
             for (int x = 0; x < W; ++x) {
                 const float sh = s.scoresH.at<float>(y, x);
                 const float sv = s.scoresV.at<float>(y, x);
                 float combined = std::max(sh, sv);
-                combined = std::round(combined * 1000.0f) / 1000.0f;
+                const float scaled = combined * 1000.0f;
+                float rounded = std::floor(scaled);
+                const float fraction = scaled - rounded;
+                if (fraction > 0.5f || (fraction == 0.5f && std::fmod(rounded, 2.0f) != 0.0f)) {
+                    rounded += 1.0f;
+                }
+                combined = rounded / 1000.0f;
                 const bool textOn = combined > params.textThresh;
                 const bool linkOn = linkMask.at<uint8_t>(y, x) != 0;
                 strong.at<uint8_t>(y, x) = (textOn && linkOn) ? 255 : 0;

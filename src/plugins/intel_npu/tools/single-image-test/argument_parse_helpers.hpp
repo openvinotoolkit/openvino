@@ -119,6 +119,7 @@ DECLARE_string(pixellink_text_threshold);
 DECLARE_string(pixellink_link_threshold);
 DECLARE_string(pixellink_nms_iou);
 DECLARE_string(pixellink_image_size);
+DECLARE_bool(pixellink_morph_close);
 
 namespace utils {
 

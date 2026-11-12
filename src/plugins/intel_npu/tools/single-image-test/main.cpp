@@ -1667,27 +1667,32 @@ bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference, double 
 // Build PixelLink decoder parameters from the --pixellink_* flags. These are only
 // consumed by the mAP path when the outputs are PixelLink scene-text heads.
 static pixellink::DecodeParams buildPixelLinkDecodeParams() {
-    auto textMap = utils::parsePerLayerValues(FLAGS_pixellink_text_threshold, metric_defaults::pixellink_text_threshold);
-    auto linkMap = utils::parsePerLayerValues(FLAGS_pixellink_link_threshold, metric_defaults::pixellink_link_threshold);
-    auto nmsMap = utils::parsePerLayerValues(FLAGS_pixellink_nms_iou, metric_defaults::pixellink_nms_iou);
+    auto threshold = [](const std::string& text, const char* flag) {
+        std::istringstream input(text);
+        float value = 0.0f;
+        OPENVINO_ASSERT(
+            (input >> value) && (input >> std::ws).eof() && std::isfinite(value) && value >= 0.0f && value <= 1.0f,
+            flag,
+            " must be a single finite number in [0,1], got '",
+            text,
+            "'");
+        return value;
+    };
 
     pixellink::DecodeParams params;
-    params.textThresh = static_cast<float>(utils::getValueForLayer(textMap, "*"));
-    params.linkThresh = static_cast<float>(utils::getValueForLayer(linkMap, "*"));
-    params.nmsIoU = static_cast<float>(utils::getValueForLayer(nmsMap, "*"));
+    params.textThresh = threshold(FLAGS_pixellink_text_threshold, "--pixellink_text_threshold");
+    params.linkThresh = threshold(FLAGS_pixellink_link_threshold, "--pixellink_link_threshold");
+    params.nmsIoU = threshold(FLAGS_pixellink_nms_iou, "--pixellink_nms_iou");
+    params.morphClose = FLAGS_pixellink_morph_close;
 
     // Parse "--pixellink_image_size H,W" (defaults to 768,1152).
-    const std::string& sz = FLAGS_pixellink_image_size;
-    const auto comma = sz.find(',');
-    if (comma != std::string::npos) {
-        try {
-            params.origH = std::stoi(sz.substr(0, comma));
-            params.origW = std::stoi(sz.substr(comma + 1));
-        } catch (const std::exception&) {
-            std::cout << "pixellink: could not parse --pixellink_image_size '" << sz
-                      << "', using " << params.origH << "," << params.origW << std::endl;
-        }
-    }
+    std::istringstream size(FLAGS_pixellink_image_size);
+    char comma = 0;
+    OPENVINO_ASSERT((size >> params.origH >> comma >> params.origW) && comma == ',' && (size >> std::ws).eof() &&
+                        params.origH > 0 && params.origW > 0,
+                    "--pixellink_image_size must be positive integers H,W, got '",
+                    FLAGS_pixellink_image_size,
+                    "'");
     return params;
 }
 
@@ -1698,7 +1703,10 @@ bool computeMAP(const std::map<std::string, ov::Tensor>& outputs, const std::map
     double confThresh = utils::getValueForLayer(confMap, "*");
     double overlapThresh = utils::getValueForLayer(overlapMap, "*");
 
-    const pixellink::DecodeParams pixellinkParams = buildPixelLinkDecodeParams();
+    const pixellink::DecodeParams pixellinkParams =
+        pixellink::isPixelLinkOutputs(outputs) || pixellink::isPixelLinkOutputs(references)
+            ? buildPixelLinkDecodeParams()
+            : pixellink::DecodeParams{};
 
     std::vector<utils::Detection> predictions  = utils::parseDetectionsFromOutputs(outputs, static_cast<float>(confThresh), pixellinkParams);
     std::vector<utils::Detection> ground_truth = utils::parseDetectionsFromOutputs(references, static_cast<float>(confThresh), pixellinkParams);

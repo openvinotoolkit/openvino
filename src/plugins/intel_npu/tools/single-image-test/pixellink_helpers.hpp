@@ -13,9 +13,8 @@
 #include <openvino/runtime/tensor.hpp>
 
 // PixelLink + EAST hybrid post-processing (pso0-style scene-text detector).
-// Ports the link-aware decoder and the COCO-style oriented-polygon mAP from
-// the standalone Python reference into the single-image-test tool. All polygon
-// geometry goes through OpenCV (no shapely / no external deps).
+// Ports the Python proof-of-concept decoder. SIT evaluates the resulting
+// axis-aligned boxes with its existing single-class mAP metric.
 namespace pixellink {
 
 // An oriented quadrilateral in image space (4 corners, x/y order).
@@ -43,11 +42,14 @@ struct DecodeParams {
     int origW = 1152;
 };
 
+// Recognize named link-score heads without decoding or testing detection count.
+bool isPixelLinkOutputs(const std::map<std::string, ov::Tensor>& tensors);
+
 // Map the model's output tensors to per-scale PixelLink heads. Groups 4D
 // [1, C, H, W] tensors by spatial (H, W) into FPN scales (largest first) and
 // classifies each head by name tokens: "link" -> link head, "score" -> score
-// head, otherwise delta/bbox head; "vert"/"hori" select the vertical/horizontal
-// head. Returns false if any scale is missing one of its six heads.
+// head, "delta" -> corner offsets; "vert"/"hori" select the vertical/horizontal
+// head. Returns false for other formats; throws for malformed PixelLink heads.
 bool buildScales(const std::map<std::string, ov::Tensor>& tensors, std::vector<ScaleData>& scales);
 
 // IoU between two oriented convex quadrilaterals (OpenCV intersectConvexConvex).
